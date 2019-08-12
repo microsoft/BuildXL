@@ -14,12 +14,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         private static readonly string[] s_helpStrings = new[] { "?", "help" };
 
         /// <summary>
-        /// The Filter expression
+        /// The path to configuration file.
         /// </summary>
         public readonly string Config;
 
         /// <summary>
-        /// The Filter expression
+        /// The filter expression.
         /// </summary>
         public readonly string Filter;
 
@@ -37,6 +37,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// The analyzers to apply (in sequence)
         /// </summary>
         public readonly List<Analyzer> Analyzers;
+
+        /// <summary>
+        /// Object directory used for evaluation.
+        /// </summary>
+        public readonly string ObjectDirectory;
+
+        /// <summary>
+        /// Output directory used for evaluation.
+        /// </summary>
+        public readonly string OutputDirectory;
 
         /// <nodoc />
         public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
@@ -67,6 +77,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     opt.Name.Equals("c", StringComparison.OrdinalIgnoreCase))
                 {
                     Config = opt.Value;
+                }
+                else if (opt.Name.Equals("objectDirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    ObjectDirectory = GetFullPath(opt.Value, opt);
+                }
+                else if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    OutputDirectory = GetFullPath(opt.Value, opt);
                 }
                 else if (opt.Name.Equals("fix", StringComparison.OrdinalIgnoreCase))
                 {

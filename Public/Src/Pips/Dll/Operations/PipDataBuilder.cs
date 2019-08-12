@@ -36,6 +36,12 @@ namespace BuildXL.Pips.Operations
     /// VsoHashEntry2RewriteCount | <see cref="FileArtifact.RewriteCount"/>      | Second entry of a <see cref="PipFragmentType.VsoHash"/> fragment.
     ///                           |                                              | Its data holds the <see cref="FileArtifact.RewriteCount"/> property.
     /// --------------------------|----------------------------------------------|----------------------------------------------
+    /// FileId1Path               | <see cref="AbsolutePath.RawValue"/>          | First entry of a <see cref="PipFragmentType.FileId"/> fragment.
+    ///                           |                                              | Its data corresponds to the <see cref="FileArtifact.Path"/> property.
+    /// --------------------------|----------------------------------------------|----------------------------------------------
+    /// FileId2RewriteCount       | <see cref="FileArtifact.RewriteCount"/>      | Second entry of a <see cref="PipFragmentType.FileId"/> fragment.
+    ///                           |                                              | Its data holds the <see cref="FileArtifact.RewriteCount"/> property.
+    /// --------------------------|----------------------------------------------|----------------------------------------------
     /// NestedDataHeader          | <see cref="StringId.Value"/>                 | Represents the start of a nested pip data.
     ///                           |                                              | Data represents separator between fragments of
     ///                           |                                              | nested pip data. The next entry should be a
@@ -46,10 +52,10 @@ namespace BuildXL.Pips.Operations
     ///                           |                                              | fragments of the nested data entry. This is
     ///                           |                                              | essential a pointer to the last entry.
     /// --------------------------|----------------------------------------------|----------------------------------------------
-    /// NestedDataStart           | <see cref="int"/>                          | Data is number entries in nested pip data excluding header.
+    /// NestedDataStart           | <see cref="int"/>                            | Data is number entries in nested pip data excluding header.
     ///                           |                                              | The nested data end entry is located at (NestedDataStartIndex + Data - 1).
     /// --------------------------|----------------------------------------------|----------------------------------------------
-    /// NestedDataEnd             | <see cref="int"/>                          | Data is number of fragments in nested pip data excluding header).
+    /// NestedDataEnd             | <see cref="int"/>                            | Data is number of fragments in nested pip data excluding header).
     /// --------------------------|----------------------------------------------|----------------------------------------------
     /// </remarks>
     public sealed class PipDataBuilder
@@ -129,7 +135,7 @@ namespace BuildXL.Pips.Operations
 
             // Add 2 for start and end entries
             var entryLength = m_entries.Count - startIndexOfFirstFragment + 2;
-            var entriesBinarySegment = WriteEntries(getEntries(), entryLength, ref m_entriesBinaryStringBuffer);
+            var entriesBinarySegment = WriteEntries(GetEntries(), entryLength, ref m_entriesBinaryStringBuffer);
 
             // NOTE: The raw value is added to string table backing byte buffers without being converted to a CLR string object
             var pipDataId = StringTable.AddString(entriesBinarySegment);
@@ -139,7 +145,7 @@ namespace BuildXL.Pips.Operations
                 new PipDataEntryList(StringTable.GetBytes(pipDataId)),
                 pipDataId);
 
-            IEnumerable<PipDataEntry> getEntries()
+            IEnumerable<PipDataEntry> GetEntries()
             {
                 yield return PipDataEntry.CreateNestedDataStart(entryLength);
 
@@ -245,6 +251,21 @@ namespace BuildXL.Pips.Operations
             PipDataEntry entry1;
             PipDataEntry entry2;
             PipDataEntry.CreateVsoHashEntry(file, out entry1, out entry2);
+            m_entries.Add(entry1);
+            m_entries.Add(entry2);
+        }
+
+        /// <summary>
+        /// Adds a file id of a file to the pip data.
+        /// </summary>
+        public void AddFileId(FileArtifact file)
+        {
+            Contract.Requires(file.IsValid);
+
+            m_currentPipDataCountInfo.FragmentCount++;
+            PipDataEntry entry1;
+            PipDataEntry entry2;
+            PipDataEntry.CreateFileIdEntry(file, out entry1, out entry2);
             m_entries.Add(entry1);
             m_entries.Add(entry2);
         }

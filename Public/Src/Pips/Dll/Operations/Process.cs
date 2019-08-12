@@ -617,6 +617,11 @@ namespace BuildXL.Pips.Operations
         public bool AllowPreserveOutputs => (ProcessOptions & Options.AllowPreserveOutputs) != 0;
 
         /// <summary>
+        /// Indicates the process run for tool that has incremental build capability.
+        /// </summary>
+        public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
+
+        /// <summary>
         /// Indicates whether this is a light process.
         /// </summary>
         public bool IsLight => (ProcessOptions & Options.IsLight) != 0;
@@ -797,7 +802,7 @@ namespace BuildXL.Pips.Operations
                 uniqueRedirectedDirectoryRoot: reader.ReadAbsolutePath(),
                 tempDirectory: reader.ReadAbsolutePath(),
                 options: (Options)reader.ReadInt32(),
-                serviceInfo: reader.ReadNullable(reader1 => Operations.ServiceInfo.InternalDeserialize(reader1)),
+                serviceInfo: reader.ReadNullable(reader1 => ServiceInfo.InternalDeserialize(reader1)),
                 retryExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
                 allowedSurvivingChildProcessNames: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 nestedProcessTerminationTimeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),

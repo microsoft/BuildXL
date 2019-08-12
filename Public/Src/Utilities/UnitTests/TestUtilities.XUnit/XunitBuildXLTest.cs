@@ -27,24 +27,30 @@ namespace Test.BuildXL.TestUtilities.Xunit
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
-        private static readonly Lazy<IKextConnection> s_sandboxedKextConnection =  new Lazy<IKextConnection>(() =>
+        private static readonly Lazy<ISandboxConnection> s_sandboxConnection =  new Lazy<ISandboxConnection>(() =>
             OperatingSystemHelper.IsUnixOS
-                ? new KextConnection(
-                    skipDisposingForTests: true, 
-                    config: new KextConnection.Config
-                    {
-                        MeasureCpuTimes = true,
-                        FailureCallback = (status, description) =>
-                        {
-                            XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
-                        },
-#if PLATFORM_OSX                        
-                        KextConfig = new KextConfig
-                        {
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
-                        }   
+#if PLATFORM_OSX
+                ? OperatingSystemHelper.IsMacOSCatalinaOrHigher 
+                    ? (ISandboxConnection) new SandboxConnectionES() 
+                    : new SandboxConnectionKext(
+#else
+                    ? new SandboxConnectionKext(
 #endif
-                    })
+                        skipDisposingForTests: true, 
+                        config: new SandboxConnectionKext.Config
+                        {
+                            MeasureCpuTimes = true,
+                            FailureCallback = (status, description) =>
+                            {
+                                XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
+                            },
+    #if PLATFORM_OSX                        
+                            KextConfig = new KextConfig
+                            {
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                            }   
+    #endif
+                        })
                 : null);
 
         /// <summary>
@@ -52,9 +58,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// tunnel all requests through the same object to keep kernel memory and CPU utilization low. On Windows machines this
         /// always returns null and causes no overhead for testing.
         /// </summary>
-        public static IKextConnection GetSandboxedKextConnection()
+        public static ISandboxConnection GetSandboxConnection()
         {
-            return s_sandboxedKextConnection.Value;
+            return s_sandboxConnection.Value;
         }
 
         /// <summary>

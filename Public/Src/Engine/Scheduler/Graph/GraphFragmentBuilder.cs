@@ -12,9 +12,9 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Scheduler.Graph.PipGraph;
@@ -31,7 +31,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly SealedDirectoryTable m_sealDirectoryTable;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly ConcurrentBigMap<ModuleId, ModulePip> m_modules = new ConcurrentBigMap<ModuleId, ModulePip>();
-        private readonly ConcurrentBigMap<PipId, IList<Pip>> m_pipDependents = new ConcurrentBigMap<PipId, IList<Pip>>();
+        private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
         private readonly ConcurrentBigMap<FileArtifact, PipId> m_fileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
 
         /// <summary>
@@ -43,26 +43,27 @@ namespace BuildXL.Scheduler.Graph
         private WindowsOsDefaults m_windowsOsDefaults;
         private MacOsDefaults m_macOsDefaults;
         private readonly object m_osDefaultLock = new object();
+        private int m_nextPipId = 0;
 
         /// <summary>
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilder(LoggingContext loggingContext, PipExecutionContext pipExecutionContext)
+        public GraphFragmentBuilder(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pipExecutionContext != null);
 
             m_loggingContext = loggingContext;
             m_pipExecutionContext = pipExecutionContext;
-            m_lazyApiServerMoniker = Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+            m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
+                ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
+                : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
             m_sealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
             m_servicePipToServiceInfoMap = new ConcurrentBigMap<PipId, ServiceInfo>();
         }
 
         /// <inheritdoc />
         public int PipCount => m_pips.Count;
-
-        private int m_nextPipId = 0;
 
         private bool AddPip(Pip pip)
         {

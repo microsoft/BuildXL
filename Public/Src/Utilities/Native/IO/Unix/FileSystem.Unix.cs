@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-#if FEATURE_CORECLR
+#if NET_CORE
 using System.IO.Enumeration;
 #endif
 using System.Linq;
@@ -193,7 +193,7 @@ namespace BuildXL.Native.IO.Unix
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/, long /*fileSize*/> handleEntry,
             bool isEnumerationForDirectoryDeletion)
         {
-#if FEATURE_CORECLR
+#if NET_CORE
             try
             {
                 GetFileFullPathsWithExtension(directoryPath).Any();

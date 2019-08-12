@@ -2447,7 +2447,7 @@ EXIT /b 3
                 semanticPathExpander: mountExpander,
                 fileAccessWhitelist: fileAccessWhitelist,
                 allowUnspecifiedSealedDirectories: false,
-                sandboxedKextConnection: GetSandboxedKextConnection());
+                sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
             return env;
         }
@@ -2479,7 +2479,7 @@ EXIT /b 3
                 fileAccessWhitelist: fileAccessWhitelist,
                 allowUnspecifiedSealedDirectories: false,
                 ipcProvider: ipcProvider,
-                sandboxedKextConnection: GetSandboxedKextConnection());
+                sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
 
             // A bit of a hack for tests that validate things that get logged to the Static context

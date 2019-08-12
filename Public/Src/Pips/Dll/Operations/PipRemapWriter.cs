@@ -35,45 +35,20 @@ namespace BuildXL.Pips.Operations
             m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(m_inliningWriter, stream, pipExecutionContext.PathTable, debug, leaveOpen, logStats);
         }
 
-        /// <summary>
-        /// Writes an absolute path
-        /// </summary>
-        public override void Write(AbsolutePath value)
-        {
-            m_inliningWriter.Write(value);
-        }
+        /// <inheritdoc />
+        public override void Write(AbsolutePath value) => m_inliningWriter.Write(value);
 
-        /// <summary>
-        /// Writes a path atom
-        /// </summary>
-        public override void Write(PathAtom value)
-        {
-            m_inliningWriter.Write(value);
-        }
+        /// <inheritdoc />
+        public override void Write(PathAtom value) => m_inliningWriter.Write(value);
 
-        /// <summary>
-        /// Writes a string id
-        /// </summary>
-        public override void Write(StringId value)
-        {
-            m_inliningWriter.Write(value);
-        }
+        /// <inheritdoc />
+        public override void Write(StringId value) => m_inliningWriter.Write(value);
 
-        /// <summary>
-        /// Writes a pip data id
-        /// </summary>
-        public override void WritePipDataEntriesPointer(in StringId value)
-        {
-            m_pipDataEntriesPointerInlineWriter.Write(value);
-        }
+        /// <inheritdoc />
+        public override void WritePipDataEntriesPointer(in StringId value) => m_pipDataEntriesPointerInlineWriter.Write(value);
 
-        /// <summary>
-        /// Writes a full symbol
-        /// </summary>
-        public override void Write(FullSymbol value)
-        {
-            Write(value.ToString(m_pipExecutionContext.SymbolTable));
-        }
+        /// <inheritdoc />
+        public override void Write(FullSymbol value) => Write(value.ToString(m_pipExecutionContext.SymbolTable));
 
         private class PipDataEntriesPointerInlineWriter : InliningWriter
         {

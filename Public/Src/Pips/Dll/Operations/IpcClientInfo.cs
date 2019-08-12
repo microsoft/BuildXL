@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
-using System.IO;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
@@ -35,17 +34,17 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <nodoc />
-        public static IpcClientInfo Deserialize(BinaryReader reader)
+        internal static IpcClientInfo Deserialize(PipReader reader)
         {
-            var moniker = new StringId(reader.ReadInt32());
+            var moniker = reader.ReadStringId();
             var config = ClientConfig.Deserialize(reader);
             return new IpcClientInfo(moniker, config);
         }
 
         /// <nodoc />
-        public void Serialize(BinaryWriter writer)
+        internal void Serialize(PipWriter writer)
         {
-            writer.Write(IpcMonikerId.Value);
+            writer.Write(IpcMonikerId);
             ClientConfig.Serialize(IpcClientConfig, writer);
         }
     }

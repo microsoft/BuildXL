@@ -73,6 +73,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 engineContext,
                 config,
                 EvaluationFilter.Empty, // TODO: consider passing a filter that scopes down the build to the root folder
+                AbsolutePath.Invalid,
+                AbsolutePath.Invalid,
                 progressHandler,
                 out workspace,
                 out controller,
@@ -96,6 +98,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <param name="engineContext">Contextual information used by BuildXL engine.</param>
         /// <param name="configFile">Path to the primary configuration file. If invalid, a lookup will be performed</param>
         /// <param name="evaluationFilter">Evaluation filter that defines the build extent to care about.</param>
+        /// <param name="outputDirectory">Output directory that will be used for evaluation.</param>
+        /// <param name="objectDirectory">Object directory that will be used for evaluation.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>
         /// <param name="frontEndHostController">The host controller used for computing the workspace</param>
@@ -110,6 +114,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EngineContext engineContext,
             AbsolutePath configFile,
             EvaluationFilter evaluationFilter,
+            AbsolutePath outputDirectory,
+            AbsolutePath objectDirectory,
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
             out Workspace workspace,
             out FrontEndHostController frontEndHostController,
@@ -131,11 +137,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             var pathTable = engineContext.PathTable;
             var loggingContext = frontEndContext.LoggingContext;
 
-            var commandlineConfig = GetCommandLineConfiguration(configuration, phase, configFile);
-
-            // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
-            // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
-            commandlineConfig.FrontEnd.ReleaseWorkspaceBeforeEvaluation = !phase.HasFlag(EnginePhases.Evaluate);
+            var commandlineConfig = GetCommandLineConfiguration(
+                configuration, 
+                phase, 
+                configFile,
+                outputDirectory,
+                objectDirectory);
 
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandlineConfig, pathTable, bxlExeLocation: null);
 
@@ -193,7 +200,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             5000,
                             false);
 
-                        pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext);
+                        pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config);
 
                         // TODO: Think more if an analyzer wants to use the real pip graph builder.
                         //pipGraphBuilder = new PipGraph.Builder(
@@ -257,9 +264,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             Contract.Assert(frontEndHostController != null);
 
-            if (workspace != null)
+            workspace = frontEndHostController.GetWorkspace();
+
+            if (phase == EnginePhases.AnalyzeWorkspace)
             {
-                // If workspace construction is successfull, we run the linter on all specs.
+                // If workspace construction is successful, we run the linter on all specs.
                 // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
                 workspace = CreateLintedWorkspace(
                     workspace,
@@ -302,7 +311,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         private static CommandLineConfiguration GetCommandLineConfiguration(
             WorkspaceBuilderConfiguration configuration,
             EnginePhases phase,
-            AbsolutePath configFile)
+            AbsolutePath configFile,
+            AbsolutePath outputDirectory,
+            AbsolutePath objectDirectory)
         {
             return new CommandLineConfiguration
             {
@@ -322,11 +333,29 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     // If SkipNuget is specified, then all the packages should be on disk.
                     // Skipping nuget restore in this case.
                     UsePackagesFromFileSystem = configuration.SkipNuget,
+                    
+                    // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
+                    // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
+                    ReleaseWorkspaceBeforeEvaluation = !phase.HasFlag(EnginePhases.Evaluate),
+                    UnsafeOptimizedAstConversion = true,
                 },
                 Engine =
                 {
                     Phase = phase,
                 },
+                Schedule =
+                {
+                    UseFixedApiServerMoniker = true
+                },
+                Layout =
+                {
+                    OutputDirectory = outputDirectory,
+                    ObjectDirectory = objectDirectory,
+                },
+                Logging =
+                {
+                    LogsToRetain = 0,
+                }
             };
         }
 
@@ -339,6 +368,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EnginePhases phase,
             string configFile,
             string filter,
+            string outputDirectory,
+            string objectDirectory,
             out Workspace workspace,
             out IPipGraph pipGraph,
             out IReadOnlyDictionary<AbsolutePath, ISourceFile> filesToAnalyze,
@@ -367,6 +398,15 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             var configFilePath = AbsolutePath.Create(pathTable, configFile);
 
+
+            var outputDirectoryPath = !string.IsNullOrEmpty(outputDirectory)
+                ? AbsolutePath.Create(pathTable, outputDirectory)
+                : AbsolutePath.Invalid;
+
+            var objectDirectoryPath = !string.IsNullOrEmpty(objectDirectory)
+                ? AbsolutePath.Create(pathTable, objectDirectory)
+                : AbsolutePath.Invalid;
+
             // Try parsing the workspace from config and evaluation filter
             if (!TryBuildWorkspace(
                 phase,
@@ -374,6 +414,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 engineContext,
                 configFilePath,
                 evaluationFilter,
+                outputDirectoryPath,
+                objectDirectoryPath,
                 progressHandler: null,
                 workspace: out workspace,
                 frontEndHostController: out _,
@@ -383,7 +425,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            if (workspace != null)
+            if (phase == EnginePhases.AnalyzeWorkspace)
             {
                 // Find strict subset of specs in workspace that should be analyzed
                 var collectedFilesToAnalyze = CollectFilesToAnalyze(
@@ -399,6 +441,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 }
 
                 filesToAnalyze = collectedFilesToAnalyze;
+            }
+            else
+            {
+                filesToAnalyze = new Dictionary<AbsolutePath, ISourceFile>();
             }
 
             return true;

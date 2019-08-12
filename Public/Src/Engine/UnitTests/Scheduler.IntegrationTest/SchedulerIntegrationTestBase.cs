@@ -53,6 +53,8 @@ namespace Test.BuildXL.Scheduler
 
         private PipGraph m_lastGraph;
 
+        public PipGraph LastGraph => m_lastGraph;
+
         private JournalState m_journalState;
 
         /// <summary>
@@ -424,7 +426,7 @@ namespace Test.BuildXL.Scheduler
                 failedPips: null,
                 ipcProvider: null,
                 directoryTranslator: DirectoryTranslator,
-                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable)),
+                vmInitializer: VmInitializer.CreateFromEngine(config.Layout.BuildEngineDirectory.ToString(Context.PathTable)), // VM command proxy for unit tests comes from engine.
                 testHooks: testHooks))
             {
                 MountPathExpander mountPathExpander = null;

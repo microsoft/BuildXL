@@ -17,6 +17,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Name = "<Global>";
             ModulePolicies = new Dictionary<ModuleId, IModuleConfiguration>();
             SearchPathEnumerationTools = new List<RelativePath>();
+            IncrementalTools = new List<RelativePath>();
         }
 
         /// <nodoc />
@@ -29,6 +30,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ModulePolicies = new Dictionary<ModuleId, IModuleConfiguration>();
             SearchPathEnumerationTools = new List<RelativePath>(
                 template.SearchPathEnumerationTools.Select(pathRemapper.Remap));
+            IncrementalTools = new List<RelativePath>(
+                template.IncrementalTools.Select(pathRemapper.Remap));
 
             foreach (var module in template.ModulePolicies.Values)
             {
@@ -49,5 +52,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<RelativePath> IRootModuleConfiguration.SearchPathEnumerationTools => SearchPathEnumerationTools;
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public List<RelativePath> IncrementalTools { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<RelativePath> IRootModuleConfiguration.IncrementalTools => IncrementalTools;
     }
 }

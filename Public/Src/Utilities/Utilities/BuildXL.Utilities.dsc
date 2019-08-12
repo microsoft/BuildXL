@@ -13,6 +13,7 @@ export const dll = BuildXLSdk.library({
     references: [
         ...addIf(BuildXLSdk.isFullFramework,
             NetFx.System.Xml.dll,
+            NetFx.System.Xml.Linq.dll,
             NetFx.System.Management.dll,
             NetFx.System.Security.dll
         ),

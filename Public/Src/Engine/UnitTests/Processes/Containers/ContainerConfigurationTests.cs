@@ -194,7 +194,7 @@ namespace Test.BuildXL.Processes.Containers
             var inputFile = Path.Combine(sourceDirectory, "input.txt");
             File.WriteAllText(inputFile, "input");
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             // Deny write on the original input file
             FileUtilities.SetFileAccessControl(inputFile, FileSystemRights.Write, allow: false);
 #endif

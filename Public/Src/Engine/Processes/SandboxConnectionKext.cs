@@ -18,10 +18,10 @@ namespace BuildXL.Processes
     /// <summary>
     /// A class that manages the connection to the macOS kernel extension and provides utilities to communicate with the sandbox kernel extension
     /// </summary>
-    public sealed class KextConnection : IKextConnection
+    public sealed class SandboxConnectionKext : ISandboxConnection
     {
         /// <summary>
-        /// Configuration for <see cref="KextConnection"/>.
+        /// Configuration for <see cref="SandboxConnectionKext"/>.
         /// </summary>
         public sealed class Config
         {
@@ -67,16 +67,16 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         /// Until some automation for kernel extension building and deployment is in place, this number has to be kept in sync with the 'CFBundleVersion'
         /// inside the Info.plist file of the kernel extension code base. BuildXL will not work if a version mismatch is detected!
         /// </summary>
-        public const string RequiredKextVersionNumber = "1.97.99";
+        public const string RequiredKextVersionNumber = "1.98.99";
 
         /// <summary>
         /// See TN2420 (https://developer.apple.com/library/archive/technotes/tn2420/_index.html) on how versioning numbers are formatted in the Apple ecosystem
         /// </summary>
         private const int MaxVersionNumberLength = 17;
 
-        private readonly ConcurrentDictionary<long, SandboxedProcessMacKext> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessMacKext>();
+        private readonly ConcurrentDictionary<long, SandboxedProcessMac> m_pipProcesses = new ConcurrentDictionary<long, SandboxedProcessMac>();
 
-        private readonly Sandbox.KextConnectionInfo m_kextConnectionInfo;
+        private Sandbox.KextConnectionInfo m_kextConnectionInfo;
         private readonly Sandbox.KextSharedMemoryInfo m_sharedMemoryInfo;
         private readonly Sandbox.ManagedFailureCallback m_failureCallback;
         private readonly Thread m_workerThread;
@@ -100,18 +100,18 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         /// Initializes the sandbox kernel extension connection manager, setting up the kernel extension connection and workers that drain the
         /// kernel event queue and report file accesses
         /// </summary>
-        public KextConnection(Config config = null, bool skipDisposingForTests = false)
+        public SandboxConnectionKext(Config config = null, bool skipDisposingForTests = false)
         {
             m_reportQueueLastEnqueueTime = 0;
-            m_kextConnectionInfo = new Sandbox.KextConnectionInfo() { Error = Sandbox.KextSuccess };
-            m_sharedMemoryInfo = new Sandbox.KextSharedMemoryInfo() { Error = Sandbox.KextSuccess };
+            m_kextConnectionInfo = new Sandbox.KextConnectionInfo() { Error = Sandbox.SandboxSuccess };
+            m_sharedMemoryInfo = new Sandbox.KextSharedMemoryInfo() { Error = Sandbox.SandboxSuccess };
 
             MeasureCpuTimes = config.MeasureCpuTimes;
             IsInTestMode = skipDisposingForTests;
 
             // initialize kext connection
             Sandbox.InitializeKextConnection(ref m_kextConnectionInfo);
-            if (m_kextConnectionInfo.Error != Sandbox.KextSuccess)
+            if (m_kextConnectionInfo.Error != Sandbox.SandboxSuccess)
             {
                 throw new BuildXLException($@"Unable to connect to sandbox kernel extension (Code: {m_kextConnectionInfo.Error}) - make sure it is loaded and retry! {KextInstallHelper}");
             }
@@ -152,7 +152,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
 
             // Initialize the shared memory region
             Sandbox.InitializeKextSharedMemory(m_kextConnectionInfo, ref m_sharedMemoryInfo);
-            if (m_sharedMemoryInfo.Error != Sandbox.KextSuccess)
+            if (m_sharedMemoryInfo.Error != Sandbox.SandboxSuccess)
             {
                 throw new BuildXLException($"Unable to allocate shared memory region for worker (Code:{m_sharedMemoryInfo.Error})");
             }
@@ -246,7 +246,7 @@ Use the the following command to load/reload the sandbox kernel extension and fi
         }
 
         /// <inheritdoc />
-        public bool NotifyKextPipStarted(FileAccessManifest fam, SandboxedProcessMacKext process)
+        public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process)
         {
             Contract.Requires(process.Started);
             Contract.Requires(fam.PipId != 0);
@@ -279,20 +279,21 @@ Use the the following command to load/reload the sandbox kernel extension and fi
                     pipId: fam.PipId,
                     famBytes: manifestBytes.Array,
                     famBytesLength: manifestBytes.Count,
-                    info: m_kextConnectionInfo);
+                    type: Sandbox.ConnectionType.Kext,
+                    info: ref m_kextConnectionInfo);
 
                 return result;
             }
         }
 
         /// <inheritdoc />
-        public void NotifyKextPipProcessTerminated(long pipId, int processId)
+        public void NotifyPipProcessTerminated(long pipId, int processId)
         {
-            Sandbox.SendPipProcessTerminated(pipId, processId, m_kextConnectionInfo);
+            Sandbox.SendPipProcessTerminated(pipId, processId, type: Sandbox.ConnectionType.Kext, info: ref m_kextConnectionInfo);
         }
 
         /// <inheritdoc />
-        public bool NotifyKextProcessFinished(long pipId, SandboxedProcessMacKext process)
+        public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process)
         {
             if (m_pipProcesses.TryRemove(pipId, out var proc))
             {

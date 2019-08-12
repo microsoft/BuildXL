@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <nodoc />
         public static void OverrideFileAccessMode(bool changePermissions, string path)
         {
-#if PLATFORM_OSX
+#if !PLATFORM_WIN
             if (changePermissions)
             {
                 // Force 0777 on the file at 'path' - this is a temporary hack when placing files as our cache layer

@@ -385,7 +385,7 @@ namespace Test.BuildXL.Scheduler
                 Contract.Assert(cacheLayer != null);
 
                 Contract.Assume(scheduler != null);
-                scheduler.InitForMaster(LoggingContext, kextConnection: GetSandboxedKextConnection());
+                scheduler.InitForMaster(LoggingContext, sandboxConnectionKext: GetSandboxConnection());
                 scheduler.Start(LoggingContext);
 
                 bool success = scheduler.WhenDone().Result;

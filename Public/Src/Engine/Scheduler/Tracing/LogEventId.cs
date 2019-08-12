@@ -79,6 +79,8 @@ namespace BuildXL.Scheduler.Tracing
 
         PipCacheMetadataBelongToAnotherPip = 3700,
 
+        PipIpcFailedDueToInfrastructureError = 3701,
+
         // RESERVED TO [5000, 5050] (BuildXL.Scheduler.dll)
 
         // Dependency violations / analysis
@@ -139,7 +141,8 @@ namespace BuildXL.Scheduler.Tracing
         FailedToAddFragmentPipToGraph = 5048,
         ExceptionOnAddingFragmentPipToGraph = 5049,
         ExceptionOnDeserializingPipGraphFragment = 5050,
-        DebugFragment = 5051,
+        DeserializationStatsPipGraphFragment = 5051,
+        DebugFragment = 5052,
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

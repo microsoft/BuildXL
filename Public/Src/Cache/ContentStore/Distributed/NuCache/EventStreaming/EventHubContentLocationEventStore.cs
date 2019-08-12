@@ -423,7 +423,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected override BoolResult DoSuspendProcessing(OperationContext context)
         {
             // TODO: Make these async (bug 1365340)
-            _eventHubClient.SuspendProcessing(context).ThrowIfFailure();
             _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
             return BoolResult.Success;
         }

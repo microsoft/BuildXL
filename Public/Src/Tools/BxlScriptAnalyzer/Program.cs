@@ -10,7 +10,6 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -72,6 +71,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     arguments.Analyzers.Max(a => a.RequiredPhases),
                     arguments.Config,
                     arguments.Filter,
+                    arguments.OutputDirectory,
+                    arguments.ObjectDirectory,
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,
@@ -95,17 +96,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 int errorCount = 0;
 
-                if (filesToAnalyze != null)
+                // TODO: Make this multi-threaded. For now since we are developing keeping simple loop to maintain easy debugging.
+                foreach (var kv in filesToAnalyze)
                 {
-                    // TODO: Make this multi-threaded. For now since we are developing keeping simple loop to maintain easy debugging.
-                    foreach (var kv in filesToAnalyze)
+                    foreach (var analyzer in arguments.Analyzers)
                     {
-                        foreach (var analyzer in arguments.Analyzers)
+                        if (!analyzer.AnalyzeSourceFile(workspace, kv.Key, kv.Value))
                         {
-                            if (!analyzer.AnalyzeSourceFile(workspace, kv.Key, kv.Value))
-                            {
-                                Interlocked.Increment(ref errorCount);
-                            }
+                            Interlocked.Increment(ref errorCount);
                         }
                     }
                 }

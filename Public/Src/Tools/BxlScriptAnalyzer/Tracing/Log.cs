@@ -295,7 +295,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Analyzers,
-            Message = "The GraphFragment Analyzer requires the parameter '{parameter}'. None was given.",
+            Message = "The GraphFragment analyzer requires the parameter '{parameter}'. None was given.",
             Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void GraphFragmentMissingOutputFile(LoggingContext context, string parameter);
 
@@ -304,7 +304,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Analyzers,
-            Message = "The GraphFragment Analyzer has invalid file '{file}' for parameter '{parameter}'.",
+            Message = "The GraphFragment analyzer has invalid file '{file}' for parameter '{parameter}'.",
             Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void GraphFragmentInvalidOutputFile(LoggingContext context, string file, string parameter);
 
@@ -313,7 +313,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Analyzers,
-            Message = "The GraphFragment Analyzer requires a pip graph.",
+            Message = "The GraphFragment analyzer requires a pip graph.",
             Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void GraphFragmentMissingGraph(LoggingContext context);
 
@@ -322,9 +322,18 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Analyzers,
-            Message = "An exception occured when The GraphFragment Analyzer serialized the graph fragment to '{file}': {exceptionMessage}",
+            Message = "An exception occured when the GraphFragment analyzer serialized the graph fragment to '{file}': {exceptionMessage}",
             Keywords = DefaultKeywords | (int)Keywords.UserError)]
         public abstract void GraphFragmentExceptionOnSerializingFragment(LoggingContext context, string file, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.GraphFragmentSerializationStats,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            EventTask = (ushort)Tasks.Analyzers,
+            Message = "Serialization stats of graph fragment '{fragmentDescription}': {stats}",
+            Keywords = DefaultKeywords)]
+        public abstract void GraphFragmentSerializationStats(LoggingContext context, string fragmentDescription, string stats);
 
         #endregion
     }

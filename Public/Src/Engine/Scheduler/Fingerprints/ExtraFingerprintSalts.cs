@@ -19,9 +19,9 @@ namespace BuildXL.Scheduler.Fingerprints
     public struct ExtraFingerprintSalts : IEquatable<ExtraFingerprintSalts>
     {
         // For non-Unix platforms, this is an arbitrary fixed value
-        private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS ?
-                            Processes.KextConnection.RequiredKextVersionNumber :
-                            "0";
+        private static readonly string s_requiredKextVersionNumber = OperatingSystemHelper.IsUnixOS 
+            ? Processes.SandboxConnectionKext.RequiredKextVersionNumber
+            : "0";
 
         private static readonly ExtraFingerprintSalts s_defaultValue = new ExtraFingerprintSalts(
                         ignoreSetFileInformationByHandle: false,

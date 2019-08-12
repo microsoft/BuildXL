@@ -434,13 +434,16 @@ namespace BuildXL.Pips.Operations
                                 canContinue = true;
                                 break;
                             case PipDataEntryType.VsoHashEntry1Path:
+                            case PipDataEntryType.FileId1Path:
                                 Contract.Assert(m_currentIndex + 1 < m_pipData.Entries.Count);
-                                Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.VsoHashEntry2RewriteCount);
+                                Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.VsoHashEntry2RewriteCount
+                                    || m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.FileId2RewriteCount);
                                 m_currentIndex += 2;
                                 canContinue = true;
                                 break;
                             case PipDataEntryType.VsoHashEntry2RewriteCount:
-                                Contract.Assume(false, "should never encounter part 2 of VsoHash fragment");
+                            case PipDataEntryType.FileId2RewriteCount:
+                                Contract.Assume(false, "should never encounter part 2 of VsoHash or FileId fragment");
                                 break;
                             case PipDataEntryType.IpcMoniker:
                                 m_currentIndex++;

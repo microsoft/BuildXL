@@ -2116,7 +2116,7 @@ namespace Test.BuildXL.Processes.Detours
                 new PipEnvironment(),
                 validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
-                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

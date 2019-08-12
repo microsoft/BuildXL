@@ -27,7 +27,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// An implementation of <see cref="ISandboxedProcess"/> that doesn't perform any sandboxing.
     /// </summary>
-    public class UnSandboxedProcess : ISandboxedProcess
+    public class UnsandboxedProcess : ISandboxedProcess
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
         private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
@@ -92,7 +92,7 @@ namespace BuildXL.Processes
         protected virtual bool HasSandboxFailures => false;
 
         /// <nodoc />
-        public UnSandboxedProcess(SandboxedProcessInfo info)
+        public UnsandboxedProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
 
@@ -206,7 +206,7 @@ namespace BuildXL.Processes
         public int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
-        public virtual async Task<SandboxedProcessResult> GetResultAsync()
+        public async Task<SandboxedProcessResult> GetResultAsync()
         {
             Contract.Requires(Started);
 
@@ -229,13 +229,13 @@ namespace BuildXL.Processes
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
-
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
                 Killed                              = Killed,
                 TimedOut                            = m_processExecutor.TimedOut,
                 HasDetoursInjectionFailures         = HasSandboxFailures,
+                JobAccountingInformation            = GetJobAccountingInfo(),
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
@@ -270,7 +270,7 @@ namespace BuildXL.Processes
 
             ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
 
-            LogProcessState($"UnSandboxedProcess::KillAsync()");
+            LogProcessState($"UnsandboxedProcess::KillAsync()");
             return m_processExecutor.KillAsync();
         }
 
@@ -281,7 +281,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Process == null);
 
-#if PLATFORM_OSX
+#if !PLATFORM_WIN
             var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
             if (mode < 0)
             {
@@ -391,6 +391,12 @@ namespace BuildXL.Processes
         {
             // 'Dispatch.GetProcessTimes()' doesn't work because the process has already exited
             return CpuTimes.Zeros;
+        }
+
+        /// <nodoc/>
+        internal virtual JobObject.AccountingInformation GetJobAccountingInfo()
+        {
+            return default;
         }
 
         private ProcessTimes GetProcessTimes()

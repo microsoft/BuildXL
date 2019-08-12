@@ -27,7 +27,6 @@ namespace GrpcTest {
 
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,
-            importFrom("System.Data.SQLite").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,
         ],
         runtimeContent: [

@@ -18,5 +18,6 @@ namespace Script.Ambients {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
         ],
+        runTestArgs: { weight: 2 },
     });
 }

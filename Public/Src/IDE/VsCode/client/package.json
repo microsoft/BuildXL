@@ -1,11 +1,11 @@
 {
   "name": "buildxldscript",
   "enableProposedApi": true,
-  "displayName": "BuildXL.DScript",
-  "description": "Visual Studio Code Extension for BuildXL DScript",
+  "displayName": "BuildXL",
+  "description": "Visual Studio Code Extension for BuildXL",
   "icon": "BuildXL.png",
   "version": "0.0.0",
-  "publisher": "Microsoft",
+  "publisher": "BuildXL",
   "repository": {
     "type": "git",
     "url": "https://github.com/Microsoft/BuildXL"

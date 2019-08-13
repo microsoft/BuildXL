@@ -53,7 +53,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private bool _isContentGarbageCollectionEnabled;
         private bool _isMetadataGarbageCollectionEnabled;
-        private bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
+
+        /// <nodoc />
+        protected bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
@@ -121,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public void SetDatabaseMode(bool isDatabaseWriteable)
+        public virtual void SetDatabaseMode(bool isDatabaseWriteable)
         {
             ConfigureGarbageCollection(isDatabaseWriteable);
             ConfigureInMemoryDatabaseCache(isDatabaseWriteable);

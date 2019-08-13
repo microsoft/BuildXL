@@ -803,6 +803,21 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 return true;
             }
+
+            /// <inheritdoc />
+            public void CompactRange(string start, string limit, string columnFamilyName = null)
+            {
+                CompactRange(StringToBytes(start), StringToBytes(limit), columnFamilyName);
+            }
+
+            /// <inheritdoc />
+            public void CompactRange(byte[] start, byte[] limit, string columnFamilyName = null)
+            {
+                var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+
+                // We need to use the instance directly because RocksDbSharp does not handle the case where full range compaction is desired.
+                RocksDbSharp.Native.Instance.rocksdb_compact_range_cf(m_store.Handle, columnFamilyInfo.Handle.Handle, start, start?.GetLongLength(0) ?? 0, limit, limit?.GetLongLength(0) ?? 0);
+            }
         } // RocksDbStore
     } // KeyValueStoreAccessor
 }

@@ -98,6 +98,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush, v => dbConfig.CacheMaximumUpdatesPerFlush = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheFlushingMaximumInterval, v => dbConfig.CacheFlushingMaximumInterval = v);
 
+                if (_distributedSettings.FullRangeCompactionIntervalMinutes != null)
+                {
+                    dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(_distributedSettings.FullRangeCompactionIntervalMinutes.Value);
+                }
+
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
             }
 

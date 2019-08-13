@@ -120,5 +120,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Gets whether the database is cleared on initialization. (Defaults to true because the standard use case involves restoring from checkpoint after initialization)
         /// </summary>
         public bool CleanOnInitialize { get; set; } = true;
+
+        /// <summary>
+        /// Time between full range compactions. These help keep the size of the DB instance down to a minimum.
+        /// Required because of our workload tends to generate a lot of cruft.
+        /// </summary>
+        public TimeSpan FullRangeCompactionInterval { get; set; } = TimeSpan.FromHours(6);
     }
 }

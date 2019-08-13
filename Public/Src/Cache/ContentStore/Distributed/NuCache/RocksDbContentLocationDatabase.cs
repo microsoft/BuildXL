@@ -40,6 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private string _storeLocation;
         private readonly string _activeSlotFilePath;
+        private Timer _compactionTimer;
 
         private static readonly byte[] EmptyBytes = CollectionUtilities.EmptyArray<byte>();
 
@@ -90,13 +91,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            lock (this)
+            {
+                _compactionTimer?.Dispose();
+            }
+
             _keyValueStore?.Dispose();
+
             return base.ShutdownCoreAsync(context);
         }
 
         /// <inheritdoc />
         protected override BoolResult InitializeCore(OperationContext context)
         {
+            if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
+            {
+                _compactionTimer = new Timer(
+                    _ => FullRangeCompaction(context),
+                    null,
+                    IsGarbageCollectionEnabled ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan);
+            }
+
             var result = Load(context, GetActiveSlot(context.TracingContext), clean: _configuration.CleanOnInitialize);
             if (result && _configuration.TestInitialCheckpointPath != null)
             {
@@ -104,6 +120,49 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return result;
+        }
+
+        /// <inheritdoc />
+        public override void SetDatabaseMode(bool isDatabaseWriteable)
+        {
+            if (IsGarbageCollectionEnabled != isDatabaseWriteable)
+            {
+                var nextCompactionTimeSpan = isDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan;
+                _compactionTimer?.Change(nextCompactionTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+
+            base.SetDatabaseMode(isDatabaseWriteable);
+        }
+
+        private void FullRangeCompaction(OperationContext context)
+        {
+            lock (this)
+            {
+                if (ShutdownStarted)
+                {
+                    return;
+                }
+            }
+
+            _keyValueStore.Use(store =>
+            {
+                foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+                {
+                    var result = context.PerformOperation(Tracer, () =>
+                    {
+                        store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
+                        return BoolResult.Success;
+                    }, extraStartMessage: $"ColumnFamily={columnFamilyName}").ThrowIfFailure();
+                }
+            }).ThrowOnError();
+
+            lock (this)
+            {
+                if (!ShutdownStarted)
+                {
+                    _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
+                }
+            }
         }
 
         private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean = false)

@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.ToolSupport;
 
@@ -79,13 +81,22 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputFilePath;
 
-        public BXLInvocationAnalyzer(AnalysisInput input) : base(input) { }
+        private Stopwatch m_stopWatch;
+
+        public BXLInvocationAnalyzer(AnalysisInput input) : base(input)
+        {
+            m_stopWatch = new Stopwatch();
+            m_stopWatch.Start();
+        }
 
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var dataStore = new XldbDataStore(storeDirectory: InputDirPath);
-            File.AppendAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents());
+            using (var dataStore = new XldbDataStore(storeDirectory: InputDirPath))
+            {
+                File.WriteAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents().Select(key => key.ToString()));
+            }
+            Console.WriteLine("Total time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
 
             return 0;
         }

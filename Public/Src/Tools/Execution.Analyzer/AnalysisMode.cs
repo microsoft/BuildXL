@@ -57,5 +57,7 @@ namespace BuildXL.Execution.Analyzer
         CopyFile, 
         XlgToDb,
         BXLInvocationXLG,
+        NewEventStats,
+        NewDumpPip
     }
 }

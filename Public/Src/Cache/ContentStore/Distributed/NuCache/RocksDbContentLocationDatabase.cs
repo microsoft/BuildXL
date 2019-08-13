@@ -21,7 +21,6 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using Unit = BuildXL.Utilities.Tasks.Unit;
@@ -41,8 +40,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private string _storeLocation;
         private readonly string _activeSlotFilePath;
         private Timer _compactionTimer;
-
-        private static readonly byte[] EmptyBytes = CollectionUtilities.EmptyArray<byte>();
 
         private enum StoreSlot
         {
@@ -91,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            lock (this)
+            lock (ShutdownLock)
             {
                 _compactionTimer?.Dispose();
             }
@@ -136,7 +133,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private void FullRangeCompaction(OperationContext context)
         {
-            lock (this)
+            lock (ShutdownLock)
             {
                 if (ShutdownStarted)
                 {
@@ -144,6 +141,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
+            // We can safely ignore the result, as any relevant errors will be logged by the inner operations
             _keyValueStore.Use(store =>
             {
                 foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
@@ -152,11 +150,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
                         return BoolResult.Success;
-                    }, extraStartMessage: $"ColumnFamily={columnFamilyName}").ThrowIfFailure();
-                }
-            }).ThrowOnError();
+                    }, extraStartMessage: $"ColumnFamily={columnFamilyName}");
 
-            lock (this)
+                    if (!result.Succeeded)
+                    {
+                        break;
+                    }
+                }
+            }).ToBoolResult().IgnoreFailure();
+
+            lock (ShutdownLock)
             {
                 if (!ShutdownStarted)
                 {

@@ -123,7 +123,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <summary>
         /// Time between full range compactions. These help keep the size of the DB instance down to a minimum.
-        /// Required because of our workload tends to generate a lot of cruft.
+        /// 
+        /// Required because of our workload tends to generate a lot of short-lived entries, which clutter the deeper
+        /// levels of the RocksDB LSM tree.
         /// </summary>
         public TimeSpan FullRangeCompactionInterval { get; set; } = TimeSpan.FromHours(6);
     }

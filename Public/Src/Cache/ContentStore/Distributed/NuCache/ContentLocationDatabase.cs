@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -81,6 +80,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Controls cache flushing due to timeout.
         /// </summary>
         private Timer _inMemoryCacheFlushTimer;
+
+        /// <nodoc />
+        protected readonly object ShutdownLock = new object();
 
         private readonly object _cacheFlushTimerLock = new object();
 
@@ -216,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _nagleOperationTracer?.Dispose();
 
-            lock (this)
+            lock (ShutdownLock)
             {
                 _gcTimer?.Dispose();
                 _inMemoryCacheFlushTimer?.Dispose();
@@ -284,7 +286,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void GarbageCollect(OperationContext context)
         {
-            lock (this)
+            lock (ShutdownLock)
             {
                 if (ShutdownStarted)
                 {
@@ -320,7 +322,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return BoolResult.Success;
                 }, counter: Counters[ContentLocationDatabaseCounters.GarbageCollect]).IgnoreFailure();
 
-            lock (this)
+            lock (ShutdownLock)
             {
                 if (!ShutdownStarted)
                 {

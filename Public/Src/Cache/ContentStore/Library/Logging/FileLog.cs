@@ -179,7 +179,8 @@ namespace BuildXL.Cache.ContentStore.Logging
                     message
                 );
 
-            WriteLine(severity, severity.ToString(), line);
+            // Important to call WriteLine and not WriteLineInternal as subclasses might override behavior.
+            WriteLine(severity, severityName, line);
         }
 
         /// <summary>

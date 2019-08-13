@@ -71,6 +71,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = false;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
+            InputChanges = AbsolutePath.Invalid;
         }
 
         /// <nodoc />
@@ -134,6 +135,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            InputChanges = pathRemapper.Remap(template.InputChanges);
         }
 
         /// <inheritdoc />
@@ -314,5 +316,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseHistoricalCpuUsageInfo { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath InputChanges { get; set; }
     }
 }

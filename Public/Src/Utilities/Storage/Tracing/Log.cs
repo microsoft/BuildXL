@@ -84,6 +84,42 @@ namespace BuildXL.Storage.Tracing
         public abstract void SavingChangeTracker(LoggingContext context, string path, string token, string state, int trackedVolumeCount, long durationMs);
 
         [GeneratedEvent(
+            (int)LogEventId.ExceptionOnCreatingInputChangeList,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.ChangeDetection,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Exception occured on creating input change list from file '{path}': {message}")]
+        public abstract void ExceptionOnCreatingInputChangeList(LoggingContext context, string path, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.InvalidFormatOfInputChange,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.ChangeDetection,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Invalid format '{change}' of input change on '{path}:{lineNo}'. Valid format is either 'path' or 'path|changes'.")]
+        public abstract void InvalidFormatOfInputChange(LoggingContext context, string change, string path, int lineNo);
+
+        [GeneratedEvent(
+            (int)LogEventId.InvalidChangedPathOfInputChange,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.ChangeDetection,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Invalid path '{changedPath}' of input change on '{path}:{lineNo}'. Valid path is a full path.")]
+        public abstract void InvalidChangedPathOfInputChange(LoggingContext context, string changedPath, string path, int lineNo);
+
+        [GeneratedEvent(
+            (int)LogEventId.InvalidChangeKindsOfInputChange,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.ChangeDetection,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Invalid change kind '{changeKind}' of input change on '{path}:{lineNo}'. Valid change kinds are '{validChangeKinds}'.")]
+        public abstract void InvalidChangeKindsOfInputChange(LoggingContext context, string changeKind, string path, int lineNo, string validChangeKinds);
+
+        [GeneratedEvent(
             (int)LogEventId.ChangeDetectionFailCreateTrackingSetDueToJournalQueryError,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,

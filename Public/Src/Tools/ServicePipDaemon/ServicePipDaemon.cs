@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
@@ -17,6 +19,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using Newtonsoft.Json.Linq;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Tool.ServicePipDaemon
@@ -26,8 +29,10 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public abstract class ServicePipDaemon : IDisposable, IIpcOperationExecutor
     {
-        internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
-        internal static readonly List<Option> DaemonConfigOptions = new List<Option>();
+        /// <nodoc/>
+        protected internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
+        
+        private static readonly List<Option> DaemonConfigOptions = new List<Option>();
 
         /// <summary>Initialized commands</summary>
         protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
@@ -81,6 +86,19 @@ namespace Tool.ServicePipDaemon
         public ILogger Logger => m_logger;
 
         #region Options and commands 
+
+        internal static readonly StrOption ConfigFile = RegisterDaemonConfigOption(new StrOption("configFile")
+        {
+            ShortName = "c",
+            HelpText = "Configuration file",
+            DefaultValue = null,
+            Expander = (fileName) =>
+            {
+                var json = System.IO.File.ReadAllText(fileName);
+                var jObject = JObject.Parse(json);
+                return jObject.Properties().Select(prop => new ParsedOption(PrefixKind.Long, prop.Name, prop.Value.ToString()));
+            },
+        });
 
         /// <nodoc />
         public static readonly StrOption Moniker = RegisterDaemonConfigOption(new StrOption("moniker")
@@ -154,6 +172,24 @@ namespace Tool.ServicePipDaemon
         {
             ShortName = "f",
             HelpText = "File path",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc/>
+        public static readonly StrOption HashOptional = new StrOption("hash")
+        {
+            ShortName = "h",
+            HelpText = "VSO file hash",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc/>
+        public static readonly StrOption FileId = new StrOption("fileId")
+        {
+            ShortName = "fid",
+            HelpText = "BuildXL file identifier",
             IsRequired = false,
             IsMultiValue = true,
         };
@@ -438,14 +474,7 @@ namespace Tool.ServicePipDaemon
                 enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration));
         }
 
-        /// <summary>
-        /// Creates anIPC client using the config from a ConfiguredCommand
-        /// </summary>        
-        public static IClient CreateClient(ConfiguredCommand conf)
-        {
-            var daemonConfig = CreateDaemonConfig(conf);
-            return IpcProvider.GetClient(daemonConfig.Moniker, daemonConfig);
-        }
+        
 
         private static string Usage()
         {
@@ -498,5 +527,18 @@ namespace Tool.ServicePipDaemon
         ///     Reconstructs a full command line corresponding to a <see cref="ConfiguredCommand"/>.
         /// </summary>
         private static string ToPayload(ConfiguredCommand cmd) => ToPayload(cmd.Command.Name, cmd.Config);
+
+        /// <nodoc/>
+        protected static void SetupThreadPoolAndServicePoint(int minWorkerThreads, int minIoThreads, int minServicePointParallelism)
+        {
+            int workerThreads, ioThreads;
+            ThreadPool.GetMinThreads(out workerThreads, out ioThreads);
+
+            workerThreads = Math.Max(workerThreads, minWorkerThreads);
+            ioThreads = Math.Max(ioThreads, minIoThreads);
+            ThreadPool.SetMinThreads(workerThreads, ioThreads);
+
+            ServicePointManager.DefaultConnectionLimit = Math.Max(minServicePointParallelism, ServicePointManager.DefaultConnectionLimit);
+        }
     }
 }

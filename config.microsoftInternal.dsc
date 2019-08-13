@@ -41,7 +41,10 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Drop.RemotableClient.Interfaces", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
     { id: "ItemStore.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "0.61" },
+    { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "1.0.1" },
+    { id: "Symbol.App.Core", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
+    { id: "Symbol.Client", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
+
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "NodeJs", version: "8.12.0-noTest" },

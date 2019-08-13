@@ -25,7 +25,6 @@ using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
@@ -66,19 +65,6 @@ namespace Tool.DropDaemon
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
         #region Options and commands
-
-        internal static readonly StrOption DropServiceConfigFile = RegisterDaemonConfigOption(new StrOption("dropServiceConfigFile")
-        {
-            ShortName = "c",
-            HelpText = "Drop service configuration file",
-            DefaultValue = null,
-            Expander = (fileName) =>
-            {
-                var json = System.IO.File.ReadAllText(fileName);
-                var jObject = JObject.Parse(json);
-                return jObject.Properties().Select(prop => new ParsedOption(PrefixKind.Long, prop.Name, prop.Value.ToString()));
-            },
-        });
 
         internal static readonly StrOption DropNameOption = RegisterDropConfigOption(new StrOption("name")
         {
@@ -158,23 +144,7 @@ namespace Tool.DropDaemon
             HelpText = "Relative drop path",
             IsRequired = false,
             IsMultiValue = true,
-        };
-
-        internal static readonly StrOption HashOptional = new StrOption("hash")
-        {
-            ShortName = "h",
-            HelpText = "VSO file hash",
-            IsRequired = false,
-            IsMultiValue = true,
-        };
-
-        internal static readonly StrOption FileId = new StrOption("fileId")
-        {
-            ShortName = "fid",
-            HelpText = "BuildXL file identifier",
-            IsRequired = false,
-            IsMultiValue = true,
-        };
+        };       
 
         internal static readonly StrOption Directory = new StrOption("directory")
         {
@@ -234,7 +204,7 @@ namespace Tool.DropDaemon
            needsIpcClient: false,
            clientAction: (conf, _) =>
            {
-               SetupThreadPoolAndServicePoint();
+               SetupThreadPoolAndServicePoint(s_minWorkerThreadsForDrop, s_minIoThreadsForDrop, ServicePointParallelismForDrop);
                var dropConfig = CreateDropConfig(conf);
                var daemonConf = CreateDaemonConfig(conf);
 
@@ -256,19 +226,7 @@ namespace Tool.DropDaemon
                    daemon.Completion.GetAwaiter().GetResult();
                    return 0;
                }
-           });
-
-        private static void SetupThreadPoolAndServicePoint()
-        {
-            int workerThreads, ioThreads;
-            ThreadPool.GetMinThreads(out workerThreads, out ioThreads);
-
-            workerThreads = Math.Max(workerThreads, s_minWorkerThreadsForDrop);
-            ioThreads = Math.Max(ioThreads, s_minIoThreadsForDrop);
-            ThreadPool.SetMinThreads(workerThreads, ioThreads);
-
-            ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointParallelismForDrop, ServicePointManager.DefaultConnectionLimit);
-        }
+           });        
 
         internal static readonly Command StartDaemonCmd = RegisterCommand(
            name: "start-daemon",
@@ -409,9 +367,9 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        ///     Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
-        ///     In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
-        ///     result of this operation.
+        /// Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
+        /// In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
+        /// result of this operation.
         /// </summary>
         public async Task<IIpcResult> CreateAsync()
         {
@@ -939,6 +897,15 @@ namespace Tool.DropDaemon
             var ipcResults = await TaskUtilities.SafeWhenAll(ipcResultTasks);
 
             return IpcResult.Merge(ipcResults);
+        }
+
+        /// <summary>
+        /// Creates an IPC client using the config from a ConfiguredCommand
+        /// </summary>        
+        public static IClient CreateClient(ConfiguredCommand conf)
+        {
+            var daemonConfig = CreateDaemonConfig(conf);
+            return IpcProvider.GetClient(daemonConfig.Moniker, daemonConfig);
         }
     }
 }

@@ -57,7 +57,16 @@ namespace Test.BuildXL.Storage
             shouldSucceed: false);
         }
 
-        private InputChangeList Test((string path, string changes)[] changedPaths)
+        [Fact]
+        public void TestFreeString()
+        {
+            XAssert.IsNotNull(Test(new[] { "" }));
+            XAssert.IsNull(Test(new[] { "|" }));
+            XAssert.IsNull(Test(new[] { "?abc|foo" }));
+            XAssert.IsNull(Test(new[] { "?abc|fo|o" }));
+        }
+
+        private InputChangeList Test(string[] changedPaths)
         {
             using (MemoryStream ms = new MemoryStream())
             {
@@ -65,8 +74,7 @@ namespace Test.BuildXL.Storage
                 {
                     foreach (var changedPath in changedPaths)
                     {
-                        var changes = !string.IsNullOrEmpty(changedPath.changes) ? "|" + changedPath.changes : string.Empty;
-                        writer.WriteLine(changedPath.path + changes);
+                        writer.WriteLine(changedPath);
                     }
                 }
 
@@ -81,7 +89,7 @@ namespace Test.BuildXL.Storage
 
         private void Verify((string path, string changes)[] changedPathsToWrite, bool shouldSucceed)
         {
-            var inputChangeList = Test(changedPathsToWrite.Select(cp => (cp.path, cp.changes)).ToArray());
+            var inputChangeList = Test(changedPathsToWrite.Select(cp => CreateInputLine(cp.path, cp.changes)).ToArray());
             XAssert.AreEqual(shouldSucceed, inputChangeList != null);
 
             if (shouldSucceed)
@@ -98,6 +106,12 @@ namespace Test.BuildXL.Storage
                         : PathChanges.DataOrMetadataChanged, 
                         changedPathsRead[i].PathChanges);
                 }
+            }
+
+            string CreateInputLine(string p, string c)
+            {
+                c = !string.IsNullOrEmpty(c) ? "|" + c : string.Empty;
+                return p + c;
             }
         }
     }

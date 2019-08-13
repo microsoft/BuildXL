@@ -38,6 +38,12 @@ namespace BuildXL.Storage.InputChange
             Contract.Requires(loggingContext != null);
             Contract.Requires(!string.IsNullOrEmpty(path));
 
+            if (!File.Exists(path))
+            {
+                Logger.Log.InputChangeListFileNotFound(loggingContext, path);
+                return null;
+            }
+
             try
             {
                 using (StreamReader reader = new StreamReader(path))
@@ -65,10 +71,10 @@ namespace BuildXL.Storage.InputChange
             try
             {   
                 int lineNo = 0;
+                string inputLine = null;
 
-                while (reader.Peek() >= 0)
+                while ((inputLine = reader.ReadLine()) != null)  
                 {
-                    string inputLine = reader.ReadLine();
                     ++lineNo;
 
                     if (string.IsNullOrEmpty(inputLine))
@@ -125,24 +131,30 @@ namespace BuildXL.Storage.InputChange
                 changesStr = splitInput[1].Trim();
             }
 
-            if (!Path.IsPathRooted(changedPath))
-            {
-                Logger.Log.InvalidChangedPathOfInputChange(loggingContext, changedPath, filePath, lineNo);
-                return false;
-            }
-
-            PathChanges changes = PathChanges.None;
+            // Assume data or metadata change if unspecified.
+            PathChanges changes = PathChanges.DataOrMetadataChanged;
 
             try
             {
-                changes = !string.IsNullOrEmpty(changesStr)
-                    ? (PathChanges)Enum.Parse(typeof(PathChanges), changesStr)
-                    : PathChanges.DataOrMetadataChanged; // Assume data or metadata change if unspecified.
+                if (!Path.IsPathRooted(changedPath))
+                {
+                    Logger.Log.InvalidChangedPathOfInputChange(loggingContext, changedPath, filePath, lineNo);
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(changesStr))
+                {
+                    if (!Enum.TryParse(changesStr, true, out changes))
+                    {
+                        string validKinds = string.Join(", ", ((PathChanges[])Enum.GetValues(typeof(PathChanges))).Select(c => c.ToString()));
+                        Logger.Log.InvalidChangeKindsOfInputChange(loggingContext, changesStr, filePath, lineNo, validKinds);
+                        return false;
+                    }
+                }
             }
-            catch (ArgumentException)
+            catch (ArgumentException argumentException)
             {
-                string validKinds = string.Join(", ", ((PathChanges[])Enum.GetValues(typeof(PathChanges))).Select(c => c.ToString()));
-                Logger.Log.InvalidChangeKindsOfInputChange(loggingContext, changesStr, filePath, lineNo, validKinds);
+                Logger.Log.InvalidInputChange(loggingContext, input, filePath, lineNo, argumentException.ToString());
                 return false;
             }
 

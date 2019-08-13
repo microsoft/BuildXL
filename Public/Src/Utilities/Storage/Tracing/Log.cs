@@ -120,6 +120,24 @@ namespace BuildXL.Storage.Tracing
         public abstract void InvalidChangeKindsOfInputChange(LoggingContext context, string changeKind, string path, int lineNo, string validChangeKinds);
 
         [GeneratedEvent(
+            (int)LogEventId.InvalidInputChange,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.ChangeDetection,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Invalid input change '{inputChange}' on '{path}:{lineNo}': {message}")]
+        public abstract void InvalidInputChange(LoggingContext context, string inputChange, string path, int lineNo, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.InputChangeListFileNotFound,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.ChangeDetection,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Input change list file '{path}' does not exist")]
+        public abstract void InputChangeListFileNotFound(LoggingContext context, string path);
+
+        [GeneratedEvent(
             (int)LogEventId.ChangeDetectionFailCreateTrackingSetDueToJournalQueryError,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,

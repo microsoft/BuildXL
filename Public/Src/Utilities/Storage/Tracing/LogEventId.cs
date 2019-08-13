@@ -112,5 +112,7 @@ namespace BuildXL.Storage.Tracing
         InvalidFormatOfInputChange = 8202,
         InvalidChangedPathOfInputChange = 8203,
         InvalidChangeKindsOfInputChange = 8204,
+        InvalidInputChange = 8205,
+        InputChangeListFileNotFound = 8206,
     }
 }

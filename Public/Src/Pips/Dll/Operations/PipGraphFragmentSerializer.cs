@@ -85,39 +85,45 @@ namespace BuildXL.Pips.Operations
                 FragmentDescription = (fragmentDescriptionOverride ?? serializedDescription) ?? filePath.ToString(m_pipExecutionContext.PathTable);
                 var provenance = new PipGraphFragmentProvenance(filePath, FragmentDescription);
                 m_totalPipsToDeserialize = reader.ReadInt32();
-                var deserializedPips = new List<(Pip, PipId)>();
-                while (true)
+                int totalPipsRead = 0;
+                while (totalPipsRead < m_totalPipsToDeserialize)
                 {
-                    var pip = Pip.Deserialize(reader);
-
-                    // Pip id is not deserialized when pip is deserialized.
-                    // Pip id must be read separately. To be able to add a pip to the graph, the pip id of the pip
-                    // is assumed to be unset, and is set when the pip gets inserted into the pip table.
-                    // Thus, one should not assign the pip id of the deserialized pip with the deserialized pip id.
-                    // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
-                    // remaps the pip id to a new pip id.
-                    var pipId = new PipId(reader.ReadUInt32());
-
-                    deserializedPips.Add((pip, pipId));
-
-                    // All pips in the same level are added to the graph in parallel
-                    // This boolean indicated whether or not the end of the level.
-                    bool levelEnd = reader.ReadBoolean();
-                    if (levelEnd)
+                    var deserializedPips = new List<(Pip, PipId)>();
+                    while (true)
                     {
-                        break;
+                        var pip = Pip.Deserialize(reader);
+
+                        // Pip id is not deserialized when pip is deserialized.
+                        // Pip id must be read separately. To be able to add a pip to the graph, the pip id of the pip
+                        // is assumed to be unset, and is set when the pip gets inserted into the pip table.
+                        // Thus, one should not assign the pip id of the deserialized pip with the deserialized pip id.
+                        // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
+                        // remaps the pip id to a new pip id.
+                        var pipId = new PipId(reader.ReadUInt32());
+                        totalPipsRead++;
+
+                        deserializedPips.Add((pip, pipId));
+
+                        // All pips in the same level are added to the graph in parallel
+                        // This boolean indicated whether or not the end of the level.
+                        bool levelEnd = reader.ReadBoolean();
+                        if (levelEnd)
+                        {
+                            break;
+                        }
                     }
+
+                    Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
+                    {
+                        if (!(handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, deserializedPip.Item2, deserializedPip.Item1)).Value)
+                        {
+                            successful = false;
+                        }
+
+                        Stats.Increment(deserializedPip.Item1, serialize: false);
+                    });
                 }
-
-                Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
-                {
-                    if (!(handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, deserializedPip.Item2, deserializedPip.Item1)).Value)
-                    {
-                        successful = false;
-                    }
-
-                    Stats.Increment(deserializedPip.Item1, serialize: false);
-                });
+                
             }
 
             return successful;

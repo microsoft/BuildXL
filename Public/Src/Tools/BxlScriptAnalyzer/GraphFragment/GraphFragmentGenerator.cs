@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using BuildXL.Pips.Operations;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -98,7 +99,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             {
                 var pips = PipGraph.RetrieveScheduledPips().ToList();
                 var finalPipList = TopSort(pips);
-                finalPipList = StableSortPips(pips, finalPipList);
                 serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
                 Logger.GraphFragmentSerializationStats(LoggingContext, serializer.FragmentDescription, serializer.Stats.ToString());
             }
@@ -128,15 +128,66 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
         private List<List<Pip>> TopSort(List<Pip> pips)
         {
-            Dictionary<Pip, int> childrenLeftToVisit = new Dictionary<Pip, int>();
-            List<List<Pip>> finalPipList = new List<List<Pip>>();
+            List<List<Pip>> sortedPipGroups = new List<List<Pip>>();
+            List<Pip> modules = new List<Pip>();
+            List<Pip> specs = new List<Pip>();
+            List<Pip> values = new List<Pip>();
 
-            finalPipList.Add(new List<Pip>());
+            // SpecialIpcPips are service-shutdown process pip, ipc drop finalization, service-start process pip, drop create ipc pip
+            List<Pip> specialIpcPips = new List<Pip>();
+            List<Pip> ipcPips = new List<Pip>();
+            List<Pip> otherPips = new List<Pip>();
+            foreach (var pip in pips)
+            {
+                if (pip is ModulePip)
+                {
+                    modules.Add(pip);
+                }
+                else if (pip is SpecFilePip)
+                {
+                    specs.Add(pip);
+                }
+                else if (pip is ValuePip)
+                {
+                    values.Add(pip);
+                }
+                else if (pip is IpcPip)
+                {
+                    values.Add(pip);
+                }
+                else if ((pip is Process && (((Process)pip).IsService || ((Process)pip).IsStartOrShutdownKind))
+                    || (pip is IpcPip && ((IpcPip)pip).IsServiceFinalization))
+                {
+                    specialIpcPips.Add(pip);
+                }
+                else
+                {
+                    otherPips.Add(pip);
+                }
+            }
+
+            sortedPipGroups.Add(modules);
+            sortedPipGroups.Add(specs);
+            sortedPipGroups.Add(values);
+
+            // Special IPC related pips must go in sequential order.
+            sortedPipGroups.AddRange(specialIpcPips.Select(pip => new List<Pip>() { pip }));
+            TopSortInternal(otherPips, sortedPipGroups);
+            sortedPipGroups.Add(ipcPips);
+            sortedPipGroups = StableSortPips(pips, sortedPipGroups);
+            return sortedPipGroups;
+        }
+
+        private void TopSortInternal(List<Pip> pips, List<List<Pip>> sortedPipGroups)
+        {
+            Dictionary<Pip, int> childrenLeftToVisit = new Dictionary<Pip, int>();
+            sortedPipGroups.Add(new List<Pip>());
             int totalAdded = 0;
             foreach (var pip in pips)
             {
                 childrenLeftToVisit[pip] = 0;
             }
+
             foreach (var pip in pips)
             {
                 foreach (var dependent in (PipGraph.RetrievePipImmediateDependents(pip) ?? Enumerable.Empty<Pip>()))
@@ -150,30 +201,28 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 if (childrenLeftToVisit[pip] == 0)
                 {
                     totalAdded++;
-                    finalPipList[0].Add(pip);
+                    sortedPipGroups[sortedPipGroups.Count - 1].Add(pip);
                 }
             }
 
-            int currentLevel = 0;
+            int currentLevel = sortedPipGroups.Count - 1;
             while (totalAdded < pips.Count)
             {
-                finalPipList.Add(new List<Pip>());
-                foreach (var pip in finalPipList[currentLevel])
+                sortedPipGroups.Add(new List<Pip>());
+                foreach (var pip in sortedPipGroups[currentLevel])
                 {
                     foreach (var dependent in PipGraph.RetrievePipImmediateDependents(pip) ?? Enumerable.Empty<Pip>())
                     {
                         if (--childrenLeftToVisit[dependent] == 0)
                         {
                             totalAdded++;
-                            finalPipList[currentLevel + 1].Add(dependent);
+                            sortedPipGroups[currentLevel + 1].Add(dependent);
                         }
                     }
                 }
 
                 currentLevel++;
             }
-
-            return finalPipList;
         }
 
         private struct OptionName

@@ -30,14 +30,8 @@ namespace BuildXL.Scheduler.Graph
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly SealedDirectoryTable m_sealDirectoryTable;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
-        private readonly ConcurrentBigMap<ModuleId, ModulePip> m_modules = new ConcurrentBigMap<ModuleId, ModulePip>();
         private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
         private readonly ConcurrentBigMap<FileArtifact, PipId> m_fileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
-
-        /// <summary>
-        ///     A mapping of Service PipId to corresponding Shutdown PipId (<see cref="BuildXL.Pips.Operations.Process.ShutdownProcessPipId"/>).
-        /// </summary>
-        private readonly ConcurrentBigMap<PipId, ServiceInfo> m_servicePipToServiceInfoMap;
 
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
@@ -59,7 +53,6 @@ namespace BuildXL.Scheduler.Graph
                 ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
                 : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
             m_sealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
-            m_servicePipToServiceInfoMap = new ConcurrentBigMap<PipId, ServiceInfo>();
         }
 
         /// <inheritdoc />
@@ -76,65 +69,34 @@ namespace BuildXL.Scheduler.Graph
         public bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip)
         {
             var result = AddPip(copyFile);
-            AddDependent(valuePip, copyFile);
             AddFileDependent(copyFile.Source, copyFile);
             m_fileProducers[copyFile.Destination] = copyFile.PipId;
             return result;
         }
 
         /// <inheritdoc />
-        public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip)
-        {
-            var result = AddPip(ipcPip);
-            AddDependent(valuePip, ipcPip);
-            AddFileDependents(ipcPip.FileDependencies, ipcPip);
-            AddDirectoryDependents(ipcPip.DirectoryDependencies, ipcPip);
-            AddDependents(ipcPip.ServicePipDependencies, ipcPip);
-            AddServicePipDependents(ipcPip.ServicePipDependencies, ipcPip);
-            return result;
-        }
+        public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
 
         /// <inheritdoc />
-        public bool AddModule([NotNull] ModulePip module)
-        {
-            m_modules[module.Module] = module;
-            return AddPip(module); 
-        }
+        public bool AddModule([NotNull] ModulePip module) => AddPip(module);
 
         /// <inheritdoc />
-        public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency)
-        {
-            AddDependent(m_modules[dependency].PipId, m_modules[moduleId]);
-            return true;
-        }
+        public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency) => true;
 
         /// <inheritdoc />
-        public bool AddOutputValue([NotNull] ValuePip value)
-        {
-            var result = AddPip(value);
-            AddFileDependent(value.SpecFile, value);
-            return result;
-        }
+        public bool AddOutputValue([NotNull] ValuePip value) => AddPip(value);
 
         /// <inheritdoc />
         public bool AddProcess([NotNull] Process process, PipId valuePip)
         {
             var result = AddPip(process);
-            AddDependent(valuePip, process);
             AddFileDependents(process.Dependencies, process);
             AddDirectoryDependents(process.DirectoryDependencies, process);
             AddDependents(process.OrderDependencies, process);
-            AddDependents(process.ServicePipDependencies, process);
-            AddServicePipDependents(process.ServicePipDependencies, process);
 
             foreach (var fileOutput in process.FileOutputs)
             {
                 m_fileProducers[fileOutput.ToFileArtifact()] = process.PipId;
-            }
-
-            if (process.IsService)
-            {
-                m_servicePipToServiceInfoMap[process.PipId] = process.ServiceInfo;
             }
 
             return result;
@@ -160,7 +122,6 @@ namespace BuildXL.Scheduler.Graph
                 sealDirectory.SetDirectoryArtifact(artifactForNewSeal);
             }
 
-            AddDependent(valuePip, sealDirectory);
             AddFileDependents(sealDirectory.Contents, sealDirectory);
             AddDirectoryDependents(sealDirectory.ComposedDirectories, sealDirectory);
 
@@ -169,13 +130,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public bool AddSpecFile([NotNull] SpecFilePip specFile)
-        {
-            var result = AddPip(specFile);
-            AddDependent(m_modules[specFile.OwningModule].PipId, specFile);
-            m_fileProducers[specFile.SpecFile] = specFile.PipId;
-            return result;
-        }
+        public bool AddSpecFile([NotNull] SpecFilePip specFile) => AddPip(specFile);
 
         /// <inheritdoc />
         public bool AddValueValueDependency(in ValuePip.ValueDependency valueDependency) => true;
@@ -185,7 +140,6 @@ namespace BuildXL.Scheduler.Graph
         {
             var result = AddPip(writeFile);
             m_fileProducers[writeFile.Destination] = writeFile.PipId;
-            AddDependent(valuePip, writeFile);
             return result;
         }
 
@@ -225,14 +179,7 @@ namespace BuildXL.Scheduler.Graph
             }
         }
 
-        public void AddServicePipDependents(IEnumerable<PipId> servicePipDependencies, Pip dependent)
-        {
-            foreach (var servicePip in servicePipDependencies)
-            {
-                AddDependents(m_servicePipToServiceInfoMap[servicePip].FinalizationPipIds, dependent);
-            }
-        }
-
+        /// <inheritdoc />
         public void AddDirectoryDependents(IEnumerable<DirectoryArtifact> directories, Pip dependent)
         {
             foreach (var directory in directories)
@@ -245,6 +192,7 @@ namespace BuildXL.Scheduler.Graph
             }
         }
 
+        /// <inheritdoc />
         public void AddFileDependents(IEnumerable<FileArtifact> files, Pip dependent)
         {
             foreach(var file in files)
@@ -253,6 +201,7 @@ namespace BuildXL.Scheduler.Graph
             }
         }
 
+        /// <inheritdoc />
         public void AddFileDependent(FileArtifact file, Pip dependent)
         {
             if (m_fileProducers.TryGetValue(file, out PipId producer))
@@ -261,6 +210,7 @@ namespace BuildXL.Scheduler.Graph
             }
         }
 
+        /// <inheritdoc />
         private void AddDependents(IEnumerable<PipId> pips, Pip dependent)
         {
             foreach (var pip in pips)
@@ -269,6 +219,7 @@ namespace BuildXL.Scheduler.Graph
             }
         }
 
+        /// <inheritdoc />
         private void AddDependent(PipId pip, Pip dependent)
         {
             m_pipDependents.AddOrUpdate(pip, new List<Pip>() { dependent }, (key, deps) => { lock (deps) { deps.Add(dependent); return deps; } });

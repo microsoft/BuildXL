@@ -57,6 +57,7 @@ using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.Storage.InputChange;
 
 namespace BuildXL.Scheduler
 {
@@ -4851,6 +4852,17 @@ namespace BuildXL.Scheduler
 
         private void ProcessFileChanges(LoggingContext loggingContext, SchedulerState schedulerState)
         {
+            InputChangeList inputChangeList = null;
+
+            if (m_configuration.Schedule.InputChanges.IsValid)
+            {
+                inputChangeList = InputChangeList.CreateFromFile(
+                    loggingContext, 
+                    m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
+                    m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
+                    DirectoryTranslator);
+            }
+
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;
 
             if (m_shouldCreateIncrementalSchedulingState)
@@ -4875,7 +4887,7 @@ namespace BuildXL.Scheduler
             }
             else if (m_fileChangeTracker.IsTrackingChanges)
             {
-                var fileChangeProcessor = new FileChangeProcessor(loggingContext, m_fileChangeTracker);
+                var fileChangeProcessor = new FileChangeProcessor(loggingContext, m_fileChangeTracker, inputChangeList);
 
                 // We no longer include file content table (FCT) into file change journal processor because
                 // we don't want FCT to rely on file change tracker (tracker). The underbuild shown by FileChangeTrackerTests.TrackerLoadFailureShouldNotResultInUnderbuild

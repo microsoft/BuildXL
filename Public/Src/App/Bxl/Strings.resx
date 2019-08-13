@@ -1015,4 +1015,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Interactive" xml:space="preserve">
     <value>When enabled indicates that {ShortProductName} is allowed to interact with the user either via console or popups. A common use case is to allow front ends like nuget to display authentication prompts in case the user is not authenticated.</value>
   </data>
+  <data name="HelpText_DisplayHelp_InputChanges" xml:space="preserve">
+    <value>Path to file containing a list of input changes, separated by new lines. The formats of an input change is '&lt;path&gt;|&lt;change kind&gt;' or '&lt;path&gt;', where change kinds are 'DataOrMetadataChanged', 'Removed', 'MembershipChanged', 'NewlyPresentAsFile', 'NewlyPresentAsDirectory'.</value>
+  </data>
 </root>

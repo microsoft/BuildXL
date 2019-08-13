@@ -1399,7 +1399,8 @@ namespace BuildXL
                     m_configuration.ConsoleVerbosity.ToEventLevel(),
                     m_noLogMask,
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
-                    maxStatusPips: m_configuration.FancyConsoleMaxStatusPips);
+                    maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
+                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps);
 
                 AddListener(listener);
             }
@@ -2026,6 +2027,12 @@ namespace BuildXL
             if (!loggingConfiguration.DisableLoggedPathTranslation)
             {
                 PathTranslator.CreateIfEnabled(loggingConfiguration.SubstTarget, loggingConfiguration.SubstSource, pathTable, out translator);
+            }
+
+            if (loggingConfiguration.OptimizeConsoleOutputForAzureDevOps)
+            {
+                // Use a very simple logger for azure devops
+                return new StandardConsole(colorize: false, animateTaskbar: false, supportsOverwriting: false, pathTranslator: translator);
             }
 
             return new StandardConsole(loggingConfiguration.Color, loggingConfiguration.AnimateTaskbar, loggingConfiguration.FancyConsole, translator);

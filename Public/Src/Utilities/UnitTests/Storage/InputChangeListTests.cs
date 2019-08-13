@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.InputChange;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -58,6 +59,45 @@ namespace Test.BuildXL.Storage
         }
 
         [Fact]
+        public void TestRelativePathsWithoutSourceRoot()
+        {
+            Verify(new[]
+            {
+                (A("C", new[]{ "D", "E", "f"}), PathChanges.DataOrMetadataChanged.ToString()),
+                (R(new[]{ "D", "X", "i"}), PathChanges.NewlyPresent.ToString())
+            },
+            shouldSucceed: false);
+        }
+
+        [Fact]
+        public void TestRelativePathsWithSourceRoot()
+        {
+            Verify(new[]
+            {
+                (A("C", new[]{ "D", "E", "f"}), PathChanges.DataOrMetadataChanged.ToString()),
+                (R(new[]{ "D", "..", "i"}), PathChanges.NewlyPresent.ToString()),
+                (R(new[]{ "M", "N", "o"}), PathChanges.NewlyPresent.ToString())
+            },
+            shouldSucceed: true,
+            sourceRoot: A("C", new[] {"X", "Y", "Z" }));
+        }
+
+        [Fact]
+        public void TestWithDirectoryTranslator()
+        {
+            var directoryTranslator = new DirectoryTranslator();
+            directoryTranslator.AddTranslation(A("C", new[] { "D", "E" }), A("C", new[] { "X", "Y" }));
+            directoryTranslator.Seal();
+
+            Verify(new[]
+            {
+                (A("C", new[]{ "D", "E", "f"}), PathChanges.DataOrMetadataChanged.ToString()),
+            },
+            shouldSucceed: true,
+            directoryTranslator: directoryTranslator);
+        }
+
+        [Fact]
         public void TestFreeString()
         {
             XAssert.IsNotNull(Test(new[] { "" }));
@@ -66,7 +106,7 @@ namespace Test.BuildXL.Storage
             XAssert.IsNull(Test(new[] { "?abc|fo|o" }));
         }
 
-        private InputChangeList Test(string[] changedPaths)
+        private InputChangeList Test(string[] changedPaths, string sourceRoot = null, DirectoryTranslator directoryTranslator = null)
         {
             using (MemoryStream ms = new MemoryStream())
             {
@@ -82,14 +122,14 @@ namespace Test.BuildXL.Storage
 
                 using (StreamReader reader = new StreamReader(ms, System.Text.Encoding.UTF8, false, 4096, true))
                 {
-                    return InputChangeList.CreateFromStream(new LoggingContext("Dummy"), reader);
+                    return InputChangeList.CreateFromStream(new LoggingContext("Dummy"), reader, null, sourceRoot, directoryTranslator);
                 }
             }
         }
 
-        private void Verify((string path, string changes)[] changedPathsToWrite, bool shouldSucceed)
+        private void Verify((string path, string changes)[] changedPathsToWrite, bool shouldSucceed, string sourceRoot = null, DirectoryTranslator directoryTranslator = null)
         {
-            var inputChangeList = Test(changedPathsToWrite.Select(cp => CreateInputLine(cp.path, cp.changes)).ToArray());
+            var inputChangeList = Test(changedPathsToWrite.Select(cp => CreateInputLine(cp.path, cp.changes)).ToArray(), sourceRoot, directoryTranslator);
             XAssert.AreEqual(shouldSucceed, inputChangeList != null);
 
             if (shouldSucceed)
@@ -99,7 +139,20 @@ namespace Test.BuildXL.Storage
 
                 for (int i = 0; i < changedPathsRead.Length; ++i)
                 {
-                    XAssert.AreEqual(changedPathsToWrite[i].path, changedPathsRead[i].Path);
+                    string expectedPath = changedPathsToWrite[i].path;
+
+                    if (!Path.IsPathRooted(expectedPath))
+                    {
+                        XAssert.IsTrue(!string.IsNullOrEmpty(sourceRoot));
+                        expectedPath = Path.GetFullPath(Path.Combine(sourceRoot, expectedPath));
+                    }
+
+                    if (directoryTranslator != null)
+                    {
+                        expectedPath = directoryTranslator.Translate(expectedPath);
+                    }
+
+                    XAssert.AreEqual(expectedPath, changedPathsRead[i].Path);
                     XAssert.AreEqual(
                         !string.IsNullOrEmpty(changedPathsToWrite[i].changes)
                         ? (PathChanges)Enum.Parse(typeof(PathChanges), changedPathsToWrite[i].changes)

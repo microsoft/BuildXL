@@ -4850,7 +4850,11 @@ namespace BuildXL.Scheduler
 
             if (m_configuration.Schedule.InputChanges.IsValid)
             {
-                inputChangeList = InputChangeList.CreateFromFile(loggingContext, m_configuration.Schedule.InputChanges.ToString(Context.PathTable));
+                inputChangeList = InputChangeList.CreateFromFile(
+                    loggingContext, 
+                    m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
+                    m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
+                    DirectoryTranslator);
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;

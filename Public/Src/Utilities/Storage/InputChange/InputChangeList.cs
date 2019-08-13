@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Storage.InputChange
@@ -33,7 +34,11 @@ namespace BuildXL.Storage.InputChange
         /// <summary>
         /// Creates and instance of <see cref="InputChangeList"/> from file.
         /// </summary>
-        public static InputChangeList CreateFromFile(LoggingContext loggingContext, string path)
+        public static InputChangeList CreateFromFile(
+            LoggingContext loggingContext, 
+            string path, 
+            string sourceRoot = null, 
+            DirectoryTranslator directoryTranslator = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(!string.IsNullOrEmpty(path));
@@ -61,7 +66,12 @@ namespace BuildXL.Storage.InputChange
         /// <summary>
         /// Creates an instance of <see cref="InputChangeList"/> from a stream reader.
         /// </summary>
-        public static InputChangeList CreateFromStream(LoggingContext loggingContext, TextReader reader, string optionalPath = null)
+        public static InputChangeList CreateFromStream(
+            LoggingContext loggingContext, 
+            TextReader reader, 
+            string filePathOrigin = null,
+            string sourceRoot = null,
+            DirectoryTranslator directoryTranslator = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(reader != null);
@@ -82,7 +92,14 @@ namespace BuildXL.Storage.InputChange
                         continue;
                     }
 
-                    if (!TryParseInput(loggingContext, inputLine, optionalPath ?? string.Empty, lineNo, out var changePathInfo))
+                    if (!TryParseInput(
+                        loggingContext, 
+                        inputLine, 
+                        filePathOrigin ?? string.Empty, 
+                        lineNo, 
+                        out var changePathInfo,
+                        sourceRoot,
+                        directoryTranslator))
                     {
                         return null;
                     }
@@ -92,7 +109,7 @@ namespace BuildXL.Storage.InputChange
             }
             catch (IOException ioException)
             {
-                Logger.Log.ExceptionOnCreatingInputChangeList(loggingContext, optionalPath ?? string.Empty, ioException.ToString());
+                Logger.Log.ExceptionOnCreatingInputChangeList(loggingContext, filePathOrigin ?? string.Empty, ioException.ToString());
                 return null;
             }
 
@@ -109,7 +126,14 @@ namespace BuildXL.Storage.InputChange
         ///   full path|comma separated <see cref="PathChanges"/>
         /// The former assumes that changes are <see cref="PathChanges.DataOrMetadataChanged"/>.
         /// </remarks>
-        private static bool TryParseInput(LoggingContext loggingContext, string input, string filePath, int lineNo, out ChangedPathInfo changedPathInfo)
+        private static bool TryParseInput(
+            LoggingContext loggingContext, 
+            string input, 
+            string filePath, 
+            int lineNo,
+            out ChangedPathInfo changedPathInfo,
+            string sourceRoot = null,
+            DirectoryTranslator directoryTranslator = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(!string.IsNullOrEmpty(input));
@@ -138,8 +162,18 @@ namespace BuildXL.Storage.InputChange
             {
                 if (!Path.IsPathRooted(changedPath))
                 {
-                    Logger.Log.InvalidChangedPathOfInputChange(loggingContext, changedPath, filePath, lineNo);
-                    return false;
+                    if (string.IsNullOrEmpty(sourceRoot))
+                    {
+                        Logger.Log.InvalidChangedPathOfInputChange(loggingContext, changedPath, filePath, lineNo);
+                        return false;
+                    }
+
+                    changedPath = Path.GetFullPath(Path.Combine(sourceRoot, changedPath));
+                }
+
+                if (directoryTranslator != null)
+                {
+                    changedPath = directoryTranslator.Translate(changedPath);
                 }
 
                 if (!string.IsNullOrEmpty(changesStr))

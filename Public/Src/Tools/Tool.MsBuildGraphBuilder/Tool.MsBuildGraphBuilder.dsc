@@ -23,6 +23,7 @@ namespace MsBuildGraphBuilder {
             importFrom("BuildXL.FrontEnd").MsBuild.Serialization.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Threading.Tasks.Dataflow").pkg),

@@ -501,7 +501,15 @@ namespace BuildXL.Engine.Distribution
                     Failure = buildFailure ?? m_exitFailure
                 };
 
-                await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+                var callResult = await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+                m_isConnectionLost = !callResult.Succeeded;
+            }
+
+            // If the worker was available at some point of the build and the connection is lost, 
+            // we should log an warning.
+            if (m_isConnectionLost && EverAvailable)
+            {
+                Scheduler.Tracing.Logger.Log.ProblematicWorkerExit(m_appLoggingContext, Name);
             }
 
             m_executionBlobQueue.CompleteAdding();

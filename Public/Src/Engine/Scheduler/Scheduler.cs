@@ -1099,7 +1099,7 @@ namespace BuildXL.Scheduler
 
             // Ensure that when the cancellationToken is signaled, we respond with the
             // internal cancellation process.
-            m_cancellationTokenRegistration = context.CancellationToken.Register(RequestTermination);
+            m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination());
 
             m_serviceManager = new SchedulerServiceManager(graph, context);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
@@ -2342,19 +2342,25 @@ namespace BuildXL.Scheduler
                 // This happens before we traverse the dependents of this failed pip; since SchedulePipIfReady
                 // checks m_scheduleTerminating this means that there will not be 'Skipped' pips in this mode
                 // (they remain unscheduled entirely).
-                if (!succeeded && m_scheduleConfiguration.StopOnFirstError)
+                if (!succeeded && !IsDistributedWorker)
                 {
-                    if (!m_scheduleTerminating)
+                    // We stop on the first error only on the master or single-machine builds.
+                    // During cancellation, master coordinates with workers to stop the build.
+
+                    // ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
+                    bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
+                        || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
+
+                    // Early terminate the build if 
+                    // (1) StopOnFirstError is enabled or 
+                    // (2) a materialization error is occurred in a distributed build.
+                    bool earlyTerminate = m_scheduleConfiguration.StopOnFirstError || (hasMaterializationErrorHappened && IsDistributedMaster);
+
+                    if (!IsTerminating && earlyTerminate)
                     {
                         Logger.Log.ScheduleTerminatingDueToPipFailure(m_executePhaseLoggingContext, pipDescription);
 
-                        // This flag prevents normally-scheduled pips (i.e., by refcount) from starting (thus m_numPipsQueuedOrRunning should
-                        // reach zero quickly). But we do allow further pips to run inline (see RunPipInline); that's safe from an error
-                        // reporting perspective since m_hasFailures latches to false.
-                        m_scheduleTerminating = true;
-
-                        // A build that has been canceled should return failure
-                        m_hasFailures = true;
+                        RequestTermination(cancelQueue: false);
                     }
 
                     Contract.Assert(m_executePhaseLoggingContext.ErrorWasLogged, I($"Should have logged error for pip: {pipDescription}"));
@@ -2753,7 +2759,7 @@ namespace BuildXL.Scheduler
                 // With a ref count of zero, all pip dependencies (if any) have already executed, and so we have
                 // all needed content hashes (and content on disk) for inputs. This means the pip we can both
                 // compute the content fingerprint and execute it (possibly in a cached manner).
-                if (m_scheduleTerminating)
+                if (IsTerminating)
                 {
                     // We're bringing down the schedule quickly. Even pips which become ready without any dependencies will be skipped.
                     // We return early here to skip OnPipNewlyQueuedOrRunning (which prevents m_numPipsQueuedOrRunning from increasing).
@@ -3662,7 +3668,7 @@ namespace BuildXL.Scheduler
 
         private bool ShouldCancelPip(RunnablePip runnablePip)
         {
-            return m_scheduleTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
+            return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
         }
 
         private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
@@ -6379,16 +6385,21 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Inform the scheduler that we want to terminate ASAP (but with clean shutdown as needed).
         /// </summary>
-        private void RequestTermination()
+        private void RequestTermination(bool cancelQueue = true)
         {
-            // Cancellation event has been logged by BuildXLApp before triggering actual cancellation.
+            // This flag prevents normally-scheduled pips (i.e., by refcount) from starting (thus m_numPipsQueuedOrRunning should
+            // reach zero quickly). But we do allow further pips to run inline (see RunPipInline); that's safe from an error
+            // reporting perspective since m_hasFailures latches to false.
             m_scheduleTerminating = true;
 
             // A build that got canceled certainly didn't succeed.
             m_hasFailures = true;
 
-            // TODO: Send a notification to the workers in distributed builds.
-            m_pipQueue.Cancel();
+            if (cancelQueue)
+            {
+                // We cancel the queue for more aggressive but still graceful cancellation. 
+                m_pipQueue.Cancel();
+            }
         }
 
         #endregion

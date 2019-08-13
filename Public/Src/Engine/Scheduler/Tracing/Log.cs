@@ -747,6 +747,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs, bool isDrainedWithSuccess);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ProblematicWorkerExit,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} exited with a connection issue. Worker was attached and running during some part of the build.",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Distribution,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName);
+
+        [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

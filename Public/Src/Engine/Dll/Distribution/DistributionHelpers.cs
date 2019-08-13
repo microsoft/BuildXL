@@ -174,6 +174,11 @@ namespace BuildXL.Engine.Distribution
                     sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
                 }
 
+                if (notificationArgs.ForwardedEvents?.Count > 0)
+                {
+                    sb.AppendFormat("ForwardedEvents: Count={0}", notificationArgs.ForwardedEvents.Count);
+                }
+
                 return sb.ToString();
             }
         }

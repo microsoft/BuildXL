@@ -98,8 +98,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             try
             {
                 var pips = PipGraph.RetrieveScheduledPips().ToList();
-                var finalPipList = TopSort(pips);
-                serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
+                serializer.Serialize(m_absoluteOutputPath, pips.Select(x => new List<Pip>() { x }).ToList(), pips.Count, m_description);
+
+                // var finalPipList = TopSort(pips);
+                // serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
                 Logger.GraphFragmentSerializationStats(LoggingContext, serializer.FragmentDescription, serializer.Stats.ToString());
             }
             catch (Exception e) when (e is BuildXLException || e is IOException)
@@ -151,14 +153,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 {
                     values.Add(pip);
                 }
-                else if (pip is IpcPip)
-                {
-                    values.Add(pip);
-                }
                 else if ((pip is Process && (((Process)pip).IsService || ((Process)pip).IsStartOrShutdownKind))
                     || (pip is IpcPip && ((IpcPip)pip).IsServiceFinalization))
                 {
                     specialIpcPips.Add(pip);
+                }
+                else if (pip is IpcPip)
+                {
+                    ipcPips.Add(pip);
                 }
                 else
                 {

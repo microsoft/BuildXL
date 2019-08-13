@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -40,7 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private string _storeLocation;
-        private readonly string _activeSlotFilePath;        
+        private readonly string _activeSlotFilePath;
 
         private static readonly byte[] EmptyBytes = CollectionUtilities.EmptyArray<byte>();
 
@@ -533,8 +532,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash.ToByteArray();
         }
 
-        // TODO(jubayard): garbage collection / removal in general
-
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
@@ -701,6 +698,55 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
         {
             return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
+        }
+
+        /// <inheritdoc />
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
+        {
+            return _keyValueStore.Use(store => {
+                var cutoffTimeUtc = (Clock.UtcNow - _configuration.MetadataGarbageCollectionProtectionTime).ToFileTimeUtc();
+                int removedEntries = 0;
+                int scannedEntries = 0;
+                ulong dbSizeInBytesAfterGc = 0;
+                ulong dbRemovedBytesDuringGc = 0;
+
+                // TODO(jubayard): we may want to use a single WriteBatch here if this ends up affecting perf
+                foreach (var kvp in store.PrefixSearch((byte[])null, columnFamilyName: nameof(Columns.Metadata)))
+                {
+                    if (context.Token.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    scannedEntries++;
+                    Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Increment();
+                    
+                    var lastAccessTimeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                    if (lastAccessTimeUtc < cutoffTimeUtc)
+                    {
+                        RemoveMetadata(store, kvp.Key);
+
+                        dbRemovedBytesDuringGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                        removedEntries++;
+                        Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Increment();
+                    }
+                    else
+                    {
+                        dbSizeInBytesAfterGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                    }
+                }
+
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, EntriesAfterGc={scannedEntries - removedEntries}, DbSizeInBytesAfterGc={dbSizeInBytesAfterGc}, DbRemovedBytesDuringGc={dbRemovedBytesDuringGc}");
+
+                return Unit.Void;
+            }).ToBoolResult();
+        }
+
+        private void RemoveMetadata(IBuildXLKeyValueStore store, byte[] strongFingerprint)
+        {
+            // TODO(jubayard): Right now, this only removes the metadata, we can also remove content in the future. For
+            // that, we'll need the metadata and a reverse index stored.
+            store.Remove(strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
         }
 
         /// <summary>

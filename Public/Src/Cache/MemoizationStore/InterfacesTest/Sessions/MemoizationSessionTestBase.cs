@@ -474,12 +474,12 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             });
         }
 
-        protected async Task RunTestAsync(Context context, Func<IMemoizationStore, IMemoizationSession, Task> funcAsync)
+        protected async Task RunTestAsync(Context context, Func<IMemoizationStore, IMemoizationSession, Task> funcAsync, Func<DisposableDirectory, IMemoizationStore> createStoreFunc = null)
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 // ReSharper disable once ConvertClosureToMethodGroup
-                await RunTestAsync(context, testDirectory, (store, session) => funcAsync(store, session));
+                await RunTestAsync(context, testDirectory, (store, session) => funcAsync(store, session), createStoreFunc);
             }
         }
 

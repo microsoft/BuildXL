@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Logging
                     message
                 );
 
-            WriteLineInternal(severity, line);
+            WriteLine(severity, severity.ToString(), line);
         }
 
         /// <summary>

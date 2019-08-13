@@ -1351,8 +1351,11 @@ namespace BuildXL.FrontEnd.Core
             // Register the meta pips for the modules and the specs with the graph
             RegisterModuleAndSpecPips(Workspace);
 
-            // Workspace has been converted and is not needed anymore
-            CleanWorkspaceMemory();
+            if (FrontEndConfiguration.ReleaseWorkspaceBeforeEvaluation)
+            {
+                // Workspace has been converted and is not needed anymore
+                CleanWorkspaceMemory();
+            }
 
             // Evaluate with progress reporting
             List<ModuleEvaluationProgress> items = qualifierIds
@@ -1416,25 +1419,39 @@ namespace BuildXL.FrontEnd.Core
                     }
 
                     var moduleLocation = new LocationData(module.Definition.ModuleConfigFile, 0, 0);
-                    PipGraph.AddModule(
-                        new ModulePip(
+
+                    var modulePip = new ModulePip(
                             module: module.Descriptor.Id,
                             identity: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Name),
                             version: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Version),
                             location: moduleLocation,
                             resolverKind: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverKind),
-                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)
-                        )
-                    );
+                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName));
+
+                    if (PipGraphFragmentManager != null)
+                    {
+                        PipGraphFragmentManager.AddModulePip(modulePip);
+                    }
+                    else
+                    {
+                        PipGraph.AddModule(modulePip);
+                    }
 
                     foreach (var spec in module.Specs.Keys)
                     {
-                        PipGraph.AddSpecFile(
-                            new SpecFilePip(
+                        var specFilePip = new SpecFilePip(
                                 FileArtifact.CreateSourceFile(spec),
                                 moduleLocation,
-                                module.Descriptor.Id)
-                        );
+                                module.Descriptor.Id);
+
+                        if (PipGraphFragmentManager != null)
+                        {
+                            PipGraphFragmentManager.AddSpecFilePip(specFilePip);
+                        }
+                        else
+                        {
+                            PipGraph.AddSpecFile(specFilePip);
+                        }
                     }
                 }
             }
@@ -1489,7 +1506,7 @@ namespace BuildXL.FrontEnd.Core
             var progressMessages = remainingItems
                 .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPips})"))
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

@@ -189,14 +189,16 @@ namespace BuildXL.Pips
             AbsolutePath? specPath = null,
             QualifierId? qualifierId = null)
         {
+            moduleName = moduleName ?? "TestModule";
+
             return Create(
                 context,
                 objectRoot ?? AbsolutePath.Create(context.PathTable, "d:\\test\\obj"),
                 redirectedRoot ?? AbsolutePath.Create(context.PathTable, "d:\\test\\redirected"),
                 tempRoot ?? objectRoot ?? AbsolutePath.Create(context.PathTable, "d:\\test\\tmp"),
                 pipGraph,
-                new ModuleId(1),
-                moduleName ?? "TestModule",
+                ModuleId.Create(context.StringTable, moduleName),
+                moduleName,
                 RelativePath.Create(context.StringTable, specRelativePath ?? "spec"),
                 FullSymbol.Create(context.SymbolTable, symbol ?? "testValue"),
                 new LocationData(specPath ?? AbsolutePath.Create(context.PathTable, "d:\\src\\spec.dsc"), 0, 0),
@@ -275,7 +277,7 @@ namespace BuildXL.Pips
 
             PipData usage = PipDataBuilder.CreatePipData(Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, description != null
                 ? new PipDataAtom[] { description }
-                : new PipDataAtom[] { "'", directoryRoot, " [", contents.Length.ToString(CultureInfo.InvariantCulture), " files]" });
+                : new PipDataAtom[] { "'", directoryRoot, "' [", contents.Length.ToString(CultureInfo.InvariantCulture), " files]" });
 
             var pip = new SealDirectory(
                 directoryRoot,

@@ -1062,6 +1062,9 @@ namespace BuildXL
                             "useFileContentTable",
                             sign => engineConfiguration.UseFileContentTable = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "useFixedApiServerMoniker",
+                            sign => schedulingConfiguration.UseFixedApiServerMoniker = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "useHardlinks",
                             sign => engineConfiguration.UseHardlinks = sign),
                         OptionHandlerFactory.CreateBoolOption(

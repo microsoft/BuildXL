@@ -266,8 +266,8 @@ namespace Test.DScript.Ast.PartialEvaluation
                 PackageId.Create(StringTable, module.Descriptor.Name),
                 path,
                 new PackageDescriptor { Name = module.Descriptor.Name },
-                parsedProjects: module.PathToSpecs);
-            package.ModuleId = module.Descriptor.Id;
+                parsedProjects: module.PathToSpecs,
+                moduleId: module.Descriptor.Id);
             return package;
         }
 

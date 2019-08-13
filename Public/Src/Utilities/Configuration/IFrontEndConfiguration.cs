@@ -300,6 +300,11 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
 
         /// <summary>
+        /// Wheather or not to release workspace before evaluation.
+        /// </summary>
+        bool ReleaseWorkspaceBeforeEvaluation { get; }
+
+        /// <summary>
         /// Uses optimized AST conversion.
         /// </summary>
         /// <remarks>

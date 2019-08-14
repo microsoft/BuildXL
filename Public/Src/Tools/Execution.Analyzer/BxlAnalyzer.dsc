@@ -31,11 +31,6 @@ namespace Execution.Analyzer {
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll
             ),
-            // ...(BuildXLSdk.isDotNetCoreBuild 
-            //     // There is a bug in the dotnetcore generation of this package
-            //     ? [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").withQualifier({targetFramework: "netstandard1.3"}).pkg]
-            //     : [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg]
-            // ),
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,
             importFrom("Antlr4.Runtime.Standard").pkg,

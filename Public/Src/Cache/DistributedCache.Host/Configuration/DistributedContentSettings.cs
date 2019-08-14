@@ -384,6 +384,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpan? ContentLocationDatabaseCacheFlushingMaximumInterval { get; set; }
 
+        [DataMember]
+        public int? FullRangeCompactionIntervalMinutes { get; set; }
+
         // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }

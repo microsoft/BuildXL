@@ -173,7 +173,7 @@ namespace BuildXL
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
         /// <param name="optimizeForAzureDevOps">
-        /// Whether console output should e optimized for Azure DevOps output.
+        /// Whether console output should be optimized for Azure DevOps output.
         /// </param>
         public ConsoleEventListener(
             Events eventSource,

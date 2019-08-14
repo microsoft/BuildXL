@@ -46,7 +46,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <summary>
         /// Evaluates an expression in the current debugger state context
         /// </summary>
-        public Possible<ObjectContext, Failure> EvaluateExpression(ThreadState threadState, int frameIndex, string expressionString)
+        public Possible<ObjectContext, Failure> EvaluateExpression(ThreadState threadState, int frameIndex, string expressionString, bool evaluateForCompletions)
         {
             var evalState = (EvaluationState)threadState;
             var context = evalState.Context;

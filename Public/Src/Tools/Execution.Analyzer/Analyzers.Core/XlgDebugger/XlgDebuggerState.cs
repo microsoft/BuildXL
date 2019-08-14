@@ -139,7 +139,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <inheritdoc />
-        public Possible<ObjectContext, Failure> EvaluateExpression(ThreadState threadState, int frameIndex, string expr)
+        public Possible<ObjectContext, Failure> EvaluateExpression(ThreadState threadState, int frameIndex, string expr, bool evaluateForCompletions)
         {
             if (Pip.TryParseSemiStableHash(expr, out var hash) && Analyzer.SemiStableHash2Pip.TryGetValue(hash, out var pipId))
             {
@@ -152,7 +152,8 @@ namespace BuildXL.Execution.Analyzer
                 return new ObjectContext(context: this, new AnalyzePath(path));
             }
 
-            var maybeResult = JPath.JPath.TryEval(Evaluator, expr);
+            var exprToEval = evaluateForCompletions ? $"({expr})[0]" : expr;
+            var maybeResult = JPath.JPath.TryEval(Evaluator, exprToEval);
             if (maybeResult.Succeeded)
             {
                 return new ObjectContext(this, maybeResult.Result);

@@ -208,7 +208,11 @@ namespace BuildXL.FrontEnd.Script.Debugger
             }
 
             var frameRef = m_scopeHandles.Get(cmd.FrameId.Value, null);
-            var ans = ExpressionEvaluator.EvaluateExpression(State.GetThreadState(frameRef.ThreadId), frameRef.FrameIndex, cmd.Expression);
+            var ans = ExpressionEvaluator.EvaluateExpression(
+                State.GetThreadState(frameRef.ThreadId),
+                frameRef.FrameIndex,
+                cmd.Expression,
+                evaluateForCompletions: false);
             if (ans.Succeeded)
             {
                 ObjectContext objContext = ans.Result;
@@ -282,9 +286,13 @@ namespace BuildXL.FrontEnd.Script.Debugger
             var textToEval = ExtractCompletionRequestPrefixText(cmd);
             var lastIdx = new[] { '.', '[', '(' }.Max(c => textToEval.LastIndexOf(c));
             var text = lastIdx > -1
-                ? textToEval.Substring(0, length: lastIdx) + "[0]"
+                ? textToEval.Substring(0, length: lastIdx)
                 : textToEval;
-            var ans = ExpressionEvaluator.EvaluateExpression(State.GetThreadState(frameRef.ThreadId), frameRef.FrameIndex, text);
+            var ans = ExpressionEvaluator.EvaluateExpression(
+                State.GetThreadState(frameRef.ThreadId),
+                frameRef.FrameIndex,
+                text,
+                evaluateForCompletions: true);
 
             List<ICompletionItem> items;
             if (!ans.Succeeded)

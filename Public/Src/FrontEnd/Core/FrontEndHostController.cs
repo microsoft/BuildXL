@@ -1488,8 +1488,13 @@ namespace BuildXL.FrontEnd.Core
                 remaining: remainingMessage);
         }
 
-        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
+        private string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
         {
+            if (Configuration.Logging.OptimizeConsoleOutputForAzureDevOps)
+            {
+                return remainingItems.Count.ToString(CultureInfo.InvariantCulture);
+            }
+
             var progressMessages = remainingItems
                 .Take(10)
                 .Select(item => FormatProgressMessage(elapsed, item.Module.Descriptor.DisplayName))

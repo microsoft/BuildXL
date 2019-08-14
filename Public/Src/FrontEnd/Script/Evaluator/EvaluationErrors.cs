@@ -402,6 +402,28 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
+        public void ReportDisallowedUnsafeAmbientCallError(
+            ModuleLiteral env,
+            Expression expression,
+            string methodName,
+            LineInfo lineInfo)
+        {
+            Contract.Requires(env != null);
+            Contract.Requires(expression != null);
+            Contract.Requires(!string.IsNullOrEmpty(methodName));
+
+            var location = lineInfo.AsUniversalLocation(env, Context);
+
+            Logger.ReportDisallowedUnsafeAmbientCallError(
+                LoggingContext,
+                location.AsLoggingLocation(),
+                methodName,
+                expression.ToDisplayString(Context),
+                Context.GetStackTraceAsErrorMessage(location));
+        }
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         public void DirectoryNotSupportedException(
             ModuleLiteral env,
             Expression expression,

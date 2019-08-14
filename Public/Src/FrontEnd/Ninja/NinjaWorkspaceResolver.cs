@@ -266,9 +266,9 @@ namespace BuildXL.FrontEnd.Ninja
             Possible<NinjaGraphResult> maybeGraph = await ComputeBuildGraphAsync();
             
             var result = maybeGraph.Result;
-            var specFileConfig = SpecFile.ChangeExtension(m_context.PathTable, PathAtom.Create(m_context.StringTable, ".ninja.dsc"));   // It needs to be a .dsc for the parsing to work
+            var specFileConfig = SpecFile.ChangeExtension(m_context.PathTable, PathAtom.Create(m_context.StringTable, ".ninja.dsc")); // It needs to be a .dsc for the parsing to work
 
-            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_resolverSettings.ModuleName, this);   
+            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 moduleDescriptor,
                 ProjectRoot,

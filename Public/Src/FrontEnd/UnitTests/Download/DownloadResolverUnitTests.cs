@@ -427,7 +427,7 @@ namespace Test.BuildXL.FrontEnd.Download
                 );
 
                 var workspaceResolver = new DownloadWorkspaceResolver();
-                workspaceResolver.UpdateDataForDownloadData(data);
+                workspaceResolver.UpdateDataForDownloadData(data, FrontEndContext);
                 await resolver.InitResolverAsync(resolverSettings, workspaceResolver);
 
                 if (useHttpServer)

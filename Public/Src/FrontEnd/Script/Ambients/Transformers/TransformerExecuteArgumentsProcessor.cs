@@ -110,6 +110,15 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             AddOption(prefix, value, valueIsEmpty: value == FileArtifact.Invalid, writeValue: (b, v) => b.AddVsoHash(v));
         }
 
+        private void AddFileId(string prefix, FileArtifact value)
+        {
+            AddOption(
+                prefix,
+                value,
+                valueIsEmpty: value == FileArtifact.Invalid,
+                writeValue: (b, v) => b.AddFileId(v));
+        }
+
         private void AddOption<TValue>(string prefix, TValue value, bool valueIsEmpty, Action<PipDataBuilder, TValue> writeValue)
         {
             // prefix and value are null -> skip
@@ -364,7 +373,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 switch (artifact.Type)
                 {
                     case ArtifactValueType.File:
-                        AddOption(argumentName, FileId.ToString(artifact.File));
+                        // AddOption(argumentName, FileId.ToString(artifact.File));
+                        AddFileId(argumentName, artifact.File);
                         m_processBuilder.AddInputFile(artifact.File);
                         break;
                     case ArtifactValueType.Directory:

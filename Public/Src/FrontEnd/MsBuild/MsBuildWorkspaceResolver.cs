@@ -415,7 +415,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 projectFiles.Add(node.FullPath);
             }
 
-            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_resolverSettings.ModuleName, this);
+            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 moduleDescriptor,
                 m_resolverSettings.RootTraversal,

@@ -738,7 +738,7 @@ namespace BuildXL.FrontEnd.Download
                 Projects = new List<AbsolutePath>(moduleDefinition.Specs),
             };
 
-            return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor);
+            return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor, moduleId: moduleDescriptor.Id);
         }
 
         /// <inheritdoc />

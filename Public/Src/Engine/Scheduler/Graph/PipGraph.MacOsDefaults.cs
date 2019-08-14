@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -37,7 +38,7 @@ namespace BuildXL.Scheduler.Graph
             private readonly DirectoryArtifact[] m_untrackedDirectories;
 
             /// <nodoc />
-            public MacOsDefaults(PathTable pathTable, PipGraph.Builder pipGraph)
+            public MacOsDefaults(PathTable pathTable, IPipGraph pipGraph)
             {
                 m_provenance = new PipProvenance(
                     0,
@@ -134,7 +135,7 @@ namespace BuildXL.Scheduler.Graph
                 return true;
             }
 
-            private DirectoryArtifact GetSourceSeal(PathTable pathTable, PipGraph.Builder pipGraph, string path)
+            private DirectoryArtifact GetSourceSeal(PathTable pathTable, IPipGraph pipGraph, string path)
             {
                 var sealDirectory = new SealDirectory(
                     AbsolutePath.Create(pathTable, path),
@@ -145,7 +146,7 @@ namespace BuildXL.Scheduler.Graph
                     patterns: ReadOnlyArray<StringId>.Empty,
                     scrub: false);
 
-                return pipGraph.AddSealDirectory(sealDirectory);
+                return pipGraph.AddSealDirectory(sealDirectory, default);
             }
         }
     }

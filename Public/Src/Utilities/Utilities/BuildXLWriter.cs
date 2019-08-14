@@ -172,14 +172,6 @@ namespace BuildXL.Utilities
             End();
         }
 
-        /// <summary>
-        /// Write pip id value to disk.
-        /// </summary>
-        public virtual void WritePipIdValue(uint value)
-        {
-            Write(value);
-        }
-
         private void Write7BitEncodedLong(long value)
         {
             unchecked
@@ -488,10 +480,10 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Writes a ModuleId
         /// </summary>
-        public void Write(ModuleId value)
+        public virtual void Write(ModuleId value)
         {
             Start<ModuleId>();
-            WriteCompact(value.Value);
+            value.Serialize(this);
             End();
         }
 

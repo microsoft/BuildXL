@@ -158,18 +158,19 @@ namespace Test.BuildXL.Scheduler
                     var objectRoot = AbsolutePath.Create(Context.PathTable, ObjectRoot);
                     var redirectedRoot = AbsolutePath.Create(Context.PathTable, RedirectedRoot);
 
-                    ModuleId moduleId = new ModuleId(1);
                     var specPath = objectRoot.Combine(Context.PathTable, "spec.dsc");
 
-                    PipGraphBuilder.AddModule(ModulePip.CreateForTesting(Context.StringTable, specPath, moduleId));
-                    PipGraphBuilder.AddSpecFile(new SpecFilePip(new FileArtifact(specPath), new LocationData(specPath, 0, 0), moduleId));
+                    var modulePip = ModulePip.CreateForTesting(Context.StringTable, specPath);
+                    PipGraphBuilder.AddModule(modulePip);
+                    PipGraphBuilder.AddSpecFile(new SpecFilePip(new FileArtifact(specPath), new LocationData(specPath, 0, 0), modulePip.Module));
 
                     m_pipConstructionHelper = PipConstructionHelper.CreateForTesting(
                         Context,
                         objectRoot: objectRoot,
                         redirectedRoot: redirectedRoot,
                         pipGraph: PipGraphBuilder,
-                        specPath: specPath);
+                        specPath: specPath,
+                        moduleName: modulePip.Identity.ToString(Context.StringTable));
                 }
 
                 return m_pipConstructionHelper;
@@ -685,11 +686,11 @@ namespace Test.BuildXL.Scheduler
 
         public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IPipGraph pipGraph)
         {
-            var moduleId = new ModuleId(1, "TestModuleId");
+            var modulePip = ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path);
             var locationData = new LocationData(provenance.Token.Path, 0, 0);
 
-            pipGraph.AddModule(ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path, moduleId));
-            pipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(provenance.Token.Path), locationData, moduleId));
+            pipGraph.AddModule(modulePip);
+            pipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(provenance.Token.Path), locationData, modulePip.Module));
             pipGraph.AddOutputValue(new ValuePip(provenance.OutputValueSymbol, QualifierId.Unqualified, locationData));
         }
 

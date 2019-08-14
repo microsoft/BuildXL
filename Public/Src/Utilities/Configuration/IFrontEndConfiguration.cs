@@ -300,6 +300,11 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
 
         /// <summary>
+        /// Wheather or not to release workspace before evaluation.
+        /// </summary>
+        bool ReleaseWorkspaceBeforeEvaluation { get; }
+
+        /// <summary>
         /// Uses optimized AST conversion.
         /// </summary>
         /// <remarks>
@@ -307,5 +312,10 @@ namespace BuildXL.Utilities.Configuration
         /// This option is suitable if the specs are machine generated.
         /// </remarks>
         bool UnsafeOptimizedAstConversion { get; }
+
+        /// <summary>
+        /// Whether or not the frontend is allowed to evaluate methods in the unsafe ambient.
+        /// </summary>
+        bool AllowUnsafeAmbient { get; }
     }
 }

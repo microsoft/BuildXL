@@ -259,6 +259,17 @@ namespace BuildXL.FrontEnd.Script.Tracing
             LoggingContext context, Location location, string expression, string additionalInformation, string stackTrace);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DisallowedUnsafeAmbientCall,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                EventConstants.LabeledProvenancePrefix + "Disallowed call to unsafe ambient call '{methodName}' in '{expression}'.{stackTrace}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
+        public abstract void ReportDisallowedUnsafeAmbientCallError(
+            LoggingContext context, Location location, string methodName, string expression, string stackTrace);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DirectoryNotSupportedException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

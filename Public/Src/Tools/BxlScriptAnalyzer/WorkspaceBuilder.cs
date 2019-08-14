@@ -338,6 +338,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
                     ReleaseWorkspaceBeforeEvaluation = !phase.HasFlag(EnginePhases.Evaluate),
                     UnsafeOptimizedAstConversion = true,
+                    AllowUnsafeAmbient = true,
                 },
                 Engine =
                 {

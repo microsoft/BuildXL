@@ -52,9 +52,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 Function(Constants.Names.GlobFoldersFunction, GlobFolders, GlobFoldersSignature),
                 Function("addIf", AddIf, AddIfSignature),
                 Function("addIfLazy", AddIfLazy, AddIfLazySignature),
-                Function("sign", Sign, SignSignature),
-                Function("unsafe_outputFile", UnsafeOutputFile, UnsafeOutputFileSignature),
-                Function("unsafe_exOutputDirectory", UnsafeExOutputDirectory, UnsafeExOutputDirectorySignature),
+                Function("sign", Sign, SignSignature)
             };
         }
 
@@ -96,20 +94,6 @@ namespace BuildXL.FrontEnd.Script.Ambients
             return result;
         }
 
-        private EvaluationResult UnsafeOutputFile(Context context, ModuleLiteral env, EvaluationStackFrame args)
-        {
-            var path = Args.AsPath(args, 0);
-            var rewriteCount = Args.AsNumberOrEnumValueOptional(args, 1) ?? 1;
-
-            return EvaluationResult.Create(new FileArtifact(path, rewriteCount));
-        }
-
-        private EvaluationResult UnsafeExOutputDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
-        {
-            var path = Args.AsPath(args, 0);
-            return EvaluationResult.Create(DirectoryArtifact.CreateWithZeroPartialSealId(path));
-        }
-        
         private EvaluationResult Glob(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             return GlobImpl(context, args, SearchOption.TopDirectoryOnly);
@@ -510,14 +494,5 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private static CallSignature SignSignature => CreateSignature(
             required: RequiredParameters(PrimitiveType.BooleanType),
             returnType: PrimitiveType.StringType);
-
-        private CallSignature UnsafeOutputFileSignature => CreateSignature(
-            required: RequiredParameters(AmbientTypes.PathType),
-            optional: OptionalParameters(PrimitiveType.NumberType),
-            returnType: AmbientTypes.FileType);
-
-        private CallSignature UnsafeExOutputDirectorySignature => CreateSignature(
-            required: RequiredParameters(AmbientTypes.PathType),
-            returnType: AmbientTypes.DirectoryType);
     }
 }

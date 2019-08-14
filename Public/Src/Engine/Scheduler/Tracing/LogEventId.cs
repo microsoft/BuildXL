@@ -138,12 +138,11 @@ namespace BuildXL.Scheduler.Tracing
         InitiateWorkerRelease = 5045,
         WorkerReleasedEarly = 5046, 
         DependencyViolationWriteOnExistingFile = 5047,
-        FailedToLoadPipGraphFragment = 5048
-        FailedToAddFragmentPipToGraph = 5049,
-        ExceptionOnAddingFragmentPipToGraph = 5050,
-        ExceptionOnDeserializingPipGraphFragment = 5051,
-        DeserializationStatsPipGraphFragment = 5052,
-        DebugFragment = 5053,
+        FailedToAddFragmentPipToGraph = 5048,
+        ExceptionOnAddingFragmentPipToGraph = 5049,
+        ExceptionOnDeserializingPipGraphFragment = 5050,
+        DeserializationStatsPipGraphFragment = 5051,
+        DebugFragment = 5052,
 
         ProblematicWorkerExit = 5070,
 

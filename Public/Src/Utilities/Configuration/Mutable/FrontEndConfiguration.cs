@@ -69,6 +69,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
             ReleaseWorkspaceBeforeEvaluation = template.ReleaseWorkspaceBeforeEvaluation;
             UnsafeOptimizedAstConversion = template.UnsafeOptimizedAstConversion;
+            AllowUnsafeAmbient = template.AllowUnsafeAmbient;
         }
 
         /// <inheritdoc />
@@ -199,7 +200,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc /> 
         public bool ReleaseWorkspaceBeforeEvaluation { get; set; }
+
         /// <inheritdoc /> 
         public bool UnsafeOptimizedAstConversion { get; set; }
+
+        /// <inheritdoc /> 
+        public bool AllowUnsafeAmbient { get; set; }
     }
 }

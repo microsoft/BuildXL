@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Linq;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.ToolSupport;
+using System.Collections.Generic;
+using BuildXL.Execution.Analyzer.Xldb;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -77,9 +79,6 @@ namespace BuildXL.Execution.Analyzer
         private readonly long m_semiStableHash;
         private readonly Stopwatch m_stopWatch;
 
-        //private readonly Dictionary<ModuleId, string> m_moduleIdToFriendlyName = new Dictionary<ModuleId, string>();
-        //private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
-
         public NewDumpPipAnalyzer(AnalysisInput input, string outputFilePath, string inputDirPath, long semiStableHash)
             : base(input)
         {
@@ -97,47 +96,45 @@ namespace BuildXL.Execution.Analyzer
             return true;
         }
 
-
         public override int Analyze()
         {
             using (var dataStore = new XldbDataStore(storeDirectory: m_inputDirPath))
             {
-                //dataStore.GetPipsOfType(Xldb.PipType.CopyFile).ToList().ForEach(p => Console.WriteLine(p.ToString()));
-
                 var pip = dataStore.GetPipBySemiStableHash(m_semiStableHash, out var pipType);
+
                 if (pip == null)
                 {
                     Console.WriteLine($"Pip with the SemiStableHash {m_semiStableHash} was not found. Exiting Analyzer");
                     return 1;
                 }
 
-                dynamic testVar = null;
+                dynamic castedPip = null;
 
                 switch (pipType)
                 {
-                    case Xldb.PipType.CopyFile:
-                        testVar = (Xldb.CopyFile)pip;
+                    case PipType.CopyFile:
+                        castedPip = (CopyFile)pip;
                         break;
-                    case Xldb.PipType.Module:
-                        testVar = (Xldb.ModulePip)pip;
+                    case PipType.Module:
+                        castedPip = (ModulePip)pip;
                         break;
-                    case Xldb.PipType.SealDirectory:
-                        testVar = (Xldb.SealDirectory)pip;
+                    case PipType.SealDirectory:
+                        castedPip = (SealDirectory)pip;
                         break;
-                    case Xldb.PipType.WriteFile:
-                        testVar = (Xldb.WriteFile)pip;
+                    case PipType.WriteFile:
+                        castedPip = (WriteFile)pip;
                         break;
-                    case Xldb.PipType.Process:
-                        testVar = (Xldb.ProcessPip)pip;
+                    case PipType.Process:
+                        castedPip = (ProcessPip)pip;
                         break;
-                    case Xldb.PipType.HashSourceFile:
-                        testVar = (Xldb.HashSourceFile)pip;
+                    case PipType.HashSourceFile:
+                        castedPip = (HashSourceFile)pip;
                         break;
-                    case Xldb.PipType.Ipc:
-                        testVar = (Xldb.IpcPip)pip;
+                    case PipType.Ipc:
+                        castedPip = (IpcPip)pip;
                         break;
-                    case Xldb.PipType.SpecFile:
-                        testVar = (Xldb.SpecFilePip)pip;
+                    case PipType.SpecFile:
+                        castedPip = (SpecFilePip)pip;
                         break;
                 }
 
@@ -146,111 +143,72 @@ namespace BuildXL.Execution.Analyzer
 
                 dataStore.GetBXLInvocationEvents().ToList().ForEach(ev => Console.WriteLine(ev.ToString()));
 
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.PipExecutionPerformance, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "PipExecutionPerformance empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.PipExecutionStepPerformanceReported, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "PipExecutionStepPerformanceReported empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.ProcessExecutionMonitoringReported, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "ProcessExecutionMonitoringReported empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.ProcessFingerprintComputation, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "ProcessFingerprintComputation empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.ObservedInputs, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "ObservedInputs empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.DirectoryMembershipHashed, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "DirectoryMembershipHashed empty or null");
+                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionPerformance, castedPip.ParentPipInfo.PipId)?.ToString() ?? "PipExecutionPerformance empty or null");
+                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionStepPerformanceReported, castedPip.ParentPipInfo.PipId)?.ToString() ?? "PipExecutionStepPerformanceReported empty or null");
+                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessExecutionMonitoringReported, castedPip.ParentPipInfo.PipId)?.ToString() ?? "ProcessExecutionMonitoringReported empty or null");
+                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessFingerprintComputation, castedPip.ParentPipInfo.PipId)?.ToString() ?? "ProcessFingerprintComputation empty or null");
+                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ObservedInputs, castedPip.ParentPipInfo.PipId)?.ToString() ?? "ObservedInputs empty or null");
+                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.DirectoryMembershipHashed, castedPip.ParentPipInfo.PipId)?.ToString() ?? "DirectoryMembershipHashed empty or null");
 
-                // TODO: -> don't put those in the key?? what if u skip one of them since it is an || ... instead provide an API specifically for those 2 fields (iterating over all the objects)
-                Console.WriteLine(dataStore.GetEventByKey(Xldb.ExecutionEventId.DependencyViolationReported, ((Xldb.CopyFile)pip).ParentPipInfo.PipId)?.ToString() ?? "DependencyViolationReported empty or null");
+                var depViolatedEvents = dataStore.GetDependencyViolationReportedEvents();
 
-                /// The things below all require pipGraph
-                // Step 12: We want all possible directories and outputs and then we will go over just our directories and see if it in there
+                foreach (var ev in depViolatedEvents)
+                {
+                    if (ev.ViolatorPipID == castedPip.ParentPipInfo.PipId || ev.RelatedPipID == castedPip.ParentPipInfo.PipId)
+                    {
+                        Console.WriteLine(ev.ToString());
+                    }
+                }
 
-                // Step 13: Directory Dependencies (this will require the pip graph)
+                if (pipType == PipType.Process)
+                {
+                    Console.WriteLine("Getting directory output information for Process Pip");
+                    var pipExecutionDirEvents = dataStore.GetPipExecutionDirectoryOutputsEvents();
+                    foreach (var ev in pipExecutionDirEvents)
+                    {
+                        foreach (var dirOutput in ev.DirectoryOutput)
+                        {
+                            if (castedPip.DirectoryOutputs.Contains(dirOutput.DirectoryArtifact))
+                            {
+                                dirOutput.FileArtifactArray.ToList().ForEach(file => Console.WriteLine(file.ToString()));
+                            }
+                        }
+                    }
 
-                // Step 14: Need pip dependencies (immediate source and non-source) ... so will need pip graph for this as well
+                    Console.WriteLine("Geting directory dependency information for Process Pip");
+
+                    var pipGraph = dataStore.GetPipGraphMetaData();
+                    var directories = new Stack<(DirectoryArtifact artifact, string path)>(
+                    ((ProcessPip)castedPip).DirectoryDependencies
+                        .Select(d => (artifact: d, path: d.Path.Value))
+                        .OrderByDescending(tupple => tupple.path));
+
+                    while (directories.Count > 0)
+                    {
+                        var directory = directories.Pop();
+
+                        foreach (var kvp in pipGraph.AllSealDirectoriesAndProducers)
+                        {
+                            if (kvp.Artifact == directory.artifact)
+                            {
+                                var currPipId = kvp.Value;
+                                var currPip = dataStore.GetPipByPipId(currPipId, out var currPipType);
+
+                                if (currPipType == PipType.SealDirectory)
+                                {
+                                    foreach(var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tupple => tupple.path))
+                                    {
+                                        directories.Push((nestedDirectory.artifact, nestedDirectory.path));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+
             Console.WriteLine("\n\nTotal time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
             return 0;
         }
-
-        public void PrintMessages<T>(T msg)
-        {
-            Console.WriteLine(msg.ToString());
-        }
-
-        //public override void DependencyViolationReported(DependencyViolationEventData data)
-        //{
-        //    if (data.ViolatorPipId == m_pip.PipId || data.RelatedPipId == m_pip.PipId)
-        //    {
-        //        m_sections.Add(
-        //            m_html.CreateBlock(
-        //                "Dependecy Violation",
-        //                m_html.CreateRow("Violator", data.ViolatorPipId),
-        //                m_html.CreateRow("Related", data.RelatedPipId),
-        //                m_html.CreateEnumRow("ViolationType", data.ViolationType),
-        //                m_html.CreateEnumRow("AccessLevel", data.AccessLevel),
-        //                m_html.CreateRow("Path", data.Path)));
-        //    }
-        //}
-
-        //public override void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data)
-        //{
-        //    foreach (var item in data.DirectoryOutputs)
-        //    {
-        //        m_directoryContents[item.directoryArtifact] = item.fileArtifactArray;
-        //    }
-        //}
-
-        //private string GetModuleName(ModuleId value)
-        //{
-        //    return value.IsValid ? m_moduleIdToFriendlyName[value] : null;
-        //}
-
-        //private List<string> GetDirectoryOutputsWithContent(Process pip)
-        //{
-        //    var outputs = new List<string>();
-        //    var rootExpander = new RootExpander(PathTable);
-
-        //    foreach (var directoryOutput in pip.DirectoryOutputs)
-        //    {
-        //        outputs.Add(FormattableStringEx.I($"{directoryOutput.Path.ToString(PathTable)} (PartialSealId: {directoryOutput.PartialSealId}, IsSharedOpaque: {directoryOutput.IsSharedOpaque})"));
-        //        if (m_directoryContents.TryGetValue(directoryOutput, out var directoryContent))
-        //        {
-        //            foreach (var file in directoryContent)
-        //            {
-        //                outputs.Add(FormattableStringEx.I($"|--- {file.Path.ToString(PathTable, rootExpander)}"));
-        //            }
-        //        }
-        //    }
-
-        //    return outputs;
-        //}
-
-        ///// <summary>
-        ///// Returns a properly formatted/sorted list of directory dependencies.
-        ///// </summary>
-        //private List<string> GetDirectoryDependencies(ReadOnlyArray<DirectoryArtifact> dependencies)
-        //{
-        //    var result = new List<string>();
-        //    var directories = new Stack<(DirectoryArtifact artifact, string path, int tabCount)>(
-        //        dependencies
-        //            .Select(d => (artifact: d, path: d.Path.ToString(PathTable), 0))
-        //            .OrderByDescending(tupple => tupple.path));
-
-        //    while (directories.Count > 0)
-        //    {
-        //        var directory = directories.Pop();
-        //        result.Add(directory.tabCount == 0
-        //            ? FormattableStringEx.I($"{directory.path} (PartialSealId: {directory.artifact.PartialSealId}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})")
-        //            : FormattableStringEx.I($"|{string.Concat(Enumerable.Repeat("---", directory.tabCount))}{directory.path} (PartialSealId: {directory.artifact.PartialSealId}, IsSharedOpaque: {directory.artifact.IsSharedOpaque})"));
-
-        //        var sealPipId = CachedGraph.PipGraph.GetSealedDirectoryNode(directory.artifact).ToPipId();
-
-        //        if (PipTable.IsSealDirectoryComposite(sealPipId))
-        //        {
-        //            var sealPip = (SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(directory.artifact, PipQueryContext.SchedulerExecuteSealDirectoryPip);
-        //            foreach (var nestedDirectory in sealPip.ComposedDirectories.Select(d => (artifact: d, path: d.Path.ToString(PathTable))).OrderByDescending(tupple => tupple.path))
-        //            {
-        //                directories.Push((nestedDirectory.artifact, nestedDirectory.path, directory.tabCount + 1));
-        //            }
-        //        }
-        //    }
-
-        //    return result;
-        //}
     }
 }

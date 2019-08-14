@@ -52,8 +52,6 @@ message EventTypeQuery{
 
 // The FileArtifactContentDecided Event message
 message FileArtifactContentDecidedEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     FileArtifact FileArtifact = 2;
@@ -65,8 +63,6 @@ message FileArtifactContentDecidedEvent{
 
 // The WorkerList Event message
 message WorkerListEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     repeated string Workers = 2;
@@ -74,8 +70,6 @@ message WorkerListEvent{
 
 // The PipExecutionPerformance Event message
 message PipExecutionPerformanceEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -87,8 +81,6 @@ message PipExecutionPerformanceEvent{
 
 // The DirectoryMembershipHashed Event message
 message DirectoryMembershipHashedEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     DirectoryFingerprint DirectoryFingerprint = 3;
@@ -108,8 +100,6 @@ message DirectoryMembershipHashedEvent{
 
 // The ProcessExecutionMonitoringReported Event message
 message ProcessExecutionMonitoringReportedEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -125,8 +115,6 @@ message ProcessExecutionMonitoringReportedEvent{
 
 // The ExtraEventDataReported Event message
 message ExtraEventDataReported{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     bool DisableDetours = 2;
@@ -174,8 +162,6 @@ message ExtraEventDataReported{
 
 // The DependencyViolationReported Event message
 message DependencyViolationReportedEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     uint32 ViolatorPipID = 2;
@@ -191,8 +177,6 @@ message DependencyViolationReportedEvent{
 
 // The PipExecutionStepPerformanceReported Event message
 message PipExecutionStepPerformanceReportedEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -208,8 +192,6 @@ message PipExecutionStepPerformanceReportedEvent{
 
 // The StatusReported Event message
 message StatusReportedEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     google.protobuf.Timestamp Time = 2;
@@ -261,8 +243,6 @@ message StatusReportedEvent{
 
 // The ProcessFingerprintComputation Event message
 message ProcessFingerprintComputationEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
     
     FingerprintComputationKind Kind = 2;
@@ -276,8 +256,6 @@ message ProcessFingerprintComputationEvent{
 
 // The PipCacheMiss Event message
 message PipCacheMissEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     uint32 PipID = 2;
@@ -287,8 +265,6 @@ message PipCacheMissEvent{
 
 // The PipExecutionDirectoryOutputs Event message
 message PipExecutionDirectoryOutputsEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     repeated DirectoryOutput DirectoryOutput = 2;
@@ -296,8 +272,6 @@ message PipExecutionDirectoryOutputsEvent{
 
 // The BXLInvocation Event message
 message BXLInvocationEvent{
-    string UUID = 99;
-
     uint32 WorkerID = 1;
 
     AbsolutePath SubstSource = 2;

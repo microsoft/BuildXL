@@ -2,13 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer.Xldb;
@@ -223,15 +223,26 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine("\nEvent data ingested into RocksDB. Starting to ingest static graph data ...\n");
 
             var pipTable = CachedGraph.PipTable.ToPipTable();
-            var cachedGraphQuery = new CachedGraphQuery
+
+            var graphMetadata = new CachedGraphQuery
             {
                 PipTable = true
             };
 
-            WriteToDb(cachedGraphQuery.ToByteArray(), pipTable.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            WriteToDb(graphMetadata.ToByteArray(), pipTable.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
             IngestAllPips();
             Console.WriteLine($"\nAll pips ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
+            Console.WriteLine("\nStarting to ingest PipGraph.");
+            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable);
+
+            graphMetadata = new CachedGraphQuery
+            {
+                PipGraph = true
+            };
+
+            WriteToDb(graphMetadata.ToByteArray(), xldbPipGraph.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            Console.WriteLine($"\nPip graph ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
             return 0;
         }
 
@@ -247,12 +258,12 @@ namespace BuildXL.Execution.Analyzer
 
             if (m_eventCountByType.TryGetValue(eventId, out var eventCountVal))
             {
-                eventCountVal.WorkerToCountMap.TryGetValue(workerId, out var size);
-                size++;
+                eventCountVal.WorkerToCountMap.TryGetValue(workerId, out var count);
+                count++;
                 eventCountVal.WorkerToPayloadMap.TryGetValue(workerId, out var payload);
                 payload += eventPayloadSize;
 
-                eventCountVal.WorkerToCountMap[workerId] = size;
+                eventCountVal.WorkerToCountMap[workerId] = count;
                 eventCountVal.WorkerToPayloadMap[workerId] = payload;
 
             }
@@ -276,7 +287,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.FileArtifactContentDecided,
-                UUID = fileArtifactContentDecidedEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), fileArtifactContentDecidedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -291,7 +302,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.WorkerList,
-                UUID = workerListEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), workerListEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -307,7 +318,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.ExecutionEventId.PipExecutionPerformance,
                 PipId = data.PipId.Value,
-                UUID = pipExecPerfEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), pipExecPerfEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -323,7 +334,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.ExecutionEventId.DirectoryMembershipHashed,
                 PipId = data.PipId.Value,
-                UUID = directoryMembershipEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), directoryMembershipEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -339,7 +350,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.ExecutionEventId.ProcessExecutionMonitoringReported,
                 PipId = data.PipId.Value,
-                UUID = processExecMonitoringReportedEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), processExecMonitoringReportedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -355,7 +366,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.ExecutionEventId.ProcessFingerprintComputation,
                 PipId = data.PipId.Value,
-                UUID = processFingerprintComputedEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), processFingerprintComputedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -370,7 +381,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.ExtraEventDataReported,
-                UUID = extraEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), extraEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -385,7 +396,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.DependencyViolationReported,
-                UUID = dependencyViolationEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), dependencyViolationEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -401,7 +412,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.ExecutionEventId.PipExecutionStepPerformanceReported,
                 PipId = data.PipId.Value,
-                UUID = pipExecStepPerformanceEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), pipExecStepPerformanceEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -417,7 +428,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.ExecutionEventId.PipCacheMiss,
                 PipId = data.PipId.Value,
-                UUID = pipCacheMissEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), pipCacheMissEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -432,7 +443,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.ResourceUsageReported,
-                UUID = statusReportedEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), statusReportedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -447,7 +458,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.BxlInvocation,
-                UUID = bxlInvEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), bxlInvEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -462,7 +473,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.ExecutionEventId.PipExecutionDirectoryOutputs,
-                UUID = pipExecDirectoryOutputEvent.UUID
+                UUID = Guid.NewGuid().ToString()
             };
 
             WriteToDb(eq.ToByteArray(), pipExecDirectoryOutputEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -473,81 +484,117 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public void IngestAllPips()
         {
-            var pipsIngested = 0;
-            var totalNumberOfPips = CachedGraph.PipTable.StableKeys.Count();
-            var pipKeys = new List<byte[]>();
-            var pipValues = new List<byte[]>();
+            var totalNumberOfPips = CachedGraph.PipTable.StableKeys.Count;
+            var pipIds = CachedGraph.PipTable.StableKeys;
+            var concurrency = Environment.ProcessorCount;
+            var partitionSize = totalNumberOfPips / concurrency;
+            Console.WriteLine("Ingesting pips now ...");
 
-            foreach (var pipId in CachedGraph.PipTable.StableKeys)
+            Parallel.For(0, concurrency, i =>
             {
-                pipsIngested++;
+                var start = i * partitionSize;
+                var end = (i + 1) == concurrency ? totalNumberOfPips : (i + 1) * partitionSize;
+                var pipsIngested = 0;
+                var pipSemistableKeys = new List<byte[]>();
+                var pipSemistableValues = new List<byte[]>();
+                var pipPipIdKeys = new List<byte[]>();
+                var pipValues = new List<byte[]>();
 
-                if (pipsIngested % 100000 == 0)
+                for (int j = start; j < end; j++)
                 {
-                    Console.WriteLine($"Ingested {pipsIngested} pips out of {totalNumberOfPips} total pips");
-                    WriteBatchToDb(pipKeys, pipValues, XldbDataStore.PipColumnFamilyName);
-                    pipKeys.Clear();
-                    pipValues.Clear();
+                    var pipId = pipIds[j];
+                    pipsIngested++;
+
+                    if (pipsIngested % 100000 == 0)
+                    {
+                        Console.Write(".");
+                        WriteBatchToDb(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
+                        WriteBatchToDb(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+
+                        pipSemistableKeys.Clear();
+                        pipSemistableValues.Clear();
+                        pipPipIdKeys.Clear();
+                        pipValues.Clear();
+                    }
+
+                    var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
+                    var xldbPip = hydratedPip.ToPip(CachedGraph.DataflowGraph);
+                    var pipType = hydratedPip.PipType;
+                    IMessage xldbSpecificPip = xldbPip;
+
+                    if (pipType == PipType.HashSourceFile)
+                    {
+                        var hashSourceFilePip = (Pips.Operations.HashSourceFile)hydratedPip;
+                        xldbSpecificPip = hashSourceFilePip.ToHashSourceFile(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.Ipc)
+                    {
+                        var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
+                        xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.SpecFile)
+                    {
+                        var specFilePip = (Pips.Operations.SpecFilePip)hydratedPip;
+                        xldbSpecificPip = specFilePip.ToSpecFilePip(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.Module)
+                    {
+                        var modulePip = (Pips.Operations.ModulePip)hydratedPip;
+                        xldbSpecificPip = modulePip.ToModulePip(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.SealDirectory)
+                    {
+                        var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
+                        xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.CopyFile)
+                    {
+                        var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
+                        xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.WriteFile)
+                    {
+                        var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
+                        xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
+                    }
+                    else if (pipType == PipType.Process)
+                    {
+                        var processPip = (Pips.Operations.Process)hydratedPip;
+                        xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
+                    }
+
+                    var pipSemistableQuery = new PipQuerySemiStableHash()
+                    {
+                        SemiStableHash = hydratedPip.SemiStableHash,
+                    };
+
+                    var pipSemistableValue = new PipValueSemiStableHash()
+                    {
+                        PipId = hydratedPip.PipId.Value,
+                    };
+
+                    var pipIdQuery = new PipQueryPipId()
+                    {
+                        PipId = hydratedPip.PipId.Value,
+                        PipType = (Xldb.PipType)pipType
+                    };
+
+                    // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.
+                    // Else we do not want that since the key would no longer be unique
+                    if (hydratedPip.SemiStableHash != 0)
+                    {
+                        pipSemistableKeys.Add(pipSemistableQuery.ToByteArray());
+                        pipSemistableValues.Add(pipSemistableValue.ToByteArray());
+                    }
+
+                    pipPipIdKeys.Add(pipIdQuery.ToByteArray());
+                    pipValues.Add(xldbSpecificPip.ToByteArray());
                 }
 
-                var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
-                var xldbPip = hydratedPip.ToPip();
-                var pipType = hydratedPip.PipType;
-                IMessage xldbSpecificPip = xldbPip;
-
-                if (pipType == PipType.HashSourceFile)
-                {
-                    var hashSourceFilePip = (Pips.Operations.HashSourceFile)hydratedPip;
-                    xldbSpecificPip = hashSourceFilePip.ToHashSourceFile(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.Ipc)
-                {
-                    var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
-                    xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.SpecFile)
-                {
-                    var specFilePip = (Pips.Operations.SpecFilePip)hydratedPip;
-                    xldbSpecificPip = specFilePip.ToSpecFilePip(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.Module)
-                {
-                    var modulePip = (Pips.Operations.ModulePip)hydratedPip;
-                    xldbSpecificPip = modulePip.ToModulePip(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.SealDirectory)
-                {
-                    var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
-                    xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.CopyFile)
-                {
-                    var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
-                    xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.WriteFile)
-                {
-                    var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
-                    xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
-                }
-                else if (pipType == PipType.Process)
-                {
-                    var processPip = (Pips.Operations.Process)hydratedPip;
-                    xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
-                }
-
-                var pipQuery = new PipQuery()
-                {
-                    SemiStableHash = hydratedPip.SemiStableHash,
-                    PipType = (Xldb.PipType)pipType,
-                    PipId = hydratedPip.PipId.Value
-                };
-
-                pipKeys.Add(pipQuery.ToByteArray());
-                pipValues.Add(xldbSpecificPip.ToByteArray());
-            }
-
-            WriteBatchToDb(pipKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+                // Write the rest of the batched pips to the db
+                WriteBatchToDb(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
+                WriteBatchToDb(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+            });
         }
 
         /// <summary>

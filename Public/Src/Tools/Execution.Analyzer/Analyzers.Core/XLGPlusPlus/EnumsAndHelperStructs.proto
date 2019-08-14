@@ -20,23 +20,28 @@ option csharp_namespace = "BuildXL.Execution.Analyzer.Xldb";
 // ie: ChooseWorkerCpu ---> PipExecutionStep_ChooseWorkerCpu
 
 enum ExecutionEventId{
-    FileArtifactContentDecided = 0;
-    WorkerList = 1;
-    ExecutionEventId_PipExecutionPerformance = 2;
-    DirectoryMembershipHashed = 3;
+    // Since we are using ExecutionEventId as in the key and protobuf 
+    // does not serialize default values, the pattern matching was bugging out. 
+    // A solution is to have an "invalid" enum constant take position 0. 
+    ExecutionEventId_Invalid = 0;
+
+    FileArtifactContentDecided = 1;
+    WorkerList = 2;
+    ExecutionEventId_PipExecutionPerformance = 3;
+    DirectoryMembershipHashed = 4;
 
     // Deprecated in favor of ProcessFingerprintComputation (enum 10)
-    ObservedInputs = 4; 
+    ObservedInputs = 5; 
 
-    ProcessExecutionMonitoringReported = 5;
-    ExecutionEventId_ExtraEventDataReported = 6;
-    DependencyViolationReported = 7;
-    PipExecutionStepPerformanceReported = 8;
-    ResourceUsageReported = 9;
-    ProcessFingerprintComputation = 10;
-    PipCacheMiss = 11;
-    PipExecutionDirectoryOutputs = 12;
-    BxlInvocation = 13;
+    ProcessExecutionMonitoringReported = 6;
+    ExecutionEventId_ExtraEventDataReported = 7;
+    DependencyViolationReported = 8;
+    PipExecutionStepPerformanceReported = 9;
+    ResourceUsageReported = 10;
+    ProcessFingerprintComputation = 11;
+    PipCacheMiss = 12;
+    PipExecutionDirectoryOutputs = 13;
+    BxlInvocation = 14;
 }
 
 enum PipOutputOrigin{
@@ -819,18 +824,6 @@ message FileOrDirectoryArtifact{
     bool IsValid = 5;
 }
 
-message NodeRange{
-
-}
-
-message ContentFingerprint{
-
-}
-
-message PipGraphStaticFingerprints{
-
-}
-
 message Pip{
     int64 SemiStableHash = 1;
 
@@ -845,6 +838,12 @@ message Pip{
     repeated string Tags = 6;
 
     PipProvenance Provenance = 7;
+
+    NodeId NodeId = 8;
+
+    repeated Edge IncomingEdges = 9;
+    
+    repeated Edge OutgoingEdges = 10;
 }
 
 message PipProvenance{
@@ -1223,4 +1222,49 @@ message ClientConfig{
     int32 MaxConnectRetries = 1;
 
     google.protobuf.Duration ConnectRetryDelay = 2;
+}
+
+// This is a PipGraph Node (name is kept the same as in internal code)
+message NodeId{
+    uint32 Value = 1;
+
+    bool IsValid = 2;
+}
+
+// This is a PipGraph edge (name is kept the same as in internal code)
+message Edge{
+    // Source or target node represented by edge
+    NodeId OtherNode = 1;
+
+    bool IsLight = 2;
+
+    uint32 Value = 3;
+}
+
+message Graph{
+    int32 NodeCount = 1;
+
+    NodeRange NodeRange = 2;
+
+    int32 EdgeCount = 3;
+}
+
+message NodeEdgeListHeader{
+    int32 FirstIndex = 1;
+
+    int32 Count = 2;
+}
+
+message NodeRange{
+    bool IsEmpty = 1;
+
+    int32 Size = 2;
+
+    NodeId FromInclusive = 3;
+
+    NodeId ToInclusive = 4;
+}
+
+message ContentFingerprint{
+    Fingerprint Hash = 1;
 }

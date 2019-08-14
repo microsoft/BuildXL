@@ -267,16 +267,16 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs).Cast< PipExecutionDirectoryOutputsEvent>();
 
         /// <summary>
-        /// 
+        /// Gets the pip stored based on the semistable hash
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Returns null if no such pip is found</returns>
         public IMessage GetPipBySemiStableHash (long semiStableHash, out PipType pipType)
         {
             Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             IMessage foundPip = null;
 
-            var pipQuery = new PipQuery()
+            var pipQuery = new PipQuerySemiStableHash()
             {
                 SemiStableHash = semiStableHash
             };
@@ -285,9 +285,43 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
 
             var maybeFound = Accessor.Use(database =>
             {
+                if (database.TryGetValue(pipQuery.ToByteArray(), out var pipValueSemistableHash, PipColumnFamilyName))
+                {
+                    foundPip = GetPipByPipId(PipValueSemiStableHash.Parser.ParseFrom(pipValueSemistableHash).PipId, out outPipType);
+                }
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            pipType = outPipType;
+            return foundPip;
+        }
+
+        /// <summary>
+        /// Gets the pip stored based on the pip id
+        /// </summary>
+        /// <returns>Returns null if no such pip is found</returns>
+        public IMessage GetPipByPipId (uint pipId, out PipType pipType)
+        {
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            IMessage foundPip = null;
+
+            var pipQuery = new PipQueryPipId()
+            {
+                PipId = pipId
+            };
+
+            var outPipType = (PipType)0;
+
+            var maybeFound = Accessor.Use(database =>
+            {
                 foreach (var kvp in database.PrefixSearch(pipQuery.ToByteArray(), PipColumnFamilyName))
                 {
-                    var pipKey = PipQuery.Parser.ParseFrom(kvp.Key);
+                    var pipKey = PipQueryPipId.Parser.ParseFrom(kvp.Key);
                     if (m_pipParserDictionary.TryGetValue(pipKey.PipType, out var parser))
                     {
                         foundPip = parser.ParseFrom(kvp.Value);
@@ -302,47 +336,63 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
             }
 
             pipType = outPipType;
+
             return foundPip;
         }
 
-        ///// <summary>
-        ///// Get all pips of a certain pip type
-        ///// TODO: This may not actually work :( 
-        ///// </summary>
-        ///// <returns>List of pips of a certain type. If no such pips are found, returns empty list</returns>
-        //public IEnumerable<IMessage> GetPipsOfType(PipType pipType)
-        //{
-            //Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
-        //    var storedPips = new List<IMessage>();
-        //    var pipQuery = new PipQuery()
-        //    {
-        //        PipType = pipType
-        //    };
+        /// <summary>
+        /// Gets the pip table meta data
+        /// </summary>
+        /// <returns>Metadata, null if no such value found</returns>
+        public PipTable GetPipTableMetaData()
+        {
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
-        //    var maybeFound = Accessor.Use(database =>
-        //    {
-        //        foreach (var kvp in database.PrefixSearch(pipQuery.ToByteArray(), PipColumnFamilyName))
-        //        {
-        //            var pipKey = PipQuery.Parser.ParseFrom(kvp.Key);
-        //            if (m_pipParserDictionary.TryGetValue(pipKey.PipType, out var parser))
-        //            {
-        //                storedPips.Add(parser.ParseFrom(kvp.Value));
-        //            }
-        //            else
-        //            {
-        //                // We will never reach here since this is a private method and we explicitly control which ExecutionEventIDs are passed in (ie. the public facing helper methods below)
-        //                _ = Contract.AssertFailure("Invalid Pip Type passed in. Exiting");
-        //            }
-        //        }
-        //    });
+            var graphMetadata = new CachedGraphQuery
+            {
+                PipTable = true
+            };
 
-        //    if (!maybeFound.Succeeded)
-        //    {
-        //        maybeFound.Failure.Throw();
-        //    }
+            var maybeFound = Accessor.Use(database =>
+            {
+                database.TryGetValue(graphMetadata.ToByteArray(), out var pipTableMetadata, StaticGraphColumnFamilyName);
+                return PipTable.Parser.ParseFrom(pipTableMetadata);
+            });
 
-        //    return storedPips;
-        //}
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return maybeFound.Result;
+        }
+
+        /// <summary>
+        /// Gets the pip graph meta data
+        /// </summary>
+        /// <returns>Metadata, null if no such value found</returns>
+        public PipGraph GetPipGraphMetaData()
+        {
+            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var graphMetadata = new CachedGraphQuery
+            {
+                PipGraph = true
+            };
+
+            var maybeFound = Accessor.Use(database =>
+            {
+                database.TryGetValue(graphMetadata.ToByteArray(), out var pipTableMetadata, StaticGraphColumnFamilyName);
+                return PipGraph.Parser.ParseFrom(pipTableMetadata);
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return maybeFound.Result;
+        }
 
         /// <summary>
         /// Closes the connection to the DB

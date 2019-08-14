@@ -82,66 +82,60 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputFilePath;
 
-        private Stopwatch m_stopWatch;
-
-        public NewEventStatsAnalyzer(AnalysisInput input) : base(input)
-        {
-            m_stopWatch = new Stopwatch();
-            m_stopWatch.Start();
-        }
+        public NewEventStatsAnalyzer(AnalysisInput input) : base(input) { }
 
         /// <inheritdoc/>
         public override int Analyze()
         {
+            var m_stopWatch = new Stopwatch();
+            m_stopWatch.Start();
+
             using (var dataStore = new XldbDataStore(storeDirectory: InputDirPath))
+            using (var outputStream = File.OpenWrite(OutputFilePath))
+            using (var writer = new StreamWriter(outputStream))
             {
-                using (var outputStream = File.OpenWrite(OutputFilePath))
+                var workerToEventDict = new Dictionary<uint, Dictionary<Xldb.ExecutionEventId, (int, int)>>();
+                foreach (Xldb.ExecutionEventId eventId in Enum.GetValues(typeof(Xldb.ExecutionEventId)))
                 {
-                    using (var writer = new StreamWriter(outputStream))
+                    var eventCount = dataStore.GetCountByEvent(eventId);
+
+                    if (eventCount != null)
                     {
-                        var workerToEventDict = new Dictionary<uint, Dictionary<Xldb.ExecutionEventId, (int, int)>>();
-                        foreach (Xldb.ExecutionEventId eventId in Enum.GetValues(typeof(Xldb.ExecutionEventId)))
+                        foreach (var workerCount in eventCount.WorkerToCountMap)
                         {
-                            var eventCount = dataStore.GetCountByEvent(eventId);
-                            if (eventCount != null)
+                            if (workerToEventDict.TryGetValue(workerCount.Key, out var eventDict))
                             {
-                                foreach (var workerCount in eventCount.WorkerToCountMap)
-                                {
-                                    if (workerToEventDict.TryGetValue(workerCount.Key, out var eventDict))
-                                    {
-                                        eventDict[eventId] = (workerCount.Value, 0);
-                                    }
-                                    else
-                                    {
-                                        var dict = new Dictionary<Xldb.ExecutionEventId, (int, int)>();
-                                        dict.Add(eventId, (workerCount.Value, 0));
-                                        workerToEventDict.Add(workerCount.Key, dict);
-                                    }
-                                }
-                                foreach (var payloadSize in eventCount.WorkerToPayloadMap)
-                                {
-                                    workerToEventDict.TryGetValue(payloadSize.Key, out var eventDict);
-                                    eventDict.TryGetValue(eventId, out var tup);
-                                    eventDict[eventId] = (tup.Item1, payloadSize.Value);
-                                }
+                                eventDict[eventId] = (workerCount.Value, 0);
+                            }
+                            else
+                            {
+                                var dict = new Dictionary<Xldb.ExecutionEventId, (int, int)>();
+                                dict.Add(eventId, (workerCount.Value, 0));
+                                workerToEventDict.Add(workerCount.Key, dict);
                             }
                         }
-
-                        foreach (var workerDict in workerToEventDict)
+                        foreach (var payloadSize in eventCount.WorkerToPayloadMap)
                         {
-                            writer.WriteLine("Worker {0}", workerDict.Key);
-                            var maxLength = Enum.GetValues(typeof(Scheduler.Tracing.ExecutionEventId)).Cast<Scheduler.Tracing.ExecutionEventId>().Select(e => e.ToString().Length).Max();
-                            foreach (var eventStats in workerDict.Value)
-                            {
-                                writer.WriteLine(
-                                "{0}: {1} Count = {1}",
-                                eventStats.Key.ToString().PadRight(maxLength, ' '),
-                                eventStats.Value.Item2.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '),
-                                eventStats.Value.Item1.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '));
-                            }
-                            writer.WriteLine();
+                            workerToEventDict.TryGetValue(payloadSize.Key, out var eventDict);
+                            eventDict.TryGetValue(eventId, out var tup);
+                            eventDict[eventId] = (tup.Item1, payloadSize.Value);
                         }
                     }
+                }
+
+                foreach (var workerDict in workerToEventDict)
+                {
+                    writer.WriteLine("Worker {0}", workerDict.Key);
+                    var maxLength = Enum.GetValues(typeof(Scheduler.Tracing.ExecutionEventId)).Cast<Scheduler.Tracing.ExecutionEventId>().Select(e => e.ToString().Length).Max();
+                    foreach (var eventStats in workerDict.Value)
+                    {
+                        writer.WriteLine(
+                        "{0}: {1} Count = {2}",
+                        eventStats.Key.ToString().PadRight(maxLength, ' '),
+                        eventStats.Value.Item2.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '),
+                        eventStats.Value.Item1.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '));
+                    }
+                    writer.WriteLine();
                 }
             }
             Console.WriteLine("Total time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);

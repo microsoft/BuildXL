@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 import * as Managed from "Sdk.Managed";
 import * as GrpcSdk from "Sdk.Protocols.Grpc";
+import {VSCode} from "BuildXL.Ide";
 
 namespace Execution.Analyzer {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
@@ -30,6 +31,16 @@ namespace Execution.Analyzer {
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll
             ),
+            // ...(BuildXLSdk.isDotNetCoreBuild 
+            //     // There is a bug in the dotnetcore generation of this package
+            //     ? [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").withQualifier({targetFramework: "netstandard1.3"}).pkg]
+            //     : [importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg]
+            // ),
+            VSCode.DebugAdapter.dll,
+            VSCode.DebugProtocol.dll,
+            importFrom("Antlr4.Runtime.Standard").pkg,
+            importFrom("BuildXL.FrontEnd").Script.dll,
+            importFrom("BuildXL.Ide").Script.Debugger.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

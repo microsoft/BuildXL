@@ -2,7 +2,7 @@
   "rules": {
     "indent": [ 2, 2 ],
     "padding-line-between-statements": "off",
-    "hapi/hapi-no-var": false
+    "hapi/hapi-no-var": "off"
   },
   "extends": "hapi",
   "env": {

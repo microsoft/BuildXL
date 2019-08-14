@@ -18,8 +18,6 @@ and limitations under the License.
 /// <reference no-default-lib="true"/>
 
 
-declare type PropertyKey = string | number | symbol;
-
 interface Array<T> {
     /**
      * Returns the value of the first element in the array where predicate is true, and undefined
@@ -70,10 +68,16 @@ interface ArrayConstructor {
     /**
      * Creates an array from an array-like object.
      * @param arrayLike An array-like object to convert to an array.
+     */
+    from<T>(arrayLike: ArrayLike<T>): T[];
+
+    /**
+     * Creates an array from an iterable object.
+     * @param arrayLike An array-like object to convert to an array.
      * @param mapfn A mapping function to call on every element of the array.
      * @param thisArg Value of 'this' used to invoke the mapfn.
      */
-    from<T, U = T>(arrayLike: ArrayLike<T>, mapfn?: (v: T, k: number) => U, thisArg?: any): U[];
+    from<T, U>(arrayLike: ArrayLike<T>, mapfn: (v: T, k: number) => U, thisArg?: any): U[];
 
     /**
      * Returns a new array from a set of elements.
@@ -83,7 +87,7 @@ interface ArrayConstructor {
 }
 
 interface DateConstructor {
-    new (value: Date): Date;
+    new (value: number | string | Date): Date;
 }
 
 interface Function {
@@ -132,8 +136,9 @@ interface Math {
     log1p(x: number): number;
 
     /**
-     * Returns the result of (e^x - 1) of x (e raised to the power of x, where e is the base of
-     * the natural logarithms).
+     * Returns the result of (e^x - 1), which is an implementation-dependent approximation to
+     * subtracting 1 from the exponential function of x (e raised to the power of x, where e
+     * is the base of the natural logarithms).
      * @param x A numeric expression.
      */
     expm1(x: number): number;
@@ -271,20 +276,6 @@ interface NumberConstructor {
     parseInt(string: string, radix?: number): number;
 }
 
-interface Object {
-    /**
-     * Determines whether an object has a property with the specified name.
-     * @param v A property name.
-     */
-    hasOwnProperty(v: PropertyKey): boolean;
-
-    /**
-     * Determines whether a specified property is enumerable.
-     * @param v A property name.
-     */
-    propertyIsEnumerable(v: PropertyKey): boolean;
-}
-
 interface ObjectConstructor {
     /**
      * Copy the values of all of the enumerable own properties from one or more source objects to a
@@ -340,25 +331,6 @@ interface ObjectConstructor {
      * @param proto The value of the new prototype or null.
      */
     setPrototypeOf(o: any, proto: object | null): any;
-
-    /**
-     * Gets the own property descriptor of the specified object.
-     * An own property descriptor is one that is defined directly on the object and is not
-     * inherited from the object's prototype.
-     * @param o Object that contains the property.
-     * @param p Name of the property.
-     */
-    getOwnPropertyDescriptor(o: any, propertyKey: PropertyKey): PropertyDescriptor | undefined;
-
-    /**
-     * Adds a property to an object, or modifies attributes of an existing property.
-     * @param o Object on which to add or modify the property. This can be a native JavaScript
-     * object (that is, a user-defined object or a built in object) or a DOM object.
-     * @param p The property name.
-     * @param attributes Descriptor for the property. It can be for a data property or an accessor
-     *  property.
-     */
-    defineProperty(o: any, propertyKey: PropertyKey, attributes: PropertyDescriptor): any;
 }
 
 interface ReadonlyArray<T> {
@@ -463,7 +435,7 @@ interface String {
 
     /**
      * Returns a String value that is made from count copies appended together. If count is 0,
-     * T is the empty String is returned.
+     * the empty string is returned.
      * @param count number of copies to append
      */
     repeat(count: number): string;

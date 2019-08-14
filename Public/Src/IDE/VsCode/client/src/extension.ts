@@ -20,6 +20,7 @@ import { LogFileLocationNotification } from './notifications/logFileNotification
 import { WorkspaceLoadingNotification } from './notifications/workspaceLoadingNotification';
 import { FindReferenceNotification } from './notifications/findReferenceNotification';
 import { createDominoProjectBrowser } from './ProjectManagement/projectBrowser';
+import * as xlgstatus from './xlg-status';
 
 var languageClient : LanguageClient = undefined;
 var extensionContext : ExtensionContext = undefined;
@@ -33,6 +34,8 @@ const enum ClientType
 }
 
 export function activate(context: ExtensionContext) {
+    xlgstatus.activate(context);
+
     extensionContext = context;
 
     // Check to see if we have extension updates available.

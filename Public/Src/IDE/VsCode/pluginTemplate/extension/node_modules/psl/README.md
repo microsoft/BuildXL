@@ -2,9 +2,9 @@
 
 [![NPM](https://nodei.co/npm/psl.png?downloads=true&downloadRank=true)](https://nodei.co/npm/psl/)
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/wrangr/psl.svg)](https://greenkeeper.io/)
-[![Build Status](https://travis-ci.org/wrangr/psl.svg?branch=master)](https://travis-ci.org/wrangr/psl)
-[![devDependency Status](https://david-dm.org/wrangr/psl/dev-status.png)](https://david-dm.org/wrangr/psl#info=devDependencies)
+[![Greenkeeper badge](https://badges.greenkeeper.io/lupomontero/psl.svg)](https://greenkeeper.io/)
+[![Build Status](https://travis-ci.org/lupomontero/psl.svg?branch=master)](https://travis-ci.org/lupomontero/psl)
+[![devDependency Status](https://david-dm.org/lupomontero/psl/dev-status.png)](https://david-dm.org/lupomontero/psl#info=devDependencies)
 
 `psl` is a `JavaScript` domain name parser based on the
 [Public Suffix List](https://publicsuffix.org/).
@@ -40,7 +40,7 @@ npm install --save psl
 
 ### Browser
 
-Download [psl.min.js](https://raw.githubusercontent.com/wrangr/psl/master/dist/psl.min.js)
+Download [psl.min.js](https://raw.githubusercontent.com/lupomontero/psl/master/dist/psl.min.js)
 and include it in a script tag.
 
 ```html

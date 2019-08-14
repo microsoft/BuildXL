@@ -69,3 +69,4 @@ interface GeneratorFunctionConstructor {
      */
     readonly prototype: GeneratorFunction;
 }
+declare var GeneratorFunction: GeneratorFunctionConstructor;

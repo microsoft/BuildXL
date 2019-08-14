@@ -14,12 +14,10 @@ const outputTracer_1 = require("./notifications/outputTracer");
 const logFileNotification_1 = require("./notifications/logFileNotification");
 const workspaceLoadingNotification_1 = require("./notifications/workspaceLoadingNotification");
 const projectBrowser_1 = require("./ProjectManagement/projectBrowser");
-const xlgstatus = require("./xlg-status");
 var languageClient = undefined;
 var extensionContext = undefined;
 var createdProjectBrowser = false;
 function activate(context) {
-    xlgstatus.activate(context);
     extensionContext = context;
     // Check to see if we have extension updates available.
     update_1.checkForUpdates();
@@ -37,7 +35,7 @@ function activate(context) {
         debug: {
             module: "DScript Language Server",
             transport: vscode_languageclient_1.TransportKind.pipe,
-            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/netcoreapp3.0/win-x64/VsCodeVsix/extension/bin/${exeName}`),
+            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/net472/win-x64/VsCodeVsix/extension/bin/${exeName}`),
         },
     };
     // Options to control the language client

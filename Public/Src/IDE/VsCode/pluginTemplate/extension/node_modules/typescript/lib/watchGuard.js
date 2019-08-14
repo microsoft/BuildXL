@@ -23,5 +23,6 @@ try {
     var watcher = fs.watch(directoryName, { recursive: true }, function () { return ({}); });
     watcher.close();
 }
-catch (_a) { }
+catch (_e) {
+}
 process.exit(0);

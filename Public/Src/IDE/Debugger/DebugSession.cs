@@ -195,7 +195,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             cmd.SendResult(null);
             State.StopDebugging();
             m_sessionInitializedBarrier.Signal();
-            m_taskSource.SetResult(Unit.Void);
+            m_taskSource.TrySetResult(Unit.Void);
         }
 
         /// <inheritdoc/>

@@ -135,50 +135,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
         {
             return new ObjectInfo(Preview, original, m_lazyProperties);
         }
-        ///// <summary>Short preview as a plain string.</summary>
-        //public string Preview { get; }
-
-        ///// <summary>Original object (used when converting to ObjectLiteral)</summary>
-        //public object Original { get; }
-
-        ///// <summary>List of properties (as name-value pairs, <see cref="Property"/>)</summary>
-        //public IReadOnlyList<Property> Properties { get; }
-
-        ///// <nodoc />
-        //public ObjectInfo(string preview, object original)
-        //    : this(preview, original, null) { }
-
-        ///// <nodoc />
-        //public ObjectInfo(string preview)
-        //    : this(preview, null, null) { }
-
-        ///// <nodoc />
-        //public ObjectInfo([CanBeNull] IEnumerable<Property> properties)
-        //    : this("", properties) { }
-
-        ///// <nodoc />
-        //public ObjectInfo(string preview, [CanBeNull] IEnumerable<Property> properties)
-        //    : this(preview, null, properties.ToArray()) { }
-
-        ///// <nodoc />
-        //public ObjectInfo(string preview, object original, [CanBeNull] IReadOnlyList<Property> properties)
-        //{
-        //    Preview = preview;
-        //    Original = original;
-        //    Properties = properties ?? Property.Empty;
-        //}
-
-        ///// <nodoc />
-        //public ObjectInfo WithPreview(string preview)
-        //{
-        //    return new ObjectInfo(preview, Original, Properties);
-        //}
-
-        ///// <nodoc />
-        //public ObjectInfo WithOriginal(object original)
-        //{
-        //    return new ObjectInfo(Preview, original, Properties);
-        //}
     }
 
     /// <summary>

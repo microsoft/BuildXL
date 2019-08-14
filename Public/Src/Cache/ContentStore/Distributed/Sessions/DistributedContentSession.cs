@@ -89,6 +89,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
+            // We are intentionally not gating PutStream operations because we don't expect a high number of them at
+            // the same time.
             return PerformPutFileGatedOperationAsync(operationContext, () => {
                 return PutCoreAsync(
                     operationContext,
@@ -103,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (timeWaiting > Settings.PutFileWaitWarning)
                 {
-                    Tracer.Warning(operationContext, $"Spent {timeWaiting} waiting for PutFile gate, exceeding deadline of {Settings.PutFileWaitWarning}");
+                    Tracer.Info(operationContext, $"Spent {timeWaiting} waiting for PutFile gate, exceeding deadline of {Settings.PutFileWaitWarning}");
                 }
 
                 return func();

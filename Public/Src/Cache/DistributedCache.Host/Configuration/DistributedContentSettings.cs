@@ -483,6 +483,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EmptyFileHashShortcutEnabled { get; set; } = false;
 
         [DataMember]
+        public bool UseRedundantPutFileShortcut { get; set; } = false;
+
+        [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
         /// <summary>

@@ -25,6 +25,9 @@ namespace BuildXL.Cache.ContentStore.Synchronization
 
         private readonly ConcurrentDictionary<TKey, LockHandle> _exclusiveLocks = new ConcurrentDictionary<TKey, LockHandle>();
 
+        private long _totalLockWaitTimeTicks = 0;
+        public TimeSpan TotalLockWaitTime => TimeSpan.FromTicks(_totalLockWaitTimeTicks);
+
         /// <summary>
         /// Acquires an exclusive lock for the given key. <see cref="Release" /> must be called
         /// subsequently in a 'finally' block.
@@ -48,6 +51,7 @@ namespace BuildXL.Cache.ContentStore.Synchronization
                 }
             }
 
+            Interlocked.Add(ref _totalLockWaitTimeTicks, stopwatch.Elapsed.Ticks);
             return thisHandle.WithDuration(stopwatch.Elapsed);
         }
 

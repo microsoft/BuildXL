@@ -1,9 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
@@ -12,14 +17,10 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Configuration;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System.Threading.Tasks;
-using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.VmCommandProxy;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -34,11 +35,11 @@ namespace Test.BuildXL.Scheduler
 
         protected override bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
 
-        protected override bool InitSandboxedKextConnection(LoggingContext loggingContext, IKextConnection kextConnection = null)
+        protected override bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection SandboxConnectionKext = null)
         {
             if (SandboxingWithKextEnabled)
             {
-                SandboxedKextConnection = kextConnection ?? XunitBuildXLTest.GetSandboxedKextConnection();
+                SandboxConnection = SandboxConnectionKext ?? XunitBuildXLTest.GetSandboxConnection();
             }
 
             return false;
@@ -55,7 +56,7 @@ namespace Test.BuildXL.Scheduler
             IConfiguration configuration,
             FileAccessWhitelist fileAccessWhitelist,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
-            TempCleaner tempCleaner = null,
+            ITempCleaner tempCleaner = null,
             PipRuntimeTimeTable runningTimeTable = null,
             JournalState journalState = null,
             PerformanceCollector performanceCollector = null,

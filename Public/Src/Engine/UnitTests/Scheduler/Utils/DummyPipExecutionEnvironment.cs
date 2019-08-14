@@ -35,8 +35,9 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
-using KextConnection = BuildXL.Processes.KextConnection;
+using SandboxConnectionKext = BuildXL.Processes.SandboxConnectionKext;
 using BuildXL.Utilities.VmCommandProxy;
+using Test.BuildXL.TestUtilities;
 
 namespace Test.BuildXL.Scheduler.Utils
 {
@@ -64,7 +65,7 @@ namespace Test.BuildXL.Scheduler.Utils
         private readonly bool m_allowUnspecifiedSealedDirectories;
         private IReadOnlyDictionary<PipId, IReadOnlyCollection<Pip>> m_servicePipToClientProcesses;
         private readonly IFileMonitoringViolationAnalyzer m_disabledFileMonitoringViolationAnalyzer = new DisabledFileMonitoringViolationAnalyzer();
-        private readonly IKextConnection m_sandboxedKextConnection;
+        private readonly ISandboxConnection m_sandboxConnectionKext;
 
         public Dictionary<FileArtifact, string> HostMaterializedFileContents = new Dictionary<FileArtifact, string>();
 
@@ -104,7 +105,7 @@ namespace Test.BuildXL.Scheduler.Utils
             bool allowUnspecifiedSealedDirectories = false,
             PipTable pipTable = null,
             IIpcProvider ipcProvider = null,
-            IKextConnection sandboxedKextConnection = null)
+            ISandboxConnection sandboxConnection = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(config != null);
@@ -130,7 +131,7 @@ namespace Test.BuildXL.Scheduler.Utils
             Cache = pipCache;
             FileAccessWhitelist = fileAccessWhitelist;
             m_allowUnspecifiedSealedDirectories = allowUnspecifiedSealedDirectories;
-            m_sandboxedKextConnection = sandboxedKextConnection;
+            m_sandboxConnectionKext = sandboxConnection;
 
             if (Cache == null)
             {
@@ -577,11 +578,13 @@ namespace Test.BuildXL.Scheduler.Utils
 
         SemanticPathExpander IFileContentManagerHost.SemanticPathExpander => PathExpander;
 
-        public IKextConnection SandboxedKextConnection => m_sandboxedKextConnection;
+        public ISandboxConnection SandboxConnection => m_sandboxConnectionKext;
 
         public ProcessInContainerManager ProcessInContainerManager { get; }
 
         public VmInitializer VmInitializer { get; }
+
+        public ITempCleaner TempCleaner => new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "moveDeletionTemp"));
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

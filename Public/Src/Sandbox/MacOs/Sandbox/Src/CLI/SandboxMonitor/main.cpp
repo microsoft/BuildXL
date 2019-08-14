@@ -17,7 +17,8 @@
 #import "ps.hpp"
 #import "lambda.hpp"
 #import "render.hpp"
-#import "Sandbox.h"
+#import "Common.h"
+#import "KextSandbox.h"
 
 using namespace std;
 
@@ -320,7 +321,8 @@ int main(int argc, const char * argv[])
                    << endl
                    << endl;
             output << "Config     :: "
-                   << "Report Queue Size: " << kextCfg->reportQueueSizeMB << " MB"
+                   << "Catalina Data Partition filtering: " << (kextCfg->enableCatalinaDataPartitionFiltering ? "YES" : "NO")
+                   << ", Report Queue Size: " << kextCfg->reportQueueSizeMB << " MB"
                    << endl;
             output << "Thresholds :: "
                    << "Min Available RAM: " << thresholds->minAvailableRamMB << " MB"

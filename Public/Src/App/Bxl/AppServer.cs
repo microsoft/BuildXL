@@ -354,7 +354,7 @@ namespace BuildXL
                 }
             }
             catch (Exception ex) when (
-                ex is ObjectDisposedException 
+                ex is ObjectDisposedException
                 || ex is EndOfStreamException
                 || ex is IOException /* Client dies before ReadByte completes ReadByte. */)
             {
@@ -458,8 +458,8 @@ namespace BuildXL
                     }
                     catch (IOException ex)
                     {
-                        // When termination is requested (ctrl+break), the client is terminated and the pipe as well. 
-                        // However, some threads in the server may still try to send something to client. 
+                        // When termination is requested (ctrl+break), the client is terminated and the pipe as well.
+                        // However, some threads in the server may still try to send something to client.
                         // In that case, Flush will throw a 'Pipe is broken' exception and we can safely ignore those in case of cancellation.
                         if (!IsCancellationRequested)
                         {
@@ -475,7 +475,7 @@ namespace BuildXL
             /// </summary>
             /// <remarks>
             /// There is an inharent race when client terminates and server terminates. The client sends a cancellation message, and then terminates
-            /// when the message is read by the server. But before the server can set the <see cref="CancellationRequested"/> flag, there can be running threads trying to 
+            /// when the message is read by the server. But before the server can set the <see cref="CancellationRequested"/> flag, there can be running threads trying to
             /// write messages to the dead client. This method allows the <see cref="WriteMessage(Action)"/> to retry checking the <see cref="CancellationRequested"/>
             /// flag before determining that the problem is in the console.
             /// </remarks>
@@ -624,9 +624,9 @@ namespace BuildXL
             {
                 clientApp = AppDeployment.ReadDeploymentManifestFromRunningApp();
                 serverModeStatusAndPerf.UpToDateCheck = new ServerDeploymentUpToDateCheck()
-                                        {
-                                            TimeToUpToDateCheckMilliseconds = (long)clientApp.ComputeTimestampBasedHashTime.TotalMilliseconds,
-                                        };
+                {
+                    TimeToUpToDateCheckMilliseconds = (long)clientApp.ComputeTimestampBasedHashTime.TotalMilliseconds,
+                };
             }
             catch (BuildXLException ex)
             {
@@ -642,8 +642,10 @@ namespace BuildXL
 
             string uniqueAppName = GetStableAppServerName(lightConfig, clientApp.TimestampBasedHash, out variablesToPassThrough);
 
-            // First, try to connect to an already-running server.
-            NamedPipeClientStream clientStream = TryConnect(uniqueAppName);
+            // First, try to connect to an already-running server if its deployment is not out of date.
+            NamedPipeClientStream clientStream = ServerDeployment.IsServerDeploymentOutOfSync(serverDeploymentPath, clientApp, out _)
+                ? null
+                : TryConnect(uniqueAppName);
 
             // As a fallback, try starting a new server.
             if (clientStream == null)
@@ -732,7 +734,7 @@ namespace BuildXL
 
                 // The identity needs to include whether the server process is elevated in case the client switches elevation
                 sb.Append("Elevated:" + CurrentProcess.IsElevated);
-                
+
                 // Include HashType because client may switch between VSO or Dedup hashes
                 sb.Append(Delimiter);
                 sb.Append("EnableDedup:" + lightConfig.EnableDedup);
@@ -862,7 +864,8 @@ namespace BuildXL
             public ExitKind RunWithArgs(
                 IReadOnlyList<string> rawArgs,
                 List<KeyValuePair<string, string>> environmentVariables,
-                ServerModeStatusAndPerf serverModeStatusAndPerf)
+                ServerModeStatusAndPerf serverModeStatusAndPerf,
+                string serverDeploymentDirectory)
             {
                 Contract.Requires(rawArgs != null);
 
@@ -908,7 +911,7 @@ namespace BuildXL
                                     // 1. Developers can press multiple Control-C so there is a slight chance for the client to talk to the disposed pipe stream in the non-first Control-C handlers.
                                     //    Writing to a disposed pipe stream will throw an exception (e.g., pipe is broken) so we swallow it here.
                                     // 2. Read bytes left in BufferedStream when trying to write the cancellation message causes
-                                    //    System.NotSupportedException: Cannot write to a BufferedStream while the read buffer is not empty if the underlying stream is not seekable. 
+                                    //    System.NotSupportedException: Cannot write to a BufferedStream while the read buffer is not empty if the underlying stream is not seekable.
                                     //    Ensure that the stream underlying this BufferedStream can seek or avoid interleaving read and write operations on this BufferedStream.
                                 }
                             };
@@ -976,14 +979,19 @@ namespace BuildXL
                                             }
                                         }
                                     },
-                                    ex => { throw new BuildXLException("Error while reading data from server process. Inner exception reason: " + ex?.Message, ex); });
+                                    ex => {
+                                        throw new BuildXLException("Error while reading data from server process. Server will be redeployed in subsequent invocation. Inner exception reason: " + ex?.Message, ex);
+                                    });
                             }
+
                             finally
                             {
                                 Console.CancelKeyPress -= cancelKeyPressHandler;
                             }
                         }
                     },
+
+
                     ex => { throw new BuildXLException("Error while writing data to server process. Inner exception reason: " + ex?.Message, ex); });
             }
 

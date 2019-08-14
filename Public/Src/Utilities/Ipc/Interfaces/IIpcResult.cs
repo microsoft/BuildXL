@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Ipc.Common;
 
@@ -16,7 +17,7 @@ namespace BuildXL.Ipc.Interfaces
         /// </summary>
         Success = 0,
 
-        // ---------------------------------- errors codes ----------------------------------
+        // ---------------------------------- error codes ----------------------------------
 
         /// <summary>
         /// Indicates a generic (unexplained) error.
@@ -39,9 +40,9 @@ namespace BuildXL.Ipc.Interfaces
         ExecutionError = 4,
 
         /// <summary>
-        /// Indicates that the pip input is invalid.
+        /// Indicates that the user input is invalid.
         /// </summary>
-        InvalidInput = 5,
+        InvalidInput = 5
     }
 
     /// <summary>
@@ -71,5 +72,10 @@ namespace BuildXL.Ipc.Interfaces
 
         /// <nodoc/>
         IpcResultTimestamp Timestamp { get; }
+
+        /// <summary>
+        /// (Optional) Duration of the action executed by a server.
+        /// </summary>
+        TimeSpan ActionDuration { get; set; }
     }
 }

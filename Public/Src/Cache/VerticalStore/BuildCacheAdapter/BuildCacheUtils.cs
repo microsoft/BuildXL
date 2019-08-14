@@ -3,6 +3,8 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
+using System.Text;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -13,7 +15,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Vsts;
 using BuildXL.Storage;
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using System.Net;
@@ -27,6 +29,24 @@ namespace BuildXL.Cache.BuildCacheAdapter
     {
         private const string CredentialProvidersPathEnvVariable = "ARTIFACT_CREDENTIALPROVIDERS_PATH";
 
+        private const int NameUserPrincipal = 8;
+
+        [DllImport("Secur32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetUserNameExW(
+            int nameFormat,
+            [Out] StringBuilder nameBuffer,
+            ref long bufferSize);
+
+        private static string GetAadUserNameUpn()
+        {
+            long maxLength = 1024;
+            var sb = new StringBuilder(capacity: (int)maxLength);
+            return GetUserNameExW(NameUserPrincipal, sb, ref maxLength)
+                ? sb.ToString()
+                : null;
+        }
+
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Disposed by another object")]
         [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", Justification = "Not applicable")]
         internal static BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache CreateBuildCacheCache<T>(T cacheConfig, ILogger logger, string pat = null) where T : BuildCacheCacheConfig
@@ -39,7 +59,8 @@ namespace BuildXL.Cache.BuildCacheAdapter
             }
 
             string credentialProviderPath = Environment.GetEnvironmentVariable(CredentialProvidersPathEnvVariable);
-            if (!string.IsNullOrWhiteSpace(credentialProviderPath))
+            bool isCredentialProviderSpecified = !string.IsNullOrWhiteSpace(credentialProviderPath);
+            if (isCredentialProviderSpecified)
             {
                 logger.Debug($"Credential providers path specified: {credentialProviderPath}");
             }
@@ -50,8 +71,16 @@ namespace BuildXL.Cache.BuildCacheAdapter
 
             VssCredentialsFactory credentialsFactory;
 
-#if !PLATFORM_OSX
-            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)));
+#if PLATFORM_WIN
+            // Obtain and explicitly specify AAD user name ONLY when
+            //   (1) no credential provider is specified, and
+            //   (2) running on .NET Core.
+            // When a credential provider is specified, specifying AAD user name will override it and we don't want to do that.
+            // When running on .NET Framework, VsoCredentialHelper will automatically obtain currently logged on AAD user name.
+            string userName = !isCredentialProviderSpecified && Utilities.OperatingSystemHelper.IsDotNetCore
+                ? GetAadUserNameUpn()
+                : null;
+            credentialsFactory = new VssCredentialsFactory(new VsoCredentialHelper(s => logger.Debug(s)), userName);
 #else
             var secPat = new SecureString();
             if (!string.IsNullOrWhiteSpace(pat))
@@ -63,7 +92,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
             }
             else
             {
-                throw new ArgumentException("PAT must be supplied when running with CoreCLR");
+                throw new ArgumentException("PAT must be supplied when not running on Windows");
             }
 
             credentialsFactory = new VssCredentialsFactory(new VssBasicCredential(new NetworkCredential(string.Empty, secPat)));

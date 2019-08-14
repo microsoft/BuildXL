@@ -27,6 +27,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly string m_buildId;
         private readonly Task m_monitorConnectionTask;
         public event EventHandler OnConnectionTimeOutAsync;
+        private volatile bool m_isShutdownInitiated;
 
         private string GenerateLog(string traceId, string status, uint numTry, string description)
         {
@@ -82,7 +83,12 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public async Task CloseAsync()
         {
-            await Channel.ShutdownAsync();
+            if (!m_isShutdownInitiated)
+            {
+                m_isShutdownInitiated = true;
+                await Channel.ShutdownAsync();
+            }
+
             await m_monitorConnectionTask;
         }
 
@@ -143,20 +149,10 @@ namespace BuildXL.Engine.Distribution.Grpc
                     failure = state == RpcCallResultState.Failed ? new RecoverableExceptionFailure(new BuildXLException(e.Message)) : null;
                     Logger.Log.GrpcTrace(m_loggingContext, GenerateFailLog(traceId.ToString(), numTry, watch.ElapsedMilliseconds, e.Message));
 
-                    // If the call is NOT cancelled, retry the call.
-                    if (state == RpcCallResultState.Cancelled)
+                    // If the call is cancelled or channel is shutdown, then do not retry the call.
+                    if (state == RpcCallResultState.Cancelled || m_isShutdownInitiated)
                     {
                         break;
-                    }
-
-                    if (numTry == GrpcSettings.MaxRetry - 1)
-                    {
-                        // If this is the last retry, try to attempt reconnecting. If the connection fails, do not attempt to retry the call.
-                        bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, operation);
-                        if (!connectionSucceeded)
-                        {
-                            break;
-                        }
                     }
                 }
                 catch (ObjectDisposedException e)
@@ -187,6 +183,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 lastFailure: failure);
         }
 
+
         private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, Stopwatch watch = null)
         {
             watch = watch ?? Stopwatch.StartNew();
@@ -197,9 +194,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 await Channel.ConnectAsync(DateTime.UtcNow.Add(timeout));
                 Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {Channel.State}. Duration {watch.ElapsedMilliseconds}ms");
             }
-            catch (OperationCanceledException e)
+            catch (Exception e)
             {
+#pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
                 Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {Channel.State}. Failure {e.Message}");
+#pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
+
                 return false;
             }
 

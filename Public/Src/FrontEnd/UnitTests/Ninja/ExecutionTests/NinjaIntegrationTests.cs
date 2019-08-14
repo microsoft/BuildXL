@@ -85,7 +85,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
         [Fact]
         public void OrderOnlyDependenciesHonored()
         {
-            var config = BuildAndGetConfiguration(CreateProjectWithOrderOnlyDependencies("first.txt", "boo.txt", "second.txt"));
+            var config = BuildAndGetConfiguration(CreateProjectWithOrderOnlyDependencies("first.txt", "second.txt"));
             var engineResult = RunEngineWithConfig(config);
 
             Assert.True(engineResult.IsSuccess);
@@ -100,7 +100,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
 
             // Make sure pips ran and did its job
             Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "first.txt")));
-            Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "boo.txt")));
+            Assert.True(File.Exists(Path.Combine(SourceRoot, DefaultProjectRoot, "second.txt")));
         }
 
 

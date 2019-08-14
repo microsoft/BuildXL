@@ -74,7 +74,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        protected readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
+        internal readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -229,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
             foreach (var store in StoresByName.Values)
             {
-                if (store is IContentStoreWithPostInitialization contentStore)
+                if (store is IContentStore contentStore)
                 {
                     contentStore.PostInitializationCompleted(context, result);
                 }
@@ -754,6 +754,11 @@ namespace BuildXL.Cache.ContentStore.Service
             ImplicitPin implicitPin,
             Capabilities capabilities)
         {
+            if (cacheName == null)
+            {
+                cacheName = _tempFolderForStreamsByCacheName.Keys.First();
+            }
+
             var result = await CreateTempDirectoryAndSessionAsync(
                 context,
                 sessionIdHint: null, // SessionId must be recreated for new sessions.

@@ -25,6 +25,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
+using ProcessLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
 
@@ -148,7 +149,8 @@ namespace Test.BuildXL.Processes.Detours
                 directoryArtifactContext: TestDirectoryArtifactContext.Empty,
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
-                isQbuildIntegrated: isQuickBuildIntegrated).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                isQbuildIntegrated: isQuickBuildIntegrated,
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         [Fact]
@@ -218,7 +220,7 @@ namespace Test.BuildXL.Processes.Detours
             }
 
             // The \\?\ escaped path should not have failed parsing.
-            AssertWarningEventLogged(EventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
+            AssertWarningEventLogged(ProcessLogEventId.PipProcessFailedToParsePathOfFileAccess, count: 0);
         }
 
         [Flags]
@@ -6228,8 +6230,10 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
-        public async Task CallDetouredCreateFileWForProbingOnly()
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CallDetouredCreateFileWForProbingOnly(bool withReparsePointFlag)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -6244,13 +6248,15 @@ namespace Test.BuildXL.Processes.Detours
                     pathTable,
                     "CreateFileWForProbingOnly.lnk",
                     "CreateFileWForProbingOnly.txt",
-                    "CallDetouredCreateFileWForProbingOnly",
+                    withReparsePointFlag
+                    ? "CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag"
+                    : "CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag",
                     isDirectoryTest: false,
                     createSymlink: true,
                     addCreateFileInDirectoryToDependencies: false,
                     createFileInDirectory: false,
                     addFirstFileKind: AddFileOrDirectoryKinds.AsDependency,
-                    addSecondFileOrDirectoryKind: AddFileOrDirectoryKinds.None,
+                    addSecondFileOrDirectoryKind: AddFileOrDirectoryKinds.AsDependency,
                     makeSecondUntracked: true,
                     createdInputPaths: createdInputPaths);
 
@@ -6269,13 +6275,25 @@ namespace Test.BuildXL.Processes.Detours
 
                 VerifyNormalSuccess(context, result);
 
+                var pathsToFalsify = withReparsePointFlag
+                    ? new[] { createdInputPaths["CreateFileWForProbingOnly.txt"] }
+                    : new AbsolutePath[0];
+
+                var observationsToVerify = new List<(AbsolutePath abosultePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)>
+                {
+                    (createdInputPaths["CreateFileWForProbingOnly.lnk"], RequestedAccess.Probe, FileAccessStatus.Allowed)
+                };
+
+                if (!withReparsePointFlag)
+                {
+                    observationsToVerify.Add((createdInputPaths["CreateFileWForProbingOnly.txt"], RequestedAccess.Probe, FileAccessStatus.Allowed));
+                }
+
                 VerifyFileAccesses(
                     context,
                     result.AllReportedFileAccesses,
-                    new[]
-                    {
-                        (createdInputPaths["CreateFileWForProbingOnly.lnk"], RequestedAccess.Probe, FileAccessStatus.Allowed),
-                    });
+                    observationsToVerify.ToArray(),
+                    pathsToFalsify: pathsToFalsify);
             }
         }
 

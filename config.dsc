@@ -50,7 +50,7 @@ config({
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
-                    "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
+                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
@@ -113,7 +113,7 @@ config({
                 { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "2.0.30" },
                 { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
                 { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
-                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.0.0-rc1-final" },
+                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
 
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
@@ -121,13 +121,9 @@ config({
                 { id: "Newtonsoft.Json", version: "11.0.2" },
                 { id: "Newtonsoft.Json", version: "10.0.3", alias: "Newtonsoft.Json.v10" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Data.SQLite", version: "1.0.109.2" },
                 { id: "System.Data.SQLite.Core", version: "1.0.109.2" },
-                { id: "System.Data.SQLite.EF6", version: "1.0.102.0" },
-                { id: "System.Data.SQLite.Linq", version: "1.0.102.0" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
-                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuildRuntime"},
 
                 // Nuget
                 { id: "NuGet.Commandline", version: "4.7.1" },
@@ -162,7 +158,7 @@ config({
                 ...importFile(f`config.nuget.aspNetCore.dsc`).pkgs,
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
-                { id: "WindowsAzure.Storage", version: "8.7.0", alias: "WindowsAzure.Storage" },
+                { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
                 { id: "Microsoft.Data.OData", version: "5.8.2" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
@@ -181,7 +177,7 @@ config({
                 { id: "xunit.runner.utility", version: "2.4.1" },
                 { id: "xunit.runner.visualstudio", version: "2.4.1" },
 
-                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "3.17.2" },
+                { id: "Microsoft.IdentityModel.Clients.ActiveDirectory", version: "4.5.1" },
 
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
@@ -194,6 +190,7 @@ config({
                 { id: "Grpc.Core", version: "1.18.0" },
                 { id: "Grpc.Tools", version: "1.18.0" },
                 { id: "Google.Protobuf", version: "3.7.0" },
+                { id: "Google.Protobuf.Tools", version: "3.7.0" },
                 { id: "Redis-64", version: "3.0.503" },
 
                 // Testing
@@ -370,7 +367,6 @@ config({
                 { id: "System.Security.Principal.Windows", version: "4.6.0-preview5.19224.8" },
                 { id: "System.Security.SecureString", version: "4.3.0" },
                 { id: "System.Text.Encoding", version: "4.3.0" },
-                { id: "System.Text.Encoding.CodePages", version: "4.3.0" },
                 { id: "System.Text.Encoding.Extensions", version: "4.3.0" },
                 { id: "System.Text.RegularExpressions", version: "4.3.0" },
                 { id: "System.Threading", version: "4.3.0" },
@@ -443,9 +439,12 @@ config({
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
+                { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
+                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuild" },
+                { id: "Microsoft.NETCore.App", version: "2.1.0", alias: "Microsoft.NETCore.App.210" },
 
                 // Used for MSBuild input/output prediction
-                { id: "Microsoft.Build.Prediction", version: "0.2.0" },
+                { id: "Microsoft.Build.Prediction", version: "0.3.0" },
 
                 { id: "SharpZipLib", version: "1.1.0" },
 
@@ -455,7 +454,25 @@ config({
 
                 // CoreRT
                 { id: "runtime.osx-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
-                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" }
+                { id: "runtime.win-x64.Microsoft.DotNet.ILCompiler", version: "1.0.0-alpha-27527-01" },
+
+                // Kusto SDK (for netstandard)
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Data.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.Azure.Kusto.Ingest.NETStandard", version: "6.1.8", dependentPackageIdsToIgnore: ["Microsoft.Extensions.PlatformAbstractions"] },
+                { id: "Microsoft.IO.RecyclableMemoryStream", version: "1.2.2" },
+                { id: "Microsoft.Azure.KeyVault", version: "3.0.1"},
+                { id: "Microsoft.Azure.KeyVault.WebKey", version: "3.0.1"},
+                { id: "Microsoft.Rest.ClientRuntime", version: "3.0.0", dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"]  },
+                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.18" },
+                { id: "Microsoft.NETCore.Windows.ApiSets", version: "1.0.1" },
+
+                // Kusto SDK (for full framework)
+                { id: "Microsoft.Azure.Kusto.Data", version: "6.1.8" },
+                { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
+                { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
+                { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
             ],
 
             doNotEnforceDependencyVersions: true,
@@ -463,6 +480,10 @@ config({
 
         importFile(f`config.microsoftInternal.dsc`).resolver,
 
+        {
+            kind: "SourceResolver",
+            modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-External\module.config.dsc`],
+        },
         {
             kind: "Download",
             downloads: [
@@ -488,24 +509,42 @@ config({
 
                 // DotNet Core Runtime
                 {
-                    moduleName: "DotNet-Runtime.win-x64",
+                    moduleName: "DotNet-Runtime.win-x64.3.0.0-preview5",
                     url: "https://download.visualstudio.microsoft.com/download/pr/9459ede1-e223-40c7-a4c5-2409e789121a/46d4eb6067bda9f412a472f7286ffd94/dotnet-runtime-3.0.0-preview5-27626-15-win-x64.zip",
                     hash: "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64",
+                    moduleName: "DotNet-Runtime.osx-x64.3.0.0-preview5",
                     url: "https://download.visualstudio.microsoft.com/download/pr/85024962-5dee-4f64-ab29-a903f3749f85/6178bfacc58f4d9a596b5e3facc767ab/dotnet-runtime-3.0.0-preview5-27626-15-osx-x64.tar.gz",
                     hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64",
+                    moduleName: "DotNet-Runtime.linux-x64.3.0.0-preview5",
                     url: "https://download.visualstudio.microsoft.com/download/pr/f15ad9ab-7bd2-4ff5-87b6-b1a08f062ea2/6fdd314c16c17ba22934cd0ac6b4d343/dotnet-runtime-3.0.0-preview5-27626-15-linux-x64.tar.gz",
-                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
+                    hash: "VSO0:00F83B929904F647BD8FB22361052BB347A1E5FA9A3A32A67EE1569DE443D92700",
                     archiveType: "tgz",
                 },
-
+                // The following are needed for dotnet core MSBuild test deployments
+                {
+                    moduleName: "DotNet-Runtime.win-x64.2.2.2",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/b10d0a68-b720-48ae-bab8-4ac39bd1b5d3/f32b8b41dff5c1488c2b915a007fc4a6/dotnet-runtime-2.2.2-win-x64.zip",
+                    hash: "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.2.2.2",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d1f0dfb3-b6bd-42ae-895f-f149bf1d90ca/9b1fb91a9692fc31d6fc83e97caba4cd/dotnet-runtime-2.2.2-osx-x64.tar.gz",
+                    hash: "VSO0:88B2B6E8CEF711E108FDE529E781F555516634CD442B3503B712D22947F0788700",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.2.2.2",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/97b97652-4f74-4866-b708-2e9b41064459/7c722daf1a80a89aa8c3dec9103c24fc/dotnet-runtime-2.2.2-linux-x64.tar.gz",
+                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
+                    archiveType: "tgz",
+                },
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
@@ -525,6 +564,14 @@ config({
                     hash: "VSO0:9DE138F52CCCE4B89747BFDEC5D3A0DDBB23BF80BB2A45AE0218D852845AB13C00",
                     archiveType: "tgz",
                 },
+
+                // Electron
+                {
+                    moduleName: "Electron.win-x64",
+                    url: "https://github.com/electron/electron/releases/download/v2.0.10/electron-v2.0.10-win32-x64.zip",
+                    hash: "VSO0:F836344F3D3FEBCD50976B5F33FC2DA64D0753C242C68F61B5908F59CD49B0AB00",
+                    archiveType: "zip",
+                }
             ],
         },
     ],

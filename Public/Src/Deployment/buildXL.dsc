@@ -17,14 +17,15 @@ namespace BuildXL {
             // primary
             importFrom("BuildXL.App").deployment,
             importFrom("BuildXL.App").serverDeployment,
-            ...(qualifier.targetFramework !== "net472" ? [] : [
-                importFrom("BuildXL.Cache.ContentStore").VfsApplication.exe,
-            ]),
 
             // analyzers
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
+
+            ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
+                importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
+            ]),
 
             // tools
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [{
@@ -48,41 +49,31 @@ namespace BuildXL {
                                     ).exe
                                 ]
                             } ] ),
+                    importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment,
                     {
-                        subfolder: r`MsBuildGraphBuilder`,
-                        contents: BuildXLSdk.isDotNetCoreBuild ? [] : [
+                        subfolder: r`bvfs`,
+                        contents: qualifier.targetRuntime !== "win-x64" ? [] : [
                             // If the current qualifier is full framework, this tool has to be built with 472
-                            importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier(
-                                Object.merge<(typeof qualifier) & {targetFramework: "net472"}>(qualifier, {targetFramework: "net472"})).exe
+                            importFrom("BuildXL.Cache.ContentStore").VfsApplication.withQualifier({
+                                configuration: qualifier.configuration,
+                                targetFramework: "net472",
+                                targetRuntime: "win-x64"
+                            }).exe,
+                            importFrom("BuildXL.Cache.ContentStore").App.withQualifier({
+                                configuration: qualifier.configuration,
+                                targetFramework: "net472",
+                                targetRuntime: "win-x64"
+                            }).exe
                         ]
                     },
                     {
-                        subfolder: r`NinjaGraphBuilder`,
+                        subfolder: r`CMakeNinja`,
                         contents: [
+                            importFrom("BuildXL.Tools").CMakeRunner.exe,
                             importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
                             importFrom("BuildXL.Tools.Ninjson").pkg.contents
                         ]
                     },
-                    {
-                        subfolder: r`CMakeRunner`,
-                        contents: [
-                            importFrom("BuildXL.Tools").CMakeRunner.exe,
-                        ]
-                    },
-                    {
-                        subfolder: r`SandboxedProcessExecutor`,
-                        contents: [
-                            importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
-                        ]
-                    },
-                    ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal && !BuildXLSdk.isTargetRuntimeOsx,
-                        () =>
-                        [{
-                            subfolder: r`VmCommandProxy`,
-                            contents: [
-                                importFrom("CloudBuild.VmCommandProxy").pkg.contents
-                            ]
-                        }]),
                 ]
             }])
         ]

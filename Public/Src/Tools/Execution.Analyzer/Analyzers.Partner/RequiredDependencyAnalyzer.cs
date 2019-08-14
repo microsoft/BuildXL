@@ -266,7 +266,7 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
 
-                serializedPip.ResetPipIdForTesting();
+                serializedPip.ResetPipId();
                 m_pipTable.Add(nodeId.Value, serializedPip);
             }
 
@@ -296,7 +296,10 @@ namespace BuildXL.Execution.Analyzer
             simulator.ExecutionData.DataflowGraph = m_mutableGraph;
 
             simulator.OutputDirectory = OutputFilePath;
-            simulator.ReadExecutionLog();
+            if (!simulator.ReadExecutionLog())
+            {
+                Args.TruncatedXlgWarning();
+            }
 
             Console.WriteLine($"Simulating [Analyzing]");
             simulator.Analyze();

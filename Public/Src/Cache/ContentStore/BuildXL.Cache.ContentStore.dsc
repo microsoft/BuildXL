@@ -4,6 +4,7 @@
 
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
+import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 
 export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet451;
 
@@ -139,6 +140,5 @@ export const deploymentForBuildXL: Deployment.Definition = {
             importFrom("Grpc.Core").Contents.all.getFile("runtimes/osx/native/libgrpc_csharp_ext.x86.dylib")),
 
         importFrom("TransientFaultHandling.Core").Contents.all.getFile("lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll"),
-        importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
     ]
 };

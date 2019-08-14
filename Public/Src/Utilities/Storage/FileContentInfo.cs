@@ -18,15 +18,10 @@ namespace BuildXL.Storage
     public readonly struct FileContentInfo : IEquatable<FileContentInfo>
     {
         /// <summary>
-        /// Use -1 to specify that the file size in not known.
+        /// m_lengthAndExistence represents length for actual files, files with unknown length (LengthAndExistence.IsKnownLength == false),
+        /// or <see cref="PathExistence"/> if this data does not refer to a file
         /// </summary>
-        public const long UnknownLength = -1;
-
-        /// <summary>
-        /// m_length represents length for actual files, Unknown, or <see cref="PathExistence"/> if this data does not refer to a file
-        /// When representing existence (m_length = UnknownLength - ((int)Existence)) Consequently, Existence = ((PathExistence)UnknownLength - m_length).
-        /// </summary>
-        private readonly long m_length;
+        private readonly LengthAndExistence m_lengthAndExistence;
 
         /// <summary>
         /// Content hash, contingent upon the <see cref="Native.IO.Usn"/> matching.
@@ -34,11 +29,142 @@ namespace BuildXL.Storage
         public readonly ContentHash Hash;
 
         /// <summary>
+        /// Encapsulates file length and existence. Neither of the values is required.
+        /// </summary>
+        public readonly struct LengthAndExistence
+        {
+            // The top 8 bits are used for storing PathExistence value, the rest 56 bits are used to store a file length.
+            // The top in each of these block is used to indicate whether the value is specified.            
+            // 
+            // m_data = [IsKnownExistenceFlag | Existence | IsKnownLengthFlag | Length]; 
+            //
+            // Note: because the left most bit in m_data might be set, don't right shift its value without casting it to ulong or unsetting the bit first.
+
+            private const int NumberExistenceBits = 8;
+
+            private const int ExistenceShift = 64 - NumberExistenceBits;
+
+            private const long LengthBitsMask = (1L << ExistenceShift) - 1;
+            private const long IsKnownLengthFlag = 1L << (ExistenceShift - 1);
+            private const long LengthValueMask = (1L << (ExistenceShift - 1)) - 1;
+
+            private const long ExistenceBitsMask = ~LengthBitsMask;
+            private const long IsKnownExistenceFlag = 1L << 63;
+            private const long ExistenceValueMask = ExistenceBitsMask ^ IsKnownExistenceFlag;
+
+            private readonly long m_data;
+
+            /// <summary>
+            /// Max file length that can be stored.
+            /// </summary>
+            public const long MaxSupportedLength = LengthValueMask;
+
+            /// <summary>
+            /// Whether the length value has been set.
+            /// </summary>
+            public bool IsKnownLength => (m_data & IsKnownLengthFlag) != 0;
+
+            /// <summary>
+            /// Length value. Returns 0 if <see cref="IsKnownLength" /> is false.
+            /// </summary>
+            public long Length => m_data & LengthValueMask;
+
+            /// <summary>
+            /// The underlying value used for storage.
+            /// </summary>
+            public long SerializedValue => m_data;
+
+            /// <summary>
+            /// The stored existence value. If no value is stored, returns null.
+            /// </summary>
+            public PathExistence? Existence
+            {
+                get
+                {
+                    if ((m_data & IsKnownExistenceFlag) != 0)
+                    {
+                        return (PathExistence)((m_data & ExistenceValueMask) >> ExistenceShift);
+                    }
+
+                    return null;
+                }
+            }
+
+            /// <summary>
+            /// Creates a <see cref="LengthAndExistence"/> with a known length and optional existence value.
+            /// </summary>
+            public LengthAndExistence(long length, PathExistence? existence)
+            {
+                if ((length & LengthValueMask) != length)
+                {
+                    Contract.Assert(false, $"Invalid length value (reserved bits should not be used): {length} ({System.Text.RegularExpressions.Regex.Replace(Convert.ToString(length, 2).PadLeft(64, '0'), ".{4}", "$0 ")})");
+                }
+
+                m_data = (existence.HasValue ? (IsKnownExistenceFlag | ((long)existence << ExistenceShift)) : 0L)
+                    | IsKnownLengthFlag
+                    | length;
+            }
+
+            /// <summary>
+            /// Creates a <see cref="LengthAndExistence"/> with an unknown length and optional existence value.
+            /// </summary>            
+            public LengthAndExistence(PathExistence? existence)
+            {
+                m_data = existence.HasValue ? (IsKnownExistenceFlag | ((long)existence << ExistenceShift)) : 0L;
+            }
+
+
+            private LengthAndExistence(long combinedValue)
+            {
+                m_data = combinedValue;
+            }
+
+            /// <summary>
+            /// Creates a <see cref="LengthAndExistence"/> using a combined existence/length value.
+            /// </summary>                        
+            public static LengthAndExistence Deserialize(long combinedValue)
+            {
+                // check that if a flag is not set, the corresponding value is not set as well
+                if ((combinedValue & IsKnownExistenceFlag) == 0)
+                {
+                    Contract.Assert((combinedValue & ExistenceValueMask) == 0);
+                }
+
+                if ((combinedValue & IsKnownLengthFlag) == 0)
+                {
+                    Contract.Assert((combinedValue & LengthValueMask) == 0);
+                }
+
+                return new LengthAndExistence(combinedValue);
+            }
+        }
+
+        /// <summary>
         /// Creates a <see cref="FileContentInfo"/> with real USN version information.
         /// </summary>
         public FileContentInfo(ContentHash hash, long length)
         {
-            m_length = length;
+            Contract.Requires(length >= 0);
+
+            m_lengthAndExistence = new LengthAndExistence(
+                length,
+                // if the length is valid, assign the existence value
+                IsValidLength(length, hash)
+                    ? PathExistence.ExistsAsFile
+                    : (PathExistence?)null);
+
+            Hash = hash;
+        }
+
+        /// <summary>
+        /// Creates a <see cref="FileContentInfo"/> using a combined existence/length value. 
+        /// </summary>
+        /// <remarks>
+        /// Mainly used for deserialization and files with unknown length.
+        /// </remarks>
+        public FileContentInfo(ContentHash hash, LengthAndExistence lengthAndExistence)
+        {
+            m_lengthAndExistence = lengthAndExistence;
             Hash = hash;
         }
 
@@ -48,61 +174,46 @@ namespace BuildXL.Storage
         /// </summary>
         public static FileContentInfo CreateWithUnknownLength(ContentHash hash, PathExistence? existence = null)
         {
-            var length = existence == null ? UnknownLength : (UnknownLength - (int)existence);
-            return new FileContentInfo(hash, length);
+            return new FileContentInfo(hash, new LengthAndExistence(existence));
         }
 
         /// <summary>
         /// Check if the length of the file is known
         /// </summary>
-        public bool HasKnownLength => IsValidLength(m_length, Hash);
+        public bool HasKnownLength => m_lengthAndExistence.IsKnownLength && IsValidLength(m_lengthAndExistence.Length, Hash);
+
+        /// <summary>
+        /// Checks if the hash type of the file matches the specified type.
+        /// </summary>
+        public bool MatchesHashType(HashType hashType)
+            => hashType == HashType.Unknown /* unknown matches everything */ || Hash.HashType == hashType;
 
         /// <summary>
         /// The file length. If <see cref="HasKnownLength"/> is false, this returns zero.
         /// </summary>
-        public long Length => m_length > 0 ? m_length : 0;
+        public long Length => IsValidLength(m_lengthAndExistence.Length, Hash) ? m_lengthAndExistence.Length : 0;
 
         /// <summary>
-        /// Raw value of file length. Can be negative if length is unknown or if this struct does not refer to a file.
-        /// If the file length is known, both RawLength and Length properties return the same value.
+        /// The underlying value for file length/path existence. This property (and not Length property) must be used for serialization.
         /// </summary>
-        /// <remarks>
-        /// This property (and not Length property) must be used for serialization.
-        /// </remarks>
-        public long RawLength => m_length;
+        public long SerializedLengthAndExistence => m_lengthAndExistence.SerializedValue;
 
         /// <summary>
         /// Gets the optional path existence file
         /// </summary>
-        public PathExistence? Existence
-        {
-            get
-            {
-                if (HasKnownLength)
-                {
-                    return PathExistence.ExistsAsFile;
-                }
-
-                if (m_length == UnknownLength)
-                {
-                    return null;
-                }
-
-                return (PathExistence) (UnknownLength - m_length);
-            }
-        }
+        public PathExistence? Existence => m_lengthAndExistence.Existence;
 
         /// <inheritdoc />
         public override string ToString()
         {
             string content = Hash.HashType != HashType.Unknown ? Hash.ToString() : "<UnknownHashType>";
-            return I($"[Content {content} (Length: {m_length})]");
+            return I($"[Content {content} (Length: {m_lengthAndExistence})]");
         }
 
         /// <inheritdoc />
         public bool Equals(FileContentInfo other)
         {
-            return other.Hash == Hash && other.RawLength == RawLength;
+            return other.Hash == Hash && other.SerializedLengthAndExistence == SerializedLengthAndExistence;
         }
 
         /// <inheritdoc />
@@ -114,7 +225,7 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return HashCodeHelper.Combine(Hash.GetHashCode(), RawLength.GetHashCode());
+            return HashCodeHelper.Combine(Hash.GetHashCode(), SerializedLengthAndExistence.GetHashCode());
         }
 
         private const string RenderSeparator = "_";
@@ -136,7 +247,7 @@ namespace BuildXL.Storage
                 return valueStr;
             };
             string hashStr = propertyRenderer(nameof(Hash), Hash);
-            string lengthStr = propertyRenderer(nameof(RawLength), m_length);
+            string lengthStr = propertyRenderer(nameof(SerializedLengthAndExistence), SerializedLengthAndExistence);
             return I($"{hashStr}{RenderSeparator}{lengthStr}");
         }
 
@@ -162,24 +273,27 @@ namespace BuildXL.Storage
                 throw Contract.AssertFailure(I($"Invalid ContentHash format: '{splits[0]}'"));
             }
 
-            long length;
-            if (!long.TryParse(splits[1], out length))
+            long lengthAndExistence;
+            if (!long.TryParse(splits[1], out lengthAndExistence))
             {
                 throw Contract.AssertFailure(I($"Invalid file length format: '{splits[1]}'"));
             }
 
-            return new FileContentInfo(hash, length);
+            return new FileContentInfo(hash, LengthAndExistence.Deserialize(lengthAndExistence));
         }
 
         /// <summary>
         /// Return if the length is valid.
         ///    - Negative length is invalid
         ///    - Zero length is valid only for the "empty file" hash
+        ///    - A special hash turns any length into an invalid length
         /// </summary>
         [Pure]
         public static bool IsValidLength(long length, ContentHash hash)
         {
-            if (length < 0)
+            if (length < 0
+                || length > LengthAndExistence.MaxSupportedLength
+                || hash.IsSpecialValue())
             {
                 return false;
             }

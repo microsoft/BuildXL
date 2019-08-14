@@ -1,0 +1,9 @@
+# Incremental tools
+
+Some processes, like incremental linker and gradle, have their own up-to-date checks for whether to produce output files or to run their incremental logic. To support incrementality of those tools, we developed [Preserve Outputs feature](/BuildXL/User-Guide/Advanced-Features/Preserving-outputs) that prevents the outputs from being deleted before a Pip executes. However, this feature is not enough for some tools such as gradle. Gradle checks up-to-dateness of files by looking at the timestamp without reading the files. As those accesses are represented as `ExistingFileProbe` in `PathSet`, BuildXL fails to detect content changes in those files, causing underbuilds. To prevent underbuilds with incremental tools such as gradle, BuildXL converts file and enumeration probes to `FileContentRead` if all following conditions are satisfied: 
+
+1. The `unsafe_preserveOutputs` command line option must be set on the build session. Only the pips decorated with the `Unsafe.AllowPreserveOutputs` property will get the modified behavior.
+1. The `Unsafe.AllowPreserveOutputs` property must be set on a per-pip basis as it is added to the build graph. This setting is at the PipBuilder level. For DScript, this property is declared as `allowPreservedOutputs` field in `UnsafeExecuteArguments` of `ExecuteArguments`, the argument type passed to the `Transformer.execute`.
+1. The `Unsafe.IncrementalTool` property must be set on a per-pip basis. This setting is at the PipBuilder level. For DScript, this property is declared as `incrementalTool` field in `UnsafeExecuteArguments` of `ExecuteArguments`, the argument type passed to the `Transformer.execute`.
+1. In the config file, the tool name (e.g., "java.exe" for gradle) must be specified under `incrementalTools` of `RootModuleConfiguration`. 
+

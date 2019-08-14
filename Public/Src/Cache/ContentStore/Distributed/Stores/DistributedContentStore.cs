@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStoreWithPostInitialization, IRepairStore, IDistributedLocationStore, IStreamStore
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore
         where T : PathBase
     {
         private readonly byte[] _localMachineLocation;
@@ -85,6 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
+            ICopyRequester copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
@@ -99,7 +100,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int trustedHashFileSizeBoundary = -1,
             long parallelHashingFileSizeBoundary = -1,
             int maxConcurrentCopyOperations = 512,
-            ContentStoreSettings contentStoreSettings = null)
+            ContentStoreSettings contentStoreSettings = null,
+            bool enableProactiveCopy = false)
             : this (
                   localMachineLocation,
                   innerContentStoreFunc,
@@ -107,6 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                   fileExistenceChecker,
                   fileCopier,
                   pathTransform,
+                  copyRequester,
                   contentAvailabilityGuarantee,
                   tempFolderForCopies,
                   fileSystem,
@@ -119,6 +122,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                       MaxConcurrentCopyOperations = maxConcurrentCopyOperations,
                       RetryIntervalForCopies = retryIntervalForCopies,
                       PinConfiguration = pinConfiguration,
+                      EnableProactiveCopy = enableProactiveCopy
                   },
                   replicaCreditInMinutes,
                   clock,
@@ -139,6 +143,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
+            ICopyRequester copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
@@ -176,6 +181,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     fileSystem,
                     fileCopier,
                     fileExistenceChecker,
+                    copyRequester,
                     pathTransform,
                     contentLocationStore);
             };
@@ -311,7 +317,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             var contentHashesAndLocations = new List<ContentHashWithSizeAndLocations>();
             foreach (ContentHash contentHash in contentHashes)
             {
-                _tracer.Debug(context, $"[DistributedEviction] Re-adding local location for content hash {contentHash} because it was not evicted");
+                _tracer.Debug(context, $"[DistributedEviction] Re-adding local location for content hash {contentHash.ToShortString()} because it was not evicted");
                 contentHashesAndLocations.Add(new ContentHashWithSizeAndLocations(contentHash));
             }
 
@@ -563,6 +569,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
 
             return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{InnerContentStore} does not implement {nameof(IStreamStore)} in {nameof(DistributedContentStore<T>)}.");
+        }
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            throw new NotImplementedException();
         }
     }
 }

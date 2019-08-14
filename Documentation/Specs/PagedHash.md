@@ -1,5 +1,5 @@
 # Paged File Hashes
-In the BuildXL [cache](../../Public/src/Cache/README.md) the most commonly used file content hash function is not a strict SHA256 of the file content stream, but a paged block hash, labeled as the "VSO-Hash" in the codebase. VSO-Hash originated as part of work within the Visual Studio Online services, which was renamed first to Visual Studio Team Services, then to Azure DevOps.
+In the BuildXL [cache](../../Public/Src/Cache/README.md) the most commonly used file content hash function is not a strict SHA256 of the file content stream, but a paged block hash, labeled as the "VSO-Hash" in the codebase. VSO-Hash originated as part of work within the Visual Studio Online services, which was renamed first to Visual Studio Team Services, then to Azure DevOps.
 
 ## Calculating Block and Page Hashes
 
@@ -35,4 +35,4 @@ The result is a 33-byte VSO-Hash.
 A good implementation, such as linked below, can hash blocks and pages in parallel, saving significant end-to-end time on large files and overlapping the overhead of SHA256.
 
 ## Related Code
-[VsoHash.cs](../../Public/src/Cache/ContentStore/Hashing/VsoHash.cs) is the primary implementation. It can perform asyncrhonous, parallel block and page hashing.
+[VsoHash.cs](../../Public/Src/Cache/ContentStore/Hashing/VsoHash.cs) is the primary implementation. It can perform asyncrhonous, parallel block and page hashing.

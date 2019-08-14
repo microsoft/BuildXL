@@ -10,6 +10,10 @@
 #if MAC_OS_SANDBOX
 #include <IOKit/IOLib.h>
 #include "SysCtl.hpp"
+#elif MAC_OS_LIBRARY
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IODataQueueClient.h>
+#include <mach/mach_time.h>
 #endif
 
 #include "stdafx.h"
@@ -84,8 +88,7 @@ public:
     void operator++ (int)
     {
 #if MAC_OS_SANDBOX
-        if (g_bxl_enable_counters)
-            OSIncrementAtomic(&count_);
+       if (g_bxl_enable_counters) OSIncrementAtomic(&count_);
 #else
         ++count_;
 #endif
@@ -94,8 +97,7 @@ public:
     void operator-- (int)
     {
 #if MAC_OS_SANDBOX
-        if (g_bxl_enable_counters)
-            OSDecrementAtomic(&count_);
+       if (g_bxl_enable_counters) OSDecrementAtomic(&count_);
 #else
         --count_;
 #endif
@@ -119,11 +121,11 @@ private:
     void AddMicroseconds(uint64_t durationUs)
     {
 #if MAC_OS_SANDBOX
-        if (g_bxl_enable_counters)
-        {
-            OSIncrementAtomic(&count_);
-            OSAddAtomic64(durationUs, &durationUs_);
-        }
+       if (g_bxl_enable_counters)
+       {
+           OSIncrementAtomic(&count_);
+           OSAddAtomic64(durationUs, &durationUs_);
+       }
 #else
         ++count_;
         durationUs_ += durationUs;
@@ -190,6 +192,7 @@ typedef struct {
     uint reportQueueSizeMB;
     bool enableReportBatching;
     ResourceThresholds resourceThresholds;
+    bool enableCatalinaDataPartitionFiltering;
 } KextConfig;
 
 #define kMaxReportedPips 30

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 
@@ -90,6 +91,30 @@ namespace BuildXL.Cache.ContentStore.Tracing
         ///     Gets a value indicating the age of the hash at the time when the result was created.
         /// </summary>
         public DateTime CreationTime { get; }
+
+        /// <summary>
+        ///     Convert to the <see cref="DeleteResult"/> class.
+        /// </summary>
+        public DeleteResult ToDeleteResult(ContentHash contentHash)
+        {
+            if (HasException)
+            {
+                return new DeleteResult(DeleteResult.ResultCode.Error, Exception, ErrorMessage);
+            }
+
+            if (Succeeded)
+            {
+                if (!SuccessfullyEvictedHash)
+                {
+                    return new DeleteResult(DeleteResult.ResultCode.ContentNotFound, contentHash, EvictedSize, PinnedSize);
+                }
+
+                return new DeleteResult(DeleteResult.ResultCode.Success, contentHash, EvictedSize, PinnedSize);
+            }
+
+            // !HasException && Succeeded && !SuccessfulyEvictedHash
+            return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize, PinnedSize);
+        }
 
         /// <inheritdoc />
         public override string ToString()

@@ -5,9 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -141,9 +143,10 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Additional executionLog to compare parameter is required");
             }
 
-            // The fingerprint store based cache miss analyzer only uses graph information from the newer build,
-            // so skip loading the graph for the earlier build
-            if (m_mode.Value != AnalysisMode.CacheMiss)
+            // The fingerprint store based cache miss analyzer and the bxl invocation analyzer
+            // only use graph information from the newer build, so skip loading the graph for the earlier build
+            // TODO: To avoid large "||" statements, convert this to a list or enum or struct and check if the mode is "in" that data structure
+            if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.BXLInvocationXLG)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))
                 {
@@ -325,6 +328,12 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.ContentPlacement:
                     m_analyzer = InitializeContentPlacementAnalyzer();
                     break;
+                case AnalysisMode.XlgToDb:
+                    m_analyzer = InitializeXLGToDBAnalyzer();
+                    break;
+                case AnalysisMode.BXLInvocationXLG:
+                    m_analyzer = InitializeBXLInvocationAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -340,6 +349,14 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
+        public static void TruncatedXlgWarning()
+        {
+            ConsoleColor originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Error.WriteLine("WARNING: Execution log file possibly truncated, results may be incomplete!");
+            Console.ForegroundColor = originalColor;
+        }
+
         public int Analyze()
         {
             if (m_analyzer == null)
@@ -348,14 +365,15 @@ namespace BuildXL.Execution.Analyzer
             }
 
             m_analyzer.Prepare();
+            bool dataIsComplete = true;
             if (m_analysisInput.ExecutionLogPath != null)
             {
                 // NOTE: We call Prepare above so we don't need to prepare as a part of reading the execution log
-                var reader = Task.Run(() => m_analyzer.ReadExecutionLog(prepare: false));
+                var reader = Task.Run(() => dataIsComplete &= m_analyzer.ReadExecutionLog(prepare: false));
                 if (m_mode == AnalysisMode.LogCompare)
                 {
                     m_analyzerOther.Prepare();
-                    var otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
                 }
 
@@ -363,7 +381,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     var start = DateTime.Now;
                     Console.WriteLine($"[{start}] Reading compare to Log");
-                    var otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
                     var duration = DateTime.Now - start;
                     Console.WriteLine($"Done reading compare to log : duration = [{duration}]");
@@ -374,13 +392,18 @@ namespace BuildXL.Execution.Analyzer
                 if (m_mode == AnalysisMode.CacheMissLegacy)
                 {
                     // First pass just to read in PipCacheMissType data
-                    var otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
 
                     // Second pass to do fingerprint differences analysis
-                    otherReader = Task.Run(() => m_analyzerOther.ReadExecutionLog());
+                    otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
                     otherReader.Wait();
                 }
+            }
+
+            if (!dataIsComplete)
+            {
+                TruncatedXlgWarning();
             }
 
             var exitCode = m_analyzer.Analyze();
@@ -583,6 +606,13 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteCopyFilesAnalyzerHelp(writer);
+
+            // TODO: Uncomment out help messages when analyzers are more polished.
+            //writer.WriteLine("");
+            //WriteXLGToDBHelp(writer);
+
+            //writer.WriteLine("");
+            //WriteDominoInvocationHelp(writer);
         }
 
         public void LogEventSummary()
@@ -592,8 +622,13 @@ namespace BuildXL.Execution.Analyzer
 
         public long ParseSemistableHash(Option opt)
         {
-            var adjustedOption = new Option() { Name = opt.Name, Value = opt.Value.ToUpper().Replace("PIP", "") };
-            return Convert.ToInt64(ParseStringOption(adjustedOption), 16);
+            var adjustedOption = new Option() { Name = opt.Name, Value = opt.Value.ToUpper().Replace(Pip.SemiStableHashPrefix.ToUpper(), "") };
+            if (!Int64.TryParse(ParseStringOption(adjustedOption), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out long sshValue) || sshValue == 0)
+            {
+                throw Error("Invalid pip: {0}. Id must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69", opt.Value);
+            }
+
+            return sshValue;
         }
     }
 

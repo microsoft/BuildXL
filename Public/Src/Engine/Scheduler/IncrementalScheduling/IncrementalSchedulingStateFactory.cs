@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     {
         private readonly LoggingContext m_loggingContext;
 
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         private readonly bool m_analysisMode;
 
@@ -28,7 +28,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public IncrementalSchedulingStateFactory(
             LoggingContext loggingContext,
             bool analysisMode = false,            
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
 

@@ -1,13 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.Tracing;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Ide.LanguageServer.Utilities;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 using StreamJsonRpc;
 
 namespace BuildXL.Ide.JsonRpc

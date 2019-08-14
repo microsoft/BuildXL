@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -56,11 +57,7 @@ using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using BuildXL.Utilities.VmCommandProxy;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
+using BuildXL.Storage.InputChange;
 
 namespace BuildXL.Scheduler
 {
@@ -149,7 +146,7 @@ namespace BuildXL.Scheduler
         /// <see cref="FingerprintStore"/> directory name.
         /// </summary>
         public const string FingerprintStoreDirectory = "FingerprintStore";
-        
+
         #endregion Constants
 
         #region State
@@ -217,7 +214,7 @@ namespace BuildXL.Scheduler
         /// A kernel extension connection object for macOS sandboxing
         /// </summary>
         [CanBeNull]
-        protected IKextConnection SandboxedKextConnection;
+        protected ISandboxConnection SandboxConnection;
 
         /// <summary>
         /// Workers
@@ -256,7 +253,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Cleans temp directories in background
         /// </summary>
-        private readonly TempCleaner m_tempCleaner;
+        public ITempCleaner TempCleaner { get; }
 
         /// <summary>
         /// The pip graph
@@ -998,7 +995,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext,
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
-            TempCleaner tempCleaner = null,
+            ITempCleaner tempCleaner = null,
             Task<PipRuntimeTimeTable> runningTimeTableTask = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
@@ -1099,11 +1096,11 @@ namespace BuildXL.Scheduler
             // is complete. GetDummyProvenance may be called during execution (after the schedule phase)
             GetDummyProvenance();
 
-            m_tempCleaner = tempCleaner;
+            TempCleaner = tempCleaner;
 
             // Ensure that when the cancellationToken is signaled, we respond with the
             // internal cancellation process.
-            m_cancellationTokenRegistration = context.CancellationToken.Register(RequestTermination);
+            m_cancellationTokenRegistration = context.CancellationToken.Register(() => RequestTermination());
 
             m_serviceManager = new SchedulerServiceManager(graph, context);
             m_pipFragmentRenderer = this.CreatePipFragmentRenderer();
@@ -1269,18 +1266,18 @@ namespace BuildXL.Scheduler
             m_serviceManager.Start(loggingContext, OperationTracker);
             m_apiServer?.Start(loggingContext);
             m_chooseWorkerCpu = new ChooseWorkerCpu(
-                loggingContext, 
-                m_configuration.Schedule.MaxChooseWorkerCpu, 
+                loggingContext,
+                m_configuration.Schedule.MaxChooseWorkerCpu,
                 m_workers,
-                m_pipQueue, 
-                PipGraph, 
+                m_pipQueue,
+                PipGraph,
                 m_fileContentManager);
 
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(
-                loggingContext, 
-                m_configuration.Schedule.MaxChooseWorkerCacheLookup, 
-                m_configuration.Distribution.DistributeCacheLookups, 
-                m_workers, 
+                loggingContext,
+                m_configuration.Schedule.MaxChooseWorkerCacheLookup,
+                m_configuration.Distribution.DistributeCacheLookups,
+                m_workers,
                 m_pipQueue);
 
             ExecutionLog?.DominoInvocation(new DominoInvocationEventData(m_configuration));
@@ -2061,7 +2058,7 @@ namespace BuildXL.Scheduler
                     m_pipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
-                if (m_scheduleConfiguration.EarlyWorkerRelease && IsDistributedMaster)
+                if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedMaster)
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
@@ -2085,7 +2082,7 @@ namespace BuildXL.Scheduler
 
             // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
             int totalProcessSlots = LocalWorker.TotalProcessSlots +
-               (int)Math.Ceiling(m_scheduleConfiguration.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
+               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * Workers.Where(a => a.IsRemote && a.IsAvailable).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
             if (numProcessPipsWaiting > 0 && (numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots))
@@ -2346,19 +2343,25 @@ namespace BuildXL.Scheduler
                 // This happens before we traverse the dependents of this failed pip; since SchedulePipIfReady
                 // checks m_scheduleTerminating this means that there will not be 'Skipped' pips in this mode
                 // (they remain unscheduled entirely).
-                if (!succeeded && m_scheduleConfiguration.StopOnFirstError)
+                if (!succeeded && !IsDistributedWorker)
                 {
-                    if (!m_scheduleTerminating)
+                    // We stop on the first error only on the master or single-machine builds.
+                    // During cancellation, master coordinates with workers to stop the build.
+
+                    // ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
+                    bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
+                        || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
+
+                    // Early terminate the build if 
+                    // (1) StopOnFirstError is enabled or 
+                    // (2) a materialization error is occurred in a distributed build.
+                    bool earlyTerminate = m_scheduleConfiguration.StopOnFirstError || (hasMaterializationErrorHappened && IsDistributedMaster);
+
+                    if (!IsTerminating && earlyTerminate)
                     {
                         Logger.Log.ScheduleTerminatingDueToPipFailure(m_executePhaseLoggingContext, pipDescription);
 
-                        // This flag prevents normally-scheduled pips (i.e., by refcount) from starting (thus m_numPipsQueuedOrRunning should
-                        // reach zero quickly). But we do allow further pips to run inline (see RunPipInline); that's safe from an error
-                        // reporting perspective since m_hasFailures latches to false.
-                        m_scheduleTerminating = true;
-
-                        // A build that has been canceled should return failure
-                        m_hasFailures = true;
+                        RequestTermination(cancelQueue: false);
                     }
 
                     Contract.Assert(m_executePhaseLoggingContext.ErrorWasLogged, I($"Should have logged error for pip: {pipDescription}"));
@@ -2625,7 +2628,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(runnablePip.PipType == PipType.Process);
             Contract.Requires(runnablePip.Result.HasValue);
             // Only allow this to be null in testing
-            if (m_tempCleaner == null)
+            if (TempCleaner == null)
             {
                 Contract.Assert(m_testHooks != null);
                 return;
@@ -2646,7 +2649,7 @@ namespace BuildXL.Scheduler
             // temp directories are not considered as outputs.
             if (process.TempDirectory.IsValid)
             {
-                m_tempCleaner.RegisterDirectoryToDelete(process.TempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
+                TempCleaner.RegisterDirectoryToDelete(process.TempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
             }
 
             foreach (var additionalTempDirectory in process.AdditionalTempDirectories)
@@ -2654,7 +2657,7 @@ namespace BuildXL.Scheduler
                 // Unlike process.TempDirectory, which is invalid for pips without temp directories,
                 // AdditionalTempDirectories should not have invalid paths added
                 Contract.Requires(additionalTempDirectory.IsValid);
-                m_tempCleaner.RegisterDirectoryToDelete(additionalTempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
+                TempCleaner.RegisterDirectoryToDelete(additionalTempDirectory.ToString(Context.PathTable), deleteRootDirectory: true);
             }
 
             // Only for successful run scheduling temporary outputs for deletion
@@ -2665,7 +2668,7 @@ namespace BuildXL.Scheduler
                 // CanBeReferencedOrCached() is false for e.g. 'intermediate' outputs, and deleting them proactively can be a nice space saving
                 if (!output.CanBeReferencedOrCached())
                 {
-                    m_tempCleaner.RegisterFileToDelete(output.Path.ToString(Context.PathTable));
+                    TempCleaner.RegisterFileToDelete(output.Path.ToString(Context.PathTable));
                 }
             }
         }
@@ -2757,7 +2760,7 @@ namespace BuildXL.Scheduler
                 // With a ref count of zero, all pip dependencies (if any) have already executed, and so we have
                 // all needed content hashes (and content on disk) for inputs. This means the pip we can both
                 // compute the content fingerprint and execute it (possibly in a cached manner).
-                if (m_scheduleTerminating)
+                if (IsTerminating)
                 {
                     // We're bringing down the schedule quickly. Even pips which become ready without any dependencies will be skipped.
                     // We return early here to skip OnPipNewlyQueuedOrRunning (which prevents m_numPipsQueuedOrRunning from increasing).
@@ -2794,11 +2797,11 @@ namespace BuildXL.Scheduler
             ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo ? RunningTimeTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents : (ushort)0;
 
             var runnablePip = RunnablePip.Create(
-                m_executePhaseLoggingContext, 
-                this, 
-                pipId, 
-                pipType, 
-                priority ?? GetPipPriority(pipId), 
+                m_executePhaseLoggingContext,
+                this,
+                pipId,
+                pipType,
+                priority ?? GetPipPriority(pipId),
                 m_executePipFunc,
                 cpuUsageInPercent);
 
@@ -2977,7 +2980,7 @@ namespace BuildXL.Scheduler
             if (runnablePip.AcquiredResourceWorker != null)
             {
                 // These steps run on the chosen worker so don't release the resources until they are completed.
-                // MaterializeOutputs can be also run on the workers; but we can release resources before that. 
+                // MaterializeOutputs can be also run on the workers; but we can release resources before that.
                 if (nextStep != PipExecutionStep.CacheLookup &&
                     nextStep != PipExecutionStep.ExecuteNonProcessPip &&
                     nextStep != PipExecutionStep.ExecuteProcess &&
@@ -3666,7 +3669,7 @@ namespace BuildXL.Scheduler
 
         private bool ShouldCancelPip(RunnablePip runnablePip)
         {
-            return m_scheduleTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
+            return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
         }
 
         private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
@@ -4114,7 +4117,7 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        IKextConnection IPipExecutionEnvironment.SandboxedKextConnection => !SandboxingWithKextEnabled ? null : SandboxedKextConnection;
+        ISandboxConnection IPipExecutionEnvironment.SandboxConnection => !SandboxingWithKextEnabled ? null : SandboxConnection;
 
         /// <summary>
         /// Content and metadata cache for prior pip outputs.
@@ -4672,7 +4675,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Initialize runtime state, optionally apply a filter and schedule all ready pips
         /// </summary>
-        public bool InitForMaster(LoggingContext loggingContext, RootFilter filter = null, SchedulerState schedulerState = null, IKextConnection kextConnection = null)
+        public bool InitForMaster(LoggingContext loggingContext, RootFilter filter = null, SchedulerState schedulerState = null, ISandboxConnection sandboxConnectionKext = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Assert(!IsInitialized);
@@ -4709,7 +4712,7 @@ namespace BuildXL.Scheduler
                 // This logging context must be set prior to any scheduling, as it might be accessed.
                 m_executePhaseLoggingContext = pm.LoggingContext;
 
-                m_hasFailures = m_hasFailures || InitSandboxedKextConnection(loggingContext, kextConnection);
+                m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext, sandboxConnectionKext);
 
                 PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
 
@@ -4722,16 +4725,16 @@ namespace BuildXL.Scheduler
         /// Initilizes the kernel extension connection if required and reports back success or failure, allowing
         /// for a graceful terminaton of BuildXL.
         /// </summary>
-        protected virtual bool InitSandboxedKextConnection(LoggingContext loggingContext, IKextConnection kextConnection = null)
+        protected virtual bool InitSandboxConnectionKext(LoggingContext loggingContext, ISandboxConnection sandboxConnection = null)
         {
             if (SandboxingWithKextEnabled)
             {
                 try
                 {
                     // Setup the kernel extension connection so we can potentially execute pips later
-                    if (kextConnection == null)
+                    if (sandboxConnection == null)
                     {
-                        var config = new KextConnection.Config
+                        var config = new SandboxConnectionKext.Config
                         {
                             MeasureCpuTimes = m_configuration.Sandbox.KextMeasureProcessCpuTimes,
                             FailureCallback = (int status, string description) =>
@@ -4743,6 +4746,9 @@ namespace BuildXL.Scheduler
                             {
                                 ReportQueueSizeMB = m_configuration.Sandbox.KextReportQueueSizeMb,
                                 EnableReportBatching = m_configuration.Sandbox.KextEnableReportBatching,
+#if !PLATFORM_WIN
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher,
+#endif
                                 ResourceThresholds = new Sandbox.ResourceThresholds
                                 {
                                     CpuUsageBlockPercent = m_configuration.Sandbox.KextThrottleCpuUsageBlockThresholdPercent,
@@ -4751,7 +4757,11 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-                        kextConnection = new KextConnection(config);
+                        
+                        sandboxConnection = OperatingSystemHelper.IsMacOSCatalinaOrHigher 
+                            ? ((ISandboxConnection) new SandboxConnectionES()) 
+                            : ((ISandboxConnection) new SandboxConnectionKext(config));
+
                         if (m_performanceAggregator != null && config.KextConfig.Value.ResourceThresholds.IsProcessThrottlingEnabled())
                         {
                             m_performanceAggregator.MachineCpu.OnChange += (aggregator) =>
@@ -4761,12 +4771,12 @@ namespace BuildXL.Scheduler
                                 uint availableRamMB = double.IsNaN(availableRam) || double.IsInfinity(availableRam)
                                     ? 0
                                     : Convert.ToUInt32(Math.Round(availableRam));
-                                kextConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
+                                sandboxConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
                             };
-                        }
+                        }   
                     }
 
-                    SandboxedKextConnection = kextConnection;
+                    SandboxConnection = sandboxConnection;
                 }
                 catch (BuildXLException ex)
                 {
@@ -4808,7 +4818,8 @@ namespace BuildXL.Scheduler
                     m_fileContentTable,
                     m_fileChangeTracker,
                     DirectoryTranslator,
-                    fileChangeTrackingSelector);
+                    fileChangeTrackingSelector,
+                    vfsCasRoot: m_configuration.Cache.VfsCasRoot);
 
                 m_pipOutputMaterializationTracker = new PipOutputMaterializationTracker(this, IncrementalSchedulingState);
 
@@ -4841,6 +4852,17 @@ namespace BuildXL.Scheduler
 
         private void ProcessFileChanges(LoggingContext loggingContext, SchedulerState schedulerState)
         {
+            InputChangeList inputChangeList = null;
+
+            if (m_configuration.Schedule.InputChanges.IsValid)
+            {
+                inputChangeList = InputChangeList.CreateFromFile(
+                    loggingContext, 
+                    m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
+                    m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
+                    DirectoryTranslator);
+            }
+
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;
 
             if (m_shouldCreateIncrementalSchedulingState)
@@ -4848,7 +4870,7 @@ namespace BuildXL.Scheduler
                 incrementalSchedulingStateFactory = new IncrementalSchedulingStateFactory(
                     loggingContext,
                     analysisMode: false,
-                    tempDirectoryCleaner: m_tempCleaner);
+                    tempDirectoryCleaner: TempCleaner);
             }
 
             if (m_fileChangeTracker.IsBuildingInitialChangeTrackingSet)
@@ -4865,7 +4887,7 @@ namespace BuildXL.Scheduler
             }
             else if (m_fileChangeTracker.IsTrackingChanges)
             {
-                var fileChangeProcessor = new FileChangeProcessor(loggingContext, m_fileChangeTracker);
+                var fileChangeProcessor = new FileChangeProcessor(loggingContext, m_fileChangeTracker, inputChangeList);
 
                 // We no longer include file content table (FCT) into file change journal processor because
                 // we don't want FCT to rely on file change tracker (tracker). The underbuild shown by FileChangeTrackerTests.TrackerLoadFailureShouldNotResultInUnderbuild
@@ -4959,7 +4981,7 @@ namespace BuildXL.Scheduler
 
             InitSchedulerRuntimeState(loggingContext, schedulerState: null);
             InitPipStates(loggingContext);
-            m_hasFailures = m_hasFailures || InitSandboxedKextConnection(loggingContext);
+            m_hasFailures = m_hasFailures || InitSandboxConnectionKext(loggingContext);
 
             Contract.Assert(!HasFailed || loggingContext.ErrorWasLogged, "Scheduler encountered errors during initialization, but none were logged.");
             return !HasFailed;
@@ -5471,7 +5493,7 @@ namespace BuildXL.Scheduler
             {
                 if (existence != PathExistence.Nonexistent && trackedFileContentInfo.Hash.IsSpecialValue())
                 {
-                    Contract.Assert(false, I($"Hash={trackedFileContentInfo.Hash}, Length={trackedFileContentInfo.FileContentInfo.RawLength}, Existence={existence}, Path={artifact.Path.ToString(Context.PathTable)}, Origin={origin}"));
+                    Contract.Assert(false, I($"Hash={trackedFileContentInfo.Hash}, Length={trackedFileContentInfo.FileContentInfo.SerializedLengthAndExistence}, Existence={existence}, Path={artifact.Path.ToString(Context.PathTable)}, Origin={origin}"));
                 }
 
                 // Since it's an output file, force the existence as ExistsAsFile.
@@ -5855,7 +5877,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext)
         {
             var executionLogPath = configuration.Logging.ExecutionLog;
-            if (configuration.Logging.LogExecution && executionLogPath.IsValid && (configuration.Engine.Phase & EnginePhases.Execute) != 0)
+            if (configuration.Logging.LogExecution && executionLogPath.IsValid && configuration.Engine.Phase.HasFlag(EnginePhases.Execute))
             {
                 var executionLogPathString = executionLogPath.ToString(context.PathTable);
 
@@ -6375,16 +6397,21 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Inform the scheduler that we want to terminate ASAP (but with clean shutdown as needed).
         /// </summary>
-        private void RequestTermination()
+        private void RequestTermination(bool cancelQueue = true)
         {
-            // Cancellation event has been logged by BuildXLApp before triggering actual cancellation.
+            // This flag prevents normally-scheduled pips (i.e., by refcount) from starting (thus m_numPipsQueuedOrRunning should
+            // reach zero quickly). But we do allow further pips to run inline (see RunPipInline); that's safe from an error
+            // reporting perspective since m_hasFailures latches to false.
             m_scheduleTerminating = true;
 
             // A build that got canceled certainly didn't succeed.
             m_hasFailures = true;
 
-            // TODO: Send a notification to the workers in distributed builds.
-            m_pipQueue.Cancel();
+            if (cancelQueue)
+            {
+                // We cancel the queue for more aggressive but still graceful cancellation. 
+                m_pipQueue.Cancel();
+            }
         }
 
         #endregion
@@ -6400,7 +6427,7 @@ namespace BuildXL.Scheduler
             m_cancellationTokenRegistration.Dispose();
 
             ExecutionLog?.Dispose();
-            SandboxedKextConnection?.Dispose();
+            SandboxConnection?.Dispose();
 
             LocalWorker.Dispose();
             m_allWorker?.Dispose();

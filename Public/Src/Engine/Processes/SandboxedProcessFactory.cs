@@ -15,7 +15,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// Factory for creating and spawning processes.
     /// 
-    /// Currently, if <see cref="FileAccessManifest.DisableDetours"/> is set, an instance of <see cref="UnSandboxedProcess"/>
+    /// Currently, if <see cref="FileAccessManifest.DisableDetours"/> is set, an instance of <see cref="UnsandboxedProcess"/>
     /// is returned; otherwise, <see cref="SandboxedProcess"/> is used.
     /// </summary>
     public static class SandboxedProcessFactory
@@ -68,6 +68,30 @@ namespace BuildXL.Processes
             /// </summary>
             [CounterType(CounterType.Numeric)]
             SandboxedProcessLifeTimeMs,
+
+            /// <summary>
+            /// Aggregate time spent checking paths for directory symlinks
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            DirectorySymlinkCheckingDuration,
+
+            /// <summary>
+            /// Number of paths queried for directory symlinks
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            DirectorySymlinkPathsQueriedCount,
+
+            /// <summary>
+            /// Number of paths checked for directory symlinks (cache misses)
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            DirectorySymlinkPathsCheckedCount,
+
+            /// <summary>
+            /// Number of paths with directory symlinks that were discarded
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            DirectorySymlinkPathsDiscardedCount
         }
 
         /// <summary>
@@ -114,11 +138,11 @@ namespace BuildXL.Processes
 
             if (sandboxKind == SandboxKind.None)
             {
-                return new UnSandboxedProcess(sandboxedProcessInfo);
+                return new UnsandboxedProcess(sandboxedProcessInfo);
             }
             else if (OperatingSystemHelper.IsUnixOS)
             {
-                return new SandboxedProcessMacKext(sandboxedProcessInfo, ignoreReportedAccesses: sandboxKind == SandboxKind.MacOsKextIgnoreFileAccesses);
+                return new SandboxedProcessMac(sandboxedProcessInfo, ignoreReportedAccesses: sandboxKind == SandboxKind.MacOsKextIgnoreFileAccesses);
             }
             else
             {

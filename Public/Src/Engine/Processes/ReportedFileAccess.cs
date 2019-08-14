@@ -96,6 +96,11 @@ namespace BuildXL.Processes
         /// </summary>
         public readonly FileAccessStatus Status;
 
+        /// <summary>
+        /// What method was used for determining the <see cref="FileAccessStatus"/>
+        /// </summary>
+        public readonly FileAccessStatusMethod Method;
+
         // The following fields are a byte-wide and should be kept
         // together at the end of the structure to minimize padding.
 
@@ -138,7 +143,8 @@ namespace BuildXL.Processes
             FlagsAndAttributes flagsAndAttributes,
             AbsolutePath manifestPath,
             string path,
-            string enumeratePatttern)
+            string enumeratePatttern,
+            FileAccessStatusMethod fileAccessStatusMethod = FileAccessStatusMethod.PolicyBased)
         {
             Contract.Requires(process != null);
             Operation = operation;
@@ -155,6 +161,7 @@ namespace BuildXL.Processes
             ManifestPath = manifestPath;
             Path = path;
             EnumeratePattern = enumeratePatttern;
+            Method = fileAccessStatusMethod;
         }
 
         /// <summary>
@@ -192,7 +199,8 @@ namespace BuildXL.Processes
                    ShareMode == other.ShareMode &&
                    CreationDisposition == other.CreationDisposition &&
                    FlagsAndAttributes == other.FlagsAndAttributes &&
-                   string.Equals(EnumeratePattern, other.EnumeratePattern, StringComparison.OrdinalIgnoreCase);
+                   string.Equals(EnumeratePattern, other.EnumeratePattern, StringComparison.OrdinalIgnoreCase) &&
+                   Method == other.Method;
         }
 
         /// <summary>
@@ -210,20 +218,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Determines whether the current violation is a write violation
         /// </summary>
-        public bool IsWriteViolation
-        {
-            get {
-                switch (RequestedAccess)
-                {
-                    case RequestedAccess.All:
-                    case RequestedAccess.Write:
-                    case RequestedAccess.ReadWrite:
-                        return true;
-                    default:
-                        return false;
-                }
-            }
-        }
+        public bool IsWriteViolation => (RequestedAccess & RequestedAccess.Write) != 0;
 
         /// <summary>
         /// Describes the operation that cause this reported file access, including all parameter value, except the path
@@ -660,6 +655,7 @@ namespace BuildXL.Processes
 
             writer.WriteNullableString(Path);
             writer.WriteNullableString(EnumeratePattern);
+            writer.Write((byte)Method);
         }
 
         /// <nodoc />
@@ -685,7 +681,8 @@ namespace BuildXL.Processes
                 flagsAndAttributes: (FlagsAndAttributes)reader.ReadUInt32(),
                 manifestPath: readPath != null ? readPath(reader) : reader.ReadAbsolutePath(),
                 path: reader.ReadNullableString(),
-                enumeratePatttern: reader.ReadNullableString());
+                enumeratePatttern: reader.ReadNullableString(),
+                fileAccessStatusMethod: (FileAccessStatusMethod)reader.ReadByte());
         }
 
         /// <inherit />

@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.Serialization
         /// <summary>
         /// Maps strings to parent index
         /// </summary>
-        private readonly ConcurrentBigSet<StringId> m_stringSet = new ConcurrentBigSet<StringId>();
+        private readonly ConcurrentBigSet<(StringId id, InlinedStringKind kind)> m_stringSet = new ConcurrentBigSet<(StringId, InlinedStringKind)>();
 
         /// <summary>
         /// Serialized path count
@@ -53,7 +53,7 @@ namespace BuildXL.Utilities.Serialization
 
             // Reserve invalid as 0-th index
             m_pathToParentIndexMap.Add(AbsolutePath.Invalid, 0);
-            m_stringSet.Add(new StringId(int.MaxValue));
+            m_stringSet.Add((new StringId(int.MaxValue), InlinedStringKind.Default));
         }
 
         /// <inheritdoc />
@@ -129,7 +129,7 @@ namespace BuildXL.Utilities.Serialization
         /// <summary>
         /// Adds the strings and gets the index of the string in list (this index is valid both during serialization and deser
         /// </summary>
-        public int WriteAndGetIndex(StringId stringId)
+        public int WriteAndGetIndex(StringId stringId, InlinedStringKind kind = default)
         {
             if (!stringId.IsValid)
             {
@@ -137,7 +137,7 @@ namespace BuildXL.Utilities.Serialization
                 return 0;
             }
 
-            var getResult = m_stringSet.GetOrAdd(stringId);
+            var getResult = m_stringSet.GetOrAdd((stringId, kind));
 
             // Write the index
             WriteCompact(getResult.Index);
@@ -145,27 +145,34 @@ namespace BuildXL.Utilities.Serialization
             // Check if string is already written
             if (!getResult.IsFound)
             {
-                var binaryString = m_pathTable.StringTable.GetBinaryString(stringId);
-                var stringByteLength = binaryString.UnderlyingBytes.Length;
-
-                CollectionUtilities.GrowArrayIfNecessary(ref m_buffer, stringByteLength);
-
-                // Write if string is ascii or UTF-16
-                Write(binaryString.OnlyContains8BitChars);
-
-                // Write the byte length
-                WriteCompact(stringByteLength);
-
-                // Copy bytes to buffer and write bytes
-                binaryString.UnderlyingBytes.CopyTo(
-                    index: 0,
-                    destinationArray: m_buffer,
-                    destinationIndex: 0,
-                    length: stringByteLength);
-                Write(m_buffer, 0, stringByteLength);
+                WriteStringIdValue(stringId, kind);
             }
 
             return getResult.Index;
+        }
+
+        /// <todoc />
+        public virtual void WriteStringIdValue(in StringId stringId, InlinedStringKind kind)
+        {
+            var binaryString = m_pathTable.StringTable.GetBinaryString(stringId);
+            var stringByteLength = binaryString.UnderlyingBytes.Length;
+
+            CollectionUtilities.GrowArrayIfNecessary(ref m_buffer, stringByteLength);
+
+            // Write if string is ascii or UTF-16
+            Write(binaryString.OnlyContains8BitChars);
+
+            // Write the byte length
+            WriteCompact(stringByteLength);
+
+            // Copy bytes to buffer and write bytes
+            binaryString.UnderlyingBytes.CopyTo(
+                index: 0,
+                destinationArray: m_buffer,
+                destinationIndex: 0,
+                length: stringByteLength);
+            Write(m_buffer, 0, stringByteLength);
+
         }
     }
 }

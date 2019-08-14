@@ -1087,6 +1087,7 @@ namespace Test.BuildXL.Scheduler
                                 break;
 
                             case Operation.Type.ReadFile:
+                            case Operation.Type.WaitUntilFileExists:
                                 dao.Dependencies.Add(op.Path.FileArtifact);
                                 break;
 

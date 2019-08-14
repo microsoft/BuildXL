@@ -86,9 +86,8 @@ export function install(args: Arguments) : Result {
 
     if (useAuthenticatedPackageFeed && Context.getCurrentHost().os === "win") {
 
-        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {
-            const nugetCredentialProviderPath = Environment.getDirectoryValue("NUGET_CREDENTIALPROVIDERS_PATH");
-        
+        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {  
+            const nugetCredentialProviderPath = Environment.getDirectoryValue("NUGET_CREDENTIALPROVIDERS_PATH");     
             const nugetCredentialProviderArguments = {
                 arguments: [Cmd.argument(Artifact.input(f`yarnWithNugetCredentialProvider.js`))].prependWhenMerged(),
                 environmentVariables: [{name: "NUGET_CREDENTIALPROVIDERS_PATH", value: nugetCredentialProviderPath.path}],
@@ -96,6 +95,7 @@ export function install(args: Arguments) : Result {
                     untrackedScopes: [
                         nugetCredentialProviderPath,
                         d`${Context.getMount("ProgramData").path}/microsoft/netFramework`, // Most cred providers are managed code so need these folders... 
+                        d`${Context.getMount("ProgramData").path}/Microsoft/Crypto`,
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetFlushCache`, // Windows uses this location as a certificate cache
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetUrlCache`,
                         d`${Context.getMount("AppData").path}/Microsoft/Crypto/RSA`, // Windows uses this location as a certificate cache
@@ -108,43 +108,6 @@ export function install(args: Arguments) : Result {
 
             credentialProviderArguments = credentialProviderArguments.merge(nugetCredentialProviderArguments);
         }
-
-        if (Environment.hasVariable("QAUTHMATERIALROOT")) {
-            const qAuthMaterialRoot = Environment.getDirectoryValue("QAUTHMATERIALROOT");
-
-            const qAuthMaterial = {
-                environmentVariables: [{name: "QAUTHMATERIALROOT", value: qAuthMaterialRoot.path}],
-                unsafe: {
-                    untrackedScopes: [
-                        qAuthMaterialRoot
-                    ],
-                },
-            };
-
-            credentialProviderArguments = credentialProviderArguments.merge(qAuthMaterial);
-        }
-
-        credentialProviderArguments = credentialProviderArguments.merge({
-            unsafe: {
-                untrackedPaths: [
-                    f`d:/app/autopilot.ini`,
-                ],
-                untrackedScopes: [
-                    d`d:/data/AutoPilotData`,
-                    d`d:/data/logs/AuthHelpers`,
-                    d`d:/data/Q/AuthHelpers`,
-                    d`d:/data/Q/QSecretsDPAPI`,
-                    d`d:/data/Q/RegionConfig`,
-                    d`d:/data/Q/TelemetryConfig`,
-                    d`${Context.getMount("ProgramData").path}/Microsoft/Crypto`,
-                ],
-                passThroughEnvironmentVariables: [
-                    "__CLOUDBUILD_AUTH_HELPER_ROOT__",
-                    "__Q_DPAPI_Secrets_Dir",
-                    "__CREDENTIAL_PROVIDER_LOG_DIR",
-                ],
-            }
-        });
     }
 
     const result = Node.run(
@@ -170,6 +133,8 @@ export function install(args: Arguments) : Result {
                         ...(args.privateCache ? [] : [
                             // We don't have a private cache so untrack the appdata cache folder
                             d`${Context.getMount("LocalAppData").path}/yarn`,
+                            // CB creates a junction from %LocalAppData%\yarn to d:\dbs\profile\bxlint\appdata\local\yarn
+                            d`d:/dbs/profile/bxlint/appdata/local/yarn`,
                         ]),
                     ],
                 },

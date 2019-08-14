@@ -21,7 +21,7 @@ namespace StandaloneTestSupport {
             contents: [
                 StandaloneTestUtils.writeFile(a`main.dsc`, specContent),
                 StandaloneTestUtils.writeFile(a`module.config.dsc`, moduleContent),
-                Deployment.createFromDisk(toolDirectory.root, "*", true),
+                toolDirectory,
             ]
         };
     }
@@ -85,7 +85,7 @@ namespace StandaloneTestSupport {
     };
 
     function deploy(definition: Deployment.Definition, targetLocation: RelativePath) {
-        if (!StandaloneTestUtils.shouldDeployStandaloneTest) return undefined;        
+        if (!StandaloneTestUtils.shouldDeployStandaloneTest) return undefined;
         return DeploymentHelpers.deploy({
             definition: definition, 
             targetLocation: targetLocation});

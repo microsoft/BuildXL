@@ -81,10 +81,9 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$DeployStandaloneTest = $false,
 
-    # Task 544796 to enable this
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Disable",
+    [string]$SharedCacheMode = "Consume",
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -108,6 +107,8 @@ param(
     [switch]$DeployDev = $false,
 
     [switch]$PatchDev = $false,
+
+    [switch]$DisableInteractive = $false,
 
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
@@ -511,6 +512,10 @@ if ($shouldDeploy -and $shouldClean) {
     if (Test-Path -PathType Container $deployDeployment.buildDir) {
         rmdir -Recurse $deployDeployment.buildDir;
     }
+}
+
+if (-not $DisableInteractive) {
+    $AdditionalBuildXLArguments += "/Interactive+"
 }
 
 # let any freeform filter arguments take precedence over the default filter

@@ -10,7 +10,7 @@ namespace Distributed {
         (qualifier.targetFramework === 'net472' || qualifier.targetFramework === 'net451') ? importFrom("Microsoft.Azure.EventHubs").withQualifier({targetFramework: 'net461'}).pkg : importFrom("Microsoft.Azure.EventHubs").pkg,
         // Microsoft.Azure.EventHubs removes 'System.Diagnostics.DiagnosticSource' as the dependency to avoid deployment issue for .netstandard2.0, but this dependency
         // is required for non-.net core builds.
-        ...((qualifier.targetFramework === 'net472' || qualifier.targetFramework === 'net451' || qualifier.targetFramework === 'net461')
+        ...((qualifier.targetFramework === 'net472' || qualifier.targetFramework === 'net451')
             ? [ importFrom("System.Diagnostics.DiagnosticSource").pkg, importFrom("Microsoft.IdentityModel.Tokens").pkg,importFrom("Microsoft.IdentityModel.Logging").pkg ] 
             : []),
 
@@ -35,6 +35,7 @@ namespace Distributed {
             Hashing.dll,
             Interfaces.dll,
             Library.dll,
+            importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
                 NetFx.System.IO.Compression.dll,

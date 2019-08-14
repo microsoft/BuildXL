@@ -284,6 +284,7 @@ namespace BuildXL.Engine
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -745,7 +746,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
-            ITempDirectoryCleaner tempCleaner)
+            ITempCleaner tempCleaner)
         {
             var pathsToScrub = new List<string>();
             if (configuration.Engine.Scrub && mountPathExpander != null)
@@ -837,7 +838,7 @@ namespace BuildXL.Engine
             PathTable pathTable,
             IConfiguration configuration,
             IEnumerable<string> extraNonScrubbablePaths,
-            [CanBeNull] ITempDirectoryCleaner tempCleaner)
+            [CanBeNull] ITempCleaner tempCleaner)
         {
             var nonScrubbablePaths = new List<string>(new[]
             {
@@ -923,7 +924,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
 
-            if ((configuration.Engine.Phase & EnginePhases.Schedule) == 0)
+            if (!configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 return true;
             }
@@ -1424,7 +1425,7 @@ namespace BuildXL.Engine
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 
-            if (BuildXL.Engine.ETWLogger.Log.IsEnabled(Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+            if (BuildXL.Engine.ETWLogger.Log.IsEnabled(Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
             {
                 Logger.Log.PipTableStats(
                     loggingContext,
@@ -1661,6 +1662,7 @@ namespace BuildXL.Engine
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
+                            vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -1999,7 +2001,7 @@ namespace BuildXL.Engine
             PipGraphCacheDescriptor cacheDescriptor,
             EngineSerializer serializer,
             FileContentTable fileContentTable,
-            ITempDirectoryCleaner tempDirectoryCleaner)
+            ITempCleaner tempDirectoryCleaner)
         {
             if (cacheDescriptor != null)
             {

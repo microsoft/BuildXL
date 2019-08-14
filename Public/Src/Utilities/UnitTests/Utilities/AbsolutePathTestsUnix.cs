@@ -34,8 +34,18 @@ namespace Test.BuildXL.Utilities
             XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"/usr/local", out p));
             XAssert.AreEqual(@"/usr/local", p.ToString(pt));
 
-            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"/..", out p));
-            XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"/../..", out p));
+
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"/..", out p));
+            XAssert.AreEqual(@"/", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"/../..", out p));
+            XAssert.AreEqual(@"/", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"/usr/etc/aaa/../../../../../../", out p));
+            XAssert.AreEqual(@"/", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"/usr/a/../b.txt", out p));
+            XAssert.AreEqual(@"/usr/b.txt", p.ToString(pt));
+            XAssert.IsTrue(AbsolutePath.TryCreate(pt, @"/usr/a/../../../../b.txt", out p));
+            XAssert.AreEqual(@"/b.txt", p.ToString(pt));
+
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"..", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @".", out p));
             XAssert.IsFalse(AbsolutePath.TryCreate(pt, @"\", out p));

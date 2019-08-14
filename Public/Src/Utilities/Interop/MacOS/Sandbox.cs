@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -15,12 +16,44 @@ namespace BuildXL.Interop.MacOS
         public static readonly int ReportQueueSuccessCode = 0x1000;
 
         /// <nodoc />
-        public static readonly int KextSuccess = 0x0;
+        public static readonly int SandboxSuccess = 0x0;
 
         /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         public static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
 
+        /// <nodoc />
+        [StructLayout(LayoutKind.Sequential)]
+        public struct ESConnectionInfo
+        {
+            /// <nodoc />
+            public int Error;
+
+            /// <nodoc />
+            public ulong Client;
+
+            /// <nodoc />
+            public ulong Source;
+
+            /// <nodoc />
+            public ulong RunLoop;
+        }
+
+        /// <nodoc />
+        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
+        public static extern void InitializeEndpointSecuritySandbox(ref ESConnectionInfo info, int host);
+
+        /// <nodoc />
+        [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
+        public static extern void DeinitializeEndpointSecuritySandbox(ESConnectionInfo info);
+
+        /// <nodoc />
+        [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public static extern void ObserverFileAccessReports(
+            ref ESConnectionInfo info,
+            [MarshalAs(UnmanagedType.FunctionPtr)] AccessReportCallback callbackPointer,
+            long accessReportSize);
+            
         /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]
         public struct KextConnectionInfo
@@ -80,14 +113,25 @@ namespace BuildXL.Interop.MacOS
         public static extern void KextVersionString(StringBuilder s, int size);
 
         /// <nodoc />
+        [Flags]
+        public enum ConnectionType
+        {
+            /// <nodoc />
+            Kext,
+            
+            /// <nodoc />
+            EndpointSecurity
+        }
+
+        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "SendPipStarted")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SendPipStarted(int processId, long pipId, byte[] famBytes, int famBytesLength, KextConnectionInfo info);
+        public static extern bool SendPipStarted(int processId, long pipId, byte[] famBytes, int famBytesLength, ConnectionType type, ref KextConnectionInfo info);
 
         /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "SendPipProcessTerminated")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SendPipProcessTerminated(long pipId, int processId, KextConnectionInfo info);
+        public static extern bool SendPipProcessTerminated(long pipId, int processId, ConnectionType type, ref KextConnectionInfo info);
 
         /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "CheckForDebugMode")]
@@ -139,6 +183,9 @@ namespace BuildXL.Interop.MacOS
 
             /// <nodoc />
             public ResourceThresholds ResourceThresholds;
+            
+            /// <nodoc />
+            public bool EnableCatalinaDataPartitionFiltering;
         }
 
         /// <nodoc />
@@ -230,7 +277,7 @@ namespace BuildXL.Interop.MacOS
         public unsafe delegate void NativeFailureCallback(void *refCon, int status);
 
         /// <summary>
-        /// Callback the SandboxedKextConnection uses to report any unrecoverable failure back to
+        /// Callback the SandboxConnection uses to report any unrecoverable failure back to
         /// the scheduler (which, in response, should then terminate the build).
         /// </summary>
         /// <param name="status">Error code indicating what failure happened</param>

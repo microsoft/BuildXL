@@ -1,25 +1,22 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
-using JetBrains.Annotations;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using Process = BuildXL.Pips.Operations.Process;
-using BuildXL.Pips;
-using BuildXL.Utilities.Configuration;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -38,6 +35,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         public AllowedUndeclaredReadsTests(ITestOutputHelper output) : base(output)
         {
+            // TODO: remove when the default changes
+            ((UnsafeSandboxConfiguration)(Configuration.Sandbox.UnsafeSandboxConfiguration)).IgnoreUndeclaredAccessesUnderSharedOpaques = false;
+
             SharedOpaqueDirectoryRoot = Path.Combine(ObjectRoot, "sharedOpaqueDirectory");
             OutOfMountRoot = Path.Combine(TemporaryDirectory, "outOfMount");
             Directory.CreateDirectory(OutOfMountRoot);
@@ -381,6 +381,67 @@ namespace IntegrationTest.BuildXL.Scheduler
             // We should get the violation anyway
             RunScheduler().AssertFailure();
             AssertErrorEventLogged(LogEventId.DependencyViolationWriteInUndeclaredSourceRead);
+        }
+
+        /// <summary>
+        /// TODO: blocking writes on existing undeclared inputs is not implemented on Mac yet
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void WritingUndeclaredInputsUnderSharedOpaquesAreBlocked()
+        {
+            // Create an undeclared source file under the cone of a shared opaque
+            var source = CreateSourceFile(SharedOpaqueDirectoryRoot);
+
+            // Run a pip that writes into the source file
+            var pipBuilder = CreatePipBuilder(new Operation[] { Operation.WriteFile(source, doNotInfer: true) });
+            pipBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, SharedOpaqueDirectoryRoot)), SealDirectoryKind.SharedOpaque);
+            pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var result = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertFailure();
+            IgnoreWarnings();
+            AssertErrorEventLogged(LogEventId.DependencyViolationWriteOnExistingFile);
+        }
+
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void WritingToExistentFileProducedBySamePipIsAllowed(bool varyPath)
+        {
+            // Run a pip that writes into a file twice: the second time, the file will exist. However, this should be allowed.
+            // This test complements WritingUndeclaredInputsUnderSharedOpaquesAreBlocked, since the check cannot be made purely based on file existence,
+            // but should also consider when the first write happened
+            var outputFile = CreateOutputFileArtifact(SharedOpaqueDirectoryRoot);
+            var pipBuilder = CreatePipBuilder(new Operation[] {
+                Operation.WriteFile(outputFile, doNotInfer: true),
+                Operation.WriteFile(outputFile, doNotInfer: true, changePathToAllUpperCase: varyPath),
+                Operation.WriteFile(outputFile, doNotInfer: true, useLongPathPrefix: varyPath),
+            });
+            pipBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, SharedOpaqueDirectoryRoot)), SealDirectoryKind.SharedOpaque);
+            pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var result = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
+        public void WritingToExistentFileProducedBySamePipIsAllowedInChildProcess()
+        {
+            // Run a pip that writes into a file twice, but the second time it happens on a child process.
+            var outputFile = CreateOutputFileArtifact(SharedOpaqueDirectoryRoot);
+            var pipBuilder = CreatePipBuilder(new Operation[] {
+                Operation.WriteFile(outputFile, doNotInfer: true),
+                Operation.Spawn(Context.PathTable, waitToFinish: true, Operation.WriteFile(outputFile, doNotInfer: true)),
+            });
+
+            pipBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(Context.PathTable, SharedOpaqueDirectoryRoot)), SealDirectoryKind.SharedOpaque);
+            pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            var result = SchedulePipBuilder(pipBuilder);
+
+            RunScheduler().AssertSuccess();
         }
 
         private ProcessWithOutputs ScheduleProcessWithUndeclaredReads(

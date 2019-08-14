@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -17,11 +18,6 @@ using BuildXL.FrontEnd.Script.Incrementality;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Workspaces.Core;
 using JetBrains.Annotations;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Core;
@@ -722,7 +718,13 @@ namespace Test.BuildXL.FrontEnd.Core
                              Schedule =
                              {
                                  MaxProcesses = DegreeOfParallelism,
-                                 DisableProcessRetryOnResourceExhaustion = true
+                                 DisableProcessRetryOnResourceExhaustion = true,
+                             },
+                             // DS tests don't need the extra I/O this adds
+                             Logging =
+                             {
+                                LogExecution = false,
+                                StoreFingerprints = false,
                              },
                              Layout =
                              {
@@ -1103,9 +1105,12 @@ namespace Test.BuildXL.FrontEnd.Core
             {
                 var location = LocationData.Create(specPath);
                 global::BuildXL.FrontEnd.Sdk.Tracing.Logger.Log.ErrorUnsupportedQualifierValue(
-                FrontEndContext.LoggingContext,
-                location.ToLogLocation(FrontEndContext.PathTable),
-                error);
+                    FrontEndContext.LoggingContext,
+                    location.ToLogLocation(FrontEndContext.PathTable),
+                    error.QualifierKey,
+                    error.InvalidValue,
+                    error.LegalValues
+                );
 
                 // Returning null, because it can happen in a real test case.
                 return null;

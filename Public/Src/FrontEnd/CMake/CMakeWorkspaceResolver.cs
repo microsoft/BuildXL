@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.CMake
         /// <summary>
         /// Keep in sync with the BuildXL deployment spec that places the tool (\Public\Src\Deployment\buildXL.dsc)
         /// </summary>
-        private const string CMakeRunnerRelativePath = @"tools\CMakeRunner\CMakeRunner.exe";
+        private const string CMakeRunnerRelativePath = @"tools\CMakeNinja\CMakeRunner.exe";
         private AbsolutePath m_pathToTool;
 
         internal readonly NinjaWorkspaceResolver EmbeddedNinjaWorkspaceResolver;

@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Exceptions
 
         private static string BuildMessage(AbsolutePath path, ContentHash expectedHash, ContentHash actualHash)
         {
-            return $"Content at {path} had actual content hash {actualHash} and did not match expected value of {expectedHash}";
+            return $"Content at {path} had actual content hash {actualHash.ToShortString()} and did not match expected value of {expectedHash.ToShortString()}";
         }
     }
 }

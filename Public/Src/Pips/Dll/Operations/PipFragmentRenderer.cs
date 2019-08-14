@@ -38,7 +38,7 @@ namespace BuildXL.Pips.Operations
         /// <remarks>
         /// Used only for approximating the max length of the rendered command line string. (<see cref="GetMaxLength"/>)
         /// </remarks>
-        private static readonly int MaxVsoHashStringLength = new FileContentInfo(ContentHashingUtilities.ZeroHash, long.MaxValue).Render().Length;
+        private static readonly int MaxVsoHashStringLength = new FileContentInfo(ContentHashingUtilities.ZeroHash, FileContentInfo.LengthAndExistence.MaxSupportedLength).Render().Length;
 
         /// <summary>
         /// Assumed max length of a rendered IPC moniker.

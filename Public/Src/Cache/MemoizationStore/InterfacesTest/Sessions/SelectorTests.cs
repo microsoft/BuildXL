@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Xunit;
@@ -88,6 +89,20 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void RandomWithOutput()
         {
             Assert.NotNull(Selector.Random().Output);
+        }
+
+        [Fact]
+        public void SerializeRoundtrip()
+        {
+            var v = Selector.Random();
+            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize);
+        }
+
+        [Fact]
+        public void NullOutputSerializeRoundtrip()
+        {
+            var v = Selector.Random(outputLength: 0);
+            Utilities.TestSerializationRoundtrip(v, v.Serialize, Selector.Deserialize);
         }
     }
 }

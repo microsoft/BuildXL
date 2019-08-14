@@ -171,6 +171,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         protected override void DisposeCore() => TempDirectory.Dispose();
 
         /// <inheritdoc />
+        protected override bool TracePinFinished => false; // Since this implementation calls PinBulk, which has its own tracing, it results in a duplicate stop message.
+
+        /// <inheritdoc />
         protected override async Task<PinResult> PinCoreAsync(
             OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
@@ -198,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             string tempFile = null;
             try
             {
-                if (ImplicitPin == ImplicitPin.PutAndGet)
+                if (ImplicitPin.HasFlag(ImplicitPin.Get))
                 {
                     var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)
@@ -267,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                     return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
                 }
 
-                if (ImplicitPin == ImplicitPin.PutAndGet)
+                if (ImplicitPin.HasFlag(ImplicitPin.Get))
                 {
                     var pinResult = await PinAsync(context, contentHash, context.Token, urgencyHint).ConfigureAwait(false);
                     if (!pinResult.Succeeded)

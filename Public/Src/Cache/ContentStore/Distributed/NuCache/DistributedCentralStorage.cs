@@ -156,11 +156,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 // If not placed, try to copy from a peer into private CAS
-                var putResult = await CopyLocalAndPutAsync(context, hash.Value, targetFilePath);
+                var putResult = await CopyLocalAndPutAsync(context, hash.Value);
                 if (putResult.Succeeded)
                 {
-                    var contentInfo = new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize);
-
                     // Lastly, try to place again now that file is copied to CAS
                     placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, FileAccessMode.Write, FileReplacementMode.ReplaceExisting, FileRealizationMode.CopyNoVerify, pinRequest: null).ThrowIfFailure();
 
@@ -197,7 +195,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private async Task<PutResult> CopyLocalAndPutAsync(OperationContext context, ContentHash hash, AbsolutePath targetFilePath)
+        private async Task<PutResult> CopyLocalAndPutAsync(OperationContext context, ContentHash hash)
         {
             var startedCopyHash = ComputeStartedCopyHash(hash);
             await RegisterContent(context, new ContentHashWithSize(startedCopyHash, -1));
@@ -224,7 +222,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (shouldCopy)
                 {
                     var putResult = await _copier.TryCopyAndPutAsync(context, hashInfo,
-                        args => _privateCas.PutTrustedFileAsync(context, args.tempLocation, FileRealizationMode.Move, new ContentHashWithSize(hash, args.copyResult.Size ?? hashInfo.Size)));
+                        args => _privateCas.PutFileAsync(context, args.tempLocation, FileRealizationMode.Move, hash, pinRequest: null));
 
                     return putResult;
                 }

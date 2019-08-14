@@ -103,7 +103,7 @@ namespace BuildXL.Pips.Operations
         /// <remarks>
         /// This method should only be used for graph patching and in unit tests.
         /// </remarks>
-        internal void ResetPipIdForTesting()
+        public void ResetPipId()
         {
             m_pipId = PipId.Invalid;
         }

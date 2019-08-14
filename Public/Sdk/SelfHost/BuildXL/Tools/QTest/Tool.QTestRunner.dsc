@@ -83,7 +83,7 @@ function validateArguments(args: QTestArguments): void {
 export function runQTest(args: QTestArguments): Result {
     args = Object.merge<QTestArguments>(defaultArgs, args);
     validateArguments(args);
-    let tags = Object.merge<string[]>(args.tags, defaultArgs.tags);
+
     let logDir = args.qTestLogs || Context.getNewOutputDirectory("qtestlogs");
     let consolePath = p`${logDir}/qtest.stdout`;
     let qtestRunTempDirectory = Context.getTempDirectory("qtestRunTemp");
@@ -167,12 +167,13 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qCodeCoverageEnumType ", qCodeCoverageEnumType),
         Cmd.flag("--zipSandbox", Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")),
-        Cmd.flag("--enableVsJitDebugger", Environment.hasVariable("[Sdk.BuildXL]enableVsJitDebugger")),
+        Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
-        Cmd.option("--testSourceDir ", args.testSourceDir)
+        Cmd.option("--testSourceDir ", args.testSourceDir),
+        Cmd.option("--buildSystem ", "BuildXL")
     ];          
 
     let unsafeOptions = {
@@ -180,18 +181,15 @@ export function runQTest(args: QTestArguments): Result {
             qTestContextInfoPath,
         ],
         untrackedScopes: [
-            d`d:/data`,
-            d`d:/app`,
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.
             d`${sandboxDir.pathRoot}/$Recycle.Bin`,
-            ...addIf(Environment.hasVariable("QAUTHMATERIALROOT"), Environment.getDirectoryValue("QAUTHMATERIALROOT")),
         ]
     };
 
     let result = Transformer.execute({
         tool: args.qTestTool ? args.qTestTool : qTestTool,
-        tags: tags,
+        tags: args.tags,
         description: args.description,
         arguments: commandLineArgs,
         consoleOutput: consolePath,
@@ -214,7 +212,8 @@ export function runQTest(args: QTestArguments): Result {
             ) : []),
             ...(args.qTestRuntimeDependencies || []),
         ],
-        unsafe: unsafeOptions
+        unsafe: unsafeOptions,
+        retryExitCodes: [2]
     });
 
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
@@ -237,14 +236,15 @@ export function runQTest(args: QTestArguments): Result {
 
         Transformer.execute({
             tool: args.qTestTool ? args.qTestTool : qTestTool,
-            tags: tags,
+            tags: args.tags,
             description: "QTest Coverage Upload",
             arguments: commandLineArgsForUploadPip,
             consoleOutput: coverageConsolePath,
             workingDirectory: qtestCodeCovUploadTempDirectory,
             disableCacheLookup: true,
             privilegeLevel: args.privilegeLevel,
-            unsafe: unsafeOptions
+            unsafe: unsafeOptions,
+            retryExitCodes: [2]
         });
     }
 

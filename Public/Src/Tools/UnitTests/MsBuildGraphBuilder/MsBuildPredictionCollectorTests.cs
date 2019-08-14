@@ -68,7 +68,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildPredictionCollector(inputFilePredictions, outputFolderPredictions, predictionFailures);
 
-            collector.AddInputFile("!@#$%^&*()", TemporaryDirectory, "Mock");
+            collector.AddInputFile("!@#$%^&*()\0", TemporaryDirectory, "Mock");
 
             Assert.Equal(0, inputFilePredictions.Count);
 
@@ -76,7 +76,7 @@ namespace Test.ProjectGraphBuilder
 
             Assert.Equal(1, predictionFailures.Count);
             Assert.Equal("Mock", predictionFailures.Single().predictorName);
-            Assert.Contains("!@#$%^&*()", predictionFailures.Single().failure);
+            Assert.Contains("!@#$%^&*()\0", predictionFailures.Single().failure);
         }
 
         [Fact]
@@ -160,7 +160,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildPredictionCollector(inputFilePredictions, outputFolderPredictions, predictionFailures);
 
-            collector.AddInputDirectory("!@#$%^&*()", TemporaryDirectory, "Mock");
+            collector.AddInputDirectory("!@#$%^&*()\0", TemporaryDirectory, "Mock");
 
             Assert.Equal(0, inputFilePredictions.Count);
 
@@ -168,7 +168,7 @@ namespace Test.ProjectGraphBuilder
 
             Assert.Equal(1, predictionFailures.Count);
             Assert.Equal("Mock", predictionFailures.Single().predictorName);
-            Assert.Contains("!@#$%^&*()", predictionFailures.Single().failure);
+            Assert.Contains("!@#$%^&*()\0", predictionFailures.Single().failure);
         }
 
         [Fact]
@@ -222,7 +222,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildPredictionCollector(inputFilePredictions, outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputFile("!@#$%^&*()", TemporaryDirectory, "Mock");
+            collector.AddOutputFile("!@#$%^&*()\0", TemporaryDirectory, "Mock");
 
             Assert.Equal(0, inputFilePredictions.Count);
 
@@ -230,7 +230,7 @@ namespace Test.ProjectGraphBuilder
 
             Assert.Equal(1, predictionFailures.Count);
             Assert.Equal("Mock", predictionFailures.Single().predictorName);
-            Assert.Contains("!@#$%^&*()", predictionFailures.Single().failure);
+            Assert.Contains("!@#$%^&*()\0", predictionFailures.Single().failure);
         }
 
         [Fact]
@@ -282,7 +282,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildPredictionCollector(inputFilePredictions, outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputDirectory("!@#$%^&*()", TemporaryDirectory, "Mock");
+            collector.AddOutputDirectory("!@#$%^&*()\0", TemporaryDirectory, "Mock");
 
             Assert.Equal(0, inputFilePredictions.Count);
 

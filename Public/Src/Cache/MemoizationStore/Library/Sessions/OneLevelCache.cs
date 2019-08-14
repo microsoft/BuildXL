@@ -191,7 +191,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 if (statsResult.Succeeded)
                 {
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
                     LocalCacheStatsEventSource.Instance.Stats(statsResult.CounterSet);
 #endif
                     statsResult.CounterSet.LogOrderedNameValuePairs(s => _tracer.Debug(context, s));

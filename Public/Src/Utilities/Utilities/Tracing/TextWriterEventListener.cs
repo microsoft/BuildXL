@@ -3,12 +3,9 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+using System.IO;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -53,7 +50,7 @@ namespace BuildXL.Utilities.Tracing
         /// If specified, translates paths from one root to another
         /// </param>
         /// <param name="listenDiagnosticMessages">
-        /// If true, all messages tagged with <see cref="Events.Keywords.Diagnostics" /> at or above <paramref name="level"/> are enabled but not captured unless diagnostics are enabled per-task.
+        /// If true, all messages tagged with <see cref="Keywords.Diagnostics" /> at or above <paramref name="level"/> are enabled but not captured unless diagnostics are enabled per-task.
         /// This is useful for StatisticsEventListener, where you need to listen diagnostics messages but capture only ones tagged with CommonInfrastructure task.
         /// </param>
         public TextWriterEventListener(
@@ -155,7 +152,7 @@ namespace BuildXL.Utilities.Tracing
         /// </summary>
         protected override void Write(EventWrittenEventArgs eventData, EventLevel level, string message = null, bool suppressEvent = false)
         {
-            if ((eventData.Keywords & BuildXL.Utilities.Tracing.Events.Keywords.OverwritableOnly) != EventKeywords.None)
+            if ((eventData.Keywords & Keywords.OverwritableOnly) != EventKeywords.None)
             {
                 return;
             }

@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected override Task<OpenStreamResult> OpenStreamCoreAsync(
             OperationContext operationContext, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
         {
-            return Store.OpenStreamAsync(operationContext, contentHash, MakePinRequest());
+            return Store.OpenStreamAsync(operationContext, contentHash, MakePinRequest(ImplicitPin.Get));
         }
 
         /// <inheritdoc />
@@ -90,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, MakePinRequest());
+            return Store.PlaceFileAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, MakePinRequest(ImplicitPin.Put));
         }
 
         /// <inheritdoc />
@@ -114,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return Store.PlaceFileAsync(operationContext, hashesWithPaths, accessMode, replacementMode, realizationMode, MakePinRequest());
+            return Store.PlaceFileAsync(operationContext, hashesWithPaths, accessMode, replacementMode, realizationMode, MakePinRequest(ImplicitPin.Get));
         }
 
         /// <inheritdoc />
@@ -137,11 +137,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <summary>
-        ///     Build a PinRequest based on auto-pin configuration.
+        ///     Build a PinRequest based on whether auto-pin configuration matches request.
         /// </summary>
-        protected PinRequest? MakePinRequest()
+        protected PinRequest? MakePinRequest(ImplicitPin implicitPin)
         {
-            return _implicitPin == ImplicitPin.PutAndGet ? new PinRequest(_pinContext) : (PinRequest?)null;
+            return (implicitPin & _implicitPin) != ImplicitPin.None ? new PinRequest(_pinContext) : (PinRequest?)null;
         }
     }
 }

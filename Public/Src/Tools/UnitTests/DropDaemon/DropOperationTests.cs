@@ -21,6 +21,7 @@ using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.DropDaemon;
+using Tool.ServicePipDaemon;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -184,7 +185,7 @@ namespace Test.Tool.DropDaemon
                 XAssert.IsTrue(result.Succeeded);
 
                 // calling MaterializeFile fails because no BuildXL server is running
-                Assert.Throws<DropDaemonException>(() => addFileItem.EnsureMaterialized().GetAwaiter().GetResult());
+                Assert.Throws<DaemonException>(() => addFileItem.EnsureMaterialized().GetAwaiter().GetResult());
             });
         }
 
@@ -259,7 +260,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(addFileFunc: (item) =>
             {
                 Assert.NotNull(item.BlobIdentifier);
-                var ex = Assert.Throws<DropDaemonException>(() => item.EnsureMaterialized().GetAwaiter().GetResult());
+                var ex = Assert.Throws<DaemonException>(() => item.EnsureMaterialized().GetAwaiter().GetResult());
 
                 // rethrowing because that's what a real IDropClient would do (then Daemon is expected to handle it)
                 throw ex;
@@ -311,7 +312,7 @@ namespace Test.Tool.DropDaemon
             {
                 var ipcResult = await daemon.AddFileAsync(new DropItemForFile(targetFile), symlinkTester: (file) => file == targetFile ? true : false);
                 Assert.False(ipcResult.Succeeded, "adding symlink to drop succeeded while it was expected to fail");
-                Assert.True(ipcResult.Payload.Contains(Daemon.SymlinkAddErrorMessagePrefix));
+                Assert.True(ipcResult.Payload.Contains(global::Tool.DropDaemon.DropDaemon.SymlinkAddErrorMessagePrefix));
             });
         }
 
@@ -382,7 +383,9 @@ namespace Test.Tool.DropDaemon
                         dropClient,
                         (daemon, etwListener) =>
                         {
-                            var addArtifactsCommand = Program.ParseArgs($"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter}", new UnixParser());
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter}",
+                                new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
                             XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
@@ -415,7 +418,9 @@ namespace Test.Tool.DropDaemon
                 {
                     // only hash and file rewrite count are important here; the rest are just fake values
                     var hash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(1)).Render();
-                    var addArtifactsCommand = Program.ParseArgs($"addartifacts --ipcServerMoniker {daemon.Config.Moniker} --file non-existent-file.txt --dropPath remote-file-name.txt --hash {hash} --fileId 12345:{(isSourceFile ? 0 : 1)}", new UnixParser());
+                    var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                        $"addartifacts --ipcServerMoniker {daemon.Config.Moniker} --file non-existent-file.txt --dropPath remote-file-name.txt --hash {hash} --fileId 12345:{(isSourceFile ? 0 : 1)}",
+                        new UnixParser());
                     var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
 
                     XAssert.IsTrue(dropPaths.Count == 0);
@@ -473,7 +478,9 @@ namespace Test.Tool.DropDaemon
                         dropClient,
                         (daemon, etwListener) =>
                         {
-                            var addArtifactsCommand = Program.ParseArgs($"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .*", new UnixParser());
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .*",
+                                new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
                             
                             XAssert.IsTrue(dropPaths.Count == 0);
@@ -532,13 +539,13 @@ namespace Test.Tool.DropDaemon
             Assert.Equal(shouldSucceed, rpcResult.Succeeded);
         }
 
-        private void WithSetup(IDropClient dropClient, Action<Daemon, DropEtwListener> action, Client apiClient = null)
+        private void WithSetup(IDropClient dropClient, Action<global::Tool.DropDaemon.DropDaemon, DropEtwListener> action, Client apiClient = null)
         {
             var etwListener = ConfigureEtwLogging();
-            string moniker = Program.IpcProvider.RenderConnectionString(Program.IpcProvider.CreateNewMoniker());
+            string moniker = ServicePipDaemon.IpcProvider.RenderConnectionString(ServicePipDaemon.IpcProvider.CreateNewMoniker());
             var daemonConfig = new DaemonConfig(VoidLogger.Instance, moniker: moniker, enableCloudBuildIntegration: false);
             var dropConfig = new DropConfig(string.Empty, null);
-            var daemon = new Daemon(UnixParser.Instance, daemonConfig, dropConfig, Task.FromResult(dropClient), client: apiClient);
+            var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, dropConfig, Task.FromResult(dropClient), client: apiClient);
             action(daemon, etwListener);
         }
 

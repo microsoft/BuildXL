@@ -298,5 +298,14 @@ namespace BuildXL.Utilities.Configuration
         /// which means pips and graph will be cached ignoring environment variables specified in this configure
         /// </remarks>
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
+
+        /// <summary>
+        /// Uses optimized AST conversion.
+        /// </summary>
+        /// <remarks>
+        /// This option is unsafe as it disables analyses and skips converting constructs that are not needed for evaluation, like types.
+        /// This option is suitable if the specs are machine generated.
+        /// </remarks>
+        bool UnsafeOptimizedAstConversion { get; }
     }
 }

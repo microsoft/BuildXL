@@ -64,4 +64,5 @@ config({
 
     mounts: [],
     searchPathEnumerationTools: [],
+    incrementalTools: [],
 });

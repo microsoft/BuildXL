@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     {
         private static readonly byte[] EmptyArray = new byte[0];
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
         private readonly SHA512 _hasher = new SHA512Cng();
 #else
         private readonly SHA512 _hasher = new SHA512Managed();

@@ -246,7 +246,10 @@ namespace BuildXL.FrontEnd.Script.Values
                        // The left object is always an array literal,
                        // since this is a merge function used for arrays only
                        var lhsArray = leftObject.Value as ArrayLiteral;
-                       Contract.Assert(leftObject.Value != null, I($"Merge append should always get an array literal in its left operand, but got '{leftObject.Value?.GetType()}'"));
+                       if (leftObject.Value == null)
+                       {
+                           Contract.Assert(false, I($"Merge append should always get an array literal in its left operand, but got '{leftObject.Value?.GetType()}'"));
+                       }
 
                        // If the right hand side is not an array, then this acts as an override.
                        if (!(rightObject.Value is ArrayLiteral rhsArray))

@@ -114,6 +114,11 @@ namespace BuildXL.Scheduler.Filter
                 // Add producers
                 producersAndNeighbors.UnionWith(innerPipProducers);
             }
+            else
+            {
+                // Exclude inner matchs
+                producersAndNeighbors.ExceptWith(innerPipProducers);
+            }
 
             // When not negated the set of pips to process is
             // the intersection of the constraining pips and the producers and
@@ -163,7 +168,7 @@ namespace BuildXL.Scheduler.Filter
         /// <summary>
         /// Gets only the direct neighbors (excludes the matching pips for the inner filter).
         /// NOTE: If pip is a matching neighbor of one of the matching pips for the inner filter
-        /// it will be included.
+        /// it will be excluded.
         /// </summary>
         DirectExcludingSelf,
     }

@@ -142,16 +142,16 @@ namespace BuildXL.SandboxExec
         }
 
         private readonly Options m_options;
-        private readonly IKextConnection m_kextConnection;
+        private readonly ISandboxConnection m_sandboxConnection;
         private PathTable m_pathTable;
 
         /// <summary>
         /// For unit tests only.
         /// </summary>
-        public SandboxExecRunner(IKextConnection connection)
+        public SandboxExecRunner(ISandboxConnection connection)
         {
             m_options = Options.Defaults;
-            m_kextConnection = connection;
+            m_sandboxConnection = connection;
         }
 
         /// <nodoc />
@@ -162,22 +162,30 @@ namespace BuildXL.SandboxExec
         {
             m_options = options;
             s_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) : null;
-
-            m_kextConnection = OperatingSystemHelper.IsUnixOS
-                ? new KextConnection(
-                    new KextConnection.Config
-                    {
-                        FailureCallback = (int status, string description) =>
+            m_sandboxConnection = OperatingSystemHelper.IsUnixOS
+                ? 
+#if PLATFORM_OSX
+                OperatingSystemHelper.IsMacOSCatalinaOrHigher 
+                    ? (ISandboxConnection) new SandboxConnectionES() 
+                    : 
+#endif                
+                    (ISandboxConnection) new SandboxConnectionKext(
+                        new SandboxConnectionKext.Config
                         {
-                            m_kextConnection.Dispose();
-                            throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status.ToString("X")}, Description: {description}), please reload the extension and retry.");
-                        },
-                        KextConfig = new Sandbox.KextConfig
-                        {
-                            ReportQueueSizeMB = m_options.ReportQueueSizeMB,
-                            EnableReportBatching = m_options.EnableReportBatching
-                        },
-                    })
+                            FailureCallback = (int status, string description) =>
+                            {
+                                m_sandboxConnection.Dispose();
+                                throw new SystemException($"Received unrecoverable error from the sandbox (Code: {status.ToString("X")}, Description: {description}), please reload the extension and retry.");
+                            },
+                            KextConfig = new Sandbox.KextConfig
+                            {
+                                ReportQueueSizeMB = m_options.ReportQueueSizeMB,
+                                EnableReportBatching = m_options.EnableReportBatching,
+#if PLATFORM_OSX
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+#endif
+                            },
+                        })
                 : null;
         }
 
@@ -287,10 +295,10 @@ namespace BuildXL.SandboxExec
             outputTime.Stop();
 
             var disposeTime = Stopwatch.StartNew();
-            if (instance.m_kextConnection != null)
+            if (instance.m_sandboxConnection != null)
             {
                 // Take care of releasing sandbox kernel extension resources on macOS
-                instance.m_kextConnection.Dispose();
+                instance.m_sandboxConnection.Dispose();
             }
             disposeTime.Stop();
 
@@ -349,7 +357,7 @@ namespace BuildXL.SandboxExec
         {
             var sandboxProcessInfo = new SandboxedProcessInfo(fileStorage: instance, fileName: processFileName, disableConHostSharing: true);
             sandboxProcessInfo.PipDescription = processFileName;
-            sandboxProcessInfo.SandboxedKextConnection = instance.m_kextConnection;
+            sandboxProcessInfo.SandboxConnection = instance.m_sandboxConnection;
 
             sandboxProcessInfo.StandardOutputEncoding = Encoding.UTF8;
             sandboxProcessInfo.StandardOutputObserver = PrintToStdout;

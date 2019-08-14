@@ -2,13 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#endif
 
 #pragma warning disable 1591
 
@@ -18,8 +15,8 @@ namespace BuildXL.SandboxExec.Tracing
     /// Logging for SandboxExec.
     /// There are no log files, so messages for events with <see cref="EventGenerators.LocalOnly"/> will be lost.
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger : LoggerBase
     {
         /// <summary>
@@ -28,14 +25,14 @@ namespace BuildXL.SandboxExec.Tracing
         public static Logger Log => m_log;
 
         [GeneratedEvent(
-            (ushort)EventId.SandboxExecMacOSCrashReport,
+            (ushort)LogEventId.SandboxExecMacOSCrashReport,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]
         public abstract void SandboxExecCrashReport(LoggingContext context, string crashSessionId, string message);
 
         [GeneratedEvent(
-            (ushort)EventId.DominoMacOSCrashReport,
+            (ushort)LogEventId.DominoMacOSCrashReport,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]

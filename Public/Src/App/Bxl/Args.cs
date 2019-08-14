@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -160,7 +161,7 @@ namespace BuildXL
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
-        [SuppressMessage("Microsoft.Performance", "CA1809", Justification = "Man up!")]
+        [SuppressMessage("Microsoft.Performance", "CA1809")]
         public bool TryParse(string[] args, PathTable pathTable, out ICommandLineConfiguration arguments)
         {
             try
@@ -280,7 +281,7 @@ namespace BuildXL
                             sign => engineConfiguration.Converge = sign),
                         OptionHandlerFactory.CreateOption(
                             "customLog",
-                            opt => ParseKeyValueOption(opt, pathTable, loggingConfiguration.CustomLog)),
+                            opt => ParseCustomLogOption(opt, pathTable, loggingConfiguration.CustomLog)),
                         OptionHandlerFactory.CreateBoolOption(
                             "debuggerBreakOnExit",
                             opt => frontEndConfiguration.DebuggerBreakOnExit = opt),
@@ -308,11 +309,11 @@ namespace BuildXL
                             opt => loggingConfiguration.Diagnostic |= CommandLineUtilities.ParseEnumOption<DiagnosticLevels>(opt)),
                         OptionHandlerFactory.CreateBoolOption(
                             "earlyWorkerRelease",
-                            sign => schedulingConfiguration.EarlyWorkerRelease = sign),
+                            sign => distributionConfiguration.EarlyWorkerRelease = sign),
                         OptionHandlerFactory.CreateOption(
                             "earlyWorkerReleaseMultiplier",
                             opt =>
-                            schedulingConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
+                            distributionConfiguration.EarlyWorkerReleaseMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 5)),
                         OptionHandlerFactory.CreateBoolOption(
                             "enforceAccessPoliciesOnDirectoryCreation",
                             sign => sandboxConfiguration.EnforceAccessPoliciesOnDirectoryCreation = sign),
@@ -523,6 +524,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "injectCacheMisses",
                             opt => HandleArtificialCacheMissOption(opt, cacheConfiguration)),
+                        OptionHandlerFactory.CreateOption(
+                            "inputChanges",
+                            opt => schedulingConfiguration.InputChanges = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "interactive",
+                            sign => configuration.Interactive = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "historicMetadataCache",
                             sign => cacheConfiguration.HistoricMetadataCache = sign),
@@ -732,7 +739,7 @@ namespace BuildXL
                             (opt, sign) =>
                             loggingConfiguration.RemoteTelemetry =
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, RemoteTelemetry.EnabledAndNotify, RemoteTelemetry.Disabled),
-                            isEnabled: (() => loggingConfiguration.RemoteTelemetry != RemoteTelemetry.Disabled)),
+                            isEnabled: () => loggingConfiguration.RemoteTelemetry.HasValue && loggingConfiguration.RemoteTelemetry.Value != RemoteTelemetry.Disabled),
                         OptionHandlerFactory.CreateBoolOption(
                             "replaceExistingFileOnMaterialization",
                             sign => cacheConfiguration.ReplaceExistingFileOnMaterialization = sign),
@@ -860,6 +867,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "tempDirectory",
                             opt => layoutConfiguration.TempDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "temporary_PreserveOutputsForIncrementalTool",
+                            sign =>
+                            sandboxConfiguration.PreserveOutputsForIncrementalTool = sign),
                         OptionHandlerFactory.CreateOption(
                             "traceInfo",
                             opt => ParsePropertyOption(opt, loggingConfiguration.TraceInfo)),
@@ -987,6 +998,11 @@ namespace BuildXL
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreSetFileInformationByHandle = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques",
+                            sign =>
+                            sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreUndeclaredAccessesUnderSharedOpaques = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreValidateExistingFileAccessesForOutputs",
                             sign => { /* Do nothing Office and WDG are still passing this flag even though it is deprecated. */ }),
                         OptionHandlerFactory.CreateBoolOption(
@@ -1009,6 +1025,11 @@ namespace BuildXL
                             "unsafe_MonitorFileAccesses",
                             sign =>
                             sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = sign,
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_OptimizedAstConversion",
+                            sign =>
+                            frontEndConfiguration.UnsafeOptimizedAstConversion = sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "unsafe_PreserveOutputs",
@@ -1033,7 +1054,6 @@ namespace BuildXL
                                 }
                             },
                             isUnsafe: true),
-
                         // </ end unsafe options>
                          OptionHandlerFactory.CreateBoolOption(
                             "useCustomPipDescriptionOnConsole",
@@ -1071,6 +1091,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "vfsCasRoot",
+                            opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
                             "viewer",
                             opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),
@@ -1204,7 +1227,12 @@ namespace BuildXL
                 if (configuration.InCloudBuild())
                 {
                     configuration.Server = ServerMode.Disabled;
-                    loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
+
+                    if (!loggingConfiguration.RemoteTelemetry.HasValue)
+                    {
+                        loggingConfiguration.RemoteTelemetry = RemoteTelemetry.EnabledAndNotify;
+                    }
+
                     cacheConfiguration.CacheGraph = true;
 
                     // Forcefully disable incremental scheduling in CB.
@@ -1454,25 +1482,26 @@ namespace BuildXL
             map[keyValuePair.Key] = CommandLineUtilities.GetFullPath(keyValuePair.Value, opt, pathTable);
         }
 
-        private static void ParseKeyValueOption(
+        private static void ParseCustomLogOption(
             CommandLineUtilities.Option opt,
             PathTable pathTable,
-            Dictionary<AbsolutePath, IReadOnlyList<int>> map)
+            Dictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> map)
         {
             Contract.Requires(map != null);
 
             var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
 
             var key = CommandLineUtilities.GetFullPath(keyValuePair.Key, opt, pathTable);
-            if (!map.TryGetValue(key, out IReadOnlyList<int> values))
+
+            if (!map.TryGetValue(key, out (IReadOnlyList<int> eventIds, EventLevel? _) value))
             {
-                values = new List<int>(0);
+                value.eventIds = new List<int>();
             }
 
-            var newValues = new List<int>(values);
+            var newValues = new List<int>(value.eventIds);
             ParseInt32ListOption(keyValuePair.Value, opt.Name, newValues);
 
-            map[key] = newValues;
+            map[key] = (newValues, null);
         }
 
         /// <summary>

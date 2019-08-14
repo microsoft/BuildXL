@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Runtime.InteropServices;
+using BuildXL.Native.IO;
+using BuildXL.Native.IO.Windows;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -16,9 +19,7 @@ namespace Test.BuildXL.Utilities
         public PathUtilitiesTests(ITestOutputHelper output)
             : base(output) { }
 
-        #region "IsValidPathAtom"
-
-        private static readonly string[] validPathAtoms =
+        private static readonly string[] s_validPathAtoms =
         {
             "dir1",
             "dir 1",
@@ -28,7 +29,7 @@ namespace Test.BuildXL.Utilities
             "dir1!"
         };
 
-        private static readonly string[] invalidPathAtoms =
+        private static readonly string[] s_invalidPathAtoms =
         {
             string.Empty,
             "foo/",
@@ -40,7 +41,7 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public void InvalidPathAtoms()
         {
-            foreach (string invalidPathAtom in invalidPathAtoms)
+            foreach (string invalidPathAtom in s_invalidPathAtoms)
             {
                 XAssert.IsFalse(PathAtom.Validate((StringSegment)invalidPathAtom), "Case: {0}", invalidPathAtom);
             }
@@ -57,12 +58,27 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public void ValidPathAtoms()
         {
-            foreach (string validPathAtom in validPathAtoms)
+            foreach (string validPathAtom in s_validPathAtoms)
             {
                 XAssert.IsTrue(PathAtom.Validate((StringSegment)validPathAtom), "Case: {0}", validPathAtom);
             }
         }
 
-#endregion
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void TestBadPathNameFileExistence()
+        {
+            var result = FileUtilities.TryProbePathExistence(@"\\mscorlib.dll", followSymlink: false);
+            XAssert.IsTrue(result.Succeeded);
+            XAssert.AreEqual(PathExistence.Nonexistent, result.Result);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void TestBadPathNameGetFileAttributes()
+        {
+            uint attrs = FileSystemWin.GetFileAttributesW(@"\\mscorlib.dll");
+            var hr = Marshal.GetLastWin32Error();
+            XAssert.AreEqual(NativeIOConstants.InvalidFileAttributes, attrs);
+            XAssert.AreEqual(NativeIOConstants.ErrorBadPathname, hr);
+        }
     }
 }

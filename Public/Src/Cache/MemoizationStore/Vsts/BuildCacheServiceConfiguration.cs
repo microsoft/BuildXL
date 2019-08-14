@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Runtime.Serialization;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
 using Newtonsoft.Json;
 
@@ -18,6 +19,16 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// Gets or sets the number of days to keep content before it is referenced by metadata.
         /// </summary>
         public const int DefaultDaysToKeepUnreferencedContent = 1;
+
+        /// <summary>
+        /// Gets or sets the threshold to inline pin calls instead of doing them in the background.
+        /// </summary>
+        public const int DefaultPinInlineThresholdMinutes = 15;
+
+        /// <summary>
+        /// Gets or sets the threshold to ignore pin calls.
+        /// </summary>
+        public const int DefaultIgnorePinThresholdHours = 16;
 
         /// <summary>
         /// Default minimum number of days to keep content bags and referenced content.
@@ -88,6 +99,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public const bool DefaultUseDedupStore = false;
 
         /// <summary>
+        /// Default value indicating whether implicit pin is used.
+        /// </summary>
+        public const ImplicitPin DefaultImplicitPin = ImplicitPin.PutAndGet;
+
+        /// <summary>
         /// Default value indicating whether Unix file access mode override is enabled.
         /// </summary>
         public const bool DefaultOverrideUnixFileAccessMode = false;
@@ -128,6 +144,18 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public int DaysToKeepUnreferencedContent { get; set; } = DefaultDaysToKeepUnreferencedContent;
+
+        /// <summary>
+        /// Gets or sets the number of days to keep content before it is referenced by metadata.
+        /// </summary>
+        [DataMember]
+        public int PinInlineThresholdMinutes { get; set; } = DefaultPinInlineThresholdMinutes;
+
+        /// <summary>
+        /// Gets or sets the number of days to keep content before it is referenced by metadata.
+        /// </summary>
+        [DataMember]
+        public int IgnorePinThresholdHours { get; set; } = DefaultIgnorePinThresholdHours;
 
         /// <summary>
         /// Gets or sets the minimum number of days to keep content bags and referenced content.
@@ -221,6 +249,12 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public bool UseDedupStore { get; set; } = DefaultUseDedupStore;
+
+        /// <summary>
+        /// Gets or sets whether an implicit pin is used.
+        /// </summary>
+        [DataMember]
+        public ImplicitPin ImplicitPin { get; set; } = DefaultImplicitPin;
 
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.

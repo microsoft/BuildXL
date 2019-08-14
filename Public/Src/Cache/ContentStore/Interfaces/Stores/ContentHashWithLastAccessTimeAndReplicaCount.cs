@@ -39,6 +39,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// </summary>
         public readonly DateTime? EffectiveLastAccessTime;
 
+        /// <nodoc />
+        public TimeSpan Age => DateTime.UtcNow - LastAccessTime;
+
+        /// <nodoc />
+        public TimeSpan? EffectiveAge => EffectiveLastAccessTime == null ? (TimeSpan?)null : DateTime.UtcNow - EffectiveLastAccessTime.Value;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.
         /// </summary>
@@ -54,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount}]";
+            return $"[ContentHash={ContentHash.ToShortString()} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount}]";
         }
 
         /// <summary>

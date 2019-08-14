@@ -5,15 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
-using System.Security;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Redis.Credentials;
-using BuildXL.Cache.ContentStore.Exceptions;
-using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.SQLite;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -21,10 +16,6 @@ using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
-[module: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses",
-    Scope = "type",
-    Target = "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory+Config",
-    Justification = "Tool is confused - it is constructed generically")]
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
     /// <summary>
@@ -185,6 +176,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(false)]
             public bool ReplaceExistingOnPlaceFile { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(false)]
+            public bool UseRocksDbMemoizationStore { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(60 * 60)]
+            public int RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds { get; set; }
+
+            /// <nodoc />
+            [DefaultValue(60 * 60 * 2)]
+            public int RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds { get; set; }
 
             /// <nodoc />
             public Config()
@@ -361,33 +364,42 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        private static SQLiteMemoizationStoreConfiguration GetMemoConfig(AbsolutePath cacheRoot, Config config, CasConfig configCore)
+        private static MemoizationStoreConfiguration GetMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
         {
-            var memoConfig = new SQLiteMemoizationStoreConfiguration(cacheRoot)
+            if (config.UseRocksDbMemoizationStore)
             {
-                MaxRowCount = config.MaxStrongFingerprints,
-                BackupDatabase = config.BackupLKGCache,
-                VerifyIntegrityOnStartup = config.CheckCacheIntegrityOnStartup,
-                SingleInstanceTimeoutSeconds = (int)configCore.SingleInstanceTimeoutInSeconds,
-                WaitForLruOnShutdown = WaitForLruOnShutdown
-            };
-
-            if (!string.IsNullOrEmpty(config.SynchronizationMode))
-            {
-                memoConfig.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), config.SynchronizationMode, ignoreCase: true);
+                return new RocksDbMemoizationStoreConfiguration() {
+                    Database = new RocksDbContentLocationDatabaseConfiguration(cacheRoot / "RocksDbMemoizationStore") {
+                        CleanOnInitialize = false,
+                        GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
+                        MetadataGarbageCollectionEnabled = true,
+                        MetadataGarbageCollectionProtectionTime = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds),
+                    },
+                };
             }
+            else
+            {
+                var memoConfig = new SQLiteMemoizationStoreConfiguration(cacheRoot)
+                {
+                    MaxRowCount = config.MaxStrongFingerprints,
+                    SingleInstanceTimeoutSeconds = (int)configCore.SingleInstanceTimeoutInSeconds,
+                    WaitForLruOnShutdown = WaitForLruOnShutdown
+                };
 
-            return memoConfig;
+                memoConfig.Database.BackupDatabase = config.BackupLKGCache;
+                memoConfig.Database.VerifyIntegrityOnStartup = config.CheckCacheIntegrityOnStartup;
+
+                if (!string.IsNullOrEmpty(config.SynchronizationMode))
+                {
+                    memoConfig.Database.SyncMode = (SynchronizationMode)Enum.Parse(typeof(SynchronizationMode), config.SynchronizationMode, ignoreCase: true);
+                }
+
+                return memoConfig;
+            }
         }
 
         private static LocalCache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
         {
-            var configCore = GetCasConfig(config);
-            var configurationModel = CreateConfigurationModel(configCore);
-
-            var cacheRoot = new AbsolutePath(config.CacheRootPath);
-            var memoConfig = GetMemoConfig(cacheRoot, config, configCore);
-
             LocalCacheConfiguration localCacheConfiguration;
             if (config.EnableContentServer)
             {
@@ -403,6 +415,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 localCacheConfiguration = LocalCacheConfiguration.CreateServerDisabled();
             }
 
+            var configCore = GetCasConfig(config);
+            var configurationModel = CreateConfigurationModel(configCore);
+            var cacheRoot = new AbsolutePath(config.CacheRootPath);
+            var memoConfig = GetMemoizationStoreConfiguration(cacheRoot, config, configCore);
             return new LocalCache(
                 logger,
                 cacheRoot,
@@ -424,7 +440,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var configurationModelForPath = CreateConfigurationModel(configCoreForPath);
             var configurationModelForStreams = CreateConfigurationModel(config.StreamCAS);
             
-            var memoConfig = GetMemoConfig(new AbsolutePath(config.CacheRootPath), config, configCoreForPath);
+            var memoConfig = GetMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, configCoreForPath);
             return new LocalCache(
                 logger,
                 new AbsolutePath(config.StreamCAS.CacheRootPath),

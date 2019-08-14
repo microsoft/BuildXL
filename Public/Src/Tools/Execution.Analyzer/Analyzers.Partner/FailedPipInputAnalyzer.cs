@@ -144,7 +144,7 @@ namespace BuildXL.Execution.Analyzer
 
         }
 
-        protected override void ReadEvents()
+        protected override bool ReadEvents()
         {
             // NOTE: We read the execution log twice. First to collect failed pips, then to
             // collect file access data. This is a memory optimization because loading all file accesses
@@ -153,7 +153,7 @@ namespace BuildXL.Execution.Analyzer
             // First pass to get failed pips and transitive dependencies
             Console.WriteLine("Pass 1 of 2: Collect failed pips");
             m_pass = Pass.CollectFailedPips;
-            base.ReadEvents();
+            var result = base.ReadEvents();
 
             Console.WriteLine("Computing failed pip transitive dependency closure");
 
@@ -163,7 +163,7 @@ namespace BuildXL.Execution.Analyzer
             // Second pass to collect file access data
             Console.WriteLine("Pass 2 of 2: Collect file accesses pips");
             m_pass = Pass.CollectFileAccesses;
-            base.ReadEvents();
+            return result && base.ReadEvents();
         }
 
         public override bool CanHandleWorkerEvents => true;

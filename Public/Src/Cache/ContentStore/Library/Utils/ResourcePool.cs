@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// </summary>
     /// <typeparam name="TKey">Identifier for a given resource.</typeparam>
     /// <typeparam name="TObject">Type of the pooled object.</typeparam>
-    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IShutdown<BoolResult>
+    public class ResourcePool<TKey, TObject> : IDisposable where TObject : IShutdownSlim<BoolResult>
     {
         private readonly int _maxResourceCount;
         private readonly int _maximumAgeInMinutes;
@@ -132,7 +132,10 @@ namespace BuildXL.Cache.ContentStore.Utils
                     if (kvp.Value.TryMarkForShutdown(force, earliestLastUseTime))
                     {
                         bool removed = _resourceDict.TryRemove(kvp.Key, out _);
-                        Contract.Assert(removed, $"Unable to remove resource with key {kvp.Key} which was marked for shutdown.");
+                        if (!removed)
+                        {
+                            Contract.Assert(false, $"Unable to remove resource with key {kvp.Key} which was marked for shutdown.");
+                        }
 
                         // Cannot await within a lock
                         shutdownTasks.Add(resourceValue.ShutdownAsync(_context));

@@ -55,7 +55,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private AbsolutePath Root => m_resolverSettings.Root;
 
-        private readonly AbsolutePath m_msBuildExePath;
+        private readonly AbsolutePath m_msBuildPath;
+        private readonly AbsolutePath m_dotnetExePath;
         private readonly string m_frontEndName;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
@@ -71,13 +72,18 @@ namespace BuildXL.FrontEnd.MsBuild
         /// </remarks>
         internal const string OutputCacheFileName = "output.cache";
 
+        // All projects should contain this property since the build graph is created by MSBuild under the /graph option
+        // TODO: it would be better if MSBuild provided the property name
+        internal const string s_isGraphBuildProperty = "IsGraphBuild";
+
         /// <nodoc/>
         public PipConstructor(
             FrontEndContext context,
             FrontEndHost frontEndHost,
             ModuleDefinition moduleDefinition,
             IMsBuildResolverSettings resolverSettings,
-            AbsolutePath pathToMsBuildExe,
+            AbsolutePath pathToMsBuild,
+            AbsolutePath pathToDotnetExe,
             string frontEndName,
             IEnumerable<KeyValuePair<string, string>> userDefinedEnvironment,
             IEnumerable<string> userDefinedPassthroughVariables)
@@ -86,7 +92,8 @@ namespace BuildXL.FrontEnd.MsBuild
             Contract.Requires(frontEndHost != null);
             Contract.Requires(moduleDefinition != null);
             Contract.Requires(resolverSettings != null);
-            Contract.Requires(pathToMsBuildExe.IsValid);
+            Contract.Requires(pathToMsBuild.IsValid);
+            Contract.Requires(!resolverSettings.ShouldRunDotNetCoreMSBuild() || pathToDotnetExe.IsValid);
             Contract.Requires(!string.IsNullOrEmpty(frontEndName));
             Contract.Requires(userDefinedEnvironment != null);
             Contract.Requires(userDefinedPassthroughVariables != null);
@@ -95,7 +102,8 @@ namespace BuildXL.FrontEnd.MsBuild
             m_frontEndHost = frontEndHost;
             m_moduleDefinition = moduleDefinition;
             m_resolverSettings = resolverSettings;
-            m_msBuildExePath = pathToMsBuildExe;
+            m_msBuildPath = pathToMsBuild;
+            m_dotnetExePath = pathToDotnetExe;
             m_frontEndName = frontEndName;
             m_userDefinedEnvironment = userDefinedEnvironment;
             m_userDefinedPassthroughVariables = userDefinedPassthroughVariables;
@@ -744,7 +752,7 @@ namespace BuildXL.FrontEnd.MsBuild
             // Projects can be evaluated multiple times with different global properties (but same qualifiers), so just
             // the qualifier name is not enough
             List<string> values = qualifier.Values.Select(value => value.ToString(m_context.StringTable))
-                .Union(projectFile.GlobalProperties.Values)
+                .Union(projectFile.GlobalProperties.Where(kvp => kvp.Key != s_isGraphBuildProperty).Select(kvp => kvp.Value))
                 .Select(value => PipConstructionUtilities.SanitizeStringForSymbol(value))
                 .OrderBy(value => value, StringComparer.Ordinal) // Let's make sure we always produce the same string for the same set of values
                 .ToList();
@@ -763,7 +771,17 @@ namespace BuildXL.FrontEnd.MsBuild
             ProcessBuilder processBuilder,
             ProjectWithPredictions project)
         {
-            FileArtifact cmdExeArtifact = FileArtifact.CreateSourceFile(m_msBuildExePath);
+            // If we should use the dotnet core version of msbuild, the executable for the pip is dotnet.exe instead of msbuild.exe, and
+            // the first argument is msbuild.dll
+            FileArtifact cmdExeArtifact;
+            if (m_resolverSettings.ShouldRunDotNetCoreMSBuild())
+            {
+                cmdExeArtifact = FileArtifact.CreateSourceFile(m_dotnetExePath);
+                processBuilder.ArgumentsBuilder.Add(PipDataAtom.FromAbsolutePath(m_msBuildPath));
+            }
+            else {
+                cmdExeArtifact = FileArtifact.CreateSourceFile(m_msBuildPath);
+            }
 
             processBuilder.Executable = cmdExeArtifact;
             processBuilder.AddInputFile(cmdExeArtifact);
@@ -775,8 +793,6 @@ namespace BuildXL.FrontEnd.MsBuild
             // the temp dir is generated in a consistent fashion between BuildXL runs to
             // ensure environment value (and hence pip hash) consistency.
             processBuilder.EnableTempDirectory();
-
-            AbsolutePath toolDir = m_msBuildExePath.GetParent(PathTable);
 
             processBuilder.ToolDescription = StringId.Create(m_context.StringTable, I($"{m_moduleDefinition.Descriptor.Name} - {project.FullPath.ToString(PathTable)}"));
 
@@ -829,7 +845,9 @@ namespace BuildXL.FrontEnd.MsBuild
             var valueName = PipConstructionUtilities.SanitizeStringForSymbol(project.FullPath.GetName(PathTable).ToString(m_context.StringTable));
 
             // If global properties are present, we append to the value name a flatten representation of them
-            if (project.GlobalProperties.Count > 0)
+            // There should always be a 'IsGraphBuild' property, so we count > 1
+            Contract.Assert(project.GlobalProperties.ContainsKey(s_isGraphBuildProperty));
+            if (project.GlobalProperties.Count > 1)
             {
                 valueName += ".";
             }
@@ -838,6 +856,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 project.GlobalProperties
                     // let's sort global properties keys to make sure the same string is generated consistently
                     // case-sensitivity is already handled (and ignored) by GlobalProperties class 
+                    .Where(kvp => kvp.Key != s_isGraphBuildProperty)
                     .OrderBy(kvp => kvp.Key, StringComparer.Ordinal) 
                     .Select(gp => $"{PipConstructionUtilities.SanitizeStringForSymbol(gp.Key)}_{PipConstructionUtilities.SanitizeStringForSymbol(gp.Value)}"));
 

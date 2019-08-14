@@ -2,9 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.IO;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
@@ -135,6 +137,34 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         public void RandomNullPayload()
         {
             Assert.Null(ContentHashList.Random().Payload);
+        }
+
+        [Fact]
+        public void SerializeRoundtrip()
+        {
+            var value = ContentHashList.Random();
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize);
+        }
+
+        [Fact]
+        public void SerializeRoundtripNonNullPayload()
+        {
+            var value = ContentHashList.Random(payload: new byte[] { 1, 2, 3 });
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashList.Deserialize);
+        }
+
+        [Fact]
+        public void SerializeWithDeterminismRoundtrip()
+        {
+            var value = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize);
+        }
+
+        [Fact]
+        public void SerializeWithDeterminismRoundtripNoContentHashList()
+        {
+            var value = new ContentHashListWithDeterminism(null, CacheDeterminism.None);
+            Utilities.TestSerializationRoundtrip(value, value.Serialize, ContentHashListWithDeterminism.Deserialize);
         }
     }
 }

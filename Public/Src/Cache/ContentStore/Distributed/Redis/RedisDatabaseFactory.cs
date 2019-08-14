@@ -71,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             if (_resetConnectionMultiplexer)
             {
-                using (await SemaphoreSlimToken.Wait(_creationSemaphore))
+                using (await SemaphoreSlimToken.WaitAsync(_creationSemaphore))
                 {
                     if (_resetConnectionMultiplexer)
                     {

@@ -153,7 +153,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <summary>
-        /// Single event giving build invocation information that contains configuration details usefull for analyzers.
+        /// Single event giving build invocation information that contains configuration details useful for analyzers.
         /// </summary>
         public virtual void DominoInvocation(DominoInvocationEventData data)
         {

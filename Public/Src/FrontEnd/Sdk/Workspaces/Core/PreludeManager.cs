@@ -139,12 +139,12 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         private static string GetPreludeRoot()
         {
-#if FEATURE_CORECLR
+#if NET_FRAMEWORK
+            var assemblyRootDir = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(PreludeManager).Assembly, computeAssemblyLocation: true));
+#else
             // We won't recumpute the assembly location for now as we are running in the hosted .NET Core CLI process until we have self contained deployments;
             // Recomputing would mean the process path would be used to find assemblies, which would be the path where the CoreCLR CLI is located, thus wrong!
             var assemblyRootDir = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(PreludeManager).Assembly));
-#else
-            var assemblyRootDir = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(PreludeManager).Assembly, computeAssemblyLocation: true));
 #endif
             if (BuildXL.Utilities.OperatingSystemHelper.IsUnixOS)
             {

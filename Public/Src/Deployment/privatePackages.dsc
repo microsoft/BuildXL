@@ -80,8 +80,6 @@ namespace PrivatePackages {
                         importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net451Qualifier).Common.dll.runtime,
                         ...importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").withQualifier(
                             { targetFramework: "net451" }).pkg.runtime,
-                        ...importFrom("Microsoft.Applications.Telemetry.Desktop").withQualifier(
-                            { targetFramework: "net451" }).pkg.runtime,
                     ],
                 },
                 {

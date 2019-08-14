@@ -26,7 +26,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Scheduler.Tracing;
+using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using Logger = BuildXL.App.Tracing.Logger;
 using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using Strings = bxl.Strings;
@@ -36,11 +36,8 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Visualization;
 using BuildXL.Visualization.Models;
 using BuildXL.Utilities.CrashReporting;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+
 using static BuildXL.Utilities.FormattableStringEx;
 
 
@@ -94,25 +91,27 @@ namespace BuildXL
         public readonly ExitKind CloudBuildExitKind;
         public readonly EngineState EngineState;
         public readonly string ErrorBucket;
+        public readonly string BucketMessage;
         public readonly bool KillServer;
 
-        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, bool killServer)
+        private AppResult(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage, bool killServer)
         {
             ExitKind = exitKind;
             CloudBuildExitKind = cloudBuildExitKind;
             EngineState = engineState;
             ErrorBucket = errorBucket;
+            BucketMessage = bucketMessage;
             KillServer = killServer;
         }
 
-        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, bool killServer = false)
+        public static AppResult Create(ExitKind exitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool killServer = false)
         {
-            return new AppResult(exitKind, exitKind, engineState, errorBucket, killServer);
+            return new AppResult(exitKind, exitKind, engineState, errorBucket, bucketMessage, killServer);
         }
 
-        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, bool killServer = false)
+        public static AppResult Create(ExitKind exitKind, ExitKind cloudBuildExitKind, EngineState engineState, string errorBucket, string bucketMessage = "", bool killServer = false)
         {
-            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, killServer);
+            return new AppResult(exitKind, cloudBuildExitKind, engineState, errorBucket, bucketMessage, killServer);
         }
     }
 
@@ -139,7 +138,6 @@ namespace BuildXL
 
         private readonly DateTime m_startTimeUtc;
         private readonly IReadOnlyCollection<string> m_commandLineArguments;
-        private bool m_hasInfrastructureFailures;
 
         // If server mode was requested but cannot be started, here is the reason
         private readonly ServerModeStatusAndPerf? m_serverModeStatusAndPerf;
@@ -152,6 +150,9 @@ namespace BuildXL
         private LoggingContext m_appLoggingContext;
 
         private readonly CrashCollectorMacOS m_crashCollector;
+
+        // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
+        private TimeSpan TelemetryFlushTimeout => m_configuration.InCloudBuild() ? TimeSpan.FromMinutes(1) : AriaV2StaticState.DefaultShutdownTimeout;
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -231,7 +232,7 @@ namespace BuildXL
             // We store this to log it once the appropriate listeners are set up
             m_serverModeStatusAndPerf = serverModeStatusAndPerf;
 
-            m_crashCollector = OperatingSystemHelper.IsUnixOS 
+            m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
         }
@@ -240,14 +241,15 @@ namespace BuildXL
         {
             mutableConfig.Logging.CustomLog.Add(
                 mutableConfig.Logging.CacheMissLog,
-                new[]
+                (new[]
                 {
                     (int)EventId.CacheMissAnalysis,
                     (int)EventId.MissingKeyWhenSavingFingerprintStore,
                     (int)EventId.FingerprintStoreSavingFailed,
                     (int)EventId.FingerprintStoreToCompareTrace,
                     (int)EventId.SuccessLoadFingerprintStoreToCompare
-                });
+                },
+                null));
         }
 
         private static void ConfigureDistributionLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -255,7 +257,7 @@ namespace BuildXL
             if (mutableConfig.Distribution.BuildRole != DistributedBuildRoles.None)
             {
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.RpcLog, DistributionHelpers.DistributionAllMessages.ToArray());
+                    mutableConfig.Logging.RpcLog, (DistributionHelpers.DistributionAllMessages.ToArray(), null));
             }
         }
 
@@ -273,10 +275,11 @@ namespace BuildXL
 
                 // NOTE: We rely on explicit exclusion of pip output messages in CloudBuild rather than turning them off by default.
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.PipOutputLog, new[] { (int)EventId.PipProcessOutput });
+                    mutableConfig.Logging.PipOutputLog, (new[] { (int)EventId.PipProcessOutput }, null));
 
                 mutableConfig.Logging.CustomLog.Add(
-                    mutableConfig.Logging.DevLog, new[]
+                    mutableConfig.Logging.DevLog,
+                    (new[]
                     {
                         // Add useful low volume-messages for dev diagnostics here
                         (int)EventId.DominoInvocation,
@@ -286,14 +289,14 @@ namespace BuildXL
                         (int)EventId.DominoPerformanceSummary,
                         (int)EventId.DominoCatastrophicFailure,
                         (int)EventId.UnexpectedCondition,
-                        (int)LogEventId.CriticalPathPipRecord,
-                        (int)LogEventId.CriticalPathChain,
+                        (int)SchedulerEventId.CriticalPathPipRecord,
+                        (int)SchedulerEventId.CriticalPathChain,
                         (int)EventId.HistoricMetadataCacheLoaded,
                         (int)EventId.HistoricMetadataCacheSaved,
                         (int)EventId.RunningTimesLoaded,
                         (int)EventId.RunningTimesSaved,
-                        (int)LogEventId.CreateSymlinkFromSymlinkMap,
-                        (int)LogEventId.SymlinkFileTraceMessage,
+                        (int)SchedulerEventId.CreateSymlinkFromSymlinkMap,
+                        (int)SchedulerEventId.SymlinkFileTraceMessage,
                         (int)EventId.StartEngineRun,
                         (int)Engine.Tracing.LogEventId.StartCheckingForPipGraphReuse,
                         (int)Engine.Tracing.LogEventId.EndCheckingForPipGraphReuse,
@@ -334,7 +337,9 @@ namespace BuildXL
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
                         (int)Engine.Tracing.LogEventId.GrpcSettings
-                    });
+                    },
+                    // all errors should be included in a dev log
+                    EventLevel.Error));
 
                 // Distribution related messages are disabled in default text log and routed to special log file
                 mutableConfig.Logging.NoLog.AddRange(DistributionHelpers.DistributionInfoMessages);
@@ -406,7 +411,10 @@ namespace BuildXL
                 if (remoteTelemetryEnabled)
                 {
                     stopWatch = Stopwatch.StartNew();
-                    AriaV2StaticState.Enable(AriaTenantToken.Key, m_configuration.Logging.LogsRootDirectory(m_pathTable).ToString(m_pathTable));
+                    AriaV2StaticState.Enable(
+                        AriaTenantToken.Key,
+                        m_configuration.Logging.LogsRootDirectory(m_pathTable).ToString(m_pathTable),
+                        TelemetryFlushTimeout);
                     stopWatch.Stop();
                 }
                 else
@@ -632,9 +640,9 @@ namespace BuildXL
 
                             LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
-                            var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
+                            var classification = ClassifyFailureFromLoggedEvents(pm.LoggingContext, appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
-                            return AppResult.Create(classification.Key, cbClassification, newEngineState, classification.Value);
+                            return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
 
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
@@ -748,19 +756,35 @@ namespace BuildXL
                     out visualizationInformation);
         }
 
-        internal static KeyValuePair<ExitKind, string> ClassifyFailureFromLoggedEvents(TrackingEventListener listener)
+        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
         {
-            if (listener.InternalErrorCount > 0)
+            // The loss of connectivity to other machines during a distributed build is generally the true cause of the
+            // failure even though it may manifest itself as a different failure first (like failure to materialize)
+            if (listener.CountsPerEventId((EventId)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
             {
-                return new KeyValuePair<ExitKind, string>(ExitKind.InternalError, listener.FirstInternalErrorName);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
             }
-            else if (listener.InfrastructureErrorCount > 0)
+            else if (listener.CountsPerEventId((EventId)SchedulerEventId.ProblematicWorkerExit) >= 1 &&
+                (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
             {
-                return new KeyValuePair<ExitKind, string>(ExitKind.InfrastructureError, listener.FirstInfrastructureErrorName);
+                string errorMessage = listener.InternalErrorDetails.Count > 0 ?
+                    listener.InternalErrorDetails.FirstErrorMessage :
+                    listener.InfrastructureErrorDetails.FirstErrorMessage;
+
+                Logger.Log.ProblematicWorkerExitError(loggingContext, errorMessage);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
+            }
+            else if (listener.InternalErrorDetails.Count > 0)
+            {
+                return (ExitKind: ExitKind.InternalError, ErrorBucket: listener.InternalErrorDetails.FirstErrorName, BucketMessage: listener.InternalErrorDetails.FirstErrorMessage);
+            }
+            else if (listener.InfrastructureErrorDetails.Count > 0)
+            {
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: listener.InfrastructureErrorDetails.FirstErrorName, BucketMessage: listener.InfrastructureErrorDetails.FirstErrorMessage);
             }
             else
             {
-                return new KeyValuePair<ExitKind, string>(ExitKind.UserError, listener.FirstUserErrorName);
+                return (ExitKind: ExitKind.UserError, ErrorBucket: listener.UserErrorDetails.FirstErrorName, BucketMessage: listener.UserErrorDetails.FirstErrorMessage);
             }
         }
 
@@ -779,7 +803,7 @@ namespace BuildXL
                     {
                         case (int)EventId.FileMonitoringError:
                             return ExitKind.BuildFailedWithFileMonErrors;
-                        case (int)EventId.PipProcessExpectedMissingOutputs:
+                        case (int)BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs:
                             return ExitKind.BuildFailedWithMissingOutputErrors;
                         case (int)EventId.InvalidOutputDueToSimpleDoubleWrite:
                             return ExitKind.BuildFailedSpecificationError;
@@ -866,10 +890,12 @@ namespace BuildXL
                 relatedActivityId = Guid.NewGuid();
             }
 
+            var sessionId = ComputeSessionId(relatedActivityId);
+
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
-                new LoggingContext.SessionInfo(Guid.NewGuid().ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
+                new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
 
             // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
             FileUtilities.CreateCounters();
@@ -927,6 +953,7 @@ namespace BuildXL
                         exitKind,
                         result.CloudBuildExitKind,
                         result.ErrorBucket,
+                        result.BucketMessage,
                         Convert.ToInt32(utcNow.Subtract(m_startTimeUtc).TotalMilliseconds),
                         utcNow.Ticks,
                         m_configuration.InCloudBuild());
@@ -940,8 +967,8 @@ namespace BuildXL
                     {
                         Stopwatch sw = Stopwatch.StartNew();
                         Exception telemetryShutdownException;
-
-                        var shutdownResult = AriaV2StaticState.TryShutDown(out telemetryShutdownException);
+                        
+                        var shutdownResult = AriaV2StaticState.TryShutDown(TelemetryFlushTimeout, out telemetryShutdownException);
                         switch (shutdownResult)
                         {
                             case AriaV2StaticState.ShutDownResult.Failure:
@@ -958,25 +985,51 @@ namespace BuildXL
                     }
                 }))
             {
-                var appServer = m_appHost as AppServer;
-                if (appServer != null)
-                {
-                    // Verify the timestamp based hash.
-                    // Whether the hash in the file (ServerCacheDeployment.hash) is still same as the one that is passed during server creation.
-                    var hashInFile = ServerDeployment.GetDeploymentCacheHash(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory));
-                    if (!string.Equals(hashInFile, appServer.TimestampBasedHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // If the hashes do not match, the server will be killed and the client will start its own server deployment again.
-                        // The client will not observe any failures, so the user as well.
-                        Logger.Log.ServerDeploymentDirectoryHashMismatch(m_appLoggingContext, appServer.TimestampBasedHash, hashInFile);
-                        return AppResult.Create(ExitKind.InfrastructureError, null, string.Empty, killServer: true);
-                    }
-                }
-
                 result = run(pm);
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Computes session identifier which allows easier searching in Kusto for 
+        /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
+        /// 
+        /// Search for masters: '| where sessionId has "0001-FFFF"'
+        /// Search for workers: '| where sessionId has "0002-FFFF"'
+        /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
+        /// </summary>
+        private Guid ComputeSessionId(Guid relatedActivityId)
+        {
+            var bytes = relatedActivityId.ToByteArray();
+            var executionEnvironment = m_configuration.Logging.Environment;
+            var distributedBuildRole = m_configuration.Distribution.BuildRole;
+            var inCloudBuild = m_configuration.InCloudBuild();
+
+            // SessionId:
+            // 00-03: 00-03 from random guid
+            var randomBytes = Guid.NewGuid().ToByteArray();
+            for (int i = 0; i <= 3; i++)
+            {
+                bytes[i] = randomBytes[i];
+            }
+
+            // 04-05: BuildRole
+            bytes[4] = 0;
+            bytes[5] = (byte)distributedBuildRole;
+
+            // 06-07: InCloudBuild = FFFF, !InCloudBuild = 0000
+            var inCloudBuildSpecifier = inCloudBuild ? byte.MaxValue : (byte)0;
+            bytes[6] = inCloudBuildSpecifier;
+            bytes[7] = inCloudBuildSpecifier;
+
+            // 08-09: executionEnvironment
+            bytes[8] = (byte)(((int)executionEnvironment >> 8) & 0xFF);
+            bytes[9] = (byte)((int)executionEnvironment & 0xFF);
+
+            // 10-15: 10-15 from relatedActivityId
+            // Do nothing byte array is initially seeded from related activity id
+            return new Guid(bytes);
         }
 
         private static void LogTelemetryShutdownInfo(LoggingContext loggingContext, long elapsedMilliseconds)
@@ -1124,7 +1177,7 @@ namespace BuildXL
         /// </summary>
         private static void EnableTaskDiagnostics(ILoggingConfiguration configuration, BaseEventListener listener)
         {
-            for (int i = 1; i <= (int)Events.Tasks.Max; i++)
+            for (int i = 1; i <= (int)Tasks.Max; i++)
             {
                 if ((configuration.Diagnostic & (DiagnosticLevels)(1 << i)) != 0)
                 {
@@ -1327,7 +1380,7 @@ namespace BuildXL
             [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
             private void ConfigureTrackingListener()
             {
-                var trackingEventListener = new TrackingEventListener(Events.Log, m_warningManager.GetState);
+                var trackingEventListener = new TrackingEventListener(Events.Log, m_baseTime, m_warningManager.GetState);
                 AddListener(trackingEventListener);
                 TrackingEventListener = trackingEventListener;
             }
@@ -1376,7 +1429,7 @@ namespace BuildXL
                             writer,
                             loggingContext,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
-                        m_statisticsEventListener.EnableTaskDiagnostics(Events.Tasks.CommonInfrastructure);
+                        m_statisticsEventListener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
                         return m_statisticsEventListener;
                     });
             }
@@ -1392,7 +1445,7 @@ namespace BuildXL
                             writer,
                             m_baseTime,
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure);
-                        listener.EnableTaskDiagnostics(Events.Tasks.CommonInfrastructure);
+                        listener.EnableTaskDiagnostics(Tasks.CommonInfrastructure);
                         return listener;
                     });
             }
@@ -1468,7 +1521,7 @@ namespace BuildXL
                     });
             }
 
-            private void ConfigureAdditionalFileLoggers(IReadOnlyDictionary<AbsolutePath, IReadOnlyList<int>> additionalLoggers)
+            private void ConfigureAdditionalFileLoggers(IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int> eventIds, EventLevel? nonMaskableLevel)> additionalLoggers)
             {
                 foreach (var additionalLogger in additionalLoggers)
                 {
@@ -1476,7 +1529,7 @@ namespace BuildXL
                         additionalLogger.Key,
                         (writer) =>
                         {
-                            var eventMask = new EventMask(enabledEvents: additionalLogger.Value, disabledEvents: null, nonMaskableLevel: EventLevel.Error);
+                            var eventMask = new EventMask(enabledEvents: additionalLogger.Value.eventIds, disabledEvents: null, nonMaskableLevel: additionalLogger.Value.nonMaskableLevel);
                             return new TextWriterEventListener(
                                 Events.Log,
                                 writer,
@@ -1746,12 +1799,12 @@ namespace BuildXL
                 AppServer hostServer = m_appHost as AppServer;
                 Logger.Log.DominoCatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo, rootCause,
                     wasServer: hostServer != null,
-                    firstUserError: loggers.TrackingEventListener.FirstUserErrorName,
-                    lastUserError: loggers.TrackingEventListener.LastUserErrorName,
-                    firstInsfrastructureError: loggers.TrackingEventListener.FirstInfrastructureErrorName,
-                    lastInfrastructureError: loggers.TrackingEventListener.LastInfrastructureErrorName,
-                    firstInternalError: loggers.TrackingEventListener.FirstInternalErrorName,
-                    lastInternalError: loggers.TrackingEventListener.LastInternalErrorName);
+                    firstUserError: loggers.TrackingEventListener.UserErrorDetails.FirstErrorName,
+                    lastUserError: loggers.TrackingEventListener.UserErrorDetails.LastErrorName,
+                    firstInsfrastructureError: loggers.TrackingEventListener.InfrastructureErrorDetails.FirstErrorName,
+                    lastInfrastructureError: loggers.TrackingEventListener.InfrastructureErrorDetails.LastErrorName,
+                    firstInternalError: loggers.TrackingEventListener.InternalErrorDetails.FirstErrorName,
+                    lastInternalError: loggers.TrackingEventListener.InternalErrorDetails.LastErrorName);
 
                 loggers.LogEventSummary(pm.LoggingContext);
 
@@ -1914,9 +1967,6 @@ namespace BuildXL
                 Contract.Assert(
                     trackingEventListener.HasFailures && loggingContext.ErrorWasLogged,
                     I($"The build has failed but the logging infrastructure has not encountered an error. TrackingEventListener has errors:[{trackingEventListener.HasFailures}.] LoggingContext has errors:[{string.Join(", ", loggingContext.ErrorsLoggedById.ToArray())}]"));
-
-                // Remember if we have network problems.
-                m_hasInfrastructureFailures = engine.HasInfrastructureFailures;
             }
 
             var engineRunDuration = (int)(DateTime.UtcNow - m_startTimeUtc).TotalMilliseconds;

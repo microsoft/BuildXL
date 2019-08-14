@@ -47,7 +47,7 @@ namespace BuildXL.Demo
                 WorkingDirectory = Directory.GetCurrentDirectory(),
                 PipSemiStableHash = 0,
                 PipDescription = "Simple sandbox demo",
-                SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new KextConnection() : null
+                SandboxConnection = OperatingSystemHelper.IsUnixOS ? new SandboxConnectionKext() : null
             };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

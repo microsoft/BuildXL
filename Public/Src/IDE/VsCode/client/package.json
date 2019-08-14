@@ -1,11 +1,11 @@
 {
   "name": "buildxldscript",
   "enableProposedApi": true,
-  "displayName": "BuildXL.DScript",
-  "description": "Visual Studio Code Extension for BuildXL DScript",
+  "displayName": "BuildXL",
+  "description": "Visual Studio Code Extension for BuildXL",
   "icon": "BuildXL.png",
   "version": "0.0.0",
-  "publisher": "Microsoft",
+  "publisher": "BuildXL",
   "repository": {
     "type": "git",
     "url": "https://github.com/Microsoft/BuildXL"
@@ -20,7 +20,8 @@
   "main": "./out/src/extension",
   "activationEvents": [
     "onLanguage:DScript",
-    "onCommand:DScript.reloadWorkspace"
+    "onCommand:DScript.reloadWorkspace",
+    "workspaceContains:config.dsc"
   ],
   "contributes": {
     "commands": [
@@ -158,18 +159,6 @@
         "language": "DScript",
         "scopeName": "source.dsc",
         "path": "./syntaxes/DScript.json"
-      }
-    ],
-    "themes": [
-      {
-        "label": "BuildXL DScript Dark",
-        "uiTheme": "vs-dark",
-        "path": "./themes/dark_dscript.json"
-      },
-      {
-        "label": "BuildXL DScript Light",
-        "uiTheme": "vs",
-        "path": "./themes/light_dscript.json"
       }
     ],
     "configuration": {

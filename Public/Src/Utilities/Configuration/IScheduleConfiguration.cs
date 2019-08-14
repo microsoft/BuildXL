@@ -308,13 +308,8 @@ namespace BuildXL.Utilities.Configuration
         bool UseHistoricalCpuUsageInfo { get; }
 
         /// <summary>
-        /// Indicates whether the remote workers should be released early in case of insufficient amount of work. 
+        /// Path to file containing input changes.
         /// </summary>
-        bool EarlyWorkerRelease { get; }
-
-        /// <summary>
-        /// Specifies the capacity multiplier when we start releasing the workers.
-        /// </summary>
-        double EarlyWorkerReleaseMultiplier { get; }
+        AbsolutePath InputChanges { get; }
     }
 }

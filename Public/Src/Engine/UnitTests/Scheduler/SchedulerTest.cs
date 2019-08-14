@@ -385,7 +385,7 @@ namespace Test.BuildXL.Scheduler
                 Contract.Assert(cacheLayer != null);
 
                 Contract.Assume(scheduler != null);
-                scheduler.InitForMaster(LoggingContext, kextConnection: GetSandboxedKextConnection());
+                scheduler.InitForMaster(LoggingContext, sandboxConnectionKext: GetSandboxConnection());
                 scheduler.Start(LoggingContext);
 
                 bool success = scheduler.WhenDone().Result;
@@ -1306,6 +1306,7 @@ namespace Test.BuildXL.Scheduler
                 failedPips: overriddenFailedPips,
                 ipcProvider: ipcProvider,
                 journalState: m_journalState,
+                tempCleaner: MoveDeleteCleaner,
                 testHooks: testHooks);
 
             bool success = m_scheduler.InitForMaster(LoggingContext, filter);
@@ -2608,9 +2609,9 @@ namespace Test.BuildXL.Scheduler
                 fileContentTable: m_fileContentTable,
                 fileAccessWhitelist: new FileAccessWhitelist(Context),
                 configuration: configuration,
-                tempCleaner: null,
                 cache: cache,
-                testHooks: new SchedulerTestHooks());
+                testHooks: new SchedulerTestHooks(),
+                tempCleaner: MoveDeleteCleaner);
 
             newScheduler.InitForMaster(LoggingContext, filter);
 

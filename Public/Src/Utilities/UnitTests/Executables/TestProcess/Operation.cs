@@ -26,6 +26,8 @@ namespace Test.BuildXL.Executables.TestProcess
         private const int ERROR_ALREADY_EXISTS = 183;
         private const string StdErrMoniker = "stderr";
         private const string WaitToFinishMoniker = "wait";
+        private const string AllUppercasePath = "allUpper";
+        private const string UseLongPathPrefix = "useLongPathPrefix";
 
         /// <summary>
         /// Returns an <code>IEnumerable</code> containing <paramref name="operation"/>
@@ -183,6 +185,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Process that fails on first invocation and then succeeds on the second invocation
             /// </summary>
             SucceedOnRetry,
+
+            /// <summary>
+            /// Waits until a given file is found on disk
+            /// </summary>
+            WaitUntilFileExists
         }
 
         /// <summary>
@@ -280,6 +287,7 @@ namespace Test.BuildXL.Executables.TestProcess
         ///   - search pattern for directory enumerations in <see cref="Type.EnumerateDir"/>
         ///   - whether to wait for the spawned process to finish in <see cref="Type.Spawn"/>
         ///   - whether to use stdout or stderr in <see cref="Type.Echo"/>
+        ///   - whether to use an all uppercase path in <see cref="Type.WriteFile"/> (for testing casing awareness)
         /// </summary>
         public string AdditionalArgs { get; private set; }
 
@@ -288,7 +296,15 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public int RetriesOnWrite { get; }
 
-        private Operation(Type type, FileOrDirectoryArtifact? path = null, string content = null, FileOrDirectoryArtifact? linkPath = null, SymbolicLinkFlag? symLinkFlag = null, bool? doNotInfer = null, string additionalArgs = null, int retriesOnWrite = 5)
+        private Operation(
+            Type type, 
+            FileOrDirectoryArtifact? path = null, 
+            string content = null, 
+            FileOrDirectoryArtifact? linkPath = null, 
+            SymbolicLinkFlag? symLinkFlag = null, 
+            bool? doNotInfer = null, 
+            string additionalArgs = null, 
+            int retriesOnWrite = 5)
         {
             Contract.Requires(content == null || !content.Contains(Environment.NewLine));
 
@@ -419,6 +435,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.SucceedOnRetry:
                         DoSucceedOnRetry();
                         return;
+                    case Type.WaitUntilFileExists:
+                        DoWaitUntilFileExists();
+                        return;
                 }
             }
             catch (Exception e)
@@ -463,11 +482,15 @@ namespace Test.BuildXL.Executables.TestProcess
         /// Creates a write file operation that appends. The file is created if it does not exist.
         /// Writes random content to file at path if no content is specified.
         /// </summary>
-        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false)
+        public static Operation WriteFile(FileArtifact path, string content = null, bool doNotInfer = false, bool changePathToAllUpperCase = false, bool useLongPathPrefix = false)
         {
+            Contract.Assert(!changePathToAllUpperCase || !useLongPathPrefix, "Cannot specify changePathToAllUpperCase and useLongPathPrefix simultaneously");
+
+            string additionalArgs = changePathToAllUpperCase ? Operation.AllUppercasePath : (useLongPathPrefix ? Operation.UseLongPathPrefix : null);
+
             return content == Environment.NewLine
-                ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer)
-                : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer);
+                ? new Operation(Type.AppendNewLine, path, doNotInfer: doNotInfer, additionalArgs: additionalArgs)
+                : new Operation(Type.WriteFile, path, content, doNotInfer: doNotInfer, additionalArgs: additionalArgs);
         }
 
         /// <summary>
@@ -685,6 +708,14 @@ namespace Test.BuildXL.Executables.TestProcess
             return new Operation(Type.LaunchDebugger);
         }
 
+        /// <summary>
+        /// Waits until <paramref name="path"/> exists on disk.
+        /// </summary>
+        public static Operation WaitUntilFileExists(FileArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.WaitUntilFileExists, path, doNotInfer: doNotInfer);
+        }
+
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
 
         private void DoCreateDir()
@@ -787,6 +818,15 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             try
             {
+                if (AdditionalArgs == AllUppercasePath)
+                {
+                    file = file.ToUpperInvariant();
+                }
+                if (AdditionalArgs == UseLongPathPrefix)
+                {
+                    file = @"\\?\" + file.ToUpperInvariant();
+                }
+
                 File.AppendAllText(file, content);
             }
             catch (UnauthorizedAccessException)
@@ -1034,6 +1074,20 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 File.WriteAllText(PathAsString, "0");
                 Environment.Exit(int.Parse(Content));
+            }
+        }
+
+        private void DoWaitUntilFileExists()
+        {
+            while (true)
+            {
+                var maybeExistence = FileUtilities.TryProbePathExistence(PathAsString, followSymlink: false);
+                if (!maybeExistence.Succeeded || maybeExistence.Result == PathExistence.ExistsAsFile)
+                {
+                    return;
+                }
+
+                Thread.Sleep(TimeSpan.FromMilliseconds(500));
             }
         }
 

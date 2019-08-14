@@ -81,15 +81,15 @@ namespace Sandbox {
         files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
     });
 
-    const ariaPkg = importFrom("Aria.Cpp.SDK.osx-x64");
+    const ariaPkg = importFrom("Aria.Cpp.SDK");
     const ariaXcconfig = Transformer.writeData({
         outputPath: p`${Context.getNewOutputDirectory("xcconfig")}/Aria.xcconfig`,
         contents: {
             separator: "\n",
             contents: [
                 "GCC_PREPROCESSOR_DEFINITIONS = MICROSOFT_INTERNAL",
-                { separator: "", contents: ["LIBRARY_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/tools"]},
-                { separator: "", contents: ["HEADER_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/tools/include"]},
+                { separator: "", contents: ["LIBRARY_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/osx-x64/tools"]},
+                { separator: "", contents: ["HEADER_SEARCH_PATHS = $(inherited) \"", ariaPkg.Contents.all.root, "/osx-x64/tools/include"]},
                 "OTHER_LDFLAGS = $(inherited) -laria_osx_objc_cpp"
             ]
         }

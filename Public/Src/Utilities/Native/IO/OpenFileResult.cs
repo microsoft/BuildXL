@@ -46,11 +46,6 @@ namespace BuildXL.Native.IO
         public string Path { get; }
 
         /// <summary>
-        /// Whether the <see cref="OpenFileResult"/> implies another process is holding a handle to the file with restricted access that blocks other processes from obtaining a file handle.
-        /// </summary>
-        public bool ImpliesOtherProcessBlockingHandle => Status == OpenFileStatus.SharingViolation;
-
-        /// <summary>
         /// Creates an <see cref="OpenFileResult"/> without any normalization from native error code.
         /// </summary>
         private OpenFileResult(string path, OpenFileStatus status, int nativeErrorCode, bool openedOrTruncatedExistingFile)
@@ -168,6 +163,12 @@ namespace BuildXL.Native.IO
                 case NativeIOConstants.ErrorTimeout:
                     status = OpenFileStatus.Timeout;
                     break;
+                case NativeIOConstants.ErrorCantAccessFile:
+                    status = OpenFileStatus.CannotAccessFile;
+                    break;
+                case NativeIOConstants.ErrorBadPathname:
+                    status = OpenFileStatus.BadPathname;
+                    break;
                 default:
                     Contract.Assume(!handleIsValid);
                     status = OpenFileStatus.UnknownError;
@@ -279,7 +280,7 @@ namespace BuildXL.Native.IO
                             ? "Opening a file handle failed" 
                             : I($"Opening a file handle failed: {result.Status:G}");
 
-            if (result.ImpliesOtherProcessBlockingHandle && result.Path != null)
+            if (result.Status.ImpliesOtherProcessBlockingHandle() && result.Path != null)
             {
                 message += Environment.NewLine;
                 message += FileUtilities.TryFindOpenHandlesToFile(result.Path, out var info)

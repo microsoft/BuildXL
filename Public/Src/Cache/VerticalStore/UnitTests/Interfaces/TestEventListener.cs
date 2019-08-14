@@ -4,12 +4,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using BuildXL.Cache.ImplementationSupport;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
 using System.Diagnostics.Tracing;
-#endif
+using BuildXL.Cache.ImplementationSupport;
 
 namespace BuildXL.Cache.Tests
 {

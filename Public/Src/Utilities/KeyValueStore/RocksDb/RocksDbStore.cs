@@ -140,13 +140,22 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// If a store already exists at the given directory, whether any columns that mismatch the the columns that were passed into the constructor
             /// should be dropped. This will cause data loss and can only be applied in read-write mode.
             /// </param>
+            /// <param name="rotateLogs">
+            /// Have RocksDb rotate logs, useful for debugging performance issues. It will rotate logs every 12 hours, 
+            /// up to a maximum of 60 logs (i.e. 30 days). When the maximum amount of logs is reached, the oldest logs
+            /// are overwritten in a circular fashion.
+            /// 
+            /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
+            /// open the DB more than once in a 12 hour period, you will only have partial information.
+            /// </param>
             public RocksDbStore(
                 string storeDirectory,
                 bool defaultColumnKeyTracked = false,
                 IEnumerable<string> additionalColumns = null,
                 IEnumerable<string> additionalKeyTrackedColumns = null,
                 bool readOnly = false,
-                bool dropMismatchingColumns = false)
+                bool dropMismatchingColumns = false,
+                bool rotateLogs = false)
             {
                 m_storeDirectory = storeDirectory;
 
@@ -196,6 +205,18 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions()
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp());
+
+                if (rotateLogs)
+                {
+                    // Maximum number of information log files
+                    m_defaults.DbOptions.SetKeepLogFileNum(60);
+
+                    // Do not rotate information logs based on file size
+                    m_defaults.DbOptions.SetMaxLogFileSize(0);
+
+                    // How long before we rotate the current information log file
+                    m_defaults.DbOptions.SetLogFileTimeToRoll((ulong)TimeSpan.FromHours(12).Seconds);
+                }
 
                 m_columns = new Dictionary<string, ColumnFamilyInfo>();
 
@@ -714,6 +735,73 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             public IBuildXLKeyValueStore CreateSnapshot()
             {
                 return new RocksDbStore(this);
+            }
+
+            /// <inheritdoc />
+            public IEnumerable<KeyValuePair<string, string>> PrefixSearch(string prefix, string columnFamilyName = null)
+            {
+                return PrefixSearch(StringToBytes(prefix), columnFamilyName).Select(kvp => new KeyValuePair<string, string>(BytesToString(kvp.Key), BytesToString(kvp.Value)));
+            }
+
+            /// <inheritdoc />
+            public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[] prefix = null, string columnFamilyName = null)
+            {
+                // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they 
+                // have a prefix seek API (see: https://github.com/facebook/rocksdb/wiki/Prefix-Seek-API-Changes ).
+                // However, it requires certain options to be set on the column family, so it could be problematic. We
+                // just use a simpler way. Could change if any performance issues arise out of this decision.
+                var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
+                var readOptions = new ReadOptions();
+                readOptions.SetTotalOrderSeek(true);
+
+                using (var iterator = m_store.NewIterator(columnFamilyInfo.Handle, readOptions))
+                {
+                    if (prefix == null || prefix.Length == 0)
+                    {
+                        iterator.SeekToFirst();
+                    }
+                    else
+                    {
+                        iterator.Seek(prefix);
+                    }
+
+                    while (iterator.Valid())
+                    {
+                        var key = iterator.Key();
+                        if (!StartsWith(prefix, key))
+                        {
+                            break;
+                        }
+
+                        yield return new KeyValuePair<byte[], byte[]>(key, iterator.Value());
+
+                        iterator.Next();
+                    }
+                }
+            }
+
+            /// <nodoc />
+            private static bool StartsWith(byte[] prefix, byte[] key)
+            {
+                if (prefix == null || prefix.Length == 0)
+                {
+                    return true;
+                }
+
+                if (prefix.Length > key.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < prefix.Length; ++i)
+                {
+                    if (key[i] != prefix[i])
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
         } // RocksDbStore
     } // KeyValueStoreAccessor

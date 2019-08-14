@@ -185,16 +185,16 @@ namespace BuildXL.Native.IO
         /// </summary>
         public const int Infinite = -1;
 
-#if PLATFORM_OSX
-        /// <summary>
-        /// Maximum path length.
-        /// </summary>
-        public const int MaxPath = 1024;
-#else
+#if PLATFORM_WIN
         /// <summary>
         /// Maximum path length.
         /// </summary>
         public const int MaxPath = 260;
+#else
+        /// <summary>
+        /// Maximum path length.
+        /// </summary>
+        public const int MaxPath = 1024;
 #endif
 
         /// <summary>
@@ -211,5 +211,10 @@ namespace BuildXL.Native.IO
         /// ERROR_CANT_ACCESS_FILE
         /// </summary>
         public const int ErrorCantAccessFile = 0x780;
+
+        /// <summary>
+        /// ERROR_BAD_PATHNAME
+        /// </summary>
+        public const int ErrorBadPathname = 0xA1;
     }
 }

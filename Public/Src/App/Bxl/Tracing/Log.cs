@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,11 +17,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-#endif
 
 using static BuildXL.Scheduler.ExecutionSampler;
 
@@ -31,8 +27,8 @@ namespace BuildXL.App.Tracing
     /// <summary>
     /// Logging for bxl.exe.
     /// </summary>
-    [EventKeywordsType(typeof(Events.Keywords))]
-    [EventTasksType(typeof(Events.Tasks))]
+    [EventKeywordsType(typeof(Keywords))]
+    [EventTasksType(typeof(Tasks))]
     public abstract partial class Logger
     {
         /// <summary>
@@ -41,13 +37,13 @@ namespace BuildXL.App.Tracing
         public static Logger Log => m_log;
 
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
 
         /// <summary>
         /// CAUTION!!
         ///
-        /// WDG has Asimov telemetry listening to this event. Any change will require a breaking change announcement.
-        /// 
+        /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
+        ///
         /// This event is only used for ETW and telemetry. The commandLine must be scrubbed so it doesn't overflow
         /// </summary>
         [GeneratedEvent(
@@ -55,8 +51,8 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Start,
-            // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log. 
-            Keywords = (int)Events.Keywords.SelectivelyEnabled,
+            // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
+            Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
         public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
 
@@ -88,7 +84,7 @@ namespace BuildXL.App.Tracing
         /// <summary>
         /// CAUTION!!
         ///
-        /// WDG has Asimov telemetry listening to this event. Any change will require a breaking change announcement.
+        /// WDG has Asimov telemetry listening to this event. Any change to an existing field will require a breaking change announcement
         /// </summary>
         [GeneratedEvent(
             (ushort)EventId.DominoCompletion,
@@ -96,7 +92,7 @@ namespace BuildXL.App.Tracing
             EventLevel = Level.Verbose,
             EventOpcode = (byte)EventOpcode.Stop,
             Message = "{ShortProductName} process exited with: ExitCode:'{0}', ExitType:{1}, ErrorBucket:{errorBucket}")]
-        public abstract void DominoCompletion(LoggingContext context, int exitCode, string exitKind, string errorBucket, int processRunningTime);
+        public abstract void DominoCompletion(LoggingContext context, int exitCode, string exitKind, string errorBucket, string bucketMessage, int processRunningTime);
 
         [GeneratedEvent(
             (ushort)EventId.DominoPerformanceSummary,
@@ -355,20 +351,20 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]
-        public abstract void DominoCatastrophicFailure(LoggingContext context, 
-            string exception, 
-            BuildInfo buildInfo, 
-            ExceptionRootCause rootCause, 
-            bool wasServer, 
-            string firstUserError, 
-            string lastUserError, 
-            string firstInsfrastructureError, 
-            string lastInfrastructureError, 
-            string firstInternalError, 
+        public abstract void DominoCatastrophicFailure(LoggingContext context,
+            string exception,
+            BuildInfo buildInfo,
+            ExceptionRootCause rootCause,
+            bool wasServer,
+            string firstUserError,
+            string lastUserError,
+            string firstInsfrastructureError,
+            string lastInfrastructureError,
+            string firstInternalError,
             string lastInternalError);
 
         [GeneratedEvent(
-            (ushort)EventId.DominoMacOSCrashReport,
+            (ushort)LogEventId.DominoMacOSCrashReport,
             EventGenerators = EventGenerators.TelemetryOnly,
             EventLevel = Level.Critical,
             Message = "Telemetry Only")]
@@ -378,8 +374,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.UsingExistingServer,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            Message = Events.PhasePrefix + "Running from existing {ShortProductName} server process.")]
+            Keywords = (int)Keywords.UserMessage,
+            Message = EventConstants.PhasePrefix + "Running from existing {ShortProductName} server process.")]
         public abstract void UsingExistingServer(LoggingContext context, ServerModeBuildStarted serverModeBuildStarted);
 
         [GeneratedEvent(
@@ -400,15 +396,15 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.StartingNewServer,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            Message = Events.PhasePrefix + "Starting new {ShortProductName} server process.")]
+            Keywords = (int)Keywords.UserMessage,
+            Message = EventConstants.PhasePrefix + "Starting new {ShortProductName} server process.")]
         public abstract void StartingNewServer(LoggingContext context, ServerModeBuildStarted serverModeBuildStarted);
 
         [GeneratedEvent(
             (ushort)EventId.CannotStartServer,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = "Server mode was requested but cannot be started. {serverModeCannotStart.Reason}.")]
         public abstract void CannotStartServer(LoggingContext context, ServerModeCannotStart serverModeCannotStart);
 
@@ -416,7 +412,7 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.DeploymentUpToDateCheckPerformed,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             Message = "{ShortProductName} binary deployment up-to-date check performed in {deploymentUpToDateCheck.TimeToUpToDateCheckMilliseconds}ms. Deployment cache created:{deploymentCacheCreated}, deployment duration:{serverDeploymentCacheCreated.TimeToCreateServerCacheMilliseconds}ms.")]
         public abstract void DeploymentUpToDateCheckPerformed(LoggingContext context, ServerDeploymentUpToDateCheck deploymentUpToDateCheck, bool deploymentCacheCreated, ServerDeploymentCacheCreated serverDeploymentCacheCreated);
 
@@ -424,8 +420,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.DeploymentCacheCreated,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.Progress),
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "{ShortProductName} deployment cache was created. This means this is the first time {ShortProductName} is requested to run in server mode or {ShortProductName} binaries changed. Duration: {serverDeploymentCacheCreated.TimeToCreateServerCacheMilliseconds}ms.")]
         public abstract void DeploymentCacheCreated(LoggingContext context, ServerDeploymentCacheCreated serverDeploymentCacheCreated);
 
@@ -433,8 +429,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.TelemetryEnabledHideNotification,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Message = Events.PhasePrefix + "Telemetry is enabled. SessionId: {sessionId}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Message = EventConstants.PhasePrefix + "Telemetry is enabled. SessionId: {sessionId}",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void TelemetryEnabledHideNotification(LoggingContext context, string sessionId);
 
         [GeneratedEvent(
@@ -442,23 +438,23 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Message = "Memory logging is enabled (/logmemory). This has a negative performance impact and should only be used for performing memory analysis.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void MemoryLoggingEnabled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.TelemetryEnabledNotifyUser,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "Telemetry is enabled. SessionId: {sessionId}",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Message = EventConstants.PhasePrefix + "Telemetry is enabled. SessionId: {sessionId}",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void TelemetryEnabledNotifyUser(LoggingContext context, string sessionId);
 
         [GeneratedEvent(
             (ushort)EventId.MappedRoot,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Mapped root drive '{rootDrive}' to directory '{directory}'")]
         public abstract void MappedRoot(LoggingContext context, string rootDrive, string directory);
 
@@ -466,8 +462,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.CatastrophicFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Catastrophic {ShortProductName} Failure.\nBuild:{build}{commitId}.\nException:{message}")]
         public abstract void CatastrophicFailure(LoggingContext context, string message, string commitId, string build);
 
@@ -475,8 +471,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.CatastrophicFailureCausedByDiskSpaceExhaustion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "One or more I/O operations have failed since a volume is out of space. Ensure that the volumes containing build outputs, logs, or the build cache have sufficient free space, and try again.")]
         public abstract void CatastrophicFailureCausedByDiskSpaceExhaustion(LoggingContext context);
 
@@ -484,8 +480,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.StorageCatastrophicFailureDriveError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "One or more I/O operations have failed due to a disk error. Check your disk drives for errors.")]
         public abstract void StorageCatastrophicFailureCausedByDriveError(LoggingContext context);
 
@@ -493,8 +489,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.CatastrophicFailureMissingRuntimeDependency,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "A runtime dependency was not found. This usually indicates one or more assemblies were not correctly copied with the {MainExecutableName} deployment. Details: {message}")]
         public abstract void CatastrophicFailureMissingRuntimeDependency(LoggingContext context, string message);
 
@@ -502,8 +498,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.CatastrophicFailureCausedByCorruptedCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Critical,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "{ShortProductName} cache is potentially corrupted. Please restart the build. {ShortProductName} will try to recover from this corruption in the next run. If this issue persists, please email domdev@microsoft.com")]
         public abstract void CatastrophicFailureCausedByCorruptedCache(LoggingContext context);
 
@@ -511,8 +507,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.Channel,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.Engine,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
             Message = "Listen channel is '{channelName}'")]
         public abstract void Channel(LoggingContext context, string channelName);
 
@@ -520,8 +516,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.CancellationRequested,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)(Events.Keywords.UserMessage | Events.Keywords.UserError),
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.HostApplication,
             EventOpcode = (byte)EventOpcode.Info,
             Message = "Graceful cancellation requested.\r\n" + "Use ctrl-break for immediate termination. CAUTION! This may slow down the next build.")]
         public abstract void CancellationRequested(LoggingContext context);
@@ -530,8 +526,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.TelemetryShutDown,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Telemetry shut down completed in {0}ms")]
         public abstract void TelemetryShutDown(LoggingContext context, long telemetryShutdownDurationMs);
 
@@ -539,8 +535,8 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.TelemetryShutDownException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Telemetry shut down results in an exception: {0}")]
         public abstract void TelemetryShutDownException(LoggingContext context, string message);
 
@@ -548,19 +544,10 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.TelemetryShutdownTimeout,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Telemetry timed out after {0} milliseconds. This session will have incomplete telemetry data")]
         public abstract void TelemetryShutdownTimeout(LoggingContext context, long milliseconds);
-        
-        [GeneratedEvent(
-            (ushort)EventId.ServerDeploymentDirectoryHashMismatch,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Message = "ServerDeploymentDirectory hash mismatch: {ShortProductName} AppServer hash, {0} != ServerDeploymentDirectory hash, {1}. Re-running {ShortProductName} will fix the issue.")]
-        public abstract void ServerDeploymentDirectoryHashMismatch(LoggingContext context, string hashInMemory, string hashInFile);
 
         [GeneratedEvent(
             (ushort)EventId.EventCount,
@@ -574,8 +561,8 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Failed to enumerate log directories for cleanup '{logsRoot}': {message}",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void FailedToEnumerateLogDirsForCleanup(LoggingContext context, string logsRoot, string message);
 
         [GeneratedEvent(
@@ -583,8 +570,8 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Failed to delete log directory '{logDirectory}': {message}",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void FailedToCleanupLogDir(LoggingContext context, string logDirectory, string message);
 
         [GeneratedEvent(
@@ -592,8 +579,8 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Waiting for the log cleanup thread to finish...",
             EventLevel = Level.Informational,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void WaitingCleanupLogDir(LoggingContext context);
 
         [GeneratedEvent(
@@ -601,16 +588,16 @@ namespace BuildXL.App.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             Message = @"Waiting for a debugger to connect (blocking). Configure VSCode by adding \""debugServer\"": {port} to your '.vscode/launch.json' and choose \""Attach to running {ShortScriptName}\"".",
             EventLevel = Level.LogAlways,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void WaitingForClientDebuggerToConnect(LoggingContext context, int port);
 
         [GeneratedEvent(
             (int)EventId.EventWriteFailuresOccurred,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.Diagnostics,
-            EventTask = (int)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.Diagnostics,
+            EventTask = (int)Tasks.HostApplication,
             Message = "One or more event-write failures occurred. ETW trace sessions (including produced trace files) may be incomplete.")]
         public abstract void EventWriteFailuresOccurred(LoggingContext context);
 
@@ -618,8 +605,8 @@ namespace BuildXL.App.Tracing
             (int)EventId.DisplayHelpLink,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.HostApplication,
             Message = "{helpLinkPrefix} {helpLink}")]
         public abstract void DisplayHelpLink(LoggingContext context, string helpLinkPrefix, string helpLink);
 
@@ -627,8 +614,8 @@ namespace BuildXL.App.Tracing
             (int)EventId.CoreDumpNoPermissions,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.HostApplication,
             Message = "Setting up core dump creation for abnormal program exits has failed. Make sure you have permissions to read and write the core dump directory at '{directory}'.")]
         public abstract void DisplayCoreDumpDirectoryNoPermissionsWarning(LoggingContext context, string directory);
 
@@ -636,8 +623,8 @@ namespace BuildXL.App.Tracing
             (int)EventId.CrashReportProcessing,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Keywords = (int)Events.Keywords.UserMessage,
-            EventTask = (int)Events.Tasks.HostApplication,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.HostApplication,
             Message = "Crash reports could not be processed and uploaded, make sure the state file '{stateFilePath}' is not malformed and accessible. Error: {message}.")]
         public abstract void DisplayCrashReportProcessingFailedWarning(LoggingContext context, string stateFilePath, string message);
 
@@ -645,115 +632,130 @@ namespace BuildXL.App.Tracing
             (ushort)EventId.ChangeJournalServiceReady,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Message = Events.PhasePrefix + "{ShortProductName} JournalService is properly set up and you are ready to use {ShortProductName} with graph-caching enabled.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Message = EventConstants.PhasePrefix + "{ShortProductName} JournalService is properly set up and you are ready to use {ShortProductName} with graph-caching enabled.",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ChangeJournalServiceReady(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.MaterializingProfilerReport,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Message = Events.PhasePrefix + "Writing profiler report to '{destination}'.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = EventConstants.PhasePrefix + "Writing profiler report to '{destination}'.",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void MaterializingProfilerReport(LoggingContext context, string destination);
 
         [GeneratedEvent(
             (ushort)EventId.ErrorMaterializingProfilerReport,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.LogAlways,
-            EventTask = (ushort)Events.Tasks.HostApplication,
-            Message = Events.PhasePrefix + "Profiler report could not be written. Error code {errorCode:X8}: {message}.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = EventConstants.PhasePrefix + "Profiler report could not be written. Error code {errorCode:X8}: {message}.",
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ErrorMaterializingProfilerReport(LoggingContext context, int errorCode, string message);
 
         [GeneratedEvent(
             (ushort)EventId.BuildHasPerfSmells,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "---------- PERFORMANCE SMELLS ----------",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void BuildHasPerfSmells(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.ProcessPipsUncacheable,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Uncacheable Pips: This build had {count} pips that are not cacheable and will be unconditionally run. See related DX0269 messages earlier in the log for details.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ProcessPipsUncacheable(LoggingContext context, long count);
 
         [GeneratedEvent(
             (ushort)EventId.NoCriticalPathTableHits,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "No critical path info: This build could not optimize the critical path based on previous runtime information. Either this was the first build on a machine or the engine cache directory was deleted.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void NoCriticalPathTableHits(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.NoSourceFilesUnchanged,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "No FileContentTable: This build had to rehash all files instead of leveraging the USN journal to skip hashing of previously seen files. Either this was the first build on a machine or the engine cache directory was deleted.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void NoSourceFilesUnchanged(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.ServerModeDisabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Server mode disabled: This build disabled server mode. Unless this is a lab build, server mode should be enabled to speed up back to back builds.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void ServerModeDisabled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.GraphCacheCheckJournalDisabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Change journal scan disabled: This build didn't utilize the change journal scan when checking for pip graph reuse. This significantly degrades I/O performance on spinning disk drives. The journal requires running as admin or installation of the change journal service. Check the warning log for details.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void GraphCacheCheckJournalDisabled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.SlowCacheInitialization,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Cache initialization took {cacheInitializationDurationMs}ms. This long of an initialization may mean that cache metadata needed to be reconstructed because {ShortProductName} was not shut down cleanly in the previous build. Make sure to allow {ShortProductName} to shut down cleanly (single ctrl-c).",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void SlowCacheInitialization(LoggingContext context, long cacheInitializationDurationMs);
 
         [GeneratedEvent(
             (ushort)EventId.LogProcessesEnabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "The /logprocesses option is enabled which causes {ShortProductName} to capture data about all child processes and all file accesses. This is helpful for diagnosing problems, but slows down builds and should be selectively be enabled only when that data is needed.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void LogProcessesEnabled(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.FrontendIOSlow,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            EventTask = (ushort)Events.Tasks.HostApplication,
+            EventTask = (ushort)Tasks.HostApplication,
             Message = "Reading build specifications was {0:N1}x more expensive as evaluating them. This is generally a sign that IO performance is degraded. This could be due to GVFS needing to materialize remote files.",
-            Keywords = (int)Events.Keywords.UserMessage)]
+            Keywords = (int)Keywords.UserMessage)]
         public abstract void FrontendIOSlow(LoggingContext context, double factor);
+
+        [GeneratedEvent(
+            (ushort)EventId.ProblematicWorkerExitError,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "One worker exited with a connection issue; caused some internal/infrastructure errors in the build: {errorMessage}",
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Distribution,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void ProblematicWorkerExitError(LoggingContext context, string errorMessage);
 
         /// <summary>
         /// Logging DominoCompletion with an extra CloudBuild event
         /// </summary>
-        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, int processRunningTime, long utcTicks, bool inCloudBuild)
+        public static void LogDominoCompletion(LoggingContext context, int exitCode, ExitKind exitKind, ExitKind cloudBuildExitKind, string errorBucket, string bucketMessage, int processRunningTime, long utcTicks, bool inCloudBuild)
         {
-            Log.DominoCompletion(context, exitCode, exitKind.ToString(), errorBucket, processRunningTime);
+            Log.DominoCompletion(context,
+                exitCode,
+                exitKind.ToString(),
+                errorBucket,
+                // This isn't a command line but it should still be sanatized for sake of not overflowing in telemetry
+                ScrubCommandLine(bucketMessage, 1000, 1000),
+                processRunningTime);
 
             // Sending a different event to CloudBuild ETW listener.
             if (inCloudBuild)

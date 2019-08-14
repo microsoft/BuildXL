@@ -69,7 +69,7 @@ namespace BuildXL.Scheduler.Artifacts
     public sealed class FileContentManager : IQueryableFileContentManager
     {
         private const int MAX_SYMLINK_TRAVERSALS = 100;
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         #region Internal State
 
@@ -241,7 +241,7 @@ namespace BuildXL.Scheduler.Artifacts
             IFileContentManagerHost host,
             IOperationTracker operationTracker,
             SymlinkDefinitions symlinkDefinitions = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             m_host = host;
             ArtifactContentCache = new ElidingArtifactContentCacheWrapper(host.ArtifactContentCache);
@@ -1034,13 +1034,12 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Attempts to materialize the given file
         /// </summary>
-        public async Task<bool> TryMaterializeFile(FileArtifact outputFile)
+        public async Task<ArtifactMaterializationResult> TryMaterializeFileAsync(FileArtifact outputFile)
         {
             var producer = GetDeclaredProducer(outputFile);
             using (var operationContext = OperationTracker.StartOperation(PipExecutorCounter.FileContentManagerTryMaterializeFileDuration, m_host.LoggingContext))
             {
-                return ArtifactMaterializationResult.Succeeded
-                    == await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true);
+                return await TryMaterializeFilesAsync(producer, operationContext, new[] { outputFile }, materializatingOutputs: true, isDeclaredProducer: true);
             }
         }
 
@@ -1216,7 +1215,10 @@ namespace BuildXL.Scheduler.Artifacts
                 foreach (var file in ListSealedDirectoryContents(directory))
                 {
                     var addedFile = m_sealedFiles.GetOrAdd(file.Path, file).Item.Value;
-                    Contract.Assert(addedFile == file, "Attempted to seal path twice with different rewrite counts");
+                    if (addedFile != file)
+                    {
+                        Contract.Assert(false, $"Attempted to seal path twice with different rewrite counts ({addedFile.RewriteCount} != {file.RewriteCount}): {addedFile.Path.ToString(Context.PathTable)}");
+                    }
 
                     if (sealDirectoryKind.IsDynamicKind())
                     {
@@ -1579,9 +1581,12 @@ namespace BuildXL.Scheduler.Artifacts
 
                     if (sealDirectoryKind == SealDirectoryKind.Opaque)
                     {
-                        // Dynamic directories must be deleted before materializing files
-                        // We don't want this to happen for shared dynamic ones
-                        AddDirectoryDeletion(state, artifact.DirectoryArtifact);
+                        if (Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Enabled || !PipArtifacts.IsPreservedOutputByPip(state.PipInfo.UnderlyingPip, directory.Path, Context.PathTable))
+                        {
+                            // Dynamic directories must be deleted before materializing files
+                            // We don't want this to happen for shared dynamic ones
+                            AddDirectoryDeletion(state, artifact.DirectoryArtifact);
+                        }
 
                         // For dynamic directories we need to specify the value of
                         // allow read only since the host will not know about the
@@ -2951,7 +2956,7 @@ namespace BuildXL.Scheduler.Artifacts
                     fileTrackedHash = TrackedFileContentInfo.CreateUntrackedWithUnknownLength(WellKnownContentHashes.AbsentFile, possibleProbeResult.Result);
                 }
 
-                if (BuildXL.Scheduler.ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Events.Keywords.Diagnostics))
+                if (BuildXL.Scheduler.ETWLogger.Log.IsEnabled(BuildXL.Tracing.Diagnostics.EventLevel.Verbose, Keywords.Diagnostics))
                 {
                     if (fileArtifact.IsSourceFile)
                     {
@@ -3092,7 +3097,7 @@ namespace BuildXL.Scheduler.Artifacts
                     Contract.Assert(false,
                         $"File length mismatch for file '{fileMaterializationInfo.FileName}' :: " +
                         $"arg = {{ hash: {fileMaterializationInfo.Hash.ToHex()}, length: {fileMaterializationInfo.Length} }}, " +
-                        $"stored = {{ hash: {storedFileContentInfo.Hash.ToHex()}, length: {storedFileContentInfo.Length}, rawLength: {storedFileContentInfo.RawLength}, existence: {storedFileContentInfo.Existence} }}");
+                        $"stored = {{ hash: {storedFileContentInfo.Hash.ToHex()}, length: {storedFileContentInfo.Length}, serializedLength: {storedFileContentInfo.SerializedLengthAndExistence}, existence: '{storedFileContentInfo.Existence}' }}");
                 }
             }
 

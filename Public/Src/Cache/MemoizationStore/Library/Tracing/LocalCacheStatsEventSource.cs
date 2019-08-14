@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
 
 using System;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using Microsoft.Diagnostics.Tracing;
+using System.Diagnostics.Tracing;
 
 namespace BuildXL.Cache.MemoizationStore.Tracing
 {
@@ -40,7 +40,11 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
     public sealed class LocalCacheStatsEventSource : EventSource
     {
         private LocalCacheStatsEventSource()
+#if NET_FRAMEWORK_451
+            : base()
+#else
             : base(EventSourceSettings.EtwSelfDescribingEventFormat)
+#endif
         {
         }
 

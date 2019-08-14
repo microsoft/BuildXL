@@ -4,6 +4,7 @@
 [Execution Log SDK](./Advanced-Features/Execution-Log-SDK.md) <br>
 [Filesystem modes and Enumerations](./Advanced-Features/Filesystem-modes-and-Enumerations.md) <br>
 [Incremental Scheduling](./Advanced-Features/Incremental-Scheduling.md) <br>
+[Incremental tools](./Advanced-Features/Incremental-tools.md) <br>
 [Observed Inputs Mapping](./Advanced-Features/Observed-Inputs-Mapping.md) <br>
 [Mounts](./Advanced-Features/Cache-Miss-Analysis.md) <br>
 [Preserving outputs](./Advanced-Features/Preserving-outputs.md) <br>

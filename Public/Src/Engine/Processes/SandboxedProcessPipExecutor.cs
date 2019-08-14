@@ -18,12 +18,14 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Internal;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
+using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
 
 namespace BuildXL.Processes
@@ -149,7 +151,7 @@ namespace BuildXL.Processes
 
         private readonly int m_remainingUserRetryCount;
 
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         private readonly ReadOnlyHashSet<AbsolutePath> m_sharedOpaqueDirectoryRoots;
 
@@ -164,6 +166,25 @@ namespace BuildXL.Processes
         /// The active sandboxed process (if any)
         /// </summary>
         private ISandboxedProcess m_activeProcess;
+
+        IReadOnlyList<string> m_incrementalToolFragments;
+
+        /// <summary>
+        /// Whether the process invokes an incremental tool with preserveOutputs mode.
+        /// </summary>
+        private bool IsIncrementalPreserveOutputPip => m_shouldPreserveOutputs && m_pip.IncrementalTool;
+
+        private readonly ObjectCache<string, bool> m_incrementalToolMatchCache = new ObjectCache<string, bool>(37);
+
+        /// <summary>
+        /// Whether apply fake timestamp or not.
+        /// </summary>
+        /// <remarks>
+        /// We do not apply fake timestamps for process pips that invoke an incremental tool with preserveOutputs mode.
+        /// </remarks>
+        private bool NoFakeTimestamp => IsIncrementalPreserveOutputPip;
+
+        private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
@@ -185,6 +206,7 @@ namespace BuildXL.Processes
             PipEnvironment pipEnvironment,
             bool validateDistribution,
             IDirectoryArtifactContext directoryArtifactContext,
+            ITempCleaner tempDirectoryCleaner,
             ISandboxedProcessLogger logger = null,
             Action<int> processIdListener = null,
             PipFragmentRenderer pipDataRenderer = null,
@@ -193,8 +215,8 @@ namespace BuildXL.Processes
             int remainingUserRetryCount = 0,
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
-            SubstituteProcessExecutionInfo shimInfo = null)
+            SubstituteProcessExecutionInfo shimInfo = null,
+            IReadOnlyList<RelativePath> incrementalTools = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -204,6 +226,8 @@ namespace BuildXL.Processes
             Contract.Requires(pipEnvironment != null);
             Contract.Requires(directoryArtifactContext != null);
             Contract.Requires(processInContainerManager != null);
+            // The tempDirectoryCleaner must not be null since it is relied upon for robust file deletion
+            Contract.Requires(tempDirectoryCleaner != null);
 
             m_context = context;
             m_loggingContext = loggingContext;
@@ -306,6 +330,18 @@ namespace BuildXL.Processes
             }
 
             m_vmInitializer = vmInitializer;
+
+            if (incrementalTools != null)
+            {
+                m_incrementalToolFragments = new List<string>(
+                            incrementalTools.Select(toolSuffix =>
+                                // Append leading separator to ensure suffix only matches valid relative path fragments
+                                Path.DirectorySeparatorChar + toolSuffix.ToString(context.StringTable)));
+            }
+            else
+            {
+                m_incrementalToolFragments = new List<string>(Enumerable.Empty<string>());
+            }
         }
 
         /// <inheritdoc />
@@ -584,7 +620,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, IKextConnection sandboxedKextConnection = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
         {
             try
             {
@@ -646,7 +682,7 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxedKextConnection: sandboxedKextConnection)
+                        sandboxConnection: sandboxConnection)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -785,8 +821,7 @@ namespace BuildXL.Processes
                                 LocationData location = m_pip.Provenance.Token;
                                 string specFile = location.Path.ToString(m_pathTable);
 
-                                Tracing.Logger.Log.PipProcessStartFailed(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2,
-                                    string.Format(CultureInfo.InvariantCulture, "File '{0}' was not found on disk. The tool is referred in '{1}({2})'.", info.FileName, specFile, location.Position));
+                                Tracing.Logger.Log.PipProcessFileNotFound(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), 2, info.FileName, specFile, location.Position);
                             }
                             else if (ex.LogEventErrorCode == NativeIOConstants.ErrorPartialCopy && (processLaunchRetryCount < ProcessLaunchRetryCountMax))
                             {
@@ -868,8 +903,6 @@ namespace BuildXL.Processes
                 TranslateHostSharedUncDrive(info);
             }
 
-            // Preparation should be finished.
-            sandboxPrepTime.Stop();
             ISandboxedProcess process = null;
 
             try
@@ -877,6 +910,14 @@ namespace BuildXL.Processes
                 var externalSandboxedProcessExecutor = new ExternalToolSandboxedProcessExecutor(Path.Combine(
                     m_layoutConfiguration.BuildEngineDirectory.ToString(m_context.PathTable),
                     ExternalToolSandboxedProcessExecutor.DefaultToolRelativePath));
+
+                foreach (var scope in externalSandboxedProcessExecutor.UntrackedScopes)
+                {
+                    AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, scope), info.FileAccessManifest);
+                }
+
+                // Preparation should be finished.
+                sandboxPrepTime.Stop();
 
                 if (m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalTool)
                 {
@@ -1605,10 +1646,33 @@ namespace BuildXL.Processes
                 }
             }
 
-            // Untrack the globally untracked paths specified in the configuration 
+            // Untrack the globally untracked paths specified in the configuration     
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
-                m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                // Translate the path and untrack the translated one                
+                if (m_fileAccessManifest.DirectoryTranslator != null)
+                {
+                    var pathString = path.ToString(m_pathTable);
+                    var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
+                    var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
+
+                    if (path != translatedPath)
+                    {
+                        AddUntrackedScopeToManifest(translatedPath);
+                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
+                    }
+                }
+
+                // Untrack the original path
+                AddUntrackedScopeToManifest(path);
+            }
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                var binaryPaths = new BinaryPaths();
+
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, binaryPaths.DllDirectoryX64));
+                AddUntrackedScopeToManifest(AbsolutePath.Create(m_pathTable, binaryPaths.DllDirectoryX86));
             }
 
             // For some static system mounts (currently only for AppData\Roaming) we allow CreateDirectory requests for all processes.
@@ -1676,6 +1740,16 @@ namespace BuildXL.Processes
             return true;
         }
 
+        private void AddUntrackedScopeToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddScope(
+            path,
+            mask: m_excludeReportAccessMask,
+            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
+        private void AddUntrackedPathToManifest(AbsolutePath path, FileAccessManifest manifest = null) => (manifest ?? m_fileAccessManifest).AddPath(
+            path,
+            mask: m_excludeReportAccessMask,
+            values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+
         private void AllowCreateDirectoryForDirectoriesOnPath(AbsolutePath path, HashSet<AbsolutePath> processedPaths, bool startWithParent = true)
         {
             Contract.Assert(path.IsValid);
@@ -1742,20 +1816,20 @@ namespace BuildXL.Processes
                     // (they should never fail for untracked accesses, which should be invisible).
 
                     // We allow the real input timestamp to be seen for untracked paths. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    m_fileAccessManifest.AddPath(path, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                    AddUntrackedPathToManifest(path);
                     AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
                     if (correspondingPath.IsValid)
                     {
-                        m_fileAccessManifest.AddPath(correspondingPath, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedPathToManifest(correspondingPath);
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        m_fileAccessManifest.AddPath(m_loggingConfiguration.LogsDirectory, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedPathToManifest(m_loggingConfiguration.LogsDirectory);
                         AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
@@ -1768,20 +1842,20 @@ namespace BuildXL.Processes
 
                     // The default mask for untracked scopes is to not report anything.
                     // We block input timestamp faking for untracked scopes. This is to preserve existing behavior, where the timestamp of untracked stuff is never modified.
-                    m_fileAccessManifest.AddScope(path, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                    AddUntrackedScopeToManifest(path);
                     AllowCreateDirectoryForDirectoriesOnPath(path, processedPaths);
 
                     var correspondingPath = CreatePathForActualRedirectedUserProfilePair(path, userProfilePath, redirectedUserProfilePath);
                     if (correspondingPath.IsValid)
                     {
-                        m_fileAccessManifest.AddScope(correspondingPath, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps, mask: m_excludeReportAccessMask);
+                        AddUntrackedScopeToManifest(correspondingPath);
                         AllowCreateDirectoryForDirectoriesOnPath(correspondingPath, processedPaths);
                     }
 
                     // Untrack real logs directory if the redirected one is untracked.
                     if (m_loggingConfiguration != null && m_loggingConfiguration.RedirectedLogsDirectory.IsValid && m_loggingConfiguration.RedirectedLogsDirectory == path)
                     {
-                        m_fileAccessManifest.AddScope(m_loggingConfiguration.LogsDirectory, mask: m_excludeReportAccessMask, values: FileAccessPolicy.AllowAll | FileAccessPolicy.AllowRealInputTimestamps);
+                        AddUntrackedScopeToManifest(m_loggingConfiguration.LogsDirectory);
                         AllowCreateDirectoryForDirectoriesOnPath(m_loggingConfiguration.LogsDirectory, processedPaths);
                     }
                 }
@@ -1798,7 +1872,13 @@ namespace BuildXL.Processes
                             FileAccessPolicy.AllowAll | // Symlink creation is allowed under opaques.
                             FileAccessPolicy.AllowRealInputTimestamps |
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
-                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny);
+                            (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
+                            // For shared opaques and if allowed undeclared source reads is enabled, make sure that any file used as an undeclared input under the 
+                            // shared opaque gets deny write access. Observe that with exclusive opaques they are wiped out before the pip runs, so it is moot to check for inputs
+                            // TODO: considering configuring this policy for all shared opaques, and not only when AllowedUndeclaredSourceReads is set. The case of a write on an undeclared
+                            // input is more likely to happen when undeclared sources are allowed, but also possible otherwise. For now, this is just a conservative way to try this feature
+                            // out for a subset of our scenarios.
+                            (m_pip.AllowUndeclaredSourceReads && directory.IsSharedOpaque ? FileAccessPolicy.OverrideAllowWriteForExistingFiles : FileAccessPolicy.Deny);
 
                         // For exclusive opaques, we don't need reporting back and the content is discovered by enumerating the disk
                         var mask = directory.IsSharedOpaque ? FileAccessPolicy.MaskNothing : m_excludeReportAccessMask;
@@ -1827,7 +1907,7 @@ namespace BuildXL.Processes
                         if (!directoryOutputIds.Contains(directory.Path))
                         {
                             // Directories here represent inputs, we want to apply the timestamp faking logic
-                            var mask = ~FileAccessPolicy.AllowRealInputTimestamps;
+                            var mask = DefaultMask;
                             // Allow read accesses and reporting. Reporting is needed since these may be dynamic accesses and we need to cross check them
                             var values = FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess;
 
@@ -1911,7 +1991,7 @@ namespace BuildXL.Processes
                 // to it. Explicitly block this (no need to check if this is under a shared opaque, since otherwise
                 // it didn't have write access to begin with). Observe we already know this is not a rewrite since dynamic rewrites
                 // are not allowed by construction under shared opaques.
-                mask: ~FileAccessPolicy.AllowRealInputTimestamps & ~FileAccessPolicy.AllowWrite);
+                mask: DefaultMask & ~FileAccessPolicy.AllowWrite);
 
             allInputPathsUnderSharedOpaques.Add(path);
 
@@ -1931,7 +2011,7 @@ namespace BuildXL.Processes
                 m_fileAccessManifest.AddPath(
                         currentPath,
                         values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent, // we don't need access reporting here
-                        mask: ~FileAccessPolicy.AllowRealInputTimestamps); // but block real timestamps
+                        mask: DefaultMask); // but block real timestamps
 
                 allInputPathsUnderSharedOpaques.Add(currentPath);
                 currentPath = currentPath.GetParent(m_pathTable);
@@ -2004,7 +2084,7 @@ namespace BuildXL.Processes
                 // to it. Explicitly block this, since we want inputs to not be written. Observe we already know 
                 // this is not a rewrite.
                 mask: m_excludeReportAccessMask &
-                      ~FileAccessPolicy.AllowRealInputTimestamps &
+                      DefaultMask &
                       (pathIsUnderSharedOpaque ? 
                           ~FileAccessPolicy.AllowWrite: 
                           FileAccessPolicy.MaskNothing)); 
@@ -2734,6 +2814,44 @@ namespace BuildXL.Processes
             return false;
         }
 
+        private Dictionary<AbsolutePath, bool> m_isDirSymlinkCache = new Dictionary<AbsolutePath, bool>();
+
+        /// <summary>
+        /// Returns true if any symlinks are found on a given path
+        /// </summary>
+        private bool PathContainsSymlinks(AbsolutePath path)
+        {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsCheckedCount);
+            if (!path.IsValid)
+            {
+                return false;
+            }
+
+            if (FileUtilities.IsDirectorySymlinkOrJunction(path.ToString(m_context.PathTable)))
+            {
+                return true;
+            }
+
+            return PathContainsSymlinksCached(path.GetParent(m_context.PathTable));
+        }
+
+        /// <summary>
+        /// Same as <see cref="PathContainsSymlinks"/> but with caching around it.
+        /// </summary>
+        private bool PathContainsSymlinksCached(AbsolutePath path)
+        {
+            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsQueriedCount);
+            return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
+        }
+
+        private bool CheckIfPathContainsSymlinks(AbsolutePath path)
+        {
+            using (Counters.StartStopwatch(SandboxedProcessCounters.DirectorySymlinkCheckingDuration))
+            {
+                return PathContainsSymlinksCached(path);
+            }
+        }
+
         /// <summary>
         /// Creates an <see cref="ObservedFileAccess"/> for each unique path accessed.
         /// The returned array is sorted by the expanded path and additionally contains no duplicates.
@@ -2777,7 +2895,11 @@ namespace BuildXL.Processes
                     // (and for NtQueryDirectoryFile, we can't always report the individual probes anyway).
                     if (reported.RequestedAccess == RequestedAccess.EnumerationProbe)
                     {
-                        continue;
+                        // If it is an incremental tool and the pip allows preserving outputs, do not ignore. 
+                        if (!IsIncrementalToolAccess(reported))
+                        {
+                            continue;
+                        }
                     }
 
                     AbsolutePath parsedPath;
@@ -2859,7 +2981,20 @@ namespace BuildXL.Processes
                         // There is always at least one access for reported path by construction
                         // Since the set of accesses occur on the same path, the manifest path is
                         // the same for all of them. We only need to query one of them.
-                        ReportedFileAccess firstAccess = accessesByPath[entry.Key].First();
+                        ReportedFileAccess firstAccess = entry.Value.First();
+
+                        // Discard entries that have a single MacLookup report on a path that contains an intermediate directory symlink.
+                        // Reason: observed accesses computed here should only contain fully expanded paths to avoid ambiguity;
+                        //         on Mac, all access reports except for MacLookup report fully expanded paths, so only MacLookup paths need to be curated
+                        if (
+                            entry.Value.Count == 1 &&
+                            firstAccess.Operation == ReportedFileOperation.MacLookup &&
+                            firstAccess.ManifestPath.IsValid &&
+                            CheckIfPathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
+                        {
+                            Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsDiscardedCount);
+                            continue;
+                        }
 
                         bool isPathCandidateToBeOwnedByASharedOpaque = false;
                         foreach (var access in entry.Value)
@@ -2878,8 +3013,14 @@ namespace BuildXL.Processes
                             // To treat the paths as file probes, all accesses to the path must be the probe access.
                             isProbe &= access.RequestedAccess == RequestedAccess.Probe;
 
+                            if (access.RequestedAccess == RequestedAccess.Probe
+                                && IsIncrementalToolAccess(access))
+                            {
+                                isProbe = false;
+                            }
+                            
                             // TODO: Remove this when WDG can grog this feature with no flag.
-                            if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
+                                if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
                                 access.RequestedAccess == RequestedAccess.Enumerate)
                             {
                                 hasEnumeration = true;
@@ -2892,24 +3033,32 @@ namespace BuildXL.Processes
 
                         // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then
                         // in the cone of a shared opaque, then it is a dynamic write access
+                        bool? isAccessUnderASharedOpaque = null;
                         if (isPathCandidateToBeOwnedByASharedOpaque && IsAccessUnderASharedOpaque(
                                 firstAccess,
                                 dynamicWriteAccesses,
                                 out AbsolutePath sharedDynamicDirectoryRoot))
                         {
                             dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(entry.Key);
+                            isAccessUnderASharedOpaque = true;
                             // This is a known output, so don't store it
                             continue;
                         }
 
-                        // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
-                        // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
-                        // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                        if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _))
+                        // The following two lines need to be removed in order to report file accesses for
+                        // undeclared files and sealed directories. But since this is a breaking change, we do
+                        // it under an unsafe flag.
+                        if (m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques)
                         {
-                            continue;
+                            // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
+                            // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
+                            // reported as observed accesses. This matches the same behavior that occurs on static outputs.
+                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && 
+                                (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _)))
+                            {
+                                continue;
+                            }
                         }
-
                         ObservationFlags observationFlags = ObservationFlags.None;
 
                         if (isProbe)
@@ -3453,13 +3602,6 @@ namespace BuildXL.Processes
                 {
                     return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
                 }
-
-                string stdOut = await TryFilterAsync(result.StandardOutput, s => true, appendNewLine: true);
-                string stdErr = await TryFilterAsync(result.StandardError, s => true, appendNewLine: true);
-                LogPipProcessError(result, exitedWithSuccessExitCode, stdErr, stdOut);
-
-                stdOutTotalLength = stdOut.Length;
-                stdErrTotalLength = stdErr.Length;
             }
 
             return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
@@ -3534,7 +3676,7 @@ namespace BuildXL.Processes
                 AddTrailingNewLineIfNeeded(outputPathsToLog),
                 result.ExitCode,
                 // if the process finished successfully (exit code 0) and we entered this method --> some outputs are missing
-                exitedWithSuccessExitCode ? BuildXL.Utilities.Tracing.Events.PipProcessErrorMissingOutputsSuffix : string.Empty);
+                exitedWithSuccessExitCode ? EventConstants.PipProcessErrorMissingOutputsSuffix : string.Empty);
         }
 
         private void HandleErrorsFromTool(string error)
@@ -3929,6 +4071,41 @@ namespace BuildXL.Processes
             }
 
             return false;
+        }
+
+        private bool IsIncrementalToolAccess(ReportedFileAccess access)
+        {
+            if (!IsIncrementalPreserveOutputPip)
+            {
+                return false;
+            }
+
+            if (m_incrementalToolFragments.Count == 0)
+            {
+                return false;
+            }
+
+            string toolPath = access.Process.Path;
+
+            bool result;
+            if (m_incrementalToolMatchCache.TryGetValue(toolPath, out result))
+            {
+                return result;
+            }
+
+            result = false;
+            foreach (var incrementalToolSuffix in m_incrementalToolFragments)
+            {
+                if (toolPath.EndsWith(incrementalToolSuffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = true;
+                    break;
+                }
+            }
+
+            // Cache the result
+            m_incrementalToolMatchCache.AddItem(toolPath, result);
+            return result;
         }
     }
 }

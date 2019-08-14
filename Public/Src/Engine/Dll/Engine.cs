@@ -208,7 +208,7 @@ namespace BuildXL.Engine
 
         /// <summary>
         /// TempCleaner responsible for cleaning registered directories or files in the background.
-        /// This is owned by the outermost layer that calls <see cref="FileUtilities.DeleteFile(string, bool, ITempDirectoryCleaner)"/>, the engine.
+        /// This is owned by the outermost layer that calls <see cref="FileUtilities.DeleteFile(string, bool, ITempCleaner)"/>, the engine.
         /// </summary>
         private TempCleaner m_tempCleaner;
 
@@ -277,7 +277,7 @@ namespace BuildXL.Engine
             {
                 bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
 
-#if FEATURE_CORECLR
+#if NET_CORE
                 // Handler inlining causing deadlock on the mac platform.
                 grpcHandlerInliningEnabled = false;
 #endif
@@ -1101,16 +1101,46 @@ namespace BuildXL.Engine
                 mutableConfig.Logging.StoreFingerprints = true;
             }
 
-            // EarlyWorkerRelease is only enabled for Office ProductBuild lab and OSG lab builds.
-            if (mutableConfig.Logging.Environment != ExecutionEnvironment.OfficeProductBuildLab &&
-                mutableConfig.Logging.Environment != ExecutionEnvironment.OsgLab)
-            {
-                mutableConfig.Schedule.EarlyWorkerRelease = false;
-            }
-
+            // When replicating outputs to workers, workers cannot be released early.
             if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
             {
-                mutableConfig.Schedule.EarlyWorkerRelease = false;
+                mutableConfig.Distribution.EarlyWorkerRelease = false;
+            }
+
+            // When running in cloudbuild we want to ignore the user setting the interactive flag
+            // and force it to be false since we never want to pop up UI there.
+            if (mutableConfig.InCloudBuild())
+            {
+                mutableConfig.Interactive = false;
+            }
+
+            // HACK HACK HACK
+            // To deal with using Dedup hash while config still uses VSO hash
+            // HACK HACK HACK
+            if (mutableConfig.Cache.UseDedupStore)
+            {
+                var x = mutableConfig.Resolvers.Where(r => r.Kind == "Download").FirstOrDefault() as DownloadResolverSettings;
+                if (x != null)
+                {
+                    var translations = new Dictionary<string, string>
+                        {
+                            { "VSO0:F836344F3D3FEBCD50976B5F33FC2DA64D0753C242C68F61B5908F59CD49B0AB00","DEDUPNODEORCHUNK:7A4CB5F8FD1FE070E48229D14CE6590E8F4D04837DB69BA232E903984062426002" },
+                            { "VSO0:00F83B929904F647BD8FB22361052BB347A1E5FA9A3A32A67EE1569DE443D92700","DEDUPNODEORCHUNK:A61ABA76CDFA73EB049B7411D9C7936F5DC48362FBED0A2681C2D8999E32EFBE02" },
+                            { "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300","DEDUPNODEORCHUNK:F78BA699A420853858CD19EF7C6306EA94EF508D240C497A68172AA7785E4CC302" },
+                            { "VSO0:88B2B6E8CEF711E108FDE529E781F555516634CD442B3503B712D22947F0788700","DEDUPNODEORCHUNK:2D8F42CEE0294AA0F612675454BB8ED540657CC33E3CF60A4CF5BB91FD24E36602" },
+                            { "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700","DEDUPNODEORCHUNK:565B91A12F72B94139F6D7DB21C04986C06CC3AE56FB43E6EDA8E6B496198F0B02" },
+                            { "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900","DEDUPNODEORCHUNK:1D9CED63701BC0F2E5D3063BA7889F8687537CB78B155858FCB7EE56A78A6C8102" },
+                            { "VSO0:6BBAE77F9BA0231C90ABD9EA720FF886E8613CE8EF29D8B657AF201E2982829600","DEDUPNODEORCHUNK:1A350CECC53CAE31EE3699BDA53270E91951A81E6353EABC878BA8D8B16F8E9202" },
+                        };
+
+                    foreach (var download in x.Downloads.Cast<DownloadFileSettings>())
+                    {
+                        if (translations.TryGetValue(download.Hash, out var newHash))
+                        {
+                            download.Hash = newHash;
+                        }
+                    }
+                }
             }
 
             return success;
@@ -1385,18 +1415,6 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Returns true if at least one pip failure is caused by a lost connectivity with a worker.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-        public bool HasInfrastructureFailures
-        {
-            get
-            {
-                return m_masterService != null && m_masterService.HasInfrastructureFailures;
-            }
-        }
-
-        /// <summary>
         /// Perf counter collector for the session. This may be null if perf counter collection is not enabled
         /// </summary>
         private readonly PerformanceCollector m_collector;
@@ -1664,7 +1682,6 @@ namespace BuildXL.Engine
                                         LaunchBuildExplorer(loggingContext, binDirectory);
                                     }
                                 }
-
                             }
 
                             try
@@ -2211,6 +2228,8 @@ namespace BuildXL.Engine
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
                 { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
+                { "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques", Logger.Log.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques },
+                { "unsafe_OptimizedAstConversion", Logger.Log.ConfigUnsafeOptimizedAstConversion },
             };
         }
 

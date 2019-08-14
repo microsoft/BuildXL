@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -27,12 +28,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
-
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#else
-using System.Diagnostics.Tracing;
-# endif
 
 namespace BuildXL.Engine.Distribution
 {
@@ -109,6 +104,11 @@ namespace BuildXL.Engine.Distribution
         public uint WorkerId { get; private set; }
 
         private bool m_hasFailures = false;
+
+        /// <summary>
+        /// Whether master is done with the worker by sending a message to worker.
+        /// </summary>
+        private volatile bool m_isMasterExited;
 
         private LoggingContext m_appLoggingContext;
         private ExecutionResultSerializer m_resultSerializer;
@@ -223,7 +223,7 @@ namespace BuildXL.Engine.Distribution
                     {
                         // Fire-forget exit call with failure.
                         // If we fail to send notification to master, the worker should fail.
-                        ExitAsync(timedOut: false, failure: "Notify event failed to send to master");
+                        ExitAsync(failure: "Notify event failed to send to master", isUnexpected: true);
                         break;
                     }
                 }
@@ -295,7 +295,7 @@ namespace BuildXL.Engine.Distribution
             {
                 if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > EngineEnvironmentSettings.WorkerAttachTimeout)
                 {
-                    Exit(timedOut: true, failure: "Timed out waiting for attach request from master");
+                    Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
                     return false;
                 }
             }
@@ -310,29 +310,31 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        public void BeforeExit()
+        public void ExitCallReceivedFromMaster()
         {
+            m_isMasterExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext);
 
             // Dispose the notify master execution log target to ensure all message are sent to master.
             m_notifyMasterExecutionLogTarget?.Dispose();
+
+            // Dispose the event listener to ensure all events are sent to master.
+            m_forwardingEventListener?.Dispose();
         }
 
 
         /// <nodoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer03:FireForgetAsyncVoid")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
-        public async void ExitAsync(bool timedOut, string failure)
+        public async void ExitAsync(string failure, bool isUnexpected = false)
         {
             await Task.Yield();
-            Exit(timedOut, failure);
+            Exit(failure, isUnexpected);
         }
 
         /// <nodoc/>
-        public void Exit(bool timedOut, string failure)
+        public void Exit(string failure, bool isUnexpected = false)
         {
-            Analysis.IgnoreArgument(timedOut);
-
             m_buildResults.CompleteAdding();
             if (m_sendThread.IsAlive)
             {
@@ -358,6 +360,13 @@ namespace BuildXL.Engine.Distribution
                 // Only log the error, if this thread set exit response
                 Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, failure);
                 m_hasFailures = true;
+            }
+
+            if (isUnexpected && m_isMasterExited)
+            {
+                // If the worker unexpectedly exits the build after master exits the build, 
+                // we should log a message to keep track of the frequency.
+                Logger.Log.DistributionWorkerUnexpectedFailureAfterMasterExits(m_appLoggingContext);
             }
 
             m_exitCompletionSource.TrySetResult(reportSuccess);
@@ -434,7 +443,7 @@ namespace BuildXL.Engine.Distribution
                     cacheValidationContentHash.ToHex(),
                     possiblyStored.Failure.DescribeIncludingInnerFailures());
 
-                Exit(timedOut: true, "Failed to validate retrieve content from master via cache");
+                Exit("Failed to validate retrieve content from master via cache", isUnexpected: true);
                 return false;
             }
 
@@ -452,8 +461,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!attachCompletionResult.Succeeded)
             {
-                Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)attachCompletionResult.Duration.TotalMinutes);
-                Exit(timedOut: true, "Failed to attach to master");
+                Exit($"Failed to attach to master. Duration: {(int)attachCompletionResult.Duration.TotalMinutes}", isUnexpected: true);
                 return true;
             }
             else
@@ -471,7 +479,7 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
             Logger.Log.DistributionInactiveMaster(m_appLoggingContext, (int)EngineEnvironmentSettings.DistributionInactiveTimeout.Value.TotalMinutes);
-            ExitAsync(timedOut: true, "Connection timed out");
+            ExitAsync("Connection timed out", isUnexpected: true);
         }
 
         internal void SetLastHeartbeatTimestamp()
@@ -820,7 +828,6 @@ namespace BuildXL.Engine.Distribution
             m_workerPipStateManager?.Dispose();
 
             m_workerServer.Dispose();
-            m_forwardingEventListener?.Dispose();
 
 #if !DISABLE_FEATURE_BOND_RPC
             m_bondMasterClient?.Dispose();

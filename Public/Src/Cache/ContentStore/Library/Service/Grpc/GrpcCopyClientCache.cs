@@ -22,8 +22,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <param name="maxClientCount">Maximum number of clients to cache.</param>
         /// <param name="maxClientAgeMinutes">Maximum age of cached clients.</param>
         /// <param name="waitBetweenCleanupMinutes">Minutes to wait between cache purges.</param>
-        public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int waitBetweenCleanupMinutes = 17)
-            : base(context, maxClientCount, maxClientAgeMinutes, waitBetweenCleanupMinutes, (key) => new GrpcCopyClient(key))
+        /// <param name="bufferSize">Buffer size used to read files from disk.</param>
+        public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int waitBetweenCleanupMinutes = 17, int? bufferSize = null)
+            : base(context, maxClientCount, maxClientAgeMinutes, waitBetweenCleanupMinutes, (key) => new GrpcCopyClient(key, bufferSize))
         {
             // Creating nested context to trace all the messages from this class in a separate "tracing thread".
             _context = new Context(context);

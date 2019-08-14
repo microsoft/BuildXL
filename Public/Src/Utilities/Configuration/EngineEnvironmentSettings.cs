@@ -52,6 +52,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> DebugGraphFingerprintSalt = CreateSetting("BUILDXL_GRAPH_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
 
         /// <summary>
+        /// Path pointing to VM command proxy needed for build in VM feature.
+        /// </summary>
+        public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
+
+        /// <summary>
         /// Bypass NuGet up to date checks
         /// </summary>
         public static readonly Setting<bool> BypassNugetDownload = CreateSetting("BuildXLBypassNugetDownload", value => value == "1");
@@ -112,7 +117,6 @@ namespace BuildXL.Utilities.Configuration
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
         public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
 
-
         #region Distribution-related timeouts
 
         /// <summary>
@@ -172,6 +176,11 @@ namespace BuildXL.Utilities.Configuration
             value => ParseInt32(value) ?? Environment.ProcessorCount * 2);
 
         #endregion
+
+        /// <summary>
+        /// Enables runtime cache miss analyzer perform for all pips.
+        /// </summary>
+        public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
 
         /// <summary>
         /// Sets the variable for consumption by settings

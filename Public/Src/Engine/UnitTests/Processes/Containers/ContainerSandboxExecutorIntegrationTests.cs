@@ -183,11 +183,11 @@ namespace Test.BuildXL.Processes
 
                 // The redirected output is created as a tombstone file, but the sandboxed pip executor should report it as an absent file
                 AssertErrorEventLogged(EventId.PipProcessMissingExpectedOutputOnCleanExit);
-                AssertErrorEventLogged(EventId.PipProcessExpectedMissingOutputs);
+                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessExpectedMissingOutputs);
             }
         }
 
-        private static Task<SandboxedProcessPipExecutionResult> RunProcess(BuildXLContext context, Process pip, bool failUnexpectedFileAccesses = true)
+        private Task<SandboxedProcessPipExecutionResult> RunProcess(BuildXLContext context, Process pip, bool failUnexpectedFileAccesses = true)
         {
             var loggingContext = CreateLoggingContextForTest();
 
@@ -207,6 +207,7 @@ namespace Test.BuildXL.Processes
                             disableConHostSharing: false,
                             pipEnvironment: new PipEnvironment(),
                             validateDistribution: false,
+                            tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
                             directoryArtifactContext: TestDirectoryArtifactContext.Empty).RunAsync();
         }
 

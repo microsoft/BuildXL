@@ -71,8 +71,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = false;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
-
-            EarlyWorkerReleaseMultiplier = 0.5;
+            InputChanges = AbsolutePath.Invalid;
         }
 
         /// <nodoc />
@@ -136,8 +135,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
-            EarlyWorkerRelease = template.EarlyWorkerRelease;
-            EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
+            InputChanges = pathRemapper.Remap(template.InputChanges);
         }
 
         /// <inheritdoc />
@@ -320,9 +318,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool UseHistoricalCpuUsageInfo { get; set; }
 
         /// <inheritdoc />
-        public bool EarlyWorkerRelease { get; set; }
-
-        /// <inheritdoc />
-        public double EarlyWorkerReleaseMultiplier { get; set; }
+        public AbsolutePath InputChanges { get; set; }
     }
 }

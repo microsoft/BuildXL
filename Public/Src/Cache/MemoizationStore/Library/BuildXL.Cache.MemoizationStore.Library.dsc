@@ -7,15 +7,9 @@ namespace Library {
         assemblyName: "BuildXL.Cache.MemoizationStore",
         sources: globR(d`.`,"*.cs"),
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild ? [
-                // TODO: This is to get a .Net Core build, but it may not pass tests
-                importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
-            ] :
-            [
-                importFrom("System.Data.SQLite.Core").pkg,
-                importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").pkg,
-                NetFx.System.Data.dll,
-            ]),
+            ...addIf(BuildXLSdk.isFullFramework,
+                NetFx.System.Data.dll
+            ),
             ContentStore.Distributed.dll,
             ContentStore.UtilitiesCore.dll,
             ContentStore.Grpc.dll,
@@ -26,9 +20,9 @@ namespace Library {
             
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Service.dll,
-
             importFrom("BuildXL.Utilities").dll,
 
+            importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
 
             importFrom("Grpc.Core").pkg,
@@ -39,5 +33,8 @@ namespace Library {
         runtimeContent: [
             importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
         ],
+        internalsVisibleTo: [
+            "BuildXL.Cache.MemoizationStore.Test"
+        ]
     });
 }

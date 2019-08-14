@@ -6,7 +6,7 @@ namespace System.FormattableString {
     // the BuildXL assemblies are referenced directly in an environment that targets .NET 4.6+.
     // When BuildXL codebase will move to 4.6 or .NET Core, this project can be easily removed and that's the only change that will be needed.
     @@public
-    export const dll = (BuildXLSdk.isDotNetCoreBuild || qualifier.targetFramework === "net461" || qualifier.targetFramework === "net472") ? undefined : BuildXLSdk.library({
+    export const dll = (qualifier.targetFramework !== "net451") ? undefined : BuildXLSdk.library({
         assemblyName: "System.FormattableString",
         skipDefaultReferences: true,
         sources: globR(d`.`, "*.cs"),

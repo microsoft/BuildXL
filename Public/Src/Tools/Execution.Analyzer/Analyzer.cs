@@ -43,19 +43,19 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Prepares the analyzer and reads the execution log events into the analyzer
         /// </summary>
-        public void ReadExecutionLog(bool prepare = true)
+        public bool ReadExecutionLog(bool prepare = true)
         {
             if (prepare)
             {
                 Prepare();
             }
 
-            ReadEvents();
+            return ReadEvents();
         }
 
-        protected virtual void ReadEvents()
+        protected virtual bool ReadEvents()
         {
-            Input.ReadExecutionLog(this);
+            return Input.ReadExecutionLog(this);
         }
 
         #region Utility Methods

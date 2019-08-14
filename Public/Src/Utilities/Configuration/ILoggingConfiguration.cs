@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using JetBrains.Annotations;
 
 namespace BuildXL.Utilities.Configuration
@@ -116,9 +117,11 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Creates a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix.
+        /// EventLevel specifies the non-skippable events. All events of this of higher event level will be included in the log
+        /// regardless whether they are specified in the event list. Defaults to null (i.e., log will include only the specified events)
         /// </summary>
         [NotNull]
-        IReadOnlyDictionary<AbsolutePath, IReadOnlyList<int>> CustomLog { get; }
+        IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> CustomLog { get; }
 
         /// <summary>
         /// Specifies the ETW log kind for custom logs by path. Normal text log kind is 'default'.
@@ -194,7 +197,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// When enabled, sends telemetry information for remote collection. Defaults to false.
         /// </summary>
-        RemoteTelemetry RemoteTelemetry { get; }
+        RemoteTelemetry? RemoteTelemetry { get; }
 
         /// <summary>
         /// Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch

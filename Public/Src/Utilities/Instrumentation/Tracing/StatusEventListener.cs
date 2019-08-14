@@ -1,17 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-#if !FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using System.Diagnostics.Tracing;
-#endif
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using BuildXL.Utilities.Tracing;
-
-#if FEATURE_MICROSOFT_DIAGNOSTICS_TRACING
-using Microsoft.Diagnostics.Tracing;
-#endif
 
 namespace BuildXL.Tracing
 {
@@ -55,12 +49,12 @@ namespace BuildXL.Tracing
         {
             if (eventData.EventId == (int)EventId.StatusHeader)
             {
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
+                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", TimeHeaderText, eventData.Payload[0]));
             }
             else if (eventData.EventId == (int)EventId.Status)
             {
                 var time = TimeSpanToString(TimeDisplay.Seconds, DateTime.UtcNow - BaseTime);
-                Output(eventData.Level, eventData.EventId, eventData.EventName, eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
+                Output(eventData.Level, eventData.EventId, eventData.GetEventName(), eventData.Keywords, string.Format(CultureInfo.InvariantCulture, "{0},{1}", time.PadLeft(TimeHeaderText.Length), eventData.Payload[0]));
             }
         }
     }

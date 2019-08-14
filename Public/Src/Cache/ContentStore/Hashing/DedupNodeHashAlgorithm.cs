@@ -18,10 +18,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static IChunker CreateChunker()
         {
             bool tryLoadComChunker = 
-#if FEATURE_CORECLR
-                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-#else
+#if NET_FRAMEWORK
                 true;
+#else
+                System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
 #endif
 
             if (tryLoadComChunker)

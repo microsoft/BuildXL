@@ -50,6 +50,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
+        /// <nodoc />
         protected bool IsDatabaseWriteable;
         private bool _isContentGarbageCollectionEnabled;
         private bool _isMetadataGarbageCollectionEnabled;

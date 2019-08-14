@@ -500,6 +500,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
 
+        [DataMember]
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        [DataMember]
+        public int PutFileWaitWarningMilliseconds { get; set; } = 5000;
+
         #endregion
 
         /// <summary>

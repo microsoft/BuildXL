@@ -204,6 +204,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
+                        MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
+                        PutFileWaitWarning = TimeSpan.FromMilliseconds(_distributedSettings.PutFileWaitWarningMilliseconds),
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,

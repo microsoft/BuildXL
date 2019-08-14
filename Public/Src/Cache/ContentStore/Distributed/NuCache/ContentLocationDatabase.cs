@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -50,7 +49,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private Timer _gcTimer;
         private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
-        private bool _isGarbageCollectionEnabled;
+
+        /// <nodoc />
+        protected bool IsDatabaseWriteable;
+        private bool _isContentGarbageCollectionEnabled;
+        private bool _isMetadataGarbageCollectionEnabled;
+
+        /// <nodoc />
+        private bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
@@ -77,6 +83,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private Timer _inMemoryCacheFlushTimer;
 
+        /// <nodoc />
+        protected readonly object TimerChangeLock = new object();
+
         private readonly object _cacheFlushTimerLock = new object();
 
         /// <nodoc />
@@ -91,6 +100,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _getInactiveMachines = getInactiveMachines;
 
             _inMemoryCache = new FlushableCache(configuration, this);
+
+            _isMetadataGarbageCollectionEnabled = configuration.MetadataGarbageCollectionEnabled;
         }
 
         /// <summary>
@@ -116,28 +127,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public void SetDatabaseMode(bool isDatabaseWritable)
+        public virtual void SetDatabaseMode(bool isDatabaseWriteable)
         {
-            ConfigureGarbageCollection(isDatabaseWritable);
-            ConfigureInMemoryDatabaseCache(isDatabaseWritable);
+            // The parameter indicates whether we will be in writeable state or not after this function runs. The
+            // following calls can see if we transition from read/only to read/write by looking at the internal value
+            ConfigureGarbageCollection(isDatabaseWriteable);
+            ConfigureInMemoryDatabaseCache(isDatabaseWriteable);
+
+            IsDatabaseWriteable = isDatabaseWriteable;
         }
 
-        /// <summary>
-        /// Configures the behavior of the database's garbage collection
-        /// </summary>
-        private void ConfigureGarbageCollection(bool shouldDoGc)
+        /// <summary>	
+        /// Configures the behavior of the database's garbage collection	
+        /// </summary>	
+        private void ConfigureGarbageCollection(bool isDatabaseWriteable)
         {
-            if (_isGarbageCollectionEnabled != shouldDoGc)
+            if (IsDatabaseWriteable != isDatabaseWriteable)
             {
-                _isGarbageCollectionEnabled = shouldDoGc;
-                var nextGcTimeSpan = _isGarbageCollectionEnabled ? _configuration.LocalDatabaseGarbageCollectionInterval : Timeout.InfiniteTimeSpan;
+                _isContentGarbageCollectionEnabled = isDatabaseWriteable;
+                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
+
+                var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
                 _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
             }
         }
 
         private void ConfigureInMemoryDatabaseCache(bool isDatabaseWritable)
         {
-            if (_configuration.CacheEnabled)
+            if (_configuration.ContentCacheEnabled)
             {
                 // This clear is actually safe, as no operations should happen concurrently with this function.
                 _inMemoryCache.UnsafeClear();
@@ -168,16 +185,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            if (_configuration.LocalDatabaseGarbageCollectionInterval != Timeout.InfiniteTimeSpan)
+            if (_configuration.GarbageCollectionInterval != Timeout.InfiniteTimeSpan)
             {
                 _gcTimer = new Timer(
                     _ => GarbageCollect(context),
                     null,
-                    _isGarbageCollectionEnabled ? _configuration.LocalDatabaseGarbageCollectionInterval : Timeout.InfiniteTimeSpan,
+                    IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
             }
 
-            if (_configuration.CacheEnabled && _configuration.CacheFlushingMaximumInterval != Timeout.InfiniteTimeSpan)
+            if (_configuration.ContentCacheEnabled && _configuration.CacheFlushingMaximumInterval != Timeout.InfiniteTimeSpan)
             {
                 _inMemoryCacheFlushTimer = new Timer(
                     _ => {
@@ -207,10 +224,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _nagleOperationTracer?.Dispose();
 
-            lock (this)
+            lock (TimerChangeLock)
             {
                 _gcTimer?.Dispose();
+                _gcTimer = null;
+            }
+
+            lock (_cacheFlushTimerLock)
+            {
                 _inMemoryCacheFlushTimer?.Dispose();
+                _inMemoryCacheFlushTimer = null;
             }
 
             return base.ShutdownCoreAsync(context);
@@ -275,27 +298,44 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void GarbageCollect(OperationContext context)
         {
-            lock (this)
+            if (ShutdownStarted)
             {
-                if (ShutdownStarted)
-                {
-                    return;
-                }
+                return;
             }
 
-            using (var cancellableContext = TrackShutdown(context))
-            {
-                DoGarbageCollect(cancellableContext);
-            }
-
-            lock (this)
-            {
-                if (!ShutdownStarted)
+            context.PerformOperation(Tracer,
+                () =>
                 {
-                    if (_isGarbageCollectionEnabled)
+                    using (var cancellableContext = TrackShutdown(context))
                     {
-                        _gcTimer?.Change(_configuration.LocalDatabaseGarbageCollectionInterval, Timeout.InfiniteTimeSpan);
+                        if (_isMetadataGarbageCollectionEnabled)
+                        {
+                            // Metadata GC could remove content, and hence runs first in order to avoid extra work later on
+                            var metadataGcResult = GarbageCollectMetadata(cancellableContext);
+                            if (!metadataGcResult.Succeeded)
+                            {
+                                return metadataGcResult;
+                            }
+                        }
+
+                        if (_isContentGarbageCollectionEnabled)
+                        {
+                            var contentGcResult = GarbageCollectContent(cancellableContext);
+                            if (!contentGcResult.Succeeded)
+                            {
+                                return contentGcResult;
+                            }
+                        }
                     }
+
+                    return BoolResult.Success;
+                }, counter: Counters[ContentLocationDatabaseCounters.GarbageCollect]).IgnoreFailure();
+
+            if (!ShutdownStarted)
+            {
+                lock (TimerChangeLock)
+                {
+                    _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
                 }
             }
         }
@@ -303,90 +343,108 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Collect unreachable entries from the local database.
         /// </summary>
-        private void DoGarbageCollect(OperationContext context)
+        private BoolResult GarbageCollectContent(OperationContext context)
         {
-            Tracer.Debug(context, "Start garbage collection of a local database.");
+            return context.PerformOperation(Tracer,
+                () => GarbageCollectContentCore(context),
+                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectContent]);
+        }
 
-            using (var stopwatch = Counters[ContentLocationDatabaseCounters.GarbageCollect].Start())
+        /// <nodoc />
+        private BoolResult GarbageCollectContentCore(OperationContext context)
+        {
+            int removedEntries = 0;
+            int totalEntries = 0;
+
+            long uniqueContentSize = 0;
+            long totalContentCount = 0;
+            long totalContentSize = 0;
+            int uniqueContentCount = 0;
+
+            // Tracking the difference between sequence of hashes for diagnostic purposes. We need to know how good short hashes are and how close are we to collisions.
+            int maxHashFirstByteDifference = 0;
+
+            ShortHash? lastHash = null;
+
+            foreach (var hash in EnumerateSortedKeys(context))
             {
-                int removedEntries = 0;
-                int totalEntries = 0;
+                totalEntries++;
 
-                long uniqueContentSize = 0;
-                long totalContentCount = 0;
-                long totalContentSize = 0;
-                int uniqueContentCount = 0;
-
-                // Tracking the difference between sequence of hashes for diagnostic purposes. We need to know how good short hashes are and how close are we to collisions.
-                int maxHashFirstByteDifference = 0;
-
-                ShortHash? lastHash = null;
-
-                foreach (var hash in EnumerateSortedKeys(context))
+                if (lastHash != null && lastHash != hash)
                 {
-                    totalEntries++;
-
-                    if (lastHash != null && lastHash != hash)
-                    {
-                        maxHashFirstByteDifference = Math.Max(maxHashFirstByteDifference, GetFirstByteDifference(lastHash.Value, hash));
-                    }
-
-                    lastHash = hash;
-
-                    lock (GetLock(hash))
-                    {
-                        if (context.Token.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        if (!TryGetEntryCore(context, hash, out var entry))
-                        {
-                            continue;
-                        }
-
-                        var replicaCount = entry.Locations.Count;
-
-                        uniqueContentCount++;
-                        uniqueContentSize += entry.ContentSize;
-                        totalContentSize += entry.ContentSize * replicaCount;
-                        totalContentCount += replicaCount;
-
-                        var filteredEntry = FilterInactiveMachines(entry);
-                        if (filteredEntry.Locations.Count == 0)
-                        {
-                            removedEntries++;
-                            Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Increment();
-                            Delete(context, hash);
-                            LogEntryDeletion(context, hash, entry, OperationReason.GarbageCollect, replicaCount);
-                        }
-                        else if (filteredEntry.Locations.Count != entry.Locations.Count)
-                        {
-                            Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Increment();
-                            Store(context, hash, entry);
-
-                            _nagleOperationTracer.Enqueue((hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect, entry.Locations.Count - filteredEntry.Locations.Count));
-                        }
-                    }
+                    maxHashFirstByteDifference = Math.Max(maxHashFirstByteDifference, GetFirstByteDifference(lastHash.Value, hash));
                 }
 
-                Counters[ContentLocationDatabaseCounters.TotalNumberOfScannedEntries].Add(uniqueContentCount);
+                lastHash = hash;
 
-                Tracer.Debug(context, $"Overall DB Stats: UniqueContentCount={uniqueContentCount}, UniqueContentSize={uniqueContentSize}, "
-                    + $"TotalContentCount={totalContentCount}, TotalContentSize={totalContentSize}, MaxHashFirstByteDifference={maxHashFirstByteDifference}");
+                lock (GetLock(hash))
+                {
+                    if (context.Token.IsCancellationRequested)
+                    {
+                        break;
+                    }
 
-                Tracer.GarbageCollectionFinished(
-                    context,
-                    stopwatch.Elapsed,
-                    totalEntries,
-                    removedEntries,
-                    Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value,
-                    uniqueContentCount,
-                    uniqueContentSize,
-                    totalContentCount,
-                    totalContentSize);
+                    if (!TryGetEntryCore(context, hash, out var entry))
+                    {
+                        continue;
+                    }
+
+                    var replicaCount = entry.Locations.Count;
+
+                    uniqueContentCount++;
+                    uniqueContentSize += entry.ContentSize;
+                    totalContentSize += entry.ContentSize * replicaCount;
+                    totalContentCount += replicaCount;
+
+                    var filteredEntry = FilterInactiveMachines(entry);
+                    if (filteredEntry.Locations.Count == 0)
+                    {
+                        removedEntries++;
+                        Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Increment();
+                        Delete(context, hash);
+                        LogEntryDeletion(context, hash, entry, OperationReason.GarbageCollect, replicaCount);
+                    }
+                    else if (filteredEntry.Locations.Count != entry.Locations.Count)
+                    {
+                        Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Increment();
+                        Store(context, hash, entry);
+
+                        _nagleOperationTracer.Enqueue((hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect, entry.Locations.Count - filteredEntry.Locations.Count));
+                    }
+                }
             }
+
+            Counters[ContentLocationDatabaseCounters.TotalNumberOfScannedEntries].Add(uniqueContentCount);
+
+            Tracer.Debug(context, $"Overall DB Stats: UniqueContentCount={uniqueContentCount}, UniqueContentSize={uniqueContentSize}, "
+                + $"TotalContentCount={totalContentCount}, TotalContentSize={totalContentSize}, MaxHashFirstByteDifference={maxHashFirstByteDifference}");
+
+            Tracer.GarbageCollectionFinished(
+                context,
+                Counters[ContentLocationDatabaseCounters.GarbageCollectContent].Duration,
+                totalEntries,
+                removedEntries,
+                Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Value,
+                uniqueContentCount,
+                uniqueContentSize,
+                totalContentCount,
+                totalContentSize);
+
+            return BoolResult.Success;
         }
+
+        /// <summary>
+        /// Perform garbage collection of metadata entries.
+        /// </summary>
+        private BoolResult GarbageCollectMetadata(OperationContext context)
+        {
+            return context.PerformOperation(Tracer,
+                () => GarbageCollectMetadataCore(context),
+                counter: Counters[ContentLocationDatabaseCounters.GarbageCollectMetadata]);
+        }
+
+        /// <nodoc />
+        protected abstract BoolResult GarbageCollectMetadataCore(OperationContext context);
 
         private int GetFirstByteDifference(in ShortHash hash1, in ShortHash hash2)
         {
@@ -657,29 +715,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Load a ContentHashList.
         /// </summary>
-        /// <param name="context">
-        ///     Tracing context.
-        /// </param>
-        /// <param name="strongFingerprint">
-        ///     Full key for ContentHashList value.
-        /// </param>
-        /// <returns>
-        ///     Result providing the call's completion status.
-        /// </returns>
         public abstract GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint);
 
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.
         /// </summary>
-        /// <param name="context">
-        ///     Tracing context.
-        /// </param>
-        /// <param name="weakFingerprint">
-        ///     Weak fingerprint to fetch selectors for
-        /// </param>
-        /// <returns>
-        ///     Result providing the call's completion status.
-        /// </returns>
         public abstract IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
 
         /// <summary>
@@ -688,12 +728,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         ///     Warning: this function should only ever be used on tests.
         /// </remarks>
-        /// <param name="context">
-        ///     Tracing context.
-        /// </param>
-        /// <returns>
-        ///     Result providing the call's completion status.
-        /// </returns>
         public abstract IEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(OperationContext context);
 
         private object GetLock(ShortHash hash)

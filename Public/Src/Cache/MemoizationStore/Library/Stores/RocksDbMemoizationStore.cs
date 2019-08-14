@@ -39,6 +39,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         
         private RocksDbContentLocationDatabase _database;
 
+        internal RocksDbContentLocationDatabase Database => _database;
+
         /// <summary>
         ///     Store tracer.
         /// </summary>

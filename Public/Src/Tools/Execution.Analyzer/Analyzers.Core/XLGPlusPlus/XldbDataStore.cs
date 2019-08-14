@@ -4,16 +4,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Utilities;
 using Google.Protobuf;
-using System.Linq;
-using BuildXL.Pips.Operations;
-using System.Reflection;
 using PipType = BuildXL.Execution.Analyzer.Xldb.PipType;
-using System.Collections;
 
 namespace BuildXL.Analyzers.Core.XLGPlusPlus
 {

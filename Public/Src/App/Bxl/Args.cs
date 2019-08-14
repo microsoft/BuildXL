@@ -14,6 +14,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -108,20 +109,13 @@ namespace BuildXL
             // Returns a singleton array containing a single OptionHandler instance for given name/action.
             public static OptionHandler[] CreateOption(string name, Action<CommandLineUtilities.Option> action, bool isUnsafe = false)
             {
-                return new[]
-                {
-                    new OptionHandler(name, action, isUnsafe),
-                };
+                return new[] {new OptionHandler(name, action, isUnsafe),};
             }
 
             // Returns an array containing two OptionHandler instances for two given names, both having the same action.
             public static OptionHandler[] CreateOption2(string name1, string name2, Action<CommandLineUtilities.Option> action, bool isUnsafe = false)
             {
-                return new[]
-                {
-                    new OptionHandler(name1, action, isUnsafe),
-                    new OptionHandler(name2, action, isUnsafe),
-                };
+                return new[] {new OptionHandler(name1, action, isUnsafe), new OptionHandler(name2, action, isUnsafe),};
             }
 
             // Returns an array with three OptionHandler instances, having the following names: <name>, <name>+, <name>-.
@@ -135,11 +129,11 @@ namespace BuildXL
                 bool inactive = false)
             {
                 return new[]
-                {
-                    new OptionHandler(name, opt => action(opt, true), isUnsafe, isEnabled: isEnabled, inactive: inactive),
-                    new OptionHandler(name, opt => action(opt, true), isUnsafe, isEnabled: () => true, suffix: "+", inactive: inactive),
-                    new OptionHandler(name, opt => action(opt, false), isUnsafe, isEnabled: () => false, suffix: "-", inactive: inactive),
-                };
+                       {
+                           new OptionHandler(name, opt => action(opt, true), isUnsafe, isEnabled: isEnabled, inactive: inactive),
+                           new OptionHandler(name, opt => action(opt, true), isUnsafe, isEnabled: () => true, suffix: "+", inactive: inactive),
+                           new OptionHandler(name, opt => action(opt, false), isUnsafe, isEnabled: () => false, suffix: "-", inactive: inactive),
+                       };
             }
 
             // Returns an array with three OptionHandler instances, having the following names: <name>, <name>+, <name>-.
@@ -147,6 +141,19 @@ namespace BuildXL
             public static OptionHandler[] CreateBoolOption(string name, Action<bool> action, bool isUnsafe = false, bool inactive = false)
             {
                 return CreateBoolOptionWithValue(name, (opt, sign) => action(sign), isUnsafe: isUnsafe, inactive: inactive);
+            }
+
+            public static OptionHandler[] CreateBoolOption2(
+                string name1,
+                string name2,
+                Action<bool> action,
+                bool isUnsafe = false,
+                bool inactive = false)
+            {
+                var options = new List<OptionHandler>();
+                options.AddRange(CreateBoolOption(name1, action, isUnsafe, inactive));
+                options.AddRange(CreateBoolOption(name2, action, isUnsafe, inactive));
+                return options.ToArray();
             }
         }
 
@@ -524,6 +531,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "injectCacheMisses",
                             opt => HandleArtificialCacheMissOption(opt, cacheConfiguration)),
+                        OptionHandlerFactory.CreateOption(
+                            "inputChanges",
+                            opt => schedulingConfiguration.InputChanges = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "interactive",
                             sign => configuration.Interactive = sign),
@@ -664,6 +674,10 @@ namespace BuildXL
                             "objectDirectory",
                             "o",
                             opt => layoutConfiguration.ObjectDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateBoolOption2(
+                            "optimizeConsoleOutputForAzureDevOps",
+                            "ado",
+                            sign => loggingConfiguration.OptimizeConsoleOutputForAzureDevOps = sign),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",
                             opt => schedulingConfiguration.OutputFileExtensionsForSequentialScanHandleOnHashing.AddRange(CommandLineUtilities.ParseRepeatingPathAtomOption(opt, pathTable.StringTable, ";"))),
@@ -1061,6 +1075,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "useFileContentTable",
                             sign => engineConfiguration.UseFileContentTable = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "useFixedApiServerMoniker",
+                            sign => schedulingConfiguration.UseFixedApiServerMoniker = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "useHardlinks",
                             sign => engineConfiguration.UseHardlinks = sign),

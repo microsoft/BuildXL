@@ -260,7 +260,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
         DivideByZero = 9352,
         StackOverflow = 9353,
         InvalidPathAtom = 9354,
-        // Deprecated 9355,
+        DisallowedUnsafeAmbientCall = 9355,
         InvalidTypeFormat = 9356,
         InputValidationError = 9357,
         UndefinedMapKey = 9358,

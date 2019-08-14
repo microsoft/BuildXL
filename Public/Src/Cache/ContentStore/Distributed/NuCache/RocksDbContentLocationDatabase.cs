@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
@@ -22,7 +21,6 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using Unit = BuildXL.Utilities.Tasks.Unit;
@@ -40,9 +38,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private string _storeLocation;
-        private readonly string _activeSlotFilePath;        
-
-        private static readonly byte[] EmptyBytes = CollectionUtilities.EmptyArray<byte>();
+        private readonly string _activeSlotFilePath;
+        private Timer _compactionTimer;
 
         private enum StoreSlot
         {
@@ -91,13 +88,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            lock (TimerChangeLock)
+            {
+                _compactionTimer?.Dispose();
+                _compactionTimer = null;
+            }
+
             _keyValueStore?.Dispose();
+
             return base.ShutdownCoreAsync(context);
         }
 
         /// <inheritdoc />
         protected override BoolResult InitializeCore(OperationContext context)
         {
+            if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
+            {
+                _compactionTimer = new Timer(
+                    _ => FullRangeCompaction(context),
+                    null,
+                    IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan);
+            }
+
             var result = Load(context, GetActiveSlot(context.TracingContext), clean: _configuration.CleanOnInitialize);
             if (result && _configuration.TestInitialCheckpointPath != null)
             {
@@ -105,6 +118,59 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return result;
+        }
+
+        /// <inheritdoc />
+        public override void SetDatabaseMode(bool isDatabaseWriteable)
+        {
+            if (IsDatabaseWriteable != isDatabaseWriteable)
+            {
+                // Shutdown can't happen simultaneously, so no need to take the lock
+                var nextCompactionTimeSpan = isDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan;
+                _compactionTimer?.Change(nextCompactionTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+
+            base.SetDatabaseMode(isDatabaseWriteable);
+        }
+
+        private void FullRangeCompaction(OperationContext context)
+        {
+            if (ShutdownStarted)
+            {
+                return;
+            }
+
+            context.PerformOperation(Tracer, () =>
+                _keyValueStore.Use(store =>
+                {
+                    foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+                    {
+                        if (context.Token.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        var result = context.PerformOperation(Tracer, () =>
+                        {
+                            store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
+                            return BoolResult.Success;
+                        }, extraStartMessage: $"ColumnFamily={columnFamilyName}");
+
+                        if (!result.Succeeded)
+                        {
+                            break;
+                        }
+                    }
+                }).ToBoolResult()).IgnoreFailure();
+
+            if (!ShutdownStarted)
+            {
+                lock (TimerChangeLock)
+                {
+                    // No try-catch required here.
+                    _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
+                }
+            }
         }
 
         private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean = false)
@@ -533,8 +599,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash.ToByteArray();
         }
 
-        // TODO(jubayard): garbage collection / removal in general
-
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
@@ -701,6 +765,55 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private long DeserializeMetadataLastAccessTimeUtc(byte[] data)
         {
             return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
+        }
+
+        /// <inheritdoc />
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
+        {
+            return _keyValueStore.Use(store => {
+                var cutoffTimeUtc = (Clock.UtcNow - _configuration.MetadataGarbageCollectionProtectionTime).ToFileTimeUtc();
+                int removedEntries = 0;
+                int scannedEntries = 0;
+                ulong dbSizeInBytesAfterGc = 0;
+                ulong dbRemovedBytesDuringGc = 0;
+
+                // TODO(jubayard): we may want to use a single WriteBatch here if this ends up affecting perf
+                foreach (var kvp in store.PrefixSearch((byte[])null, columnFamilyName: nameof(Columns.Metadata)))
+                {
+                    if (context.Token.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    scannedEntries++;
+                    Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Increment();
+                    
+                    var lastAccessTimeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
+                    if (lastAccessTimeUtc < cutoffTimeUtc)
+                    {
+                        RemoveMetadata(store, kvp.Key);
+
+                        dbRemovedBytesDuringGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                        removedEntries++;
+                        Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Increment();
+                    }
+                    else
+                    {
+                        dbSizeInBytesAfterGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                    }
+                }
+
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, EntriesAfterGc={scannedEntries - removedEntries}, DbSizeInBytesAfterGc={dbSizeInBytesAfterGc}, DbRemovedBytesDuringGc={dbRemovedBytesDuringGc}");
+
+                return Unit.Void;
+            }).ToBoolResult();
+        }
+
+        private void RemoveMetadata(IBuildXLKeyValueStore store, byte[] strongFingerprint)
+        {
+            // TODO(jubayard): Right now, this only removes the metadata, we can also remove content in the future. For
+            // that, we'll need the metadata and a reverse index stored.
+            store.Remove(strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
         }
 
         /// <summary>

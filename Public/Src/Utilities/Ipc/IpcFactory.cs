@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 
 namespace BuildXL.Ipc
@@ -19,6 +20,14 @@ namespace BuildXL.Ipc
         public static IIpcProvider GetProvider()
         {
             return new MultiplexingSocketBasedIpc.MultiplexingSocketBasedIpcProvider();
+        }
+
+        /// <summary>
+        /// Gets a fixed moniker.
+        /// </summary>
+        public static IIpcMoniker GetFixedMoniker()
+        {
+            return new StringMoniker("BuildXL.Ipc");
         }
     }
 }

@@ -394,7 +394,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
-                        Database.SetDatabaseMode(isDatabaseWritable: newRole == Role.Master);
+                        Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master);
                     }
 
                     // Always restore when switching roles

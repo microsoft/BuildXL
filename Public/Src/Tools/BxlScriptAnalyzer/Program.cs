@@ -10,7 +10,6 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -66,13 +65,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 var logger = Logger.CreateLogger();
 
-                if (!WorkspaceBuilder.TryCollectFilesToAnalyze(
+                if (!WorkspaceBuilder.TryBuildWorkspaceAndCollectFilesToAnalyze(
                     logger,
                     pathTable,
-                    EnginePhases.AnalyzeWorkspace,
+                    arguments.Analyzers.Max(a => a.RequiredPhases),
                     arguments.Config,
                     arguments.Filter,
+                    arguments.OutputDirectory,
+                    arguments.ObjectDirectory,
                     out var workspace,
+                    out var pipGraph,
                     out var filesToAnalyze,
                     out var context))
                 {
@@ -81,7 +83,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 foreach (var analyzer in arguments.Analyzers)
                 {
-                    if (!analyzer.SetSharedState(arguments, context, logger, workspace))
+                    if (!analyzer.SetSharedState(arguments, context, logger, workspace, pipGraph))
                     {
                         return 1;
                     }
@@ -135,7 +137,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     return new DocumentationGenerator();
                 case AnalyzerKind.Codex:
                     return new CodexAnalyzer();
-
+                case AnalyzerKind.GraphFragment:
+                    return new GraphFragmentGenerator();
                 default:
                     return null;
             }

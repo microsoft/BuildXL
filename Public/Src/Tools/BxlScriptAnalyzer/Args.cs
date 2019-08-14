@@ -14,12 +14,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         private static readonly string[] s_helpStrings = new[] { "?", "help" };
 
         /// <summary>
-        /// The Filter expression
+        /// The path to configuration file.
         /// </summary>
         public readonly string Config;
 
         /// <summary>
-        /// The Filter expression
+        /// The filter expression.
         /// </summary>
         public readonly string Filter;
 
@@ -39,8 +39,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         public readonly List<Analyzer> Analyzers;
 
         /// <summary>
-        /// Constructs a new args from
+        /// Object directory used for evaluation.
         /// </summary>
+        public readonly string ObjectDirectory;
+
+        /// <summary>
+        /// Output directory used for evaluation.
+        /// </summary>
+        public readonly string OutputDirectory;
+
+        /// <nodoc />
         public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
             : base(args)
         {
@@ -69,6 +77,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     opt.Name.Equals("c", StringComparison.OrdinalIgnoreCase))
                 {
                     Config = opt.Value;
+                }
+                else if (opt.Name.Equals("objectDirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    ObjectDirectory = GetFullPath(opt.Value, opt);
+                }
+                else if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    OutputDirectory = GetFullPath(opt.Value, opt);
                 }
                 else if (opt.Name.Equals("fix", StringComparison.OrdinalIgnoreCase))
                 {
@@ -124,10 +140,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             HelpWriter writer = new HelpWriter();
             writer.WriteBanner($"Tool for performing analysis/transformation of cached pip graphs and execution logs.");
 
-            writer.WriteOption("Config", "Optional main config file to be used.", shortName: "c");
-            writer.WriteOption("Filter", "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
+            writer.WriteOption(nameof(Config), "Optional main config file to be used.", shortName: "c");
+            writer.WriteOption(nameof(Filter), "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
             writer.WriteOption("Analyzer", "One or more analyzers to run. Subsequent arguments are analyzer specific.", shortName: "a");
-            writer.WriteOption("Fix[+|-]", "Whether the analyzer should fix the specs.");
+            writer.WriteOption($"{nameof(Fix)}[+|-]", "Whether the analyzer should fix the specs.");
 
             writer.WriteLine(string.Empty);
             writer.WriteLine("Analyzers:");

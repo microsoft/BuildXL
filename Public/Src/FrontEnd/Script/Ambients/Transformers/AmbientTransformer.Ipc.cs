@@ -54,7 +54,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private static EvaluationResult GetNewIpcMoniker(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var semiStableHash = context.GetPipConstructionHelper().GetNextSemiStableHash();
-            return EvaluationResult.Create(IpcFactory.GetProvider().LoadOrCreateMoniker(semiStableHash.ToString(CultureInfo.InvariantCulture)));
+            return EvaluationResult.Create(IpcFactory.GetProvider().LoadOrCreateMoniker(string.Format(CultureInfo.InvariantCulture, "{0:X16}", semiStableHash)));
         }
 
         private static EvaluationResult GetIpcServerMoniker(Context context, ModuleLiteral env, EvaluationStackFrame args)

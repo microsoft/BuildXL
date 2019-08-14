@@ -251,6 +251,7 @@ namespace Test.DScript.Ast.PartialEvaluation
                     File.ReadAllText("Libs/lib.core.d.ts"),
                     File.ReadAllText("Libs/Prelude.AmbientHacks.ts"),
                     File.ReadAllText("Libs/Prelude.IO.ts"),
+                    File.ReadAllText("Libs/Prelude.Unsafe.ts"),
                     File.ReadAllText("Libs/Prelude.Context.ts"),
                     File.ReadAllText("Libs/Prelude.Contract.ts"),
                     File.ReadAllText("Libs/Prelude.Transformer.Arguments.ts"))
@@ -266,8 +267,8 @@ namespace Test.DScript.Ast.PartialEvaluation
                 PackageId.Create(StringTable, module.Descriptor.Name),
                 path,
                 new PackageDescriptor { Name = module.Descriptor.Name },
-                parsedProjects: module.PathToSpecs);
-            package.ModuleId = module.Descriptor.Id;
+                parsedProjects: module.PathToSpecs,
+                moduleId: module.Descriptor.Id);
             return package;
         }
 

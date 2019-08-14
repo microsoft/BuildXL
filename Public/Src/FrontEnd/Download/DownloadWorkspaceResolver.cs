@@ -268,11 +268,14 @@ namespace BuildXL.FrontEnd.Download
             return Task.FromResult<Possible<ISourceFile>>(sourceFile);
         }
 
-        internal void UpdateDataForDownloadData(DownloadData downloadData)
+        internal void UpdateDataForDownloadData(DownloadData downloadData, FrontEndContext context = null)
         {
+            context = context ?? m_context;
+            Contract.Assert(context != null);
+
             var name = downloadData.Settings.ModuleName;
 
-            var moduleId = new ModuleId(ModuleIdProvider.GetNextId().Value, name);
+            var moduleId = ModuleId.Create(context.StringTable, name);
             var descriptor = new ModuleDescriptor(moduleId, name, name, string.Empty, Kind, Name);
 
             var definition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(

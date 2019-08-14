@@ -118,10 +118,10 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Creates a module from a module name and optionally a version using an id that it is guaranteed to be unique.
         /// </summary>
-        public static ModuleDescriptor CreateWithUniqueId(string moduleName, IWorkspaceModuleResolver resolver, string version = null)
+        public static ModuleDescriptor CreateWithUniqueId(StringTable table, string moduleName, IWorkspaceModuleResolver resolver, string version = null)
         {
             return new ModuleDescriptor(
-                id: ModuleIdProvider.GetNextId(),
+                id: ModuleId.Create(table, moduleName, version),
                 name: moduleName,
                 displayName: moduleName,
                 version: version, 
@@ -138,7 +138,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// </remarks>
         public static ModuleDescriptor CreateForTesting(string moduleName, string version = null, string resolverName = null)
         {
-            var id = new ModuleId(moduleName.GetHashCode());
+            var id = ModuleId.UnsafeCreate(moduleName.GetHashCode());
             return new ModuleDescriptor(
                 id: id,
                 name: moduleName,

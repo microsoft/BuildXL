@@ -155,6 +155,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             [DefaultValue(false)]
             public bool UseRocksDbMemoizationStore { get; set; }
+
+            [DefaultValue(60 * 60)]
+            public int RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds { get; set; }
+
+            [DefaultValue(60 * 60 * 2)]
+            public int RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds { get; set; }
         }
 
         /// <inheritdoc />
@@ -233,6 +239,9 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     Database = new RocksDbContentLocationDatabaseConfiguration(cacheRootPath / "RocksDbMemoizationStore")
                     {
                         CleanOnInitialize = false,
+                        GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
+                        MetadataGarbageCollectionEnabled = true,
+                        MetadataGarbageCollectionProtectionTime = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds),
                     },
                 };
 

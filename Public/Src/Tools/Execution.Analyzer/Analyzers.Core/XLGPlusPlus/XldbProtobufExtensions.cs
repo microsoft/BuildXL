@@ -604,7 +604,7 @@ namespace BuildXL.Execution.Analyzer
             return provenance == null ? null : new Xldb.PipProvenance()
             {
                 Usage = provenance.Usage.ToPipData(),
-                ModuleId = provenance.ModuleId.Value,
+                ModuleId = provenance.ModuleId.Value.Value,
                 ModuleName = provenance.ModuleName.ToString(),
                 SemiStableHash = provenance.SemiStableHash
             };
@@ -660,7 +660,7 @@ namespace BuildXL.Execution.Analyzer
             var xldbModulePip = new Xldb.ModulePip
             {
                 ParentPipInfo = parentPip,
-                Module = pip.Module.Value,
+                Module = pip.Module.Value.Value,
                 Identity = pip.Identity.ToString(),
                 ResolverKind = pip.ResolverKind.ToString(),
                 ResolverName = pip.ResolverName.ToString(),
@@ -904,7 +904,7 @@ namespace BuildXL.Execution.Analyzer
                     Path = pip.DefinitionLocation.Path.ToAbsolutePath(pathTable),
                     Position = pip.DefinitionLocation.Position
                 },
-                OwningModule = pip.OwningModule.Value,
+                OwningModule = pip.OwningModule.Value.Value,
                 Provenance = pip.Provenance.ToPipProvenance(),
                 PipType = (PipType)pip.PipType
             };
@@ -1017,7 +1017,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var kvp in pipGraph.Modules)
             {
-                xldbPipGraph.Modules.Add(kvp.Key.Value, new Xldb.NodeId() { IsValid = kvp.Value.IsValid, Value = kvp.Value.Value });
+                xldbPipGraph.Modules.Add(kvp.Key.Value.Value, new Xldb.NodeId() { IsValid = kvp.Value.IsValid, Value = kvp.Value.Value });
             }
 
             return xldbPipGraph;

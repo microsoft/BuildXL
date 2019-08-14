@@ -19,6 +19,10 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using Xunit;
+using System;
+using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using FluentAssertions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -33,10 +37,17 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
         protected override IMemoizationStore CreateStore(DisposableDirectory testDirectory)
         {
+            return CreateStore(testDirectory, configMutator: null);
+        }
+
+        protected IMemoizationStore CreateStore(DisposableDirectory testDirectory, Action<RocksDbContentLocationDatabaseConfiguration> configMutator = null)
+        {
             var memoConfig = new RocksDbMemoizationStoreConfiguration()
             {
                 Database = new RocksDbContentLocationDatabaseConfiguration(testDirectory.Path)
             };
+
+            configMutator?.Invoke(memoConfig.Database);
 
             return new RocksDbMemoizationStore(Logger, _clock, memoConfig);
         }
@@ -105,6 +116,54 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 Assert.True(r2.Succeeded);
                 Assert.True(r2.Selector == selector2);
             });
+        }
+
+        [Fact]
+        public Task GarbageCollectionRuns()
+        {
+            var context = new Context(Logger);
+            var weakFingerprint = Fingerprint.Random();
+            var selector1 = Selector.Random();
+            var selector2 = Selector.Random();
+            var strongFingerprint1 = new StrongFingerprint(weakFingerprint, selector1);
+            var strongFingerprint2 = new StrongFingerprint(weakFingerprint, selector2);
+            var contentHashListWithDeterminism1 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+            var contentHashListWithDeterminism2 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
+            return RunTestAsync(context,
+                funcAsync: async (store, session) => {
+                    await session.AddOrGetContentHashListAsync(context, strongFingerprint1, contentHashListWithDeterminism1, Token).ShouldBeSuccess();
+                    _clock.Increment();
+
+                    // Notice we don't increment the clock here
+                    await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
+
+                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
+                    Contract.Assert(database != null);
+
+                    var ctx = new OperationContext(context);
+                    database.GarbageCollect(ctx);
+
+                    var r1 = database.GetContentHashList(ctx, strongFingerprint1).ShouldBeSuccess().ContentHashListWithDeterminism;
+                    r1.ContentHashList.Should().BeNull();
+                    r1.Determinism.Should().Be(CacheDeterminism.None);
+
+                    var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
+                    r2.Should().BeEquivalentTo(contentHashListWithDeterminism2);
+                },
+                createStoreFunc: createStoreInternal);
+
+            // This is needed because type errors arise if you inline
+            IMemoizationStore createStoreInternal(DisposableDirectory disposableDirectory)
+            {
+                return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
+                {
+                    configuration.MetadataGarbageCollectionEnabled = true;
+                    configuration.MetadataGarbageCollectionProtectionTime = TimeSpan.FromMilliseconds(1);
+                    // Disables automatic GC
+                    configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
+                });
+            }
         }
     }
 }

@@ -138,7 +138,14 @@ namespace BuildXL.Scheduler.Tracing
         InitiateWorkerRelease = 5045,
         WorkerReleasedEarly = 5046, 
         DependencyViolationWriteOnExistingFile = 5047,
-        FailedToLoadPipGraphFragment = 5048
+        FailedToAddFragmentPipToGraph = 5048,
+        ExceptionOnAddingFragmentPipToGraph = 5049,
+        ExceptionOnDeserializingPipGraphFragment = 5050,
+        DeserializationStatsPipGraphFragment = 5051,
+        DebugFragment = 5052,
+
+        ProblematicWorkerExit = 5070,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

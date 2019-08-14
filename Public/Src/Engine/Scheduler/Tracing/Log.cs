@@ -747,6 +747,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void WorkerReleasedEarly(LoggingContext context, string workerName, long drainDurationMs, long disconnectDurationMs, bool isDrainedWithSuccess);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ProblematicWorkerExit,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "{workerName} exited with a connection issue. Worker was attached and running during some part of the build.",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Distribution,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void ProblematicWorkerExit(LoggingContext context, string workerName);
+
+        [GeneratedEvent(
             (ushort)EventId.StorageCacheGetContentError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -4390,16 +4399,49 @@ namespace BuildXL.Scheduler.Tracing
             string deletedPaths);
 
         [GeneratedEvent(
-            (ushort)LogEventId.FailedToLoadPipGraphFragment,
+            (ushort)LogEventId.FailedToAddFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Engine,
-            Message = "[{pipDescription}] Unable to add pip from fragment {fragmentName}.")]
-        public abstract void FailedToAddFragmentPipToGraph(
-            LoggingContext context,
-            string fragmentName,
-            string pipDescription);
+            Message = "[{pipDescription}] Unable to add the pip from fragment '{fragmentName}'.")]
+        public abstract void FailedToAddFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ExceptionOnAddingFragmentPipToGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "[{pipDescription}] An exception occured when adding the pip from fragment '{fragmentName}': {exceptionMessage}")]
+        public abstract void ExceptionOnAddingFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ExceptionOnDeserializingPipGraphFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "An exception occured during deserialization of pip graph fragment '{path}': {exceptionMessage}")]
+        public abstract void ExceptionOnDeserializingPipGraphFragment(LoggingContext context, string path, string exceptionMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DeserializationStatsPipGraphFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "Deserialization stats of graph fragment '{fragmentDescription}': {stats}")]
+        public abstract void DeserializationStatsPipGraphFragment(LoggingContext context, string fragmentDescription, string stats);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DebugFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "{message}")]
+        public abstract void DebugFragment(LoggingContext context, string message);
     }
 }
 #pragma warning restore CA1823 // Unused field

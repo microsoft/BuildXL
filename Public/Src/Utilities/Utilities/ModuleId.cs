@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.ContractsLight;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Utilities
@@ -17,19 +18,12 @@ namespace BuildXL.Utilities
         /// <summary>
         /// An invalid string.
         /// </summary>
-        public static readonly ModuleId Invalid = new ModuleId(-1);
+        public static readonly ModuleId Invalid = new ModuleId(StringId.Invalid);
 
         /// <summary>
         /// Identifier of this string as understood by the owning string table.
         /// </summary>
-        public readonly int Value;
-
-#if DEBUG
-        /// <summary>
-        /// Friendly name only to be used for debugging.
-        /// </summary>
-        private readonly string m_friendlyNameForDebugging;
-#endif
+        public readonly StringId Value;
 
         /// <summary>
         /// Creates a string ID for some underlying integer value.
@@ -39,12 +33,26 @@ namespace BuildXL.Utilities
         /// The only other reasonable usage would be for temporary serialization (e.g. to a child process).
         /// </remarks>
         [SuppressMessage("Microsoft.Performance", "CA1801")]
-        public ModuleId(int value, string friendlyNameForDebugging = null)
+        private ModuleId(StringId value, string friendlyNameForDebugging = null)
         {
+            Analysis.IgnoreArgument(friendlyNameForDebugging);
             Value = value;
-#if DEBUG
-            m_friendlyNameForDebugging = friendlyNameForDebugging;
-#endif
+        }
+
+        /// <nodoc />
+        public static ModuleId Create(StringTable table, string identity, string version = null, string friendlyNameForDebugging = null) => Create(StringId.Create(table, identity), StringId.Invalid, friendlyNameForDebugging);
+
+        /// <nodoc />
+        public static ModuleId Create(StringId identity, StringId version = default, string friendlyNameForDebugging = null)
+        {
+            Contract.Requires(identity.IsValid);
+            return new ModuleId(identity, friendlyNameForDebugging);
+        }
+
+        /// <nodoc />
+        public static ModuleId UnsafeCreate(int stringIdValue, string friendlyNameForDebugging = null)
+        {
+            return new ModuleId(new StringId(stringIdValue), friendlyNameForDebugging);
         }
 
         /// <summary>
@@ -72,13 +80,13 @@ namespace BuildXL.Utilities
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return Value;
+            return Value.GetHashCode();
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return this == Invalid ? "{Invalid}" : I($"{{Module (id: {Value:x})}}");
+            return this == Invalid ? "{Invalid}" : I($"{{Module (id: {Value})}}");
         }
 
         /// <summary>
@@ -98,6 +106,16 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Deserializes <see cref="ModuleId"/>.
+        /// </summary>
+        public static ModuleId Deserialize(BuildXLReader reader) => new ModuleId(reader.ReadStringId());
+
+        /// <summary>
+        /// Serialzies this instance.
+        /// </summary>
+        public void Serialize(BuildXLWriter writer) => writer.Write(Value);
+
+        /// <summary>
         /// Returns a string to be displayed as the debugger representation of this value.
         /// This string contains an expanded path when possible. See the comments in PathTable.cs
         /// </summary>
@@ -107,7 +125,7 @@ namespace BuildXL.Utilities
         private string ToDebuggerDisplay()
         {
 #if DEBUG
-            return this == Invalid ? ToString() : I($"{{Module '{m_friendlyNameForDebugging}' (id: {Value:x})}}");
+            return this == Invalid ? ToString() : I($"{{Module '{Value.ToDebuggerDisplay()}'}}");
 
 #else
             return ToString();

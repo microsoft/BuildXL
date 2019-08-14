@@ -30,7 +30,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         /// </summary>
         protected ContentLocationDatabaseConfiguration DefaultConfiguration { get; } = new MemoryContentLocationDatabaseConfiguration
         {
-            CacheEnabled = true,
+            ContentCacheEnabled = true,
             // These ensure no flushing happens unless explicitly directed
             CacheFlushingMaximumInterval = Timeout.InfiniteTimeSpan,
             CacheMaximumUpdatesPerFlush = -1
@@ -51,7 +51,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             var database = ContentLocationDatabase.Create(Clock, configuration, () => new MachineId[] { });
             await database.StartupAsync(operationContext).ShouldBeSuccess();
-            database.SetDatabaseMode(isDatabaseWritable: true);
+            database.SetDatabaseMode(isDatabaseWriteable: true);
 
             action(operationContext, database);
 
@@ -206,7 +206,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             ContentLocationDatabaseConfiguration configuration = new MemoryContentLocationDatabaseConfiguration
             {
-                CacheEnabled = true,
+                ContentCacheEnabled = true,
                 // These ensure no flushing happens unless explicitly directed
                 CacheFlushingMaximumInterval = Timeout.InfiniteTimeSpan,
                 CacheMaximumUpdatesPerFlush = -1,

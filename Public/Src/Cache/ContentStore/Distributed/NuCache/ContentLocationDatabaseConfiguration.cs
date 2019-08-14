@@ -19,9 +19,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         internal TimeSpan TouchFrequency { get; set; }
 
         /// <summary>
-        /// Interval between garbage collecting unreferenced entries in a local database.
+        /// Interval between garbage collecting unreferenced content location entries and metadata in a local database.
         /// </summary>
-        public TimeSpan LocalDatabaseGarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
+        public TimeSpan GarbageCollectionInterval { get; set; } = TimeSpan.FromHours(1);
 
         /// <summary>
         /// Indicates whether reading/writing cluster state from local db is supported.
@@ -32,12 +32,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// When activated, the requests effectively sent to the database will be initally done in memory and later on
         /// flushed to the underlying store.
         /// </summary>
-        public bool CacheEnabled { get; set; } = false;
+        public bool ContentCacheEnabled { get; set; } = false;
 
         /// <summary>
         /// Number of threads to use when flushing updates to the underlying storage
         ///
-        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
         /// </summary>
         public int FlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
 
@@ -48,30 +48,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// When this setting is on, there is no parallelism done, regardless of
         /// <see cref="FlushDegreeOfParallelism"/>.
         ///
-        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
         /// </summary>
         public bool FlushSingleTransaction { get; set; } = true;
 
         /// <summary>
         /// Percentage of records to maintain in memory after flush
         ///
-        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
         /// </summary>
         public double FlushPreservePercentInMemory = 0.5;
 
         /// <summary>
         /// The maximum number of updates that we are willing to perform in memory before flushing.
         ///
-        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
         /// </summary>
         public int CacheMaximumUpdatesPerFlush { get; set; } = 2_500_000;
 
         /// <summary>
         /// The maximum amount of time that can pass without a flush.
         ///
-        /// Only useful when <see cref="CacheEnabled"/> is true.
+        /// Only useful when <see cref="ContentCacheEnabled"/> is true.
         /// </summary>
         public TimeSpan CacheFlushingMaximumInterval { get; set; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Whether to enable garbage collection of metadata
+        /// </summary>
+        public bool MetadataGarbageCollectionEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Minimum amount of time to protect a metadata entry since its last usage time.
+        ///
+        /// Only useful when <see cref="MetadataGarbageCollectionEnabled"/> is true.
+        /// </summary>
+        public TimeSpan MetadataGarbageCollectionProtectionTime { get; set; } = TimeSpan.FromHours(2);
     }
 
     /// <summary>
@@ -108,5 +120,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Gets whether the database is cleared on initialization. (Defaults to true because the standard use case involves restoring from checkpoint after initialization)
         /// </summary>
         public bool CleanOnInitialize { get; set; } = true;
+
+        /// <summary>
+        /// Time between full range compactions. These help keep the size of the DB instance down to a minimum.
+        /// 
+        /// Required because of our workload tends to generate a lot of short-lived entries, which clutter the deeper
+        /// levels of the RocksDB LSM tree.
+        /// </summary>
+        public TimeSpan FullRangeCompactionInterval { get; set; } = TimeSpan.FromHours(6);
     }
 }

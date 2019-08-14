@@ -237,7 +237,7 @@ namespace BuildXL.Utilities
                 case 1:
                     return "output";
                 default:
-                    return "rewrite:" + m_rewriteCount.ToString(CultureInfo.InvariantCulture);
+                    return I($"rewrite:{m_rewriteCount}");
             }
         }
 

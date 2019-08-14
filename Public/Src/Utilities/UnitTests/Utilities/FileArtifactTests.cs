@@ -104,6 +104,9 @@ namespace Test.BuildXL.Utilities
             string h = FileArtifact.CreateOutputFile(AbsolutePath.Create(pt, A("H"))).CreateNextWrittenVersion().ToString();
             XAssert.IsTrue(h.Contains("File"), h);
             XAssert.IsTrue(h.Contains("(rewrite:2)"), h);
+
+            string i = FileArtifact.Invalid.ToString();
+            XAssert.IsTrue(i.Contains("Invalid"), i);
         }
     }
 }

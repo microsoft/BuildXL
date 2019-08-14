@@ -322,6 +322,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.CopyFile:
                     m_analyzer = InitializeCopyFilesAnalyzer();
                     break;
+                case AnalysisMode.ContentPlacement:
+                    m_analyzer = InitializeContentPlacementAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;

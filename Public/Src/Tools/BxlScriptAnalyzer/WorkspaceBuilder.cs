@@ -356,6 +356,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 Logging =
                 {
                     LogsToRetain = 0,
+                },
+                Cache =
+                {
+                    CacheSpecs = SpecCachingOption.Disabled
                 }
             };
         }

@@ -239,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var targetPath = new AbsolutePath(targetLocation.Path);
                     var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
 
-                    return GatedIoOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
+                    return _ioGate.GatedOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
                 });
         }
 
@@ -297,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     CopyFileResult copyFileResult = null;
                     try
                     {
-                        copyFileResult = await GatedIoOperationAsync(ts => context.PerformOperationAsync(
+                        copyFileResult = await _ioGate.GatedOperationAsync(ts => context.PerformOperationAsync(
                             Tracer,
                             async () =>
                             {
@@ -656,27 +656,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         private Task<FileExistenceResult> GatedCheckFileExistenceAsync(T path, CancellationToken token)
         {
-            return GatedIoOperationAsync(
+            return _ioGate.GatedOperationAsync(
                 (_) => _remoteFileExistenceChecker.CheckFileExistsAsync(path, Timeout.InfiniteTimeSpan, token),
                 token);
-        }
-
-        /// <summary>
-        /// This gated method attempts to limit the number of simultaneous off-machine file IO.
-        /// </summary>
-        private async Task<TResult> GatedIoOperationAsync<TResult>(Func<TimeSpan, Task<TResult>> func, CancellationToken token)
-        {
-            var sw = Stopwatch.StartNew();
-            await _ioGate.WaitAsync(token);
-
-            try
-            {
-                return await func(sw.Elapsed);
-            }
-            finally
-            {
-                _ioGate.Release();
-            }
         }
 
         /// <nodoc />

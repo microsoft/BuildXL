@@ -88,9 +88,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            lock (ShutdownLock)
+            lock (TimerChangeLock)
             {
                 _compactionTimer?.Dispose();
+                _compactionTimer = null;
             }
 
             _keyValueStore?.Dispose();
@@ -106,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _compactionTimer = new Timer(
                     _ => FullRangeCompaction(context),
                     null,
-                    IsGarbageCollectionEnabled ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
+                    IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
             }
 
@@ -122,8 +123,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override void SetDatabaseMode(bool isDatabaseWriteable)
         {
-            if (IsGarbageCollectionEnabled != isDatabaseWriteable)
+            if (IsDatabaseWriteable != isDatabaseWriteable)
             {
+                // Shutdown can't happen simultaneously, so no need to take the lock
                 var nextCompactionTimeSpan = isDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan;
                 _compactionTimer?.Change(nextCompactionTimeSpan, Timeout.InfiniteTimeSpan);
             }
@@ -133,36 +135,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private void FullRangeCompaction(OperationContext context)
         {
-            lock (ShutdownLock)
+            if (ShutdownStarted)
             {
-                if (ShutdownStarted)
-                {
-                    return;
-                }
+                return;
             }
 
-            // We can safely ignore the result, as any relevant errors will be logged by the inner operations
-            _keyValueStore.Use(store =>
-            {
-                foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+            context.PerformOperation(Tracer, () =>
+                _keyValueStore.Use(store =>
                 {
-                    var result = context.PerformOperation(Tracer, () =>
+                    foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
                     {
-                        store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
-                        return BoolResult.Success;
-                    }, extraStartMessage: $"ColumnFamily={columnFamilyName}");
+                        if (context.Token.IsCancellationRequested)
+                        {
+                            break;
+                        }
 
-                    if (!result.Succeeded)
-                    {
-                        break;
+                        var result = context.PerformOperation(Tracer, () =>
+                        {
+                            store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
+                            return BoolResult.Success;
+                        }, extraStartMessage: $"ColumnFamily={columnFamilyName}");
+
+                        if (!result.Succeeded)
+                        {
+                            break;
+                        }
                     }
-                }
-            }).ToBoolResult().IgnoreFailure();
+                }).ToBoolResult()).IgnoreFailure();
 
-            lock (ShutdownLock)
+            if (!ShutdownStarted)
             {
-                if (!ShutdownStarted)
+                lock (TimerChangeLock)
                 {
+                    // No try-catch required here.
                     _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
                 }
             }

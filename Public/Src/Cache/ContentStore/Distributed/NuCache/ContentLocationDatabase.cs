@@ -50,11 +50,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
+        protected bool IsDatabaseWriteable;
         private bool _isContentGarbageCollectionEnabled;
         private bool _isMetadataGarbageCollectionEnabled;
 
         /// <nodoc />
-        protected bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
+        private bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
 
         /// <summary>
         /// Fine-grained locks that is used for all operations that mutate records.
@@ -82,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private Timer _inMemoryCacheFlushTimer;
 
         /// <nodoc />
-        protected readonly object ShutdownLock = new object();
+        protected readonly object TimerChangeLock = new object();
 
         private readonly object _cacheFlushTimerLock = new object();
 
@@ -127,8 +128,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public virtual void SetDatabaseMode(bool isDatabaseWriteable)
         {
+            // The parameter indicates whether we will be in writeable state or not after this function runs. The
+            // following calls can see if we transition from read/only to read/write by looking at the internal value
             ConfigureGarbageCollection(isDatabaseWriteable);
             ConfigureInMemoryDatabaseCache(isDatabaseWriteable);
+
+            IsDatabaseWriteable = isDatabaseWriteable;
         }
 
         /// <summary>	
@@ -136,10 +141,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>	
         private void ConfigureGarbageCollection(bool isDatabaseWriteable)
         {
-            if (IsGarbageCollectionEnabled != isDatabaseWriteable)
+            if (IsDatabaseWriteable != isDatabaseWriteable)
             {
                 _isContentGarbageCollectionEnabled = isDatabaseWriteable;
-                _isMetadataGarbageCollectionEnabled = _configuration.MetadataGarbageCollectionEnabled && isDatabaseWriteable;
+                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
 
                 var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
                 _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
@@ -218,10 +223,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _nagleOperationTracer?.Dispose();
 
-            lock (ShutdownLock)
+            lock (TimerChangeLock)
             {
                 _gcTimer?.Dispose();
+                _gcTimer = null;
+            }
+
+            lock (_cacheFlushTimerLock)
+            {
                 _inMemoryCacheFlushTimer?.Dispose();
+                _inMemoryCacheFlushTimer = null;
             }
 
             return base.ShutdownCoreAsync(context);
@@ -286,12 +297,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void GarbageCollect(OperationContext context)
         {
-            lock (ShutdownLock)
+            if (ShutdownStarted)
             {
-                if (ShutdownStarted)
-                {
-                    return;
-                }
+                return;
             }
 
             context.PerformOperation(Tracer,
@@ -322,9 +330,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return BoolResult.Success;
                 }, counter: Counters[ContentLocationDatabaseCounters.GarbageCollect]).IgnoreFailure();
 
-            lock (ShutdownLock)
+            if (!ShutdownStarted)
             {
-                if (!ShutdownStarted)
+                lock (TimerChangeLock)
                 {
                     _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
                 }

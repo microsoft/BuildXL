@@ -1134,6 +1134,24 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void TestSpecialTempOutputFile()
+        {
+            FileArtifact input = CreateSourceFile();
+            FileArtifact output = CreateOutputFileArtifact();
+            FileArtifact tempOutput = CreateFileArtifactWithName("bxl42.tmp", ObjectRoot).CreateNextWrittenVersion();
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(output),
+                Operation.WriteFile(tempOutput, doNotInfer: true)
+            });
+
+            SchedulePipBuilder(builder);
+            RunScheduler().AssertSuccess();
+        }
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

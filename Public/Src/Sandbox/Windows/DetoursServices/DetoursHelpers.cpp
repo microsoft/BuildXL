@@ -230,6 +230,18 @@ bool GetSpecialCaseRulesForSpecialTools(
         }
         break;
 
+    case SpecialProcessKind::BuildXLTest:
+        // The Mt tool emits temporary files into the same directory as the final output file.
+        if (StringLooksLikeBuildXLTestTempFile(absolutePath, absolutePathLength, L".tmp")) {
+#if SUPER_VERBOSE
+            Dbg(L"special case: temp file: %s", absolutePath);
+#endif // SUPER_VERBOSE
+            int intPolicy = (int)policy | (int)FileAccessPolicy_AllowAll;
+            policy = (FileAccessPolicy)intPolicy;
+            return true;
+        }
+        break;
+
     case SpecialProcessKind::CCCheck:
     case SpecialProcessKind::CCDocGen:
     case SpecialProcessKind::CCRefGen:
@@ -929,7 +941,9 @@ void InitProcessKind()
             { L"ccrewrite.exe", SpecialProcessKind::CCRewrite },
             { L"cccheck.exe", SpecialProcessKind::CCCheck },
             { L"ccrefgen.exe", SpecialProcessKind::CCRefGen },
-            { L"ccdocgen.exe", SpecialProcessKind::CCDocGen } };
+            { L"ccdocgen.exe", SpecialProcessKind::CCDocGen },
+            { L"test.buildxl.executables.testprocess.exe", SpecialProcessKind::BuildXLTest }
+    };
 
     size_t count = sizeof(pairs) / sizeof(pairs[0]);
 

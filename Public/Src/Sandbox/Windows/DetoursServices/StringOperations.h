@@ -222,6 +222,8 @@ bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length);
 
 bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension);
 
+bool StringLooksLikeBuildXLTestTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension);
+
 // Find the index of the final directory separator (possibly zero), or zero if none are found.
 size_t FindFinalPathSeparator(PCPathChar const original);
 

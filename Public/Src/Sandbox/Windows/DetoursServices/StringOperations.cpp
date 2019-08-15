@@ -252,6 +252,11 @@ bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length)
     if (!IsPathCharEqual(c3, 'C') && !IsPathCharEqual(c3, 'D') && !IsPathCharEqual(c3, 'F')) {
         return false;
     }
+    PathChar c4 = str[str_length - 4];
+    if (IsPathCharEqual(c4, '.')) {
+        // RC's temp files have no extension.
+        return false;
+    }
     return true;
 }
 
@@ -270,6 +275,44 @@ bool StringLooksLikeBuildExeTraceLog(PCPathChar str, size_t str_length)
     }
 
     return HasSuffix(str, str_length, BUILD_EXE_TRACE_FILE);
+}
+
+bool StringLooksLikeBuildXLTestTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension)
+{
+    if (!HasSuffix(str, str_length, expected_extension)) {
+        return false;
+    }
+
+    // Find last "\".
+    size_t beginCharIndex = (size_t)-1;
+
+    for (size_t i = 0; i < str_length; ++i) {
+        if (IsPathCharEqual(str[i], '\\')) {
+            beginCharIndex = i;
+        }
+    }
+
+    // Expect to check "\BXL..".
+    if (beginCharIndex == (size_t)-1 || beginCharIndex + 3 >= str_length) {
+        return false;
+    }
+
+    PathChar c1 = str[beginCharIndex + 1];
+    if (!IsPathCharEqual(c1, 'B')) {
+        return false;
+    }
+
+    PathChar c2 = str[beginCharIndex + 2];
+    if (!IsPathCharEqual(c2, 'X')) {
+        return false;
+    }
+
+    PathChar c3 = str[beginCharIndex + 3];
+    if (!IsPathCharEqual(c3, 'L')) {
+        return false;
+    }
+
+    return true;
 }
 
 bool StringLooksLikeMtTempFile(PCPathChar str, size_t str_length, PCPathChar expected_extension)

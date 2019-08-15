@@ -2571,7 +2571,8 @@ namespace BuildXL.Processes
             CCRewrite = 8,
             WinDbg = 9,
             XAMLWrapper = 11,
-            Mt = 12
+            Mt = 12,
+            BuildXLTest = 13,
         }
 
         private static readonly Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
@@ -2591,6 +2592,10 @@ namespace BuildXL.Processes
             ["windbg.exe"] = SpecialProcessKind.WinDbg,
             ["tool.xamlcompilerwrapper"] = SpecialProcessKind.XAMLWrapper,
             ["tool.xamlcompilerwrapper.exe"] = SpecialProcessKind.XAMLWrapper,
+
+            // Tool use for testing.
+            ["test.buildxl.executables.testprocess"] = SpecialProcessKind.BuildXLTest,
+            ["test.buildxl.executables.testprocess.exe"] = SpecialProcessKind.BuildXLTest,
 
             // TODO: deprecate this.
             ["cccheck"] = SpecialProcessKind.CCCheck,
@@ -2619,6 +2624,41 @@ namespace BuildXL.Processes
             return s_specialTools.TryGetValue(toolName.ToLowerInvariant(), out SpecialProcessKind kind) ? kind : SpecialProcessKind.NotSpecial;
         }
 
+        private static bool StringLooksLikeBuildXLTestTempFile(string fileName)
+        {
+            if (!fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            int beginCharIndex = fileName.LastIndexOf('\\');
+
+            if (beginCharIndex == -1 || beginCharIndex + 3 >= fileName.Length)
+            {
+                return false;
+            }
+
+            char c1 = fileName[beginCharIndex + 1];
+            if (c1.ToUpperInvariantFast() != 'B')
+            {
+                return false;
+            }
+
+            char c2 = fileName[beginCharIndex + 2];
+            if (c2.ToUpperInvariantFast() != 'X')
+            {
+                return false;
+            }
+
+            char c3 = fileName[beginCharIndex + 3];
+            if (c3.ToUpperInvariantFast() != 'L')
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         private static bool StringLooksLikeRCTempFile(string fileName)
         {
             int len = fileName.Length;
@@ -2645,6 +2685,13 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            char c4 = fileName[len - 4];
+            if (c4.ToUpperInvariantFast() == '.')
+            {
+                // RC's temp files have no extension.
+                return false;
+            }
+
             return true;
         }
 
@@ -2663,19 +2710,19 @@ namespace BuildXL.Processes
             }
 
             char c1 = fileName[beginCharIndex + 1];
-            if (c1 != 'R')
+            if (c1.ToUpperInvariantFast() != 'R')
             {
                 return false;
             }
 
             char c2 = fileName[beginCharIndex + 2];
-            if (c2 != 'C')
+            if (c2.ToUpperInvariantFast() != 'C')
             {
                 return false;
             }
 
             char c3 = fileName[beginCharIndex + 3];
-            if (c3 != 'X')
+            if (c3.ToUpperInvariantFast() != 'X')
             {
                 return false;
             }
@@ -2780,6 +2827,14 @@ namespace BuildXL.Processes
 
                 case SpecialProcessKind.Mt:
                     if (StringLooksLikeMtTempFile(fileName))
+                    {
+                        return true;
+                    }
+
+                    break;
+
+                case SpecialProcessKind.BuildXLTest:
+                    if (StringLooksLikeBuildXLTestTempFile(fileName))
                     {
                         return true;
                     }

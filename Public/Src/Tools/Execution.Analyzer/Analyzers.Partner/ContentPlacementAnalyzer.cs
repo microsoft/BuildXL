@@ -75,7 +75,10 @@ namespace BuildXL.Execution.Analyzer
     }
 
     /// <summary>
-    /// Analyzer used to get data from file artifacts. It outputs a file that contain all the sampled artifact data. The samples are taking prportionally for each extension.
+    /// Analyzer used to get data from file artifacts. It outputs a file that contain all the sampled artifact data. The samples are taking proportionally for each extension.
+    /// // So for example, if we have a build with 100 artifacts and sampleProportion=0.8, then we will take at least 80 of them as a sample. From each extension, 80% of the files
+    /// // are taken at random and rounding UP, this means, at least one file of each extension will be taken. This could lead to take more than 80% of the files, but that is ok
+    /// // from my point of view. If you want to put a hard cap on the count, then use sampleCountHardLimit.
     /// </summary>
     internal sealed class ContentPlacementAnalyzer : Analyzer
     {
@@ -124,7 +127,7 @@ namespace BuildXL.Execution.Analyzer
 
         public override void Prepare()
         {
-            string outputFile = $"{Path.Combine(Input.CachedGraphDirectory, m_relativeOutputFile)}";
+            string outputFile = $"{Path.Combine(Directory.GetParent(Input.CachedGraphDirectory).FullName, m_relativeOutputFile)}";
             Console.WriteLine($"Output will be written to [{outputFile}]");
             m_outputWriter = new JsonTextWriter(new StreamWriter(outputFile));
             Contract.Requires(File.Exists(outputFile), $"Could not create [{outputFile}]...");
@@ -156,7 +159,9 @@ namespace BuildXL.Execution.Analyzer
                 BuildQueue = m_buildQueue,
                 BuildDurationMs = m_buildDurationMs,
                 BuildStartTimeTicks = m_buildStartTicks,
-                TotalPips = totalPips
+                TotalPips = totalPips,
+                TotalArtifacts = m_fileContentMap.Count,
+                SampledArtifacts = samples.Count
             };
             // and now for each artifact, add it to the build
             PopulateBuild(samples, build);
@@ -291,7 +296,7 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"Done, output written in {stopWatch.ElapsedMilliseconds}ms");
         }
 
-        public Dictionary<FileArtifact, FileContentInfo> SampleAccordingToExtensionDistribution(double sampleProportion, Random random)
+        private Dictionary<FileArtifact, FileContentInfo> SampleAccordingToExtensionDistribution(double sampleProportion, Random random)
         {
             var fileArtifacts = new Dictionary<FileArtifact, FileContentInfo>();
             foreach(var entry in m_countFilesPerExtension)
@@ -354,9 +359,19 @@ namespace BuildXL.Execution.Analyzer
                 StartTimeTicks = executionData.ExecutionPerformance.ExecutionStart.Ticks,
                 TagCount = pip.Tags.Count()
             };
-            if(scheduledPipDependencyCount.TryGetValue(pip.PipId.Value, out var deps)) pipData.DependencyCount = deps.Count;
-            if(scheduledPipInputCount.TryGetValue(pip.PipId.Value, out var inputs)) pipData.InputCount = inputs.Count;
-            if(scheduledPipOutputCount.TryGetValue(pip.PipId.Value, out var outputs)) pipData.OutputCount = outputs.Count;
+            if(scheduledPipDependencyCount.TryGetValue(pip.PipId.Value, out var deps))
+            {
+                pipData.DependencyCount = deps.Count;
+            }
+
+            if(scheduledPipInputCount.TryGetValue(pip.PipId.Value, out var inputs))
+            {
+                pipData.InputCount = inputs.Count;
+            }
+            if(scheduledPipOutputCount.TryGetValue(pip.PipId.Value, out var outputs))
+            {
+                pipData.OutputCount = outputs.Count;
+            }
             if (pip.PipType == PipType.Process)
             {
                 var process = pip as Pips.Operations.Process;

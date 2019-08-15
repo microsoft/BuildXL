@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -33,6 +34,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
 
+        private readonly SemaphoreSlim _putFileGate;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
         /// </summary>
@@ -57,6 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 contentTrackerUpdater: contentTrackerUpdater,
                 settings)
         {
+            _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
         }
 
         /// <inheritdoc />
@@ -68,10 +72,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return PutCoreAsync(
-                operationContext,
-                (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
-                session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
+            return PerformPutFileGatedOperationAsync(operationContext, () => {
+                return PutCoreAsync(
+                    operationContext,
+                    (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
+                    session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
+            });
         }
 
         /// <inheritdoc />
@@ -83,10 +89,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return PutCoreAsync(
-                operationContext,
-                (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
-                session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
+            // We are intentionally not gating PutStream operations because we don't expect a high number of them at
+            // the same time.
+            return PerformPutFileGatedOperationAsync(operationContext, () => {
+                return PutCoreAsync(
+                    operationContext,
+                    (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
+                    session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
+            });
+        }
+
+        private Task<TResult> PerformPutFileGatedOperationAsync<TResult>(OperationContext operationContext, Func<Task<TResult>> func)
+        {
+            return _putFileGate.GatedOperationAsync((timeWaiting) =>
+            {
+                if (timeWaiting > Settings.PutFileWaitWarning)
+                {
+                    Tracer.Info(operationContext, $"Spent {timeWaiting} waiting for PutFile gate, exceeding deadline of {Settings.PutFileWaitWarning}");
+                }
+
+                return func();
+            }, operationContext.Token);
         }
 
         /// <inheritdoc />

@@ -9,8 +9,10 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
+using BuildXL.Pips;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
@@ -23,7 +25,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
     public abstract class Analyzer
     {
         private Args m_arguments;
-        private FrontEndContext m_context;
 
         /// <summary>
         /// When NodeHandler is registered this list will be populated. and null otherwise.
@@ -41,14 +42,24 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         protected bool Fix => m_arguments.Fix;
 
         /// <summary>
+        /// Front end context.
+        /// </summary>
+        protected FrontEndContext Context { get; private set; }
+
+        /// <summary>
         /// The PathTable analyzers can use
         /// </summary>
-        protected PathTable PathTable => m_context.PathTable;
+        protected PathTable PathTable => Context.PathTable;
 
         /// <summary>
         /// The workspace
         /// </summary>
         protected Workspace Workspace { get; private set; }
+
+        /// <summary>
+        /// Pip graph.
+        /// </summary>
+        protected IPipGraph PipGraph { get; private set; }
 
         /// <summary>
         /// The logger
@@ -58,7 +69,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// The logging context
         /// </summary>
-        protected LoggingContext LoggingContext => m_context.LoggingContext;
+        protected LoggingContext LoggingContext => Context.LoggingContext;
 
         /// <summary>
         /// Guards calls to <see cref="RegisterSyntaxNodeAction" /> to only be called from SetSharedState.
@@ -66,13 +77,19 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         protected bool Initializing { get; private set; }
 
         /// <summary>
+        /// Required engine phases.
+        /// </summary>
+        public virtual EnginePhases RequiredPhases { get; } = EnginePhases.AnalyzeWorkspace;
+
+        /// <summary>
         /// Helper that stores some shared state on the Analyzer
         /// </summary>
-        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace)
+        internal bool SetSharedState(Args arguments, FrontEndContext context, Logger logger, Workspace workspace, IPipGraph pipGraph)
         {
             m_arguments = arguments;
-            m_context = context;
+            Context = context;
             Workspace = workspace;
+            PipGraph = pipGraph;
             Logger = logger;
             Initializing = true;
             var result = Initialize();
@@ -179,7 +196,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         {
             if (m_specHandlers != null)
             {
-                var context = new DiagnosticsContext(sourceFile, Logger, m_context.LoggingContext, m_context.PathTable, workspace);
+                var context = new DiagnosticsContext(sourceFile, Logger, LoggingContext, PathTable, workspace);
 
                 bool success = true;
                 foreach (var node in NodeWalker.TraverseBreadthFirstAndSelf(sourceFile))

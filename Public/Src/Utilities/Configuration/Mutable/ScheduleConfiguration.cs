@@ -135,6 +135,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
         }
 
@@ -316,6 +317,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseHistoricalCpuUsageInfo { get; set; }
+
+        /// <inheritdoc />
+        public bool UseFixedApiServerMoniker { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath InputChanges { get; set; }

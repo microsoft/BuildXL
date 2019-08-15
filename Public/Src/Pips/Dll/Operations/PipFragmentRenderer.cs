@@ -30,7 +30,7 @@ namespace BuildXL.Pips.Operations
         /// <remarks>
         /// Used for rendering of <see cref="PipFragmentType.VsoHash"/> fragment only when no <see cref="HashLookup"/> is provided.
         /// </remarks>
-        private static readonly string UnknownLengthFileInfoString = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash).Render();
+        private static readonly string s_unknownLengthFileInfoString = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash).Render();
 
         /// <summary>
         /// Maximum possible length of a rendered <see cref="PipFragmentType.VsoHash"/> fragment.
@@ -38,7 +38,7 @@ namespace BuildXL.Pips.Operations
         /// <remarks>
         /// Used only for approximating the max length of the rendered command line string. (<see cref="GetMaxLength"/>)
         /// </remarks>
-        private static readonly int MaxVsoHashStringLength = new FileContentInfo(ContentHashingUtilities.ZeroHash, FileContentInfo.LengthAndExistence.MaxSupportedLength).Render().Length;
+        private static readonly int s_maxVsoHashStringLength = new FileContentInfo(ContentHashingUtilities.ZeroHash, FileContentInfo.LengthAndExistence.MaxSupportedLength).Render().Length;
 
         /// <summary>
         /// Assumed max length of a rendered IPC moniker.
@@ -116,7 +116,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         /// <remarks>
         /// If a <see cref="HashLookup"/> function is not provided, entries corresponding to <see cref="PipFragmentType.VsoHash"/>
-        /// are rendered as a sequence of zeros (<see cref="UnknownLengthFileInfoString"/>); otherwise, they are rendered as
+        /// are rendered as a sequence of zeros (<see cref="s_unknownLengthFileInfoString"/>); otherwise, they are rendered as
         /// the return value of the <see cref="FileContentInfo.Render"/> method.
         /// </remarks>
         public string Render(PipFragment fragment)
@@ -135,7 +135,13 @@ namespace BuildXL.Pips.Operations
                 case PipFragmentType.VsoHash:
                     return HashLookup != null
                         ? HashLookup(fragment.GetFileValue()).Render()
-                        : UnknownLengthFileInfoString;
+                        : s_unknownLengthFileInfoString;
+
+                case PipFragmentType.FileId:
+                {
+                    var file = fragment.GetFileValue();
+                    return file.Path.RawValue.ToString() + ":" + file.RewriteCount.ToString();
+                }
 
                 case PipFragmentType.IpcMoniker:
                     string monikerId = fragment.GetIpcMonikerValue().ToString(StringTable);
@@ -144,7 +150,7 @@ namespace BuildXL.Pips.Operations
                         : monikerId;
                     if (result.Length > MaxIpcMonikerLength)
                     {
-                        throw new BuildXLException(I($"Moniker with id '{monikerId}' was rendered to string '{result}' which is longer than the max length for moniker fragmentgs ({MaxIpcMonikerLength})"));
+                        throw new BuildXLException(I($"Moniker with id '{monikerId}' was rendered to string '{result}' which is longer than the max length for moniker fragments ({MaxIpcMonikerLength})"));
                     }
 
                     return result;
@@ -203,7 +209,13 @@ namespace BuildXL.Pips.Operations
             // VsoHash
             if (fragment.FragmentType == PipFragmentType.VsoHash)
             {
-                return MaxVsoHashStringLength; // vso hash should never need any escaping
+                return s_maxVsoHashStringLength; // vso hash should never need any escaping
+            }
+
+            // File id.
+            if (fragment.FragmentType == PipFragmentType.FileId)
+            {
+                return (2 * int.MaxValue.ToString().Length) + 1;
             }
 
             if (fragment.FragmentType == PipFragmentType.IpcMoniker)

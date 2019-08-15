@@ -252,10 +252,7 @@ namespace BuildXL.FrontEnd.Nuget
             };
 
             // We know that the generated Nuget package config does not have any qualifier space defined.
-            var package = Package.Create(id, moduleDefinition.ModuleConfigFile, packageDescriptor);
-            package.ModuleId = moduleDescriptor.Id;
-
-            return package;
+            return Package.Create(id, moduleDefinition.ModuleConfigFile, packageDescriptor, moduleId: moduleDescriptor.Id);
         }
 
         private PackageId GetPackageIdFromModuleDescriptor(ModuleDescriptor moduleDescriptor)
@@ -649,7 +646,7 @@ namespace BuildXL.FrontEnd.Nuget
                     return possiblePackage.Failure;
                 }
 
-                var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(packageName, this);
+                var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, packageName, this);
 
                 generatedProjectsByPackageDescriptor[moduleDescriptor] = possiblePackage.Result;
                 generatedProjectsByPath[possiblePackage.Result] = moduleDescriptor;

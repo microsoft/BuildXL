@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -14,6 +14,7 @@ using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Visualization.Models;
@@ -43,6 +44,16 @@ namespace BuildXL
         /// The full path to the logs directory
         /// </summary>
         private readonly string m_logsDirectory;
+
+        /// <summary>
+        /// Wheter the console output should be optimized for Azure devops output
+        /// </summary>
+        private readonly bool m_optimizeForAzureDevOps;
+
+        /// <summary>
+        /// The last reported percentage. To avoid double reporting the same percentage over and over
+        /// </summary>
+        private int m_lastReportedProgress = -1;
 
         /// <summary>
         /// Creates a new instance with optional colorization.
@@ -89,6 +100,9 @@ namespace BuildXL
         /// <param name="maxStatusPips">
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
+        /// <param name="optimizeForAzureDevOps">
+        /// Whether console output should e optimized for Azure DevOps output.
+        /// </param>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public ConsoleEventListener(
             Events eventSource,
@@ -103,7 +117,8 @@ namespace BuildXL
             EventMask eventMask = null,
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
             PathTranslator pathTranslator = null,
-            int maxStatusPips = DefaultMaxStatusPips)
+            int maxStatusPips = DefaultMaxStatusPips,
+            bool optimizeForAzureDevOps = false)
             : this(
                 eventSource,
                 new StandardConsole(colorize, animateTaskbar, updatingConsole, pathTranslator),
@@ -114,7 +129,8 @@ namespace BuildXL
                 level: level,
                 eventMask: eventMask,
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
-                maxStatusPips: maxStatusPips)
+                maxStatusPips: maxStatusPips,
+                optimizeForAzureDevOps: optimizeForAzureDevOps)
         {
         }
 
@@ -156,6 +172,9 @@ namespace BuildXL
         /// <param name="maxStatusPips">
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
+        /// <param name="optimizeForAzureDevOps">
+        /// Whether console output should be optimized for Azure DevOps output.
+        /// </param>
         public ConsoleEventListener(
             Events eventSource,
             IConsole console,
@@ -167,7 +186,8 @@ namespace BuildXL
             EventLevel level = EventLevel.Verbose,
             EventMask eventMask = null,
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
-            int maxStatusPips = DefaultMaxStatusPips)
+            int maxStatusPips = DefaultMaxStatusPips,
+            bool optimizeForAzureDevOps = false)
             : base(eventSource, baseTime, warningMapper, level, false, TimeDisplay.Seconds, eventMask, onDisabledDueToDiskWriteFailure, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.Requires(eventSource != null);
@@ -177,6 +197,7 @@ namespace BuildXL
             m_maxStatusPips = maxStatusPips;
             m_logsDirectory = logsDirectory;
             m_notWorker = notWorker;
+            m_optimizeForAzureDevOps = optimizeForAzureDevOps;
         }
 
         /// <inheritdoc />
@@ -317,6 +338,17 @@ namespace BuildXL
                         if (m_notWorker)
                         {
                             m_console.ReportProgress((ulong)done, (ulong)total);
+
+                            if (m_optimizeForAzureDevOps)
+                            {
+                                double processPercent = (100.0 * procsDone) / (procsTotal * 1.0);
+                                int currentProgress = Convert.ToInt32(Math.Floor(processPercent));
+                                if (m_lastReportedProgress != currentProgress)
+                                {
+                                    m_lastReportedProgress = currentProgress;
+                                    m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
+                                }
+                            }
                         }
 
                         break;
@@ -382,6 +414,8 @@ namespace BuildXL
         {
             Interlocked.Increment(ref m_errorsLogged);
 
+            TryLogAzureDevOpsIssue(eventData, "error");
+
             if (eventData.EventId == (int)EventId.PipProcessError)
             {
                 // Try to be a bit fancy and only show the tool errors in red. The pip name and log file will stay in
@@ -411,6 +445,8 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
         {
+            TryLogAzureDevOpsIssue(eventData, "warning");
+
             if (eventData.EventId == (int)EventId.PipProcessWarning)
             {
                 string warnings = (string)eventData.Payload[5];
@@ -426,6 +462,7 @@ namespace BuildXL
                         // Note - the MessageLevel below are really just for the sake of colorization
                         Output(EventLevel.Informational, eventData.EventId, eventData.EventName, eventData.Keywords, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
                         Output(EventLevel.Warning, eventData.EventId, eventData.EventName, eventData.Keywords, warnings);
+
                         return;
                     }
                 }
@@ -433,6 +470,56 @@ namespace BuildXL
 
             // We couldn't do the fancy formatting
             base.OnWarning(eventData);
+        }
+
+        private void TryLogAzureDevOpsIssue(EventWrittenEventArgs eventData, string eventType)
+        {
+            if (!m_optimizeForAzureDevOps)
+            {
+                return;
+            }
+
+            var builder = new StringBuilder();
+            builder.Append("##vso[task.logIssue type=");
+            builder.Append(eventType);
+
+            var message = eventData.Message;
+            var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
+            string body;
+
+            // see if this event provides provenance info
+            if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
+            {
+                Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
+
+                // file
+                builder.Append(";sourcepath=");
+                builder.Append(args[0]);
+
+                //line
+                builder.Append(";linenumber=");
+                builder.Append(args[1]);
+
+                //column
+                builder.Append(";columnnumber=");
+                builder.Append(args[2]);
+
+                //code
+                builder.Append(";code=DX");
+                builder.Append(eventData.EventId.ToString("D4"));
+            }
+            
+            // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
+            body = string.Format(CultureInfo.CurrentCulture, message, args);
+
+            builder.Append(";]");
+
+            // substitute newlines in the message
+            const string newLineAlternative = " ### ";
+            builder.Append(body.Replace("\r\n", newLineAlternative).Replace("\n", newLineAlternative));
+
+
+            m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());
         }
 
         private static string FinalizeFormatStringLayout(StringBuilder buffer, string statusLine, long maxNum)
@@ -482,7 +569,23 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
         {
-            m_console.WriteOutputLine(ConvertLevel(level), text.TrimEnd(s_newLineCharArray));
+            var outputText = text.TrimEnd(s_newLineCharArray);
+
+            if (m_optimizeForAzureDevOps)
+            {
+                switch  (level)
+                {
+                    case EventLevel.Critical:
+                    case EventLevel.Error:
+                        outputText = "##[error]" + outputText.Replace("\n", "\n##[error]");
+                        break;
+                    case EventLevel.Warning:
+                        outputText = "##[warning]" + outputText.Replace("\n", "\n##[warning]");
+                        break;
+                }
+            }
+
+            m_console.WriteOutputLine(ConvertLevel(level), outputText);
         }
 
         private void OutputUpdatable(EventLevel level, string standardText, string updatableText, bool onlyIfOverwriteIsSupported)

@@ -25,7 +25,7 @@ namespace BuildXL.Explorer.Server.Models
             {
                 pipRef.Module = new ModuleRef()
                 {
-                    Id = pip.Provenance.ModuleId.Value,
+                    Id = pip.Provenance.ModuleId.Value.Value,
                     Name = pip.Provenance.ModuleName.ToString(context.StringTable)
                 };
                 pipRef.SpecFile = new SpecFileRef(context, pip.Provenance.Token.Path);

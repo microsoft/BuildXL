@@ -1258,7 +1258,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
-        public void ReadWrittenFileUnderSharedOpaqueWithWhitelistIsAllowed()
+        public void ReadWrittenFileUnderSharedOpaqueIsAllowed()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
             AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);

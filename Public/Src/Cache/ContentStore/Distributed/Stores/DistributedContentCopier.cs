@@ -132,24 +132,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
-                int attemptCount = -1;
+                int attemptCount = 0;
 
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
-                    if (attemptCount >= 0)
-                    {
-                        long waitTicks = _retryIntervals[attemptCount].Ticks;
-
-                        // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
-                        TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
-
-                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
-
-                        await Task.Delay(waitDelay, cts);
-                    }
-
-                    attemptCount++;
-
                     bool retry;
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
@@ -178,9 +164,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
-                    if (attemptCount == _retryIntervals.Count - 1)
+                    attemptCount++;
+
+                    if (attemptCount < _retryIntervals.Count)
                     {
-                        // This is the last attempt, no need to wait any more.
+                        long waitTicks = _retryIntervals[attemptCount].Ticks;
+
+                        // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
+                        TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
+
+                        // Log with the original attempt count
+                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
+
+                        await Task.Delay(waitDelay, cts);
+                    }
+                    else
+                    {
                         break;
                     }
                 }

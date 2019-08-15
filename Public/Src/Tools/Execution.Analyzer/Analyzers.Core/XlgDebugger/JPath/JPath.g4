@@ -136,9 +136,9 @@ expr
     | Lhs=expr '[' Filter=logicExpr ']'               #FilterExpr
     | Lhs=expr '[' Index=intExpr ']'                  #IndexExpr
     | Lhs=expr '[' Begin=intExpr '..' End=intExpr ']' #RangeExpr
-    | '#' Sub=expr                                    #CardinalityExpr
+    | '#' Sub=expr                                    #CardinalityExpr 
+    // cardinality of the result, i.e., the number of elements in it
     | Func=expr '(' Args+=expr (',' Args+=expr)* ')'  #FuncAppExprParen
-    | Func=expr Arg=expr                              #FuncAppExpr
     | Func=expr OptName=Opt (OptValue=literal)?       #FuncOptExpr
     | Input=expr '|' Func=expr                        #PipeExpr
     | Lhs=expr Op=anyBinaryOp Rhs=expr                #BinExpr

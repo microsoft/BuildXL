@@ -77,25 +77,6 @@ namespace BuildXL.Execution.Analyzer.JPath
             return TryParse(expr).Then(e => TryEval(evaluator, e));
         }
 
-        internal static Possible<string[]> GetCompletions(Evaluator evaluator, string str)
-        {
-            var lexer = new JPathLexer(new AntlrInputStream(str));
-            var parser = new JPathParser(new CommonTokenStream(lexer));
-            var listener = new JPathListener();
-            parser.AddErrorListener(listener);
-            var exprCst = parser.expr();
-
-            if (listener.HasErrors)
-            {
-                return new Failure<string>("Syntex error: " + listener.FirstError);
-            }
-
-            var exprAst = exprCst.Accept(new AstConverter());
-            var value = evaluator.Eval(exprAst);
-
-            return new[] { "hi", exprAst.Print(), value.Value.ToString() };
-        }
-
         private static Possible<JPathParser.ExprContext> TryParseInternal(string str)
         {
             var lexer = new JPathLexer(new AntlrInputStream(str));
@@ -107,7 +88,7 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             if (listener.HasErrors)
             {
-                return new Failure<string>("Syntex error: " + listener.FirstError);
+                return new Failure<string>("Syntax error: " + listener.FirstError);
             }
             else if (tokenStream.Index < tokenStream.Size - 1)
             {

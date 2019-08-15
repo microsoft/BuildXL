@@ -178,13 +178,6 @@ namespace BuildXL.Execution.Analyzer.JPath
             return new CardinalityExpr(context.Sub.Accept(this));
         }
 
-        public override Expr VisitFuncAppExpr([NotNull] JPathParser.FuncAppExprContext context)
-        {
-            return new FuncAppExpr(
-                func: context.Func.Accept(this), 
-                args: context.Arg.Accept(this));
-        }
-
         public override Expr VisitFuncAppExprParen([NotNull] JPathParser.FuncAppExprParenContext context)
         {
             return new FuncAppExpr(

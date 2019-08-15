@@ -228,7 +228,7 @@ namespace BuildXL.Execution.Analyzer
                         pathEntry => pathEntry.ToObservedPathEntry(pathTable)));
                 processStrongFingerprintComputationData.ObservedAccessedFileNames.AddRange(
                     strongFingerprintComputation.ObservedAccessedFileNames.Select(
-                        observedAccessedFileName => new Xldb.StringId() { Value = observedAccessedFileName.Value }));
+                        observedAccessedFileName => observedAccessedFileName.ToXldbString(pathTable)));
                 processStrongFingerprintComputationData.PriorStrongFingerprints.AddRange(
                     strongFingerprintComputation.PriorStrongFingerprints.Select(
                         priorStrongFingerprint => new StrongContentFingerPrint() { Hash = priorStrongFingerprint.Hash.ToFingerprint() }));
@@ -433,7 +433,7 @@ namespace BuildXL.Execution.Analyzer
             observedPathSet.Paths.AddRange(pathSet.Paths.Select(pathEntry => pathEntry.ToObservedPathEntry(pathTable)));
             observedPathSet.ObservedAccessedFileNames.AddRange(
                 pathSet.ObservedAccessedFileNames.Select(
-                    observedAccessedFileName => new Xldb.StringId() { Value = observedAccessedFileName.Value }));
+                    observedAccessedFileName => observedAccessedFileName.ToXldbString(pathTable)));
             observedPathSet.UnsafeOptions = pathSet.UnsafeOptions.ToUnsafeOptions();
 
             return observedPathSet;
@@ -475,6 +475,11 @@ namespace BuildXL.Execution.Analyzer
             }
 
             return unsafeOpt;
+        }
+
+        public static string ToXldbString(this StringId stringId, PathTable pathTable)
+        {
+            return stringId.IsValid ? stringId.ToString(pathTable.StringTable) : "";
         }
 
         /// <nodoc />
@@ -586,12 +591,12 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.PipData ToPipData(this PipData pipData)
+        public static Xldb.PipData ToPipData(this PipData pipData, PathTable pathTable)
         {
             return !pipData.IsValid ? null : new Xldb.PipData
             {
                 IsValid = pipData.IsValid,
-                FragmentSeparator = pipData.FragmentSeparator.ToString(),
+                FragmentSeparator = pipData.FragmentSeparator.ToXldbString(pathTable),
                 FragmentCount = pipData.FragmentCount,
                 FragmentEscaping = (PipDataFragmentEscaping)pipData.FragmentEscaping
             };
@@ -599,13 +604,13 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.PipProvenance ToPipProvenance(this PipProvenance provenance)
+        public static Xldb.PipProvenance ToPipProvenance(this PipProvenance provenance, PathTable pathTable)
         {
             return provenance == null ? null : new Xldb.PipProvenance()
             {
-                Usage = provenance.Usage.ToPipData(),
-                ModuleId = provenance.ModuleId.Value.Value,
-                ModuleName = provenance.ModuleName.ToString(),
+                Usage = provenance.Usage.ToPipData(pathTable),
+                ModuleId = provenance.ModuleId.Value.ToXldbString(pathTable),
+                ModuleName = provenance.ModuleName.ToXldbString(pathTable),
                 SemiStableHash = provenance.SemiStableHash
             };
         }
@@ -632,7 +637,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Pip ToPip(this Pip pip, DirectedGraph directedGraph)
+        public static Xldb.Pip ToPip(this Pip pip, PathTable pathTable, DirectedGraph directedGraph)
         {
             var xldbPip = new Xldb.Pip()
             {
@@ -641,12 +646,12 @@ namespace BuildXL.Execution.Analyzer
                 ProcessAllowsUndeclaredSourceReads = pip.ProcessAllowsUndeclaredSourceReads,
                 PipId = pip.PipId.Value,
                 PipType = (PipType)pip.PipType,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbPip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbPip.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             xldbPip.IncomingEdges.AddRange(directedGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Select(edge => edge.ToEdge()));
@@ -660,11 +665,11 @@ namespace BuildXL.Execution.Analyzer
             var xldbModulePip = new Xldb.ModulePip
             {
                 ParentPipInfo = parentPip,
-                Module = pip.Module.Value.Value,
-                Identity = pip.Identity.ToString(),
-                ResolverKind = pip.ResolverKind.ToString(),
-                ResolverName = pip.ResolverName.ToString(),
-                Version = pip.Version.ToString(),
+                Module = pip.Module.Value.ToXldbString(pathTable),
+                Identity = pip.Identity.ToXldbString(pathTable),
+                ResolverKind = pip.ResolverKind.ToXldbString(pathTable),
+                ResolverName = pip.ResolverName.ToXldbString(pathTable),
+                Version = pip.Version.ToXldbString(pathTable),
                 Location = new Xldb.LocationData()
                 {
                     IsValid = pip.Location.IsValid,
@@ -672,13 +677,13 @@ namespace BuildXL.Execution.Analyzer
                     Path = pip.Location.Path.ToAbsolutePath(pathTable),
                     Position = pip.Location.Position
                 },
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbModulePip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbModulePip.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbModulePip;
@@ -697,18 +702,18 @@ namespace BuildXL.Execution.Analyzer
                 IsInitialzed = pip.IsInitialized,
                 Directory = pip.Directory.ToDirectoryArtifact(pathTable),
                 IsSealSourceDirectory = pip.IsSealSourceDirectory,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
 
             };
 
-            xldbSealDirectory.Patterns.AddRange(pip.Patterns.Select(key => key.ToString()));
+            xldbSealDirectory.Patterns.AddRange(pip.Patterns.Select(key => key.ToXldbString(pathTable)));
             xldbSealDirectory.Contents.AddRange(pip.Contents.Select(file => file.ToFileArtifact(pathTable)));
             xldbSealDirectory.ComposedDirectories.AddRange(pip.ComposedDirectories.Select(dir => dir.ToDirectoryArtifact(pathTable)));
 
             if (pip.Tags.IsValid)
             {
-                xldbSealDirectory.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbSealDirectory.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbSealDirectory;
@@ -723,13 +728,13 @@ namespace BuildXL.Execution.Analyzer
                 Source = pip.Source.ToFileArtifact(pathTable),
                 Destination = pip.Destination.ToFileArtifact(pathTable),
                 OutputsMustRemainWritable = pip.OutputsMustRemainWritable,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbCopyFile.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbCopyFile.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbCopyFile;
@@ -742,15 +747,15 @@ namespace BuildXL.Execution.Analyzer
             {
                 ParentPipInfo = parentPip,
                 Destination = pip.Destination.ToFileArtifact(pathTable),
-                Contents = pip.Contents.ToPipData(),
+                Contents = pip.Contents.ToPipData(pathTable),
                 Encoding = (WriteFileEncoding)pip.Encoding,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbWriteFile.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbWriteFile.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbWriteFile;
@@ -765,11 +770,11 @@ namespace BuildXL.Execution.Analyzer
                 ProcessOptions = (Options)pip.ProcessOptions,
                 ProcessAbsentPathProbeInUndeclaredOpaquesMode = (AbsentPathProbeInUndeclaredOpaquesMode)pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode,
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
-                StandardInputData = pip.StandardInputData.ToPipData(),
+                StandardInputData = pip.StandardInputData.ToPipData(pathTable),
                 StandardInput = new StandardInput()
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable),
-                    Data = pip.StandardInput.Data.ToPipData(),
+                    Data = pip.StandardInput.Data.ToPipData(pathTable),
                     IsValid = pip.StandardInput.IsValid
                 },
                 StandardOutput = pip.StandardOutput.ToFileArtifact(pathTable),
@@ -778,20 +783,20 @@ namespace BuildXL.Execution.Analyzer
                 UniqueOutputDirectory = pip.UniqueOutputDirectory.ToAbsolutePath(pathTable),
                 UniqueRedirectedDirectoryRoot = pip.UniqueRedirectedDirectoryRoot.ToAbsolutePath(pathTable),
                 ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable),
-                ResponseFileData = pip.ResponseFileData.ToPipData(),
+                ResponseFileData = pip.ResponseFileData.ToPipData(pathTable),
                 Executable = pip.Executable.ToFileArtifact(pathTable),
-                ToolDescription = pip.ToolDescription.ToString(),
+                ToolDescription = pip.ToolDescription.ToXldbString(pathTable),
                 WorkingDirectory = pip.WorkingDirectory.ToAbsolutePath(pathTable),
-                Arguments = pip.Arguments.ToPipData(),
+                Arguments = pip.Arguments.ToPipData(pathTable),
                 WarningRegex = new RegexDescriptor()
                 {
-                    Pattern = pip.WarningRegex.Pattern.ToString(),
+                    Pattern = pip.WarningRegex.Pattern.ToXldbString(pathTable),
                     Options = (RegexOptions)pip.WarningRegex.Options,
                     IsValid = pip.WarningRegex.IsValid
                 },
                 ErrorRegex = new RegexDescriptor()
                 {
-                    Pattern = pip.ErrorRegex.Pattern.ToString(),
+                    Pattern = pip.ErrorRegex.Pattern.ToXldbString(pathTable),
                     Options = (RegexOptions)pip.ErrorRegex.Options,
                     IsValid = pip.ErrorRegex.IsValid
                 },
@@ -800,7 +805,7 @@ namespace BuildXL.Execution.Analyzer
                 Priority = pip.Priority,
                 TestRetries = pip.TestRetries,
                 IsStartOrShutdownKind = pip.IsStartOrShutdownKind,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType,
                 HasUntrackedChildProcesses = pip.HasUntrackedChildProcesses,
                 ProducesPathIndependentOutputs = pip.ProducesPathIndependentOutputs,
@@ -845,7 +850,7 @@ namespace BuildXL.Execution.Analyzer
 
             xldbProcessPip.ServiceInfo = serviceInfo;
             xldbProcessPip.EnvironmentVariable.AddRange(pip.EnvironmentVariables.Select(
-                envVar => new EnvironmentVariable() { Name = envVar.Name.ToString(), Value = envVar.Value.ToPipData(), IsPassThrough = envVar.IsPassThrough }));
+                envVar => new EnvironmentVariable() { Name = envVar.Name.ToXldbString(pathTable), Value = envVar.Value.ToPipData(pathTable), IsPassThrough = envVar.IsPassThrough }));
             xldbProcessPip.Dependencies.AddRange(pip.Dependencies.Select(file => file.ToFileArtifact(pathTable)));
             xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.OrderDependencies.AddRange(pip.OrderDependencies.Select(order => order.Value));
@@ -858,14 +863,14 @@ namespace BuildXL.Execution.Analyzer
                 { IsValid = output.IsValid, Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.FileExistence)output.FileExistence }));
             xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.Semaphores.AddRange(pip.Semaphores.Select(
-                semaphore => new ProcessSemaphoreInfo() { Name = semaphore.Name.ToString(), Value = semaphore.Value, Limit = semaphore.Limit, IsValid = semaphore.IsValid }));
+                semaphore => new ProcessSemaphoreInfo() { Name = semaphore.Name.ToXldbString(pathTable), Value = semaphore.Value, Limit = semaphore.Limit, IsValid = semaphore.IsValid }));
             xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable)));
             xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable)));
             xldbProcessPip.ServicePipDependencies.AddRange(pip.ServicePipDependencies.Select(dep => dep.Value));
 
             if (pip.Tags.IsValid)
             {
-                xldbProcessPip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbProcessPip.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbProcessPip;
@@ -878,13 +883,13 @@ namespace BuildXL.Execution.Analyzer
             {
                 ParentPipInfo = parentPip,
                 Artifact = pip.Artifact.ToFileArtifact(pathTable),
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbHashSourceFile.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbHashSourceFile.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbHashSourceFile;
@@ -904,14 +909,14 @@ namespace BuildXL.Execution.Analyzer
                     Path = pip.DefinitionLocation.Path.ToAbsolutePath(pathTable),
                     Position = pip.DefinitionLocation.Position
                 },
-                OwningModule = pip.OwningModule.Value.Value,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                OwningModule = pip.OwningModule.Value.ToXldbString(pathTable),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbSpecFilePip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbSpecFilePip.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             return xldbSpecFilePip;
@@ -925,24 +930,24 @@ namespace BuildXL.Execution.Analyzer
                 ParentPipInfo = parentPip,
                 IpcInfo = new IpcClientInfo()
                 {
-                    IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(),
+                    IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToXldbString(pathTable),
                     IpcClientConfig = new ClientConfig()
                     {
                         MaxConnectRetries = pip.IpcInfo.IpcClientConfig.MaxConnectRetries,
                         ConnectRetryDelay = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(pip.IpcInfo.IpcClientConfig.ConnectRetryDelay)
                     }
                 },
-                MessageBody = pip.MessageBody.ToPipData(),
+                MessageBody = pip.MessageBody.ToPipData(pathTable),
                 OutputFile = pip.OutputFile.ToFileArtifact(pathTable),
                 IsServiceFinalization = pip.IsServiceFinalization,
                 MustRunOnMaster = pip.MustRunOnMaster,
-                Provenance = pip.Provenance.ToPipProvenance(),
+                Provenance = pip.Provenance.ToPipProvenance(pathTable),
                 PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
             {
-                xldbIpcPip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                xldbIpcPip.Tags.AddRange(pip.Tags.Select(key => key.ToXldbString(pathTable)));
             }
 
             xldbIpcPip.ServicePipDependencies.AddRange(pip.ServicePipDependencies.Select(pipId => pipId.Value));
@@ -996,7 +1001,7 @@ namespace BuildXL.Execution.Analyzer
                 FileCount = pipGraph.FileCount,
                 ContentCount = pipGraph.ContentCount,
                 ArtifactContentCount = pipGraph.ArtifactContentCount,
-                ApiServerMoniker = new Xldb.StringId() { Value = pipGraph.ApiServerMoniker.Value }
+                ApiServerMoniker = pipGraph.ApiServerMoniker.ToXldbString(pathTable)
             };
 
             xldbPipGraph.AllFilesAndProducers.AddRange(pipGraph.AllFilesAndProducers.Select(kvp => new FileArtifactMap()
@@ -1017,7 +1022,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var kvp in pipGraph.Modules)
             {
-                xldbPipGraph.Modules.Add(kvp.Key.Value.Value, new Xldb.NodeId() { IsValid = kvp.Value.IsValid, Value = kvp.Value.Value });
+                xldbPipGraph.Modules.Add(kvp.Key.Value.ToXldbString(pathTable), new Xldb.NodeId() { IsValid = kvp.Value.IsValid, Value = kvp.Value.Value });
             }
 
             return xldbPipGraph;

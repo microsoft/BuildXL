@@ -518,7 +518,7 @@ namespace BuildXL.Execution.Analyzer
                     }
 
                     var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
-                    var xldbPip = hydratedPip.ToPip(CachedGraph.DataflowGraph);
+                    var xldbPip = hydratedPip.ToPip(PathTable, CachedGraph.DataflowGraph);
                     var pipType = hydratedPip.PipType;
                     IMessage xldbSpecificPip = xldbPip;
 

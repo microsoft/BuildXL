@@ -145,7 +145,7 @@ message PipGraph{
 
     repeated FileArtifactMap SpecFiles = 12;
 
-    map<int32, NodeId> Modules = 13;
+    map<string, NodeId> Modules = 13;
 
-    StringId ApiServerMoniker = 14;
+    string ApiServerMoniker = 14;
 }

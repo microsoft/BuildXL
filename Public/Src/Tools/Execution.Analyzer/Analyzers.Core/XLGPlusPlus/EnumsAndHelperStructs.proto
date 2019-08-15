@@ -742,10 +742,6 @@ message UnsafeOptions{
     UnsafeSandboxConfiguration UnsafeConfiguration = 2;
 }
 
-message StringId{
-    int32 Value = 1;
-}
-
 message ObservedInput{
     ObservedInputType Type = 1;
 
@@ -765,7 +761,7 @@ message ObservedInput{
 message ObservedPathSet{
     repeated ObservedPathEntry Paths = 1;
 
-    repeated StringId ObservedAccessedFileNames = 2;
+    repeated string ObservedAccessedFileNames = 2;
 
     UnsafeOptions UnsafeOptions = 3;
 }
@@ -779,7 +775,7 @@ message ProcessStrongFingerprintComputationData{
 
     UnsafeOptions UnsafeOptions = 4;
 
-    repeated StringId ObservedAccessedFileNames = 5;
+    repeated string ObservedAccessedFileNames = 5;
 
     repeated StrongContentFingerPrint PriorStrongFingerprints = 6;
 
@@ -849,7 +845,7 @@ message Pip{
 message PipProvenance{
     PipData Usage = 1;
 
-    int32 ModuleId = 2;
+    string ModuleId = 2;
 
     string ModuleName = 3;
 
@@ -1011,7 +1007,7 @@ message CopyFile{
 message ModulePip{
     Pip ParentPipInfo = 1;
 
-    int32 Module = 2;
+    string Module = 2;
 
     string Identity = 3;
 
@@ -1082,7 +1078,7 @@ message SpecFilePip{
 
     LocationData DefinitionLocation = 3;
 
-    int32 OwningModule = 4;
+    string OwningModule = 4;
 
     // Overridden Member Variables
     repeated string Tags = 5;

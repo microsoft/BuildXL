@@ -4,16 +4,17 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{DCF57FCC-2C1C-48B8-BA47-5D383E7EC2BF}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ContentPlacementAnalysisTools.Core</RootNamespace>
-    <AssemblyName>ContentPlacementAnalysisTools.Core</AssemblyName>
+    <ProjectGuid>{1F3ACEEB-DEF0-4A5D-BEE4-489609565FD1}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ContentPlacementAnalysisTools.Extraction</RootNamespace>
+    <AssemblyName>cptools.builddownloader</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -23,6 +24,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -30,13 +32,20 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\out\frontend\Nuget\pkgs\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
+      <HintPath>..\..\..\..\..\Out\VS\packages\NLog.4.6.6\lib\net45\NLog.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -45,14 +54,28 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BxlBuild.cs" />
-    <Compile Include="TimedAction.cs" />
+    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="ContentPlacementAnalysisTools.Core.dsc" />
+    <Content Include="ContentPlacementAnalysisTools.Extraction.dsc" />
+    <None Include="cptools.builddownloader.exe.nlog" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Action\BuildDownloader.cs" />
+    <Compile Include="Main\BuildDownloader.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Utilities\ToolSupport\BuildXL.ToolSupport.g.csproj">
+      <Project>{31A8EC98-697C-A53E-1D3A-9234C373F076}</Project>
+      <Name>BuildXL.ToolSupport.g</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ContentPlacementAnalysisTools.Core\ContentPlacementAnalysisTools.Core.csproj">
+      <Project>{dcf57fcc-2c1c-48b8-ba47-5d383e7ec2bf}</Project>
+      <Name>ContentPlacementAnalysisTools.Core</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -48,6 +49,7 @@ namespace BuildXL.Pips.Operations
 
         private volatile int m_totalPipsToDeserialize = 0;
         private volatile int m_totalPipsToSerialize = 0;
+        private volatile int m_serializedPipCount = 0;
         
         /// <summary>
         /// Detailed statistics of serialization and deserialization.
@@ -87,19 +89,8 @@ namespace BuildXL.Pips.Operations
                 int totalPipsRead = 0;
                 while (totalPipsRead < m_totalPipsToDeserialize)
                 {
-                    var pip = Pip.Deserialize(reader);
-
-                    // Pip id is not deserialized when pip is deserialized.
-                    // Pip id must be read separately. To be able to add a pip to the graph, the pip id of the pip
-                    // is assumed to be unset, and is set when the pip gets inserted into the pip table.
-                    // Thus, one should not assign the pip id of the deserialized pip with the deserialized pip id.
-                    // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
-                    // remaps the pip id to a new pip id.
-                    var pipId = new PipId(reader.ReadUInt32());
-
-                    var success = handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, pipId, pip);
-
-                    if (success.HasValue & !success.Value)
+                    var deserializedPips = new List<(Pip, PipId)>();
+                    while (true)
                     {
                         var pip = Pip.Deserialize(reader);
 
@@ -133,7 +124,6 @@ namespace BuildXL.Pips.Operations
                         Stats.Increment(deserializedPip.Item1, serialize: false);
                     });
                 }
-                
             }
 
             return successful;
@@ -155,6 +145,7 @@ namespace BuildXL.Pips.Operations
                 writer.WriteNullableString(FragmentDescription);
 
                 writer.Write(totalPipCount);
+                m_serializedPipCount = 0;
                 foreach (var pipGroup in pipsToSerialize)
                 {
                     int i = 0;
@@ -175,51 +166,10 @@ namespace BuildXL.Pips.Operations
                         }
 
                         i++;
+                        Interlocked.Increment(ref m_serializedPipCount);
                         Stats.Increment(pip, serialize: true);
                     }
                 }
-                else
-                {
-                    Interlocked.Increment(ref m_deserializedPipCount);
-                }
-
-                ++m_pips[(int)pip.PipType];
-
-                if (pip.PipType == PipType.Process)
-                {
-                    Process process = pip as Process;
-                    if (process.ServiceInfo != null && process.ServiceInfo != ServiceInfo.None)
-                    {
-                        ++m_serviceKinds[(int)process.ServiceInfo.Kind];
-                    }
-                }
-            }
-
-            /// <inheritdoc />
-            public override string ToString()
-            {
-                var builder = new StringBuilder();
-                builder.AppendLine();
-                builder.AppendLine($"    Serialized pips: {PipsSerialized}");
-                builder.AppendLine($"    Deserialized pips: {PipsDeserialized}");
-                for (int i = 0; i < m_pips.Length; ++i)
-                {
-                    PipType pipType = (PipType)i;
-                    builder.AppendLine($"    {pipType.ToString()}: {m_pips[i]}");
-                    if (pipType == PipType.Process)
-                    {
-                        for (int j = 0; j < m_serviceKinds.Length; ++j)
-                        {
-                            ServicePipKind servicePipKind = (ServicePipKind)j;
-                            if (servicePipKind != ServicePipKind.None)
-                            {
-                                builder.AppendLine($"        {servicePipKind.ToString()}: {m_serviceKinds[j]}");
-                            }
-                        }
-                    }
-                }
-
-                return builder.ToString();
             }
         }
 

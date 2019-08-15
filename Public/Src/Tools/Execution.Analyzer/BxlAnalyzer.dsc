@@ -27,6 +27,7 @@ namespace Execution.Analyzer {
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll
             ),
+            Tools.ContentPlacement.dll,
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,
             importFrom("Antlr4.Runtime.Standard").pkg,

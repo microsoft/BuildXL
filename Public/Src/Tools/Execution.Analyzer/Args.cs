@@ -625,8 +625,11 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine("");
             WriteXLGToDBHelp(writer);
 
+            //writer.WriteLine("");
+            //WriteDominoInvocationHelp(writer);
+
             writer.WriteLine("");
-            WriteDebugLogsAnalyzerHelp(writer);
+            WriteContentPlacementAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

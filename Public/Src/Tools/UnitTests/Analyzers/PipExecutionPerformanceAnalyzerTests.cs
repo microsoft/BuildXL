@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Execution.Analyzer;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -25,10 +26,10 @@ namespace Test.Tool.Analyzers
         {
             char quote = '"';
             char slash = '\\';
-            Assert.True(("" + slash + slash).Equals(PipExecutionPerformanceAnalyzer.NormalizeString("" + slash)));
-            Assert.True(("" + slash + quote).Equals(PipExecutionPerformanceAnalyzer.NormalizeString("" + quote)));
-            Assert.True(("" + slash + slash + slash + quote).Equals(PipExecutionPerformanceAnalyzer.NormalizeString("" + slash + quote)));
-            Assert.True(("" + slash + slash + slash + slash + slash + quote).Equals(PipExecutionPerformanceAnalyzer.NormalizeString("" + slash + slash + quote)));
+            XAssert.AreEqual($"{slash}{slash}", PipExecutionPerformanceAnalyzer.NormalizeString($"{slash}"));
+            XAssert.AreEqual($"{slash}{quote}", PipExecutionPerformanceAnalyzer.NormalizeString($"{quote}"));
+            XAssert.AreEqual($"{slash}{slash}{slash}{quote}", PipExecutionPerformanceAnalyzer.NormalizeString($"{slash}{quote}"));
+            XAssert.AreEqual($"{slash}{slash}{slash}{slash}{slash}{quote}", PipExecutionPerformanceAnalyzer.NormalizeString($"{slash}{slash}{quote}"));
         }
 
     }

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
@@ -19,10 +19,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
     /// <summary>
     /// Responsible for evaluating expressions in 'immediate' mode
     /// </summary>
-    public sealed class ExpressionEvaluator
+    public sealed class DScriptExprEvaluator : IExpressionEvaluator
     {
-        private readonly DebuggerState m_state;
-
         // The logger is reused across invocations, so it needs to be cleared out before parsing/evaluation occurs
         private readonly Logger m_logger = Logger.CreateLogger(preserveLogEvents: true, forwardDiagnosticsTo: null, notifyContextWhenErrorsAreLogged: false);
 
@@ -31,17 +29,15 @@ namespace BuildXL.FrontEnd.Script.Debugger
         private static RuntimeModelFactory s_parser;
 
         /// <nodoc />
-        public ExpressionEvaluator(DebuggerState state)
+        public DScriptExprEvaluator(LoggingContext loggingContext)
         {
-            m_state = state;
-
             var configuration = new AstConversionConfiguration(
                 policyRules: Enumerable.Empty<string>(),
                 disableLanguagePolicies: false);
 
             s_parser = new RuntimeModelFactory(
                 m_logger,
-                m_state.LoggingContext,
+                loggingContext,
                 new FrontEndStatistics(),
                 configuration,
                 workspace: null);
@@ -50,11 +46,11 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <summary>
         /// Evaluates an expression in the current debugger state context
         /// </summary>
-        internal Possible<ObjectContext, EvaluateFailure> EvaluateExpression(FrameContext frameContext, string expressionString)
+        public Possible<ObjectContext, Failure> EvaluateExpression(ThreadState threadState, int frameIndex, string expressionString, bool evaluateForCompletions)
         {
-            var evalState = (EvaluationState)m_state.GetThreadState(frameContext.ThreadId);
+            var evalState = (EvaluationState)threadState;
             var context = evalState.Context;
-            var moduleLiteral = evalState.GetEnvForFrame(frameContext.FrameIndex);
+            var moduleLiteral = evalState.GetEnvForFrame(frameIndex);
 
             var frontEnd = new DScriptFrontEnd(new FrontEndStatistics());
             frontEnd.InitializeFrontEnd(context.FrontEndHost, context.FrontEndContext, s_configuration);
@@ -73,7 +69,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
             // We recreate the local scope so the expression is parsed using the same local variables indexes
             // than the context where it is going to be evaluated
-            var localScope = BuildLocalScopeForLocalVars(context, evalState.GetStackEntryForFrame(frameContext.FrameIndex));
+            var localScope = BuildLocalScopeForLocalVars(context, evalState.GetStackEntryForFrame(frameIndex));
             var expression = s_parser.ParseExpression(runtimeModelContext, context.Package.Path, expressionString, localScope, useSemanticNameResolution: false);
 
             // If parsing failed, we report it and return
@@ -97,7 +93,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             // We temporary override the context logger so it doesn't affect the normal evaluation
             using (var expressionContext = new SnippetEvaluationContext(context, m_logger))
             {
-                expressionResult = expression.Eval(expressionContext.GetContextForSnippetEvaluation(), moduleLiteral, evalState.GetArgsForFrame(frameContext.FrameIndex)).Value;
+                expressionResult = expression.Eval(expressionContext.GetContextForSnippetEvaluation(), moduleLiteral, evalState.GetArgsForFrame(frameIndex)).Value;
 
                 // If evaluation failed, we report it and return
                 if (expressionResult.IsErrorValue())
@@ -156,7 +152,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     }
 
     /// <summary>
-    /// Auxiliary implementation of <see cref="Failure"/>, used by <see cref="ExpressionEvaluator.EvaluateExpression"/>
+    /// Auxiliary implementation of <see cref="Failure"/>
     /// </summary>
     internal sealed class EvaluateFailure : Failure
     {

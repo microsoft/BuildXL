@@ -141,7 +141,9 @@ namespace BuildXL
             var confPort = Configuration.FrontEnd.DebuggerPort();
             var debugServerPort = confPort != 0 ? confPort : DebugServer.DefaultDebugPort;
             var pathTranslator = GetPathTranslator(Configuration.Logging, pathTable);
-            var debugServer = new DebugServer(LoggingContext, pathTable, pathTranslator, debugServerPort);
+            var debugState = new DebuggerState(pathTable, LoggingContext, DScriptDebugerRenderer.Render, new DScriptExprEvaluator(LoggingContext));
+            var debugServer = new DebugServer(LoggingContext, debugServerPort, 
+                (debugger) => new DebugSession(debugState, pathTranslator, debugger));
             Task<IDebugger> debuggerTask = debugServer.StartAsync();
             var evaluationDecorator = new LazyDecorator(debuggerTask, Configuration.FrontEnd.DebuggerBreakOnExit());
             var frontEndFactory = new FrontEndFactory();

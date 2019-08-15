@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace ContentPlamentAnalysisTools.Core
 {
@@ -29,10 +31,17 @@ namespace ContentPlamentAnalysisTools.Core
         /// </summary>
         public int TotalPips { get; set; }
         /// <summary>
+        /// Total number of artifacts in this build
+        /// </summary>
+        public int TotalArtifacts { get; set; }
+        /// <summary>
+        /// Total number of artifacts in this sample
+        /// </summary>
+        public int SampledArtifacts { get; set; }
+        /// <summary>
         /// Collected file artifacts
         /// </summary>
         public List<BxlArtifact> Artifacts { get; set; } = new List<BxlArtifact>();
-
         /// <summary>
         /// Utility method to write a json attr to a json stream
         /// </summary>
@@ -41,6 +50,11 @@ namespace ContentPlamentAnalysisTools.Core
             writer.WritePropertyName(name);
             writer.WriteValue(value);
         }
+
+        /// <summary>
+        /// Utility method to read a property from a json reader
+        /// </summary>
+        public static Tuple<string, string> ReadNextProperty(JsonTextReader reader) => new Tuple<string, string>(reader.ReadAsString(), reader.ReadAsString());
 
         /// <summary>
         /// Writes a build to a json file using a stream
@@ -53,6 +67,8 @@ namespace ContentPlamentAnalysisTools.Core
             WriteJsonPropertyToStream(writer, "BuildStartTimeTicks", BuildStartTimeTicks);
             WriteJsonPropertyToStream(writer, "BuildDurationMs", BuildDurationMs);
             WriteJsonPropertyToStream(writer, "TotalPips", TotalPips);
+            WriteJsonPropertyToStream(writer, "TotalArtifacts", TotalArtifacts);
+            WriteJsonPropertyToStream(writer, "SampledArtifacts", SampledArtifacts);
             writer.WritePropertyName("Artifacts");
             writer.WriteStartArray();
             foreach (var artifact in Artifacts)
@@ -61,6 +77,51 @@ namespace ContentPlamentAnalysisTools.Core
             }
             writer.WriteEndArray();
             writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Utility method to create a bxl build from a json file. The attrs are read in
+        /// the same order they are writen
+        /// </summary>
+        public static BxlBuild ReadFromJsonStream(JsonTextReader reader)
+        {
+            BxlBuild output = null;
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.StartObject)
+                {
+                    // here does this guy starts. This guy has several properties that we will read,
+                    // but also has two lists inside. We have to respect the ordering here.
+                    var bi = ReadNextProperty(reader);
+                    var bq = ReadNextProperty(reader);
+                    var bst = ReadNextProperty(reader);
+                    var bd = ReadNextProperty(reader);
+                    var tp = ReadNextProperty(reader);
+                    var ta = ReadNextProperty(reader);
+                    var sa = ReadNextProperty(reader);
+                    output = new BxlBuild()
+                    {
+                        BuidId = bi.Item2,
+                        BuildQueue = bq.Item2,
+                        BuildStartTimeTicks = Convert.ToInt64(bst.Item2),
+                        BuildDurationMs = Convert.ToDouble(bd.Item2),
+                        TotalPips = Convert.ToInt32(tp.Item2),
+                        TotalArtifacts = Convert.ToInt32(ta.Item2),
+                        SampledArtifacts = Convert.ToInt32(sa.Item2)
+                    };
+                    // now, read another property name, an array start and the the artifacts
+                    reader.Read();
+                    reader.Read();
+                    output.Artifacts = BxlArtifact.ReadFromJsonStream(reader, output.SampledArtifacts);
+                    // read an array end
+                    reader.Read();
+                }
+                if (reader.TokenType == JsonToken.EndObject)
+                {
+                    break;
+                }
+            }
+            return output;
         }
     }
 
@@ -124,6 +185,65 @@ namespace ContentPlamentAnalysisTools.Core
                 pip.WriteToJsonStream(writer);
             }
             writer.WriteEndArray();
+        }
+
+        /// <summary>
+        /// Utility method to create a bxl pip artifact from a json file. The attrs are read in
+        /// the same order they are writen
+        /// </summary>
+        public static BxlArtifact ReadFromJsonStream(JsonTextReader reader)
+        {
+            var output = new BxlArtifact();
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.StartObject)
+                {
+                    // here does this guy starts. This guy has several properties that we will read,
+                    // but also has two lists inside. We have to respect the ordering here.
+                    var ha = BxlBuild.ReadNextProperty(reader);
+                    var rf = BxlBuild.ReadNextProperty(reader);
+                    var rs = BxlBuild.ReadNextProperty(reader);
+                    // read these two, but no assignment since its a computed property...
+                    var nip = BxlBuild.ReadNextProperty(reader);
+                    var nop = BxlBuild.ReadNextProperty(reader);
+                    output.Hash = ha.Item2;
+                    output.ReportedFile = rf.Item2;
+                    output.ReportedSize = Convert.ToInt64(rs.Item2);
+                    var ipips = Convert.ToInt32(nip.Item2);
+                    var opips = Convert.ToInt32(nop.Item2);
+                    // we need to read a name and then start array token
+                    reader.Read();
+                    reader.Read();
+                    output.InputPips = BxlPipData.ReadFromJsonStream(reader, ipips);
+                    // we need to read an end array token
+                    reader.Read();
+                    // we need to read a name and then start array token
+                    reader.Read();
+                    reader.Read();
+                    output.OutputPips = BxlPipData.ReadFromJsonStream(reader, opips);
+                    // we need to read an end array token
+                    reader.Read();
+                }
+                if (reader.TokenType == JsonToken.EndObject)
+                {
+                    break;
+                }
+            }
+            return output;
+        }
+
+        /// <summary>
+        /// Utility method to create a lost of bxl pip artifact from a json file. The attrs are read in
+        /// the same order they are writen
+        /// </summary>
+        public static List<BxlArtifact> ReadFromJsonStream(JsonTextReader reader, int count)
+        {
+            var output = new List<BxlArtifact>();
+            for(int i = 0; i < count; ++i)
+            {
+                output.Add(ReadFromJsonStream(reader));
+            }
+            return output;
         }
     }
 
@@ -201,5 +321,64 @@ namespace ContentPlamentAnalysisTools.Core
             writer.WriteEndObject();
         }
 
+        /// <summary>
+        /// Utility method to create a bxl pip data from a json file. The attrs are read in
+        /// the same order they are writen
+        /// </summary>
+        public static BxlPipData ReadFromJsonStream(JsonTextReader reader)
+        {
+            BxlPipData output = null;
+            while (reader.Read())
+            {
+                if(reader.TokenType == JsonToken.StartObject)
+                {
+                    // here does this guy starts. This guy has several properties that we will read
+                    var ssh = BxlBuild.ReadNextProperty(reader);
+                    var pr = BxlBuild.ReadNextProperty(reader);
+                    var we = BxlBuild.ReadNextProperty(reader);
+                    var tc = BxlBuild.ReadNextProperty(reader);
+                    var dc = BxlBuild.ReadNextProperty(reader);
+                    var ic = BxlBuild.ReadNextProperty(reader);
+                    var oc = BxlBuild.ReadNextProperty(reader);
+                    var sc = BxlBuild.ReadNextProperty(reader);
+                    var stt = BxlBuild.ReadNextProperty(reader);
+                    var ty = BxlBuild.ReadNextProperty(reader);
+                    var el = BxlBuild.ReadNextProperty(reader);
+                    output = new BxlPipData()
+                    {
+                        SemiStableHash = ssh.Item2,
+                        Priority = Convert.ToInt32(pr.Item2),
+                        Weight = Convert.ToInt32(we.Item2),
+                        TagCount = Convert.ToInt32(tc.Item2),
+                        DependencyCount = Convert.ToInt32(dc.Item2),
+                        InputCount = Convert.ToInt32(ic.Item2),
+                        OutputCount = Convert.ToInt32(oc.Item2),
+                        SemaphoreCount = Convert.ToInt32(sc.Item2),
+                        StartTimeTicks = Convert.ToInt64(stt.Item2),
+                        Type = ty.Item2,
+                        ExecutionLevel =el.Item2
+                    };
+                }
+                if (reader.TokenType == JsonToken.EndObject)
+                {
+                    break;
+                }
+            }
+            return output;
+        }
+
+        /// <summary>
+        /// Utility method to create a list of bxl pip data from a json file. The attrs are read in
+        /// the same order they are writen, and you have to specify how many you will read
+        /// </summary>
+        public static List<BxlPipData> ReadFromJsonStream(JsonTextReader reader, int count)
+        {
+            var output = new List<BxlPipData>();
+            for(int i = 0; i < count; ++i)
+            {
+                output.Add(ReadFromJsonStream(reader));
+            }
+            return output;
+        }
     }
 }

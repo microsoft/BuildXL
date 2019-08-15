@@ -33,6 +33,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using ContractUtilities = BuildXL.Cache.ContentStore.Utils.ContractUtilities;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
@@ -154,6 +155,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly ContentStoreInternalTracer _tracer = new ContentStoreInternalTracer();
 
         private readonly ConfigurationModel _configurationModel;
+        private readonly CounterCollection<Counter> _counters = new CounterCollection<Counter>();
 
         private readonly AbsolutePath _contentRootDirectory;
         private readonly AbsolutePath _tempFolder;
@@ -884,6 +886,48 @@ namespace BuildXL.Cache.ContentStore.Stores
             return PutFileImplAsync(context, path, realizationMode, contentHash, pinRequest);
         }
 
+        private async Task<PutResult> TryPutFileFastAsync(
+            Context context, 
+            AbsolutePath path, 
+            FileRealizationMode realizationMode, 
+            ContentHash contentHash, 
+            PinRequest? pinRequest, 
+            bool shouldAttemptHardLink)
+        {
+            // Fast path:
+            // If hardlinking existing content which has already been pinned in this context
+            // just quickly attempt to hardlink from and existing replica
+            if (shouldAttemptHardLink
+                && ContentDirectory.TryGetFileInfo(contentHash, out var fileInfo)
+                && IsPinned(contentHash, pinRequest)
+                && _settings.UseRedundantPutFileShortcut)
+            {
+                using (_counters[Counter.PutFileFast].Start())
+                {
+                    CheckPinned(contentHash, pinRequest);
+                    fileInfo.UpdateLastAccessed(Clock);
+                    var placeLinkResult = await PlaceLinkFromCacheAsync(
+                                        context,
+                                        path,
+                                        FileReplacementMode.ReplaceExisting,
+                                        realizationMode,
+                                        contentHash,
+                                        fileInfo,
+                                        fastPath: true);
+
+                    if (placeLinkResult == CreateHardLinkResult.Success)
+                    {
+                        return new PutResult(contentHash, fileInfo.FileSize)
+                        {
+                            Diagnostics = "FastPath"
+                        };
+                    }
+                }
+            }
+
+            return null;
+        }
+
         private Task<PutResult> PutFileImplAsync(
             Context context, AbsolutePath path, FileRealizationMode realizationMode, ContentHash contentHash, PinRequest? pinRequest, Func<Stream, Stream> wrapStream = null)
         {
@@ -892,6 +936,12 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 PinContext pinContext = pinRequest?.PinContext;
                 bool shouldAttemptHardLink = ShouldAttemptHardLink(path, FileAccessMode.ReadOnly, realizationMode);
+
+                var putResult = await TryPutFileFastAsync(context, path, realizationMode, contentHash, pinRequest, shouldAttemptHardLink);
+                if (putResult != null)
+                {
+                    return putResult;
+                }
 
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
                 {
@@ -994,13 +1044,20 @@ namespace BuildXL.Cache.ContentStore.Stores
                 return new PutResult(content.Hash, 0L);
             }
 
+            bool shouldAttemptHardLink = ShouldAttemptHardLink(path, FileAccessMode.ReadOnly, realizationMode);
+            var putResult = await TryPutFileFastAsync(context, path, realizationMode, content.Hash, pinRequest, shouldAttemptHardLink);
+            if (putResult != null)
+            {
+                return putResult;
+            }
+
             using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(content.Hash))
             {
                 CheckPinned(content.Hash, pinRequest);
                 PinContext pinContext = pinRequest?.PinContext;
                 var stopwatch = new Stopwatch();
 
-                if (ShouldAttemptHardLink(path, FileAccessMode.ReadOnly, realizationMode))
+                if (shouldAttemptHardLink)
                 {
                     bool putInternalSucceeded = await PutContentInternalAsync(
                         context,
@@ -1138,6 +1195,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 var counters = new CounterSet();
                 counters.Merge(_tracer.GetCounters(), $"{Component}.");
+                counters.Merge(_counters.ToCounterSet(), $"{Component}.");
+                counters.Add($"{Component}.LockWaitMs", (long)_lockSet.TotalLockWaitTime.TotalMilliseconds);
 
                 if (StartupCompleted)
                 {
@@ -1785,6 +1844,12 @@ namespace BuildXL.Cache.ContentStore.Stores
                 FileAttributes.Temporary | FileAttributes.Device | FileAttributes.Directory |
                 FileAttributes.NotContentIndexed | FileAttributes.ReparsePoint | FileAttributes.Hidden;
             return FileSystem.FileAttributesAreSubset(path, ignoredFileAttributes);
+        }
+
+        private enum Counter
+        {
+            [CounterType(CounterType.Stopwatch)]
+            PutFileFast,
         }
 
         private enum ForEachReplicaCallbackResult
@@ -2529,7 +2594,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileReplacementMode replacementMode,
             FileRealizationMode realizationMode,
             ContentHash contentHash,
-            ContentFileInfo info)
+            ContentFileInfo info,
+            bool fastPath = false)
         {
             FileSystem.CreateDirectory(destinationPath.Parent);
 
@@ -2540,8 +2606,13 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 if (startIndex >= info.ReplicaCount || startIndex < 0)
                 {
-                    // Remove an out-of-range cursor
-                    _replicaCursors.TryRemove(contentHash, out startIndex);
+                    if (!fastPath)
+                    {
+                        // Don't remove because we cannot assume replica cursor in map has not been modified to valid value in fast path due to lack of locking
+                        // Remove an out-of-range cursor
+                        _replicaCursors.TryRemove(contentHash, out startIndex);
+                    }
+
                     startIndex = defaultStartIndex;
                 }
             }
@@ -2559,15 +2630,20 @@ namespace BuildXL.Cache.ContentStore.Stores
                 contentHash,
                 info,
                 startIndex,
-                ReplicaExistence.Exists);
+                ReplicaExistence.Exists,
+                fastPath);
 
             if (result != CreateHardLinkResult.FailedMaxHardLinkLimitReached)
             {
                 return result;
             }
 
-            // This replica is full
-            _replicaCursors.TryRemove(contentHash, out _);
+            if (!fastPath)
+            {
+                // Don't remove because we cannot assume replica cursor in map has not been modified to valid value in fast path due to lack of locking
+                // This replica is full
+                _replicaCursors.TryRemove(contentHash, out _);
+            }
 
             if (info.ReplicaCount > 1)
             {
@@ -2581,7 +2657,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     contentHash,
                     info,
                     randomIndex,
-                    ReplicaExistence.Exists);
+                    ReplicaExistence.Exists,
+                    fastPath);
                 if (result != CreateHardLinkResult.FailedMaxHardLinkLimitReached)
                 {
                     // Save the cursor here as the most recent replica tried. No contention on the value due to the lock.
@@ -2593,6 +2670,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                 }
             }
 
+            if (fastPath)
+            {
+                // In the fast path, we don't want to attempt to create a replica, just reuse existing replicas
+                // Assume(result == CreateHardLinkResult.FailedMaxHardLinkLimitReached)
+                return result;
+            }
+
             var newReplicaIndex = info.ReplicaCount;
             return await PlaceLinkFromReplicaAsync(
                 context,
@@ -2602,7 +2686,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                 contentHash,
                 info,
                 newReplicaIndex,
-                ReplicaExistence.DoesNotExist);
+                ReplicaExistence.DoesNotExist,
+                fastPath);
         }
 
         private async Task<CreateHardLinkResult> PlaceLinkFromReplicaAsync(
@@ -2613,23 +2698,26 @@ namespace BuildXL.Cache.ContentStore.Stores
             ContentHash contentHash,
             ContentFileInfo info,
             int replicaIndex,
-            ReplicaExistence replicaExistence)
+            ReplicaExistence replicaExistence,
+            bool fastPath)
         {
+            Contract.Assert(!(replicaExistence != ReplicaExistence.Exists && fastPath), "PlaceLinkFromReplicaAsync should only be called for with fastPath=true for existing replicas");
+
             var primaryPath = GetPrimaryPathFor(contentHash);
             var replicaPath = GetReplicaPathFor(contentHash, replicaIndex);
             if (replicaExistence == ReplicaExistence.DoesNotExist)
             {
-                // Create a new replica
-                using (var txn = await QuotaKeeper.ReserveAsync(info.FileSize))
-                {
-                    await RetryOnUnexpectedReplicaAsync(
-                        context,
-                        () => SafeCopyFileAsync(
+                    // Create a new replica
+                    using (var txn = await QuotaKeeper.ReserveAsync(info.FileSize))
+                    {
+                        await RetryOnUnexpectedReplicaAsync(
                             context,
-                            contentHash,
-                            primaryPath,
-                            replicaPath,
-                            FileReplacementMode.FailIfExists),
+                            () => SafeCopyFileAsync(
+                                        context,
+                                        contentHash,
+                                        primaryPath,
+                                        replicaPath,
+                                        FileReplacementMode.FailIfExists),
                         contentHash,
                         info.ReplicaCount);
                     txn.Commit();
@@ -2651,7 +2739,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                 replacementMode == FileReplacementMode.ReplaceExisting,
                 out CreateHardLinkResult hardLinkResult))
             {
-                if (hardLinkResult == CreateHardLinkResult.FailedSourceDoesNotExist &&
+                // Don't attempt to create the replica in the fast path (not locking so don't modify in CAS disk state)
+                if (!fastPath &&
+                    hardLinkResult == CreateHardLinkResult.FailedSourceDoesNotExist &&
                     primaryPath != replicaPath &&
                     FileSystem.FileExists(primaryPath))
                 {
@@ -2660,11 +2750,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                         $"Missing replica for hash=[{contentHash.ToShortString()}]. Recreating replica=[{replicaPath}] from primary replica.");
                     Interlocked.Increment(ref _contentDirectoryMismatchCount);
                     await SafeCopyFileAsync(
-                            context,
-                            contentHash,
-                            primaryPath,
-                            replicaPath,
-                            FileReplacementMode.FailIfExists);
+                        context,
+                        contentHash,
+                        primaryPath,
+                        replicaPath,
+                        FileReplacementMode.FailIfExists);
                     TryCreateHardlink(
                         context,
                         replicaPath,

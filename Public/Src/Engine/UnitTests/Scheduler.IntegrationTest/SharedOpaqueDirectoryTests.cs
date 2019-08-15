@@ -1266,14 +1266,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact outputInSharedOpaqueDir = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
             FileArtifact sourceFile = CreateSourceFile();
 
-            FileArtifact whitelistFile = CreateSourceFile();
-            global::BuildXL.Utilities.Configuration.Mutable.FileAccessWhitelistEntry entry = new global::BuildXL.Utilities.Configuration.Mutable.FileAccessWhitelistEntry()
-            {
-                Value = "testValue",
-                PathFragment = ArtifactToString(whitelistFile),
-            };
-            Configuration.CacheableFileAccessWhitelist.Add(entry);
-
             var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(sourceFile),

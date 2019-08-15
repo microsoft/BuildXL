@@ -53,6 +53,8 @@ namespace BuildXL.Cache.ContentStore.Service
         private IntervalTimer _logIncrementalStatsTimer;
         private Dictionary<string, long> _previousStatistics;
 
+        private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
+
         private readonly Dictionary<string, AbsolutePath> _tempFolderForStreamsByCacheName = new Dictionary<string, AbsolutePath>();
         private readonly ConcurrentDictionary<int, DisposableDirectory> _tempDirectoryForStreamsBySessionId = new ConcurrentDictionary<int, DisposableDirectory>();
 
@@ -157,10 +159,13 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        async Task<Result<CounterSet>> ISessionHandler<TSession>.GetStatsAsync(OperationContext context)
+        public async Task<Result<CounterSet>> GetStatsAsync(OperationContext context)
         {
             var counterSet = new CounterSet();
-            foreach (var store in StoresByName.Values)
+
+            counterSet.Merge(_performanceCollector.GetPerformanceStats(), "MachinePerf.");
+
+            foreach (var (name, store) in StoresByName)
             {
                 var stats = await GetStatsAsync(store, context);
                 if (!stats)
@@ -168,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     return Result.FromError<CounterSet>(stats);
                 }
 
-                counterSet.Merge(stats.CounterSet);
+                counterSet.Merge(stats.CounterSet, $"{name}.");
             }
 
             return counterSet;
@@ -277,12 +282,12 @@ namespace BuildXL.Cache.ContentStore.Service
             Contract.Requires(definitions.Length != 0);
             GrpcEnvironment.InitializeIfNeeded();
             _grpcServer = new Server(GrpcEnvironment.DefaultConfiguration)
-                          {
-                              Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
+            {
+                Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
 
-                              // need a higher number here to avoid throttling: 7000 worked for initial experiments.
-                              RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue,
-                          };
+                // need a higher number here to avoid throttling: 7000 worked for initial experiments.
+                RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue,
+            };
 
             foreach (var definition in definitions)
             {
@@ -305,26 +310,26 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 var statistics = new Dictionary<string, long>();
                 var previousStatistics = _previousStatistics;
-                foreach (var (name, store) in StoresByName)
+
+                var stats = await GetStatsAsync(context);
+                if (stats.Succeeded)
                 {
-                    var stats = await GetStatsAsync(store, context);
-                    if (stats.Succeeded)
+                    var counters = stats.Value.ToDictionaryIntegral();
+                    FillTrackingStreamStatistics(counters);
+                    foreach (var counter in counters)
                     {
-                        var counters = stats.CounterSet.ToDictionaryIntegral();
-                        FillTrackingStreamStatistics(counters);
-                        foreach (var counter in counters)
+                        var key = counter.Key;
+                        var value = counter.Value;
+                        var incrementalValue = value;
+                        statistics[key] = value;
+
+                        if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
                         {
-                            var key = $"{name}.{counter.Key}";
-                            var value = counter.Value;
-                            statistics[key] = value;
-
-                            if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
-                            {
-                                value -= oldValue;
-                            }
-
-                            Tracer.Info(context, $"IncrementalStatistic: {key}=[{value}]");
+                            incrementalValue -= oldValue;
                         }
+
+                        Tracer.Info(context, $"IncrementalStatistic: {key}=[{incrementalValue}]");
+                        Tracer.Info(context, $"PeriodicStatistic: {key}=[{value}]");
                     }
                 }
 

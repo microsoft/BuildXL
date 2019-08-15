@@ -72,11 +72,11 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
             m_eventParserDictionary.Add(ExecutionEventId.BxlInvocation, BXLInvocationEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipExecutionDirectoryOutputs, PipExecutionDirectoryOutputsEvent.Parser);
 
-            m_pipParserDictionary.Add(PipType.CopyFile, Execution.Analyzer.Xldb.CopyFile.Parser);
-            m_pipParserDictionary.Add(PipType.WriteFile, Execution.Analyzer.Xldb.WriteFile.Parser);
+            m_pipParserDictionary.Add(PipType.CopyFile, CopyFile.Parser);
+            m_pipParserDictionary.Add(PipType.WriteFile, WriteFile.Parser);
             m_pipParserDictionary.Add(PipType.Process, ProcessPip.Parser);
-            m_pipParserDictionary.Add(PipType.Module, Execution.Analyzer.Xldb.ModulePip.Parser);
-
+            m_pipParserDictionary.Add(PipType.SealDirectory, SealDirectory.Parser);
+            m_pipParserDictionary.Add(PipType.Ipc, IpcPip.Parser);
         }
 
         /// <summary>

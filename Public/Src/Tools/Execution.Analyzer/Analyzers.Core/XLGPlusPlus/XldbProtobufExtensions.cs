@@ -3,21 +3,19 @@
 
 using System;
 using System.Linq;
+using BuildXL.Engine;
 using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using AbsolutePath = BuildXL.Utilities.AbsolutePath;
 using CopyFile = BuildXL.Pips.Operations.CopyFile;
-using DirectedGraph = BuildXL.Scheduler.Graph.DirectedGraph;
 using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;
 using Edge = BuildXL.Scheduler.Graph.Edge;
 using FileArtifact = BuildXL.Utilities.FileArtifact;
 using FileOrDirectoryArtifact = BuildXL.Utilities.FileOrDirectoryArtifact;
 using Fingerprint = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.Fingerprint;
-using HashSourceFile = BuildXL.Pips.Operations.HashSourceFile;
 using IpcPip = BuildXL.Pips.Operations.IpcPip;
-using ModulePip = BuildXL.Pips.Operations.ModulePip;
 using NodeId = BuildXL.Scheduler.Graph.NodeId;
 using NodeRange = BuildXL.Scheduler.Graph.NodeRange;
 using ObservedPathEntry = BuildXL.Scheduler.Fingerprints.ObservedPathEntry;
@@ -27,12 +25,12 @@ using PipData = BuildXL.Pips.Operations.PipData;
 using PipGraph = BuildXL.Scheduler.Graph.PipGraph;
 using PipProvenance = BuildXL.Pips.Operations.PipProvenance;
 using PipTable = BuildXL.Pips.PipTable;
+using PipType = BuildXL.Pips.Operations.PipType;
 using Process = BuildXL.Pips.Operations.Process;
 using ProcessPipExecutionPerformance = BuildXL.Pips.ProcessPipExecutionPerformance;
 using ReportedFileAccess = BuildXL.Processes.ReportedFileAccess;
 using ReportedProcess = BuildXL.Processes.ReportedProcess;
 using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
-using SpecFilePip = BuildXL.Pips.Operations.SpecFilePip;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
 
@@ -489,11 +487,10 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static Xldb.FileArtifact ToFileArtifact(this FileArtifact fileArtifact, PathTable pathTable)
         {
-            return new Xldb.FileArtifact
+            return !fileArtifact.IsValid ? null : new Xldb.FileArtifact
             {
                 Path = fileArtifact.Path.ToAbsolutePath(pathTable),
                 RewriteCount = fileArtifact.RewriteCount,
-                IsValid = fileArtifact.IsValid
             };
         }
 
@@ -552,9 +549,8 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static Xldb.DirectoryArtifact ToDirectoryArtifact(this DirectoryArtifact artifact, PathTable pathTable)
         {
-            return new Xldb.DirectoryArtifact()
+            return !artifact.IsValid ? null : new Xldb.DirectoryArtifact()
             {
-                IsValid = artifact.IsValid,
                 Path = artifact.Path.ToAbsolutePath(pathTable),
                 PartialSealID = artifact.PartialSealId,
                 IsSharedOpaque = artifact.IsSharedOpaque
@@ -564,24 +560,8 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static Xldb.PipTable ToPipTable(this PipTable pipTable)
         {
-            var xldbPipTable = new Xldb.PipTable
-            {
-                IsDisposed = pipTable.IsDisposed,
-                Reads = pipTable.Reads,
-                Writes = pipTable.Writes,
-                Count = pipTable.Count,
-                PageStreamsCount = pipTable.PageStreamsCount,
-                Size = pipTable.Size,
-                WritesMilliseconds = pipTable.WritesMilliseconds,
-                ReadsMilliseconds = pipTable.ReadsMilliseconds,
-                Used = pipTable.Used,
-                Alive = pipTable.Alive
-            };
-
+            var xldbPipTable = new Xldb.PipTable();
             xldbPipTable.StableKeys.AddRange(pipTable.StableKeys.Select(stableKey => stableKey.Value));
-            xldbPipTable.Keys.AddRange(pipTable.Keys.Select(key => key.Value));
-            xldbPipTable.DeserializationContexts.AddRange(pipTable.DeserializationContexts.Select(
-                context => new PipDeserializationContext() { Key = (PipQueryContext)context.Key, Value = context.Value }));
             return xldbPipTable;
         }
 
@@ -590,12 +570,10 @@ namespace BuildXL.Execution.Analyzer
         {
             return !pipData.IsValid ? null : new Xldb.PipData
             {
-                IsValid = pipData.IsValid,
                 FragmentSeparator = pipData.FragmentSeparator.ToString(),
                 FragmentCount = pipData.FragmentCount,
                 FragmentEscaping = (PipDataFragmentEscaping)pipData.FragmentEscaping
             };
-
         }
 
         /// <nodoc />
@@ -612,11 +590,12 @@ namespace BuildXL.Execution.Analyzer
 
         public static Xldb.FileOrDirectoryArtifact ToFileOrDirectoryArtifact(this FileOrDirectoryArtifact artifact, PathTable pathTable)
         {
-            var xldbFileOrDirectoryArtifact = new Xldb.FileOrDirectoryArtifact()
+            if (!artifact.IsValid)
             {
-                IsValid = artifact.IsValid
-            };
+                return null;
+            }
 
+            var xldbFileOrDirectoryArtifact = new Xldb.FileOrDirectoryArtifact();
             if (artifact.IsDirectory)
             {
                 xldbFileOrDirectoryArtifact.IsDirectory = true;
@@ -632,56 +611,35 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Pip ToPip(this Pip pip, DirectedGraph directedGraph)
+        public static Xldb.Pip ToPip(this Pip pip, CachedGraph cachedGraph)
         {
             var xldbPip = new Xldb.Pip()
             {
                 SemiStableHash = pip.SemiStableHash,
-                FormattedSemiStableHash = pip.FormattedSemiStableHash,
-                ProcessAllowsUndeclaredSourceReads = pip.ProcessAllowsUndeclaredSourceReads,
                 PipId = pip.PipId.Value,
-                PipType = (PipType)pip.PipType,
-                Provenance = pip.Provenance.ToPipProvenance(),
             };
 
-            if (pip.Tags.IsValid)
+            foreach(var incomingEdge in cachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
             {
-                xldbPip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
-            }
+                var pipType = cachedGraph.PipTable.HydratePip(incomingEdge.OtherNode.ToPipId(), Pips.PipQueryContext.Explorer).PipType;
 
-            xldbPip.IncomingEdges.AddRange(directedGraph.GetIncomingEdges(pip.PipId.ToNodeId()).Select(edge => edge.ToEdge()));
-            xldbPip.OutgoingEdges.AddRange(directedGraph.GetOutgoingEdges(pip.PipId.ToNodeId()).Select(edge => edge.ToEdge()));
-            return xldbPip;
-        }
-
-        /// <nodoc />
-        public static Xldb.ModulePip ToModulePip(this ModulePip pip, PathTable pathTable, Xldb.Pip parentPip)
-        {
-            var xldbModulePip = new Xldb.ModulePip
-            {
-                ParentPipInfo = parentPip,
-                Module = pip.Module.Value.Value,
-                Identity = pip.Identity.ToString(),
-                ResolverKind = pip.ResolverKind.ToString(),
-                ResolverName = pip.ResolverName.ToString(),
-                Version = pip.Version.ToString(),
-                Location = new Xldb.LocationData()
+                if (pipType != PipType.Value && pipType != PipType.HashSourceFile && pipType != PipType.SpecFile && pipType != PipType.Module)
                 {
-                    IsValid = pip.Location.IsValid,
-                    Line = pip.Location.Line,
-                    Path = pip.Location.Path.ToAbsolutePath(pathTable),
-                    Position = pip.Location.Position
-                },
-                Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
-            };
-
-            if (pip.Tags.IsValid)
-            {
-                xldbModulePip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
+                    xldbPip.IncomingEdges.Add(incomingEdge.ToEdge());
+                }
             }
 
-            return xldbModulePip;
+            foreach (var outgoingEdge in cachedGraph.DataflowGraph.GetOutgoingEdges(pip.PipId.ToNodeId()))
+            {
+                var pipType = cachedGraph.PipTable.HydratePip(outgoingEdge.OtherNode.ToPipId(), Pips.PipQueryContext.Explorer).PipType;
+
+                if (pipType != PipType.Value && pipType != PipType.HashSourceFile && pipType != PipType.SpecFile && pipType != PipType.Module)
+                {
+                    xldbPip.OutgoingEdges.Add(outgoingEdge.ToEdge());
+                }
+            }
+
+            return xldbPip;
         }
 
         /// <nodoc />
@@ -689,17 +647,14 @@ namespace BuildXL.Execution.Analyzer
         {
             var xldbSealDirectory = new Xldb.SealDirectory
             {
-                ParentPipInfo = parentPip,
+                GraphInfo = parentPip,
                 Kind = (SealDirectoryKind)pip.Kind,
                 DirectoryRoot = pip.DirectoryRoot.ToAbsolutePath(pathTable),
                 IsComposite = pip.IsComposite,
                 Scrub = pip.Scrub,
-                IsInitialzed = pip.IsInitialized,
                 Directory = pip.Directory.ToDirectoryArtifact(pathTable),
                 IsSealSourceDirectory = pip.IsSealSourceDirectory,
                 Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
-
             };
 
             xldbSealDirectory.Patterns.AddRange(pip.Patterns.Select(key => key.ToString()));
@@ -719,12 +674,11 @@ namespace BuildXL.Execution.Analyzer
         {
             var xldbCopyFile = new Xldb.CopyFile
             {
-                ParentPipInfo = parentPip,
+                GraphInfo = parentPip,
                 Source = pip.Source.ToFileArtifact(pathTable),
                 Destination = pip.Destination.ToFileArtifact(pathTable),
                 OutputsMustRemainWritable = pip.OutputsMustRemainWritable,
                 Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
@@ -740,12 +694,11 @@ namespace BuildXL.Execution.Analyzer
         {
             var xldbWriteFile = new Xldb.WriteFile
             {
-                ParentPipInfo = parentPip,
+                GraphInfo = parentPip,
                 Destination = pip.Destination.ToFileArtifact(pathTable),
                 Contents = pip.Contents.ToPipData(),
                 Encoding = (WriteFileEncoding)pip.Encoding,
                 Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
@@ -761,107 +714,51 @@ namespace BuildXL.Execution.Analyzer
         {
             var xldbProcessPip = new ProcessPip
             {
-                ParentPipInfo = parentPip,
+                GraphInfo = parentPip,
                 ProcessOptions = (Options)pip.ProcessOptions,
-                ProcessAbsentPathProbeInUndeclaredOpaquesMode = (AbsentPathProbeInUndeclaredOpaquesMode)pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode,
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
                 StandardInputData = pip.StandardInputData.ToPipData(),
-                StandardInput = new StandardInput()
+                StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable),
                     Data = pip.StandardInput.Data.ToPipData(),
-                    IsValid = pip.StandardInput.IsValid
                 },
-                StandardOutput = pip.StandardOutput.ToFileArtifact(pathTable),
-                StandardError = pip.StandardError.ToFileArtifact(pathTable),
-                StandardDirectory = pip.StandardDirectory.ToAbsolutePath(pathTable),
-                UniqueOutputDirectory = pip.UniqueOutputDirectory.ToAbsolutePath(pathTable),
-                UniqueRedirectedDirectoryRoot = pip.UniqueRedirectedDirectoryRoot.ToAbsolutePath(pathTable),
                 ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable),
                 ResponseFileData = pip.ResponseFileData.ToPipData(),
                 Executable = pip.Executable.ToFileArtifact(pathTable),
                 ToolDescription = pip.ToolDescription.ToString(),
                 WorkingDirectory = pip.WorkingDirectory.ToAbsolutePath(pathTable),
                 Arguments = pip.Arguments.ToPipData(),
-                WarningRegex = new RegexDescriptor()
-                {
-                    Pattern = pip.WarningRegex.Pattern.ToString(),
-                    Options = (RegexOptions)pip.WarningRegex.Options,
-                    IsValid = pip.WarningRegex.IsValid
-                },
-                ErrorRegex = new RegexDescriptor()
-                {
-                    Pattern = pip.ErrorRegex.Pattern.ToString(),
-                    Options = (RegexOptions)pip.ErrorRegex.Options,
-                    IsValid = pip.ErrorRegex.IsValid
-                },
                 TempDirectory = pip.TempDirectory.ToAbsolutePath(pathTable),
-                Weight = pip.Weight,
-                Priority = pip.Priority,
-                TestRetries = pip.TestRetries,
-                IsStartOrShutdownKind = pip.IsStartOrShutdownKind,
                 Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType,
-                HasUntrackedChildProcesses = pip.HasUntrackedChildProcesses,
-                ProducesPathIndependentOutputs = pip.ProducesPathIndependentOutputs,
-                OutputsMustRemainWritable = pip.OutputsMustRemainWritable,
-                RequiresAdmin = pip.RequiresAdmin,
-                AllowPreserveOutputs = pip.AllowPreserveOutputs,
-                IsLight = pip.IsLight,
-                IsService = pip.IsService,
-                AllowUndeclaredSourceReads = pip.AllowUndeclaredSourceReads,
-                NeedsToRunInContainer = pip.NeedsToRunInContainer,
-                ShutdownProcessPipId = pip.ShutdownProcessPipId.Value,
-                DisableCacheLookup = pip.DisableCacheLookup,
-                DoubleWritePolicy = (DoubleWritePolicy)pip.DoubleWritePolicy,
-                ContainerIsolationLevel = (ContainerIsolationLevel)pip.ContainerIsolationLevel
             };
 
-            if (pip.WarningTimeout != null)
+            if (pip.ServiceInfo.IsValid)
             {
-                xldbProcessPip.WarningTimeout = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan((TimeSpan)pip.WarningTimeout);
+                var serviceInfo = new ServiceInfo
+                {
+                    Kind = (ServicePipKind)pip.ServiceInfo.Kind,
+                    ShutdownPipId = pip.ServiceInfo.ShutdownPipId.Value,
+                    IsStartOrShutdownKind = pip.ServiceInfo.IsStartOrShutdownKind
+                };
+
+                serviceInfo.ServicePipDependencies.AddRange(pip.ServiceInfo.ServicePipDependencies.Select(key => key.Value));
+                serviceInfo.FinalizationPipIds.AddRange(pip.ServiceInfo.FinalizationPipIds.Select(key => key.Value));
+                xldbProcessPip.ServiceInfo = serviceInfo;
             }
 
-            if (pip.Timeout != null)
-            {
-                xldbProcessPip.Timeout = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan((TimeSpan)pip.Timeout);
-            }
-
-            if (pip.NestedProcessTerminationTimeout != null)
-            {
-                xldbProcessPip.NestedProcessTerminationTimeout = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan((TimeSpan)pip.NestedProcessTerminationTimeout);
-            }
-
-            var serviceInfo = new ServiceInfo
-            {
-                Kind = (ServicePipKind)pip.ServiceInfo.Kind,
-                ShutdownPipId = pip.ServiceInfo.ShutdownPipId.Value,
-                IsValid = pip.ServiceInfo.IsValid,
-                IsStartOrShutdownKind = pip.ServiceInfo.IsStartOrShutdownKind
-            };
-
-            serviceInfo.ServicePipDependencies.AddRange(pip.ServiceInfo.ServicePipDependencies.Select(key => key.Value));
-            serviceInfo.FinalizationPipIds.AddRange(pip.ServiceInfo.FinalizationPipIds.Select(key => key.Value));
-
-            xldbProcessPip.ServiceInfo = serviceInfo;
             xldbProcessPip.EnvironmentVariable.AddRange(pip.EnvironmentVariables.Select(
                 envVar => new EnvironmentVariable() { Name = envVar.Name.ToString(), Value = envVar.Value.ToPipData(), IsPassThrough = envVar.IsPassThrough }));
             xldbProcessPip.Dependencies.AddRange(pip.Dependencies.Select(file => file.ToFileArtifact(pathTable)));
             xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable)));
-            xldbProcessPip.OrderDependencies.AddRange(pip.OrderDependencies.Select(order => order.Value));
             xldbProcessPip.UntrackedPaths.AddRange(pip.UntrackedPaths.Select(path => path.ToAbsolutePath(pathTable)));
             xldbProcessPip.UntrackedScopes.AddRange(pip.UntrackedScopes.Select(path => path.ToAbsolutePath(pathTable)));
-            xldbProcessPip.SuccessExitCodes.AddRange(pip.SuccessExitCodes.Select(code => code));
-            xldbProcessPip.RetryExitCodes.AddRange(pip.RetryExitCodes.Select(code => code));
             xldbProcessPip.FileOutputs.AddRange(pip.FileOutputs.Select(
-                output => new Xldb.FileArtifactWithAttributes()
-                { IsValid = output.IsValid, Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.FileExistence)output.FileExistence }));
+                output => !output.IsValid ? null : new Xldb.FileArtifactWithAttributes()
+                { Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.FileExistence)output.FileExistence }));
             xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable)));
-            xldbProcessPip.Semaphores.AddRange(pip.Semaphores.Select(
-                semaphore => new ProcessSemaphoreInfo() { Name = semaphore.Name.ToString(), Value = semaphore.Value, Limit = semaphore.Limit, IsValid = semaphore.IsValid }));
             xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable)));
             xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable)));
-            xldbProcessPip.ServicePipDependencies.AddRange(pip.ServicePipDependencies.Select(dep => dep.Value));
 
             if (pip.Tags.IsValid)
             {
@@ -872,72 +769,18 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.HashSourceFile ToHashSourceFile(this HashSourceFile pip, PathTable pathTable, Xldb.Pip parentPip)
-        {
-            var xldbHashSourceFile = new Xldb.HashSourceFile()
-            {
-                ParentPipInfo = parentPip,
-                Artifact = pip.Artifact.ToFileArtifact(pathTable),
-                Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
-            };
-
-            if (pip.Tags.IsValid)
-            {
-                xldbHashSourceFile.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
-            }
-
-            return xldbHashSourceFile;
-        }
-
-        /// <nodoc />
-        public static Xldb.SpecFilePip ToSpecFilePip(this SpecFilePip pip, PathTable pathTable, Xldb.Pip parentPip)
-        {
-            var xldbSpecFilePip = new Xldb.SpecFilePip()
-            {
-                ParentPipInfo = parentPip,
-                SpecFile = pip.SpecFile.ToFileArtifact(pathTable),
-                DefinitionLocation = new Xldb.LocationData()
-                {
-                    IsValid = pip.DefinitionLocation.IsValid,
-                    Line = pip.DefinitionLocation.Line,
-                    Path = pip.DefinitionLocation.Path.ToAbsolutePath(pathTable),
-                    Position = pip.DefinitionLocation.Position
-                },
-                OwningModule = pip.OwningModule.Value.Value,
-                Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
-            };
-
-            if (pip.Tags.IsValid)
-            {
-                xldbSpecFilePip.Tags.AddRange(pip.Tags.Select(key => key.ToString()));
-            }
-
-            return xldbSpecFilePip;
-        }
-
-        /// <nodoc />
         public static Xldb.IpcPip ToIpcPip(this IpcPip pip, PathTable pathTable, Xldb.Pip parentPip)
         {
             var xldbIpcPip = new Xldb.IpcPip()
             {
-                ParentPipInfo = parentPip,
+                GraphInfo = parentPip,
                 IpcInfo = new IpcClientInfo()
                 {
                     IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(),
-                    IpcClientConfig = new ClientConfig()
-                    {
-                        MaxConnectRetries = pip.IpcInfo.IpcClientConfig.MaxConnectRetries,
-                        ConnectRetryDelay = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(pip.IpcInfo.IpcClientConfig.ConnectRetryDelay)
-                    }
                 },
                 MessageBody = pip.MessageBody.ToPipData(),
-                OutputFile = pip.OutputFile.ToFileArtifact(pathTable),
                 IsServiceFinalization = pip.IsServiceFinalization,
-                MustRunOnMaster = pip.MustRunOnMaster,
                 Provenance = pip.Provenance.ToPipProvenance(),
-                PipType = (PipType)pip.PipType
             };
 
             if (pip.Tags.IsValid)
@@ -956,9 +799,8 @@ namespace BuildXL.Execution.Analyzer
         /// <nodoc />
         public static Xldb.NodeId ToNodeId(this NodeId nodeId)
         {
-            return new Xldb.NodeId()
+            return !nodeId.IsValid ? null : new Xldb.NodeId()
             {
-                IsValid = nodeId.IsValid,
                 Value = nodeId.Value
             };
         }
@@ -1017,7 +859,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var kvp in pipGraph.Modules)
             {
-                xldbPipGraph.Modules.Add(kvp.Key.Value.Value, new Xldb.NodeId() { IsValid = kvp.Value.IsValid, Value = kvp.Value.Value });
+                xldbPipGraph.Modules.Add(kvp.Key.Value.Value, kvp.Value.ToNodeId());
             }
 
             return xldbPipGraph;

@@ -434,30 +434,10 @@ enum Options{
     HasPreserveOutputWhitelist = 4096;
 }
 
-enum AbsentPathProbeInUndeclaredOpaquesMode{
-    Unsafe = 0;
-    Strict = 1;
-    Relaxed = 2;
-}
-
 enum PipDataFragmentEscaping{
     PipDataFragmentEscaping_Invalid = 0;
     NoEscaping = 1;
     CRuntimeArgumentRules = 2;
-}
-
-enum RegexOptions
-{
-    RegexOptions_None = 0;
-    IgnoreCase = 1;
-    Multiline = 2;
-    ExplicitCapture = 4;
-    Compiled = 8;
-    Singleline = 16;
-    IgnorePatternWhitespace = 32;
-    RightToLeft = 64;
-    ECMAScript = 256;
-    CultureInvariant = 512;
 }
 
 enum FileExistence{
@@ -539,8 +519,6 @@ message FileArtifact{
     AbsolutePath path = 1;
 
     int32 RewriteCount = 2;
-
-    bool IsValid = 3;
 }
 
 message FileContentInfo{
@@ -803,13 +781,11 @@ message DirectoryOutput{
 }
 
 message DirectoryArtifact{
-    bool IsValid = 1;
+    AbsolutePath Path = 1;
 
-    AbsolutePath Path = 2;
+    uint32 PartialSealID = 2;
 
-    uint32 PartialSealID = 3;
-
-    bool IsSharedOpaque = 4;
+    bool IsSharedOpaque = 3;
 }
 
 message FileOrDirectoryArtifact{
@@ -820,30 +796,18 @@ message FileOrDirectoryArtifact{
     bool IsFile = 3;
 
     bool IsDirectory = 4;
-
-    bool IsValid = 5;
 }
 
 message Pip{
     int64 SemiStableHash = 1;
 
-    string FormattedSemiStableHash = 2;
+    uint32 PipId = 2;
 
-    bool ProcessAllowsUndeclaredSourceReads = 3;
+    NodeId NodeId = 3;
 
-    uint32 PipId = 4;
-
-    PipType PipType = 5;
-
-    repeated string Tags = 6;
-
-    PipProvenance Provenance = 7;
-
-    NodeId NodeId = 8;
-
-    repeated Edge IncomingEdges = 9;
+    repeated Edge IncomingEdges = 4;
     
-    repeated Edge OutgoingEdges = 10;
+    repeated Edge OutgoingEdges = 5;
 }
 
 message PipProvenance{
@@ -857,125 +821,58 @@ message PipProvenance{
 }
 
 message ProcessPip{
-    Pip ParentPipInfo = 1;
+    Pip GraphInfo = 1;
 
     Options ProcessOptions = 2;
 
-    AbsentPathProbeInUndeclaredOpaquesMode ProcessAbsentPathProbeInUndeclaredOpaquesMode = 3;
+    FileArtifact StandardInputFile = 3;
 
-    FileArtifact StandardInputFile = 4;
+    PipData StandardInputData = 4;
 
-    PipData StandardInputData = 5;
+    StandardInput StandardInput = 5;
 
-    StandardInput StandardInput = 6;
+    FileArtifact ResponseFile = 6;
 
-    FileArtifact StandardOutput = 7;
+    PipData ResponseFileData = 7;
 
-    FileArtifact StandardError = 8;
+    FileArtifact Executable = 8;
 
-    AbsolutePath StandardDirectory = 9;
+    string ToolDescription = 9;
 
-    AbsolutePath UniqueOutputDirectory = 10;
+    AbsolutePath WorkingDirectory = 10;
 
-    AbsolutePath UniqueRedirectedDirectoryRoot = 11;
+    PipData Arguments = 11;
 
-    FileArtifact ResponseFile = 12;
+    repeated EnvironmentVariable EnvironmentVariable = 12;
 
-    PipData ResponseFileData = 13;
+    repeated FileArtifact Dependencies = 13;
 
-    FileArtifact Executable = 14;
+    repeated DirectoryArtifact DirectoryDependencies = 14;
 
-    string ToolDescription = 15;
+    repeated AbsolutePath UntrackedPaths = 15;
 
-    AbsolutePath WorkingDirectory = 16;
+    repeated AbsolutePath UntrackedScopes = 16;
 
-    PipData Arguments = 17;
+    repeated FileArtifactWithAttributes FileOutputs = 17;
 
-    repeated EnvironmentVariable EnvironmentVariable = 18;
+    repeated DirectoryArtifact DirectoryOutputs = 18;
 
-    google.protobuf.Duration WarningTimeout = 19;
+    AbsolutePath TempDirectory = 19;
 
-    google.protobuf.Duration Timeout = 20;
+    repeated AbsolutePath AdditionalTempDirectories = 20;
 
-    repeated FileArtifact Dependencies = 21;
+    ServiceInfo ServiceInfo = 21;
 
-    repeated DirectoryArtifact DirectoryDependencies = 22;
+    repeated AbsolutePath PreserveOutputWhitelist = 22;
 
-    repeated uint32 OrderDependencies = 23;
+    // Overridden Member Variables
+    repeated string Tags = 23;
 
-    repeated AbsolutePath UntrackedPaths = 24;
-
-    repeated AbsolutePath UntrackedScopes = 25;
-
-    repeated int32 SuccessExitCodes = 26;
-
-    repeated int32 RetryExitCodes = 27;
-
-    RegexDescriptor WarningRegex = 28;
-
-    RegexDescriptor ErrorRegex = 29;
-
-    repeated FileArtifactWithAttributes FileOutputs = 30;
-
-    repeated DirectoryArtifact DirectoryOutputs = 31;
-
-    repeated ProcessSemaphoreInfo Semaphores = 32;
-
-    AbsolutePath TempDirectory = 33;
-
-    repeated AbsolutePath AdditionalTempDirectories = 34;
-
-    ServiceInfo ServiceInfo = 35;
-
-    int32 Weight = 36;
-
-    int32 Priority = 37;
-
-    bool TestRetries = 38;
-
-    bool IsStartOrShutdownKind = 39;
-
-    repeated AbsolutePath PreserveOutputWhitelist = 40;
-
-    repeated string Tags = 41;
-
-    PipProvenance Provenance = 42;
-
-    PipType PipType = 43;
-
-    bool HasUntrackedChildProcesses = 44;
-
-    bool ProducesPathIndependentOutputs = 45;
-
-    bool OutputsMustRemainWritable = 46;
-
-    bool RequiresAdmin = 47;
-
-    bool AllowPreserveOutputs = 48;
-
-    bool IsLight = 49;
-
-    bool IsService = 50;
-
-    bool AllowUndeclaredSourceReads = 51;
-
-    bool NeedsToRunInContainer = 52;
-
-    uint32 ShutdownProcessPipId = 53;
-
-    repeated uint32 ServicePipDependencies = 54;
-
-    google.protobuf.Duration NestedProcessTerminationTimeout = 55;
-
-    bool DisableCacheLookup = 56;
-
-    DoubleWritePolicy DoubleWritePolicy = 57;
-
-    ContainerIsolationLevel ContainerIsolationLevel = 58;
+    PipProvenance Provenance = 24;
 }
 
 message WriteFile{
-    Pip ParentPipInfo = 1;
+    Pip GraphInfo = 1;
 
     FileArtifact Destination = 2;
 
@@ -987,12 +884,10 @@ message WriteFile{
     repeated string Tags = 5;
 
     PipProvenance Provenance = 6;
-
-    PipType PipType = 7;
 }
 
 message CopyFile{
-    Pip ParentPipInfo = 1;
+    Pip GraphInfo = 1;
 
     FileArtifact Source = 2;
 
@@ -1004,35 +899,10 @@ message CopyFile{
     repeated string Tags = 5;
 
     PipProvenance Provenance = 6;
-
-    PipType PipType = 7;
-}
-
-message ModulePip{
-    Pip ParentPipInfo = 1;
-
-    int32 Module = 2;
-
-    string Identity = 3;
-
-    string ResolverKind = 4;
-
-    string ResolverName = 5;
-
-    string Version = 6;
-
-    LocationData Location = 7;
-
-    // Overridden Member Variables
-    repeated string Tags = 8;
-
-    PipProvenance Provenance = 9;
-
-    PipType PipType = 10;
 }
 
 message SealDirectory{
-    Pip ParentPipInfo = 1;
+    Pip GraphInfo = 1;
 
     SealDirectoryKind Kind = 2;
 
@@ -1048,52 +918,18 @@ message SealDirectory{
 
     bool Scrub = 8;
 
-    bool IsInitialzed = 9;
+    DirectoryArtifact Directory = 9;
 
-    DirectoryArtifact Directory = 10;
-
-    bool IsSealSourceDirectory = 11;
+    bool IsSealSourceDirectory = 10;
 
     // Overridden Member Variables
-    repeated string Tags = 12;
+    repeated string Tags = 11;
 
-    PipProvenance Provenance = 13;
-
-    PipType PipType = 14;
-}
-
-message HashSourceFile{
-    Pip ParentPipInfo = 1;
-
-    FileArtifact Artifact = 2;
-
-    // Overridden Member Variables
-    repeated string Tags = 3;
-
-    PipProvenance Provenance = 4;
-
-    PipType PipType = 5;
-}
-
-message SpecFilePip{
-    Pip ParentPipInfo = 1;
-
-    FileArtifact SpecFile = 2;
-
-    LocationData DefinitionLocation = 3;
-
-    int32 OwningModule = 4;
-
-    // Overridden Member Variables
-    repeated string Tags = 5;
-
-    PipProvenance Provenance = 6;
-
-    PipType PipType = 7;
+    PipProvenance Provenance = 12;
 }
 
 message IpcPip{
-    Pip ParentPipInfo = 1;
+    Pip GraphInfo = 1;
 
     IpcClientInfo IpcInfo = 2;
 
@@ -1107,41 +943,30 @@ message IpcPip{
 
     repeated FileOrDirectoryArtifact LazilyMaterializedDependencies = 7;
 
-    FileArtifact OutputFile = 8;
-
-    bool IsServiceFinalization = 9;
-
-    bool MustRunOnMaster = 10;
+    bool IsServiceFinalization = 8;
 
     // Overridden Member Variables
-    repeated string Tags = 11;
+    repeated string Tags = 9;
 
-    PipProvenance Provenance = 12;
-
-    PipType PipType = 13; 
+    PipProvenance Provenance = 10;
 }
 
 message PipData{
-    bool IsValid = 1;
+    string FragmentSeparator = 1;
 
-    string FragmentSeparator = 2;
+    int32 FragmentCount = 2;
 
-    int32 FragmentCount = 3;
+    PipDataFragmentEscaping FragmentEscaping = 3;
 
-    PipDataFragmentEscaping FragmentEscaping = 4;
+    PipDataEntry HeaderEntry = 4;
 
-    //TODO: Do we need the HeaderEntry and EntryList?
-    PipDataEntry HeaderEntry = 5;
-
-    repeated PipDataEntry Entries = 6;
+    repeated PipDataEntry Entries = 5;
 }
 
 message StandardInput{
     FileArtifact File = 1;
 
     PipData Data = 2;
-
-    bool IsValid = 3;
 }
 
 message EnvironmentVariable{
@@ -1152,32 +977,12 @@ message EnvironmentVariable{
     bool IsPassThrough = 3;
 }
 
-message RegexDescriptor{
-    string Pattern = 1;
-
-    RegexOptions Options = 2;
-
-    bool IsValid = 3;
-}
-
 message FileArtifactWithAttributes{
-    bool IsValid = 1;
+    AbsolutePath Path = 1;
 
-    AbsolutePath Path = 2;
+    int32 RewriteCount = 2;
 
-    int32 RewriteCount = 3;
-
-    FileExistence FileExistence = 4;
-}
-
-message ProcessSemaphoreInfo{
-    string Name = 1;
-
-    int32 Value = 2;
-
-    int32 Limit = 3;
-
-    bool IsValid = 4;
+    FileExistence FileExistence = 3;
 }
 
 message ServiceInfo{
@@ -1189,19 +994,15 @@ message ServiceInfo{
 
     repeated uint32 FinalizationPipIds = 4;
 
-    bool IsValid = 5;
-
-    bool IsStartOrShutdownKind = 6;
+    bool IsStartOrShutdownKind = 5;
 }
 
 message LocationData{
-    bool IsValid = 1;
+    int32 Line = 1;
 
-    int32 Line = 2;
+    AbsolutePath Path = 2;
 
-    AbsolutePath Path = 3;
-
-    int32 Position = 4;
+    int32 Position = 3;
 }
 
 message PipDataEntry{
@@ -1214,21 +1015,11 @@ message PipDataEntry{
 
 message IpcClientInfo{
     string IpcMonikerId = 1;
-
-    ClientConfig IpcClientConfig = 2;
-}
-
-message ClientConfig{    
-    int32 MaxConnectRetries = 1;
-
-    google.protobuf.Duration ConnectRetryDelay = 2;
 }
 
 // This is a PipGraph Node (name is kept the same as in internal code)
 message NodeId{
     uint32 Value = 1;
-
-    bool IsValid = 2;
 }
 
 // This is a PipGraph edge (name is kept the same as in internal code)

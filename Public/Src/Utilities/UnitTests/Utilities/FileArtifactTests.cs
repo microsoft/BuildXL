@@ -93,13 +93,20 @@ namespace Test.BuildXL.Utilities
         public void ToStringTest()
         {
             var pt = new PathTable();
-            Assert.Throws<NotImplementedException>(() =>
-            {
-                FileArtifact da1 = FileArtifact.CreateSourceFile(AbsolutePath.Create(pt, A("c")));
-#pragma warning disable 618
-                da1.ToString();
-#pragma warning restore 618
-            });
+            string f = FileArtifact.CreateSourceFile(AbsolutePath.Create(pt, A("F"))).ToString();
+            XAssert.IsTrue(f.Contains("File"), f);
+            XAssert.IsTrue(f.Contains("(source)"), f);
+
+            string g = FileArtifact.CreateOutputFile(AbsolutePath.Create(pt, A("G"))).ToString();
+            XAssert.IsTrue(g.Contains("File"), g);
+            XAssert.IsTrue(g.Contains("(output)"), g);
+
+            string h = FileArtifact.CreateOutputFile(AbsolutePath.Create(pt, A("H"))).CreateNextWrittenVersion().ToString();
+            XAssert.IsTrue(h.Contains("File"), h);
+            XAssert.IsTrue(h.Contains("(rewrite:2)"), h);
+
+            string i = FileArtifact.Invalid.ToString();
+            XAssert.IsTrue(i.Contains("Invalid"), i);
         }
     }
 }

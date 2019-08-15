@@ -234,7 +234,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 SelfCheckEpoch = settings.SelfCheckEpoch,
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
                 SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
-                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode
+                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
+                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut
             };
         }
 

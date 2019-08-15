@@ -1,11 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Stores
+namespace BuildXL.Cache.ContentStore.Utils
 {
     internal class MachinePerformanceCollector
     {
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                 set.Merge(diskSet, $"{diskStat.Drive}.");
             }
-            
+
             return set;
         }
     }

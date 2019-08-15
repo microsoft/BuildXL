@@ -44,8 +44,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly PinCache _pinCache;
         private readonly bool _enableRepairHandling;
 
-        private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
-
         /// <summary>
         /// Flag for testing using local Redis instance.
         /// </summary>
@@ -422,8 +420,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         counterSet.Merge(_pinCache.GetCounters(context), "PinCache.");
                     }
-
-                    counterSet.Merge(_performanceCollector.GetPerformanceStats(), $"MachinePerf.");
 
                     return new GetStatsResult(counterSet);
                 }

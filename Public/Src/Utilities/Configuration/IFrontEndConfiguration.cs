@@ -312,5 +312,10 @@ namespace BuildXL.Utilities.Configuration
         /// This option is suitable if the specs are machine generated.
         /// </remarks>
         bool UnsafeOptimizedAstConversion { get; }
+
+        /// <summary>
+        /// Whether or not the frontend is allowed to evaluate methods in the unsafe ambient.
+        /// </summary>
+        bool AllowUnsafeAmbient { get; }
     }
 }

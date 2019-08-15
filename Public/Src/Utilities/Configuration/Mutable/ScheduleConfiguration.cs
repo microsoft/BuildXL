@@ -71,6 +71,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = false;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
+            InputChanges = AbsolutePath.Invalid;
         }
 
         /// <nodoc />
@@ -135,6 +136,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
+            InputChanges = pathRemapper.Remap(template.InputChanges);
         }
 
         /// <inheritdoc />
@@ -318,5 +320,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseFixedApiServerMoniker { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath InputChanges { get; set; }
     }
 }

@@ -466,7 +466,7 @@ namespace BuildXL.Engine.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "Worker {ipAddress}:{port} will get disconnected by {caller}")]
-                public abstract void DistributionWorkerFinish(
+        public abstract void DistributionWorkerFinish(
             LoggingContext context,
             string ipAddress,
             int port,

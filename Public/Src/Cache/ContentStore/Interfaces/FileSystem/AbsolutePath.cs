@@ -237,7 +237,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
             }
         }
 
-        internal IReadOnlyCollection<string> GetSegments()
+        internal IReadOnlyList<string> GetSegments()
         {
             return ParseSegments(Path, false);
         }

@@ -524,6 +524,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "injectCacheMisses",
                             opt => HandleArtificialCacheMissOption(opt, cacheConfiguration)),
+                        OptionHandlerFactory.CreateOption(
+                            "inputChanges",
+                            opt => schedulingConfiguration.InputChanges = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "interactive",
                             sign => configuration.Interactive = sign),

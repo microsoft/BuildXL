@@ -311,5 +311,10 @@ namespace BuildXL.Utilities.Configuration
         /// Instead of creating a random moniker for API server, use a fixed predetermined moniker.
         /// </summary>
         bool UseFixedApiServerMoniker { get; }
+
+        /// <summary>
+        /// Path to file containing input changes.
+        /// </summary>
+        AbsolutePath InputChanges { get; }
     }
 }

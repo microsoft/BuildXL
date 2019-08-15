@@ -52,9 +52,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 Function(Constants.Names.GlobFoldersFunction, GlobFolders, GlobFoldersSignature),
                 Function("addIf", AddIf, AddIfSignature),
                 Function("addIfLazy", AddIfLazy, AddIfLazySignature),
-                Function("sign", Sign, SignSignature),
-                Function("unsafe_outputFile", UnsafeOutputFile, UnsafeOutputFileSignature),
-                Function("unsafe_exOutputDirectory", UnsafeExOutputDirectory, UnsafeExOutputDirectorySignature),
+                Function("sign", Sign, SignSignature)
             };
         }
 

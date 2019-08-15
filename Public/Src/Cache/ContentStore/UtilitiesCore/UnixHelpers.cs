@@ -11,6 +11,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// </summary>
     public static class UnixHelpers
     {
+#if !PLATFORM_WIN
         private static class LibC
         {
             /// <nodoc />
@@ -19,6 +20,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 
             public static readonly int AllFilePermssionMask = Convert.ToInt32("777", 8);
         }
+#endif
 
         /// <nodoc />
         public static void OverrideFileAccessMode(bool changePermissions, string path)

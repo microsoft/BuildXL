@@ -192,7 +192,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var name = Convert.ToString(args[0].Value, CultureInfo.InvariantCulture);
             GetProvenance(context, out AbsolutePath path, out LineInfo lineInfo);
 
+<<<<<<< HEAD
             var result = engine.TryGetMount(name, "DominoScript", AmbientTypes.ScriptModuleId, out IMount mount);
+||||||| merged common ancestors
+            var result = engine.TryGetMount(name, "Script", new BuildXL.Utilities.ModuleId(0), out IMount mount);
+=======
+            var result = engine.TryGetMount(name, "Script", AmbientTypes.ScriptModuleId, out IMount mount);
+>>>>>>> 22d4e8d2df2c1c5b836ad34e6b95e28078f9ed42
             switch (result)
             {
                 case TryGetMountResult.Success:
@@ -229,7 +235,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var name = Convert.ToString(args[0].Value, CultureInfo.InvariantCulture);
             GetProvenance(context, out AbsolutePath path, out LineInfo lineInfo);
 
-            var result = engine.TryGetMount(name, "DominoScript", AmbientTypes.ScriptModuleId, out IMount mount);
+            var result = engine.TryGetMount(name, "Script", AmbientTypes.ScriptModuleId, out IMount mount);
             switch (result)
             {
                 case TryGetMountResult.Success:

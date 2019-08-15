@@ -152,6 +152,7 @@ namespace Test.BuildXL.FrontEnd.Core
             File.ReadAllText("Libs/Prelude.Math.ts"),
             File.ReadAllText("Libs/Prelude.Environment.ts"),
             File.ReadAllText("Libs/Prelude.IO.ts"),
+            File.ReadAllText("Libs/Prelude.Unsafe.ts"),
             File.ReadAllText("Libs/Prelude.Transformer.Arguments.ts"));
 
         public static readonly string SdkTransformersContent = string.Join(Environment.NewLine,

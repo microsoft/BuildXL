@@ -154,16 +154,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                     {
                         break;
                     }
-
-                    if (numTry == GrpcSettings.MaxRetry - 1)
-                    {
-                        // If this is the last retry, try to attempt reconnecting. If the connection fails, do not attempt to retry the call.
-                        bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, operation);
-                        if (!connectionSucceeded)
-                        {
-                            break;
-                        }
-                    }
                 }
                 catch (ObjectDisposedException e)
                 {

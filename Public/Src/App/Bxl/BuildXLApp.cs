@@ -640,7 +640,7 @@ namespace BuildXL
 
                             LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
-                            var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
+                            var classification = ClassifyFailureFromLoggedEvents(pm.LoggingContext, appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
                             return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
@@ -756,13 +756,23 @@ namespace BuildXL
                     out visualizationInformation);
         }
 
-        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(TrackingEventListener listener)
+        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
         {
             // The loss of connectivity to other machines during a distributed build is generally the true cause of the
             // failure even though it may manifest itself as a different failure first (like failure to materialize)
             if (listener.CountsPerEventId((EventId)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
             {
                 return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
+            }
+            else if (listener.CountsPerEventId((EventId)SchedulerEventId.ProblematicWorkerExit) >= 1 &&
+                (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
+            {
+                string errorMessage = listener.InternalErrorDetails.Count > 0 ?
+                    listener.InternalErrorDetails.FirstErrorMessage :
+                    listener.InfrastructureErrorDetails.FirstErrorMessage;
+
+                Logger.Log.ProblematicWorkerExitError(loggingContext, errorMessage);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
             }
             else if (listener.InternalErrorDetails.Count > 0)
             {

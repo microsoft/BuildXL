@@ -37,7 +37,7 @@ namespace BuildXL.App.Tracing
         public static Logger Log => m_log;
 
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
+        private const string AppInvocationMessage = "{ShortProductName} Startup Command Line Arguments: '{commandLine}' \r\n{ShortProductName} version:{buildInfo.CommitId}, Build: {buildInfo.Build}, Session ID:{sessionIdentifier}, Related Session:{relatedSessionIdentifier}, MachineInfo: CPU count: {machineInfo.ProcessorCount}, Physical Memory: {machineInfo.InstalledMemoryMB}MB, Current Drive seek penalty: {machineInfo.CurrentDriveHasSeekPenalty}, OS: {machineInfo.OsVersion}, .NETFramework: {machineInfo.DotNetFrameworkVersion}, Processor:{machineInfo.ProcessorIdentifier} - {machineInfo.ProcessorName}, CLR Version: {machineInfo.EnvironmentVersion}, Runtime Framework: '{machineInfo.RuntimeFrameworkName}', Starup directory: {startupDirectory}, Main configuration file: {mainConfig}";
 
         /// <summary>
         /// CAUTION!!
@@ -734,6 +734,15 @@ namespace BuildXL.App.Tracing
             Message = "Reading build specifications was {0:N1}x more expensive as evaluating them. This is generally a sign that IO performance is degraded. This could be due to GVFS needing to materialize remote files.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void FrontendIOSlow(LoggingContext context, double factor);
+
+        [GeneratedEvent(
+            (ushort)EventId.ProblematicWorkerExitError,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "One worker exited with a connection issue; caused some internal/infrastructure errors in the build: {errorMessage}",
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Distribution,
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void ProblematicWorkerExitError(LoggingContext context, string errorMessage);
 
         /// <summary>
         /// Logging DominoCompletion with an extra CloudBuild event

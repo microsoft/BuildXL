@@ -129,6 +129,7 @@ namespace ContentStoreTest.Distributed.Stores
                 FileSystem,
                 mockFileCopier,
                 existenceChecker,
+                copyRequester: null,
                 new NoOpPathTransformer(rootDirectory),
                 new MockContentLocationStore());
             await contentCopier.StartupAsync(context).ThrowIfFailure();
@@ -224,6 +225,9 @@ namespace ContentStoreTest.Distributed.Stores
 
             /// <inheritdoc />
             public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash contentHash) => null;
+
+            /// <inheritdoc />
+            public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except) => default;
 
             /// <inheritdoc />
             public bool AreBlobsSupported => false;

@@ -413,6 +413,25 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
         }
 
+        [Fact]
+        public void TestIncrementalSchedulingWithInputChangeList()
+        {
+            var changeFile = CreateSourceFileWithPrefix(SourceRoot, "changeFile");
+            File.WriteAllText(ArtifactToString(changeFile), string.Empty);
+            Configuration.Schedule.InputChanges = changeFile.Path;
+
+            var sourceFile = CreateSourceFileWithPrefix(SourceRoot, "sourceFile");
+
+            var process = CreateAndSchedulePipBuilder(new[] { Operation.ReadFile(sourceFile), Operation.WriteFile(CreateOutputFileArtifact()) }).Process;
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            File.WriteAllLines(ArtifactToString(changeFile), new[] { ArtifactToString(sourceFile) });
+
+            RunScheduler()
+                .AssertScheduled(process.PipId) // input changes make the pip dirty, and so it gets scheduled.
+                .AssertCacheHit(process.PipId); // no changes to the source file, thus pip gets cache hit.
+        }
+
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 
         protected void ModifyFile(FileArtifact file, string content = null)

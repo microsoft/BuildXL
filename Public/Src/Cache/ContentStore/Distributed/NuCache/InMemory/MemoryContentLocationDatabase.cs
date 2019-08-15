@@ -6,11 +6,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -130,6 +127,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         /// <inheritdoc />
         protected override void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write)
         {
+        }
+
+        /// <inheritdoc />
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
+        {
+            throw new NotImplementedException();
         }
     }
 }

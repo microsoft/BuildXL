@@ -394,7 +394,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Tracer.Debug(context, $"Switching Roles: New={newRole}, Old={oldRole}.");
 
                         // Local database should be immutable on workers and only master is responsible for collecting stale records
-                        Database.SetDatabaseMode(isDatabaseWritable: newRole == Role.Master);
+                        Database.SetDatabaseMode(isDatabaseWriteable: newRole == Role.Master);
                     }
 
                     // Always restore when switching roles
@@ -1234,6 +1234,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return GlobalStore.GetBlobAsync(context, hash);
         }
+
+        /// <summary>
+        /// Gets a random machine location, excluding a specified location.
+        /// </summary>
+        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except) => ClusterState.GetRandomMachineLocation(except);
 
         /// <summary>
         /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by

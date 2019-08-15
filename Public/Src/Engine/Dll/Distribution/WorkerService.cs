@@ -317,6 +317,9 @@ namespace BuildXL.Engine.Distribution
 
             // Dispose the notify master execution log target to ensure all message are sent to master.
             m_notifyMasterExecutionLogTarget?.Dispose();
+
+            // Dispose the event listener to ensure all events are sent to master.
+            m_forwardingEventListener?.Dispose();
         }
 
 
@@ -825,7 +828,6 @@ namespace BuildXL.Engine.Distribution
             m_workerPipStateManager?.Dispose();
 
             m_workerServer.Dispose();
-            m_forwardingEventListener?.Dispose();
 
 #if !DISABLE_FEATURE_BOND_RPC
             m_bondMasterClient?.Dispose();

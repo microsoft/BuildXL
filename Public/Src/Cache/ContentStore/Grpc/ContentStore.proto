@@ -29,6 +29,8 @@ service ContentServer {
     rpc CheckFileExists(ExistenceRequest) returns (ExistenceResponse) {}
 
     rpc Delete(DeleteContentRequest) returns (DeleteContentResponse) {}
+    
+    rpc RequestCopyFile(RequestCopyFileRequest) returns (RequestCopyFileResponse) {}
 }
 
 // Defines an interface of a cache server
@@ -188,6 +190,17 @@ message CopyFileResponse {
 enum CopyCompression {
     none = 0;
     gzip = 1;
+}
+
+// RequestCopyFile
+message RequestCopyFileRequest {
+    string traceId = 1;
+    int32 hashType = 2;
+    bytes contentHash = 3;
+}
+
+message RequestCopyFileResponse {
+    ResponseHeader Header = 1;
 }
 
 // CheckFileExists

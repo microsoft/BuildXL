@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -12,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -208,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     FileExistenceResult result = await store.CheckFileExistsAsync(cacheContext, hash);
                     if (result.Succeeded)
                     {
-                        return new ExistenceResponse{ Header = ResponseHeader.Success(startTime) };
+                        return new ExistenceResponse { Header = ResponseHeader.Success(startTime) };
                     }
                 }
             }
@@ -282,6 +282,37 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Implements a request copy file request
+        /// </summary>
+        private async Task<RequestCopyFileResponse> RequestCopyFileAsync(RequestCopyFileRequest request, CancellationToken cancellationToken)
+        {
+            OperationStarted();
+
+            var startTime = DateTime.UtcNow;
+            var context = new OperationContext(new Context(new Guid(request.TraceId), _logger), cancellationToken);
+
+            var sessionResult = await _sessionHandler.CreateSessionAsync(context, Guid.NewGuid().ToString(), cacheName: null, ImplicitPin.None, Capabilities.ContentOnly);
+
+            if (!sessionResult.Succeeded)
+            {
+                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
+            }
+
+            var session = _sessionHandler.GetSession(sessionResult.Value.sessionId);
+
+            var pinResult = await session.PinAsync(context, request.ContentHash.ToContentHash((HashType)request.HashType), cancellationToken);
+
+            await _sessionHandler.ReleaseSessionAsync(context, sessionResult.Value.sessionId);
+
+            if (pinResult.Succeeded)
+            {
+                return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
+            }
+
+            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, pinResult.ErrorMessage) };
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
@@ -622,6 +653,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             /// <inheritdoc />
             public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);
+
+            /// <inheritdoc />
+            public override Task<RequestCopyFileResponse> RequestCopyFile(RequestCopyFileRequest request, ServerCallContext context) => _contentServer.RequestCopyFileAsync(request, context.CancellationToken);
 
             /// <inheritdoc />
             public override Task<HelloResponse> Hello(HelloRequest request, ServerCallContext context) => _contentServer.HelloAsync(request, context.CancellationToken);

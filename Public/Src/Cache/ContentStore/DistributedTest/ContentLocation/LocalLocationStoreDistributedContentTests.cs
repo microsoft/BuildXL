@@ -53,7 +53,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         private readonly ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase> _localDatabases = new ConcurrentDictionary<(Guid, int), LocalRedisProcessDatabase>();
 
-        private PinConfiguration PinConfiguration { get; set; }
+        protected PinConfiguration PinConfiguration { get; set; }
 
         private readonly Dictionary<int, RedisContentLocationStoreConfiguration> _configurations
             = new Dictionary<int, RedisContentLocationStoreConfiguration>();
@@ -80,15 +80,20 @@ namespace ContentStoreTest.Distributed.Sessions
             base.Dispose(disposing);
         }
 
+        /// <nodoc />
+        protected virtual bool EnableProactiveCopy => false;
+
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
+            ICopyRequester copyRequester,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled)
+            bool emptyFileHashShortcutEnabled,
+            object additionalArgs)
         {
             var rootPath = testDirectory.Path / "Root";
             var tempPath = testDirectory.Path / "Temp";
@@ -158,6 +163,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 pathTransformer,
+                copyRequester,
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,
@@ -172,7 +178,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     CheckFiles = true,
                     UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled,
                     UseLegacyQuotaKeeperImplementation = false,
-                }
+                },
+                enableProactiveCopy: EnableProactiveCopy
                 );
 
             distributedContentStore.DisposeContentStoreFactory = false;
@@ -1716,7 +1723,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var worker0 = context.GetFirstWorker();
                     var worker1 = context.EnumerateWorkers().ElementAt(1);
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
-                    var workerContentStore = (IRepairStore)context.Stores[context.GetFirstWorkerIndex()];
+                    var workerContentStore = (IRepairStore)context.GetDistributedStore(context.GetFirstWorkerIndex());
                     var master = context.GetMaster();
 
                     // Insert random file in session 0
@@ -2065,13 +2072,13 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         private static readonly TimeSpan LocalDatabaseEntryTimeToLive = TimeSpan.FromMinutes(3);
-        private const int SafeToLazilyUpdateMachineCountThreshold = 3;
-        private const int ReplicaCreditInMinutes = 3;
+        protected const int SafeToLazilyUpdateMachineCountThreshold = 3;
+        protected const int ReplicaCreditInMinutes = 3;
         protected bool _enableReconciliation;
-        private ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
-        private ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
-        private bool _enableSecondaryRedis = false;
-        private AbsolutePath _testDatabasePath = null;
+        protected ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
+        protected ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
+        protected bool _enableSecondaryRedis = false;
+        protected AbsolutePath _testDatabasePath = null;
 
         private RedisContentLocationStoreConfiguration CreateRedisContentLocationStoreConfiguration(
             AbsolutePath storeLocationRoot,
@@ -2090,7 +2097,7 @@ namespace ContentStoreTest.Distributed.Sessions
                            new RocksDbContentLocationDatabaseConfiguration(storeLocationRoot / "rocksdb")
                            {
                                // Don't GC
-                               LocalDatabaseGarbageCollectionInterval = Timeout.InfiniteTimeSpan,
+                               GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
                                TestInitialCheckpointPath = _testDatabasePath,
 
                            },

@@ -175,6 +175,7 @@ namespace BuildXL.Engine.Distribution
                                 EventName = forwardedEvent.EventName,
                                 EventKeywords = forwardedEvent.EventKeywords,
                             });
+                        m_loggingContext.SpecifyErrorWasLogged((ushort)forwardedEvent.EventId);
                         break;
                     case EventLevel.Warning:
                         Logger.Log.DistributionWorkerForwardedWarning(

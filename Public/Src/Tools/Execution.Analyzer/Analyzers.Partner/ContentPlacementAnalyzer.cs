@@ -32,27 +32,27 @@ namespace BuildXL.Execution.Analyzer
             double buildDurationMs = 0.0;
             foreach (var opt in AnalyzerOptions)
             {
-                if (opt.Name.StartsWith("sampleProportion", StringComparison.OrdinalIgnoreCase) || opt.Name.StartsWith("sp", StringComparison.OrdinalIgnoreCase))
+                if (opt.Name.Equals("sampleProportion", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("sp", StringComparison.OrdinalIgnoreCase))
                 {
                     sampleProportion = ParseDoubleOption(opt, 0.1, 1.0);
                 }
-                if (opt.Name.StartsWith("sampleCountHardLimit", StringComparison.OrdinalIgnoreCase) || opt.Name.StartsWith("schl", StringComparison.OrdinalIgnoreCase))
+                if (opt.Name.Equals("sampleCountHardLimit", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("schl", StringComparison.OrdinalIgnoreCase))
                 {
                     sampleSizeHardLimit = ParseInt32Option(opt, 0, int.MaxValue);
                 }
-                if (opt.Name.StartsWith("buildQueue", StringComparison.OrdinalIgnoreCase) || opt.Name.StartsWith("bq", StringComparison.OrdinalIgnoreCase))
+                if (opt.Name.Equals("buildQueue", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("bq", StringComparison.OrdinalIgnoreCase))
                 {
                     buildQueue = ParseStringOption(opt);
                 }
-                if (opt.Name.StartsWith("buildId", StringComparison.OrdinalIgnoreCase) || opt.Name.StartsWith("bid", StringComparison.OrdinalIgnoreCase))
+                if (opt.Name.Equals("buildId", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("bid", StringComparison.OrdinalIgnoreCase))
                 {
                     buildId = ParseStringOption(opt);
                 }
-                if (opt.Name.StartsWith("buildStartTicks", StringComparison.OrdinalIgnoreCase) || opt.Name.StartsWith("bst", StringComparison.OrdinalIgnoreCase))
+                if (opt.Name.Equals("buildStartTicks", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("bst", StringComparison.OrdinalIgnoreCase))
                 {
                     buildStartTicks = ParseInt64Option(opt, 0, int.MaxValue);
                 }
-                if (opt.Name.StartsWith("buildDurationMs", StringComparison.OrdinalIgnoreCase) || opt.Name.StartsWith("bd", StringComparison.OrdinalIgnoreCase))
+                if (opt.Name.Equals("buildDurationMs", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("bd", StringComparison.OrdinalIgnoreCase))
                 {
                     buildDurationMs = ParseDoubleOption(opt, 0, double.MaxValue);
                 }

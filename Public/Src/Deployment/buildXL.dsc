@@ -23,6 +23,10 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
+            // content placement
+            importFrom("BuildXL.Tools").Tools.ContentPlacement.Extraction.exe,
+            importFrom("BuildXL.Tools").Tools.ContentPlacement.Extraction.buildDownloaderLogFile,
+
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
                 importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
             ]),

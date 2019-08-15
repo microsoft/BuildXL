@@ -48,6 +48,7 @@ config({
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.
+                    "msbuild-local" : "file://D:/src/msbuild/artifacts/packages/Debug/Shipping",
                   }
                 : {
                     "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
@@ -678,6 +679,14 @@ config({
             trackSourceFileChanges: true,
             isWritable: false,
             isReadable: true
+        },
+        {
+            name: a`LocalMsBuildNupkgs`,
+            path: p`D:/src/msbuild/artifacts/packages/Debug/Shipping`,
+            trackSourceFileChanges: true,
+            isWritable: true,
+            isReadable: true,
+            isScrubbable: true
         }
     ],
 

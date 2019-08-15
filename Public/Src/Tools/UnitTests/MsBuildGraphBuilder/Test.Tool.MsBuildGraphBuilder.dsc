@@ -12,6 +12,7 @@ namespace Test.Tool.MsBuildGraphBuilder {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.ProjectGraphBuilder",
         sources: globR(d`.`, "*.cs"),
+        appConfig: f`app.config`,
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         references:[
             importFrom("BuildXL.Tools").MsBuildGraphBuilder.exe,
@@ -19,6 +20,7 @@ namespace Test.Tool.MsBuildGraphBuilder {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.FrontEnd").MsBuild.Serialization.dll,
             ...MSBuild.msbuildReferences,
+            BuildXLSdk.Factory.createAssembly(importFrom("System.Memory").Contents.all, r`lib/netstandard2.0/System.memory.dll`),
         ],
         runtimeContent: [
             ...MSBuild.msbuildRuntimeContent,

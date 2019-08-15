@@ -140,7 +140,7 @@ namespace ContentStoreTest.Stores
                         var concurrency = 24;
                         var iterations = 100;
 
-                        var items = Enumerable.Range(0, 24).Select(i =>
+                        var items = Enumerable.Range(0, concurrency).Select(i =>
                         {
                             AbsolutePath pathToContent = tempDirectory.Path / $"tempContent{i}.txt";
                             FileSystem.WriteAllBytes(pathToContent, bytes);

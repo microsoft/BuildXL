@@ -30,6 +30,7 @@ namespace Execution.Analyzer {
                 NetFx.System.Net.Http.dll,
                 NetFx.System.Runtime.Serialization.dll
             ),
+            Tools.ContentPlacement.dll,
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

@@ -613,6 +613,9 @@ namespace BuildXL.Execution.Analyzer
 
             //writer.WriteLine("");
             //WriteDominoInvocationHelp(writer);
+
+            writer.WriteLine("");
+            WriteContentPlacementAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

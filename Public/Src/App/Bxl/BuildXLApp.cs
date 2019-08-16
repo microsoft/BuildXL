@@ -120,7 +120,9 @@ namespace BuildXL
     /// </summary>
     internal sealed class BuildXLApp : IDisposable
     {
-        private const int FailureCompletionTimeoutMs = 30 * 1000;
+        // We give the failure completion logic a generous 60 seconds to complete since in some cases taking a crash dump
+        // can take quite a while
+        private const int FailureCompletionTimeoutMs = 60 * 1000;
 
         // 24K buffer size means that internally, the StreamWriter will use 48KB for a char[] array, and 73731 bytes for an encoding byte array buffer --- all buffers <85000 bytes, and therefore are not in large object heap
         private const int LogFileBufferSize = 24 * 1024;
@@ -1170,6 +1172,11 @@ namespace BuildXL
             /// </summary>
             public readonly string LogPath;
 
+            /// <summary>
+            /// The path to the log directory
+            /// </summary>
+            public string RootLogDirectory { get; private set; }
+
             public AppLoggers(
                 DateTime startTime,
                 IConsole console,
@@ -1229,15 +1236,13 @@ namespace BuildXL
 
             public TrackingEventListener TrackingEventListener { get; private set; }
 
-            private string rootLogDirectory = null;
-
             public void ConfigureLogging(LoggingContext loggingContext)
             {
                 lock (m_lock)
                 {
                     Contract.Assume(!m_disposed);
 
-                    rootLogDirectory = m_configuration.LogsDirectory.IsValid ? m_configuration.LogsDirectory.ToString(m_pathTable) : null;
+                    RootLogDirectory = m_configuration.LogsDirectory.IsValid ? m_configuration.LogsDirectory.ToString(m_pathTable) : null;
                     ConfigureTrackingListener();
 
                     if (m_configuration.FileVerbosity != VerbosityLevel.Off && m_configuration.LogsDirectory.IsValid)
@@ -1672,6 +1677,7 @@ namespace BuildXL
             if (Interlocked.CompareExchange(ref m_unhandledFailureInProgress, 1, comparand: 0) != 0)
             {
                 Thread.Sleep(FailureCompletionTimeoutMs);
+
                 ExceptionUtilities.FailFast("Second-chance exception handler has not completed in the allowed time.", new InvalidOperationException());
                 return;
             }
@@ -1736,14 +1742,14 @@ namespace BuildXL
                         break;
                     default:
                         Logger.Log.CatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo?.CommitId ?? string.Empty, s_buildInfo?.Build ?? string.Empty);
+                        WriteToConsole(Strings.App_LogsDirectory, loggers.RootLogDirectory);
+                        WriteToConsole("Collecting some information about this crash...");
+
                         break;
                 }
 
-                // Mark failure for future recovery.
-                var recovery = FailureRecoveryFactory.Create(pm.LoggingContext, m_pathTable, m_configuration);
-                Analysis.IgnoreResult(recovery.TryMarkFailure(exception, rootCause));
-
-                // Send a catastrophic failure telemetry event
+                // Send a catastrophic failure telemetry event. This should be earlier in the handling process to ensure
+                // we have the best shot of getting telemetry out before more complicated tasks like taking a process dump happen.
                 AppServer hostServer = m_appHost as AppServer;
                 Logger.Log.DominoCatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo, rootCause,
                     wasServer: hostServer != null,
@@ -1756,28 +1762,28 @@ namespace BuildXL
 
                 loggers.LogEventSummary(pm.LoggingContext);
 
+                // Mark failure for future recovery.
+                // TODO - FailureRecovery relies on the configuration object and path table. It really shouldn't since these mutate over
+                // the corse of the build. This currently makes them pretty ineffective since m_PathTable.IsValue will most likely
+                // false here due to graph cache reloading.
+                if (m_pathTable != null && m_pathTable.IsValid)
+                {
+                    var recovery = FailureRecoveryFactory.Create(pm.LoggingContext, m_pathTable, m_configuration);
+                    Analysis.IgnoreResult(recovery.TryMarkFailure(exception, rootCause));
+                }
+
                 loggers.Dispose();
 
                 pm.Dispose();
 
                 if (rootCause == ExceptionRootCause.Unknown)
                 {
-                    string[] filesToAttach = m_configuration != null
-                        ? new[]
-                          {
-                              m_configuration.Logging.Log.ToString(m_pathTable),
-                              m_configuration.Logging.WarningLog.ToString(m_pathTable),
-                              m_configuration.Logging.ErrorLog.ToString(m_pathTable),
-                          }
-                        : new string[0];
-
                     // Sometimes the crash dumps don't actually get attached to the WER report. Stick a full heap dump
                     // next to the log file for good measure.
                     try
                     {
-                        string logDir = Path.GetDirectoryName(loggers.LogPath);
                         string logPrefix = Path.GetFileNameWithoutExtension(loggers.LogPath);
-                        string dumpDir = Path.Combine(logDir, logPrefix, "dumps");
+                        string dumpDir = Path.Combine(loggers.RootLogDirectory, logPrefix, "dumps");
                         Directory.CreateDirectory(dumpDir);
                         Exception dumpException;
                         Analysis.IgnoreResult(BuildXL.Processes.ProcessDumper.TryDumpProcess(Process.GetCurrentProcess(), Path.Combine(dumpDir, "UnhandledFailure.zip"), out dumpException, compress: true));
@@ -1790,6 +1796,13 @@ namespace BuildXL
 
                     if (!OperatingSystemHelper.IsUnixOS)
                     {
+                        string[] filesToAttach = m_configuration != null
+                        ? new[]
+                            {
+                                loggers.LogPath,
+                            }
+                        : new string[0];
+
                         WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, Events.StaticContext?.Session?.Id);
                     }
                 }
@@ -1815,9 +1828,11 @@ namespace BuildXL
                 Environment.Exit(ExitCode.FromExitKind(effectiveExitKind));
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Oh my, this isn't going very well.
+                WriteErrorToConsole("Unhandled exception in exception handler");
+                WriteErrorToConsole(ex.ToString());
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
             finally

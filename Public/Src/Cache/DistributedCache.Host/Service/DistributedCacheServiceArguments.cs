@@ -43,6 +43,9 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public string Keyspace { get; }
 
+        /// <nodoc />
+        public bool EnableMetadataStore { get; }
+
         /// <inheritdoc />
         public DistributedCacheServiceArguments(
             ILogger logger,
@@ -54,7 +57,8 @@ namespace BuildXL.Cache.Host.Service
             CancellationToken cancellation,
             string dataRootPath,
             DistributedCacheServiceConfiguration configuration,
-            string keyspace)
+            string keyspace,
+            bool enableMetadataStore)
         {
             Logger = logger;
             Copier = copier;
@@ -67,6 +71,7 @@ namespace BuildXL.Cache.Host.Service
             Configuration = configuration;
 
             Keyspace = ComputeKeySpace(hostInfo, configuration, keyspace);
+            EnableMetadataStore = enableMetadataStore;
         }
 
         private static string ComputeKeySpace(HostInfo hostInfo, DistributedCacheServiceConfiguration configuration, string keyspace)

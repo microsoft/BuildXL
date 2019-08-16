@@ -85,7 +85,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     StoreClusterState = _distributedSettings.StoreClusterStateInDatabase
                 };
 
-                redisContentLocationStoreConfiguration.Database = dbConfig;
                 if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)
                 {
                     dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(_distributedSettings.ContentLocationDatabaseGcIntervalMinutes.Value);
@@ -103,6 +102,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(_distributedSettings.FullRangeCompactionIntervalMinutes.Value);
                 }
 
+                redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
             }
 

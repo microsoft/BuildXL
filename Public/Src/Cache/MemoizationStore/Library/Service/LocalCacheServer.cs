@@ -22,23 +22,23 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// <summary>
     /// IPC interface to a file system memoization store.
     /// </summary>
-    public class LocalCacheService : LocalContentServerBase<ICache, ICacheSession>
+    public class LocalCacheServer : LocalContentServerBase<ICache, ICacheSession>
     {
         private readonly GrpcCacheServer _grpcCacheServer;
         private readonly GrpcContentServer _grpcContentServer;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheService));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheServer));
 
         /// <nodoc />
-        public LocalCacheService(
-            ILogger logger,
+        public LocalCacheServer(
             IAbsFileSystem fileSystem,
+            ILogger logger,
             string scenario,
-            Func<AbsolutePath, ICache> contentStoreFactory,
+            Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
             Capabilities capabilities = Capabilities.All)
-        : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration)
+        : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
             var nameByDrive = new Dictionary<string, string>();
 

@@ -176,7 +176,8 @@ namespace BuildXL.Cache.ContentStore.App
                 cancellation: cancellationTokenSource.Token,
                 dataRootPath: serverDataRootPath.Path,
                 configuration: distributedCacheServiceConfiguration,
-                keyspace: null);
+                keyspace: null,
+                enableMetadataStore: true);
 
             DistributedCacheServiceFacade.RunAsync(distributedCacheServiceArguments).GetAwaiter().GetResult();
 

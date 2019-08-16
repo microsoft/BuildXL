@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.Host.Service.Internal;
@@ -28,7 +29,7 @@ namespace BuildXL.Cache.Host.Service
             var host = arguments.Host;
             var logger = arguments.Logger;
 
-            var factory = new ContentServerFactory(arguments);
+            var factory = new CacheServerFactory(arguments);
 
             await host.OnStartingServiceAsync();
 
@@ -55,7 +56,7 @@ namespace BuildXL.Cache.Host.Service
                 finally
                 {
                     var timeoutInMinutes = arguments?.Configuration?.DistributedContentSettings?.MaxShutdownDurationInMinutes ?? 30;
-                    BoolResult result = await ShutdownWithTimeout(context, server, TimeSpan.FromMinutes(timeoutInMinutes));
+                    BoolResult result = await ShutdownWithTimeoutAsync(context, server, TimeSpan.FromMinutes(timeoutInMinutes));
                     if (!result)
                     {
                         logger.Warning("Failed to shutdown local content server: {0}", result);
@@ -66,7 +67,7 @@ namespace BuildXL.Cache.Host.Service
             }
         }
 
-        private static async Task<BoolResult> ShutdownWithTimeout(Context context, LocalContentServer server, TimeSpan timeout)
+        private static async Task<BoolResult> ShutdownWithTimeoutAsync(Context context, IStartupShutdownSlim server, TimeSpan timeout)
         {
             var shutdownTask = server.ShutdownAsync(context);
             if (await Task.WhenAny(shutdownTask, Task.Delay(timeout)) != shutdownTask)

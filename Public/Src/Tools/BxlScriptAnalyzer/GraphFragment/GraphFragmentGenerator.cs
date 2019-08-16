@@ -21,8 +21,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
     {
         private string m_outputFile;
         private string m_description;
+        private bool m_topSort;
         private readonly OptionName m_outputFileOption = new OptionName("OutputFile", "o");
         private readonly OptionName m_descriptionOption = new OptionName("Description", "d");
+        private readonly OptionName m_topSortOption = new OptionName("TopSort", "t");
         private readonly OptionName m_outputDirectoryForEvaluationOption = new OptionName("OutputDirectoryForEvaluation");
 
         private AbsolutePath m_absoluteOutputPath;
@@ -45,6 +47,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             if (m_descriptionOption.Match(opt.Name))
             {
                 m_description = opt.Value;
+                return true;
+            }
+
+            if (m_topSortOption.Match(opt.Name))
+            {
+                m_topSort = CommandLineUtilities.ParseBooleanOption(opt);
                 return true;
             }
 
@@ -98,10 +106,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             try
             {
                 var pips = PipGraph.RetrieveScheduledPips().ToList();
-                serializer.Serialize(m_absoluteOutputPath, pips.Select(x => new List<Pip>() { x }).ToList(), pips.Count, m_description);
+                if (m_topSort)
+                {
+                    var finalPipList = TopSort(pips);
+                    serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
+                }
+                else
+                {
+                    serializer.Serialize(m_absoluteOutputPath, pips.Select(x => new List<Pip>() { x }).ToList(), pips.Count, m_description);
+                }
 
-                // var finalPipList = TopSort(pips);
-                // serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
                 Logger.GraphFragmentSerializationStats(LoggingContext, serializer.FragmentDescription, serializer.Stats.ToString());
             }
             catch (Exception e) when (e is BuildXLException || e is IOException)
@@ -139,6 +153,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             List<Pip> specialIpcPips = new List<Pip>();
             List<Pip> ipcPips = new List<Pip>();
             List<Pip> otherPips = new List<Pip>();
+
+            // The first IPC pip after the finalization pip is a create pip, and needs to be before the other ipc pips
+            // There is not currently a way to identify the create pip short of guessing from the command line.
+            HashSet<StringId> foundIpcCreatePips = new HashSet<StringId>();
             foreach (var pip in pips)
             {
                 if (pip is ModulePip)
@@ -158,6 +176,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 {
                     specialIpcPips.Add(pip);
                 }
+                else if (pip is IpcPip && !foundIpcCreatePips.Contains(((IpcPip)pip).IpcInfo.IpcMonikerId))
+                {
+                    specialIpcPips.Add(pip);
+                    foundIpcCreatePips.Add(((IpcPip)pip).IpcInfo.IpcMonikerId);
+                }
                 else if (pip is IpcPip)
                 {
                     ipcPips.Add(pip);
@@ -171,10 +194,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             sortedPipGroups.Add(modules);
             sortedPipGroups.Add(specs);
             sortedPipGroups.Add(values);
+            TopSortInternal(otherPips, sortedPipGroups);
 
             // Special IPC related pips must go in sequential order.
             sortedPipGroups.AddRange(specialIpcPips.Select(pip => new List<Pip>() { pip }));
-            TopSortInternal(otherPips, sortedPipGroups);
             sortedPipGroups.Add(ipcPips);
             sortedPipGroups = StableSortPips(pips, sortedPipGroups);
             return sortedPipGroups;

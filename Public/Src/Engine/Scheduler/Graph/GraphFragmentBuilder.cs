@@ -32,6 +32,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
         private readonly ConcurrentBigMap<FileArtifact, PipId> m_fileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, PipId> m_opaqueDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, PipId>();
 
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
@@ -97,6 +98,11 @@ namespace BuildXL.Scheduler.Graph
             foreach (var fileOutput in process.FileOutputs)
             {
                 m_fileProducers[fileOutput.ToFileArtifact()] = process.PipId;
+            }
+
+            foreach (var directoryOutput in process.DirectoryOutputs)
+            {
+                m_opaqueDirectoryProducers[directoryOutput] = process.PipId;
             }
 
             return result;
@@ -188,6 +194,10 @@ namespace BuildXL.Scheduler.Graph
                 if (producerId.IsValid)
                 {
                     AddDependent(producerId, dependent);
+                }
+                else if (m_opaqueDirectoryProducers.TryGetValue(directory, out PipId opaqueProducerId))
+                {
+                    AddDependent(opaqueProducerId, dependent);
                 }
             }
         }

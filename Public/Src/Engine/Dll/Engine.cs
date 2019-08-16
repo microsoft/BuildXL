@@ -273,19 +273,21 @@ namespace BuildXL.Engine
             Contract.Requires(configuration != null);
             Contract.Requires(initialConfig != null);
 
-            if (configuration.Distribution.IsGrpcEnabled)
-            {
-                bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
+            bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
 
 #if NET_CORE
-                // Handler inlining causing deadlock on the mac platform.
-                grpcHandlerInliningEnabled = false;
+            // Handler inlining causing deadlock on the mac platform.
+            grpcHandlerInliningEnabled = false;
 #endif
 
-                GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
+            GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
 
-                Logger.Log.GrpcSettings(loggingContext, GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled, (int)GrpcSettings.CallTimeout.TotalMinutes, (int)GrpcSettings.InactiveTimeout.TotalMinutes);
-            }
+            Logger.Log.GrpcSettings(
+                loggingContext, 
+                GrpcSettings.ThreadPoolSize, 
+                grpcHandlerInliningEnabled, 
+                (int)GrpcSettings.CallTimeout.TotalMinutes, 
+                (int)GrpcSettings.InactiveTimeout.TotalMinutes);
 
             Context = context;
             Configuration = configuration;

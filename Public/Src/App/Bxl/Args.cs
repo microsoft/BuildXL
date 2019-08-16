@@ -372,9 +372,6 @@ namespace BuildXL
                                 }
                             }),
                         OptionHandlerFactory.CreateBoolOption(
-                            "enableGrpc",
-                            sign => distributionConfiguration.IsGrpcEnabled = sign),
-                        OptionHandlerFactory.CreateBoolOption(
                             "enableIncrementalFrontEnd",
                             sign => frontEndConfiguration.EnableIncrementalFrontEnd = sign),
                         OptionHandlerFactory.CreateBoolOptionWithValue(

@@ -76,10 +76,6 @@ namespace Engine {
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEndUnitTests").Core.dll,
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                importFrom("Bond.Rpc.NET").pkg,
-                importFrom("Bond.Core.NET").pkg
-            ]),
         ],
         runtimeContent: [
             ...libsUsedForTesting,

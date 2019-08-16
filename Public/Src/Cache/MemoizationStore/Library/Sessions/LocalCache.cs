@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -14,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.Host.Service.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Stores;
 
@@ -118,28 +116,84 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ContentStoreSettings contentStoreSettings,
             LocalCacheConfiguration localCacheConfiguration)
             : base(
-                () => localCacheConfiguration.EnableContentServer
-                    ? (IContentStore)new ServiceClientContentStore(
-                        logger,
-                        fileSystem,
-                        localCacheConfiguration.CacheName,
-                        new ServiceClientRpcConfiguration(localCacheConfiguration.GrpcPort),
-                        (uint)localCacheConfiguration.RetryIntervalSeconds,
-                        (uint)localCacheConfiguration.RetryCount,
-                        scenario: localCacheConfiguration.ScenarioName)
-                    : new FileSystemContentStore(
-                        fileSystem,
-                        clock,
-                        rootPath,
-                        configurationModel: configurationModel,
-                        settings: contentStoreSettings),
-                CreateMemoizationStoreFactory(logger, clock, memoConfig),
-                PersistentId.Load(fileSystem, rootPath / IdFileName))
+                CreateContentStoreFactory(logger, rootPath, fileSystem, clock, configurationModel, contentStoreSettings, localCacheConfiguration),
+                CreateLocalMemoizationStoreFactory(logger, clock, memoConfig),
+                LoadPersistentId(rootPath, fileSystem))
         {
             _fileSystem = fileSystem;
         }
 
-        private static Func<IMemoizationStore> CreateMemoizationStoreFactory(ILogger logger, IClock clock, MemoizationStoreConfiguration config)
+        private LocalCache(
+            ILogger logger,
+            AbsolutePath rootPathForStream,
+            AbsolutePath rootPathForPath,
+            IAbsFileSystem fileSystem,
+            IClock clock,
+            ConfigurationModel configurationModelForStream,
+            ConfigurationModel configurationModelForPath,
+            MemoizationStoreConfiguration memoConfig,
+            bool checkLocalFiles,
+            bool emptyFileHashShortcutEnabled)
+            : base(
+                CreateStreamPathContentStoreFactory(rootPathForStream, rootPathForPath, fileSystem, clock, configurationModelForStream, configurationModelForPath, checkLocalFiles, emptyFileHashShortcutEnabled),
+                CreateLocalMemoizationStoreFactory(logger, clock, memoConfig),
+                LoadPersistentId(rootPathForStream, fileSystem))
+        {
+            _fileSystem = fileSystem;
+        }
+
+        private LocalCache(
+            ILogger logger,
+            AbsolutePath rootPath,
+            IAbsFileSystem fileSystem,
+            IClock clock,
+            ServiceClientContentStoreConfiguration configuration,
+            MemoizationStoreConfiguration memoConfig)
+            : base(
+                CreateRemoteContentStoreFactory(logger, fileSystem, configuration),
+                CreateLocalMemoizationStoreFactory(logger, clock, memoConfig),
+                LoadPersistentId(rootPath, fileSystem))
+        {
+            _fileSystem = fileSystem;
+        }
+
+        private static Guid LoadPersistentId(AbsolutePath rootPath, IAbsFileSystem fileSystem)
+        {
+            return PersistentId.Load(fileSystem, rootPath / IdFileName);
+        }
+
+        private static Func<IContentStore> CreateStreamPathContentStoreFactory(AbsolutePath rootPathForStream, AbsolutePath rootPathForPath, IAbsFileSystem fileSystem, IClock clock, ConfigurationModel configurationModelForStream, ConfigurationModel configurationModelForPath, bool checkLocalFiles, bool emptyFileHashShortcutEnabled)
+        {
+            return () => new StreamPathContentStore(
+                                () => new FileSystemContentStore(fileSystem, clock ?? SystemClock.Instance, rootPathForStream, configurationModelForStream, settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled }),
+                                () => new FileSystemContentStore(fileSystem, clock ?? SystemClock.Instance, rootPathForPath, configurationModelForPath, settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled }));
+        }
+
+        private static Func<IContentStore> CreateRemoteContentStoreFactory(ILogger logger, IAbsFileSystem fileSystem, ServiceClientContentStoreConfiguration configuration)
+        {
+            return () => new ServiceClientContentStore(logger, fileSystem, configuration);
+        }
+
+        private static Func<IContentStore> CreateContentStoreFactory(ILogger logger, AbsolutePath rootPath, IAbsFileSystem fileSystem, IClock clock, ConfigurationModel configurationModel, ContentStoreSettings contentStoreSettings, LocalCacheConfiguration localCacheConfiguration)
+        {
+            return () => localCacheConfiguration.EnableContentServer
+                                ? (IContentStore)new ServiceClientContentStore(
+                                    logger,
+                                    fileSystem,
+                                    localCacheConfiguration.CacheName,
+                                    new ServiceClientRpcConfiguration(localCacheConfiguration.GrpcPort),
+                                    (uint)localCacheConfiguration.RetryIntervalSeconds,
+                                    (uint)localCacheConfiguration.RetryCount,
+                                    scenario: localCacheConfiguration.ScenarioName)
+                                : new FileSystemContentStore(
+                                    fileSystem,
+                                    clock,
+                                    rootPath,
+                                    configurationModel: configurationModel,
+                                    settings: contentStoreSettings);
+        }
+
+        private static Func<IMemoizationStore> CreateLocalMemoizationStoreFactory(ILogger logger, IClock clock, MemoizationStoreConfiguration config)
         {
             Contract.Requires(config != null);
 
@@ -161,43 +215,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             {
                 throw new NotSupportedException($"Configuration type '{config.GetType()}' for memoization store is unhandled.");
             }
-        }
-
-        private LocalCache(
-            ILogger logger,
-            AbsolutePath rootPathForStream,
-            AbsolutePath rootPathForPath,
-            IAbsFileSystem fileSystem,
-            IClock clock,
-            ConfigurationModel configurationModelForStream,
-            ConfigurationModel configurationModelForPath,
-            MemoizationStoreConfiguration memoConfig,
-            bool checkLocalFiles,
-            bool emptyFileHashShortcutEnabled)
-            : base(
-                () => new StreamPathContentStore(
-                    () => new FileSystemContentStore(fileSystem, clock ?? SystemClock.Instance, rootPathForStream, configurationModelForStream, settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled }),
-                    () => new FileSystemContentStore(fileSystem, clock ?? SystemClock.Instance, rootPathForPath, configurationModelForPath, settings: new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled })),
-                CreateMemoizationStoreFactory(logger, clock, memoConfig),
-                PersistentId.Load(fileSystem, rootPathForPath / IdFileName))
-        {
-            _fileSystem = fileSystem;
-        }
-        
-        private LocalCache(
-            ILogger logger,
-            AbsolutePath rootPath,
-            IAbsFileSystem fileSystem,
-            IClock clock,
-            ServiceClientContentStoreConfiguration configuration,
-            MemoizationStoreConfiguration memoConfig)
-            : base(
-                () => new ServiceClientContentStore(
-                    logger, fileSystem, configuration),
-                CreateMemoizationStoreFactory(logger, clock, memoConfig),
-                PersistentId.Load(fileSystem, rootPath / IdFileName))
-        {
-            _fileSystem = fileSystem;
         }
 
         /// <inheritdoc />

@@ -482,6 +482,11 @@ namespace Test.BuildXL.Scheduler
                 // Do Nothing.
             }
 
+            public void ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile)
+            {
+                // Do Nothing.
+            }
+
             public bool ShouldHaveArtificialMiss(Pip pip)
             {
                 Contract.Requires(pip != null);

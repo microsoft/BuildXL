@@ -485,6 +485,11 @@ namespace Test.BuildXL.Scheduler.Utils
             // Do nothing.
         }
 
+        public void ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile)
+        {
+            // Do Nothing.
+        }
+
         /// <inheritdoc />
         public void ReportWarnings(bool fromCache, int count)
         {

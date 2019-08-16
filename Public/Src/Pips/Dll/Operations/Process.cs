@@ -2,9 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -221,6 +224,14 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<AbsolutePath> UntrackedScopes { get; }
 
         /// <summary>
+        /// File Path of which the Source Change Affected Inputs are written into.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public AbsolutePath ChangeAffectedInputListWrittenFilePath { get; }
+
+        /// <summary>
         /// Optional list of exit codes that represent success. If <code>null</code>, only 0 represents success.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
@@ -332,6 +343,18 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; }
 
         /// <summary>
+        /// Source Change Affected Input Files
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public ReadOnlyArray<AbsolutePath> SourceChangeAffectedOutputFiles { get; set; }
+
+        /// <summary>
+        /// Source Change Affected Input Directories
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public ReadOnlyArray<AbsolutePath> SourceChangeAffectedOutputDirectories { get; set; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -376,7 +399,8 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            AbsolutePath changeAffectedInputListWrittenFilePath = default)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -477,6 +501,8 @@ namespace BuildXL.Pips.Operations
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
+            ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
+
             if (PreserveOutputWhitelist.Length != 0)
             {
                 options |= Options.HasPreserveOutputWhitelist;
@@ -530,7 +556,8 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            AbsolutePath? changeAffectedInputListWrittenFilePath = default)
         {
             return new Process(
                 executable ?? Executable,
@@ -574,7 +601,8 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel,
                 weight,
                 priority,
-                preserveOutputWhitelist ?? PreserveOutputWhitelist);
+                preserveOutputWhitelist ?? PreserveOutputWhitelist,
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath);
         }
 
         /// <inheritdoc />
@@ -763,6 +791,119 @@ namespace BuildXL.Pips.Operations
 
             m_cachedUniqueOutputHash = pipUniqueOutputHash;
             return true;
+        }
+
+        /// <summary>
+        /// Compute the intersection of the pip's dependencies and global affected SourceChangeAffectedOutputs of the build
+        /// </summary>
+        public ReadOnlyArray<string> GetChangeAffectedInputNames(PathTable pathTable)
+        {
+            var changeAffectedInputs = SourceChangeAffectedOutputFiles.Intersect(Dependencies.Select(d => d.Path)).Select(i => i.GetName(pathTable).ToString(pathTable.StringTable)).ToHashSet();
+
+            foreach (var file in SourceChangeAffectedOutputFiles)
+            {
+                foreach (var directory in DirectoryDependencies)
+                {
+                    if (directory.Path.TryGetRelative(pathTable, file, out var relativePath))
+                    {
+                        changeAffectedInputs.Add(file.GetName(pathTable).ToString(pathTable.StringTable));
+                    }
+                }
+            }
+
+            foreach (var outDir in SourceChangeAffectedOutputDirectories)
+            {
+                foreach (var inDir in DirectoryDependencies)
+                {
+                    if (outDir.TryGetRelative(pathTable, inDir.Path, out var relativePath))
+                    {
+                        FileUtilities.EnumerateDirectoryEntries(
+                            inDir.Path.ToString(pathTable), 
+                            true, 
+                            (dir, fileName, attributes) =>
+                            {
+                                if (attributes == FileAttributes.Archive)
+                                {
+                                    changeAffectedInputs.Add(fileName);
+                                }
+                            });
+                    }
+                }
+            }
+
+            return ReadOnlyArray<string>.FromWithoutCopy(changeAffectedInputs.ToArray());
+        }
+
+        /// <inheritdoc />
+        public override bool IsOutputAffectedBySourceChange(
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            PathTable pathTable,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
+        {
+            // sourceChangeAffectedOutputFiles and sourceChangeAffectedOutputDirectroies 
+            // are initilized with the source change list from GBR.
+            // If it is null, that means no file or directory change for this build.
+            // Thus no output is affected by the change.
+            if (!sourceChangeAffectedOutputFiles.Any() && !sourceChangeAffectedOutputDirectroies.Any())
+            {
+                return false;
+            }
+
+            // Check if any dynamic and static file dependency is sourceChangeAffectedOutputFiles
+            var hasAffected = sourceChangeAffectedOutputFiles.Intersect(dynamicallyObservedFiles).Any()
+                || sourceChangeAffectedOutputFiles.Intersect(Dependencies.Select(d => d.Path)).Any();
+
+            if (hasAffected)
+            {
+                return true;
+            }
+
+            if (dynamicallyObservedEnumerations.Any() || DirectoryDependencies.Any())
+            {
+                // Check if dynamic and static directory denpendencis under any directory of sourceChangeAffectedOutputDirectroies
+                foreach (var affectedDir in sourceChangeAffectedOutputDirectroies)
+                {
+                    foreach (var dynamicDir in dynamicallyObservedEnumerations)
+                    {
+                        if (affectedDir.TryGetRelative(pathTable, dynamicDir, out var relativePath))
+                        {
+                            return true;
+                        }
+                    }
+
+                    foreach (var staticDir in DirectoryDependencies)
+                    {
+                        if (affectedDir.TryGetRelative(pathTable, staticDir.Path, out var relativePath))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                // check if the dynamic or static directroy dependency contain any file from sourceChangeAffectedOutputFiles
+                foreach (var affectedFile in sourceChangeAffectedOutputFiles)
+                {
+                    foreach (var dynamicDir in dynamicallyObservedEnumerations)
+                    {
+                        if (dynamicDir.TryGetRelative(pathTable, affectedFile, out var relativePath))
+                        {
+                            return true;
+                        }
+                    }
+
+                    foreach (var staticDir in DirectoryDependencies)
+                    {
+                        if (staticDir.Path.TryGetRelative(pathTable, affectedFile, out var relativePath))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         #endregion PipUniqueOutputHash

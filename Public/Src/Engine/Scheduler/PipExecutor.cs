@@ -935,6 +935,40 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Report change affected ouputs to file content manager
+        /// </summary>
+        internal static void ReportSourceChangeAffectedOutputs(
+            IPipExecutionEnvironment environment,
+            PipResultStatus status,
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            Pip pip,
+            IReadOnlyCollection<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent = null,
+            IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
+        {
+            PipOutputOrigin? overrideOutputOrigin = null;
+            if (status == PipResultStatus.NotMaterialized)
+            {
+                overrideOutputOrigin = PipOutputOrigin.NotMaterialized;
+            }
+
+            if (pip.IsOutputAffectedBySourceChange(dynamicallyObservedFiles, dynamicallyObservedEnumerations, environment.Context.PathTable, sourceChangeAffectedOutputFiles, sourceChangeAffectedOutputDirectroies))
+            {
+                foreach (var output in outputContent ?? ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty)
+                {
+                    environment.State.FileContentManager.ReportSourceChangeAffectedOutputs(output.Item1, overrideOutputOrigin ?? output.Item3, true);
+                }
+
+                foreach (var directoryArtifact in directoryOutputs ?? ReadOnlyArray<DirectoryArtifact>.Empty)
+                {
+                    environment.State.FileContentManager.ReportSourceChangeAffectedOutputs(directoryArtifact, overrideOutputOrigin ?? PipOutputOrigin.Produced, false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Analyze process file access violations
         /// </summary>
         internal static ExecutionResult AnalyzeFileAccessViolations(

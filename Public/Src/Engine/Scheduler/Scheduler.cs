@@ -290,6 +290,19 @@ namespace BuildXL.Scheduler
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
         /// <summary>
+        /// Output file contents which affected by the source change of this build. 
+        /// </summary>
+        /// <remarks>
+        /// This list should be initialized with the source change list provided by GBR.
+        /// </remarks>
+        private readonly ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedOutputFiles = new ConcurrentBigSet<AbsolutePath>();
+
+        /// <summary>
+        /// Output file contents which affected by the source change of this build. 
+        /// </summary>
+        private readonly ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedOutputDirectories = new ConcurrentBigSet<AbsolutePath>();
+
+        /// <summary>
         /// Enables distribution for the master node
         /// </summary>
         public void EnableDistribution(Worker[] remoteWorkers)
@@ -3512,6 +3525,9 @@ namespace BuildXL.Scheduler
                         }
 
                         processRunnable.Executed = true;
+                        processRunnable.Process.SourceChangeAffectedOutputFiles = GetSourceChangeAffectedOutputs().ToReadOnlyArray();
+                        processRunnable.Process.SourceChangeAffectedOutputDirectories = GetSourceChangeAffectedOutputDirectories().ToReadOnlyArray();
+
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 
                         // Don't count service pips in process pip counters
@@ -3653,7 +3669,23 @@ namespace BuildXL.Scheduler
 
                         // Output content is reported here to ensure that it happens both on worker executing PostProcess and
                         // master which called worker to execute post process.
-                        PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, processRunnable.Description, executionResult, processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
+                        PipExecutor.ReportExecutionResultOutputContent(
+                            operationContext,
+                            environment,
+                            processRunnable.Description,
+                            executionResult,
+                            processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
+
+                        PipExecutor.ReportSourceChangeAffectedOutputs(
+                            environment,
+                            executionResult.Result,
+                            executionResult.DynamicallyObservedFiles,
+                            executionResult.DynamicallyObservedEnumerations,
+                            processRunnable.Process,
+                            executionResult.OutputContent,
+                            executionResult.DirectoryOutputs.Select(d => d.directoryArtifact).AsReadOnlyCollection(),
+                            processRunnable.Process.SourceChangeAffectedOutputFiles,
+                            processRunnable.Process.SourceChangeAffectedOutputDirectories);
 
                         return processRunnable.SetPipResult(executionResult);
                     }
@@ -4010,7 +4042,20 @@ namespace BuildXL.Scheduler
 
                 case PipType.CopyFile:
                     // Don't materialize eagerly (this is handled by the MaterializeOutputs step)
-                    return await PipExecutor.ExecuteCopyFileAsync(operationContext, environment, (CopyFile)pip, materializeOutputs: false);
+                    var copyFilePip = (CopyFile)pip;
+                    var pipResult = await PipExecutor.ExecuteCopyFileAsync(operationContext, environment, copyFilePip, materializeOutputs: false);
+                    PipExecutor.ReportSourceChangeAffectedOutputs(
+                        environment,
+                        pipResult.Status,
+                        pipResult.DynamicallyObservedFiles,
+                        pipResult.DynamicallyObservedEnumerations,
+                        copyFilePip,
+                        new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>() { (copyFilePip.Destination, new FileMaterializationInfo(), ToPipOutputOrigin(pipResult.Status)) },
+                        null,
+                        GetSourceChangeAffectedOutputs().ToReadOnlyArray(),
+                        GetSourceChangeAffectedOutputDirectories().ToReadOnlyArray()); 
+
+                    return pipResult;
 
                 case PipType.Ipc:
                     var result = await runnablePip.Worker.ExecuteIpcAsync(runnablePip);
@@ -4029,6 +4074,22 @@ namespace BuildXL.Scheduler
 
                 default:
                     throw Contract.AssertFailure("Do not know how to run pip " + pip);
+            }
+        }
+
+        private PipOutputOrigin ToPipOutputOrigin(PipResultStatus pipResultStatus)
+        {
+            switch (pipResultStatus)
+            {
+                case PipResultStatus.Succeeded:
+                    return PipOutputOrigin.Produced;
+                case PipResultStatus.UpToDate:
+                    return PipOutputOrigin.UpToDate;
+                case PipResultStatus.DeployedFromCache:
+                    return PipOutputOrigin.DeployedFromCache;
+                case PipResultStatus.NotMaterialized:
+                default:
+                    return PipOutputOrigin.NotMaterialized;
             }
         }
 
@@ -4861,6 +4922,25 @@ namespace BuildXL.Scheduler
                     m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
+
+                // The Algorithm can't deal with removal currently, so disable change-based code coverage and have to run full code coverage if has removal. 
+                if (!inputChangeList.ChangedPaths.Where(p => p.PathChanges == PathChanges.Removed).Any())
+                {
+                    foreach (var changePath in inputChangeList.ChangedPaths)
+                    {
+                        switch (changePath.PathChanges)
+                        {
+                            case PathChanges.DataOrMetadataChanged:
+                            case PathChanges.NewlyPresentAsFile:
+                                m_sourceChangeAffectedOutputFiles.GetOrAdd(AbsolutePath.Create(Context.PathTable, changePath.Path));
+                                break;
+                            case PathChanges.NewlyPresentAsDirectory:
+                                m_sourceChangeAffectedOutputDirectories.GetOrAdd(AbsolutePath.Create(Context.PathTable, changePath.Path));
+                                break;
+                        }
+
+                    }
+                }
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;
@@ -5524,6 +5604,35 @@ namespace BuildXL.Scheduler
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.PipMarkMaterialized);
                 }
             }
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        void IFileContentManagerHost.ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile)
+        {
+            if (origin == PipOutputOrigin.Produced)
+            {
+                if (isFile)
+                {
+                    m_sourceChangeAffectedOutputFiles.GetOrAdd(output);
+                }
+                else
+                {
+                    m_sourceChangeAffectedOutputDirectories.GetOrAdd(output);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the global change affected outputs of the build.
+        /// </summary>
+        private IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputs()
+        {
+            return m_sourceChangeAffectedOutputFiles.UnsafeGetList();
+        }
+
+        private IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputDirectories()
+        {
+            return m_sourceChangeAffectedOutputDirectories.UnsafeGetList();
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

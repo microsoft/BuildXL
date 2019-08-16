@@ -673,6 +673,23 @@ namespace BuildXL.Processes
                     string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
                     m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
 
+                    // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
+                    if (m_pip.ChangeAffectedInputListWrittenFilePath != default)
+                    {
+                        var changeAffectedInputs = m_pip.GetChangeAffectedInputNames(m_pathTable);
+                        if (changeAffectedInputs != ReadOnlyArray<string>.Empty)
+                        {
+                            await FileUtilities.WriteAllTextAsync(
+                                m_pip.ChangeAffectedInputListWrittenFilePath.ToString(m_pathTable),
+                                string.Join(
+                                    Environment.NewLine,
+                                    changeAffectedInputs.ToArray()
+                                ),
+                            System.Text.Encoding.UTF8);
+                        }
+
+                    }
+
                     SandboxedProcessInfo info = new SandboxedProcessInfo(
                         m_pathTable,
                         this,

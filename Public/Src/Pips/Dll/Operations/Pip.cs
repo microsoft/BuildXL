@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -387,6 +388,19 @@ namespace BuildXL.Pips.Operations
             var qualifierName = context.QualifierTable.GetFriendlyUserString(Provenance.QualifierId);
 
             return $"{moduleName} - {valueName}{toolName} [{qualifierName}]";
+        }
+
+        /// <summary>
+        /// Check if there is any output of this pip are affected by the source change
+        /// </summary>
+        public virtual bool IsOutputAffectedBySourceChange(
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            PathTable pathTable,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
+        {
+            return false;
         }
     }
 }

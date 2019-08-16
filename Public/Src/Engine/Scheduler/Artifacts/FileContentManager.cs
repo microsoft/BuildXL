@@ -335,6 +335,18 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
+        /// Report the change affected outputs the pip. Only report those produced by the pip.
+        /// </summary>
+        public void ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile)
+        {
+            if (origin == PipOutputOrigin.Produced)
+            {
+                // Notify the host with content that was reported
+                m_host.ReportSourceChangeAffectedOutputs(output, origin, isFile);
+            }
+        }
+
+        /// <summary>
         /// Ensures pip source inputs are hashed
         /// </summary>
         public async Task<Possible<Unit>> TryHashSourceDependenciesAsync(Pip pip, OperationContext operationContext)

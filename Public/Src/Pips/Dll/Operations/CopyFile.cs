@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -106,6 +108,17 @@ namespace BuildXL.Pips.Operations
             writer.Write(Tags, (w, v) => w.Write(v));
             writer.Write(Provenance);
             writer.Write((byte)m_options);
+        }
+
+        /// <inheritdoc />
+        public override bool IsOutputAffectedBySourceChange(
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
+            PathTable pathTable,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
+            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
+        {
+            return sourceChangeAffectedOutputFiles == null ? false : sourceChangeAffectedOutputFiles.Contains(Source);
         }
         #endregion
     }

@@ -1138,8 +1138,21 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void TestSpecialTempOutputFile()
         {
             FileArtifact input = CreateSourceFile();
-            FileArtifact output = CreateOutputFileArtifact();
-            FileArtifact tempOutput = CreateFileArtifactWithName("bxl42.tmp", ObjectRoot).CreateNextWrittenVersion();
+            FileArtifact output = CreateFileArtifactWithName("rdms.lce", ObjectRoot).CreateNextWrittenVersion();
+            FileArtifact tempOutput = CreateFileArtifactWithName("RDa03968", ObjectRoot).CreateNextWrittenVersion();
+
+            AbsolutePath oldExeDirectory = TestProcessExecutable.Path.GetParent(Context.PathTable);
+            AbsolutePath newExeDirectory = CreateUniqueDirectory(SourceRoot, "newExe");
+            PathAtom oldExeName = TestProcessExecutable.Path.GetName(Context.PathTable);
+            PathAtom newExeName = PathAtom.Create(Context.PathTable.StringTable, "rc.exe");
+            AbsolutePath oldExePath = newExeDirectory.Combine(Context.PathTable, oldExeName);
+            AbsolutePath newExePath = newExeDirectory.Combine(Context.PathTable, newExeName);
+
+            DirectoryCopy(oldExeDirectory.ToString(Context.PathTable), newExeDirectory.ToString(Context.PathTable), true);
+            File.Copy(oldExePath.ToString(Context.PathTable), newExePath.ToString(Context.PathTable));
+
+            FileArtifact oldTestProcessExecutable = TestProcessExecutable;
+            TestProcessExecutable = FileArtifact.CreateSourceFile(newExePath);
 
             var builder = CreatePipBuilder(new[]
             {
@@ -1147,6 +1160,8 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(output),
                 Operation.WriteFile(tempOutput, doNotInfer: true)
             });
+            builder.AddUntrackedDirectoryScope(oldExeDirectory);
+            builder.AddUntrackedDirectoryScope(newExeDirectory);
 
             SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
@@ -1166,6 +1181,41 @@ namespace IntegrationTest.BuildXL.Scheduler
         private void CreateFile(string root, string relativePath)
         {
             WriteSourceFile(CreateFileArtifactWithName(root: root, name: relativePath));
+        }
+
+        private static void DirectoryCopy(string sourceDirName, string destDirName, bool copySubDirs)
+        {
+            DirectoryInfo dir = new DirectoryInfo(sourceDirName);
+
+            if (!dir.Exists)
+            {
+                throw new DirectoryNotFoundException(
+                    "Source directory does not exist or could not be found: "
+                    + sourceDirName);
+            }
+
+            DirectoryInfo[] dirs = dir.GetDirectories();
+            
+            if (!Directory.Exists(destDirName))
+            {
+                Directory.CreateDirectory(destDirName);
+            }
+
+            FileInfo[] files = dir.GetFiles();
+            foreach (FileInfo file in files)
+            {
+                string temppath = Path.Combine(destDirName, file.Name);
+                file.CopyTo(temppath, false);
+            }
+
+            if (copySubDirs)
+            {
+                foreach (DirectoryInfo subdir in dirs)
+                {
+                    string temppath = Path.Combine(destDirName, subdir.Name);
+                    DirectoryCopy(subdir.FullName, temppath, copySubDirs);
+                }
+            }
         }
     }
 }

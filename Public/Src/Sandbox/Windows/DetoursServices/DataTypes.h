@@ -681,6 +681,5 @@ enum SpecialProcessKind {
     Csc,
     Cvtres,
     Resonexe,
-    Mt,
-    BuildXLTest,
+    Mt
 };

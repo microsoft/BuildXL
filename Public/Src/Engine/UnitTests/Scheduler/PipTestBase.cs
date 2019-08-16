@@ -71,7 +71,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// FileArtifact for generic TestProcess.exe
         /// </summary>
-        protected readonly FileArtifact TestProcessExecutable;
+        protected FileArtifact TestProcessExecutable { get; set; }
 
         protected readonly AbsolutePath[] TestProcessDependencies;
 

@@ -49,7 +49,6 @@ namespace BuildXL.Pips.Operations
 
         private volatile int m_totalPipsToDeserialize = 0;
         private volatile int m_totalPipsToSerialize = 0;
-        private volatile int m_serializedPipCount = 0;
         
         /// <summary>
         /// Detailed statistics of serialization and deserialization.
@@ -89,8 +88,7 @@ namespace BuildXL.Pips.Operations
                 int totalPipsRead = 0;
                 while (totalPipsRead < m_totalPipsToDeserialize)
                 {
-                    var deserializedPips = new List<(Pip, PipId)>();
-                    while (true)
+                    var deserializedPips = reader.ReadReadOnlyList<(Pip, PipId)>((deserializer) =>
                     {
                         var pip = Pip.Deserialize(reader);
 
@@ -101,18 +99,9 @@ namespace BuildXL.Pips.Operations
                         // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
                         // remaps the pip id to a new pip id.
                         var pipId = new PipId(reader.ReadUInt32());
-                        totalPipsRead++;
-
-                        deserializedPips.Add((pip, pipId));
-
-                        // All pips in the same level are added to the graph in parallel
-                        // This boolean indicated whether or not the end of the level.
-                        bool levelEnd = reader.ReadBoolean();
-                        if (levelEnd)
-                        {
-                            break;
-                        }
-                    }
+                        return (pip, pipId);
+                    });
+                    totalPipsRead += deserializedPips.Count;
 
                     Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
                     {
@@ -132,7 +121,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serializes list of pips to a file.
         /// </summary>
-        public void Serialize(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyCollection<Pip>> pipsToSerialize, int totalPipCount, string fragmentDescription = null)
+        public void Serialize(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, int totalPipCount, string fragmentDescription = null)
         {
             Contract.Requires(filePath.IsValid);
             Contract.Requires(pipsToSerialize != null);
@@ -145,30 +134,14 @@ namespace BuildXL.Pips.Operations
                 writer.WriteNullableString(FragmentDescription);
 
                 writer.Write(totalPipCount);
-                m_serializedPipCount = 0;
                 foreach (var pipGroup in pipsToSerialize)
                 {
-                    int i = 0;
-                    foreach (var pip in pipGroup)
+                    writer.WriteReadOnlyList(pipGroup, (serializer, pip) =>
                     {
                         pip.Serialize(writer);
                         writer.Write(pip.PipId.Value);
-
-                        // All pips in the same level are added to the graph in parallel
-                        // This boolean indicated whether or not the end of the level.
-                        if (i != (pipGroup.Count - 1))
-                        {
-                            writer.Write(false);
-                        }
-                        else
-                        {
-                            writer.Write(true);
-                        }
-
-                        i++;
-                        Interlocked.Increment(ref m_serializedPipCount);
                         Stats.Increment(pip, serialize: true);
-                    }
+                    });
                 }
             }
         }

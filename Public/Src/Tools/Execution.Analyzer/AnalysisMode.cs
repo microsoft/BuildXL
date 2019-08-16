@@ -58,6 +58,7 @@ namespace BuildXL.Execution.Analyzer
         XlgToDb,
         BXLInvocationXLG,
         EventStatsXldb,
-        DumpPipXldb
+        DumpPipXldb,
+        DebugLogs,
     }
 }

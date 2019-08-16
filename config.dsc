@@ -477,6 +477,9 @@ config({
                 { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
                 { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
                 { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
+
+                // ANTLR
+                { id: "Antlr4.Runtime.Standard", version: "4.7.2" }
             ],
 
             doNotEnforceDependencyVersions: true,

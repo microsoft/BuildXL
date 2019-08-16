@@ -228,7 +228,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="rotateLogs">
         /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
         /// </param>
-        /// <param name="openWriteOnly">
+        /// <param name="openBulkLoad">
         /// Have RocksDb open for writing only which enables us to bulk load.
         /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
@@ -241,7 +241,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
             bool rotateLogs = false, 
-            bool openWriteOnly = false)
+            bool openBulkLoad = false)
         {
             return OpenWithVersioning(
                 storeDirectory,
@@ -254,7 +254,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 dropMismatchingColumns,
                 onFailureDeleteExistingStoreAndRetry,
                 rotateLogs, 
-                openWriteOnly);
+                openBulkLoad);
         }
 
         /// <summary>
@@ -301,7 +301,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="rotateLogs">
         /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
         /// </param>
-        /// <param name="openWriteOnly">
+        /// <param name="openBulkLoad">
         /// Have RocksDb open for writing only which enables us to bulk load.
         /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
@@ -315,7 +315,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
             bool rotateLogs = false, 
-            bool openWriteOnly = false)
+            bool openBulkLoad = false)
         {
             // First attempt
             var possibleAccessor = OpenInternal(
@@ -329,7 +329,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     dropMismatchingColumns,
                     createNew: !FileUtilities.DirectoryExistsNoFollow(storeDirectory),
                     rotateLogs: rotateLogs,
-                    openWriteOnly: openWriteOnly);
+                    openBulkLoad: openBulkLoad);
 
             if (!possibleAccessor.Succeeded 
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
@@ -346,7 +346,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     dropMismatchingColumns,
                     createNew: true,
                     rotateLogs: rotateLogs,
-                    openWriteOnly: openWriteOnly);
+                    openBulkLoad: openBulkLoad);
             }
 
             return possibleAccessor;
@@ -363,7 +363,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool dropMismatchingColumns,
             bool createNew,
             bool rotateLogs,
-            bool openWriteOnly)
+            bool openBulkLoad)
         {
             KeyValueStoreAccessor accessor = null;
             bool useVersioning = storeVersion != VersionConstants.IgnoreStore;
@@ -428,7 +428,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     dropMismatchingColumns,
                     createNew,
                     rotateLogs,
-                    openWriteOnly);
+                    openBulkLoad);
             }
             catch (Exception ex)
             {
@@ -542,7 +542,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool dropColumns,
             bool createdNewStore,
             bool rotateLogs,
-            bool openWriteOnly)
+            bool openBulkLoad)
         {
             Contract.Assert(storeVersion != VersionConstants.InvalidStore, "No store should pass the invalid store version since it is not safe to open an invalid store.");
             StoreDirectory = storeDirectory;
@@ -558,7 +558,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 openReadOnly,
                 dropColumns,
                 rotateLogs,
-                openWriteOnly);
+                openBulkLoad);
 
             m_failureHandler = failureHandler;
         }

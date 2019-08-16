@@ -53,6 +53,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             private readonly ColumnFamilyInfo m_defaultColumnFamilyInfo;
 
+            private readonly bool m_openBulkLoad;
+
             /// <summary>
             /// For <see cref="ColumnFamilies"/> that have <see cref="ColumnFamilyInfo.UseKeyTracking"/> as true,
             /// the suffix to add to the name of the column family to create a corresponding column family 
@@ -148,7 +150,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
             /// open the DB more than once in a 12 hour period, you will only have partial information.
             /// </param>
-            /// <param name="openWriteOnly">
+            /// <param name="openBulkLoad">
             /// Have RocksDb open for writing only which enables us to bulk load.
             /// </param>
             public RocksDbStore(
@@ -159,9 +161,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 bool readOnly = false,
                 bool dropMismatchingColumns = false,
                 bool rotateLogs = false,
-                bool openWriteOnly = false)
+                bool openBulkLoad = false)
             {
                 m_storeDirectory = storeDirectory;
+                m_openBulkLoad = openBulkLoad;
 
                 m_defaults.DbOptions = new DbOptions()
                     .SetCreateIfMissing(true)
@@ -175,7 +178,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // Ensure we have performance statistics for profiling
                     .EnableStatistics();
 
-                if (openWriteOnly)
+                if (openBulkLoad)
                 {
                     // Prepares the instance for bulk loads which does the following: 
                     // 1) uses vector memtable
@@ -730,6 +733,15 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             {
                 if (m_snapshot == null)
                 {
+                    // The db instance was opened in bulk load mode. Issue a manual compaction on Dispose
+                    if (m_openBulkLoad)
+                    {
+                        foreach (var kvp in m_columns)
+                        {
+                            CompactRange((byte[])null, null, kvp.Key);
+                        }
+                    }
+
                     m_store.Dispose();
                 }
                 else

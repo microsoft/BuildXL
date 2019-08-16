@@ -179,7 +179,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Prepare()
         {
-            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns);
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns, openBulkLoad: true);
 
             if (accessor.Succeeded)
             {
@@ -243,16 +243,6 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Dispose()
         {
-            Analysis.IgnoreResult(
-                m_accessor.Use(database =>
-                {
-                    foreach (var col in m_additionalColumns)
-                    {
-                        database.CompactRange((byte[])null, null, col);
-                    }
-                })
-            );
-
             m_accessor.Dispose();
         }
 

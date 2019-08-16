@@ -505,7 +505,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
         private bool IsErrorFileExists(Exception e) => (Marshal.GetHRForException(e) & ((1 << 16) - 1)) == ErrorFileExists;
 
-        private async Task<Stream> GetStreamInternalAsync(OperationContext context, ContentHash contentHash, int? overrideStreamMinimumReadSizeInBytes)
+        private async Task<Stream> GetStreamInternalAsync(OperationContext context, ContentHash contentHash, long? overrideStreamMinimumReadSizeInBytes)
         {
             if (_downloadBlobsThroughBlobStore)
             {
@@ -551,12 +551,12 @@ namespace BuildXL.Cache.ContentStore.Vsts
             }
         }
 
-        private Task<Stream> GetStreamThroughAzureBlobs(Uri azureUri, int? overrideStreamMinimumReadSizeInBytes, TimeSpan? requestTimeout, CancellationToken cancellationToken)
+        private Task<Stream> GetStreamThroughAzureBlobs(Uri azureUri, long? overrideStreamMinimumReadSizeInBytes, TimeSpan? requestTimeout, CancellationToken cancellationToken)
         {
             var blob = new CloudBlockBlob(azureUri);
             if (overrideStreamMinimumReadSizeInBytes.HasValue)
             {
-                blob.StreamMinimumReadSizeInBytes = overrideStreamMinimumReadSizeInBytes.Value;
+                blob.StreamMinimumReadSizeInBytes = (int)overrideStreamMinimumReadSizeInBytes.Value;
             }
 
             return blob.OpenReadAsync(

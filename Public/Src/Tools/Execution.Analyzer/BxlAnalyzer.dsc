@@ -22,6 +22,7 @@ namespace Execution.Analyzer {
         references: [
             ...addIf(
                 BuildXLSdk.isFullFramework,
+                NetFx.Microsoft.CSharp.dll,
                 NetFx.System.IO.dll,
                 NetFx.System.Web.dll,
                 NetFx.System.Xml.dll,

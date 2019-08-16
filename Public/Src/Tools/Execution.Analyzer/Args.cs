@@ -331,6 +331,12 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.BXLInvocationXLG:
                     m_analyzer = InitializeBXLInvocationAnalyzer();
                     break;
+                case AnalysisMode.EventStatsXldb:
+                    m_analyzer = InitializeEventStatsXldbAnalyzer();
+                    break;
+                case AnalysisMode.DumpPipXldb:
+                    m_analyzer = InitializeDumpPipXldbAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;

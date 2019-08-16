@@ -1134,7 +1134,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestSpecialTempOutputFile()
         {
             FileArtifact input = CreateSourceFile();

@@ -229,7 +229,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
         /// </param>
         /// <param name="openBulkLoad">
-        /// Have RocksDb open for writing only which enables us to bulk load.
+        /// Have RocksDb open for bulk loading.
         /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
             string storeDirectory,
@@ -302,7 +302,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
         /// </param>
         /// <param name="openBulkLoad">
-        /// Have RocksDb open for writing only which enables us to bulk load.
+        /// Have RocksDb open for bulk loading.
         /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
             string storeDirectory,

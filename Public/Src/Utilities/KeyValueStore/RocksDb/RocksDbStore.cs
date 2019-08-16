@@ -151,7 +151,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// open the DB more than once in a 12 hour period, you will only have partial information.
             /// </param>
             /// <param name="openBulkLoad">
-            /// Have RocksDb open for writing only which enables us to bulk load.
+            /// Have RocksDb open for bulk loading.
             /// </param>
             public RocksDbStore(
                 string storeDirectory,
@@ -180,7 +180,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 if (openBulkLoad)
                 {
-                    // Prepares the instance for bulk loads which does the following: 
+                    // Prepares the instance for bulk loads which does the following (see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ for more info):
                     // 1) uses vector memtable
                     // 2) make sure options.max_background_flushes is at least 4
                     // 3) before inserting the data, disable automatic compaction, set options.level0_file_num_compaction_trigger, 
@@ -733,12 +733,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             {
                 if (m_snapshot == null)
                 {
-                    // The db instance was opened in bulk load mode. Issue a manual compaction on Dispose
+                    // The db instance was opened in bulk load mode. Issue a manual compaction on Dispose. 
+                    // See https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ for more details
                     if (m_openBulkLoad)
                     {
-                        foreach (var kvp in m_columns)
+                        foreach (var columnFamilyName in m_columns.Keys)
                         {
-                            CompactRange((byte[])null, null, kvp.Key);
+                            CompactRange((byte[])null, null, columnFamilyName);
                         }
                     }
 

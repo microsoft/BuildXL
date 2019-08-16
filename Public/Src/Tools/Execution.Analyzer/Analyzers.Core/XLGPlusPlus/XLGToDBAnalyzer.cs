@@ -14,7 +14,6 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
 using Google.Protobuf;
 using PipType = BuildXL.Pips.Operations.PipType;
@@ -94,7 +93,7 @@ namespace BuildXL.Execution.Analyzer
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>(12, action => action());
+            m_actionBlock = new ActionBlockSlim<Action>(Environment.ProcessorCount * 2, action => action());
         }
 
         /// <inheritdoc/>
@@ -205,8 +204,7 @@ namespace BuildXL.Execution.Analyzer
             };
 
             // Hold only one lock while inserting all of these keys into the DB
-            Analysis.IgnoreResult(
-                m_accessor.Use(database =>
+            var maybeInserted = m_accessor.Use(database =>
                 {
                     foreach (var kvp in m_eventCountByType)
                     {
@@ -217,9 +215,14 @@ namespace BuildXL.Execution.Analyzer
 
                         database.Put(eventCountByTypeQuery.ToByteArray(), kvp.Value.ToByteArray());
                     }
-                })
-            );
-            
+                });
+
+            if (!maybeInserted.Succeeded)
+            {
+                Console.WriteLine("Failed to insert event metadata into RocksDb. Exiting analyzer now ...");
+                maybeInserted.Failure.Throw();
+            }
+
             WriteToDb(Encoding.ASCII.GetBytes(XldbDataStore.EventCountKey), ec.ToByteArray());
 
             Console.WriteLine("\nEvent data ingested into RocksDB. Starting to ingest static graph data ...\n");
@@ -490,93 +493,98 @@ namespace BuildXL.Execution.Analyzer
                 var end = (i + 1) == concurrency ? totalNumberOfPips : (i + 1) * partitionSize;
                 var pipsIngested = 0;
                 var pipSemistableMap = new Dictionary<byte[], byte[]>();
-                var pipIdMap= new Dictionary<byte[], byte[]>();
+                var pipIdMap = new Dictionary<byte[], byte[]>();
 
-                Analysis.IgnoreResult(
-                    m_accessor.Use(database =>
+                // Hold only one lock while inserting all of these keys into the DB
+                var maybeInserted = m_accessor.Use(database =>
+                {
+                    for (int j = start; j < end; j++)
                     {
-                        for (int j = start; j < end; j++)
+                        var pipId = pipIds[j];
+                        pipsIngested++;
+
+                        if (pipsIngested % 100000 == 0)
                         {
-                            var pipId = pipIds[j];
-                            pipsIngested++;
+                            Console.Write(".");
+                            database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                            database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
 
-                            if (pipsIngested % 100000 == 0)
-                            {
-                                Console.Write(".");
-                                database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
-                                database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
-
-                                pipSemistableMap.Clear();
-                                pipIdMap.Clear();
-                            }
-
-                            var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
-                            var pipType = hydratedPip.PipType;
-
-                            if (pipType == PipType.Value || pipType == PipType.HashSourceFile || pipType == PipType.SpecFile || pipType == PipType.Module)
-                            {
-                                continue;
-                            }
-
-                            var xldbPip = hydratedPip.ToPip(CachedGraph);
-                            IMessage xldbSpecificPip = xldbPip;
-
-                            if (pipType == PipType.Ipc)
-                            {
-                                var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
-                                xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
-                            }
-                            else if (pipType == PipType.SealDirectory)
-                            {
-                                var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
-                                xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
-                            }
-                            else if (pipType == PipType.CopyFile)
-                            {
-                                var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
-                                xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
-                            }
-                            else if (pipType == PipType.WriteFile)
-                            {
-                                var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
-                                xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
-                            }
-                            else if (pipType == PipType.Process)
-                            {
-                                var processPip = (Pips.Operations.Process)hydratedPip;
-                                xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
-                            }
-
-                            var pipSemistableQuery = new PipQuerySemiStableHash()
-                            {
-                                SemiStableHash = hydratedPip.SemiStableHash,
-                            };
-
-                            var pipSemistableValue = new PipValueSemiStableHash()
-                            {
-                                PipId = hydratedPip.PipId.Value,
-                            };
-
-                            var pipIdQuery = new PipQueryPipId()
-                            {
-                                PipId = hydratedPip.PipId.Value,
-                                PipType = (Xldb.PipType)pipType
-                            };
-
-                            // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.
-                            // Else we do not want that since the key would no longer be unique
-                            if (hydratedPip.SemiStableHash != 0)
-                            {
-                                pipSemistableMap.Add(pipSemistableQuery.ToByteArray(), pipSemistableValue.ToByteArray());
-                            }
-
-                            pipIdMap.Add(pipIdQuery.ToByteArray(), xldbSpecificPip.ToByteArray());
+                            pipSemistableMap.Clear();
+                            pipIdMap.Clear();
                         }
 
-                        database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
-                        database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
-                    })
-                );
+                        var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
+                        var pipType = hydratedPip.PipType;
+
+                        if (pipType == PipType.Value || pipType == PipType.HashSourceFile || pipType == PipType.SpecFile || pipType == PipType.Module)
+                        {
+                            continue;
+                        }
+
+                        var xldbPip = hydratedPip.ToPip(CachedGraph);
+                        IMessage xldbSpecificPip = xldbPip;
+
+                        if (pipType == PipType.Ipc)
+                        {
+                            var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
+                            xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.SealDirectory)
+                        {
+                            var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
+                            xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.CopyFile)
+                        {
+                            var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
+                            xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.WriteFile)
+                        {
+                            var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
+                            xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.Process)
+                        {
+                            var processPip = (Pips.Operations.Process)hydratedPip;
+                            xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
+                        }
+
+                        var pipSemistableQuery = new PipQuerySemiStableHash()
+                        {
+                            SemiStableHash = hydratedPip.SemiStableHash,
+                        };
+
+                        var pipSemistableValue = new PipValueSemiStableHash()
+                        {
+                            PipId = hydratedPip.PipId.Value,
+                        };
+
+                        var pipIdQuery = new PipQueryPipId()
+                        {
+                            PipId = hydratedPip.PipId.Value,
+                            PipType = (Xldb.PipType)pipType
+                        };
+
+                        // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.
+                        // Else we do not want that since the key would no longer be unique
+                        if (hydratedPip.SemiStableHash != 0)
+                        {
+                            pipSemistableMap.Add(pipSemistableQuery.ToByteArray(), pipSemistableValue.ToByteArray());
+                        }
+
+                        pipIdMap.Add(pipIdQuery.ToByteArray(), xldbSpecificPip.ToByteArray());
+                    }
+
+                    database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                    database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
+                });
+
+                if (!maybeInserted.Succeeded)
+                {
+                    Console.WriteLine("Failed to insert pip data into RocksDb. Exiting analyzer now ...");
+                    maybeInserted.Failure.Throw();
+                }
             });
         }
 
@@ -585,12 +593,16 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public void WriteToDb(byte[] key, byte[] value, string columnFamilyName = null)
         {
-            Analysis.IgnoreResult(
-                m_accessor.Use(database =>
-                {
-                    database.Put(key, value, columnFamilyName);
-                })
-            );
+            var maybeInserted = m_accessor.Use(database =>
+            {
+                database.Put(key, value, columnFamilyName);
+            });
+
+            if (!maybeInserted.Succeeded)
+            {
+                Console.WriteLine("Failed to insert event data into RocksDb. Exiting analyzer now ...");
+                maybeInserted.Failure.Throw();
+            }
         }
     }
 }

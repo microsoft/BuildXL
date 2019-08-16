@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Collections;
 using System.Collections.Generic;
 
 namespace BuildXL.Engine.Cache.KeyValueStores
@@ -89,7 +88,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// to be performed on the store. May or may not be atomic.
         /// </summary>
         /// <param name="keyValuePairs">
-        /// The key value pair for each entry
+        /// The key-value pair for each entry. If a value is null, then a Delete will be 
+        /// performed; otherwise, a Put.
         /// </param>
         /// <param name="columnFamilyName">
         /// The column family to use.

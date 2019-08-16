@@ -23,12 +23,7 @@ namespace BuildXL.Pips
         /// <param name="filePath">Path to the file to read.</param>
         /// <param name="dependencyIds">Name to the pip fragments this fragment depends on.</param>
         /// <param name="description">Description of the fragment for printing on the console</param>
-        Task<bool> AddFragmentFileToGraph(int id, AbsolutePath filePath, int[] dependencyIds, string description);
-
-        /// <summary>
-        /// Get a list of (fragment description, fragment load task)
-        /// </summary>
-        IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks();
+        bool AddFragmentFileToGraph(int id, AbsolutePath filePath, int[] dependencyIds, string description);
 
         /// <summary>
         /// Adds a module pip.

@@ -1,0 +1,117 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+import "EnumsAndHelperStructs.proto";
+
+package BuildXL.Execution.Analyzer;
+
+option csharp_namespace = "BuildXL.Execution.Analyzer.Xldb";
+
+//
+//  Generic Static Graph Info (key, etc)
+//
+
+// CachedGraphQuery is the key for the top level data structures stored in the cached graph
+message CachedGraphQuery{
+    bool PipGraph = 1;  
+}
+
+// Pip Query is 2 levels deep. SemistableHash -> PipId -> PipValues
+// For the pips with SemiStableHash = 0, we will only have PipId -> Values
+message PipQuerySemiStableHash{
+    // Primary key, unique except for the pips that have a SemiStableHash = 0
+    int64 SemiStableHash = 1;
+}
+
+message PipValueSemiStableHash{
+    uint32 PipId = 1;
+}
+
+message PipQueryPipId{
+    // Always unique within a build (makes the key unique), and same as the node id in graph
+    uint32 PipId = 1;
+
+    // We include the PipType in the key to know which type of pip is stored in the value
+    // and how to appropriately parse it (since Protobuf has no inheritance)
+    PipType PipType = 2;
+}
+
+//
+//  Map Messages -> Protobuf does not allow for float, double, bytes, or message types to be 
+//  used as keys for maps, so the alternative is to make a "primitive" map type message as follows:
+//  
+//  message primitiveMap{ key; value; }
+//  message wraper { repeated primitiveMap; }
+//
+
+message FileArtifactMap{
+    FileArtifact Artifact = 1;
+
+    uint32 Value = 2;
+}
+
+message DirectoryArtifactMap{
+    DirectoryArtifact Artifact = 1;
+
+    uint32 Value = 2;
+}
+
+message PipIdSet{
+    repeated uint32 PipIds = 1;
+}
+
+message NodeValuesKey{
+    int32 FullSymbol = 1;
+
+    int32 QualifierId = 2;
+
+    AbsolutePath Path = 3;
+}
+
+message NodeValuesMap{
+    NodeValuesKey Key = 1;
+
+    uint32 Value = 2;
+}
+
+message PipGraphStaticFingerprints{
+    map<uint32, ContentFingerprint> PipStaticFingerprints = 1;
+}
+
+//
+//  Graph Data
+//
+
+message PipGraph{
+    string GraphId = 1;
+
+    ContentFingerprint SemistableFingerprint = 2;
+
+    NodeRange NodeRange = 3;
+
+    int32 MaxAbsolutePathIndex = 4;
+
+    repeated DirectoryArtifactMap AllSealDirectoriesAndProducers = 5;
+
+    repeated FileArtifactMap AllFilesAndProducers = 6;
+
+    repeated DirectoryArtifactMap AllOutputDirectoriesAndProducers = 7;
+
+    int32 FileCount = 8;
+
+    int32 ContentCount = 9;
+
+    int32 ArtifactContentCount = 10;
+
+    repeated NodeValuesMap Values = 11;
+
+    repeated FileArtifactMap SpecFiles = 12;
+
+    map<int32, NodeId> Modules = 13;
+
+    StringId ApiServerMoniker = 14;
+
+    repeated uint32 StableKeys = 15;
+}

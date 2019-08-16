@@ -6,7 +6,7 @@
 import * as vscode from "vscode";
 import { DocumentColorParams } from "vscode-languageserver-protocol/lib/protocol.colorProvider.proposed";
 
-export const BxlStatusCsvFileName = "BuildXL.status.csv";
+export const BxlStatusCsvFileNameSuffix = ".status.csv";
 export const CmdRenderStatus = "XLG.Render.Status";
 export const DefaultColumnsOfInterest = [ "*" ];
 export const DefaultColumnsToRender = [ "Cpu Percent", "Mem Percent", "Process Running" ];
@@ -44,8 +44,8 @@ export function renderActiveBxlStatusCsv() {
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor === undefined)
         return error("No active editor.");
-    if (!activeEditor.document.fileName.endsWith(BxlStatusCsvFileName))
-        return error(`This command can only run against a '${BxlStatusCsvFileName}' file; instead, active editor is '${activeEditor.document.fileName}'`);
+    if (!activeEditor.document.fileName.endsWith(BxlStatusCsvFileNameSuffix))
+        return error(`This command can only run against a '${BxlStatusCsvFileNameSuffix}' file; instead, active editor is '${activeEditor.document.fileName}'`);
 
     vscode.window.showInputBox({
         prompt: "Enter columns of interest",

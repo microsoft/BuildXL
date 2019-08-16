@@ -3,7 +3,7 @@
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode = require("vscode");
-exports.BxlStatusCsvFileName = "BuildXL.status.csv";
+exports.BxlStatusCsvFileNameSuffix = ".status.csv";
 exports.CmdRenderStatus = "XLG.Render.Status";
 exports.DefaultColumnsOfInterest = ["*"];
 exports.DefaultColumnsToRender = ["Cpu Percent", "Mem Percent", "Process Running"];
@@ -36,8 +36,8 @@ function renderActiveBxlStatusCsv() {
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor === undefined)
         return error("No active editor.");
-    if (!activeEditor.document.fileName.endsWith(exports.BxlStatusCsvFileName))
-        return error(`This command can only run against a '${exports.BxlStatusCsvFileName}' file; instead, active editor is '${activeEditor.document.fileName}'`);
+    if (!activeEditor.document.fileName.endsWith(exports.BxlStatusCsvFileNameSuffix))
+        return error(`This command can only run against a '${exports.BxlStatusCsvFileNameSuffix}' file; instead, active editor is '${activeEditor.document.fileName}'`);
     vscode.window.showInputBox({
         prompt: "Enter columns of interest",
         value: exports.DefaultColumnsOfInterest.join(", "),

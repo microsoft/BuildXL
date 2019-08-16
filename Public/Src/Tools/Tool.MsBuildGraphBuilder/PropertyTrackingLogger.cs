@@ -31,10 +31,11 @@ namespace ProjectGraphBuilder
                                               {
                                                   m_variablesRead[upArgs.PropertyName] = null;
                                               }
-                                              else if (args is SdkResolverDoesNotTrackEnvironmentVariablesEventArgs trackArgs)
-                                              {
-                                                  m_sdkResolversNotTrackingEnvVars[trackArgs.SdkResolverName] = null;
-                                              }
+                                              // This is for future work being done.
+                                              //else if (args is SdkResolverDoesNotTrackEnvironmentVariablesEventArgs trackArgs)
+                                              //{
+                                              //    m_sdkResolversNotTrackingEnvVars[trackArgs.SdkResolverName] = null;
+                                              //}
                                           };
         }
 

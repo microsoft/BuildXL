@@ -162,7 +162,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Prepare()
         {
-            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath);
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, openWriteOnly: true);
 
             if (accessor.Succeeded)
             {
@@ -194,6 +194,13 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Dispose()
         {
+            Analysis.IgnoreResult(
+                m_accessor.Use(database =>
+                {
+                    database.CompactRange((byte[])null, null);
+                })
+            );
+
             m_accessor.Dispose();
         }
 

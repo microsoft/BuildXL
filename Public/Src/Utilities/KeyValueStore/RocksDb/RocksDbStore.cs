@@ -148,6 +148,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
             /// open the DB more than once in a 12 hour period, you will only have partial information.
             /// </param>
+            /// <param name="openWriteOnly">
+            /// Have RocksDb open for writing only which enables us to bulk load.
+            /// </param>
             public RocksDbStore(
                 string storeDirectory,
                 bool defaultColumnKeyTracked = false,
@@ -155,7 +158,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 IEnumerable<string> additionalKeyTrackedColumns = null,
                 bool readOnly = false,
                 bool dropMismatchingColumns = false,
-                bool rotateLogs = false)
+                bool rotateLogs = false,
+                bool openWriteOnly = false)
             {
                 m_storeDirectory = storeDirectory;
 
@@ -170,6 +174,17 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .IncreaseParallelism(Environment.ProcessorCount / 2)
                     // Ensure we have performance statistics for profiling
                     .EnableStatistics();
+
+                if (openWriteOnly)
+                {
+                    // Prepares the instance for bulk loads which does the following: 
+                    // 1) uses vector memtable
+                    // 2) make sure options.max_background_flushes is at least 4
+                    // 3) before inserting the data, disable automatic compaction, set options.level0_file_num_compaction_trigger, 
+                    // options.level0_slowdown_writes_trigger and options.level0_stop_writes_trigger to very large. After 
+                    // inserting all the data, issues a manual compaction.
+                    m_defaults.DbOptions.PrepareForBulkLoad();
+                }
 
                 // A small comment on things tested that did not work:
                 //  * SetAllowMmapReads(true) and SetAllowMmapWrites(true) produce a dramatic performance drop
@@ -250,7 +265,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 {
                     // For read-write mode, column families may be added, so set up column families schema
                     var columnsSchema = new HashSet<string>(additionalColumns);
-                
+
                     // Default column
                     columnsSchema.Add(ColumnFamilies.DefaultName);
 
@@ -282,7 +297,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     {
                         columnFamilies.Add(name, m_defaults.ColumnFamilyOptions);
                     }
- 
+
                     m_store = RocksDb.Open(m_defaults.DbOptions, m_storeDirectory, columnFamilies);
 
                     // Provide an opportunity to update the store to the new column family schema
@@ -368,32 +383,29 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }
             }
 
-            /// <inheritdoc />
-            public void ApplyBatch(IEnumerable<string> keys, IEnumerable<string> values, string columnFamilyName = null)
-            {
-                ApplyBatch(keys.Select(k => StringToBytes(k)), values.Select(v => StringToBytes(v)), columnFamilyName);
-            }
-
-            /// <inheritdoc />
-            public void ApplyBatch(IEnumerable<byte[]> keys, IEnumerable<byte[]> values, string columnFamilyName = null)
+            public void ApplyBatch(IEnumerable<KeyValuePair<byte[], byte[]>> map, string columnFamilyName = null)
             {
                 var columnFamilyInfo = GetColumnFamilyInfo(columnFamilyName);
-
                 using (var writeBatch = new WriteBatch())
                 {
-                    foreach (var keyValuePair in keys.Zip(values, (k, v) => (k, v)))
+                    foreach (var keyValuePair in map)
                     {
-                        if (keyValuePair.v == null)
+                        if (keyValuePair.Value == null)
                         {
-                            AddDeleteOperation(writeBatch, columnFamilyInfo, keyValuePair.k);
-                        } else
+                            AddDeleteOperation(writeBatch, columnFamilyInfo, keyValuePair.Key);
+                        }
+                        else
                         {
-                            AddPutOperation(writeBatch, columnFamilyInfo, keyValuePair.k, keyValuePair.v);
+                            AddPutOperation(writeBatch, columnFamilyInfo, keyValuePair.Key, keyValuePair.Value);
                         }
                     }
-
                     WriteInternal(writeBatch);
                 }
+            }
+
+            public void ApplyBatch(IEnumerable<KeyValuePair<string, string>> map, string columnFamilyName = null)
+            {
+                ApplyBatch(map.Select(kvp => new KeyValuePair<byte[], byte[]>(StringToBytes(kvp.Key), StringToBytes(kvp.Value))), columnFamilyName);
             }
 
             /// <inheritdoc />
@@ -523,10 +535,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 string startValue = null)
             {
                 return GarbageCollect(
-                    canCollect: (key) => canCollect(BytesToString(key)), 
-                    columnFamilyName: columnFamilyName, 
-                    additionalColumnFamilies: additionalColumnFamilies, 
-                    cancellationToken: cancellationToken, 
+                    canCollect: (key) => canCollect(BytesToString(key)),
+                    columnFamilyName: columnFamilyName,
+                    additionalColumnFamilies: additionalColumnFamilies,
+                    cancellationToken: cancellationToken,
                     startValue: StringToBytes(startValue));
             }
 
@@ -540,7 +552,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             {
                 return GarbageCollectByKeyValue(i => canCollect(i.Key()), columnFamilyName, additionalColumnFamilies, cancellationToken, startValue);
             }
-            
+
             /// <inheritdoc />
             public GarbageCollectResult GarbageCollectByKeyValue(
                 Func<Iterator, bool> canCollect,
@@ -568,7 +580,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 var keysToRemove = new List<byte[]>();
                 var primaryColumn = new string[] { columnFamilyName };
-                var columnsToUse = additionalColumnFamilies == null ?  primaryColumn : additionalColumnFamilies.Concat(primaryColumn);
+                var columnsToUse = additionalColumnFamilies == null ? primaryColumn : additionalColumnFamilies.Concat(primaryColumn);
                 using (Iterator iterator = m_store.NewIterator(columnFamilyHandleToUse, m_readOptions))
                 {
                     if (startValue != null)
@@ -595,7 +607,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                         iterator.Next();
                         reachedEnd = !iterator.Valid();
 
-                        if (keysToRemove.Count == GarbageCollectionBatchSize 
+                        if (keysToRemove.Count == GarbageCollectionBatchSize
                             || (reachedEnd && keysToRemove.Count > 0))
                         {
                             var startTime = TimestampUtilities.Timestamp;

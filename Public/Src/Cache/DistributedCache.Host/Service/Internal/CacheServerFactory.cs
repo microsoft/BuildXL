@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -132,6 +131,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
                         memoizationStoreFunc: () => {
+                            // TODO(jubayard): This will create one memoization store per named cache root in the
+                            // local server configuration, which means that there will be one database per drive.
+                            // Fixing this right now would take a lot of rewriting. Sharing a single instance of the
+                            // memoization store means it will be initialized and shutdown multiple times.
                             return new RocksDbMemoizationStore(_logger, SystemClock.Instance, new RocksDbMemoizationStoreConfiguration()
                             {
                                 Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore") {

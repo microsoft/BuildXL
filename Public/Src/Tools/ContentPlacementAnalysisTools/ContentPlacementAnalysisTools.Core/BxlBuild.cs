@@ -90,8 +90,6 @@ namespace ContentPlamentAnalysisTools.Core
             {
                 if (reader.TokenType == JsonToken.StartObject)
                 {
-                    // here does this guy starts. This guy has several properties that we will read,
-                    // but also has two lists inside. We have to respect the ordering here.
                     var bi = ReadNextProperty(reader);
                     var bq = ReadNextProperty(reader);
                     var bst = ReadNextProperty(reader);
@@ -153,7 +151,7 @@ namespace ContentPlamentAnalysisTools.Core
         /// <summary>
         /// The number of pips that produce this artifact
         /// </summary>
-        public int NumOutputPips  =>  OutputPips.Count;
+        public int NumOutputPips => OutputPips.Count;
         /// <summary>
         /// The data of all the pips that produce this artifact
         /// </summary>
@@ -198,8 +196,6 @@ namespace ContentPlamentAnalysisTools.Core
             {
                 if (reader.TokenType == JsonToken.StartObject)
                 {
-                    // here does this guy starts. This guy has several properties that we will read,
-                    // but also has two lists inside. We have to respect the ordering here.
                     var ha = BxlBuild.ReadNextProperty(reader);
                     var rf = BxlBuild.ReadNextProperty(reader);
                     var rs = BxlBuild.ReadNextProperty(reader);
@@ -239,7 +235,7 @@ namespace ContentPlamentAnalysisTools.Core
         public static List<BxlArtifact> ReadFromJsonStream(JsonTextReader reader, int count)
         {
             var output = new List<BxlArtifact>();
-            for(int i = 0; i < count; ++i)
+            for (int i = 0; i < count; ++i)
             {
                 output.Add(ReadFromJsonStream(reader));
             }
@@ -330,9 +326,8 @@ namespace ContentPlamentAnalysisTools.Core
             BxlPipData output = null;
             while (reader.Read())
             {
-                if(reader.TokenType == JsonToken.StartObject)
+                if (reader.TokenType == JsonToken.StartObject)
                 {
-                    // here does this guy starts. This guy has several properties that we will read
                     var ssh = BxlBuild.ReadNextProperty(reader);
                     var pr = BxlBuild.ReadNextProperty(reader);
                     var we = BxlBuild.ReadNextProperty(reader);
@@ -356,7 +351,7 @@ namespace ContentPlamentAnalysisTools.Core
                         SemaphoreCount = Convert.ToInt32(sc.Item2),
                         StartTimeTicks = Convert.ToInt64(stt.Item2),
                         Type = ty.Item2,
-                        ExecutionLevel =el.Item2
+                        ExecutionLevel = el.Item2
                     };
                 }
                 if (reader.TokenType == JsonToken.EndObject)
@@ -374,7 +369,7 @@ namespace ContentPlamentAnalysisTools.Core
         public static List<BxlPipData> ReadFromJsonStream(JsonTextReader reader, int count)
         {
             var output = new List<BxlPipData>();
-            for(int i = 0; i < count; ++i)
+            for (int i = 0; i < count; ++i)
             {
                 output.Add(ReadFromJsonStream(reader));
             }

@@ -591,14 +591,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     try
                     {
                         await Task.Yield();
-                        await _inMemoryCache.FlushAsync(context);
-                        return BoolResult.Success;
+                        return Result.Success(await _inMemoryCache.FlushAsync(context));
                     }
                     finally
                     {
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
+                }, extraEndMessage: maybeStatistics => {
+                    if (!maybeStatistics.Succeeded)
+                    {
+                        return string.Empty;
+                    }
+
+                    var statistics = maybeStatistics.Value;
+                    return $"Persisted={statistics.Persisted} Leftover={statistics.Leftover} Growth={statistics.Growth} FlushingTimeMs={statistics.FlushingTime.TotalMilliseconds} CleanupTimeMs={statistics.CleanupTime.TotalMilliseconds}";
                 }).ThrowIfFailure();
         }
 

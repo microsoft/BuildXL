@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -87,23 +89,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task FlushAsync(OperationContext context)
+        public async Task<FlushStatistics> FlushAsync(OperationContext context)
         {
             // This lock is required to ensure no flushes happen concurrently. We may loose updates if that happens.
             // AcquireAsync is used so as to avoid multiple concurrent tasks just waiting; this way we return the
             // task to the thread pool in between.
             using (await _flushMutex.AcquireAsync())
             {
-                PerformFlush(context);
+                return PerformFlush(context);
             }
+        }
+
+        public struct FlushStatistics
+        {
+            public long Persisted;
+            public long Leftover;
+            public long Growth;
+            public TimeSpan FlushingTime;
+            public TimeSpan CleanupTime;
         }
 
         /// <summary>
         /// Needs to take the flushing lock. Called only from <see cref="FlushAsync(OperationContext)"/>. Refactored
         /// out for clarity.
         /// </summary>
-        private void PerformFlush(OperationContext context)
+        private FlushStatistics PerformFlush(OperationContext context)
         {
+            var statistics = new FlushStatistics();
+            var stopwatch = new Stopwatch();
+
             _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Increment();
 
             using (_database.Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
@@ -113,6 +127,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _flushingCache = _cache;
                     _cache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
                 }
+
+                stopwatch.Start();
 
                 if (_configuration.FlushSingleTransaction)
                 {
@@ -137,6 +153,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     actionBlock.CompletionAsync().Wait();
                 }
 
+                statistics.FlushingTime = stopwatch.Elapsed;
+                statistics.Persisted = _flushingCache.Count;
+                stopwatch.Restart();
+
                 _database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Add(_flushingCache.Count);
 
                 if (_configuration.FlushPreservePercentInMemory > 0)
@@ -157,8 +177,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 }
 
+                statistics.CleanupTime = stopwatch.Elapsed;
+                statistics.Leftover = _flushingCache.Count;
+
                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCompletedCacheFlushes].Increment();
             }
+
+            statistics.Growth = _cache.Count;
+
+            return statistics;
         }
     }
 }

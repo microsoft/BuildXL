@@ -19,6 +19,14 @@ namespace ProjectGraphBuilder
         private readonly ConcurrentDictionary<string, object> m_variablesRead = new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, object> m_sdkResolversNotTrackingEnvVars = new ConcurrentDictionary<string, object>();
 
+        public PropertyTrackingLogger()
+        {
+            // This environment variable enable property tracking in MsBuild.
+            // Without it, no events would be logged or received.
+            // A value of "12" tells MsBuild to log events "Environment Variable Read" and "Uninitialized Property Read".
+            Environment.SetEnvironmentVariable("MsBuildLogPropertyTracking", "12");
+        }
+
         public void Initialize(IEventSource eventSource)
         {
             eventSource.AnyEventRaised += (sender, args) =>

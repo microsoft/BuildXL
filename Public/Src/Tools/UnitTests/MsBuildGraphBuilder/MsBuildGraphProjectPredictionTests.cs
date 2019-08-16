@@ -94,7 +94,7 @@ namespace Test.ProjectGraphBuilder
         }
 
         [Fact]
-        public void PropertyTrackingIgnoredWhenDisabled()
+        public void PropertyTrackingIsEnabledAndWorks()
         {
             string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
             string entryPoint = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
@@ -102,40 +102,6 @@ namespace Test.ProjectGraphBuilder
             // Create an environment variable with a unique name.
             string envVarName = Guid.NewGuid().ToString().Replace("-", string.Empty);
             Environment.SetEnvironmentVariable(envVarName, "value not important");
-
-            File.WriteAllText(entryPoint,
-                "<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"><PropertyGroup><PropertyOne>$(" + envVarName + ")</PropertyOne></PropertyGroup></Project>");
-
-            MsBuildGraphBuilder.BuildGraphAndSerialize(
-                GetStandardBuilderArguments(
-                    new[] { entryPoint },
-                    outputFile,
-                    globalProperties: GlobalProperties.Empty,
-                    entryPointTargets: new string[0],
-                    requestedQualifiers: new GlobalProperties[] { GlobalProperties.Empty },
-                    allowProjectsWithoutTargetProtocol: false));
-
-            // Remove the environment variable.
-            Environment.SetEnvironmentVariable(envVarName, string.Empty);
-
-            var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
-            Assert.True(result.Succeeded);
-
-            // There should have been no tracking.
-            Assert.NotNull(result.EnvironmentVariablesAffectingBuild);
-            Assert.Equal(0, result.EnvironmentVariablesAffectingBuild.Count());
-        }
-
-        [Fact]
-        public void PropertyTrackingWorksWhenEnabled()
-        {
-            string outputFile = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
-            string entryPoint = Path.Combine(TemporaryDirectory, Guid.NewGuid().ToString());
-
-            // Create an environment variable with a unique name.
-            string envVarName = Guid.NewGuid().ToString().Replace("-", string.Empty);
-            Environment.SetEnvironmentVariable(envVarName, "value not important");
-            Environment.SetEnvironmentVariable("MsBuildLogPropertyTracking", "15"); // 15 = Log all property tracking events.
 
             File.WriteAllText(entryPoint,
                 "<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"><PropertyGroup><PropertyOne>$(" + envVarName + ")</PropertyOne></PropertyGroup></Project>");
@@ -151,7 +117,6 @@ namespace Test.ProjectGraphBuilder
 
             // Remove the environment variables.
             Environment.SetEnvironmentVariable(envVarName, string.Empty);
-            Environment.SetEnvironmentVariable("MsBuildLogPropertyTracking", string.Empty);
 
             var result = SimpleDeserializer.Instance.DeserializeGraph(outputFile);
             Assert.True(result.Succeeded);

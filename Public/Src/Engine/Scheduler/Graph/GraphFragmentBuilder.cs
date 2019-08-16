@@ -13,6 +13,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
@@ -29,6 +30,10 @@ namespace BuildXL.Scheduler.Graph
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly SealedDirectoryTable m_sealDirectoryTable;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
+        private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
+        private readonly ConcurrentBigMap<FileArtifact, PipId> m_fileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, PipId> m_opaqueDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, PipId>();
+
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
         private MacOsDefaults m_macOsDefaults;
@@ -56,22 +61,25 @@ namespace BuildXL.Scheduler.Graph
 
         private bool AddPip(Pip pip)
         {
-            m_pips.Enqueue(pip);
+            m_pips.Enqueue(pip); 
             pip.PipId = new PipId((uint)Interlocked.Increment(ref m_nextPipId));
             return true;
         }
 
         /// <inheritdoc />
-        public bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip) => AddPip(copyFile);
+        public bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip)
+        {
+            var result = AddPip(copyFile);
+            AddFileDependent(copyFile.Source, copyFile);
+            m_fileProducers[copyFile.Destination] = copyFile.PipId;
+            return result;
+        }
 
         /// <inheritdoc />
         public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
 
         /// <inheritdoc />
-        public bool AddModule([NotNull] ModulePip module)
-        {
-            return AddPip(module);
-        }
+        public bool AddModule([NotNull] ModulePip module) => AddPip(module);
 
         /// <inheritdoc />
         public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency) => true;
@@ -80,14 +88,31 @@ namespace BuildXL.Scheduler.Graph
         public bool AddOutputValue([NotNull] ValuePip value) => AddPip(value);
 
         /// <inheritdoc />
-        public bool AddProcess([NotNull] Process process, PipId valuePip) => AddPip(process);
+        public bool AddProcess([NotNull] Process process, PipId valuePip)
+        {
+            var result = AddPip(process);
+            AddFileDependents(process.Dependencies, process);
+            AddDirectoryDependents(process.DirectoryDependencies, process);
+            AddDependents(process.OrderDependencies, process);
+
+            foreach (var fileOutput in process.FileOutputs)
+            {
+                m_fileProducers[fileOutput.ToFileArtifact()] = process.PipId;
+            }
+
+            foreach (var directoryOutput in process.DirectoryOutputs)
+            {
+                m_opaqueDirectoryProducers[directoryOutput] = process.PipId;
+            }
+
+            return result;
+        }
 
         /// <inheritdoc />
         public DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
         {
             AddPip(sealDirectory);
             DirectoryArtifact artifactForNewSeal;
-
             if (sealDirectory.Kind == SealDirectoryKind.SharedOpaque)
             {
                 Contract.Assume(sealDirectory.Directory.IsSharedOpaque);
@@ -103,8 +128,10 @@ namespace BuildXL.Scheduler.Graph
                 sealDirectory.SetDirectoryArtifact(artifactForNewSeal);
             }
 
-            m_sealDirectoryTable.AddSeal(sealDirectory);
+            AddFileDependents(sealDirectory.Contents, sealDirectory);
+            AddDirectoryDependents(sealDirectory.ComposedDirectories, sealDirectory);
 
+            m_sealDirectoryTable.AddSeal(sealDirectory);
             return artifactForNewSeal;
         }
 
@@ -115,7 +142,12 @@ namespace BuildXL.Scheduler.Graph
         public bool AddValueValueDependency(in ValuePip.ValueDependency valueDependency) => true;
 
         /// <inheritdoc />
-        public bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip) => AddPip(writeFile);
+        public bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip)
+        {
+            var result = AddPip(writeFile);
+            m_fileProducers[writeFile.Destination] = writeFile.PipId;
+            return result;
+        }
 
         /// <inheritdoc />
         public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
@@ -149,8 +181,58 @@ namespace BuildXL.Scheduler.Graph
                     }
                 }
 
-                return m_windowsOsDefaults.ProcessDefaults(processBuilder);
+                return m_windowsOsDefaults.ProcessDefaults(processBuilder); 
             }
+        }
+
+        /// <inheritdoc />
+        public void AddDirectoryDependents(IEnumerable<DirectoryArtifact> directories, Pip dependent)
+        {
+            foreach (var directory in directories)
+            {
+                m_sealDirectoryTable.TryGetSealForDirectoryArtifact(directory, out PipId producerId);
+                if (producerId.IsValid)
+                {
+                    AddDependent(producerId, dependent);
+                }
+                else if (m_opaqueDirectoryProducers.TryGetValue(directory, out PipId opaqueProducerId))
+                {
+                    AddDependent(opaqueProducerId, dependent);
+                }
+            }
+        }
+
+        /// <inheritdoc />
+        public void AddFileDependents(IEnumerable<FileArtifact> files, Pip dependent)
+        {
+            foreach(var file in files)
+            {
+                AddFileDependent(file, dependent);
+            }
+        }
+
+        /// <inheritdoc />
+        public void AddFileDependent(FileArtifact file, Pip dependent)
+        {
+            if (m_fileProducers.TryGetValue(file, out PipId producer))
+            {
+                AddDependent(producer, dependent);
+            }
+        }
+
+        /// <inheritdoc />
+        private void AddDependents(IEnumerable<PipId> pips, Pip dependent)
+        {
+            foreach (var pip in pips)
+            {
+                AddDependent(pip, dependent);
+            }
+        }
+
+        /// <inheritdoc />
+        private void AddDependent(PipId pip, Pip dependent)
+        {
+            m_pipDependents.AddOrUpdate(pip, new List<Pip>() { dependent }, (key, deps) => { lock (deps) { deps.Add(dependent); return deps; } });
         }
 
         /// <inheritdoc />
@@ -166,7 +248,12 @@ namespace BuildXL.Scheduler.Graph
         public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip) => Enumerable.Empty<Pip>();
 
         /// <inheritdoc />
-        public IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip) => Enumerable.Empty<Pip>();
+        public IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip)
+        {
+            IList<Pip> dependents;
+            m_pipDependents.TryGetValue(pip.PipId, out dependents);
+            return dependents;
+        }
 
         /// <inheritdoc />
         public IEnumerable<Pip> RetrieveScheduledPips() => m_pips;

@@ -558,14 +558,6 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.PipTable ToPipTable(this PipTable pipTable)
-        {
-            var xldbPipTable = new Xldb.PipTable();
-            xldbPipTable.StableKeys.AddRange(pipTable.StableKeys.Select(stableKey => stableKey.Value));
-            return xldbPipTable;
-        }
-
-        /// <nodoc />
         public static Xldb.PipData ToPipData(this PipData pipData)
         {
             return !pipData.IsValid ? null : new Xldb.PipData
@@ -588,6 +580,7 @@ namespace BuildXL.Execution.Analyzer
             };
         }
 
+        /// <nodoc />
         public static Xldb.FileOrDirectoryArtifact ToFileOrDirectoryArtifact(this FileOrDirectoryArtifact artifact, PathTable pathTable)
         {
             if (!artifact.IsValid)
@@ -805,6 +798,7 @@ namespace BuildXL.Execution.Analyzer
             };
         }
 
+        /// <nodoc />
         public static Xldb.Edge ToEdge(this Edge edge)
         {
             return new Xldb.Edge()
@@ -815,6 +809,7 @@ namespace BuildXL.Execution.Analyzer
             };
         }
 
+        /// <nodoc />
         public static Xldb.NodeRange ToNodeRange(this NodeRange nodeRange)
         {
             return new Xldb.NodeRange()
@@ -827,7 +822,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.PipGraph ToPipGraph(this PipGraph pipGraph, PathTable pathTable)
+        public static Xldb.PipGraph ToPipGraph(this PipGraph pipGraph, PathTable pathTable, PipTable pipTable)
         {
             var xldbPipGraph = new Xldb.PipGraph()
             {
@@ -856,6 +851,8 @@ namespace BuildXL.Execution.Analyzer
                 Artifact = kvp.Key.ToDirectoryArtifact(pathTable),
                 Value = kvp.Value.Value
             }));
+            xldbPipGraph.StableKeys.AddRange(pipTable.StableKeys.Select(stableKey => stableKey.Value));
+
 
             foreach (var kvp in pipGraph.Modules)
             {

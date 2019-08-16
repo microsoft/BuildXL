@@ -81,13 +81,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputFilePath;
 
-        private Stopwatch m_stopWatch;
-
-        public BXLInvocationAnalyzer(AnalysisInput input) : base(input)
-        {
-            m_stopWatch = new Stopwatch();
-            m_stopWatch.Start();
-        }
+        public BXLInvocationAnalyzer(AnalysisInput input) : base(input) { }
 
         /// <inheritdoc/>
         public override int Analyze()
@@ -96,7 +90,6 @@ namespace BuildXL.Execution.Analyzer
             {
                 File.WriteAllLines(OutputFilePath, dataStore.GetBXLInvocationEvents().Select(key => key.ToString()));
             }
-            Console.WriteLine("Total time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
 
             return 0;
         }

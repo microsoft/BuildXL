@@ -228,21 +228,13 @@ namespace BuildXL.Execution.Analyzer
 
             Console.WriteLine("\nEvent data ingested into RocksDB. Starting to ingest static graph data ...\n");
 
-            var pipTable = CachedGraph.PipTable.ToPipTable();
-
-            var graphMetadata = new CachedGraphQuery
-            {
-                PipTable = true
-            };
-
-            WriteToDb(graphMetadata.ToByteArray(), pipTable.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
             IngestAllPips();
             Console.WriteLine($"\nAll pips ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
             Console.WriteLine("\nStarting to ingest PipGraph.");
-            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable);
+            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable);
 
-            graphMetadata = new CachedGraphQuery
+            var graphMetadata = new CachedGraphQuery
             {
                 PipGraph = true
             };

@@ -44,7 +44,6 @@ namespace Execution.Analyzer {
             importFrom("BuildXL.Ide").Generator.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
-            importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,

@@ -87,9 +87,6 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var m_stopWatch = new Stopwatch();
-            m_stopWatch.Start();
-
             using (var dataStore = new XldbDataStore(storeDirectory: InputDirPath))
             using (var outputStream = File.OpenWrite(OutputFilePath))
             using (var writer = new StreamWriter(outputStream))
@@ -138,7 +135,6 @@ namespace BuildXL.Execution.Analyzer
                     writer.WriteLine();
                 }
             }
-            Console.WriteLine("Total time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
 
             return 0;
         }

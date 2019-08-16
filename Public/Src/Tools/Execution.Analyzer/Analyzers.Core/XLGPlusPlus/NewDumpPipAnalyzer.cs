@@ -78,7 +78,6 @@ namespace BuildXL.Execution.Analyzer
         private readonly string m_outputFilePath;
         private readonly string m_inputDirPath;
         private readonly long m_semiStableHash;
-        private readonly Stopwatch m_stopWatch;
 
         public DumpPipXldbAnalyzer(AnalysisInput input, string outputFilePath, string inputDirPath, long semiStableHash)
             : base(input)
@@ -86,8 +85,6 @@ namespace BuildXL.Execution.Analyzer
             m_outputFilePath = outputFilePath;
             m_inputDirPath = inputDirPath;
             m_semiStableHash = semiStableHash;
-            m_stopWatch = new Stopwatch();
-            m_stopWatch.Start();
         }
 
         /// <inheritdoc/>
@@ -174,9 +171,9 @@ namespace BuildXL.Execution.Analyzer
 
                     var pipGraph = dataStore.GetPipGraphMetaData();
                     var directories = new Stack<(DirectoryArtifact artifact, string path)>(
-                    ((ProcessPip)castedPip).DirectoryDependencies
-                        .Select(d => (artifact: d, path: d.Path.Value))
-                        .OrderByDescending(tupple => tupple.path));
+                        ((ProcessPip)castedPip).DirectoryDependencies
+                            .Select(d => (artifact: d, path: d.Path.Value))
+                            .OrderByDescending(tupple => tupple.path));
 
                     while (directories.Count > 0)
                     {
@@ -192,7 +189,7 @@ namespace BuildXL.Execution.Analyzer
 
                                 if (currPipType == PipType.SealDirectory)
                                 {
-                                    foreach(var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tupple => tupple.path))
+                                    foreach (var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tupple => tupple.path))
                                     {
                                         directories.Push((nestedDirectory.artifact, nestedDirectory.path));
                                     }
@@ -203,7 +200,6 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            Console.WriteLine("\n\nTotal time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
             return 0;
         }
     }

@@ -15,9 +15,7 @@ option csharp_namespace = "BuildXL.Execution.Analyzer.Xldb";
 
 // CachedGraphQuery is the key for the top level data structures stored in the cached graph
 message CachedGraphQuery{
-    bool PipTable = 1;
-
-    bool PipGraph = 2;  
+    bool PipGraph = 1;  
 }
 
 // Pip Query is 2 levels deep. SemistableHash -> PipId -> PipValues
@@ -86,10 +84,6 @@ message PipGraphStaticFingerprints{
 //  Graph Data
 //
 
-message PipTable{
-    repeated uint32 StableKeys = 6;
-}
-
 message PipGraph{
     string GraphId = 1;
 
@@ -118,4 +112,6 @@ message PipGraph{
     map<int32, NodeId> Modules = 13;
 
     StringId ApiServerMoniker = 14;
+
+    repeated uint32 StableKeys = 15;
 }

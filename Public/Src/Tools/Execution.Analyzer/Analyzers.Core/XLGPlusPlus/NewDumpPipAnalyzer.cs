@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Execution.Analyzer.Xldb;
@@ -13,7 +14,7 @@ namespace BuildXL.Execution.Analyzer
 {
     internal partial class Args
     {
-        public Analyzer InitializeNewDumpPipAnalyzer()
+        public Analyzer InitializeDumpPipXldbAnalyzer()
         {
             string outputFilePath = null;
             string inputDirPath = null;
@@ -56,13 +57,13 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("/pip parameter is required");
             }
 
-            return new NewDumpPipAnalyzer(GetAnalysisInput(), outputFilePath, inputDirPath, semiStableHash);
+            return new DumpPipXldbAnalyzer(GetAnalysisInput(), outputFilePath, inputDirPath, semiStableHash);
         }
 
-        private static void WriteNewDumpPipAnalyzerHelp(HelpWriter writer)
+        private static void WriteDumpPipXldbHelp(HelpWriter writer)
         {
-            writer.WriteBanner("New Dump Pip Analysis");
-            writer.WriteModeOption(nameof(AnalysisMode.NewDumpPip), "Generates an html file containing information about the requested pip, using the RocksDB database as the source");
+            writer.WriteBanner("Dump Pip Xldb Analyzer");
+            writer.WriteModeOption(nameof(AnalysisMode.DumpPipXldb), "Generates an html file containing information about the requested pip, using the RocksDB database as the source");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The location of the output file for critical path analysis.", shortName: "o");
             writer.WriteOption("pip", "Required. The formatted semistable hash of a pip to dump (must start with 'Pip', e.g., 'PipC623BCE303738C69')");
@@ -72,21 +73,18 @@ namespace BuildXL.Execution.Analyzer
     /// <summary>
     /// Exports a JSON structured graph, including per-pip static and execution details.
     /// </summary>
-    public sealed class NewDumpPipAnalyzer : Analyzer
+    public sealed class DumpPipXldbAnalyzer : Analyzer
     {
         private readonly string m_outputFilePath;
         private readonly string m_inputDirPath;
         private readonly long m_semiStableHash;
-        private readonly Stopwatch m_stopWatch;
 
-        public NewDumpPipAnalyzer(AnalysisInput input, string outputFilePath, string inputDirPath, long semiStableHash)
+        public DumpPipXldbAnalyzer(AnalysisInput input, string outputFilePath, string inputDirPath, long semiStableHash)
             : base(input)
         {
             m_outputFilePath = outputFilePath;
             m_inputDirPath = inputDirPath;
             m_semiStableHash = semiStableHash;
-            m_stopWatch = new Stopwatch();
-            m_stopWatch.Start();
         }
 
         /// <inheritdoc/>
@@ -99,14 +97,17 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             using (var dataStore = new XldbDataStore(storeDirectory: m_inputDirPath))
+            using (var outputStream = File.OpenWrite(m_outputFilePath))
+            using (var writer = new StreamWriter(outputStream))
             {
                 var pip = dataStore.GetPipBySemiStableHash(m_semiStableHash, out var pipType);
 
                 if (pip == null)
                 {
-                    Console.WriteLine($"Pip with the SemiStableHash {m_semiStableHash} was not found. Exiting Analyzer");
+                    Console.WriteLine($"Pip with the SemiStableHash {m_semiStableHash} was not found. Exiting Analyzer ...");
                     return 1;
                 }
+                Console.WriteLine($"Pip with the SemiStableHash {m_semiStableHash} was found. Logging to output file ...");
 
                 dynamic castedPip = null;
 
@@ -114,9 +115,6 @@ namespace BuildXL.Execution.Analyzer
                 {
                     case PipType.CopyFile:
                         castedPip = (CopyFile)pip;
-                        break;
-                    case PipType.Module:
-                        castedPip = (ModulePip)pip;
                         break;
                     case PipType.SealDirectory:
                         castedPip = (SealDirectory)pip;
@@ -127,42 +125,36 @@ namespace BuildXL.Execution.Analyzer
                     case PipType.Process:
                         castedPip = (ProcessPip)pip;
                         break;
-                    case PipType.HashSourceFile:
-                        castedPip = (HashSourceFile)pip;
-                        break;
                     case PipType.Ipc:
                         castedPip = (IpcPip)pip;
                         break;
-                    case PipType.SpecFile:
-                        castedPip = (SpecFilePip)pip;
-                        break;
                 }
 
-                Console.WriteLine(pipType.ToString());
-                Console.WriteLine(pip.ToString());
+                writer.WriteLine(pipType.ToString());
+                writer.WriteLine(pip.ToString());
 
-                dataStore.GetBXLInvocationEvents().ToList().ForEach(ev => Console.WriteLine(ev.ToString()));
+                dataStore.GetBXLInvocationEvents().ToList().ForEach(ev => writer.WriteLine(ev.ToString()));
 
-                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionPerformance, castedPip.ParentPipInfo.PipId)?.ToString() ?? "PipExecutionPerformance empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionStepPerformanceReported, castedPip.ParentPipInfo.PipId)?.ToString() ?? "PipExecutionStepPerformanceReported empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessExecutionMonitoringReported, castedPip.ParentPipInfo.PipId)?.ToString() ?? "ProcessExecutionMonitoringReported empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessFingerprintComputation, castedPip.ParentPipInfo.PipId)?.ToString() ?? "ProcessFingerprintComputation empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ObservedInputs, castedPip.ParentPipInfo.PipId)?.ToString() ?? "ObservedInputs empty or null");
-                Console.WriteLine(dataStore.GetEventByKey(ExecutionEventId.DirectoryMembershipHashed, castedPip.ParentPipInfo.PipId)?.ToString() ?? "DirectoryMembershipHashed empty or null");
+                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionPerformance, castedPip.GraphInfo.PipId)?.ToString() ?? "PipExecutionPerformance empty or null");
+                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionStepPerformanceReported, castedPip.GraphInfo.PipId)?.ToString() ?? "PipExecutionStepPerformanceReported empty or null");
+                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessExecutionMonitoringReported, castedPip.GraphInfo.PipId)?.ToString() ?? "ProcessExecutionMonitoringReported empty or null");
+                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessFingerprintComputation, castedPip.GraphInfo.PipId)?.ToString() ?? "ProcessFingerprintComputation empty or null");
+                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ObservedInputs, castedPip.GraphInfo.PipId)?.ToString() ?? "ObservedInputs empty or null");
+                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.DirectoryMembershipHashed, castedPip.GraphInfo.PipId)?.ToString() ?? "DirectoryMembershipHashed empty or null");
 
                 var depViolatedEvents = dataStore.GetDependencyViolationReportedEvents();
 
                 foreach (var ev in depViolatedEvents)
                 {
-                    if (ev.ViolatorPipID == castedPip.ParentPipInfo.PipId || ev.RelatedPipID == castedPip.ParentPipInfo.PipId)
+                    if (ev.ViolatorPipID == castedPip.GraphInfo.PipId || ev.RelatedPipID == castedPip.GraphInfo.PipId)
                     {
-                        Console.WriteLine(ev.ToString());
+                        writer.WriteLine(ev.ToString());
                     }
                 }
 
                 if (pipType == PipType.Process)
                 {
-                    Console.WriteLine("Getting directory output information for Process Pip");
+                    writer.WriteLine("Getting directory output information for Process Pip");
                     var pipExecutionDirEvents = dataStore.GetPipExecutionDirectoryOutputsEvents();
                     foreach (var ev in pipExecutionDirEvents)
                     {
@@ -170,22 +162,23 @@ namespace BuildXL.Execution.Analyzer
                         {
                             if (castedPip.DirectoryOutputs.Contains(dirOutput.DirectoryArtifact))
                             {
-                                dirOutput.FileArtifactArray.ToList().ForEach(file => Console.WriteLine(file.ToString()));
+                                dirOutput.FileArtifactArray.ToList().ForEach(file => writer.WriteLine(file.ToString()));
                             }
                         }
                     }
 
-                    Console.WriteLine("Geting directory dependency information for Process Pip");
+                    writer.WriteLine("Geting directory dependency information for Process Pip");
 
                     var pipGraph = dataStore.GetPipGraphMetaData();
                     var directories = new Stack<(DirectoryArtifact artifact, string path)>(
-                    ((ProcessPip)castedPip).DirectoryDependencies
-                        .Select(d => (artifact: d, path: d.Path.Value))
-                        .OrderByDescending(tupple => tupple.path));
+                        ((ProcessPip)castedPip).DirectoryDependencies
+                            .Select(d => (artifact: d, path: d.Path.Value))
+                            .OrderByDescending(tupple => tupple.path));
 
                     while (directories.Count > 0)
                     {
                         var directory = directories.Pop();
+                        writer.WriteLine(directory.ToString());
 
                         foreach (var kvp in pipGraph.AllSealDirectoriesAndProducers)
                         {
@@ -196,7 +189,7 @@ namespace BuildXL.Execution.Analyzer
 
                                 if (currPipType == PipType.SealDirectory)
                                 {
-                                    foreach(var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tupple => tupple.path))
+                                    foreach (var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tupple => tupple.path))
                                     {
                                         directories.Push((nestedDirectory.artifact, nestedDirectory.path));
                                     }
@@ -207,7 +200,6 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            Console.WriteLine("\n\nTotal time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
             return 0;
         }
     }

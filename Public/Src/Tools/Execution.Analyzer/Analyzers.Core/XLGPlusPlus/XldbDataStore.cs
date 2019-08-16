@@ -22,8 +22,8 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         private KeyValueStoreAccessor Accessor { get; set; }
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
         private Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
-        public const string EventCountKey = "EventCount";
 
+        public const string EventCountKey = "EventCount";
         public const string EventColumnFamilyName = "Event";
         public const string PipColumnFamilyName = "Pip";
         public const string StaticGraphColumnFamilyName = "StaticGraph";
@@ -41,7 +41,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         {
             var accessor = KeyValueStoreAccessor.Open(storeDirectory,
                defaultColumnKeyTracked,
-               new string[]  { EventColumnFamilyName, PipColumnFamilyName, StaticGraphColumnFamilyName },
+               new string[] { EventColumnFamilyName, PipColumnFamilyName, StaticGraphColumnFamilyName },
                additionalKeyTrackedColumns,
                failureHandler,
                openReadOnly,
@@ -72,11 +72,11 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
             m_eventParserDictionary.Add(ExecutionEventId.BxlInvocation, BXLInvocationEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipExecutionDirectoryOutputs, PipExecutionDirectoryOutputsEvent.Parser);
 
-            m_pipParserDictionary.Add(PipType.CopyFile, Execution.Analyzer.Xldb.CopyFile.Parser);
-            m_pipParserDictionary.Add(PipType.WriteFile, Execution.Analyzer.Xldb.WriteFile.Parser);
+            m_pipParserDictionary.Add(PipType.CopyFile, CopyFile.Parser);
+            m_pipParserDictionary.Add(PipType.WriteFile, WriteFile.Parser);
             m_pipParserDictionary.Add(PipType.Process, ProcessPip.Parser);
-            m_pipParserDictionary.Add(PipType.Module, Execution.Analyzer.Xldb.ModulePip.Parser);
-
+            m_pipParserDictionary.Add(PipType.SealDirectory, SealDirectory.Parser);
+            m_pipParserDictionary.Add(PipType.Ipc, IpcPip.Parser);
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// <returns>List of events, empty if no such event exists</returns>
         private IEnumerable<IMessage> GetEventsByType(ExecutionEventId eventTypeID)
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var storedEvents = new List<IMessage>();
             var eventQuery = new EventTypeQuery
@@ -93,19 +93,16 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 EventTypeID = eventTypeID,
             };
 
+            if (!m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
+            {
+                return storedEvents;
+            }
+
             var maybeFound = Accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray(), EventColumnFamilyName))
                 {
-                    if (m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
-                    {
-                        storedEvents.Add(parser.ParseFrom(kvp.Value));
-                    }
-                    else
-                    {
-                        // We will never reach here since this is a private method and we explicitly control which ExecutionEventIDs are passed in (ie. the public facing helper methods below)
-                        _ = Contract.AssertFailure("Invalid Execution Event ID passed in. Exiting");
-                    }
+                    storedEvents.Add(parser.ParseFrom(kvp.Value));
                 }
             });
 
@@ -119,22 +116,24 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
 
         public IMessage GetEventByKey(ExecutionEventId eventTypeID, uint pipID)
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
-            
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
             var eventQuery = new EventTypeQuery
             {
                 EventTypeID = eventTypeID,
                 PipId = pipID
             };
 
+            if (!m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
+            {
+                return null;
+            }
+
             var maybeFound = Accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray(), EventColumnFamilyName))
                 {
-                    if (m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
-                    {
-                        return parser.ParseFrom(kvp.Value);
-                    }
+                    return parser.ParseFrom(kvp.Value);
                 }
                 return null;
             });
@@ -153,7 +152,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// <returns>EventCountsByTypeValue if exists, null otherwise</returns>
         public EventCountByTypeValue GetCountByEvent(ExecutionEventId eventTypeID)
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var eventCountQuery = new EventCountByTypeKey
             {
@@ -182,7 +181,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// </summary>
         public uint GetTotalEventCount()
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var maybeFound = Accessor.Use(database =>
             {
@@ -236,40 +235,40 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// <summary>
         /// Gets all the Dependency Violation Reported Events
         /// </summary>
-        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationReportedEvents() => GetEventsByType(ExecutionEventId.DependencyViolationReported).Cast< DependencyViolationReportedEvent>();
+        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationReportedEvents() => GetEventsByType(ExecutionEventId.DependencyViolationReported).Cast<DependencyViolationReportedEvent>();
 
         /// <summary>
         /// Gets all the Pip Execution Step Performance Reported Events
         /// </summary>
-        public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceReportedEvents() => GetEventsByType(ExecutionEventId.PipExecutionStepPerformanceReported).Cast< PipExecutionStepPerformanceReportedEvent>();
+        public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceReportedEvents() => GetEventsByType(ExecutionEventId.PipExecutionStepPerformanceReported).Cast<PipExecutionStepPerformanceReportedEvent>();
 
         /// <summary>
         /// Gets all the Status Reported Events
         /// </summary>
-        public IEnumerable<StatusReportedEvent> GetStatusReportedEvents() => GetEventsByType(ExecutionEventId.ResourceUsageReported).Cast< StatusReportedEvent>();
+        public IEnumerable<StatusReportedEvent> GetStatusReportedEvents() => GetEventsByType(ExecutionEventId.ResourceUsageReported).Cast<StatusReportedEvent>();
 
         /// <summary>
         /// Gets all the Pip Cache Miss Events
         /// </summary>
-        public IEnumerable<PipCacheMissEvent> GetPipCacheMissEvents() => GetEventsByType(ExecutionEventId.PipCacheMiss).Cast< PipCacheMissEvent>();
+        public IEnumerable<PipCacheMissEvent> GetPipCacheMissEvents() => GetEventsByType(ExecutionEventId.PipCacheMiss).Cast<PipCacheMissEvent>();
 
         /// <summary>
         /// Gets all the BXL Invocation Events
         /// </summary>
-        public IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.BxlInvocation).Cast< BXLInvocationEvent>();
+        public IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.BxlInvocation).Cast<BXLInvocationEvent>();
 
         /// <summary>
         /// Gets all the Pip Execution Directory Outputs Events
         /// </summary>
-        public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs).Cast< PipExecutionDirectoryOutputsEvent>();
+        public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs).Cast<PipExecutionDirectoryOutputsEvent>();
 
         /// <summary>
         /// Gets the pip stored based on the semistable hash
         /// </summary>
         /// <returns>Returns null if no such pip is found</returns>
-        public IMessage GetPipBySemiStableHash (long semiStableHash, out PipType pipType)
+        public IMessage GetPipBySemiStableHash(long semiStableHash, out PipType pipType)
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             IMessage foundPip = null;
 
@@ -278,7 +277,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 SemiStableHash = semiStableHash
             };
 
-            var outPipType = (PipType) 0;
+            PipType outPipType = 0;
 
             var maybeFound = Accessor.Use(database =>
             {
@@ -301,9 +300,9 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         /// Gets the pip stored based on the pip id
         /// </summary>
         /// <returns>Returns null if no such pip is found</returns>
-        public IMessage GetPipByPipId (uint pipId, out PipType pipType)
+        public IMessage GetPipByPipId(uint pipId, out PipType pipType)
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             IMessage foundPip = null;
 
@@ -312,7 +311,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                 PipId = pipId
             };
 
-            var outPipType = (PipType)0;
+            PipType outPipType = 0;
 
             var maybeFound = Accessor.Use(database =>
             {
@@ -338,39 +337,12 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         }
 
         /// <summary>
-        /// Gets the pip table meta data
-        /// </summary>
-        /// <returns>Metadata, null if no such value found</returns>
-        public PipTable GetPipTableMetaData()
-        {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
-
-            var graphMetadata = new CachedGraphQuery
-            {
-                PipTable = true
-            };
-
-            var maybeFound = Accessor.Use(database =>
-            {
-                database.TryGetValue(graphMetadata.ToByteArray(), out var pipTableMetadata, StaticGraphColumnFamilyName);
-                return PipTable.Parser.ParseFrom(pipTableMetadata);
-            });
-
-            if (!maybeFound.Succeeded)
-            {
-                maybeFound.Failure.Throw();
-            }
-
-            return maybeFound.Result;
-        }
-
-        /// <summary>
         /// Gets the pip graph meta data
         /// </summary>
         /// <returns>Metadata, null if no such value found</returns>
         public PipGraph GetPipGraphMetaData()
         {
-            Contract.Assert(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var graphMetadata = new CachedGraphQuery
             {

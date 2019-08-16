@@ -152,5 +152,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         /// <nodoc />
         public static DistributedContentStoreSettings DefaultSettings { get; } = new DistributedContentStoreSettings();
+
+        /// <summary>
+        /// Maximum number of PutFile operations that can happen concurrently.
+        /// </summary>
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        /// <summary>
+        /// Maximum amount of time we can wait for an operation to pass the PutFile gate without emitting a warning.
+        /// </summary>
+        public TimeSpan PutFileWaitWarning { get; set; } = TimeSpan.FromSeconds(5);
     }
 }

@@ -14,7 +14,7 @@ namespace BuildXL.Execution.Analyzer
 {
     internal partial class Args
     {
-        public Analyzer InitializeNewEventStatsAnalyzer()
+        public Analyzer InitializeEventStatsXldbAnalyzer()
         {
             string inputDirPath = null;
             string outputFilePath = null;
@@ -48,7 +48,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("/outputFile parameter is required");
             }
 
-            return new NewEventStatsAnalyzer(GetAnalysisInput())
+            return new EventStatsXldbAnalyzer(GetAnalysisInput())
             {
                 InputDirPath = inputDirPath,
                 OutputFilePath = outputFilePath
@@ -58,10 +58,10 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Write the help message when the analyzer is invoked with the /help flag
         /// </summary>
-        private static void WriteNewEventStatsHelp(HelpWriter writer)
+        private static void WriteEventStatsXldbHelp(HelpWriter writer)
         {
-            writer.WriteBanner("New Event Stats Analyzer");
-            writer.WriteModeOption(nameof(AnalysisMode.NewEventStats), "Generates stats on the aggregate size and count of execution log events, but uses the RocksDB database as the source of truth");
+            writer.WriteBanner("Event Stats Xldb Analyzer");
+            writer.WriteModeOption(nameof(AnalysisMode.EventStatsXldb), "Generates stats on the aggregate size and count of execution log events, but uses the RocksDB database as the source of truth");
             writer.WriteOption("inputDir", "Required. The directory to read the RocksDB database from", shortName: "i");
             writer.WriteOption("outputFile", "Required. The file where to write the results", shortName: "o");
         }
@@ -70,7 +70,7 @@ namespace BuildXL.Execution.Analyzer
     /// <summary>
     /// Analyzer used to get stats on events (count and total size)
     /// </summary>
-    internal sealed class NewEventStatsAnalyzer : Analyzer
+    internal sealed class EventStatsXldbAnalyzer : Analyzer
     {
         /// <summary>
         /// Input directory path that contains the RocksDB sst files
@@ -82,14 +82,11 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public string OutputFilePath;
 
-        public NewEventStatsAnalyzer(AnalysisInput input) : base(input) { }
+        public EventStatsXldbAnalyzer(AnalysisInput input) : base(input) { }
 
         /// <inheritdoc/>
         public override int Analyze()
         {
-            var m_stopWatch = new Stopwatch();
-            m_stopWatch.Start();
-
             using (var dataStore = new XldbDataStore(storeDirectory: InputDirPath))
             using (var outputStream = File.OpenWrite(OutputFilePath))
             using (var writer = new StreamWriter(outputStream))
@@ -138,7 +135,6 @@ namespace BuildXL.Execution.Analyzer
                     writer.WriteLine();
                 }
             }
-            Console.WriteLine("Total time for writing {0} seconds", m_stopWatch.ElapsedMilliseconds / 1000.0);
 
             return 0;
         }

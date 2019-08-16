@@ -486,6 +486,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EmptyFileHashShortcutEnabled { get; set; } = false;
 
         [DataMember]
+        public bool UseRedundantPutFileShortcut { get; set; } = false;
+
+        [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
         /// <summary>
@@ -499,6 +502,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        [DataMember]
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        [DataMember]
+        public int PutFileWaitWarningMilliseconds { get; set; } = 5000;
 
         #endregion
 

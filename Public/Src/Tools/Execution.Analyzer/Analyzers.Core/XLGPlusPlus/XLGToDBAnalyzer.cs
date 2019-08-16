@@ -208,35 +208,33 @@ namespace BuildXL.Execution.Analyzer
                 Value = (uint)m_eventCount
             };
 
-            foreach (var kvp in m_eventCountByType)
-            {
-                var eventCountByTypeQuery = new EventCountByTypeKey
+            // Hold only one lock while inserting all of these keys into the DB
+            Analysis.IgnoreResult(
+                m_accessor.Use(database =>
                 {
-                    EventTypeID = (Xldb.ExecutionEventId)(kvp.Key + 1)
-                };
+                    foreach (var kvp in m_eventCountByType)
+                    {
+                        var eventCountByTypeQuery = new EventCountByTypeKey
+                        {
+                            EventTypeID = (Xldb.ExecutionEventId)(kvp.Key + 1)
+                        };
 
-                WriteToDb(eventCountByTypeQuery.ToByteArray(), kvp.Value.ToByteArray());
-            }
-
+                        database.Put(eventCountByTypeQuery.ToByteArray(), kvp.Value.ToByteArray());
+                    }
+                })
+            );
+            
             WriteToDb(Encoding.ASCII.GetBytes(XldbDataStore.EventCountKey), ec.ToByteArray());
 
             Console.WriteLine("\nEvent data ingested into RocksDB. Starting to ingest static graph data ...\n");
 
-            var pipTable = CachedGraph.PipTable.ToPipTable();
-
-            var graphMetadata = new CachedGraphQuery
-            {
-                PipTable = true
-            };
-
-            WriteToDb(graphMetadata.ToByteArray(), pipTable.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
             IngestAllPips();
             Console.WriteLine($"\nAll pips ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
             Console.WriteLine("\nStarting to ingest PipGraph.");
-            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable);
+            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable);
 
-            graphMetadata = new CachedGraphQuery
+            var graphMetadata = new CachedGraphQuery
             {
                 PipGraph = true
             };
@@ -508,8 +506,14 @@ namespace BuildXL.Execution.Analyzer
                     if (pipsIngested % 100000 == 0)
                     {
                         Console.Write(".");
-                        WriteBatchToDb(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
-                        WriteBatchToDb(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+
+                        Analysis.IgnoreResult(
+                            m_accessor.Use(database =>
+                            {
+                                database.ApplyBatch(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
+                                database.ApplyBatch(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+                            })
+                        );
 
                         pipSemistableKeys.Clear();
                         pipSemistableValues.Clear();
@@ -518,29 +522,20 @@ namespace BuildXL.Execution.Analyzer
                     }
 
                     var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
-                    var xldbPip = hydratedPip.ToPip(PathTable, CachedGraph.DataflowGraph);
                     var pipType = hydratedPip.PipType;
+
+                    if (pipType == PipType.Value || pipType == PipType.HashSourceFile || pipType == PipType.SpecFile || pipType == PipType.Module)
+                    {
+                        continue;
+                    }
+
+                    var xldbPip = hydratedPip.ToPip(CachedGraph);
                     IMessage xldbSpecificPip = xldbPip;
 
-                    if (pipType == PipType.HashSourceFile)
-                    {
-                        var hashSourceFilePip = (Pips.Operations.HashSourceFile)hydratedPip;
-                        xldbSpecificPip = hashSourceFilePip.ToHashSourceFile(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.Ipc)
+                    if (pipType == PipType.Ipc)
                     {
                         var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
                         xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.SpecFile)
-                    {
-                        var specFilePip = (Pips.Operations.SpecFilePip)hydratedPip;
-                        xldbSpecificPip = specFilePip.ToSpecFilePip(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.Module)
-                    {
-                        var modulePip = (Pips.Operations.ModulePip)hydratedPip;
-                        xldbSpecificPip = modulePip.ToModulePip(PathTable, xldbPip);
                     }
                     else if (pipType == PipType.SealDirectory)
                     {
@@ -592,8 +587,13 @@ namespace BuildXL.Execution.Analyzer
                 }
 
                 // Write the rest of the batched pips to the db
-                WriteBatchToDb(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
-                WriteBatchToDb(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+                Analysis.IgnoreResult(
+                    m_accessor.Use(database =>
+                    {
+                        database.ApplyBatch(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
+                        database.ApplyBatch(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
+                    })
+                );
             });
         }
 
@@ -606,19 +606,6 @@ namespace BuildXL.Execution.Analyzer
                 m_accessor.Use(database =>
                 {
                     database.Put(key, value, columnFamilyName);
-                })
-            );
-        }
-
-        /// <summary>
-        /// Write batches of key/value pairs to the db
-        /// </summary>
-        public void WriteBatchToDb(IEnumerable<byte[]> keys, IEnumerable<byte[]> values, string columnFamilyName = null)
-        {
-            Analysis.IgnoreResult(
-                m_accessor.Use(database =>
-                {
-                    database.ApplyBatch(keys, values, columnFamilyName);
                 })
             );
         }

@@ -262,5 +262,12 @@ namespace BuildXL.Utilities.Configuration
         /// Temporary flag to use tool incremental behavior when preserve outputs is enabled.
         /// </summary>
         bool PreserveOutputsForIncrementalTool { get; }
+
+        /// <summary>
+        /// Flag indicate if change based code coverage is enable.
+        /// This will be set as true when inputChanges commmand line option is presented.
+        /// If the change list contain any removal, it will fall back to false.
+        /// </summary>
+        bool EnableChangeBasedCodeCoverage { get; set; }
     }
 }

@@ -139,10 +139,5 @@ namespace BuildXL.Scheduler.Artifacts
         /// Checks if a file is ever rewritten.
         /// </summary>
         bool IsFileRewritten(in FileArtifact fileArtifact);
-
-        /// <summary>
-        /// Report the change affected outputs the pip.
-        /// </summary>
-        void ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile);
     }
 }

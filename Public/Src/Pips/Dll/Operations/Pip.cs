@@ -389,18 +389,5 @@ namespace BuildXL.Pips.Operations
 
             return $"{moduleName} - {valueName}{toolName} [{qualifierName}]";
         }
-
-        /// <summary>
-        /// Check if there is any output of this pip are affected by the source change
-        /// </summary>
-        public virtual bool IsOutputAffectedBySourceChange(
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            PathTable pathTable,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
-        {
-            return false;
-        }
     }
 }

@@ -940,13 +940,11 @@ namespace BuildXL.Scheduler
         internal static void ReportSourceChangeAffectedOutputs(
             IPipExecutionEnvironment environment,
             PipResultStatus status,
+            Pip pip,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            Pip pip,
             IReadOnlyCollection<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent = null,
-            IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
+            IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null)
         {
             PipOutputOrigin? overrideOutputOrigin = null;
             if (status == PipResultStatus.NotMaterialized)
@@ -954,18 +952,64 @@ namespace BuildXL.Scheduler
                 overrideOutputOrigin = PipOutputOrigin.NotMaterialized;
             }
 
-            if (pip.IsOutputAffectedBySourceChange(dynamicallyObservedFiles, dynamicallyObservedEnumerations, environment.Context.PathTable, sourceChangeAffectedOutputFiles, sourceChangeAffectedOutputDirectroies))
+            if (PipArtifacts.IsOutputAffectedBySourceChange(environment.Context.PathTable, pip, dynamicallyObservedFiles, dynamicallyObservedEnumerations, environment.GetSourceChangeAffectedOutputs(), environment.GetSourceChangeAffectedOutputDirectories()))
             {
                 foreach (var output in outputContent ?? ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty)
                 {
-                    environment.State.FileContentManager.ReportSourceChangeAffectedOutputs(output.Item1, overrideOutputOrigin ?? output.Item3, true);
+                    environment.ReportSourceChangeAffectedSingleOutput(output.Item1, overrideOutputOrigin ?? output.Item3, true);
                 }
 
                 foreach (var directoryArtifact in directoryOutputs ?? ReadOnlyArray<DirectoryArtifact>.Empty)
                 {
-                    environment.State.FileContentManager.ReportSourceChangeAffectedOutputs(directoryArtifact, overrideOutputOrigin ?? PipOutputOrigin.Produced, false);
+                    environment.ReportSourceChangeAffectedSingleOutput(directoryArtifact, overrideOutputOrigin ?? PipOutputOrigin.Produced, false);
                 }
             }
+        }
+
+        /// <summary>
+        /// Compute the intersection of the pip's dependencies and global affected SourceChangeAffectedOutputs of the build
+        /// </summary>
+        public static ReadOnlyArray<string> GetChangeAffectedInputNames(IPipExecutionEnvironment environment, Process process)
+        {
+            var pathTable = environment.Context.PathTable;
+            var changeAffectedInputs = environment
+                .GetSourceChangeAffectedOutputs()
+                .Intersect(process.Dependencies.Select(d => d.Path))
+                .Select(i => i.GetName(pathTable).ToString(pathTable.StringTable))
+                .ToHashSet();
+
+            foreach (var file in environment.GetSourceChangeAffectedOutputs())
+            {
+                foreach (var directory in process.DirectoryDependencies)
+                {
+                    if (file.IsWithin(pathTable, directory.Path))
+                    {
+                        changeAffectedInputs.Add(file.GetName(pathTable).ToString(pathTable.StringTable));
+                    }
+                }
+            }
+
+            foreach (var outDir in environment.GetSourceChangeAffectedOutputDirectories())
+            {
+                foreach (var inDir in process.DirectoryDependencies)
+                {
+                    if (inDir.Path.IsWithin(pathTable, outDir))
+                    {
+                        FileUtilities.EnumerateDirectoryEntries(
+                            inDir.Path.ToString(pathTable),
+                            true,
+                            (dir, fileName, attributes) =>
+                            {
+                                if (attributes == FileAttributes.Archive)
+                                {
+                                    changeAffectedInputs.Add(fileName);
+                                }
+                            });
+                    }
+                }
+            }
+
+            return ReadOnlyArray<string>.FromWithoutCopy(changeAffectedInputs.ToArray());
         }
 
         /// <summary>
@@ -1160,6 +1204,7 @@ namespace BuildXL.Scheduler
         /// <param name="state">the pip scoped execution state</param>
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
+        /// <param name="changeAffectedInputNames">Then names of the source change affected input of the pip</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
         /// <param name="expectedRamUsageMb">the expected ram usage for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
@@ -1171,6 +1216,7 @@ namespace BuildXL.Scheduler
 
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
+            ReadOnlyArray<string>? changeAffectedInputNames = null,
             Action<int> processIdListener = null,
             int expectedRamUsageMb = 0)
         {
@@ -1419,7 +1465,7 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
+                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputNames);
 
                                 ++retryCount;
 

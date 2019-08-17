@@ -109,17 +109,6 @@ namespace BuildXL.Pips.Operations
             writer.Write(Provenance);
             writer.Write((byte)m_options);
         }
-
-        /// <inheritdoc />
-        public override bool IsOutputAffectedBySourceChange(
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            PathTable pathTable,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
-        {
-            return sourceChangeAffectedOutputFiles == null ? false : sourceChangeAffectedOutputFiles.Contains(Source);
-        }
         #endregion
     }
 }

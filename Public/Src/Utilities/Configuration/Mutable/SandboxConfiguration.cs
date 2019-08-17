@@ -50,6 +50,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
             GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
             PreserveOutputsForIncrementalTool = false;
+            EnableChangeBasedCodeCoverage = false;
         }
 
         /// <nodoc />
@@ -97,6 +98,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
             GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
             PreserveOutputsForIncrementalTool = template.PreserveOutputsForIncrementalTool;
+            EnableChangeBasedCodeCoverage = template.EnableChangeBasedCodeCoverage;
         }
 
         /// <inheritdoc />
@@ -249,5 +251,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc /> 
         public bool PreserveOutputsForIncrementalTool { get; set; }
-    }
+
+        /// <inheritdoc /> 
+        public bool EnableChangeBasedCodeCoverage { get; set; }
+}
 }

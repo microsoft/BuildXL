@@ -352,6 +352,16 @@ namespace Test.BuildXL.Scheduler.Utils
         /// <inheritdoc />
         public IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer => m_disabledFileMonitoringViolationAnalyzer;
 
+        public IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputs()
+        {
+            return null;
+        }
+
+        public IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputDirectories()
+        {
+            return null;
+        }
+
         /// <inheritdoc />
         public DirectoryFingerprint? TryQueryDirectoryFingerprint(AbsolutePath directoryPath)
         {
@@ -485,7 +495,7 @@ namespace Test.BuildXL.Scheduler.Utils
             // Do nothing.
         }
 
-        public void ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile)
+        public void ReportSourceChangeAffectedSingleOutput(AbsolutePath output, PipOutputOrigin origin, bool isFile)
         {
             // Do Nothing.
         }

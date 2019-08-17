@@ -482,7 +482,7 @@ namespace Test.BuildXL.Scheduler
                 // Do Nothing.
             }
 
-            public void ReportSourceChangeAffectedOutputs(AbsolutePath output, PipOutputOrigin origin, bool isFile)
+            public void ReportSourceChangeAffectedSingleOutput(AbsolutePath output, PipOutputOrigin origin, bool isFile)
             {
                 // Do Nothing.
             }
@@ -586,6 +586,16 @@ namespace Test.BuildXL.Scheduler
             }
 
             public bool ShouldCreateHandleWithSequentialScan(FileArtifact file) => false;
+
+            public IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputs()
+            {
+                return null;
+            }
+
+            public IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputDirectories()
+            {
+                return null;
+            }
 
             IArtifactContentCache IFileContentManagerHost.ArtifactContentCache => Cache.ArtifactContentCache;
 

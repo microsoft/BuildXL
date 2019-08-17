@@ -16,16 +16,17 @@ namespace Execution.Analyzer {
         sources: globR(d`.`, "*.cs"),
         
         references: [
-            ...addIf(
-                BuildXLSdk.isFullFramework,
-                NetFx.Microsoft.CSharp.dll,
-                NetFx.System.IO.dll,
-                NetFx.System.Web.dll,
-                NetFx.System.Xml.dll,
-                NetFx.System.Xml.Linq.dll,
-                NetFx.System.IO.Compression.dll,
-                NetFx.System.Net.Http.dll,
-                NetFx.System.Runtime.Serialization.dll
+            ...addIfLazy(
+                BuildXLSdk.isFullFramework, () => [
+                    NetFx.System.IO.dll,
+                    NetFx.System.Web.dll,
+                    NetFx.System.Xml.dll,
+                    NetFx.System.Xml.Linq.dll,
+                    NetFx.System.IO.Compression.dll,
+                    NetFx.System.Net.Http.dll,
+                    NetFx.System.Runtime.Serialization.dll,
+                    Tools.ContentPlacement.Core.dll
+                ]
             ),
             Tools.ContentPlacement.Core.dll,
             VSCode.DebugAdapter.dll,

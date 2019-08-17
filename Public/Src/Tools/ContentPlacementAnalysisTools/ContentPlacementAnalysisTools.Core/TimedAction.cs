@@ -9,6 +9,8 @@ namespace ContentPlacementAnalysisTools.Core
     /// </summary>
     public abstract class TimedAction<IType, OType>
     {
+        private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
+
         /// <summary>
         /// To measure the elapsed time
         /// </summary>
@@ -36,7 +38,7 @@ namespace ContentPlacementAnalysisTools.Core
             try
             {
                 // execute prepare first
-                Setup();
+                Setup(input);
                 // perform now...
                 var result = Perform(input);
                 // and clean up
@@ -45,10 +47,11 @@ namespace ContentPlacementAnalysisTools.Core
                 {
                     return new TimedActionResult<OType>(result);
                 }
-                return new TimedActionResult<OType>(new Exception("Action returns null output..."));
+                throw new Exception("Action returns null output...");
             }
             catch(Exception e)
             {
+                s_logger.Error(e, "Exception reported by action...");
                 return new TimedActionResult<OType>(e);
             }
             finally
@@ -60,7 +63,7 @@ namespace ContentPlacementAnalysisTools.Core
         /// <summary>
         /// Setup routine, called before perform
         /// </summary>
-        protected abstract void Setup();
+        protected abstract void Setup(IType input);
         /// <summary>
         /// Setup routine, called after perform
         /// </summary>

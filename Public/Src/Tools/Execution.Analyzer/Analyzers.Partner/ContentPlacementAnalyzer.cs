@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿#if NET_FRAMEWORK
 
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Scheduler.Tracing;
@@ -34,7 +35,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 if (opt.Name.Equals("sampleProportion", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("sp", StringComparison.OrdinalIgnoreCase))
                 {
-                    sampleProportion = ParseDoubleOption(opt, 0.1, 1.0);
+                    sampleProportion = ParseDoubleOption(opt, 0.01, 1.0);
                 }
                 if (opt.Name.Equals("sampleCountHardLimit", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("schl", StringComparison.OrdinalIgnoreCase))
                 {
@@ -50,7 +51,7 @@ namespace BuildXL.Execution.Analyzer
                 }
                 if (opt.Name.Equals("buildStartTicks", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("bst", StringComparison.OrdinalIgnoreCase))
                 {
-                    buildStartTicks = ParseInt64Option(opt, 0, int.MaxValue);
+                    buildStartTicks = ParseInt64Option(opt, 0, long.MaxValue);
                 }
                 if (opt.Name.Equals("buildDurationMs", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("bd", StringComparison.OrdinalIgnoreCase))
                 {
@@ -65,7 +66,7 @@ namespace BuildXL.Execution.Analyzer
         {
             writer.WriteBanner("Content Placement Analyzer");
             writer.WriteModeOption(nameof(AnalysisMode.ContentPlacement), "This analyzer parses a whole build (master perspective) and outputs content/workload-related data for machine learning purposes. It should only be run at the master node logs.");
-            writer.WriteOption("sampleProportion", "Required ( 0.1 <= sampleProportion <= 1.0). The proportion of the total artifacts that will be sampled (ex: sampleProportion=0.8 => sample size is 80% of the total number of artifacts.)", shortName: "sp");
+            writer.WriteOption("sampleProportion", "Required ( 0.01 <= sampleProportion <= 1.0). The proportion of the total artifacts that will be sampled (ex: sampleProportion=0.8 => sample size is 80% of the total number of artifacts.)", shortName: "sp");
             writer.WriteOption("buildQueue", "Optional. The build queue in which this build ran. If not set, its necessary to get it when processing the output.", shortName: "bq");
             writer.WriteOption("buildId", "Optional. The BuildId for this build. If not set, its necessary to get it when processing the output.", shortName: "bid");
             writer.WriteOption("buildStartTicks", "Optional. The time (ticks) when the build started. If not set, its necessary to get it when processing the output.", shortName: "bst");
@@ -275,12 +276,12 @@ namespace BuildXL.Execution.Analyzer
                     }
                     build.Artifacts.Add(bxlArtifact);
                 }
-                #pragma warning disable ERP022
+#pragma warning disable ERP022
                 catch
                 {
                     ++errors;
                 }
-                #pragma warning restore ERP022
+#pragma warning restore ERP022
                 ++processed;
             }
             stopWatch.Stop();
@@ -387,4 +388,4 @@ namespace BuildXL.Execution.Analyzer
 
 }
 
-
+#endif

@@ -1,0 +1,5 @@
+﻿// retrieves the relevant attrs of a build from our DB
+
+database('CloudBuildProd').BuildInfo
+| where BuildId == "{0}"
+| project BuildId, LogDirectory, StartTime, BuildDurationMs, BuildControllerMachineName, BuildQueue

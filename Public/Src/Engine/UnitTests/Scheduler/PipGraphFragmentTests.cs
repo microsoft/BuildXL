@@ -2,12 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using Process = global::BuildXL.Pips.Operations.Process;
+using ProcessOutputs = global::BuildXL.Pips.Builders.ProcessOutputs;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -28,13 +31,13 @@ namespace Test.BuildXL.Scheduler
             argumentsBuilder
                 .AddInputOption("input", fragment.CreateSourceFile("f"))
                 .AddOutputOption("output", outputPathToVerify = fragment.CreateOutputFile("g").Path);
-            fragment.ScheduleProcessBuilder(processBuilder);
+            (Process process, ProcessOutputs _) = fragment.ScheduleProcessBuilder(processBuilder);
 
-            var graph = SerializeDeserializeFragment(fragment);
-            XAssert.IsNotNull(graph);
+            var graph = SerializeDeserializeFragmentsSynchronously(fragment);
 
-            var pipId = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragment, outputPathToVerify)));
-            XAssert.IsTrue(pipId.IsValid);
+            VerifyGraphSuccessfullyConstructed(graph);
+            VerifyProducerExists(graph, fragment, outputPathToVerify);
+            VerifyMatchingArguments(graph, fragment, process);
         }
 
         [Fact]
@@ -47,7 +50,7 @@ namespace Test.BuildXL.Scheduler
             argumentsBuilder1
                 .AddInputOption("input", fragment1.CreateSourceFile("f"))
                 .AddOutputOption("output", outputPathToVerify1 = fragment1.CreateOutputFile("g").Path);
-            fragment1.ScheduleProcessBuilder(processBuilder1);
+            (Process process1, ProcessOutputs _) = fragment1.ScheduleProcessBuilder(processBuilder1);
 
             // Fragment2 depends on fragment1 on output file g produced by fragment1.
             var fragment2 = CreatePipGraphFragment(nameof(TestBasicDependencyBetweenFragments) + "2");
@@ -57,16 +60,15 @@ namespace Test.BuildXL.Scheduler
             argumentsBuilder2
                 .AddInputOption("input", fragment2.CreateOutputFile("g")) // fragment2 depends on g without any producer within the fragment.
                 .AddOutputOption("output", outputPathToVerify2 = fragment2.CreateOutputFile("h").Path);
-            fragment2.ScheduleProcessBuilder(processBuilder2);
+            (Process process2, ProcessOutputs _) = fragment2.ScheduleProcessBuilder(processBuilder2);
 
             var graph = SerializeDeserializeFragmentsSynchronously(fragment1, fragment2);
-            XAssert.IsNotNull(graph);
 
-            var pipIdG = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragment1, outputPathToVerify1)));
-            XAssert.IsTrue(pipIdG.IsValid);
-
-            var pipIdH = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragment2, outputPathToVerify2)));
-            XAssert.IsTrue(pipIdH.IsValid);
+            VerifyGraphSuccessfullyConstructed(graph);
+            VerifyProducerExists(graph, fragment1, outputPathToVerify1);
+            VerifyProducerExists(graph, fragment2, outputPathToVerify2);
+            VerifyMatchingArguments(graph, fragment1, process1);
+            VerifyMatchingArguments(graph, fragment2, process2);
         }
 
         [Fact]
@@ -79,7 +81,7 @@ namespace Test.BuildXL.Scheduler
             argumentsBuilder1
                 .AddInputOption("input", fragment1.CreateSourceFile("f"))
                 .AddOutputOption("output", outputPathToVerify1 = fragment1.CreateOutputFile("g").Path);
-            fragment1.ScheduleProcessBuilder(processBuilder1);
+            (Process process1, ProcessOutputs _) = fragment1.ScheduleProcessBuilder(processBuilder1);
 
             // Fragment2 is independent of fragment1.
             var fragment2 = CreatePipGraphFragment(nameof(TestBasicAddIndependentFragments) + "2");
@@ -89,33 +91,48 @@ namespace Test.BuildXL.Scheduler
             argumentsBuilder2
                 .AddInputOption("input", fragment2.CreateSourceFile("i"))
                 .AddOutputOption("output", outputPathToVerify2 = fragment2.CreateOutputFile("h").Path);
-            fragment2.ScheduleProcessBuilder(processBuilder2);
+            (Process process2, ProcessOutputs _) = fragment2.ScheduleProcessBuilder(processBuilder2);
 
             var graph = SerializeDeserializeFragmentsInParallel(fragment1, fragment2);
-            XAssert.IsNotNull(graph);
 
-            var pipIdG = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragment1, outputPathToVerify1)));
-            XAssert.IsTrue(pipIdG.IsValid);
-
-            var pipIdH = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragment2, outputPathToVerify2)));
-            XAssert.IsTrue(pipIdH.IsValid);
+            VerifyGraphSuccessfullyConstructed(graph);
+            VerifyProducerExists(graph, fragment1, outputPathToVerify1);
+            VerifyProducerExists(graph, fragment2, outputPathToVerify2);
+            VerifyMatchingArguments(graph, fragment1, process1);
+            VerifyMatchingArguments(graph, fragment2, process2);
         }
 
-        private PipGraph SerializeDeserializeFragment(TestPipGraphFragment fragment)
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void TestAddingTheSameFragments(bool addInParallel)
         {
-            var fragmentManager = new PipGraphFragmentManager(LoggingContext, Context, PipGraphBuilder);
-            using (var ms = new MemoryStream())
-            {
-                fragment.Serialize(ms);
-                ms.Seek(0, SeekOrigin.Begin);
-                XAssert.IsTrue(fragmentManager.AddFragmentFileToGraph(ms, fragment.ModuleName));
-                return PipGraphBuilder.Build();
-            }
+            var fragment = CreatePipGraphFragment(nameof(TestAddingTheSameFragments) + "1");
+            var processBuilder = fragment.GetProcessBuilder();
+            var argumentsBuilder = new ArgumentsBuilder(processBuilder);
+            AbsolutePath outputPathToVerify;
+            argumentsBuilder
+                .AddInputOption("input", fragment.CreateSourceFile("f"))
+                .AddOutputOption("output", outputPathToVerify = fragment.CreateOutputFile("g").Path);
+            (Process process, ProcessOutputs _) = fragment.ScheduleProcessBuilder(processBuilder);
+
+            var graph = addInParallel
+                ? SerializeDeserializeFragmentsInParallel(fragment, fragment)
+                : SerializeDeserializeFragmentsSynchronously(fragment, fragment);
+
+            VerifyGraphSuccessfullyConstructed(graph);
+            VerifyProducerExists(graph, fragment, outputPathToVerify);
+            VerifyMatchingArguments(graph, fragment, process);
         }
 
+        /// <summary>
+        /// Serializes and deserializes graph fragments synchronously according to its dependency relation specified by their order in the array.
+        /// </summary>
+        /// <param name="fragments">Graph fragments with total order on their dependency relation.</param>
+        /// <returns>Resulting pip graph.</returns>
         private PipGraph SerializeDeserializeFragmentsSynchronously(params TestPipGraphFragment[] fragments)
         {
-            var streams = SerializeFragments(fragments);
+            var streams = SerializeFragmentsSynchronously(fragments);
 
             var fragmentManager = new PipGraphFragmentManager(LoggingContext, Context, PipGraphBuilder);
 
@@ -129,9 +146,18 @@ namespace Test.BuildXL.Scheduler
             return PipGraphBuilder.Build();
         }
 
+        /// <summary>
+        /// Serializes and deserializes graph fragments in parallel.
+        /// </summary>
+        /// <param name="fragments">Graph fragments.</param>
+        /// <returns>Resulting pip graph.</returns>
+        /// <remarks>
+        /// The graph fragments, <paramref name="fragments"/>, are serialized synchronously, but are deserialized in parallel.
+        /// For correctness, the graph fragments in <paramref name="fragments"/> are assumed to be independent of each other.
+        /// </remarks>
         private PipGraph SerializeDeserializeFragmentsInParallel(params TestPipGraphFragment[] fragments)
         {
-            var streams = SerializeFragments(fragments);
+            var streams = SerializeFragmentsSynchronously(fragments);
 
             var fragmentManager = new PipGraphFragmentManager(LoggingContext, Context, PipGraphBuilder);
 
@@ -148,7 +174,10 @@ namespace Test.BuildXL.Scheduler
             return PipGraphBuilder.Build();
         }
 
-        private Stream[] SerializeFragments(params TestPipGraphFragment[] fragments)
+        /// <summary>
+        /// Serializes fragments synchronously.
+        /// </summary>
+        private Stream[] SerializeFragmentsSynchronously(params TestPipGraphFragment[] fragments)
         {
             var streams = new MemoryStream[fragments.Length];
 
@@ -162,6 +191,9 @@ namespace Test.BuildXL.Scheduler
             return streams;
         }
 
+        /// <summary>
+        /// Disposes streams used for seralization tests.
+        /// </summary>
         private void DisposeStreams(Stream[] streams)
         {
             for (int i = 0; i < streams.Length; ++i)
@@ -170,6 +202,53 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Verifies that the file output by a fragment exists in the resulting graph.
+        /// </summary>
+        /// <param name="graph">Resulting graph.</param>
+        /// <param name="fragmentOrigin">Graph fragment where the output originates.</param>
+        /// <param name="outputPath">Path to output file.</param>
+        private void VerifyProducerExists(PipGraph graph, TestPipGraphFragment fragmentOrigin, AbsolutePath outputPath)
+        {
+            var pipId = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragmentOrigin, outputPath)));
+            XAssert.IsTrue(pipId.IsValid, $"Producer of '{outputPath.ToString(fragmentOrigin.Context.PathTable)}' from fragment '{fragmentOrigin.ModuleName}' could not be found in the resulting graph");
+        }
+
+        /// <summary>
+        /// Verify that graph is successfully constructed.
+        /// </summary>
+        private void VerifyGraphSuccessfullyConstructed(PipGraph graph)
+        {
+            XAssert.IsNotNull(graph, "Failed in constructing graph");
+        }
+
+        /// <summary>
+        /// Verifies that the arguments constructed in the fragment (string) matches with the one in the resulting graph.
+        /// </summary>
+        /// <param name="graph">Resulting graph.</param>
+        /// <param name="fragmentOrigin">Graph fragment where the arguments are constructed.</param>
+        /// <param name="processInFragment">Process in fragments whose arguments are to be verified.</param>
+        private void VerifyMatchingArguments(PipGraph graph, TestPipGraphFragment fragmentOrigin, Process processInFragment)
+        {
+            var outputPath = processInFragment.FileOutputs.First().ToFileArtifact().Path;
+            var pipId = graph.TryGetProducer(FileArtifact.CreateOutputFile(RemapFragmentPath(fragmentOrigin, outputPath)));
+            XAssert.IsTrue(pipId.IsValid);
+
+            Process processInGraph = graph.PipTable.HydratePip(pipId, global::BuildXL.Pips.PipQueryContext.PipGraphGetProducingPip) as Process;
+            XAssert.IsNotNull(processInGraph);
+
+            string argumentsInFragment = processInFragment.Arguments.ToString(fragmentOrigin.Context.PathTable).ToUpperInvariant();
+            string argumentsInGraph = processInGraph.Arguments.ToString(Context.PathTable).ToUpperInvariant();
+
+            XAssert.AreEqual(argumentsInFragment, argumentsInGraph);
+        }
+
+        /// <summary>
+        /// Remaps a path produced by a fragment to path of the resulting graph.
+        /// </summary>
+        /// <param name="fragment">Fragment where the path originates.</param>
+        /// <param name="path">A path.</param>
+        /// <returns></returns>
         private AbsolutePath RemapFragmentPath(TestPipGraphFragment fragment, AbsolutePath path) =>
             AbsolutePath.Create(Context.PathTable, path.ToString(fragment.Context.PathTable));
     }

@@ -1186,6 +1186,12 @@ namespace Test.BuildXL.Scheduler
 
         }
 
+        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(moduleName));
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, moduleName);
+        }
+
         #region IO Helpers
 
         public bool Exists(AbsolutePath path)

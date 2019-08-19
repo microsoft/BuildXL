@@ -14,7 +14,6 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
 using BuildXL.Utilities.ParallelAlgorithms;
 using Google.Protobuf;
 using PipType = BuildXL.Pips.Operations.PipType;
@@ -81,6 +80,9 @@ namespace BuildXL.Execution.Analyzer
         }
     }
 
+    /// <summary>
+    /// Analyzer that dumps xlg and graph data into RocksDB
+    /// </summary>
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
         private XLGToDBAnalyzerInner m_inner;
@@ -94,7 +96,7 @@ namespace BuildXL.Execution.Analyzer
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>(12, action => action());
+            m_actionBlock = new ActionBlockSlim<Action>(Environment.ProcessorCount, action => action());
         }
 
         /// <inheritdoc/>
@@ -136,10 +138,12 @@ namespace BuildXL.Execution.Analyzer
 
 
     /// <summary>
-    /// Analyzer to dump xlg events and other data into RocksDB
+    /// Inner wrapper analyzer that works with the action blocks spawned from the outer main analyzer
     /// </summary>
     internal sealed class XLGToDBAnalyzerInner : Analyzer
     {
+        private const int outputBatchLogSize = 100000;
+
         /// <summary>
         /// Output directory path
         /// </summary>
@@ -151,14 +155,11 @@ namespace BuildXL.Execution.Analyzer
         public ThreadLocal<uint> WorkerID = new ThreadLocal<uint>();
 
         private bool m_accessorSucceeded;
-
         private KeyValueStoreAccessor m_accessor;
-
         private Stopwatch m_stopWatch;
-
         private int m_eventCount;
-
         private Dictionary<Scheduler.Tracing.ExecutionEventId, EventCountByTypeValue> m_eventCountByType = new Dictionary<Scheduler.Tracing.ExecutionEventId, EventCountByTypeValue>();
+        private string[] m_additionalColumns = { XldbDataStore.EventColumnFamilyName, XldbDataStore.PipColumnFamilyName, XldbDataStore.StaticGraphColumnFamilyName };
 
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
         {
@@ -170,7 +171,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var eventCount = Interlocked.Increment(ref m_eventCount);
 
-            if (eventCount % 100000 == 0)
+            if (eventCount % outputBatchLogSize == 0)
             {
                 Console.WriteLine($"Processed {eventCount} events so far. {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds have elapsed.");
             }
@@ -182,8 +183,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Prepare()
         {
-            string[] additionalColumns = { XldbDataStore.EventColumnFamilyName, XldbDataStore.PipColumnFamilyName, XldbDataStore.StaticGraphColumnFamilyName };
-            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: additionalColumns);
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns, openBulkLoad: true);
 
             if (accessor.Succeeded)
             {
@@ -209,8 +209,7 @@ namespace BuildXL.Execution.Analyzer
             };
 
             // Hold only one lock while inserting all of these keys into the DB
-            Analysis.IgnoreResult(
-                m_accessor.Use(database =>
+            var maybeInserted = m_accessor.Use(database =>
                 {
                     foreach (var kvp in m_eventCountByType)
                     {
@@ -221,9 +220,14 @@ namespace BuildXL.Execution.Analyzer
 
                         database.Put(eventCountByTypeQuery.ToByteArray(), kvp.Value.ToByteArray());
                     }
-                })
-            );
-            
+                });
+
+            if (!maybeInserted.Succeeded)
+            {
+                Console.WriteLine("Failed to insert event metadata into RocksDb. Exiting analyzer now ...");
+                maybeInserted.Failure.Throw();
+            }
+
             WriteToDb(Encoding.ASCII.GetBytes(XldbDataStore.EventCountKey), ec.ToByteArray());
 
             Console.WriteLine("\nEvent data ingested into RocksDB. Starting to ingest static graph data ...\n");
@@ -490,110 +494,103 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.For(0, concurrency, i =>
             {
-                var start = i * partitionSize;
-                var end = (i + 1) == concurrency ? totalNumberOfPips : (i + 1) * partitionSize;
-                var pipsIngested = 0;
-                var pipSemistableKeys = new List<byte[]>();
-                var pipSemistableValues = new List<byte[]>();
-                var pipPipIdKeys = new List<byte[]>();
-                var pipValues = new List<byte[]>();
 
-                for (int j = start; j < end; j++)
+                // Hold only one lock while inserting all of these keys into the DB
+                var maybeInserted = m_accessor.Use(database =>
                 {
-                    var pipId = pipIds[j];
-                    pipsIngested++;
+                    var start = i * partitionSize;
+                    var end = (i + 1) == concurrency ? totalNumberOfPips : (i + 1) * partitionSize;
+                    var pipsIngested = 0;
+                    var pipSemistableMap = new Dictionary<byte[], byte[]>();
+                    var pipIdMap = new Dictionary<byte[], byte[]>();
 
-                    if (pipsIngested % 100000 == 0)
+                    for (int j = start; j < end; j++)
                     {
-                        Console.Write(".");
+                        var pipId = pipIds[j];
+                        pipsIngested++;
 
-                        Analysis.IgnoreResult(
-                            m_accessor.Use(database =>
-                            {
-                                database.ApplyBatch(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
-                                database.ApplyBatch(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
-                            })
-                        );
+                        if (pipsIngested % outputBatchLogSize == 0)
+                        {
+                            Console.Write(".");
+                            database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                            database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
 
-                        pipSemistableKeys.Clear();
-                        pipSemistableValues.Clear();
-                        pipPipIdKeys.Clear();
-                        pipValues.Clear();
+                            pipSemistableMap.Clear();
+                            pipIdMap.Clear();
+                        }
+
+                        var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
+                        var pipType = hydratedPip.PipType;
+
+                        if (pipType == PipType.Value || pipType == PipType.HashSourceFile || pipType == PipType.SpecFile || pipType == PipType.Module)
+                        {
+                            continue;
+                        }
+
+                        var xldbPip = hydratedPip.ToPip(CachedGraph);
+                        IMessage xldbSpecificPip = xldbPip;
+
+                        if (pipType == PipType.Ipc)
+                        {
+                            var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
+                            xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.SealDirectory)
+                        {
+                            var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
+                            xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.CopyFile)
+                        {
+                            var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
+                            xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.WriteFile)
+                        {
+                            var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
+                            xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
+                        }
+                        else if (pipType == PipType.Process)
+                        {
+                            var processPip = (Pips.Operations.Process)hydratedPip;
+                            xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
+                        }
+
+                        var pipSemistableQuery = new PipQuerySemiStableHash()
+                        {
+                            SemiStableHash = hydratedPip.SemiStableHash,
+                        };
+
+                        var pipSemistableValue = new PipValueSemiStableHash()
+                        {
+                            PipId = hydratedPip.PipId.Value,
+                        };
+
+                        var pipIdQuery = new PipQueryPipId()
+                        {
+                            PipId = hydratedPip.PipId.Value,
+                            PipType = (Xldb.PipType)pipType
+                        };
+
+                        // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.
+                        // Else we do not want that since the key would no longer be unique
+                        if (hydratedPip.SemiStableHash != 0)
+                        {
+                            pipSemistableMap.Add(pipSemistableQuery.ToByteArray(), pipSemistableValue.ToByteArray());
+                        }
+
+                        pipIdMap.Add(pipIdQuery.ToByteArray(), xldbSpecificPip.ToByteArray());
                     }
 
-                    var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
-                    var pipType = hydratedPip.PipType;
+                    database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                    database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
+                });
 
-                    if (pipType == PipType.Value || pipType == PipType.HashSourceFile || pipType == PipType.SpecFile || pipType == PipType.Module)
-                    {
-                        continue;
-                    }
-
-                    var xldbPip = hydratedPip.ToPip(CachedGraph);
-                    IMessage xldbSpecificPip = xldbPip;
-
-                    if (pipType == PipType.Ipc)
-                    {
-                        var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
-                        xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.SealDirectory)
-                    {
-                        var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
-                        xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.CopyFile)
-                    {
-                        var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
-                        xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.WriteFile)
-                    {
-                        var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
-                        xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
-                    }
-                    else if (pipType == PipType.Process)
-                    {
-                        var processPip = (Pips.Operations.Process)hydratedPip;
-                        xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
-                    }
-
-                    var pipSemistableQuery = new PipQuerySemiStableHash()
-                    {
-                        SemiStableHash = hydratedPip.SemiStableHash,
-                    };
-
-                    var pipSemistableValue = new PipValueSemiStableHash()
-                    {
-                        PipId = hydratedPip.PipId.Value,
-                    };
-
-                    var pipIdQuery = new PipQueryPipId()
-                    {
-                        PipId = hydratedPip.PipId.Value,
-                        PipType = (Xldb.PipType)pipType
-                    };
-
-                    // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.
-                    // Else we do not want that since the key would no longer be unique
-                    if (hydratedPip.SemiStableHash != 0)
-                    {
-                        pipSemistableKeys.Add(pipSemistableQuery.ToByteArray());
-                        pipSemistableValues.Add(pipSemistableValue.ToByteArray());
-                    }
-
-                    pipPipIdKeys.Add(pipIdQuery.ToByteArray());
-                    pipValues.Add(xldbSpecificPip.ToByteArray());
+                if (!maybeInserted.Succeeded)
+                {
+                    Console.WriteLine("Failed to insert pip data into RocksDb. Exiting analyzer now ...");
+                    maybeInserted.Failure.Throw();
                 }
-
-                // Write the rest of the batched pips to the db
-                Analysis.IgnoreResult(
-                    m_accessor.Use(database =>
-                    {
-                        database.ApplyBatch(pipSemistableKeys, pipSemistableValues, XldbDataStore.PipColumnFamilyName);
-                        database.ApplyBatch(pipPipIdKeys, pipValues, XldbDataStore.PipColumnFamilyName);
-                    })
-                );
             });
         }
 
@@ -602,12 +599,16 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public void WriteToDb(byte[] key, byte[] value, string columnFamilyName = null)
         {
-            Analysis.IgnoreResult(
-                m_accessor.Use(database =>
-                {
-                    database.Put(key, value, columnFamilyName);
-                })
-            );
+            var maybeInserted = m_accessor.Use(database =>
+            {
+                database.Put(key, value, columnFamilyName);
+            });
+
+            if (!maybeInserted.Succeeded)
+            {
+                Console.WriteLine("Failed to insert event data into RocksDb. Exiting analyzer now ...");
+                maybeInserted.Failure.Throw();
+            }
         }
     }
 }

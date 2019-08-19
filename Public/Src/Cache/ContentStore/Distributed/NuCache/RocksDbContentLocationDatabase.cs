@@ -555,9 +555,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
         {
-            store.ApplyBatch(
-                pairs.Select(pair => db.GetKey(pair.Key)),
-                pairs.Select(pair => pair.Value != null ? db.SerializeContentLocationEntry(pair.Value) : null));
+            store.ApplyBatch(pairs.Select(
+                kvp => new KeyValuePair<byte[], byte[]>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null)));
             return Unit.Void;
         }
 

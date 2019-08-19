@@ -11,5 +11,8 @@
   <div id="el1" class="red">
    sometext
   </div>
-<iframe src="http://microsoft.com"> </iframe>
+<iframe src="http://microsoft.com" />
+<script>
+alert('hi');
+</script>
 </div>

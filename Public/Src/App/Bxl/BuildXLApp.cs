@@ -1744,7 +1744,6 @@ namespace BuildXL
                         Logger.Log.CatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo?.CommitId ?? string.Empty, s_buildInfo?.Build ?? string.Empty);
                         WriteToConsole(Strings.App_LogsDirectory, loggers.RootLogDirectory);
                         WriteToConsole("Collecting some information about this crash...");
-
                         break;
                 }
 

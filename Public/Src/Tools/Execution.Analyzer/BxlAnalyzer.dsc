@@ -29,7 +29,7 @@ namespace Execution.Analyzer {
                     NetFx.System.IO.Compression.dll,
                     NetFx.System.Net.Http.dll,
                     NetFx.System.Runtime.Serialization.dll,
-                    Tools.ContentPlacement.Core.dll
+                    ContentPlacement.Core.dll
                 ]
             ),
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,

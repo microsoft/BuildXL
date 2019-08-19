@@ -25,9 +25,7 @@ namespace BuildXL {
 
             // content placement
             ...addIfLazy(qualifier.targetFramework === "net472" && qualifier.targetRuntime !== "osx-x64", () => [
-                importFrom("BuildXL.Tools").Tools.ContentPlacement.Extraction.exe,
-                importFrom("BuildXL.Tools").Tools.ContentPlacement.Extraction.buildDownloaderLogFile,
-                importFrom("BuildXL.Tools").Tools.ContentPlacement.Extraction.staticResources,
+                importFrom("BuildXL.Tools").ContentPlacement.Extraction.exe,
             ]),
 
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [

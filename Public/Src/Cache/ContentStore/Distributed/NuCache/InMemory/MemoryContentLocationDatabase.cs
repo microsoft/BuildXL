@@ -65,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
         
         /// <inheritdoc />
-        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
             throw new NotImplementedException();
         }

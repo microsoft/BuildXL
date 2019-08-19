@@ -25,7 +25,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// Returns all the selectors for a given <paramref name="weakFingerprint"/>.
         /// </summary>
         public static async Task<Result<Selector[]>> GetAllSelectorsAsync(
-            this IReadOnlyMemoizationSessionWithLevelSelectors session,
+            this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,
             CancellationToken cts)
@@ -57,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// Enumerate known selectors for a given weak fingerprint.
         /// </summary>
         public static Async::System.Collections.Generic.IAsyncEnumerable<GetSelectorResult> GetSelectorsAsAsyncEnumerable(
-            this IReadOnlyMemoizationSessionWithLevelSelectors session,
+            this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,
             CancellationToken cts,
@@ -121,7 +121,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         private static Async::System.Collections.Generic.IAsyncEnumerable<Result<LevelSelectors>> GetLevelSelectorsEnumerableAsync(
-            this IReadOnlyMemoizationSessionWithLevelSelectors session,
+            this ILevelSelectorsProvider session,
             Context context,
             Fingerprint weakFingerprint,
             CancellationToken cts,

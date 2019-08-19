@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 extern alias Async;
@@ -24,7 +24,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     An IReadOnlyMemoizationSession implemented in RocksDb
     /// </summary>
-    public class ReadOnlyRocksDbMemoizationSession : StartupShutdownBase, IReadOnlyMemoizationSessionWithLevelSelectors
+    public class ReadOnlyDatabaseMemoizationSession : StartupShutdownBase, IReadOnlyMemoizationSessionWithLevelSelectors
     {
         /// <inheritdoc />
         public string Name { get; }
@@ -33,10 +33,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         protected override Tracer Tracer { get; }
 
         /// <nodoc />
-        protected readonly RocksDbMemoizationStore MemoizationStore;
+        protected readonly DatabaseMemoizationStore MemoizationStore;
 
         /// <nodoc />
-        public ReadOnlyRocksDbMemoizationSession(string name, RocksDbMemoizationStore memoizationStore)
+        public ReadOnlyDatabaseMemoizationSession(string name, DatabaseMemoizationStore memoizationStore)
         {
             Contract.Requires(name != null);
             Contract.Requires(memoizationStore != null);
@@ -55,7 +55,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <inheritdoc />
         public async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
-            return LevelSelectors.Single(await MemoizationStore.GetSelectorsCoreAsync(context, weakFingerprint));
+            return await MemoizationStore.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
         }
 
         /// <inheritdoc />

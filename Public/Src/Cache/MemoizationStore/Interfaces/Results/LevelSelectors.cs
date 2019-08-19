@@ -28,7 +28,8 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         }
 
         /// <nodoc />
-        public static Result<LevelSelectors> Single(Result<Selector[]> selectors)
+        public static Result<LevelSelectors> Single<TSelectors>(Result<TSelectors> selectors)
+            where TSelectors : IReadOnlyList<Selector>
         {
             if (selectors)
             {

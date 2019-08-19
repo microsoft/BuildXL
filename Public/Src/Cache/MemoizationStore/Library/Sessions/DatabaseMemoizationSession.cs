@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
@@ -14,14 +14,14 @@ using BuildXL.Cache.MemoizationStore.Stores;
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {
     /// <summary>
-    ///     An IMemoizationSession implemented in RocksDb
+    ///     An IMemoizationSession implemented using a database
     /// </summary>
-    public class RocksDbMemoizationSession : ReadOnlyRocksDbMemoizationSession, IMemoizationSession
+    public class DatabaseMemoizationSession : ReadOnlyDatabaseMemoizationSession, IMemoizationSession
     {
         private readonly IContentSession _contentSession;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="RocksDbMemoizationSession" /> class.
+        ///     Initializes a new instance of the <see cref="DatabaseMemoizationSession" /> class.
         /// </summary>
         /// <remarks>
         ///     Allowing contentSession to be null to allow the creation of uncoupled MemoizationSessions.
@@ -29,7 +29,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         ///     to compare to the previous behavior.  With a null content session, metadata will be automatically
         ///     overwritten because we're unable to check whether or not content is missing.
         /// </remarks>
-        public RocksDbMemoizationSession(string name, RocksDbMemoizationStore memoizationStore, IContentSession contentSession = null)
+        public DatabaseMemoizationSession(string name, DatabaseMemoizationStore memoizationStore, IContentSession contentSession = null)
             : base(name, memoizationStore)
         {
             _contentSession = contentSession;

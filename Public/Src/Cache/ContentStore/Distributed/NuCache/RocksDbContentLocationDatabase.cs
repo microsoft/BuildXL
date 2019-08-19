@@ -702,7 +702,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
         
         /// <inheritdoc />
-        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
             var selectors = new List<(long TimeUtc, Selector Selector)>();
             var status = _keyValueStore.Use(
@@ -720,15 +720,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 });
 
-            var result = new List<GetSelectorResult>(selectors
-                .OrderByDescending(entry => entry.TimeUtc)
-                .Select(entry => new GetSelectorResult(entry.Selector)));
             if (!status.Succeeded)
             {
-                result.Add(new GetSelectorResult(status.Failure.CreateException()));
+                return new Result<IReadOnlyList<Selector>>(status.Failure.CreateException());
             }
 
-            return result;
+            return new Result<IReadOnlyList<Selector>>(selectors
+                .OrderByDescending(entry => entry.TimeUtc)
+                .Select(entry => entry.Selector).ToList());
         }
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)

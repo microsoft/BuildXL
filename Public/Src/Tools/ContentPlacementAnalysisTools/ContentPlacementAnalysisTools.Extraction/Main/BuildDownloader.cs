@@ -1,13 +1,14 @@
 ﻿using System;
+using System.Data;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.ToolSupport;
 using ContentPlacementAnalysisTools.Core;
 using ContentPlacementAnalysisTools.Extraction.Action;
 using ContentPlamentAnalysisTools.Core;
-using Kusto.Data;
 using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.Extraction.Main
@@ -22,11 +23,15 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
 
         private static void Main(string[] args)
         {
+            // parse args
+            var arguments = new Args(args);
+            if (arguments.Help)
+            {
+                return;
+            }
             s_logger.Info($"BuildDownloader starting");
             try
             {
-                // parse args
-                var arguments = new Args(args);
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
                 // so in here we will create a new network.
                 var buildInfoBlock = new TransformManyBlock<GetKustoBuildInput, KustoBuild>(i =>
@@ -34,7 +39,11 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     var action = new GetKustoBuild(arguments.AppConfig);
                     var result = action.PerformActionWithResult(i);
                     // its not worth it to continue if this fails
-                    Contract.Requires(result.ExecutionStatus, "Could not download builds, check logs for exceptions");
+                    if (!result.ExecutionStatus)
+                    {
+                        s_logger.Error(result.Exception, "Could not download builds");
+                        throw result.Exception;
+                    }
                     return result.Result.KustoBuildData;
                 });
                 var downloadBlock = new TransformBlock<KustoBuild, TimedActionResult<BuildDownloadOutput>>( i => 
@@ -164,43 +173,54 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
             return new StringBuilder()
                 .Append("MaxDownloadTasks=").Append(MaxDownloadTasks).Append(", ")
                 .Append("MaxDecompressionTasks=").Append(MaxDecompressionTasks).Append(", ")
-                .Append("MaxAnalysisTasks=").Append(MaxAnalysisTasks).Append(", ")
+                .Append("MaxAnalysisTasks=").Append(MaxAnalysisTasks)
                 .ToString();
         }
     }
 
     internal sealed partial class Args : CommandLineUtilities
     {
+        private static readonly string[] s_helpStrings = new[] { "?", "help" };
         /// <summary>
         /// This application config, parsed from the ac argument
         /// </summary>
-        public readonly ApplicationConfiguration AppConfig;
+        public readonly ApplicationConfiguration AppConfig = null;
         /// <summary>
         /// The maximum number of builds to be downloaded
         /// </summary>
-        public int NumBuilds { get;}
+        public int NumBuilds { get; } = -1;
         /// <summary>
         /// Year, to build the date for downloading build info
         /// </summary>
-        public int Year { get;}
+        public int Year { get; } = -1;
         /// <summary>
         /// Month, to build the date for downloading build info
         /// </summary>
-        public int Month { get;}
+        public int Month { get; } = -1;
         /// <summary>
         /// Day, to build the date for downloading build info
         /// </summary>
-        public int Day { get;}
+        public int Day { get; } = -1;
         /// <summary>
         /// The output directory for downloading builds and saving results
         /// </summary>
-        public string OutputDirectory { get; }
+        public string OutputDirectory { get; } = null;
+        /// <summary>
+        /// True if help was requested
+        /// </summary>
+        public bool Help { get; } = false;
 
         public Args(string[] args) : base(args)
         {
             foreach (var opt in Options)
             {
-                if (opt.Name.Equals("applicationConfig", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ac", StringComparison.OrdinalIgnoreCase))
+                if (s_helpStrings.Any(s => opt.Name.Equals(s, StringComparison.OrdinalIgnoreCase)))
+                {
+                    WriteHelp();
+                    Help = true;
+                    return;
+                }
+                else if (opt.Name.Equals("applicationConfig", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ac", StringComparison.OrdinalIgnoreCase))
                 {
                     string name = ParseStringOption(opt);
                     Contract.Requires(File.Exists(name), "You must specify a configuration file");
@@ -229,8 +249,27 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
 
             }
             // and a couple of checks here
+            Contract.Requires(NumBuilds > 0, "You must specify a number of builds");
+            Contract.Requires(Year > 0, "You must specify a year");
+            Contract.Requires(Month > 0, "You must specify a month");
+            Contract.Requires(Day > 0, "You must specify a day");
+            Contract.Requires(AppConfig != null, "You must specify a configuration file");
+            Contract.Requires(OutputDirectory != null, "You must specify an output directory");
             Contract.Requires(File.Exists(AppConfig.AnalyzerConfig.Exe), "The analyzer executable file must exist");
             Contract.Requires(Directory.Exists(OutputDirectory), "The output directory must exist");
+        }
+
+        private static void WriteHelp()
+        {
+            var writer = new HelpWriter();
+            writer.WriteBanner("cptools.buildownloader - Tool for downloading a set of builds and sampling artifacts (files) from them");
+            writer.WriteLine("");
+            writer.WriteOption("applicationConfig", "Required. File containing the application config parameters (json)", shortName:"ac");
+            writer.WriteOption("year", "Required. Year from when the builds will be taken from", shortName: "y");
+            writer.WriteOption("month", "Required. Month from when the builds will be taken from", shortName: "m");
+            writer.WriteOption("day", "Required. Day from when the builds will be taken from", shortName: "d");
+            writer.WriteOption("numBuilds", "Required. The number of builds (from different queues) that will be sampled", shortName: "nb");
+            writer.WriteOption("outputDirectory", "Required. The directory where the outputs will be stored", shortName: "od");
         }
     }
 

@@ -54,10 +54,10 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                     throw new Exception($"Analysis task failed to write output to [{analyzerOutputFile}]");
                 }
                 // output to a results dir
-                var newOutputDirectory = Path.Combine(Directory.GetParent(analyzerOutputFile).FullName, "Results");
+                var newOutputDirectory = Path.Combine(Directory.GetParent(input.OutputDirectory).FullName, "Results");
                 var newOutputPath = Path.Combine(newOutputDirectory, $"{input.BuildData.BuildId}.json");
                 // first, move the output file. If this directory already exists it does not matter
-                Directory.CreateDirectory(newOutputPath);
+                Directory.CreateDirectory(newOutputDirectory);
                 File.Move(analyzerOutputFile, newOutputPath);
                 // if everything went file, the is a json file waiting for us here...
                 return new BuildAnalisysOutput(newOutputPath);

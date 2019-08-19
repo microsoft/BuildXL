@@ -14,7 +14,7 @@ using BuildXL.Cache.MemoizationStore.Stores;
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {
     /// <summary>
-    ///     An IMemoizationSession implemented using a atabase
+    ///     An IMemoizationSession implemented using a database
     /// </summary>
     public class DatabaseMemoizationSession : ReadOnlyDatabaseMemoizationSession, IMemoizationSession
     {

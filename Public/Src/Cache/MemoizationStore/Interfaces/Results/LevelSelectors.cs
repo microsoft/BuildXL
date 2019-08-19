@@ -8,7 +8,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
 {
     /// <summary>
-    /// A list of selectors obtained by calling <see cref="IReadOnlyMemoizationSessionWithLevelSelectors.GetLevelSelectorsAsync"/> call.
+    /// A list of selectors obtained by calling <see cref="ILevelSelectorsProvider.GetLevelSelectorsAsync"/> call.
     /// </summary>
     public class LevelSelectors
     {

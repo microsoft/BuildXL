@@ -7,7 +7,7 @@ using BuildXL.Utilities;
 namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
-    /// Extension methods for 
+    /// Extension methods for Result classes.
     /// </summary>
     public static class ResultsExtensions
     {

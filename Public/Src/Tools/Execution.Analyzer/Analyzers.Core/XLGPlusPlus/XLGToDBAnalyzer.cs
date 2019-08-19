@@ -80,6 +80,9 @@ namespace BuildXL.Execution.Analyzer
         }
     }
 
+    /// <summary>
+    /// Analyzer that dumps xlg and graph data into RocksDB
+    /// </summary>
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
         private XLGToDBAnalyzerInner m_inner;
@@ -93,7 +96,7 @@ namespace BuildXL.Execution.Analyzer
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>(Environment.ProcessorCount * 2, action => action());
+            m_actionBlock = new ActionBlockSlim<Action>(Environment.ProcessorCount, action => action());
         }
 
         /// <inheritdoc/>
@@ -135,10 +138,12 @@ namespace BuildXL.Execution.Analyzer
 
 
     /// <summary>
-    /// Analyzer to dump xlg events and other data into RocksDB
+    /// Inner wrapper analyzer that works with the action blocks spawned from the outer main analyzer
     /// </summary>
     internal sealed class XLGToDBAnalyzerInner : Analyzer
     {
+        private const int outputBatchLogSize = 100000;
+
         /// <summary>
         /// Output directory path
         /// </summary>
@@ -166,7 +171,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var eventCount = Interlocked.Increment(ref m_eventCount);
 
-            if (eventCount % 100000 == 0)
+            if (eventCount % outputBatchLogSize == 0)
             {
                 Console.WriteLine($"Processed {eventCount} events so far. {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds have elapsed.");
             }
@@ -489,21 +494,22 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.For(0, concurrency, i =>
             {
-                var start = i * partitionSize;
-                var end = (i + 1) == concurrency ? totalNumberOfPips : (i + 1) * partitionSize;
-                var pipsIngested = 0;
-                var pipSemistableMap = new Dictionary<byte[], byte[]>();
-                var pipIdMap = new Dictionary<byte[], byte[]>();
 
                 // Hold only one lock while inserting all of these keys into the DB
                 var maybeInserted = m_accessor.Use(database =>
                 {
+                    var start = i * partitionSize;
+                    var end = (i + 1) == concurrency ? totalNumberOfPips : (i + 1) * partitionSize;
+                    var pipsIngested = 0;
+                    var pipSemistableMap = new Dictionary<byte[], byte[]>();
+                    var pipIdMap = new Dictionary<byte[], byte[]>();
+
                     for (int j = start; j < end; j++)
                     {
                         var pipId = pipIds[j];
                         pipsIngested++;
 
-                        if (pipsIngested % 100000 == 0)
+                        if (pipsIngested % outputBatchLogSize == 0)
                         {
                             Console.Write(".");
                             database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);

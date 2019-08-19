@@ -32,11 +32,11 @@ namespace Tools.ContentPlacement.Extraction {
                 ]),
             Tools.ContentPlacement.Core.dll,
             importFrom("NLog").pkg,
+            importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("RuntimeContracts").pkg,
             importFrom("SharpZipLib").pkg,
             importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
-            // BuildXLSdk.Factory.createBinary(importFrom("Microsoft.Azure.Kusto.Data").pkg.contents, r`lib/net462/Kusto.Data.dll`),
         ],
     });
 }

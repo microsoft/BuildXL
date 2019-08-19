@@ -2,18 +2,30 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Extraction.Main;
 using ICSharpCode.SharpZipLib.Zip;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action
 {
     /// <summary>
-    /// This is the action that downloads a single build. It takes as input an object of type 
+    /// This is the action that downloads a single build
     /// </summary>
     public class Decompression : TimedAction<BuildDownloadOutput, DecompressionOutput>
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
+
+        private readonly ApplicationConfiguration m_configuration = null;
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public Decompression(ApplicationConfiguration config)
+        {
+            m_configuration = config;
+        }
+
         /// <inheritdoc />
-        protected override void CleanUp()
+        protected override void CleanUp(BuildDownloadOutput input, DecompressionOutput output)
         {
             // nothing to do here
         }

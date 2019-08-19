@@ -3,32 +3,41 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Net;
 using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Extraction.Main;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action
 {
     /// <summary>
     /// This is the action that downloads a single build. It takes as input an object of type 
     /// </summary>
-    public class BuildDownload : TimedAction<BuildDownloadInput, BuildDownloadOutput>
+    public class BuildDownload : TimedAction<KustoBuild, BuildDownloadOutput>
     {
 
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
+        private readonly ApplicationConfiguration m_configuration = null;
         private string m_bxlPath = null;
         private string m_dominoPath = null;
+        private string m_outputDirectory = null;
 
-        /// <inheritdoc />
-        protected override void CleanUp()
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public BuildDownload(ApplicationConfiguration config, string outputDirectory)
         {
-            // clean up whatever we need to clean up here
+            m_configuration = config;
+            m_outputDirectory = outputDirectory;
         }
 
         /// <inheritdoc />
-        protected override void Setup(BuildDownloadInput input)
+        protected override void CleanUp(KustoBuild input, BuildDownloadOutput output) {}
+
+        /// <inheritdoc />
+        protected override void Setup(KustoBuild input)
         {
             // do some checks in here
-            m_bxlPath = Path.Combine(input.OutputDirectory, input.MachineName);
-            m_dominoPath = Path.Combine(input.OutputDirectory, input.MachineName, "Domino");
+            m_bxlPath = Path.Combine(m_outputDirectory, input.BuildControllerMachineName);
+            m_dominoPath = Path.Combine(m_outputDirectory, input.BuildControllerMachineName, "Domino");
             // create the directories
             Directory.CreateDirectory(m_bxlPath);
             Directory.CreateDirectory(m_dominoPath);
@@ -38,7 +47,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         /// <summary>
         /// Given a machine and log dir, downloads the zip files used to reconstructuc the build log 
         /// </summary>
-        protected override BuildDownloadOutput Perform(BuildDownloadInput input)
+        protected override BuildDownloadOutput Perform(KustoBuild input)
         {
             s_logger.Debug($"BuildDownloader starts...");
             try
@@ -46,7 +55,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 var bxlZip = Path.Combine(m_bxlPath, "BuildXLLogs.zip");
                 var dominoZip = Path.Combine(m_dominoPath, "Domino.zip");
                 // build the urls
-                var urls = input.BuildDownloadUrls();
+                var urls = BuildDownloadUrls(input);
                 var downloaded = 0;
                 // and download the two of them
                 foreach (var url in urls)
@@ -59,7 +68,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 }
                 // now, the output contains the number of downloaded files (that should be two)
                 // and the base directory of where they are
-                return new BuildDownloadOutput($"{m_bxlPath}", downloaded, bxlZip, dominoZip, input.BuildData);
+                return new BuildDownloadOutput(m_bxlPath, downloaded, bxlZip, dominoZip, input);
             }
             finally
             {
@@ -68,10 +77,14 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
             
         }
 
+        private string[] BuildDownloadUrls(KustoBuild buildData) => new string[] {
+            $"https://b/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\BuildXLLogs.zip",
+            $"https://b/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\Domino\\Domino.zip"
+        };
 
         private bool DownloadFileTo(string url, string bxl, string domino)
         {
-            string filePath = url.Contains("Domino.zip") ? domino : bxl;
+            var filePath = url.Contains("Domino.zip") ? domino : bxl;
             using (var client = new WebClient())
             {
                 try
@@ -89,50 +102,6 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 }
             }
         }
-
-    }
-
-    /// <summary>
-    /// The input for BuildDownloader needs to contain a log dir and a machine name. We need to build a download URL
-    /// </summary>
-    public class BuildDownloadInput
-    {
-        /// <summary>
-        /// Location of the files to be downloaded
-        /// </summary>
-        public string OutputDirectory { get; }
-        /// <summary>
-        /// Name of the machine where the files will be pulled from. Its the master machine for that build
-        /// </summary>
-        public string MachineName {get; }
-        /// <summary>
-        /// Location of the log files for a product build (as obtained querying Kusto)
-        /// </summary>
-        public string LogDirectory { get; }
-        /// <summary>
-        /// The data for the build we are downloading
-        /// </summary>
-        public KustoBuild BuildData { get; }
-        /// <summary>
-        /// Base constructor
-        /// </summary>
-        public BuildDownloadInput(string machine, string logdir, string outputDir, KustoBuild bd)
-        {
-            MachineName = machine.Contains(":") ? machine.Split(':')[0] : machine;
-            LogDirectory = logdir;
-            OutputDirectory = outputDir;
-            BuildData = bd;
-        }
-
-        /// <summary>
-        /// Build download urls based on the machine name and product build log. The urls look like:
-        /// http://b/getfile?path=\\\\{MachineName}\\{LogDirectory}\\Logs\\ProductBuild\\BuildXLLogs.zip
-        /// http://b/getfile?path=\\\\{MachineName}\\{LogDirectory}\\Logs\\ProductBuild\\Domino\\Domino.zip
-        /// </summary>
-        public string[] BuildDownloadUrls() => new string[] {
-            $"https://b/getfile?path=\\\\{MachineName}\\{LogDirectory}\\Logs\\ProductBuild\\BuildXLLogs.zip",
-            $"https://b/getfile?path=\\\\{MachineName}\\{LogDirectory}\\Logs\\ProductBuild\\Domino\\Domino.zip"
-        };
 
     }
 

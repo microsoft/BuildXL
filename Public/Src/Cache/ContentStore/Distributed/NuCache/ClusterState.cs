@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
@@ -39,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly ConcurrentDictionary<MachineLocation, MachineId> _idByLocationMap = new ConcurrentDictionary<MachineLocation, MachineId>();
 
-        private BitMachineIdSet _inactiveMachinesSet;
+        private BitMachineIdSet _inactiveMachinesSet = BitMachineIdSet.EmptyInstance;
 
         /// <summary>
         /// The time at which the machine was last in an inactive state
@@ -54,7 +55,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Returns a list of inactive machines.
         /// </summary>
-        public IReadOnlyList<MachineId> InactiveMachines { get; private set; }
+        public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
+
+        /// <summary>
+        /// Gets whether a machine is marked inactive
+        /// </summary>
+        public bool IsMachineMarkedInactive(MachineId machineId)
+        {
+            return _inactiveMachinesSet[machineId]; 
+        }
 
         /// <nodoc />
         public void SetInactiveMachines(BitMachineIdSet inactiveMachines)
@@ -70,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             if (_inactiveMachinesSet[machineId.Index])
             {
-                _inactiveMachinesSet = (BitMachineIdSet)_inactiveMachinesSet.Remove(machineId);
+                SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
             }
         }
 

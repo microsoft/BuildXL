@@ -280,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await EventStore.StartupAsync(context).ThrowIfFailure();
 
-            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation);
+            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
 
             // Configuring a heartbeat timer. The timer is used differently by a master and by a worker.
             _heartbeatTimer = new Timer(

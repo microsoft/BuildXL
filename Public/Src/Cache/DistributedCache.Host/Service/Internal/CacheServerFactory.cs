@@ -51,19 +51,24 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (isLocal)
             {
-                return CreateLocalServer(localServerConfiguration);
+                // In practice, we don't really pass in a null distributedSettings. Hence, we'll enable the metadata
+                // store whenever its set to true. This can only happen in the Application verb, because the Service
+                // verb doesn't change the defaults.
+                return CreateLocalServer(localServerConfiguration,
+                    enableMetadataStore: distributedSettings?.EnableMetadataStore ?? false);
             }
             else
             {
-                return CreateDistributedServer(localServerConfiguration);
+                return CreateDistributedServer(localServerConfiguration,
+                    enableMetadataStore: distributedSettings.EnableMetadataStore);
             }
         }
 
-        private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration)
+        private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
         {
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
 
-            if (_arguments.EnableMetadataStore)
+            if (enableMetadataStore)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path => {
                     return new OneLevelCache(
@@ -98,7 +103,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration)
+        private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
         {
             var cacheConfig = _arguments.Configuration;
 
@@ -125,7 +130,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
             };
 
-            if (_arguments.EnableMetadataStore)
+            if (enableMetadataStore)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path => {
                     return new OneLevelCache(

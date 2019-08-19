@@ -509,6 +509,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int PutFileWaitWarningMilliseconds { get; set; } = 5000;
 
+        [DataMember]
+        public bool EnableMetadataStore { get; set; } = false;
+
         #endregion
 
         /// <summary>

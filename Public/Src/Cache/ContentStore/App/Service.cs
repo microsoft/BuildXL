@@ -47,8 +47,7 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(null), Description("Duration of inactivity after which a session will be timed out.")] double? unusedSessionTimeoutSeconds,
             [DefaultValue(null), Description("Duration of inactivity after which a session with a heartbeat will be timed out.")] double? unusedSessionHeartbeatTimeoutSeconds,
             [DefaultValue(false), Description("Stop running service")] bool stop,
-            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB,
-            [DefaultValue(false), Description("Whether or not metadata is stored within this process")] bool enableMetadataStore
+            [DefaultValue(Constants.OneMB), Description("Max size quota in MB")] int maxSizeQuotaMB
             )
         {
             Initialize();
@@ -177,8 +176,7 @@ namespace BuildXL.Cache.ContentStore.App
                 cancellation: cancellationTokenSource.Token,
                 dataRootPath: serverDataRootPath.Path,
                 configuration: distributedCacheServiceConfiguration,
-                keyspace: null,
-                enableMetadataStore: enableMetadataStore);
+                keyspace: null);
 
             DistributedCacheServiceFacade.RunAsync(distributedCacheServiceArguments).GetAwaiter().GetResult();
 

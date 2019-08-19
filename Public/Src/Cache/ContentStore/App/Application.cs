@@ -611,8 +611,7 @@ namespace BuildXL.Cache.ContentStore.App
             string dataRootPath,
             CancellationToken ct,
             int? bufferSizeForGrpcCopies,
-            int? gzipBarrierSizeForGrpcCopies,
-            bool enableMetadataStore)
+            int? gzipBarrierSizeForGrpcCopies)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -627,7 +626,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 
-            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null, enableMetadataStore);
+            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
         }
     }
 }

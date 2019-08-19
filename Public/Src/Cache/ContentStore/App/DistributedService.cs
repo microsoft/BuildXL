@@ -46,8 +46,7 @@ namespace BuildXL.Cache.ContentStore.App
             [DefaultValue(false), Description("Whether or not GRPC is used for file copies")] bool useDistributedGrpc,
             [DefaultValue(false), Description("Whether or not GZip is used for GRPC file copies")] bool useCompressionForCopies,
             [DefaultValue(null), Description("Buffer size for streaming GRPC copies")] int? bufferSizeForGrpcCopies,
-            [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies,
-            [DefaultValue(false), Description("Whether or not metadata is stored within this process")] bool enableMetadataStore
+            [DefaultValue(null), Description("Files greater than this size are compressed if compression is used")] int? gzipBarrierSizeForGrpcCopies
             )
         {
             Initialize();
@@ -96,8 +95,7 @@ namespace BuildXL.Cache.ContentStore.App
                     dataRootPath: dataRootPath,
                     ct: _cancellationToken,
                     bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
-                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
-                    enableMetadataStore: enableMetadataStore);
+                    gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
 
                 DistributedCacheServiceFacade.RunAsync(arguments).GetAwaiter().GetResult();
             }

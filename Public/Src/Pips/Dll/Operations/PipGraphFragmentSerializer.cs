@@ -49,7 +49,7 @@ namespace BuildXL.Pips.Operations
 
         private volatile int m_totalPipsToDeserialize = 0;
         private volatile int m_totalPipsToSerialize = 0;
-        
+
         /// <summary>
         /// Detailed statistics of serialization and deserialization.
         /// </summary>
@@ -71,8 +71,8 @@ namespace BuildXL.Pips.Operations
         /// Deserializes a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized.
         /// </summary>
         public bool Deserialize(
-            AbsolutePath filePath, 
-            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null, 
+            AbsolutePath filePath,
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null)
         {
             Contract.Requires(filePath.IsValid);
@@ -84,35 +84,71 @@ namespace BuildXL.Pips.Operations
                 string serializedDescription = reader.ReadNullableString();
                 FragmentDescription = (fragmentDescriptionOverride ?? serializedDescription) ?? filePath.ToString(m_pipExecutionContext.PathTable);
                 var provenance = new PipGraphFragmentProvenance(filePath, FragmentDescription);
-                m_totalPipsToDeserialize = reader.ReadInt32();
-                int totalPipsRead = 0;
-                while (totalPipsRead < m_totalPipsToDeserialize)
+                bool serializedUsingTopSort = reader.ReadBoolean();
+                Func<PipId, Pip, bool> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
+                if (serializedUsingTopSort)
                 {
-                    var deserializedPips = reader.ReadReadOnlyList<(Pip, PipId)>((deserializer) =>
-                    {
-                        var pip = Pip.Deserialize(reader);
-
-                        // Pip id is not deserialized when pip is deserialized.
-                        // Pip id must be read separately. To be able to add a pip to the graph, the pip id of the pip
-                        // is assumed to be unset, and is set when the pip gets inserted into the pip table.
-                        // Thus, one should not assign the pip id of the deserialized pip with the deserialized pip id.
-                        // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
-                        // remaps the pip id to a new pip id.
-                        var pipId = new PipId(reader.ReadUInt32());
-                        return (pip, pipId);
-                    });
-                    totalPipsRead += deserializedPips.Count;
-
-                    Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
-                    {
-                        if (!(handleDeserializedPip?.Invoke(m_pipGraphFragmentContext, provenance, deserializedPip.Item2, deserializedPip.Item1)).Value)
-                        {
-                            successful = false;
-                        }
-
-                        Stats.Increment(deserializedPip.Item1, serialize: false);
-                    });
+                    successful = DeserializeTopSort(handleDeserializedPipInFragment, reader);
                 }
+                else
+                {
+                    successful = DeserializeSerially(handleDeserializedPipInFragment, reader);
+                }
+            }
+
+            return successful;
+        }
+
+        private bool DeserializeSerially(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader)
+        {
+            bool successful = true;
+            m_totalPipsToDeserialize = reader.ReadInt32();
+            for (int totalPipsRead = 0; totalPipsRead < m_totalPipsToDeserialize; totalPipsRead++)
+            {
+                var pip = Pip.Deserialize(reader);
+                var pipId = new PipId(reader.ReadUInt32());
+                if (!(handleDeserializedPip?.Invoke(pipId, pip)).Value)
+                {
+                    successful = false;
+                }
+
+                Stats.Increment(pip, serialize: false);
+            }
+
+            return successful;
+        }
+
+        private bool DeserializeTopSort(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader)
+        {
+            bool successful = true;
+            m_totalPipsToDeserialize = reader.ReadInt32();
+            int totalPipsRead = 0;
+            while (totalPipsRead < m_totalPipsToDeserialize)
+            {
+                var deserializedPips = reader.ReadReadOnlyList<(Pip, PipId)>((deserializer) =>
+                {
+                    var pip = Pip.Deserialize(reader);
+
+                    // Pip id is not deserialized when pip is deserialized.
+                    // Pip id must be read separately. To be able to add a pip to the graph, the pip id of the pip
+                    // is assumed to be unset, and is set when the pip gets inserted into the pip table.
+                    // Thus, one should not assign the pip id of the deserialized pip with the deserialized pip id.
+                    // Do not use reader.ReadPipId() for reading the deserialized pip id. The method reader.ReadPipId() 
+                    // remaps the pip id to a new pip id.
+                    var pipId = new PipId(reader.ReadUInt32());
+                    return (pip, pipId);
+                });
+                totalPipsRead += deserializedPips.Count;
+
+                Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
+                {
+                    if (!(handleDeserializedPip?.Invoke(deserializedPip.Item2, deserializedPip.Item1)).Value)
+                    {
+                        successful = false;
+                    }
+
+                    Stats.Increment(deserializedPip.Item1, serialize: false);
+                });
             }
 
             return successful;
@@ -121,7 +157,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Serializes list of pips to a file.
         /// </summary>
-        public void Serialize(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, int totalPipCount, string fragmentDescription = null)
+        public void SerializeSerially(AbsolutePath filePath, IReadOnlyList<Pip> pipsToSerialize, string fragmentDescription = null)
         {
             Contract.Requires(filePath.IsValid);
             Contract.Requires(pipsToSerialize != null);
@@ -132,6 +168,37 @@ namespace BuildXL.Pips.Operations
             {
                 FragmentDescription = fragmentDescription ?? fileName;
                 writer.WriteNullableString(FragmentDescription);
+
+                // Indicates writing pips serially.
+                writer.Write(false);
+
+                writer.Write(pipsToSerialize.Count);
+                foreach (var pip in pipsToSerialize)
+                {
+                    pip.Serialize(writer);
+                    writer.Write(pip.PipId.Value);
+                    Stats.Increment(pip, serialize: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Serializes list of pips to a file.
+        /// </summary>
+        public void SerializeTopSort(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, int totalPipCount, string fragmentDescription = null)
+        {
+            Contract.Requires(filePath.IsValid);
+            Contract.Requires(pipsToSerialize != null);
+
+            string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
+            using (var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
+            {
+                FragmentDescription = fragmentDescription ?? fileName;
+                writer.WriteNullableString(FragmentDescription);
+
+                // Indicates top sort.
+                writer.Write(true);
 
                 writer.Write(totalPipCount);
                 foreach (var pipGroup in pipsToSerialize)

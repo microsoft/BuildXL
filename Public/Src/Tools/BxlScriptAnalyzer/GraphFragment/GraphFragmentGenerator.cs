@@ -53,7 +53,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             if (m_topSortOption.Match(opt.Name))
             {
                 m_topSort = CommandLineUtilities.ParseBooleanOption(opt);
-                return true;
+                return base.HandleOption(opt);
             }
 
             return base.HandleOption(opt);
@@ -109,11 +109,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 if (m_topSort)
                 {
                     var finalPipList = TopSort(pips);
-                    serializer.Serialize(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
+                    serializer.SerializeTopSort(m_absoluteOutputPath, finalPipList, pips.Count, m_description);
                 }
                 else
                 {
-                    serializer.Serialize(m_absoluteOutputPath, pips.Select(x => new List<Pip>() { x }).ToList(), pips.Count, m_description);
+                    serializer.SerializeSerially(m_absoluteOutputPath, pips, m_description);
                 }
 
                 Logger.GraphFragmentSerializationStats(LoggingContext, serializer.FragmentDescription, serializer.Stats.ToString());

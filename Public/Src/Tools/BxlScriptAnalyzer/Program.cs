@@ -73,6 +73,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     arguments.Filter,
                     arguments.OutputDirectory,
                     arguments.ObjectDirectory,
+                    arguments.TopSort,
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,

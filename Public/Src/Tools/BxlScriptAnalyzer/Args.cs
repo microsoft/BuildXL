@@ -34,6 +34,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         public readonly bool Help;
 
         /// <summary>
+        /// Serialize using top sort so that loading the graph is faster
+        /// </summary>
+        public readonly bool TopSort;
+
+        /// <summary>
         /// The analyzers to apply (in sequence)
         /// </summary>
         public readonly List<Analyzer> Analyzers;
@@ -49,7 +54,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         public readonly string OutputDirectory;
 
         /// <nodoc />
-        public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
+        public Args(string config, string filter, bool fix, bool help, bool topSort, List<Analyzer> analyzers, params string[] args)
             : base(args)
         {
             Config = config;
@@ -57,6 +62,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             Fix = fix;
             Help = help;
             Analyzers = analyzers;
+            TopSort = topSort;
         }
 
         /// <nodoc />
@@ -89,6 +95,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 else if (opt.Name.Equals("fix", StringComparison.OrdinalIgnoreCase))
                 {
                     Fix = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("topsort", StringComparison.OrdinalIgnoreCase))
+                {
+                    TopSort = ParseBooleanOption(opt);
                 }
                 else if (opt.Name.Equals("analyzer", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.Equals("a", StringComparison.OrdinalIgnoreCase))

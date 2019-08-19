@@ -1360,6 +1360,7 @@ namespace BuildXL.Scheduler
                     // create fingerprint store copy in logs.
                     await FingerprintStore.CopyAsync(
                         m_loggingContext,
+                        m_testHooks.FingerprintStoreTestHooks,
                         Context.PathTable,
                         m_configuration,
                         m_fingerprintStoreCounters);

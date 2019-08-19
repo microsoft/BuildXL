@@ -275,11 +275,6 @@ namespace BuildXL.Engine
 
             bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
 
-#if NET_CORE
-            // Handler inlining causing deadlock on the mac platform.
-            grpcHandlerInliningEnabled = false;
-#endif
-
             GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
 
             Logger.Log.GrpcSettings(

@@ -2,13 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using BuildXL.Ipc;
+using BuildXL.Ipc.Common;
+using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities;
@@ -81,6 +86,7 @@ namespace Test.BuildXL.Scheduler
                 pipGraph: m_pipGraph,
                 moduleName: moduleName,
                 specRelativePath: Path.Combine(m_sourceRoot.GetName(Context.PathTable).ToString(Context.StringTable), specFileName),
+                specPath: m_specPath,
                 symbol: moduleName + "_defaultValue");
         }
 
@@ -120,21 +126,69 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Schedule process builder.
+        /// Schedules a process builder.
         /// </summary>
         public (Process process, ProcessOutputs outputs) ScheduleProcessBuilder(ProcessBuilder builder, PipConstructionHelper pipConstructionHelper = null)
         {
-            if (!builder.TryFinish(pipConstructionHelper ?? m_defaultConstructionHelper, out var process, out var outputs))
-            {
-                throw new BuildXLTestException("Failed to construct process pip");
-            }
+            var helper = pipConstructionHelper ?? m_defaultConstructionHelper;
 
-            if (!m_pipGraph.AddProcess(process, PipId.Invalid))
+            if (!helper.TryAddProcess(builder, out ProcessOutputs outputs, out Process process))
             {
                 throw new BuildXLTestException("Failed to add process pip");
             }
 
             return (process, outputs);
+        }
+
+        /// <summary>
+        /// Gets API server moniker.
+        /// </summary>
+        public IIpcMoniker GetApiServerMoniker() => m_pipGraph.GetApiServerMoniker();
+
+        /// <summary>
+        /// Gets an IPC moniker.
+        /// </summary>
+        public IIpcMoniker GetIpcMoniker(PipConstructionHelper helper = null)
+        {
+            var semiStableHash = (helper ?? m_defaultConstructionHelper).GetNextSemiStableHash();
+            return IpcFactory.GetProvider().LoadOrCreateMoniker(string.Format(CultureInfo.InvariantCulture, "{0:X16}", semiStableHash));
+        }
+
+        /// <summary>
+        /// Gets IPC process builder.
+        /// </summary>
+        /// <returns></returns>
+        public ProcessBuilder GetIpcProcessBuilder() => ProcessBuilder.CreateForTesting(Context.PathTable);
+
+        /// <summary>
+        /// Schedules an IPC pip.
+        /// </summary>
+        public PipId ScheduleIpcPip(
+            IIpcMoniker moniker,
+            PipId? servicePipId,
+            ProcessBuilder ipcProcessBuilder,
+            FileArtifact outputFile,
+            bool isServiceFinalization,
+            PipConstructionHelper helper = null)
+        {
+            var ipcClientInfo = new IpcClientInfo(StringId.Create(Context.StringTable, moniker.Id), new ClientConfig(0, 0));
+            PipData arguments = ipcProcessBuilder.ArgumentsBuilder.ToPipData(" ", PipDataFragmentEscaping.CRuntimeArgumentRules);
+            ReadOnlyArray<FileArtifact> fileDependencies = ipcProcessBuilder.GetInputFilesSoFar();
+
+            (helper ?? m_defaultConstructionHelper).TryAddIpc(
+                ipcClientInfo,
+                arguments,
+                outputFile,
+                servicePipDependencies: servicePipId != null ? ReadOnlyArray<PipId>.From(new[] { servicePipId.Value }) : ReadOnlyArray<PipId>.Empty,
+                fileDependencies: fileDependencies,
+                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
+                skipMaterializationFor: ReadOnlyArray<FileOrDirectoryArtifact>.Empty,
+                isServiceFinalization: isServiceFinalization,
+                mustRunOnMaster: false,
+                tags: new string[0],
+                out PipId pipId);
+
+            return pipId;
         }
     }
 }

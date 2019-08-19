@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -56,6 +57,16 @@ namespace Test.BuildXL.Scheduler
             Contract.Requires(outputPath.IsValid);
             AddOption(optionName, outputPath, (b, v) => b.Add(outputPath));
             m_processBuilder.AddOutputFile(outputPath);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds IPC moniker.
+        /// </summary>
+        public ArgumentsBuilder AddIpcMonikerOption(string optionName, IIpcMoniker value)
+        {
+            Contract.Requires(value != null);
+            AddOption(optionName, value, (b, v) => b.AddIpcMoniker(value));
             return this;
         }
 

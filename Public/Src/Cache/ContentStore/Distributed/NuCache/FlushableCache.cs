@@ -100,15 +100,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        public struct FlushStatistics
-        {
-            public long Persisted;
-            public long Leftover;
-            public long Growth;
-            public TimeSpan FlushingTime;
-            public TimeSpan CleanupTime;
-        }
-
         /// <summary>
         /// Needs to take the flushing lock. Called only from <see cref="FlushAsync(OperationContext)"/>. Refactored
         /// out for clarity.
@@ -186,6 +177,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             statistics.Growth = _cache.Count;
 
             return statistics;
+        }
+
+        public struct FlushStatistics
+        {
+            public long Persisted;
+            public long Leftover;
+            public long Growth;
+            public TimeSpan FlushingTime;
+            public TimeSpan CleanupTime;
         }
     }
 }

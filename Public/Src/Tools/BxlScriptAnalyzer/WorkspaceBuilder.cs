@@ -203,7 +203,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             5000,
                             false);
 
-                        if (!topSort)
+                        if (topSort)
                         {
                             pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config);
                         }

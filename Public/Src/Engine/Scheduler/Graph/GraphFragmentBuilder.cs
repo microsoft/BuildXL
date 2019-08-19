@@ -167,10 +167,10 @@ namespace BuildXL.Scheduler.Graph
         public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot) => SealDirectoryTable.CreateSharedOpaqueDirectoryWithNewSealId(directoryArtifactRoot);
 
         /// <inheritdoc />
-        public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip) => Enumerable.Empty<Pip>();
+        public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public virtual IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip) => Enumerable.Empty<Pip>();
+        public virtual IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public IEnumerable<Pip> RetrieveScheduledPips() => m_pips;

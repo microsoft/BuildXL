@@ -52,7 +52,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             if (m_topSortOption.Match(opt.Name))
             {
                 SerializeUsingTopSort = CommandLineUtilities.ParseBooleanOption(opt);
-                return base.HandleOption(opt);
+                return true;
             }
 
             return base.HandleOption(opt);

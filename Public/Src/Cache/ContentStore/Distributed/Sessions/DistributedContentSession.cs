@@ -99,16 +99,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             });
         }
 
-        private Task<TResult> PerformPutFileGatedOperationAsync<TResult>(OperationContext operationContext, Func<Task<TResult>> func)
+        private Task<PutResult> PerformPutFileGatedOperationAsync(OperationContext operationContext, Func<Task<PutResult>> func)
         {
-            return _putFileGate.GatedOperationAsync((timeWaiting) =>
+            return _putFileGate.GatedOperationAsync(async (timeWaiting) =>
             {
-                if (timeWaiting > Settings.PutFileWaitWarning)
-                {
-                    Tracer.Info(operationContext, $"Spent {timeWaiting} waiting for PutFile gate, exceeding deadline of {Settings.PutFileWaitWarning}");
-                }
+                var gateOccupiedCount = Settings.MaximumConcurrentPutFileOperations - _putFileGate.CurrentCount;
 
-                return func();
+                var result = await func();
+                result.Metadata = new PutResult.OptionalMetadata()
+                {
+                    GateWaitTime = timeWaiting,
+                    GateOccupiedCount = gateOccupiedCount,
+                };
+
+                return result;
             }, operationContext.Token);
         }
 

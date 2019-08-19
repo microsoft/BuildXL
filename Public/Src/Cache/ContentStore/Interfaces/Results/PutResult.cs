@@ -107,5 +107,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize}{this.GetDiagnosticsMessageForTracing()}"
                 : GetErrorString();
         }
+
+        internal class OptionalMetadata
+        {
+            public TimeSpan GateWaitTime;
+            public int GateOccupiedCount;
+        }
+
+        internal OptionalMetadata Metadata;
     }
 }

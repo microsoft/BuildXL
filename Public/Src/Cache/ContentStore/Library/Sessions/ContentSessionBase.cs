@@ -211,7 +211,16 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     Tracer,
                     () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
                     extraStartMessage: $"({path},{realizationMode},{hashType}) trusted=false",
-                    extraEndMessage: _ => "trusted=false",
+                    extraEndMessage: (result) => {
+                        var message = "trusted=false";
+
+                        if (result.Metadata == null)
+                        {
+                            return message;
+                        }
+
+                        return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime}ms";
+                    },
                     counter: _counters[ContentSessionBaseCounters.PutFile]));
         }
 

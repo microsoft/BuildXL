@@ -66,7 +66,7 @@ namespace BuildXL.Execution.Analyzer
         {
             writer.WriteBanner("Content Placement Analyzer");
             writer.WriteModeOption(nameof(AnalysisMode.ContentPlacement), "This analyzer parses a whole build (master perspective) and outputs content/workload-related data for machine learning purposes. It should only be run at the master node logs.");
-            writer.WriteOption("sampleProportion", "Required ( 0.01 <= sampleProportion <= 1.0). The proportion of the total artifacts that will be sampled (ex: sampleProportion=0.8 => sample size is 80% of the total number of artifacts.)", shortName: "sp");
+            writer.WriteOption("sampleProportion", "Required ( 0.01 <= sampleProportion <= 1.0). The proportion of the artifacts (per extension) that will be sampled.", shortName: "sp");
             writer.WriteOption("buildQueue", "Optional. The build queue in which this build ran. If not set, its necessary to get it when processing the output.", shortName: "bq");
             writer.WriteOption("buildId", "Optional. The BuildId for this build. If not set, its necessary to get it when processing the output.", shortName: "bid");
             writer.WriteOption("buildStartTicks", "Optional. The time (ticks) when the build started. If not set, its necessary to get it when processing the output.", shortName: "bst");
@@ -76,10 +76,10 @@ namespace BuildXL.Execution.Analyzer
     }
 
     /// <summary>
-    /// Analyzer used to get data from file artifacts. It outputs a file that contain all the sampled artifact data. The samples are taking proportionally for each extension.
-    /// // So for example, if we have a build with 100 artifacts and sampleProportion=0.8, then we will take at least 80 of them as a sample. From each extension, 80% of the files
-    /// // are taken at random and rounding UP, this means, at least one file of each extension will be taken. This could lead to take more than 80% of the files, but that is ok
-    /// // from my point of view. If you want to put a hard cap on the count, then use sampleCountHardLimit.
+    /// Analyzer used to get data from file artifacts. It outputs a file that contains all the sampled artifact data. The samples are taken proportionally for each extension.
+    /// For example, if we have a build with 100 artifacts and sampleProportion=0.8, then from each extension, 80% of the files
+    /// are taken at random and rounding UP, meaning that at least one file of each extension will be taken. This could lead to take more than 80% of the files, but that is ok
+    /// from my point of view. If you want to put a hard cap on the count, then use sampleCountHardLimit.
     /// </summary>
     internal sealed class ContentPlacementAnalyzer : Analyzer
     {

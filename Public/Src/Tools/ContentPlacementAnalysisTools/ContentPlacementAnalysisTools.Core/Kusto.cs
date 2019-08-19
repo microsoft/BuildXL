@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.Core
@@ -7,11 +8,10 @@ namespace ContentPlacementAnalysisTools.Core
     /// Contains the parameters necessary to establish a connection to kusto, and its meant
     /// to be read from a json file that looks like (actual values might change):
     ///   {
-    ///      "cluster": "https://cbuild.kusto.windows.net",
-    ///      "user": "TIPICALLY YOUR MICROSOFT EMAIL",
-    ///      "password": "YOUR PASS",
-    ///      "authorityId": "YOUR AUTHORITY ID",
-    ///      "defaultDB": "CloudBuildProd"
+    ///      "Cluster": "https://cbuild.kusto.windows.net",
+    ///      "User": "TIPICALLY YOUR MICROSOFT EMAIL",
+    ///      "AuthorityId": "YOUR AUTHORITY ID",
+    ///      "DefaultDB": "CloudBuildProd"
     ///    }
     /// </summary>
     public class KustoConnectionConfiguration
@@ -25,10 +25,6 @@ namespace ContentPlacementAnalysisTools.Core
         /// </summary>
         public string User { get; set; }
         /// <summary>
-        /// Password
-        /// </summary>
-        public string Password { get; set; }
-        /// <summary>
         /// The authority id
         /// </summary>
         public string AuthorityId { get; set; }
@@ -36,10 +32,16 @@ namespace ContentPlacementAnalysisTools.Core
         /// The default db
         /// </summary>
         public string DefaultDB { get; set; }
-        /// <summary>
-        /// build 
-        /// </summary>
-        public static KustoConnectionConfiguration FromJson(string json) => JsonConvert.DeserializeObject<KustoConnectionConfiguration>(File.ReadAllText(json));
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return new StringBuilder()
+                .Append("Cluster=").Append(Cluster).Append(", ")
+                .Append("User=").Append(User).Append(", ")
+                .Append("AuthorityId=").Append(AuthorityId).Append(", ")
+                .Append("DefaultDB=").Append(DefaultDB)
+                .ToString();
+        }
     }
 
     /// <summary>
@@ -71,8 +73,5 @@ namespace ContentPlacementAnalysisTools.Core
         /// The queue where the build took place
         /// </summary>
         public string BuildQueue { get; set; }
-
-
-
     }
 }

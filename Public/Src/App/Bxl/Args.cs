@@ -376,7 +376,7 @@ namespace BuildXL
                             sign => 
                             { 
                                 // Noop for legacy command line compatibility 
-                            },
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableIncrementalFrontEnd",
                             sign => frontEndConfiguration.EnableIncrementalFrontEnd = sign),

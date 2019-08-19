@@ -6,12 +6,14 @@
         </td>
     </tr>
 </table>
+
 <div>
-  <input id="cb1" type="checkbox" onchecked="alert('hi')" />
+  <input id="cb1" type="checkbox" style="color:attr(checked);color:red">
+  this is the body
+  </input>
   <div id="el1" class="red">
    sometext
   </div>
-<iframe src="http://microsoft.com" />
 <script>
 alert('hi');
 </script>

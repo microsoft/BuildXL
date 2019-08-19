@@ -720,7 +720,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.
         /// </summary>
-        public abstract IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
+        public abstract Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
 
         /// <summary>
         /// Enumerates all strong fingerprints currently stored in the cache.

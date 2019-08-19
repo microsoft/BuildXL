@@ -8,11 +8,10 @@
 </table>
 <div>
 <style>
-```{.red {color: red} }
+.red {color: red}
 </style>
   <input id="cb1" type="checkbox" onchecked="alert('hi')" />
   <div id="el1" class="red">
    sometext
   </div>
 </div>
-```

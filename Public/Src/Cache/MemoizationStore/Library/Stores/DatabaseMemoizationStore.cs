@@ -31,7 +31,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// <summary>
     ///     An IMemoizationStore implementation using RocksDb.
     /// </summary>
-    public abstract class DatabaseMemoizationStore : StartupShutdownBase, IMemoizationStore, ILevelSelectorsProvider
+    public class DatabaseMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
         private MemoizationDatabase _database;
 
@@ -43,6 +43,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
 
+        /// <summary>
+        /// The component name
+        /// </summary>
         protected string Component => Tracer.Name;
 
         /// <summary>
@@ -190,7 +193,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             });
         }
 
-        public async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
+        internal async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
             var ctx = new OperationContext(context);
 

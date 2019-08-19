@@ -27,6 +27,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     {
         internal RocksDbContentLocationDatabase Database { get; }
 
+        /// <inheritdoc />
         protected override Tracer Tracer { get; }
 
         /// <nodoc />

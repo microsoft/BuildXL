@@ -53,9 +53,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
+        public Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
-            return await MemoizationStore.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
+            return MemoizationStore.GetLevelSelectorsAsync(context, weakFingerprint, cts, level);
         }
 
         /// <inheritdoc />

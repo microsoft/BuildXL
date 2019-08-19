@@ -8,7 +8,7 @@
 </table>
 
 <div>
-  <input id="cb1" type="checkbox" style="color:red">
+  <input id="cb1" type="checkbox" style="text-color:red">
   this is the body
   </input>
   <div id="el1" class="red">

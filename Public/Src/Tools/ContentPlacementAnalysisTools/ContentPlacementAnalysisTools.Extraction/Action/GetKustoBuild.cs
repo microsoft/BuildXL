@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using ContentPlacementAnalysisTools.Core;
-using ContentPlacementAnalysisTools.Extraction.CPResources;
+using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
@@ -10,19 +11,29 @@ using Kusto.Data.Net.Client;
 namespace ContentPlacementAnalysisTools.Extraction.Action
 {
     /// <summary>
-    /// This is the action queries kusto for a single build's info
+    /// This is the action queries kusto for a set of builds
     /// </summary>
     public class GetKustoBuild : TimedAction<GetKustoBuildInput, GetKustoBuildOutput>
     {
 
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
-        private KustoConnectionConfiguration m_kustoConnectionConfiguration = null;
+        private readonly ApplicationConfiguration m_configuration = null;
         private ICslQueryProvider m_queryProvider = null;
         private string m_query = null;
 
-        /// <inheritdoc />
-        protected override void CleanUp()
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public GetKustoBuild(ApplicationConfiguration config)
+        {
+            m_configuration = config;
+        }
+
+        /// <summary>
+        /// When this task is done, the connection to kusto is disposed
+        /// </summary>
+        protected override void CleanUp(GetKustoBuildInput input, GetKustoBuildOutput output)
         {
             // dispose the connection here
             if(m_queryProvider != null)
@@ -32,20 +43,20 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         }
 
         /// <summary>
-        /// This is the action queries kusto for a single build's info
+        /// This is the action queries kusto for a set of builds (less than or equal to MaxBuilds)
         /// </summary>
         protected override GetKustoBuildOutput Perform(GetKustoBuildInput input)
         {
-            // so just get the single row and return it...
+            s_logger.Debug($"GetKustoBuild starts");
             try
             {
-                s_logger.Debug($"GetKustoBuild starts for build=[{input.BuildId}]");
+                var builds = new List<KustoBuild>();
                 using (var reader = m_queryProvider.ExecuteQuery(m_query, null))
                 {
-                    // this should always be one line...
+                    // each line has a single build
                     while (reader.Read())
                     {
-                        return new GetKustoBuildOutput(new KustoBuild() {
+                        builds.Add(new KustoBuild() {
                             BuildId = reader.GetString(0),
                             LogDirectory = reader.GetString(1),
                             StartTime = reader.GetDateTime(2).Ticks,
@@ -54,7 +65,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                             BuildQueue = reader.GetString(5)
                         });
                     }
-                    return null;
+                    return new GetKustoBuildOutput(builds);
                 }
             }
             finally
@@ -66,12 +77,16 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         /// <inheritdoc />
         protected override void Setup(GetKustoBuildInput input)
         {
-            // parse the kusto connection configuration here
-            m_kustoConnectionConfiguration = KustoConnectionConfiguration.FromJson(input.KustoConnectionConfigurationFile);
-            // and connect
-            m_queryProvider = GetKustoConnection(m_kustoConnectionConfiguration);
+            // try to connect..
+            m_queryProvider = GetKustoConnection(m_configuration.KustoConfig);
             // and also parse the query
-            m_query = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), constants.GetBuildQuery)).Replace("{0}", input.BuildId);
+            m_query = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), constants.GetBuildQuery))
+                .Replace("{0}", Convert.ToString(input.Year))
+                .Replace("{1}", Convert.ToString(input.Month))
+                .Replace("{2}", Convert.ToString(input.Day))
+                .Replace("{3}", Convert.ToString(input.NumBuilds));
+            s_logger.Debug($"Target Query: {m_query}");
+
         }
 
         private ICslQueryProvider GetKustoConnection(KustoConnectionConfiguration conf)
@@ -93,20 +108,30 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
     public class GetKustoBuildInput
     {
         /// <summary>
-        /// The build that will be queries
+        /// The number of builds that will be requested
         /// </summary>
-        public string BuildId { get; set; }
+        public int NumBuilds { get; set; }
         /// <summary>
-        /// Json file to get kusto connection params from
+        /// The year for the date when builds will be taken
         /// </summary>
-        public string KustoConnectionConfigurationFile { get; set; }
+        public int Year { get; set; }
+        /// <summary>
+        /// The mont for the date when builds will be taken
+        /// </summary>
+        public int Month { get; set; }
+        /// <summary>
+        /// The day for the date when builds will be taken
+        /// </summary>
+        public int Day { get; set; }
         /// <summary>
         /// Constructor
         /// </summary>
-        public GetKustoBuildInput(string bid, string kustoJson)
+        public GetKustoBuildInput(int nb, int y, int m, int d)
         {
-            BuildId = bid;
-            KustoConnectionConfigurationFile = kustoJson;
+            NumBuilds = nb;
+            Year = y;
+            Month = m;
+            Day = d;
         }
     }
 
@@ -118,11 +143,11 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         /// <summary>
         /// The kusto data read
         /// </summary>
-        public KustoBuild KustoBuildData { get; }
+        public List<KustoBuild> KustoBuildData { get; }
         /// <summary>
         /// Constructor
         /// </summary>
-        public GetKustoBuildOutput(KustoBuild k)
+        public GetKustoBuildOutput(List<KustoBuild> k)
         {
             KustoBuildData = k;
         }

@@ -42,7 +42,7 @@ namespace ContentPlacementAnalysisTools.Core
                 // perform now...
                 var result = Perform(input);
                 // and clean up
-                CleanUp();
+                CleanUp(input, result);
                 if (result != null)
                 {
                     return new TimedActionResult<OType>(result);
@@ -67,7 +67,7 @@ namespace ContentPlacementAnalysisTools.Core
         /// <summary>
         /// Setup routine, called after perform
         /// </summary>
-        protected abstract void CleanUp();
+        protected abstract void CleanUp(IType input, OType output);
         /// <summary>
         /// Perform block that actually performs the action and returns a value
         /// </summary>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -392,12 +393,21 @@ namespace ContentPlamentAnalysisTools.Core
         /// </summary>
         public string Exe { get; set; }
         /// <summary>
-        /// Proportion of artifacts to be extracted (See ContentPlacementAnalyzer)
+        /// Proportion of artifacts (per extension) to be extracted (See ContentPlacementAnalyzer)
         /// </summary>
         public double SampleProportion { get; set; }
         /// <summary>
-        /// build 
+        /// Max number of artifacts to be extracted
         /// </summary>
-        public static ContentPlacementAnalyzerConfig FromJson(string json) => JsonConvert.DeserializeObject<ContentPlacementAnalyzerConfig>(File.ReadAllText(json));
+        public int SampleCountHardLimit { get; set; }
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return new StringBuilder()
+                .Append("Exe=").Append(Exe).Append(", ")
+                .Append("SampleProportion=").Append(SampleProportion).Append(", ")
+                .Append("SampleCountHardLimit=").Append(SampleCountHardLimit)
+                .ToString();
+        }
     }
 }

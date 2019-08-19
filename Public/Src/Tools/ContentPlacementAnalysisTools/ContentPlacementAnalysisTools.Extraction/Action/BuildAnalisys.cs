@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Extraction.Main;
 using ContentPlamentAnalysisTools.Core;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action
@@ -13,27 +14,53 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
     /// <summary>
     /// This action runs a bxl analyzer process (content placement) in an already/downloaded and decompressed directory 
     /// </summary>
-    public class BuildAnalisys : TimedAction<BuildAnalisysInput, BuildAnalisysOutput>
+    public class BuildAnalisys : TimedAction<DecompressionOutput, BuildAnalisysOutput>
     {
 
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
-        private ContentPlacementAnalyzerConfig m_config = null;
+        private readonly ApplicationConfiguration m_configuration = null;
 
-        protected override void CleanUp()
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public BuildAnalisys(ApplicationConfiguration config)
         {
-            // clean here?
+            m_configuration = config;
         }
 
-        protected override BuildAnalisysOutput Perform(BuildAnalisysInput input)
+        /// <summary>
+        /// After the task is done, the build directory is deleted
+        /// </summary>
+        protected override void CleanUp(DecompressionOutput input, BuildAnalisysOutput output)
+        {
+            // finally, just delete the whole target directory
+            Directory.Delete(input.OutputDirectory, true);
+        }
+
+        /// <summary>
+        /// Run an analyzer over a downloaded, decompressed build
+        /// </summary>
+        protected override BuildAnalisysOutput Perform(DecompressionOutput input)
         {
             s_logger.Debug($"BuildAnalisys starts...");
             try
             {
+                var analyzerOutputFile = $"{input.OutputDirectory}\\CpResults.json";
                 // lets analyze this in here
                 RunBxlAnalyzer(input);
+                if (!File.Exists(analyzerOutputFile))
+                {
+                    throw new Exception($"Analysis task failed to write output to [{analyzerOutputFile}]");
+                }
+                // output to a results dir
+                var newOutputDirectory = Path.Combine(Directory.GetParent(analyzerOutputFile).FullName, "Results");
+                var newOutputPath = Path.Combine(newOutputDirectory, $"{input.BuildData.BuildId}.json");
+                // first, move the output file. If this directory already exists it does not matter
+                Directory.CreateDirectory(newOutputPath);
+                File.Move(analyzerOutputFile, newOutputPath);
                 // if everything went file, the is a json file waiting for us here...
-                return new BuildAnalisysOutput();
+                return new BuildAnalisysOutput(newOutputPath);
             }
             finally
             {
@@ -42,23 +69,21 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
            
         }
 
-        protected override void Setup(BuildAnalisysInput input)
-        {
-            // parse the config here...
-            m_config = ContentPlacementAnalyzerConfig.FromJson(input.BxlAnalyzerConfigFile);
-        }
+        /// <inheritdoc />
+        protected override void Setup(DecompressionOutput input){}
 
-        private void RunBxlAnalyzer(BuildAnalisysInput input)
+        private void RunBxlAnalyzer(DecompressionOutput input)
         {
             var proc = new Process();
-            proc.StartInfo.FileName = m_config.Exe;
+            proc.StartInfo.FileName = m_configuration.AnalyzerConfig.Exe;
             proc.StartInfo.Arguments = $"/mode:ContentPlacement " +
-                $"/sampleProportion:{m_config.SampleProportion} " +
-                $"/executionLog:{input.DecompressionOut.OutputDirectory}\\Domino.xlg " +
-                $"/buildQueue:{input.DecompressionOut.BuildData.BuildQueue} " +
-                $"/buildId:{input.DecompressionOut.BuildData.BuildId} " +
-                $"/buildStartTicks:{input.DecompressionOut.BuildData.StartTime} " +
-                $"/buildDurationMs:{input.DecompressionOut.BuildData.BuildDurationMs} ";
+                $"/sampleProportion:{m_configuration.AnalyzerConfig.SampleProportion} " +
+                $"/sampleCountHardLimit:{m_configuration.AnalyzerConfig.SampleCountHardLimit} " +
+                $"/executionLog:{input.OutputDirectory}\\Domino.xlg " +
+                $"/buildQueue:{input.BuildData.BuildQueue} " +
+                $"/buildId:{input.BuildData.BuildId} " +
+                $"/buildStartTicks:{input.BuildData.StartTime} " +
+                $"/buildDurationMs:{input.BuildData.BuildDurationMs} ";
             proc.StartInfo.UseShellExecute = false;
             proc.StartInfo.RedirectStandardOutput = true;
             proc.Start();
@@ -74,31 +99,21 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
     }
 
     /// <summary>
-    /// The input for this actions needs the bxl executable, the path to the domino log and some
-    /// info on the build is going to analize
+    /// Represents the output of an analysis task, containing the name of the file with results
     /// </summary>
-    public class BuildAnalisysInput
-    {
-        /// <summary>
-        /// location of this conf file
-        /// </summary>
-        public string BxlAnalyzerConfigFile { get; set; }
-        /// <summary>
-        /// the decompression output, that has a path
-        /// </summary>
-        public DecompressionOutput DecompressionOut { get; set; }
-        /// <summary>
-        /// base constructor
-        /// </summary>
-        public BuildAnalisysInput(string bxlConf, DecompressionOutput output)
-        {
-            BxlAnalyzerConfigFile = bxlConf;
-            DecompressionOut = output;
-        }
-    }
-
     public class BuildAnalisysOutput
     {
-        
+        /// <summary>
+        /// The file that contains analysis results
+        /// </summary>
+        public string AnalyzerOutputFile { get; }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public BuildAnalisysOutput(string file)
+        {
+            AnalyzerOutputFile = file;
+        }
     }
 }

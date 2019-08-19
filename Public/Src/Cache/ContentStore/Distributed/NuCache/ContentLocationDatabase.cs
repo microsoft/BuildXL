@@ -598,14 +598,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
-                }, extraEndMessage: maybeStatistics => {
+                }, extraEndMessage: maybeStatistics =>
+                {
                     if (!maybeStatistics.Succeeded)
                     {
                         return string.Empty;
                     }
 
                     var statistics = maybeStatistics.Value;
-                    return $"Persisted={statistics.Persisted} Leftover={statistics.Leftover} Growth={statistics.Growth} FlushingTimeMs={statistics.FlushingTime.TotalMilliseconds} CleanupTimeMs={statistics.CleanupTime.TotalMilliseconds}";
+                    return $"Persisted={statistics.Persisted} Leftover={statistics.Leftover} Growth={statistics.Growth} FlushingTime={statistics.FlushingTime.TotalMilliseconds}ms CleanupTime={statistics.CleanupTime.TotalMilliseconds}ms";
                 }).ThrowIfFailure();
         }
 

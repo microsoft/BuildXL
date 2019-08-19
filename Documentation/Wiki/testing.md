@@ -7,11 +7,9 @@
     </tr>
 </table>
 <div>
-<style>
-.red {color: red}
-</style>
   <input id="cb1" type="checkbox" onchecked="alert('hi')" />
   <div id="el1" class="red">
    sometext
   </div>
+<iframe src="http://microsoft.com"> </iframe>
 </div>

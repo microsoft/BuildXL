@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Data;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -51,10 +50,11 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     var action = new BuildDownload(arguments.AppConfig, arguments.OutputDirectory);
                     return action.PerformActionWithResult(i);
                 }, 
-                new ExecutionDataflowBlockOptions()
-                {
-                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDownloadTasks
-                });
+                    new ExecutionDataflowBlockOptions()
+                    {
+                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDownloadTasks
+                    }
+                );
                 var decompressBlock = new TransformBlock<TimedActionResult<BuildDownloadOutput>, TimedActionResult<DecompressionOutput>>( i =>
                 {
                     // check
@@ -66,10 +66,11 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     }
                     return new TimedActionResult<DecompressionOutput>(i.Exception);
                 },
-                new ExecutionDataflowBlockOptions()
-                {
-                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDecompressionTasks
-                });
+                    new ExecutionDataflowBlockOptions()
+                    {
+                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDecompressionTasks
+                    }
+                );
                 var analysisBlock = new ActionBlock<TimedActionResult<DecompressionOutput>>(i =>
                 {
                     // check
@@ -80,10 +81,11 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                         action.PerformActionWithResult(i.Result);
                     }
                 },
-                new ExecutionDataflowBlockOptions()
-                {
-                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxAnalysisTasks
-                });
+                    new ExecutionDataflowBlockOptions()
+                    {
+                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxAnalysisTasks
+                    }
+                );
                 // link them
                 buildInfoBlock.LinkTo(downloadBlock, new DataflowLinkOptions { PropagateCompletion = true });
                 downloadBlock.LinkTo(decompressBlock, new DataflowLinkOptions { PropagateCompletion = true });

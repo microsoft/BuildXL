@@ -21,7 +21,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
     {
         private string m_outputFile;
         private string m_description;
-        private bool m_topSort;
         private readonly OptionName m_outputFileOption = new OptionName("OutputFile", "o");
         private readonly OptionName m_descriptionOption = new OptionName("Description", "d");
         private readonly OptionName m_topSortOption = new OptionName("TopSort", "t");
@@ -52,7 +51,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
             if (m_topSortOption.Match(opt.Name))
             {
-                m_topSort = CommandLineUtilities.ParseBooleanOption(opt);
+                SerializeUsingTopSort = CommandLineUtilities.ParseBooleanOption(opt);
                 return base.HandleOption(opt);
             }
 
@@ -106,7 +105,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             try
             {
                 var pips = PipGraph.RetrieveScheduledPips().ToList();
-                if (m_topSort)
+                if (SerializeUsingTopSort)
                 {
                     var finalPipList = TopSort(pips);
                     serializer.SerializeTopSort(m_absoluteOutputPath, finalPipList, pips.Count, m_description);

@@ -25,6 +25,9 @@ namespace BuildXL.Scheduler.Graph
     /// </summary>
     public class GraphFragmentBuilder : IPipGraph
     {
+        /// <summary>
+        /// Seal directory table
+        /// </summary>
         protected readonly SealedDirectoryTable SealDirectoryTable;
         private readonly LoggingContext m_loggingContext;
         private readonly PipExecutionContext m_pipExecutionContext;
@@ -54,6 +57,7 @@ namespace BuildXL.Scheduler.Graph
         /// <inheritdoc />
         public int PipCount => m_pips.Count;
 
+        /// <inheritdoc />
         protected bool AddPip(Pip pip)
         {
             m_pips.Enqueue(pip);

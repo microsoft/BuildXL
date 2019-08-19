@@ -159,19 +159,10 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public void SerializeSerially(AbsolutePath filePath, IReadOnlyList<Pip> pipsToSerialize, string fragmentDescription = null)
         {
-            Contract.Requires(filePath.IsValid);
             Contract.Requires(pipsToSerialize != null);
-
-            string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
-            using (var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var writer = new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
+            using (var writer = GetRemapWriter(filePath))
             {
-                FragmentDescription = fragmentDescription ?? fileName;
-                writer.WriteNullableString(FragmentDescription);
-
-                // Indicates writing pips serially.
-                writer.Write(false);
-
+                SerializeHeader(writer, fragmentDescription, filePath, false);
                 writer.Write(pipsToSerialize.Count);
                 foreach (var pip in pipsToSerialize)
                 {
@@ -187,19 +178,10 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public void SerializeTopSort(AbsolutePath filePath, IReadOnlyCollection<IReadOnlyList<Pip>> pipsToSerialize, int totalPipCount, string fragmentDescription = null)
         {
-            Contract.Requires(filePath.IsValid);
             Contract.Requires(pipsToSerialize != null);
-
-            string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
-            using (var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var writer = new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
+            using (var writer = GetRemapWriter(filePath))
             {
-                FragmentDescription = fragmentDescription ?? fileName;
-                writer.WriteNullableString(FragmentDescription);
-
-                // Indicates top sort.
-                writer.Write(true);
-
+                SerializeHeader(writer, fragmentDescription, filePath, true);
                 writer.Write(totalPipCount);
                 foreach (var pipGroup in pipsToSerialize)
                 {
@@ -211,6 +193,21 @@ namespace BuildXL.Pips.Operations
                     });
                 }
             }
+        }
+
+        private PipRemapWriter GetRemapWriter(AbsolutePath filePath)
+        {
+            Contract.Requires(filePath.IsValid);
+            string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
+            var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            return new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream);
+        }
+
+        private void SerializeHeader(PipRemapWriter writer, string fragmentDescription, AbsolutePath filePath, bool topSort)
+        {
+            var fileString = fragmentDescription ?? filePath.ToString(m_pipExecutionContext.PathTable);
+            writer.WriteNullableString(FragmentDescription);
+            writer.Write(topSort);
         }
 
         /// <summary>

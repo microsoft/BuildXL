@@ -73,7 +73,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     arguments.Filter,
                     arguments.OutputDirectory,
                     arguments.ObjectDirectory,
-                    arguments.TopSort,
+                    arguments.Analyzers.Any(a => a.SerializeUsingTopSort),
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,

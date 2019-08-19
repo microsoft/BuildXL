@@ -77,6 +77,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         protected bool Initializing { get; private set; }
 
         /// <summary>
+        /// If true, generate dependency graph for pips and serialize them into levels so they can be read back in in parallel.
+        /// </summary>
+        public bool SerializeUsingTopSort { get; protected set; }
+
+        /// <summary>
         /// Required engine phases.
         /// </summary>
         public virtual EnginePhases RequiredPhases { get; } = EnginePhases.AnalyzeWorkspace;

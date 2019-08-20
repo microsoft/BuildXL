@@ -89,6 +89,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly MultiValueDictionary<uint, byte> m_scheduledPipInputCount = new MultiValueDictionary<uint, byte>(capacity: 10 * 1000);
         private readonly MultiValueDictionary<uint, byte> m_scheduledPipOutputCount = new MultiValueDictionary<uint, byte>(capacity: 10 * 1000);
         private readonly MultiValueDictionary<string, byte> m_countFilesPerExtension = new MultiValueDictionary<string, byte>(capacity: 10 * 1000);
+        private readonly MultiValueDictionary<FileArtifact, byte> m_countEmptyArtifacts = new MultiValueDictionary<FileArtifact, byte>(capacity: 10 * 1000);
         private readonly MultiValueDictionary<uint, PipExecutionPerformanceEventData> m_scheduledPipExecutionData = new MultiValueDictionary<uint, PipExecutionPerformanceEventData>(capacity: 10 * 1000);
         private readonly MultiValueDictionary<FileArtifact, Pip> m_artifactInputPips = new MultiValueDictionary<FileArtifact, Pip>(capacity: 10 * 1000);
         private readonly MultiValueDictionary<FileArtifact, Pip> m_artifactOutputPips = new MultiValueDictionary<FileArtifact, Pip>(capacity: 10 * 1000);
@@ -114,10 +115,18 @@ namespace BuildXL.Execution.Analyzer
 
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
-            string extension = Path.GetExtension(data.FileArtifact.Path.ToString(CachedGraph.Context.PathTable));
-            m_artifactsPerExtension.Add(extension, data.FileArtifact);
-            m_countFilesPerExtension.Add(extension, 1);
-            m_fileContentMap[data.FileArtifact] = data.FileContentInfo;
+            // before doing anything, lets skip the empty file, since it does not bring anything to the analysis
+            if(data.FileContentInfo.Length > 0)
+            {
+                string extension = Path.GetExtension(data.FileArtifact.Path.ToString(CachedGraph.Context.PathTable));
+                m_artifactsPerExtension.Add(extension, data.FileArtifact);
+                m_countFilesPerExtension.Add(extension, 1);
+                m_fileContentMap[data.FileArtifact] = data.FileContentInfo;
+            }
+            else
+            {
+                m_countEmptyArtifacts.Add(data.FileArtifact, 1);
+            }
         }
 
         /// <inheritdoc />
@@ -162,6 +171,7 @@ namespace BuildXL.Execution.Analyzer
                 BuildStartTimeTicks = m_buildStartTicks,
                 TotalPips = totalPips,
                 TotalArtifacts = m_fileContentMap.Count,
+                EmptyArtifacts = m_countEmptyArtifacts.Count,
                 SampledArtifacts = samples.Count
             };
             // and now for each artifact, add it to the build
@@ -220,7 +230,7 @@ namespace BuildXL.Execution.Analyzer
 
         private Dictionary<FileArtifact, FileContentInfo> SampleArtifacts()
         {
-            Console.WriteLine($"Sampling artifacts");
+            Console.WriteLine($"Sampling artifacts, going to ignore {m_countEmptyArtifacts.Count} empty artifacts");
             var stopWatch = Stopwatch.StartNew();
             var samples = SampleAccordingToExtensionDistribution(m_sampleProportion, new Random(Environment.TickCount));
             stopWatch.Stop();

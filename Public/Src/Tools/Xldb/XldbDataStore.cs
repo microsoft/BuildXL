@@ -7,12 +7,11 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Execution.Analyzer.Xldb;
-using BuildXL.Utilities;
 using Google.Protobuf;
-using PipType = BuildXL.Execution.Analyzer.Xldb.PipType;
+using Xldb.Proto;
+using PipType = Xldb.Proto.PipType;
 
-namespace BuildXL.Analyzers.Core.XLGPlusPlus
+namespace Xldb
 {
     public sealed class XldbDataStore : IDisposable
     {
@@ -34,7 +33,6 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
         public XldbDataStore(string storeDirectory,
             bool defaultColumnKeyTracked = false,
             IEnumerable<string> additionalKeyTrackedColumns = null,
-            Action<Failure> failureHandler = null,
             bool openReadOnly = true,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false)
@@ -43,7 +41,7 @@ namespace BuildXL.Analyzers.Core.XLGPlusPlus
                defaultColumnKeyTracked,
                new string[] { EventColumnFamilyName, PipColumnFamilyName, StaticGraphColumnFamilyName },
                additionalKeyTrackedColumns,
-               failureHandler,
+               failureHandler: null,
                openReadOnly,
                dropMismatchingColumns,
                onFailureDeleteExistingStoreAndRetry);

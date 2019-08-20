@@ -3,12 +3,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using BuildXL.Analyzers.Core.XLGPlusPlus;
-using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.ToolSupport;
+using Xldb;
+using Xldb.Proto;
 
 namespace BuildXL.Execution.Analyzer
 {

@@ -5,9 +5,9 @@ syntax = "proto3";
 
 import "EnumsAndHelperStructs.proto";
 
-package BuildXL.Execution.Analyzer;
+package Xldb.Proto;
 
-option csharp_namespace = "BuildXL.Execution.Analyzer.Xldb";
+option csharp_namespace = "Xldb.Proto";
 
 //
 //  Generic Static Graph Info (key, etc)

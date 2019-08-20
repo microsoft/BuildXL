@@ -3,12 +3,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.ToolSupport;
+using Xldb;
+using Xldb.Proto;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -91,8 +91,8 @@ namespace BuildXL.Execution.Analyzer
             using (var outputStream = File.OpenWrite(OutputFilePath))
             using (var writer = new StreamWriter(outputStream))
             {
-                var workerToEventDict = new Dictionary<uint, Dictionary<Xldb.ExecutionEventId, (int, int)>>();
-                foreach (Xldb.ExecutionEventId eventId in Enum.GetValues(typeof(Xldb.ExecutionEventId)))
+                var workerToEventDict = new Dictionary<uint, Dictionary<ExecutionEventId, (int, int)>>();
+                foreach (ExecutionEventId eventId in Enum.GetValues(typeof(ExecutionEventId)))
                 {
                     var eventCount = dataStore.GetCountByEvent(eventId);
 
@@ -106,7 +106,7 @@ namespace BuildXL.Execution.Analyzer
                             }
                             else
                             {
-                                var dict = new Dictionary<Xldb.ExecutionEventId, (int, int)>();
+                                var dict = new Dictionary<ExecutionEventId, (int, int)>();
                                 dict.Add(eventId, (workerCount.Value, 0));
                                 workerToEventDict.Add(workerCount.Key, dict);
                             }
@@ -123,7 +123,7 @@ namespace BuildXL.Execution.Analyzer
                 foreach (var workerDict in workerToEventDict)
                 {
                     writer.WriteLine("Worker {0}", workerDict.Key);
-                    var maxLength = Enum.GetValues(typeof(Scheduler.Tracing.ExecutionEventId)).Cast<Scheduler.Tracing.ExecutionEventId>().Select(e => e.ToString().Length).Max();
+                    var maxLength = Enum.GetValues(typeof(ExecutionEventId)).Cast<ExecutionEventId>().Select(e => e.ToString().Length).Max();
                     foreach (var eventStats in workerDict.Value)
                     {
                         writer.WriteLine(
@@ -134,6 +134,21 @@ namespace BuildXL.Execution.Analyzer
                     }
                     writer.WriteLine();
                 }
+
+                Console.WriteLine(dataStore.GetFileArtifactContentDecidedEvents().Count());
+                Console.WriteLine(dataStore.GetWorkerListEvents().Count());
+                Console.WriteLine(dataStore.GetPipExecutionPerformanceEvents().Count());
+                Console.WriteLine(dataStore.GetDirectoryMembershipHashedEvents().Count());
+                Console.WriteLine(dataStore.GetProcessExecutionMonitoringReportedEvents().Count());
+                Console.WriteLine(dataStore.GetProcessFingerprintComputationEvents().Count());
+                Console.WriteLine(dataStore.GetExtraEventDataReportedEvents().Count());
+                Console.WriteLine(dataStore.GetDependencyViolationReportedEvents().Count());
+                Console.WriteLine(dataStore.GetPipExecutionStepPerformanceReportedEvents().Count());
+                Console.WriteLine(dataStore.GetPipCacheMissEvents().Count());
+                Console.WriteLine(dataStore.GetStatusReportedEvents().Count());
+                Console.WriteLine(dataStore.GetBXLInvocationEvents().Count());
+                Console.WriteLine(dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
+
             }
 
             return 0;

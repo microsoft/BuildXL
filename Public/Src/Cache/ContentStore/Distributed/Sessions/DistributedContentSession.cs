@@ -180,8 +180,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (putResult.Succeeded && Settings.EnableProactiveCopy)
             {
                 // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
-                var operationContext = new OperationContext(context.TracingContext);
-                RequestProactiveCopyIfNeededAsync(operationContext, putResult.ContentHash).FireAndForget(context);
+                WithOperationContext(
+                    context,
+                    CancellationToken.None,
+                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, putResult.ContentHash)
+                ).FireAndForget(context);
             }
 
             return putResult;

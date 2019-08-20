@@ -1189,7 +1189,7 @@ namespace Test.BuildXL.Scheduler
         protected TestPipGraphFragment CreatePipGraphFragment(string moduleName)
         {
             Contract.Requires(!string.IsNullOrEmpty(moduleName));
-            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, moduleName);
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName);
         }
 
         #region IO Helpers

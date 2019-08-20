@@ -46,7 +46,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Creates an instance of <see cref="TestPipGraphFragment"/>.
         /// </summary>
-        public TestPipGraphFragment(LoggingContext loggingContext, string sourceRoot, string objectRoot, string moduleName)
+        public TestPipGraphFragment(LoggingContext loggingContext, string sourceRoot, string objectRoot, string redirectedRoot, string moduleName)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(!string.IsNullOrEmpty(sourceRoot));
@@ -83,6 +83,7 @@ namespace Test.BuildXL.Scheduler
             m_defaultConstructionHelper = PipConstructionHelper.CreateForTesting(
                 Context,
                 objectRoot: m_objectRoot,
+                redirectedRoot: AbsolutePath.Create(Context.PathTable, redirectedRoot),
                 pipGraph: m_pipGraph,
                 moduleName: moduleName,
                 specRelativePath: Path.Combine(m_sourceRoot.GetName(Context.PathTable).ToString(Context.StringTable), specFileName),

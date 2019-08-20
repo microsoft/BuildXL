@@ -10,7 +10,7 @@ namespace Xldb.Analyzer {
         assemblyName: "xldbanalyzer",
         rootNamespace: "BuildXL.Xldb.Analyzer",
         skipDocumentationGeneration: true,
-        sources: [...globR(d`.`, "*.cs")],
+        sources: globR(d`.`, "*.cs"),
         
         references: [
             ...addIf(

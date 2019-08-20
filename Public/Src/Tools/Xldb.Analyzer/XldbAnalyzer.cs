@@ -33,17 +33,15 @@ namespace Xldb.Analyzer
 
             if (p.m_commandLineOptions.TryGetValue("/m", out var mode))
             {
-                if (mode == s_eventStatsAnalyzer)
+                switch (mode)
                 {
-                    return p.AnalyzeEventStats();
-                }
-                else if (mode == s_dumpPipAnalyzer)
-                {
-                    return p.AnalyzeDumpPip();
-                }
-                else
-                {
-                    Console.WriteLine("Invalid mode passed in.");
+                    case s_eventStatsAnalyzer:
+                       return p.AnalyzeEventStats();
+                    case s_dumpPipAnalyzer:
+                        return p.AnalyzeDumpPip();
+                    default:
+                        Console.WriteLine("Invalid mode passed in.");
+                        break;
                 }
             }
             else
@@ -63,7 +61,7 @@ namespace Xldb.Analyzer
         {
             try
             {
-                m_commandLineOptions = args.Select(s => s.Split(new[] { ':' }, 2)).ToDictionary(s => s[0].ToLower(), s => s[1]);
+                m_commandLineOptions = args.Select(s => s.Split(new[] { ':' }, 2)).ToDictionary(s => s[0].ToLowerInvariant(), s => s[1].ToLowerInvariant());
             }
             catch (IndexOutOfRangeException)
             {

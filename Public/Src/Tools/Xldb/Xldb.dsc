@@ -10,7 +10,7 @@ namespace Xldb {
         assemblyName: "Xldb",
         rootNamespace: "BuildXL.Xldb",
         skipDocumentationGeneration: true,
-        sources: [...globR(d`.`, "*.cs")],
+        sources: globR(d`.`, "*.cs"),
         
         references: [
             ...addIf(

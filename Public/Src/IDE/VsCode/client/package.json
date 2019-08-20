@@ -1,5 +1,5 @@
 {
-  "name": "buildxldscript",
+  "name": "dscript",
   "displayName": "BuildXL",
   "description": "Visual Studio Code Extension for BuildXL",
   "icon": "BuildXL.png",

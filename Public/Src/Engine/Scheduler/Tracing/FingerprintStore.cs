@@ -66,6 +66,11 @@ namespace BuildXL.Scheduler.Tracing
         /// Resulting counters from fingerprint store.
         /// </summary>
         public CounterCollection<FingerprintStoreCounters> Counters;
+
+        /// <summary>
+        /// Where minimal IO should be performed. This may omit log files.
+        /// </summary>
+        public bool MinimalIO;
     }
 
     /// <summary>
@@ -1500,6 +1505,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         internal static async Task<Unit> CopyAsync(
             LoggingContext loggingContext,
+            FingerprintStoreTestHooks testHooks,
             PathTable pathTable,
             IConfiguration configuration,
             CounterCollection<FingerprintStoreCounters> counters = null)
@@ -1533,6 +1539,13 @@ namespace BuildXL.Scheduler.Tracing
                                 var storeFile = Path.Combine(directory, file);
                                 var logFile = Path.Combine(logDirectory, file);
 
+                                if (testHooks != null && testHooks.MinimalIO && 
+                                    Path.GetFileName(file).ToUpperInvariant().Contains(KeyValueStoreAccessor.LogFileName))
+                                {
+                                    // Skip copying extra files
+                                    return;
+                                }
+
                                 // Attempt to hard link immutable storage files; if this fails, make a copy
                                 if (Path.GetExtension(file).Equals(KeyValueStoreAccessor.StorageFileTypeExtension, StringComparison.OrdinalIgnoreCase))
                                 {
@@ -1563,7 +1576,7 @@ namespace BuildXL.Scheduler.Tracing
                                         }
 
                                         Logger.Log.FingerprintStoreUnableToHardLinkLogFile(loggingContext, logFile, storeFile, hardlinkStatus.ToString());
-                                        
+
                                         hardLinkFailureSeen = true;
                                     }
                                 }

@@ -53,7 +53,7 @@ namespace Xldb
             else
             {
                 Accessor = null;
-                Console.Error.WriteLine("Could not create an accessor for RocksDB. Accessor is null");
+                Console.Error.WriteLine("Could not create an accessor for RocksDB. Accessor is null!!! " + accessor.Failure.DescribeIncludingInnerFailures());
             }
 
             m_eventParserDictionary.Add(ExecutionEventId.FileArtifactContentDecided, FileArtifactContentDecidedEvent.Parser);

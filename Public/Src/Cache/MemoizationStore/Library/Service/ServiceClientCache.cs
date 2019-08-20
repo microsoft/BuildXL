@@ -66,16 +66,35 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 });
         }
 
-        public CreateSessionResult<ICacheSession> CreateSession(Context context, string name, IContentSession contentSession)
-        {
-            Contract.Assert(contentSession == null);
-            return CreateSession(context, name, ImplicitPin.None);
-        }
-
         /// <nodoc />
         public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
+        {
+            return CreateReadOnlySession(context, name, ImplicitPin.None).Map((session) => (IReadOnlyMemoizationSession)session);
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        {
+            return CreateSession(context, name, ImplicitPin.None).Map((session) => (IMemoizationSession)session);
+        }
+
+        /// <inheritdoc />
+        CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name, IContentSession contentSession)
+        {
+            Contract.Requires(contentSession == null);
+            return CreateSession(context, name, ImplicitPin.None).Map((session) => (IMemoizationSession)session);
+        }
+
+        /// <inheritdoc />
+        Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> IMemoizationStore.EnumerateStrongFingerprints(Context context)
+        {
+            return EnumerateStrongFingerprints(context);
         }
     }
 }

@@ -4,7 +4,7 @@
 #ifndef IOHandler_hpp
 #define IOHandler_hpp
 
-#ifdef ES_SANDBOX
+#if ES_SANDBOX
 
 #include "AccessHandler.hpp"
 

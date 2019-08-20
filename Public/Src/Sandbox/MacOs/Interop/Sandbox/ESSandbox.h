@@ -4,7 +4,7 @@
 #ifndef ESSandbox_h
 #define ESSandbox_h
 
-#ifdef ES_SANDBOX
+#if ES_SANDBOX
 
 #include <EndpointSecurity/EndpointSecurity.h>
 #include <bsm/libbsm.h>

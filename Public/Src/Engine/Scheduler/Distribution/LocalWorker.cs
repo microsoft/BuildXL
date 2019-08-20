@@ -81,7 +81,7 @@ namespace BuildXL.Scheduler.Distribution
                     environment.State.GetScope(process),
                     process,
                     fingerprint,
-                    processRunnable.ChangeAffectedInputNames,
+                    processRunnable.ChangeAffectedInputs,
                     expectedRamUsageMb: GetExpectedRamUsageMb(processRunnable));
                 processRunnable.SetExecutionResult(executionResult);
 

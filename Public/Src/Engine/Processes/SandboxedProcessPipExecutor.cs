@@ -620,7 +620,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null, ReadOnlyArray<string>? changeAffectedInputNames = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null, IReadOnlyCollection<FileArtifact> changeAffectedInputs = null)
         {
             try
             {
@@ -644,13 +644,10 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                if (m_sandboxConfig.EnableChangeBasedCodeCoverage)
-                {
-                    if (!await PrepareChangeAffectedInputListFile(changeAffectedInputNames))
+                if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
-                }
 
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
@@ -2567,12 +2564,12 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// If used, ChangeAffectedInputListFile file must be created before executing pips that consume them
+        /// ChangeAffectedInputListFile file is created before executing pips that consume it
         /// </summary>
-        private async Task<bool> PrepareChangeAffectedInputListFile(ReadOnlyArray<string>? changeAffectedInputs = null)
+        private async Task<bool> PrepareChangeAffectedInputListFile(IReadOnlyCollection<FileArtifact> changeAffectedInputs = null)
         {
             // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
-            if (m_pip.ChangeAffectedInputListWrittenFilePath.IsValid)
+            if (m_pip.ChangeAffectedInputListWrittenFilePath.IsValid && changeAffectedInputs != null)
             {
                 string destination = m_pip.ChangeAffectedInputListWrittenFilePath.ToString(m_context.PathTable);
                 try
@@ -2583,15 +2580,11 @@ namespace BuildXL.Processes
 
                     PreparePathForOutputFile(m_pip.ChangeAffectedInputListWrittenFilePath);
                     FileUtilities.CreateDirectory(directoryName);
-
-                    var changeAffectedInputNotNull = changeAffectedInputs ?? ReadOnlyArray<string>.Empty;
-
-                    // The target is always overwritten
                     await FileUtilities.WriteAllTextAsync(
                        destination,
                        string.Join(
                            Environment.NewLine,
-                           changeAffectedInputNotNull.ToArray()
+                           changeAffectedInputs.Select(i => i.Path.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet()
                        ),
                     System.Text.Encoding.UTF8);
                 }

@@ -113,6 +113,12 @@ namespace BuildXL.Pips.Operations
         public AbsolutePath UniqueRedirectedDirectoryRoot { get; }
 
         /// <summary>
+        /// File path of which the source shange affected inputs are written into.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public AbsolutePath ChangeAffectedInputListWrittenFilePath { get; }
+
+        /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
@@ -222,12 +228,6 @@ namespace BuildXL.Pips.Operations
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public ReadOnlyArray<AbsolutePath> UntrackedScopes { get; }
-
-        /// <summary>
-        /// File path of which the source shange affected inputs are written into.
-        /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public AbsolutePath ChangeAffectedInputListWrittenFilePath { get; }
 
         /// <summary>
         /// Optional list of exit codes that represent success. If <code>null</code>, only 0 represents success.
@@ -825,7 +825,8 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
-                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath())
+                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
+                changeAffectedInputListWrittenFilePath: reader.ReadAbsolutePath()
                 );
         }
 
@@ -873,6 +874,7 @@ namespace BuildXL.Pips.Operations
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
+            writer.Write(ChangeAffectedInputListWrittenFilePath);
         }
         #endregion
     }

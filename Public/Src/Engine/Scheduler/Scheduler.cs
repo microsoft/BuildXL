@@ -58,6 +58,7 @@ using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.Storage.InputChange;
+using BuildXL.Scheduler.ChangeAffectedOutput;
 
 namespace BuildXL.Scheduler
 {
@@ -290,20 +291,12 @@ namespace BuildXL.Scheduler
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
         /// <summary>
-        /// Output file contents which affected by the source change of this build. 
+        /// Holds change affected outputs of the build
         /// </summary>
         /// <remarks>
-        /// This list should be initialized by the input change list provided from the InputChanges configuration option.
+        /// Only scheduler in master update output list. Results are passed to workers along with the pip execution request
         /// </remarks>
-        private readonly ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedOutputFiles = new ConcurrentBigSet<AbsolutePath>();
-
-        /// <summary>
-        /// Output file contents which affected by the source change of this build. 
-        /// </summary>
-        /// <remarks>
-        /// This list should be initialized by the input change list provided from the InputChanges configuration option.
-        /// </remarks>
-        private readonly ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedOutputDirectories = new ConcurrentBigSet<AbsolutePath>();
+        private AffectedOutputList m_affectedOutputList;
 
         /// <summary>
         /// Enables distribution for the master node
@@ -2274,7 +2267,7 @@ namespace BuildXL.Scheduler
                         m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Count);
                         m_groupedPipCounters.AddToCounter(processRunnablePip.Process, PipCountersByGroup.ProcessDuration, processDuration);
 
-                        if(!succeeded && result.Status == PipResultStatus.Failed)
+                        if (!succeeded && result.Status == PipResultStatus.Failed)
                         {
                             m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Failed);
                         }
@@ -2287,6 +2280,31 @@ namespace BuildXL.Scheduler
                 else if (pipType == PipType.Ipc)
                 {
                     Interlocked.Increment(ref m_numIpcPipsCompleted);
+                }
+
+                if (!IsDistributedWorker && m_affectedOutputList != null && (pipType == PipType.CopyFile || pipType == PipType.Process))
+                {
+                    IReadOnlyCollection<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent;
+                    IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null;
+                    PipResultStatus status = result.Status;
+                   
+                    if (pipType == PipType.CopyFile)
+                    {
+                        outputContent = new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>() { (((CopyFile)(runnablePip.Pip)).Destination, new FileMaterializationInfo(), ToPipOutputOrigin(status)) };
+                    }
+                    else
+                    {
+                        outputContent = runnablePip.ExecutionResult.OutputContent;
+                        directoryOutputs = runnablePip.ExecutionResult.DirectoryOutputs.Select(d => d.directoryArtifact).AsReadOnlyCollection();
+                    }
+
+                    m_affectedOutputList.ReportSourceChangeAffectedOutputs(
+                        status,
+                        pip,
+                        result.DynamicallyObservedFiles,
+                        result.DynamicallyObservedEnumerations,
+                        outputContent,
+                        directoryOutputs);
                 }
 
                 if (!succeeded)
@@ -3532,25 +3550,14 @@ namespace BuildXL.Scheduler
                         // Since the source change affected outputs are only maintained on the master, 
                         // The Affected Inputs of the pip can only be computed on master.
                         // The result will be set in the processRunnable and passed along to the worker who execute the process
-                        if (!IsDistributedWorker)
+                        if (!IsDistributedWorker && m_affectedOutputList != null && processRunnable.Process.ChangeAffectedInputListWrittenFilePath.IsValid)
                         {
-                            processRunnable.ChangeAffectedInputNames = PipExecutor.GetChangeAffectedInputNames(environment, processRunnable.Process);
+                            processRunnable.ChangeAffectedInputs = m_configuration.Sandbox.AreAllInputsAffected
+                                ? PipArtifacts.GetAllInputs(processRunnable.Process, Context.PathTable)
+                                : m_affectedOutputList.GetChangeAffectedInputs(processRunnable.Process);
                         }
 
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
-
-                        // We only maintain the source change affected outputs on the master
-                        if (!IsDistributedWorker)
-                        {
-                            PipExecutor.ReportSourceChangeAffectedOutputs(
-                                environment,
-                                executionResult.Result,
-                                processRunnable.Process,
-                                executionResult.DynamicallyObservedFiles,
-                                executionResult.DynamicallyObservedEnumerations,
-                                executionResult.OutputContent,
-                                executionResult.DirectoryOutputs.Select(d => d.directoryArtifact).AsReadOnlyCollection());
-                        }
 
                         // Don't count service pips in process pip counters
                         if (!processRunnable.Process.IsStartOrShutdownKind && executionResult.PerformanceInformation != null)
@@ -4053,19 +4060,7 @@ namespace BuildXL.Scheduler
 
                 case PipType.CopyFile:
                     // Don't materialize eagerly (this is handled by the MaterializeOutputs step)
-                    var copyFilePip = (CopyFile)pip;
-                    var pipResult = await PipExecutor.ExecuteCopyFileAsync(operationContext, environment, copyFilePip, materializeOutputs: false);
-                    // CopyFile only execute on master, report it
-                    PipExecutor.ReportSourceChangeAffectedOutputs(
-                        environment,
-                        pipResult.Status,
-                        pip,
-                        pipResult.DynamicallyObservedFiles,
-                        pipResult.DynamicallyObservedEnumerations,
-                        new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>() { (copyFilePip.Destination, new FileMaterializationInfo(), ToPipOutputOrigin(pipResult.Status)) },
-                        null); 
-
-                    return pipResult;
+                    return await PipExecutor.ExecuteCopyFileAsync(operationContext, environment, (CopyFile)pip, materializeOutputs: false);
 
                 case PipType.Ipc:
                     var result = await runnablePip.Worker.ExecuteIpcAsync(runnablePip);
@@ -4445,7 +4440,7 @@ namespace BuildXL.Scheduler
                     if (duration != 0)
                     {
                         builder.AppendLine(I($"\t{name,-98}: {duration,10}"));
-                        statistics.Add(I($"CriticalPath.{name}DurationMs"),duration);
+                        statistics.Add(I($"CriticalPath.{name}DurationMs"), duration);
                     }
                 }
 
@@ -4474,15 +4469,15 @@ namespace BuildXL.Scheduler
                 }
 
                 builder.AppendLine();
-                builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker, 10}"));
+                builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker,10}"));
                 statistics.Add("CriticalPath.ChooseWorkerDurationMs", totalChooseWorker);
 
                 builder.AppendLine();
-                builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration, 10}"));
+                builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration,10}"));
                 statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
 
                 builder.AppendLine();
-                builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalMasterQueueTime + totalChooseWorker + totalCriticalPathRunningTime, 10}"));
+                builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalMasterQueueTime + totalChooseWorker + totalCriticalPathRunningTime,10}"));
 
                 statistics.Add("CriticalPath.ExeDurationMs", exeDurationCriticalPathMs);
                 statistics.Add("CriticalPath.PipDurationMs", totalCriticalPathRunningTime);
@@ -4593,7 +4588,7 @@ namespace BuildXL.Scheduler
                     stringBuilder.AppendLine(I($"\t\t  {"NumPathSetsDownloaded",-88}: {performanceInfo.CacheLookupPerfInfo.NumPathSetsDownloaded,10}"));
 
                     long totalCacheLookupDurationForPip = 0;
-                    for(int j = 0; j < performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters.Length; j++)
+                    for (int j = 0; j < performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters.Length; j++)
                     {
                         var name = OperationKind.GetTrackedCacheOperationKind(j).ToString();
                         var tuple = performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters[j];
@@ -4601,7 +4596,7 @@ namespace BuildXL.Scheduler
 
                         if (duration != 0)
                         {
-                            stringBuilder.AppendLine(I($"\t\t  {name,-88}: {duration,10} - occurred {tuple.occurrences, 10} times"));
+                            stringBuilder.AppendLine(I($"\t\t  {name,-88}: {duration,10} - occurred {tuple.occurrences,10} times"));
                         }
 
                         totalCacheLookupDurationForPip += duration;
@@ -4828,10 +4823,10 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-                        
-                        sandboxConnection = OperatingSystemHelper.IsMacOSCatalinaOrHigher 
-                            ? ((ISandboxConnection) new SandboxConnectionES()) 
-                            : ((ISandboxConnection) new SandboxConnectionKext(config));
+
+                        sandboxConnection = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                            ? ((ISandboxConnection)new SandboxConnectionES())
+                            : ((ISandboxConnection)new SandboxConnectionKext(config));
 
                         if (m_performanceAggregator != null && config.KextConfig.Value.ResourceThresholds.IsProcessThrottlingEnabled())
                         {
@@ -4844,7 +4839,7 @@ namespace BuildXL.Scheduler
                                     : Convert.ToUInt32(Math.Round(availableRam));
                                 sandboxConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
                             };
-                        }   
+                        }
                     }
 
                     SandboxConnection = sandboxConnection;
@@ -4928,34 +4923,16 @@ namespace BuildXL.Scheduler
             if (m_configuration.Schedule.InputChanges.IsValid)
             {
                 inputChangeList = InputChangeList.CreateFromFile(
-                    loggingContext, 
+                    loggingContext,
                     m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
 
-                m_configuration.Sandbox.EnableChangeBasedCodeCoverage = true;
-
-                // The Algorithm can't deal with removal currently, so disable change-based code coverage and have to run full code coverage if has removal. 
-                if (!inputChangeList.ChangedPaths.Any(p => p.PathChanges == PathChanges.Removed))
+                // Only master maintain the list
+                if (!IsDistributedBuild)
                 {
-                    foreach (var changePath in inputChangeList.ChangedPaths)
-                    {
-                        switch (changePath.PathChanges)
-                        {
-                            case PathChanges.DataOrMetadataChanged:
-                            case PathChanges.NewlyPresentAsFile:
-                                m_sourceChangeAffectedOutputFiles.GetOrAdd(AbsolutePath.Create(Context.PathTable, changePath.Path));
-                                break;
-                            case PathChanges.NewlyPresentAsDirectory:
-                                m_sourceChangeAffectedOutputDirectories.GetOrAdd(AbsolutePath.Create(Context.PathTable, changePath.Path));
-                                break;
-                        }
-
-                    }
-                }
-                else
-                {
-                    m_configuration.Sandbox.EnableChangeBasedCodeCoverage = false;
+                    m_affectedOutputList = new AffectedOutputList(Context.PathTable);
+                    m_configuration.Sandbox.AreAllInputsAffected = m_affectedOutputList.InitialAffectedOutputList(inputChangeList, Context.PathTable);
                 }
             }
 
@@ -5620,40 +5597,6 @@ namespace BuildXL.Scheduler
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.PipMarkMaterialized);
                 }
             }
-        }
-
-        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        void IPipExecutionEnvironment.ReportSourceChangeAffectedSingleOutput(AbsolutePath output, PipOutputOrigin origin, bool isFile)
-        {
-            if (origin == PipOutputOrigin.Produced)
-            {
-                if (isFile)
-                {
-                    m_sourceChangeAffectedOutputFiles.GetOrAdd(output);
-                }
-                else
-                {
-                    m_sourceChangeAffectedOutputDirectories.GetOrAdd(output);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Get the global change affected outputs of the build.
-        /// </summary>
-        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        IReadOnlyCollection<AbsolutePath> IPipExecutionEnvironment.GetSourceChangeAffectedOutputs()
-        {
-            return m_sourceChangeAffectedOutputFiles.UnsafeGetList();
-        }
-
-        /// <summary>
-        /// Get the global change affected output directories of the build.
-        /// </summary>
-        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        IReadOnlyCollection<AbsolutePath> IPipExecutionEnvironment.GetSourceChangeAffectedOutputDirectories()
-        {
-            return m_sourceChangeAffectedOutputDirectories.UnsafeGetList();
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

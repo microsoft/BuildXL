@@ -195,22 +195,6 @@ namespace BuildXL.Scheduler
         /// Temp directory cleaner
         /// </summary>
         ITempCleaner TempCleaner { get; }
-
-
-        /// <summary>
-        /// Report the change affected outputs the pip.
-        /// </summary>
-        void ReportSourceChangeAffectedSingleOutput(AbsolutePath output, PipOutputOrigin origin, bool isFile);
-
-        /// <summary>
-        /// Get the global change affected outputs of the build.
-        /// </summary>
-        IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputs();
-
-        /// <summary>
-        /// Get the global change affected output directories of the build.
-        /// </summary>
-        IReadOnlyCollection<AbsolutePath> GetSourceChangeAffectedOutputDirectories();
     }
 
     /// <summary>

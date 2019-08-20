@@ -264,10 +264,10 @@ namespace BuildXL.Utilities.Configuration
         bool PreserveOutputsForIncrementalTool { get; }
 
         /// <summary>
-        /// Flag indicate if change based code coverage is enable.
-        /// This will be set as true when inputChanges commmand line option is presented.
+        /// Flag indicate if all inputs files of the pip are affected by the source changes
+        /// When inputChanges commmand line option is presented, it is initiated as false.
         /// If the change list contain any removal, it will fall back to false.
         /// </summary>
-        bool EnableChangeBasedCodeCoverage { get; set; }
+        bool AreAllInputsAffected { get; set; }
     }
 }

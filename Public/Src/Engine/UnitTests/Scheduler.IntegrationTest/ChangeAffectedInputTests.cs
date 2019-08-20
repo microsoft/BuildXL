@@ -110,7 +110,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInputFile));
             Configuration.Schedule.InputChanges = inputChangesFile.Path;
 
-            System.Diagnostics.Debugger.Launch();
             RunScheduler().AssertSuccess();
 
             string[] actualAffectedSortedInputs = File.ReadAllLines(ArtifactToString(changeAffectedWrittenFile)).OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();

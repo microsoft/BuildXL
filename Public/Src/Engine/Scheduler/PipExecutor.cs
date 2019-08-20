@@ -935,84 +935,6 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Report change affected ouputs to file content manager
-        /// </summary>
-        internal static void ReportSourceChangeAffectedOutputs(
-            IPipExecutionEnvironment environment,
-            PipResultStatus status,
-            Pip pip,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlyCollection<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent = null,
-            IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null)
-        {
-            PipOutputOrigin? overrideOutputOrigin = null;
-            if (status == PipResultStatus.NotMaterialized)
-            {
-                overrideOutputOrigin = PipOutputOrigin.NotMaterialized;
-            }
-
-            if (PipArtifacts.IsOutputAffectedBySourceChange(environment.Context.PathTable, pip, dynamicallyObservedFiles, dynamicallyObservedEnumerations, environment.GetSourceChangeAffectedOutputs(), environment.GetSourceChangeAffectedOutputDirectories()))
-            {
-                foreach (var output in outputContent ?? ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty)
-                {
-                    environment.ReportSourceChangeAffectedSingleOutput(output.Item1, overrideOutputOrigin ?? output.Item3, true);
-                }
-
-                foreach (var directoryArtifact in directoryOutputs ?? ReadOnlyArray<DirectoryArtifact>.Empty)
-                {
-                    environment.ReportSourceChangeAffectedSingleOutput(directoryArtifact, overrideOutputOrigin ?? PipOutputOrigin.Produced, false);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Compute the intersection of the pip's dependencies and global affected SourceChangeAffectedOutputs of the build
-        /// </summary>
-        public static ReadOnlyArray<string> GetChangeAffectedInputNames(IPipExecutionEnvironment environment, Process process)
-        {
-            var pathTable = environment.Context.PathTable;
-            var changeAffectedInputs = environment
-                .GetSourceChangeAffectedOutputs()
-                .Intersect(process.Dependencies.Select(d => d.Path))
-                .Select(i => i.GetName(pathTable).ToString(pathTable.StringTable))
-                .ToHashSet();
-
-            foreach (var file in environment.GetSourceChangeAffectedOutputs())
-            {
-                foreach (var directory in process.DirectoryDependencies)
-                {
-                    if (file.IsWithin(pathTable, directory.Path))
-                    {
-                        changeAffectedInputs.Add(file.GetName(pathTable).ToString(pathTable.StringTable));
-                    }
-                }
-            }
-
-            foreach (var outDir in environment.GetSourceChangeAffectedOutputDirectories())
-            {
-                foreach (var inDir in process.DirectoryDependencies)
-                {
-                    if (inDir.Path.IsWithin(pathTable, outDir))
-                    {
-                        FileUtilities.EnumerateDirectoryEntries(
-                            inDir.Path.ToString(pathTable),
-                            true,
-                            (dir, fileName, attributes) =>
-                            {
-                                if (attributes == FileAttributes.Archive)
-                                {
-                                    changeAffectedInputs.Add(fileName);
-                                }
-                            });
-                    }
-                }
-            }
-
-            return ReadOnlyArray<string>.FromWithoutCopy(changeAffectedInputs.ToArray());
-        }
-
-        /// <summary>
         /// Analyze process file access violations
         /// </summary>
         internal static ExecutionResult AnalyzeFileAccessViolations(
@@ -1204,7 +1126,7 @@ namespace BuildXL.Scheduler
         /// <param name="state">the pip scoped execution state</param>
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
-        /// <param name="changeAffectedInputNames">Then names of the source change affected input of the pip</param>
+        /// <param name="changeAffectedInputs">Then names of the source change affected input of the pip</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
         /// <param name="expectedRamUsageMb">the expected ram usage for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
@@ -1216,7 +1138,7 @@ namespace BuildXL.Scheduler
 
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
-            ReadOnlyArray<string>? changeAffectedInputNames = null,
+            IReadOnlyCollection<FileArtifact> changeAffectedInputs = null,
             Action<int> processIdListener = null,
             int expectedRamUsageMb = 0)
         {
@@ -1465,7 +1387,7 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputNames);
+                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);
 
                                 ++retryCount;
 

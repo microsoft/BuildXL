@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -235,100 +237,29 @@ namespace BuildXL.Pips.Artifacts
         }
 
         /// <summary>
-        /// Check if there is any output of this pip are affected by the source change
+        /// Gets the input files consumed by a pip, enumerate the input directories recuresively to get all files.
         /// </summary>
-        public static bool IsOutputAffectedBySourceChange(
-            PathTable pathTable,
-            Pip pip, 
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
+        public static IReadOnlyCollection<FileArtifact> GetAllInputs(Process process, PathTable pathTable)
         {
-            switch (pip.PipType)
+            var inputs = new HashSet<FileArtifact>();
+
+            inputs.AddRange(process.Dependencies);
+
+            foreach (var inDir in process.DirectoryDependencies)
             {
-                case PipType.Process:
-                    return IsOutputOfProcessAffectedBySourceChange((Process)pip, pathTable, dynamicallyObservedFiles, dynamicallyObservedEnumerations, sourceChangeAffectedOutputFiles, sourceChangeAffectedOutputDirectroies);
-                case PipType.CopyFile:
-                    return sourceChangeAffectedOutputFiles == null ? false : sourceChangeAffectedOutputFiles.Contains(((CopyFile)pip).Source.Path);
-                default:
-                    return false;
-            }
-        }
-
-
-        /// <inheritdoc />
-        private static bool IsOutputOfProcessAffectedBySourceChange(
-            Process process,
-            PathTable pathTable,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
-            ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputFiles = null,
-            IReadOnlyCollection<AbsolutePath> sourceChangeAffectedOutputDirectroies = null)
-        {
-            // sourceChangeAffectedOutputFiles and sourceChangeAffectedOutputDirectroies 
-            // are initilized with the source change list from GBR.
-            // If it is null, that means no file or directory change for this build.
-            // Thus no output is affected by the change.
-            if ((sourceChangeAffectedOutputFiles == null || !sourceChangeAffectedOutputFiles.Any()) 
-                && (sourceChangeAffectedOutputDirectroies == null || !sourceChangeAffectedOutputDirectroies.Any()))
-            {
-                return false;
-            }
-
-            // Check if any dynamic and static file dependency is sourceChangeAffectedOutputFiles
-            var hasAffected = sourceChangeAffectedOutputFiles.Intersect(dynamicallyObservedFiles).Any()
-                || sourceChangeAffectedOutputFiles.Intersect(process.Dependencies.Select(d => d.Path)).Any();
-
-            if (hasAffected)
-            {
-                return true;
-            }
-
-            if (dynamicallyObservedEnumerations.Any() || process.DirectoryDependencies.Any())
-            {
-                // Check if dynamic and static directory dependencies under any directory of sourceChangeAffectedOutputDirectroies
-                foreach (var affectedDir in sourceChangeAffectedOutputDirectroies)
-                {
-                    foreach (var dynamicDir in dynamicallyObservedEnumerations)
+                FileUtilities.EnumerateDirectoryEntries(
+                    inDir.Path.ToString(pathTable),
+                    true,
+                    (dir, fileName, attributes) =>
                     {
-                        if (dynamicDir.IsWithin(pathTable, affectedDir))
+                        if (attributes == FileAttributes.Archive)
                         {
-                            return true;
+                            var fullPath = Path.Combine(dir, fileName);
+                            inputs.Add(new FileArtifact(AbsolutePath.Create(pathTable, fullPath)));
                         }
-                    }
-
-                    foreach (var staticDir in process.DirectoryDependencies)
-                    {
-                        if (staticDir.Path.IsWithin(pathTable, affectedDir))
-                        {
-                            return true;
-                        }
-                    }
-                }
-
-                // check if the dynamic or static directroy dependency contain any file from sourceChangeAffectedOutputFiles
-                foreach (var affectedFile in sourceChangeAffectedOutputFiles)
-                {
-                    foreach (var dynamicDir in dynamicallyObservedEnumerations)
-                    {
-                        if (affectedFile.IsWithin(pathTable, dynamicDir))
-                        {
-                            return true;
-                        }
-                    }
-
-                    foreach (var staticDir in process.DirectoryDependencies)
-                    {
-                        if (affectedFile.IsWithin(pathTable, staticDir.Path))
-                        {
-                            return true;
-                        }
-                    }
-                }
+                    });
             }
-
-            return false;
+            return ReadOnlyArray<FileArtifact>.FromWithoutCopy(inputs.ToArray());
         }
     }
 }

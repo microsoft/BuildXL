@@ -20,6 +20,7 @@ using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -78,7 +79,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(Args.TryParseArguments(new[] { "/c:" + Path.Combine(TemporaryDirectory, "config.dc") }, Context.PathTable, null, out config), "Failed to construct arguments");
             Configuration = new CommandLineConfiguration(config);
 
-            Cache = OperatingSystemHelper.IsUnixOS ? InMemoryCacheFactory.Create() : MockCacheFactory.Create(CacheRoot);
+            Cache = InMemoryCacheFactory.Create();
 
             FileContentTable = FileContentTable.CreateNew();
 
@@ -402,6 +403,7 @@ namespace Test.BuildXL.Scheduler
             // .....................................................................................
 
             testHooks = testHooks ?? new SchedulerTestHooks();
+            testHooks.FingerprintStoreTestHooks = testHooks.FingerprintStoreTestHooks ?? new FingerprintStoreTestHooks() { MinimalIO = true };
             Contract.Assert(!(config.Engine.CleanTempDirectories && tempCleaner == null));
 
             using (var queue = new PipQueue(config.Schedule))
@@ -444,7 +446,12 @@ namespace Test.BuildXL.Scheduler
                 testScheduler.Start(localLoggingContext);
 
                 bool success = testScheduler.WhenDone().GetAwaiter().GetResult();
-                testScheduler.SaveFileChangeTrackerAsync(localLoggingContext).Wait();
+
+                // Only save file change tracking information for incremental scheduling tests in order to reduce I/O
+                if (Configuration.Schedule.IncrementalScheduling)
+                {
+                    testScheduler.SaveFileChangeTrackerAsync(localLoggingContext).Wait();
+                }
 
                 if (ShouldLogSchedulerStats)
                 {

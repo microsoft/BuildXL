@@ -78,7 +78,7 @@ namespace BuildXL.Utilities.Tracing
         /// Creates a collection with the specified number of counters. Each counter in <c>[0, numberOfCounters - 1]</c>
         /// may be accessed with <see cref="AddToCounterInternal"/> or <see cref="GetCounterValueInternal"/>.
         /// </summary>
-        internal CounterCollection(ushort numberOfCounters, CounterCollection parent)
+        internal CounterCollection(ushort numberOfCounters, CounterCollection parent = null)
         {
             Contract.Requires(numberOfCounters > 0);
 

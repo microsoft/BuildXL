@@ -108,12 +108,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 : GetErrorString();
         }
 
-        internal class OptionalMetadata
+        internal class ExtraMetadata
         {
             public TimeSpan GateWaitTime;
             public int GateOccupiedCount;
         }
 
-        internal OptionalMetadata Metadata;
+        internal ExtraMetadata Metadata { get; set; }
     }
 }

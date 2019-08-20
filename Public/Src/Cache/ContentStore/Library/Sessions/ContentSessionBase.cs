@@ -211,9 +211,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
                     Tracer,
                     () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
                     extraStartMessage: $"({path},{realizationMode},{hashType}) trusted=false",
-                    extraEndMessage: (result) => {
+                    extraEndMessage: result =>
+                    {
                         var message = "trusted=false";
-
                         if (result.Metadata == null)
                         {
                             return message;

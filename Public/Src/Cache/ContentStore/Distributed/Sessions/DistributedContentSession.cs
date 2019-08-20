@@ -106,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 var gateOccupiedCount = Settings.MaximumConcurrentPutFileOperations - _putFileGate.CurrentCount;
 
                 var result = await func();
-                result.Metadata = new PutResult.OptionalMetadata()
+                result.Metadata = new PutResult.ExtraMetadata()
                 {
                     GateWaitTime = timeWaiting,
                     GateOccupiedCount = gateOccupiedCount,

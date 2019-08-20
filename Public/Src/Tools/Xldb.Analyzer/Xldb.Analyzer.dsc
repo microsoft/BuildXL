@@ -4,12 +4,12 @@
 import * as Managed from "Sdk.Managed";
 import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
-namespace Xldb {
+namespace Xldb.Analyzer {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
     @@public
-    export const dll = BuildXLSdk.library({
-        assemblyName: "Xldb",
-        rootNamespace: "BuildXL.Xldb",
+    export const exe = BuildXLSdk.executable({
+        assemblyName: "xldbanalyzer",
+        rootNamespace: "BuildXL.Xldb.Analyzer",
         skipDocumentationGeneration: true,
         sources: [...globR(d`.`, "*.cs")],
         
@@ -18,11 +18,10 @@ namespace Xldb {
                 BuildXLSdk.isFullFramework,
                 NetFx.Microsoft.CSharp.dll
             ),
-            importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("Google.Protobuf").pkg,
             importFrom("Newtonsoft.Json").pkg,
             Xldb.Proto.dll,
+            Xldb.dll
         ],
     });
 }

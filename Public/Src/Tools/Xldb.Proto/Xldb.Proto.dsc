@@ -9,7 +9,6 @@ namespace Xldb.Proto {
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "Xldb.Proto",
-        //generateLogs: true,
         rootNamespace: "BuildXL.Xldb.Proto",
         skipDocumentationGeneration: true,
         sources: [

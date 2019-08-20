@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1F3ACEEB-DEF0-4A5D-BEE4-489609565FD1}</ProjectGuid>
+    <ProjectGuid>{D3733940-4D10-4FE5-80D5-8385A4407F37}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ContentPlacementAnalysisTools.Extraction</RootNamespace>
-    <AssemblyName>cptools.builddownloader</AssemblyName>
+    <RootNamespace>ContentPlacementAnalysisTools.ML</RootNamespace>
+    <AssemblyName>ContentPlacementAnalysisTools.ML</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -32,13 +32,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup>
-    <StartupObject />
-  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ICSharpCode.SharpZipLib, Version=1.2.0.246, Culture=neutral, PublicKeyToken=1b03e6acf1164f73, processorArchitecture=MSIL">
-      <HintPath>..\..\..\..\..\Out\VS\packages\SharpZipLib.1.2.0\lib\net45\ICSharpCode.SharpZipLib.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Win32.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\..\..\Out\VS\packages\Microsoft.Win32.Primitives.4.3.0\lib\net46\Microsoft.Win32.Primitives.dll</HintPath>
       <Private>True</Private>
@@ -91,11 +85,7 @@
       <Private>True</Private>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.IO.Compression.FileSystem, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\..\..\..\Out\VS\packages\40-System.IO.Compression.FileSystem.1.0.0.2\lib\net40-client\System.IO.Compression.FileSystem.dll</HintPath>
-      <Private>True</Private>
-      <Private>True</Private>
-    </Reference>
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.IO.Compression.ZipFile, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
       <HintPath>..\..\..\..\..\Out\VS\packages\System.IO.Compression.ZipFile.4.3.0\lib\net46\System.IO.Compression.ZipFile.dll</HintPath>
       <Private>True</Private>
@@ -158,7 +148,6 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Security" />
     <Reference Include="System.Security.Cryptography.Algorithms, Version=4.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\..\..\Out\VS\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net463\System.Security.Cryptography.Algorithms.dll</HintPath>
       <Private>True</Private>
@@ -180,16 +169,13 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.ServiceModel" />
-    <Reference Include="System.Shim, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\..\..\..\Out\VS\packages\System.Shim.1.0.0.1\lib\net40-client\System.Shim.dll</HintPath>
-    </Reference>
     <Reference Include="System.Text.RegularExpressions, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\..\..\Out\VS\packages\System.Text.RegularExpressions.4.3.0\lib\net463\System.Text.RegularExpressions.dll</HintPath>
       <Private>True</Private>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Threading.Tasks.Dataflow, Version=4.6.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\..\..\Out\VS\packages\System.Threading.Tasks.Dataflow.4.9.0\lib\netstandard2.0\System.Threading.Tasks.Dataflow.dll</HintPath>
+    <Reference Include="System.Threading.Tasks.Dataflow, Version=4.5.24.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\..\..\Out\VS\packages\Microsoft.Tpl.Dataflow.4.5.24\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
     </Reference>
     <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
@@ -204,46 +190,35 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Action\ConsolidateArtifacts.cs" />
+    <Compile Include="Action\ParseBuildArtifacts.cs" />
+    <Compile Include="Main\DataConsolidator.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="App.config" />
-    <None Include="CPResources\Query\get_build_data.kql" />
+    <None Include="cptools.ml.exe.nlog" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="ContentPlacementAnalysisTools.Extraction.dsc" />
-    <None Include="cptools.builddownloader.exe.nlog" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Action\BuildAnalisys.cs" />
-    <Compile Include="Action\Decompression.cs" />
-    <Compile Include="Action\BuildDownload.cs" />
-    <Compile Include="Action\GetKustoBuild.cs" />
-    <Compile Include="CPResources\constants.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>constants.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Main\BuildDownloader.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Utilities\ToolSupport\BuildXL.ToolSupport.g.csproj">
-      <Project>{31A8EC98-697C-A53E-1D3A-9234C373F076}</Project>
-      <Name>BuildXL.ToolSupport.g</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\ContentPlacementAnalysisTools.Core\ContentPlacementAnalysisTools.Core.csproj">
-      <Project>{dcf57fcc-2c1c-48b8-ba47-5d383e7ec2bf}</Project>
-      <Name>ContentPlacementAnalysisTools.Core</Name>
-    </ProjectReference>
+    <Content Include="ContentPlacementAnalysisTools.ML.dsc" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\..\..\..\..\Out\VS\packages\RuntimeContracts.Analyzer.0.1.6\analyzers\dotnet\cs\RuntimeContracts.Analyzer.dll" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="CPResources\constants.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>constants.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
+    <ProjectReference Include="..\..\..\Utilities\Collections\BuildXL.Utilities.Collections.g.csproj">
+      <Project>{DF75F8F5-6F8F-28DA-928D-EED68531D7E8}</Project>
+      <Name>BuildXL.Utilities.Collections.g</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Utilities\ToolSupport\BuildXL.ToolSupport.g.csproj">
+      <Project>{31A8EC98-697C-A53E-1D3A-9234C373F076}</Project>
+      <Name>BuildXL.ToolSupport.g</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ContentPlacementAnalysisTools.Core\ContentPlacementAnalysisTools.Core.csproj">
+      <Project>{DCF57FCC-2C1C-48B8-BA47-5D383E7EC2BF}</Project>
+      <Name>ContentPlacementAnalysisTools.Core</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

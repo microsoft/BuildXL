@@ -36,7 +36,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                 var buildInfoBlock = new TransformManyBlock<GetKustoBuildInput, KustoBuild>(i =>
                 {
                     var action = new GetKustoBuild(arguments.AppConfig);
-                    var result = action.PerformActionWithResult(i);
+                    var result = action.PerformAction(i);
                     // its not worth it to continue if this fails
                     if (!result.ExecutionStatus)
                     {
@@ -48,7 +48,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                 var downloadBlock = new TransformBlock<KustoBuild, TimedActionResult<BuildDownloadOutput>>( i => 
                 {
                     var action = new BuildDownload(arguments.AppConfig, arguments.OutputDirectory);
-                    return action.PerformActionWithResult(i);
+                    return action.PerformAction(i);
                 }, 
                     new ExecutionDataflowBlockOptions()
                     {
@@ -62,7 +62,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     {
                         // decompress if build was successfull
                         var action = new Decompression(arguments.AppConfig);
-                        return action.PerformActionWithResult(i.Result);
+                        return action.PerformAction(i.Result);
                     }
                     return new TimedActionResult<DecompressionOutput>(i.Exception);
                 },
@@ -78,7 +78,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     {
                         // analyze if decompression succeded
                         var action = new BuildAnalisys(arguments.AppConfig);
-                        action.PerformActionWithResult(i.Result);
+                        action.PerformAction(i.Result);
                     }
                 },
                     new ExecutionDataflowBlockOptions()
@@ -144,7 +144,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         {
             return new StringBuilder()
                 .Append("AnalyzerConfig=[").Append(AnalyzerConfig).Append("], ")
-                .Append("KustoConnectionConfiguration=[").Append(KustoConfig).Append("]")
+                .Append("KustoConnectionConfiguration=[").Append(KustoConfig).Append("], ")
                 .Append("ConcurrencyConfig=[").Append(ConcurrencyConfig).Append("]")
                 .ToString();
         }
@@ -186,7 +186,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         /// <summary>
         /// This application config, parsed from the ac argument
         /// </summary>
-        public readonly ApplicationConfiguration AppConfig = null;
+        public ApplicationConfiguration AppConfig = null;
         /// <summary>
         /// The maximum number of builds to be downloaded
         /// </summary>

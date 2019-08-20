@@ -17,17 +17,9 @@ namespace ContentPlacementAnalysisTools.Core
         protected Stopwatch Stopwatch = null;
         /// <summary>
         /// This is the entry point for one of these objects and is the method you should call when
-        /// looking to process an input but not returning anything
-        /// </summary>
-        public void PerformAction(IType input)
-        {
-            InternalPerform(input);
-        }
-        /// <summary>
-        /// This is the entry point for one of these objects and is the method you should call when
         /// looking to process an input and returning an output
         /// </summary>
-        public TimedActionResult<OType> PerformActionWithResult(IType input)
+        public TimedActionResult<OType> PerformAction(IType input)
         {
             return InternalPerform(input);
         }

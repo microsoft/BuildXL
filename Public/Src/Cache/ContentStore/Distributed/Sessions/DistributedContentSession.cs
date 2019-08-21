@@ -122,16 +122,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             });
         }
 
-        private Task<TResult> PerformPutFileGatedOperationAsync<TResult>(OperationContext operationContext, Func<Task<TResult>> func)
+        private Task<PutResult> PerformPutFileGatedOperationAsync(OperationContext operationContext, Func<Task<PutResult>> func)
         {
-            return _putFileGate.GatedOperationAsync((timeWaiting) =>
+            return _putFileGate.GatedOperationAsync(async (timeWaiting) =>
             {
-                if (timeWaiting > Settings.PutFileWaitWarning)
-                {
-                    Tracer.Info(operationContext, $"Spent {timeWaiting} waiting for PutFile gate, exceeding deadline of {Settings.PutFileWaitWarning}");
-                }
+                var gateOccupiedCount = Settings.MaximumConcurrentPutFileOperations - _putFileGate.CurrentCount;
 
-                return func();
+                var result = await func();
+                result.Metadata = new PutResult.ExtraMetadata()
+                {
+                    GateWaitTime = timeWaiting,
+                    GateOccupiedCount = gateOccupiedCount,
+                };
+
+                return result;
             }, operationContext.Token);
         }
 
@@ -208,7 +212,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Only perform proactive copy to other machines if we didn't put the blob into Redis
             if (!putBlob && Settings.EnableProactiveCopy)
             {
-                RequestProactiveCopyIfNeededAsync(context, result.ContentHash).FireAndForget(context);
+                // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
+                WithOperationContext(
+                    context,
+                    CancellationToken.None,
+                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, putResult.ContentHash)
+                ).FireAndForget(context);
             }
 
             return await RegisterPutAsync(context, UrgencyHint.Nominal, result);

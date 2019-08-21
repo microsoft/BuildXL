@@ -3,23 +3,14 @@
 
 import * as Managed from "Sdk.Managed";
 
-namespace VisualizationModel {
+namespace ViewModel {
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "BuildXL.VisualizationModel",
+        assemblyName: "BuildXL.ViewModel",
         sources: globR(d`.`, "*.cs"),
         references: [
-            NetFx.System.IO.Compression.dll,
-            NetFx.System.Net.Http.dll,
-
-            Engine.dll,
-            Processes.dll,
-            Scheduler.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
-            importFrom("BuildXL.Utilities").Ipc.dll,
-            importFrom("BuildXL.Utilities").Collections.dll,
-            importFrom("Newtonsoft.Json").pkg,
         ],
     });
 }

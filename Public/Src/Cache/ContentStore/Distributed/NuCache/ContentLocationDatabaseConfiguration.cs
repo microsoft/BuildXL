@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
@@ -127,6 +128,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Required because of our workload tends to generate a lot of short-lived entries, which clutter the deeper
         /// levels of the RocksDB LSM tree.
         /// </summary>
-        public TimeSpan FullRangeCompactionInterval { get; set; } = TimeSpan.FromHours(6);
+        public TimeSpan FullRangeCompactionInterval { get; set; } = Timeout.InfiniteTimeSpan;
     }
 }

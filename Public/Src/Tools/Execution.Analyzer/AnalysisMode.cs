@@ -56,9 +56,6 @@ namespace BuildXL.Execution.Analyzer
         PipFingerprint,
         CopyFile, 
         XlgToDb,
-        BXLInvocationXLG,
-        EventStatsXldb,
-        DumpPipXldb,
         DebugLogs,
     }
 }

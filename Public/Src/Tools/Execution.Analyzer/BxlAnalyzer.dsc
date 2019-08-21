@@ -13,13 +13,8 @@ namespace Execution.Analyzer {
         generateLogs: true,
         rootNamespace: "BuildXL.Execution.Analyzer",
         skipDocumentationGeneration: true,
-        sources: [
-            ...globR(d`.`, "*.cs"),
-            ...GrpcSdk.generate({
-                proto: globR(d`.`, "*.proto"),
-                includes: [importFrom("Google.Protobuf.Tools").Contents.all],
-            }).sources,
-        ],
+        sources: globR(d`.`, "*.cs"),
+        
         references: [
             ...addIf(
                 BuildXLSdk.isFullFramework,
@@ -65,6 +60,8 @@ namespace Execution.Analyzer {
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
+            Xldb.Proto.dll,
+            Xldb.dll,
         ],
         internalsVisibleTo: ["Test.Tool.Analyzers"],
         defineConstants: addIf(BuildXLSdk.Flags.isVstsArtifactsEnabled, "FEATURE_VSTS_ARTIFACTSERVICES"),

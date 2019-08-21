@@ -15,7 +15,6 @@ using System.Threading.Tasks;
 using BuildXL.App.Tracing;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
-using BuildXL.Engine.Visualization;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -32,9 +31,8 @@ using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using Strings = bxl.Strings;
 using BuildXL.Engine.Recovery;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.ViewModel;
 #pragma warning disable SA1649 // File name must match first type name
-using BuildXL.Visualization;
-using BuildXL.Visualization.Models;
 using BuildXL.Utilities.CrashReporting;
 using System.Diagnostics.Tracing;
 
@@ -149,6 +147,7 @@ namespace BuildXL
         private int m_cancellationAlreadyAttempted = 0;
         private LoggingContext m_appLoggingContext;
 
+        private BuildViewModel m_buildViewModel;
         private readonly CrashCollectorMacOS m_crashCollector;
 
         // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
@@ -235,6 +234,8 @@ namespace BuildXL
             m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
+
+            m_buildViewModel = new BuildViewModel();
         }
 
         private static void ConfigureCacheMissLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -382,7 +383,7 @@ namespace BuildXL
 
             using (var appLoggers = new AppLoggers(m_startTimeUtc, m_console, m_configuration.Logging, m_pathTable,
                    notWorker: m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker,
-
+                   buildViewModel: m_buildViewModel,
                    // TODO: Remove this once we can add timestamps for all logs by default
                    displayWarningErrorTime: m_configuration.InCloudBuild()))
             {
@@ -528,7 +529,6 @@ namespace BuildXL
         private AppResult RunInternal(PerformanceMeasurement pm, CancellationToken cancellationToken, AppLoggers appLoggers, EngineState engineState)
         {
             EngineState newEngineState = null;
-            EngineLiveVisualizationInformation visualizationInformation = null;
             UnhandledExceptionEventHandler unhandledExceptionHandler = null;
             Action<Exception> unexpectedExceptionHandler = null;
             EventHandler<UnobservedTaskExceptionEventArgs> unobservedTaskHandler = null;
@@ -623,7 +623,7 @@ namespace BuildXL
                     {
                         Contract.Assume(m_initialConfiguration == m_configuration, "Expect the initial configuration to still match the updatable configuration object.");
 
-                        newEngineState = RunEngineWithDecorators(pm.LoggingContext, cancellationToken, appLoggers, engineState, collector, out visualizationInformation);
+                        newEngineState = RunEngineWithDecorators(pm.LoggingContext, cancellationToken, appLoggers, engineState, collector);
 
                         Contract.Assert(EngineState.CorrectEngineStateTransition(engineState, newEngineState, out var incorrectMessage), incorrectMessage);
 
@@ -685,16 +685,8 @@ namespace BuildXL
             }
             finally
             {
-                if (newEngineState != null)
-                {
-                    var isTransferred = visualizationInformation?.TransferPipTableOwnership(newEngineState.PipTable);
-                    Contract.Assume(!isTransferred.HasValue || isTransferred.Value);
-                }
-
-                if (visualizationInformation != null)
-                {
-                    visualizationInformation.Dispose();
-                }
+                // Release the build view model so that we can garbage collect any state it maintained.
+                m_buildViewModel = null;
 
                 // Due to some nasty patterns, we hold onto a static collection of hashers. Make sure these are no longer
                 // referenced.
@@ -738,8 +730,7 @@ namespace BuildXL
             CancellationToken cancellationToken,
             AppLoggers appLoggers,
             EngineState engineState,
-            PerformanceCollector collector,
-            out EngineLiveVisualizationInformation visualizationInformation)
+            PerformanceCollector collector)
         {
             var fileSystem = new PassThroughFileSystem(m_pathTable);
             var engineContext = EngineContext.CreateNew(cancellationToken, m_pathTable, fileSystem);
@@ -752,8 +743,7 @@ namespace BuildXL
                         m_initialConfiguration,
                         collector),
                     appLoggers.TrackingEventListener,
-                    engineState,
-                    out visualizationInformation);
+                    engineState);
         }
 
         internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
@@ -1228,6 +1218,7 @@ namespace BuildXL
                 ILoggingConfiguration configuration,
                 PathTable pathTable,
                 bool notWorker,
+                BuildViewModel buildViewModel,
                 bool displayWarningErrorTime)
             {
                 Contract.Requires(console != null);
@@ -1252,7 +1243,7 @@ namespace BuildXL
                 // Inialize the console logging early
                 if (m_configuration.ConsoleVerbosity != VerbosityLevel.Off)
                 {
-                    ConfigureConsoleLogging(notWorker);
+                    ConfigureConsoleLogging(notWorker, buildViewModel);
                 }
             }
 
@@ -1386,7 +1377,7 @@ namespace BuildXL
             }
 
             [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-            private void ConfigureConsoleLogging(bool notWorker)
+            private void ConfigureConsoleLogging(bool notWorker, BuildViewModel buildViewModel)
             {
                 var listener = new ConsoleEventListener(
                     Events.Log,
@@ -1401,6 +1392,8 @@ namespace BuildXL
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                     maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
                     optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps);
+
+                listener.SetBuildViewModel(buildViewModel);
 
                 AddListener(listener);
             }
@@ -1888,11 +1881,8 @@ namespace BuildXL
             EngineContext engineContext,
             FrontEndControllerFactory factory,
             TrackingEventListener trackingEventListener,
-            EngineState engineState,
-            out EngineLiveVisualizationInformation visualizationInformation)
+            EngineState engineState)
         {
-            visualizationInformation = null;
-
             var configuration = factory.Configuration;
             var loggingContext = factory.LoggingContext;
 
@@ -1911,6 +1901,7 @@ namespace BuildXL
                 engineContext,
                 configuration,
                 factory,
+                m_buildViewModel,
                 factory.Collector,
                 m_startTimeUtc,
                 trackingEventListener,
@@ -1921,14 +1912,6 @@ namespace BuildXL
             if (engine == null)
             {
                 return engineState;
-            }
-
-            if (configuration.Viewer != ViewerMode.Disable)
-            {
-                // Create the live visualization information object, hook it to the engine and make it available on the EngineModel
-                visualizationInformation = new EngineLiveVisualizationInformation();
-                engine.SetVisualizationInformation(visualizationInformation);
-                EngineModel.VisualizationInformation = visualizationInformation;
             }
 
             if (configuration.Export.SnapshotFile.IsValid && configuration.Export.SnapshotMode != SnapshotMode.None)

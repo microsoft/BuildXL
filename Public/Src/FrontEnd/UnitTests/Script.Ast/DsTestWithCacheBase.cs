@@ -8,7 +8,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using BuildXL;
-using BuildXL.Cache;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.FrontEnd.Core;
@@ -16,6 +15,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
+using BuildXL.ViewModel;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.FrontEnd.Core;
@@ -89,6 +89,7 @@ namespace Test.DScript.Ast
                 engineContext,
                 config,
                 factory,
+                new BuildViewModel(),
                 rememberAllChangedTrackedInputs: rememberAllChangedTrackedInputs
                 );
 

@@ -25,7 +25,7 @@ using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Recovery;
 using BuildXL.Engine.Tracing;
-using BuildXL.Engine.Visualization;
+using BuildXL.ViewModel;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
@@ -159,7 +159,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// The visualization information
         /// </summary>
-        private EngineLiveVisualizationInformation m_visualization;
+        private BuildViewModel m_buildViewModel;
 
         /// <summary>
         /// The snapshot collector.
@@ -262,6 +262,7 @@ namespace BuildXL.Engine
             ICommandLineConfiguration initialConfig, // some configuration options are still only on the initialConfig. When cleaned up this argument and member should be removed.
             IFrontEndControllerFactory frontEndControllerFactory,
             IFrontEndController frontEndController,
+            BuildViewModel buildViewModel,
             PerformanceCollector collector,
             DateTime? processStartTimeUtc,
             TrackingEventListener trackingEventListener,
@@ -317,6 +318,7 @@ namespace BuildXL.Engine
             m_rootTranslator = new RootTranslator(m_directoryTranslator.GetReverseTranslator());
 
             m_collector = collector;
+            m_buildViewModel = buildViewModel;
             m_commitId = commitId;
             m_buildVersion = buildVersion;
 
@@ -332,6 +334,7 @@ namespace BuildXL.Engine
             EngineContext context,
             ICommandLineConfiguration initialCommandLineConfiguration,
             IFrontEndControllerFactory frontEndControllerFactory,
+            BuildViewModel buildViewModel,
             PerformanceCollector collector = null,
             DateTime? processStartTimeUtc = null,
             TrackingEventListener trackingEventListener = null,
@@ -340,6 +343,7 @@ namespace BuildXL.Engine
             string buildVersion = null)
         {
             Contract.Requires(context != null);
+            Contract.Requires(buildViewModel != null);
             Contract.Requires(initialCommandLineConfiguration != null);
             Contract.Requires(initialCommandLineConfiguration.Layout != null);
             Contract.Requires(initialCommandLineConfiguration.Layout.PrimaryConfigFile.IsValid, "The caller is responsible for making sure the initial layout is properly configured by calling PopulateLoggingAndLayoutConfiguration on the config.");
@@ -416,6 +420,7 @@ namespace BuildXL.Engine
                 initialCommandLineConfiguration,
                 frontEndControllerFactory,
                 frontEndController,
+                buildViewModel,
                 collector,
                 processStartTimeUtc,
                 trackingEventListener,
@@ -1417,16 +1422,6 @@ namespace BuildXL.Engine
         private readonly PerformanceCollector m_collector;
 
         /// <summary>
-        /// Sets the visualization information to be collected
-        /// </summary>
-        public void SetVisualizationInformation(EngineLiveVisualizationInformation visualization)
-        {
-            Contract.Requires(visualization != null);
-
-            m_visualization = visualization;
-        }
-
-        /// <summary>
         /// Sets the snapshot visitor
         /// </summary>
         public void SetSnapshotCollector(SnapshotCollector snapshotCollector)
@@ -1959,12 +1954,6 @@ namespace BuildXL.Engine
                                     if (TestHooks?.Scheduler != null)
                                     {
                                         var isTransferred = engineSchedule.TransferPipTableOwnership(TestHooks.Scheduler.Value.PipGraph.PipTable);
-                                        Contract.Assume(isTransferred);
-                                    }
-
-                                    if (m_visualization?.PipTable.State == VisualizationValueState.Available)
-                                    {
-                                        var isTransferred = engineSchedule.TransferPipTableOwnership(m_visualization.PipTable.Value);
                                         Contract.Assume(isTransferred);
                                     }
 
@@ -2628,12 +2617,7 @@ namespace BuildXL.Engine
                     Context,
                     m_tempCleaner);
 
-            if (m_visualization != null)
-            {
-                m_visualization.Context.MakeAvailable(Context);
-                m_visualization.Configuration.MakeAvailable(Configuration);
-                m_visualization.LoggingContext.MakeAvailable(new LoggingContext(loggingContext, "Viewer"));
-            }
+            m_buildViewModel.SetContext(Context);
 
             var phase = Configuration.Engine.Phase;
             try
@@ -2920,12 +2904,8 @@ namespace BuildXL.Engine
 
         private void MakeScheduleInfoAvailableToViewer(EngineSchedule engineSchedule)
         {
-            if (m_visualization != null && engineSchedule != null)
-            {
-                m_visualization.Scheduler.MakeAvailable(engineSchedule.Scheduler);
-                m_visualization.PipGraph.MakeAvailable(engineSchedule.Scheduler.PipGraph);
-                m_visualization.PipTable.MakeAvailable(engineSchedule.PipTable);
-            }
+            var scheduler = engineSchedule.Scheduler;
+            m_buildViewModel.SetSchedulerDetails(scheduler.RetrieveExecutingProcessPips);
         }
 
         private void WarnForVirusScan(LoggingContext loggingContext, ILayoutConfiguration layout)

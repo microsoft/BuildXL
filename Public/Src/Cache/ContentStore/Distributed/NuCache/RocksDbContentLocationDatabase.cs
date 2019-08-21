@@ -154,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
                             return BoolResult.Success;
-                        }, extraStartMessage: $"ColumnFamily={columnFamilyName}");
+                        }, messageFactory: _ => $"ColumnFamily={columnFamilyName}");
 
                         if (!result.Succeeded)
                         {

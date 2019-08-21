@@ -187,9 +187,6 @@ namespace BuildXL.Engine.Distribution
                         // This seems to be very inefficient; but it is so rare that we completely fail to send the build request to the worker after retries.
                         ResetAvailableHashes(m_pipGraph);
 
-                        // Change status on connection failure
-                        // Try to pause so next pips will skip this worker.
-                        ChangeStatus(WorkerNodeStatus.Running, WorkerNodeStatus.Paused);
                         m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
                     }
                     else
@@ -210,6 +207,14 @@ namespace BuildXL.Engine.Distribution
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
             Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0);
+
+            if (m_executionBlobQueue.IsCompleted)
+            {
+                // If master already decided to shut-down the worker, there was a connection issue with the worker for a long time and  master was forced to exit the worker. 
+                // However, we received execution log event from worker, it means that the worker was still able to connect to master via its Channel.
+                // In that case, we do not process that log event. 
+                return;
+            }
 
             m_executionBlobQueue.Add(notification);
 

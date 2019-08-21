@@ -45,6 +45,7 @@ using InitializationLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger;
 using LogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
 using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
 using Test.DScript.Workspaces.Utilities;
+using BuildXL.ViewModel;
 
 namespace Test.BuildXL.FrontEnd.Core
 {
@@ -1014,7 +1015,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 InitializationLogger, 
                 collector: null,
                 collectMemoryAsSoonAsPossible: false);
-            var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller));
+            var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller), new BuildViewModel());
 
             if (engine == null)
             {

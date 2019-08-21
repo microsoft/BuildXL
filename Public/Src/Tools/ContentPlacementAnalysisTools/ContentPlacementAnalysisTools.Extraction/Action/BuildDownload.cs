@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Net;
@@ -10,14 +11,12 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
     /// <summary>
     /// This is the action that downloads a single build. It takes as input an object of type 
     /// </summary>
-    public class BuildDownload : TimedAction<KustoBuild, BuildDownloadOutput>
+    public class BuildDownload : TimedAction<List<KustoBuild>, DecompressionOutput>
     {
 
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
         private readonly ApplicationConfiguration m_configuration = null;
-        private string m_bxlPath = null;
-        private string m_dominoPath = null;
         private string m_outputDirectory = null;
 
         /// <summary>
@@ -30,45 +29,74 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         }
 
         /// <inheritdoc />
-        protected override void CleanUp(KustoBuild input, BuildDownloadOutput output) {}
+        protected override void CleanUp(List<KustoBuild> input, DecompressionOutput output) {}
 
         /// <inheritdoc />
-        protected override void Setup(KustoBuild input)
-        {
-            // do some checks in here
-            m_bxlPath = Path.Combine(m_outputDirectory, input.BuildControllerMachineName);
-            m_dominoPath = Path.Combine(m_outputDirectory, input.BuildControllerMachineName, "Domino");
-            // create the directories
-            Directory.CreateDirectory(m_bxlPath);
-            Directory.CreateDirectory(m_dominoPath);
-            Contract.Requires(Directory.Exists(m_bxlPath) && Directory.Exists(m_dominoPath), "Could not create directories for downloads...");
-        }
+        protected override void Setup(List<KustoBuild> input){}
 
         /// <summary>
         /// Given a machine and log dir, downloads the zip files used to reconstructuc the build log 
         /// </summary>
-        protected override BuildDownloadOutput Perform(KustoBuild input)
+        protected override DecompressionOutput Perform(List<KustoBuild> inputs)
         {
             s_logger.Debug($"BuildDownloader starts...");
             try
             {
-                var bxlZip = Path.Combine(m_bxlPath, "BuildXLLogs.zip");
-                var dominoZip = Path.Combine(m_dominoPath, "Domino.zip");
-                // build the urls
-                var urls = BuildDownloadUrls(input);
-                var downloaded = 0;
-                // and download the two of them
-                foreach (var url in urls)
+                foreach (var input in inputs)
                 {
-                    // download each one
-                    if (DownloadFileTo(url, bxlZip, dominoZip))
+                    // do some checks in here
+                    var bxlPath = Path.Combine(m_outputDirectory, $"{input.BuildId}-{input.BuildControllerMachineName}");
+                    var dominoPath = Path.Combine(bxlPath, "Domino");
+                    // create the directories
+                    Directory.CreateDirectory(bxlPath);
+                    Directory.CreateDirectory(dominoPath);
+                    if(!Directory.Exists(bxlPath) || !Directory.Exists(dominoPath))
                     {
-                        ++downloaded;
+                        // error here
+                        throw new Exception($"Could not create directories for build download (bid={input.BuildId})");
+                    }
+                    var bxlZip = Path.Combine(bxlPath, "BuildXLLogs.zip");
+                    var dominoZip = Path.Combine(dominoPath, "Domino.zip");
+                    // build the urls
+                    var urls = BuildDownloadUrls(input);
+                    var downloaded = 0;
+                    // and download the two of them
+                    try
+                    {
+                        foreach (var url in urls)
+                        {
+                            // download each one
+                            if (DownloadFileTo(url, bxlZip, dominoZip))
+                            {
+                                ++downloaded;
+                            }
+                        }
+                        // now, the output is the result of the decompression
+                        var decompression = new Decompression(m_configuration);
+                        var decompressionResult = decompression.PerformAction(new BuildDownloadOutput(bxlPath, downloaded, bxlZip, dominoZip, input));
+                        if (decompressionResult.ExecutionStatus)
+                        {
+                            return decompressionResult.Result;
+                        }
+                        else
+                        {
+                            throw decompressionResult.Exception;
+                        }
+                        
+                    }
+                    catch(Exception e)
+                    {
+                        s_logger.Error(e, $"Build download for [{input.BuildId}] failed, retrying with another...");
+                        // delete dirs
+                        Directory.Delete(bxlPath, true);
+                        // continue here
+                        continue;
+                        
                     }
                 }
-                // now, the output contains the number of downloaded files (that should be two)
-                // and the base directory of where they are
-                return new BuildDownloadOutput(m_bxlPath, downloaded, bxlZip, dominoZip, input);
+                // everything failed...
+                throw new Exception($"All downloads failed (count={inputs.Count})");
+
             }
             finally
             {
@@ -130,7 +158,6 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         /// The data for the build we are downloading
         /// </summary>
         public KustoBuild BuildData { get; }
-
         /// <summary>
         /// Base constructor
         /// </summary>

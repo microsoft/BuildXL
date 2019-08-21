@@ -26,7 +26,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// </summary>
         protected override ParseBuildArtifactsOutput Perform(ParseBuildArtifactsInput input)
         {
-            var arts = new MultiValueDictionary<string, ArtifactWithBuild>();
+            var arts = new MultiValueDictionary<string, ArtifactWithBuildMeta>();
             var totalArtifactsRead = 0;
             s_logger.Debug($"ParseBuildArtifacts starts");
             try
@@ -35,15 +35,17 @@ namespace ContentPlacementAnalysisTools.ML.Action
                 var bxlBuild = new JsonSerializer().Deserialize<BxlBuild>(
                     new JsonTextReader(
                         new StreamReader(input.BuildArtifactsFile)
-                        )
-                    );
-                
+                    )
+                );
                 foreach (var artifact in bxlBuild.Artifacts)
                 {
                     // i will group them in levels. The key here has to be the hash, using that hash
                     // we will see how many artifacts are referring to it
-                    arts.Add(artifact.Hash, new ArtifactWithBuild(bxlBuild, artifact));
-                    ++totalArtifactsRead;
+                    if(artifact.NumInputPips > 0 || artifact.NumOutputPips > 0)
+                    {
+                        arts.Add(artifact.Hash, new ArtifactWithBuildMeta(bxlBuild.Meta, artifact));
+                        ++totalArtifactsRead;
+                    }
                 }
                 return new ParseBuildArtifactsOutput(arts, totalArtifactsRead);
             }
@@ -87,11 +89,11 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// <summary>
         /// MultiDict of artifacts. Hash is the key
         /// </summary>
-        public MultiValueDictionary<string, ArtifactWithBuild> ArtifactsByHash { get; }
+        public MultiValueDictionary<string, ArtifactWithBuildMeta> ArtifactsByHash { get; }
         /// <summary>
         /// Constructor
         /// </summary>
-        public ParseBuildArtifactsOutput(MultiValueDictionary<string, ArtifactWithBuild> arts, int tar)
+        public ParseBuildArtifactsOutput(MultiValueDictionary<string, ArtifactWithBuildMeta> arts, int tar)
         {
             ArtifactsByHash = arts;
             TotalArtifactsRead = tar;
@@ -101,7 +103,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
     /// <summary>
     /// Used to keep a reference to the build an artifact belongs to
     /// </summary>
-    public class ArtifactWithBuild
+    public class ArtifactWithBuildMeta
     {
         /// <summary>
         /// The referenced artifact
@@ -110,14 +112,25 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// <summary>
         /// The referenced build where the artifact belongs to
         /// </summary>
-        public BxlBuild Build { get; }
+        public BxlBuildMeta Meta { get; }
         /// <summary>
         /// Constructor
         /// </summary>
-        public ArtifactWithBuild(BxlBuild build, BxlArtifact artifact)
+        public ArtifactWithBuildMeta(BxlBuildMeta meta, BxlArtifact artifact)
         {
-            Build = build;
+            Meta = meta;
             Artifact = artifact;
+        }
+        /// <summary>
+        /// Writes an artifact to a json file using a stream
+        /// </summary>
+        public void WriteToJsonStream(JsonTextWriter writer)
+        {
+            writer.WriteStartObject();
+            Meta.WriteToJsonStream(writer, "Meta");
+            writer.WritePropertyName("Artifact");
+            Artifact.WriteToJsonStream(writer);
+            writer.WriteEndObject();
         }
     }
 }

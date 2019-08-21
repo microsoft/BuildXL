@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Extraction.CPResources;
 using ContentPlacementAnalysisTools.Extraction.Main;
 using ContentPlamentAnalysisTools.Core;
 
@@ -46,15 +47,26 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
             s_logger.Debug($"BuildAnalisys starts...");
             try
             {
-                var analyzerOutputFile = $"{input.OutputDirectory}\\CpResults.json";
+                var analyzerOutputFile = $"{input.OutputDirectory}\\{constants.JsonResultsFileName}";
                 // lets analyze this in here
-                RunBxlAnalyzer(input);
-                if (!File.Exists(analyzerOutputFile))
+                try
                 {
-                    throw new Exception($"Analysis task failed to write output to [{analyzerOutputFile}]");
+                    var exitCode = RunBxlAnalyzer(input);
+                    s_logger.Debug($"Analyzer returns exitCode={exitCode}");
+                }
+                catch(Exception e)
+                {
+                    s_logger.Error(e, "An exception ocurred when running analyzer");
+                }
+                finally
+                {
+                    if (!File.Exists(analyzerOutputFile))
+                    {
+                        throw new Exception($"Analysis task failed to write output to [{analyzerOutputFile}]");
+                    }
                 }
                 // output to a results dir
-                var newOutputDirectory = Path.Combine(Directory.GetParent(input.OutputDirectory).FullName, "Results");
+                var newOutputDirectory = Path.Combine(Directory.GetParent(input.OutputDirectory).FullName, constants.ResultDirectoryName);
                 var newOutputPath = Path.Combine(newOutputDirectory, $"{input.BuildData.BuildId}.json");
                 // first, move the output file. If this directory already exists it does not matter
                 Directory.CreateDirectory(newOutputDirectory);
@@ -72,7 +84,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         /// <inheritdoc />
         protected override void Setup(DecompressionOutput input){}
 
-        private void RunBxlAnalyzer(DecompressionOutput input)
+        private int RunBxlAnalyzer(DecompressionOutput input)
         {
             var proc = new Process();
             proc.StartInfo.FileName = m_configuration.AnalyzerConfig.Exe;
@@ -94,7 +106,9 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 s_logger.Debug($"Process logs: {line}");
             }
             proc.WaitForExit();
+            var exitCode = proc.ExitCode;
             proc.Close();
+            return exitCode;
         }
     }
 

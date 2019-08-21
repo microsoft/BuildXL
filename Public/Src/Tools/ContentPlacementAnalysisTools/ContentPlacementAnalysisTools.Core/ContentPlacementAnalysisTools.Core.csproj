@@ -55,6 +55,7 @@
   <ItemGroup>
     <Compile Include="BxlBuild.cs" />
     <Compile Include="Kusto.cs" />
+    <Compile Include="MLArtifact.cs" />
     <Compile Include="TimedAction.cs" />
   </ItemGroup>
   <ItemGroup>

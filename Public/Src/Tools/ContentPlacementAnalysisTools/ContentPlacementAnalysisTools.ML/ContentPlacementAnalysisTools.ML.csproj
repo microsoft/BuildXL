@@ -197,8 +197,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="cptools.ml.exe.nlog" />
-    <None Include="packages.config" />
+    <None Include="cptools.ml.consolidate.exe.nlog" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="ContentPlacementAnalysisTools.ML.dsc" />

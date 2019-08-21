@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Stores;
 using FluentAssertions;
@@ -77,7 +78,7 @@ namespace ContentStoreTest.Sessions
             var sessionId = Guid.NewGuid().ToString();
 
             // Creating session with build id in it.
-            SessionName = $"{Context.BuildIdPrefix}{sessionId}";
+            SessionName = $"{Constants.BuildIdPrefix}{sessionId}";
 
             return RunSessionTestAsync(ImplicitPin.None, async (context, session) =>
             {

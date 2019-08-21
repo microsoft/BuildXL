@@ -77,7 +77,8 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     storeArtifactBlock.Completion.Wait();
                 }
                 var collectedArtifacts = new MultiValueDictionary<int, MLArtifact>();
-                var linearFile = $"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(Environment.TickCount)}.csv")}";
+                var currentTicks = Environment.TickCount;
+                var linearFile = $"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}.csv")}";
                 var linearOutput = TextWriter.Synchronized(new StreamWriter(linearFile));
                 s_logger.Info($"Linearizing to [{linearFile}]");
                 // write the headers
@@ -136,7 +137,8 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 // we have the scale, lets post tasks here
                 var createSampleBlocks = new ActionBlock<SampleArtifactsInput>(i =>
                 {
-                    
+                    var action = new SampleArtifacts();
+                    action.PerformAction(i);
 
                 },
                     // one per each sample
@@ -145,6 +147,15 @@ namespace ContentPlacementAnalysisTools.ML.Main
                         MaxDegreeOfParallelism = arguments.NumSamples
                     }
                 );
+                // post some tasks in here
+                for(var i = 0; i < arguments.NumSamples; ++i)
+                {
+                    createSampleBlocks.Post(new SampleArtifactsInput($"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}-sample{i}.csv")}", scale, collectedArtifacts)); 
+                }
+                // and wait...
+                createSampleBlocks.Complete();
+                createSampleBlocks.Completion.Wait();
+                // done...
             }
             finally
             {

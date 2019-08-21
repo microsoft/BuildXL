@@ -72,6 +72,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         }
 
+        /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
             await base.StartupCoreAsync(context).ThrowIfFailure();

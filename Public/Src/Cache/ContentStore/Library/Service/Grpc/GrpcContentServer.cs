@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -37,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     {
         private readonly Tracer _tracer = new Tracer(nameof(GrpcContentServer));
 
+        /// <inheritdoc />
         protected override Tracer Tracer => _tracer;
 
         private readonly Capabilities _serviceCapabilities;
@@ -70,6 +72,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _proactiveCopySession = new Lazy<Task<Result<IReadOnlyContentSession>>>(() => CreateCopySession());
         }
 
+        /// <inheritdoc />
         protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             if (_proactiveCopySession.IsValueCreated)
@@ -319,6 +322,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a request copy file request
         /// </summary>
+        [SuppressMessage("AsyncUsage", "AsyncFixer02:DisposeAsync should be used instead of openStreamResult.Stream.Dispose")]
         private async Task<RequestCopyFileResponse> RequestCopyFileAsync(RequestCopyFileRequest request, CancellationToken cancellationToken)
         {
             OperationStarted();

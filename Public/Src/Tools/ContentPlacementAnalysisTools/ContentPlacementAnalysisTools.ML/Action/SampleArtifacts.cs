@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Policy;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using ContentPlacementAnalysisTools.Core;
@@ -20,6 +21,8 @@ namespace ContentPlacementAnalysisTools.ML.Action
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
+        private Random m_Random = new Random(Environment.TickCount * Thread.CurrentThread.ManagedThreadId);
+
         /// <inheritdoc />
         protected override void CleanUp(SampleArtifactsInput input, SampleArtifactsOutput output){}        
 
@@ -30,7 +33,25 @@ namespace ContentPlacementAnalysisTools.ML.Action
         {
             try
             {
-                // start by scaling...
+                // we have the scale, now we can just randomly choose
+                foreach(var scaled in input.Scale)
+                {
+                    var nq = scaled.Key;
+                    if(input.Artifacts[nq].Count <= scaled.Value)
+                    {
+                        // take all
+
+                    }
+                    else
+                    {
+                        // take a random set
+                        var randomIds = new HashSet<int>();
+                        while(randomIds.Count < scaled.Value)
+                        {
+                            randomIds.Add(m_Random.Next(input.Artifacts[nq].Count));
+                        }
+                    }
+                }
                 return new SampleArtifactsOutput();
             }
             finally
@@ -39,18 +60,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
             }
         }
 
-        private Dictionary<int, int> Scale(MultiValueDictionary<int, MLArtifact> samples, int sampleSize)
-        {
-            var output = new Dictionary<int, int>();
-            foreach(var entry in samples)
-            {
-                var queueCount = entry.Key;
-                var entryCount = entry.Value.Count;
-                var proportion = 1.0 * (entryCount * sampleSize) / (1.0 * entryCount);
-                output[queueCount] = (int)Math.Ceiling(proportion);
-            }
-            return output;
-        }
+        
 
         /// <inheritdoc />
         protected override void Setup(SampleArtifactsInput input){}
@@ -62,6 +72,10 @@ namespace ContentPlacementAnalysisTools.ML.Action
     public class SampleArtifactsInput
     {
         /// <summary>
+        /// The sample file name
+        /// </summary>
+        public string SampleFileName { get; set; }
+        /// <summary>
         /// The number of artifacts per queue size to take
         /// </summary>
         public Dictionary<int, int> Scale { get; set; }
@@ -72,8 +86,9 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// <summary>
         /// Constructor
         /// </summary>
-        public SampleArtifactsInput(Dictionary<int, int> scale, MultiValueDictionary<int, MLArtifact> a)
+        public SampleArtifactsInput(string sfName, Dictionary<int, int> scale, MultiValueDictionary<int, MLArtifact> a)
         {
+            SampleFileName = sfName;
             Scale = scale;
             Artifacts = a;
         }

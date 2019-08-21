@@ -18,6 +18,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
@@ -41,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private string _buildId = null;
         private ContentHash? _buildIdHash = null;
+        private ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
@@ -67,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 settings)
         {
             _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
-            
+
         }
 
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
@@ -95,7 +97,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             UrgencyHint urgencyHint,
             Counter retryCounter)
         {
-            return PerformPutFileGatedOperationAsync(operationContext, () => {
+            return PerformPutFileGatedOperationAsync(operationContext, () =>
+            {
                 return PutCoreAsync(
                     operationContext,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
@@ -114,7 +117,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             // We are intentionally not gating PutStream operations because we don't expect a high number of them at
             // the same time.
-            return PerformPutFileGatedOperationAsync(operationContext, () => {
+            return PerformPutFileGatedOperationAsync(operationContext, () =>
+            {
                 return PutCoreAsync(
                     operationContext,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
@@ -216,7 +220,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 WithOperationContext(
                     context,
                     CancellationToken.None,
-                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, putResult.ContentHash)
+                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, result.ContentHash)
                 ).FireAndForget(context);
             }
 
@@ -229,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 var updateResult = await ContentLocationStore.RegisterLocalLocationAsync(
                     context,
-                    new [] { new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize) },
+                    new[] { new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize) },
                     context.Token,
                     urgencyHint);
 
@@ -244,64 +248,76 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
         {
+            if (!_pendingProactivePuts.Add(hash))
+            {
+                return BoolResult.SuccessTask;
+            }
+
             return context.PerformOperationAsync(
                 Tracer,
                 traceErrorsOnly: true,
                 operation: async () =>
                 {
-                    var hashArray = _buildIdHash != null 
-                        ? new[] { hash, _buildIdHash.Value } 
-                        : new[] { hash };
-
-                    // First check in local location store, then global if failed.
-                    var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
-                    if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
+                    try
                     {
-                        _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
-                        return BoolResult.Success;
-                    }
-                    else
-                    {
-                        getLocationsResult += await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ThrowIfFailure();
-                        _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
-                    }
+                        var hashArray = _buildIdHash != null
+                            ? new[] { hash, _buildIdHash.Value }
+                            : new[] { hash };
 
-                    if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
-                    {
-                        return BoolResult.Success;
-                    }
-
-                    IReadOnlyList<MachineLocation> buildRingMachines;
-
-                    Task<BoolResult> copyToBuildRingMachineTask = BoolResult.SuccessTask;
-                    
-                    // Get random machine inside build ring
-                    if (_buildIdHash != null)
-                    {
-                        buildRingMachines = getLocationsResult.ContentHashesInfo[getLocationsResult.ContentHashesInfo.Count - 1].Locations;
-                        var candidates = buildRingMachines.Where(m => !m.Equals(LocalCacheRootMachineLocation)).ToArray();
-                        if (candidates.Length > 0)
+                        // First check in local location store, then global if failed.
+                        var getLocationsResult = await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Local);
+                        if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                         {
-                            var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                            Tracer.Info(context, $"Copying {hash.ToShortString()} to machine '{candidate}' in build ring (of {candidates.Length} machines).");
-                            copyToBuildRingMachineTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                            _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
+                            return BoolResult.Success;
                         }
-                    }
-                    else
-                    {
-                        buildRingMachines = new[] { LocalCacheRootMachineLocation };
-                    }
+                        else
+                        {
+                            getLocationsResult += await ContentLocationStore.GetBulkAsync(context, hashArray, context.Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ThrowIfFailure();
+                            _counters[Counters.GetLocationsSatisfiedFromRemote].Increment();
+                        }
 
-                    BoolResult result = BoolResult.Success;
-                    var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
-                    if (getLocationResult.Succeeded)
-                    {
-                        var candidate = getLocationResult.Value;
-                        Tracer.Info(context, $"Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
-                        result &= await DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
-                    }
+                        if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
+                        {
+                            return BoolResult.Success;
+                        }
 
-                    return result & await copyToBuildRingMachineTask;
+                        IReadOnlyList<MachineLocation> buildRingMachines;
+
+                        Task<BoolResult> copyToBuildRingMachineTask = BoolResult.SuccessTask;
+
+                        // Get random machine inside build ring
+                        if (_buildIdHash != null)
+                        {
+                            buildRingMachines = getLocationsResult.ContentHashesInfo[getLocationsResult.ContentHashesInfo.Count - 1].Locations;
+                            var candidates = buildRingMachines.Where(m => !m.Equals(LocalCacheRootMachineLocation)).ToArray();
+                            if (candidates.Length > 0)
+                            {
+                                var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
+                                Tracer.Info(context, $"Copying {hash.ToShortString()} to machine '{candidate}' in build ring (of {candidates.Length} machines).");
+                                copyToBuildRingMachineTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                            }
+                        }
+                        else
+                        {
+                            buildRingMachines = new[] { LocalCacheRootMachineLocation };
+                        }
+
+                        BoolResult result = BoolResult.Success;
+                        var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
+                        if (getLocationResult.Succeeded)
+                        {
+                            var candidate = getLocationResult.Value;
+                            Tracer.Info(context, $"Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
+                            result &= await DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                        }
+
+                        return result & await copyToBuildRingMachineTask;
+                    }
+                    finally
+                    {
+                        _pendingProactivePuts.Remove(hash);
+                    }
                 });
         }
 

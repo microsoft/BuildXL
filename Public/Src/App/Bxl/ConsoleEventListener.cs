@@ -17,7 +17,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Visualization.Models;
+using BuildXL.ViewModel;
 using Strings = bxl.Strings;
 
 namespace BuildXL
@@ -54,6 +54,8 @@ namespace BuildXL
         /// The last reported percentage. To avoid double reporting the same percentage over and over
         /// </summary>
         private int m_lastReportedProgress = -1;
+
+        private BuildViewModel m_buildViewModel;
 
         /// <summary>
         /// Creates a new instance with optional colorization.
@@ -198,6 +200,14 @@ namespace BuildXL
             m_logsDirectory = logsDirectory;
             m_notWorker = notWorker;
             m_optimizeForAzureDevOps = optimizeForAzureDevOps;
+        }
+
+        /// <summary>
+        /// Sets the build view model that when set this class can use to print the current running pips.
+        /// </summary>
+        public void SetBuildViewModel(BuildViewModel buildViewModel)
+        {
+            m_buildViewModel = buildViewModel;
         }
 
         /// <inheritdoc />
@@ -641,19 +651,13 @@ namespace BuildXL
         {
             lock (m_runningPipsLock)
             {
-                // First, bail out if the visualizer data isn't available
-                if (EngineModel.VisualizationInformation == null ||
-                    EngineModel.VisualizationInformation.Scheduler.State != Engine.Visualization.VisualizationValueState.Available ||
-                    EngineModel.VisualizationInformation.Context.State != Engine.Visualization.VisualizationValueState.Available ||
-                    EngineModel.VisualizationInformation.PipGraph.State != Engine.Visualization.VisualizationValueState.Available)
+                if (m_buildViewModel == null)
                 {
                     return null;
                 }
 
-                var context = EngineModel.VisualizationInformation.Context.Value;
-                var stringTable = context.StringTable;
-                var pathTable = context.PathTable;
-                var symbolTable = context.SymbolTable;
+                var context = m_buildViewModel.Context;
+                Contract.Assert(context != null);
 
                 if (m_runningPips == null)
                 {
@@ -663,7 +667,7 @@ namespace BuildXL
                 DateTime thisCollection = DateTime.UtcNow;
 
                 // Use the viewer's interface to fetch the info about which pips are currently running.
-                foreach (var pip in EngineModel.VisualizationInformation.Scheduler.Value.RetrieveExecutingProcessPips())
+                foreach (var pip in m_buildViewModel.RetrieveExecutingProcessPips())
                 {
                     PipInfo runningInfo;
                     if (!m_runningPips.TryGetValue(pip.PipId, out runningInfo))

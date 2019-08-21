@@ -6,25 +6,26 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Engine;
-using BuildXL.Utilities;
+using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Tracing;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.ViewModel;
 using Test.BuildXL.EngineTestUtilities;
+using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
-using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -257,7 +258,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             var successfulValdiation = BuildXLEngine.PopulateAndValidateConfiguration(Configuration, Configuration, Context.PathTable, LoggingContext);
             Assert.True(successfulValdiation);
 
-            var engine = BuildXLEngine.Create(LoggingContext, Context, Configuration, new LambdaBasedFrontEndControllerFactory(Create), rememberAllChangedTrackedInputs: rememberAllChangedTrackedInputs);
+            var engine = BuildXLEngine.Create(LoggingContext, Context, Configuration, new LambdaBasedFrontEndControllerFactory(Create), new BuildViewModel(), rememberAllChangedTrackedInputs: rememberAllChangedTrackedInputs);
 
             engine.TestHooks = TestHooks;
 

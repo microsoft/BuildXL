@@ -9,13 +9,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Execution.Analyzer.Xldb;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Xldb.Proto;
 using Google.Protobuf;
+using BuildXL.Xldb;
 using PipType = BuildXL.Pips.Operations.PipType;
 
 namespace BuildXL.Execution.Analyzer
@@ -215,7 +215,7 @@ namespace BuildXL.Execution.Analyzer
                     {
                         var eventCountByTypeQuery = new EventCountByTypeKey
                         {
-                            EventTypeID = (Xldb.ExecutionEventId)(kvp.Key + 1)
+                            EventTypeID = (Xldb.Proto.ExecutionEventId)(kvp.Key + 1)
                         };
 
                         database.Put(eventCountByTypeQuery.ToByteArray(), kvp.Value.ToByteArray());
@@ -235,7 +235,7 @@ namespace BuildXL.Execution.Analyzer
             IngestAllPips();
             Console.WriteLine($"\nAll pips ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
-            Console.WriteLine("\nStarting to ingest PipGraph.");
+            Console.WriteLine("\nStarting to ingest PipGraph metadata");
             var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable);
 
             var graphMetadata = new CachedGraphQuery
@@ -244,7 +244,7 @@ namespace BuildXL.Execution.Analyzer
             };
 
             WriteToDb(graphMetadata.ToByteArray(), xldbPipGraph.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
-            Console.WriteLine($"\nPip graph ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
+            Console.WriteLine($"\nPipGraph metadata ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
             return 0;
         }
 
@@ -288,7 +288,7 @@ namespace BuildXL.Execution.Analyzer
             var fileArtifactContentDecidedEvent = data.ToFileArtifactContentDecidedEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.FileArtifactContentDecided,
+                EventTypeID = Xldb.Proto.ExecutionEventId.FileArtifactContentDecided,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -303,7 +303,7 @@ namespace BuildXL.Execution.Analyzer
             var workerListEvent = data.ToWorkerListEvent(WorkerID.Value);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.WorkerList,
+                EventTypeID = Xldb.Proto.ExecutionEventId.WorkerList,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -318,7 +318,7 @@ namespace BuildXL.Execution.Analyzer
             var pipExecPerfEvent = data.ToPipExecutionPerformanceEvent();
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.PipExecutionPerformance,
+                EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionPerformance,
                 PipId = data.PipId.Value,
                 UUID = Guid.NewGuid().ToString()
             };
@@ -334,7 +334,7 @@ namespace BuildXL.Execution.Analyzer
             var directoryMembershipEvent = data.ToDirectoryMembershipHashedEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.DirectoryMembershipHashed,
+                EventTypeID = Xldb.Proto.ExecutionEventId.DirectoryMembershipHashed,
                 PipId = data.PipId.Value,
                 UUID = Guid.NewGuid().ToString()
             };
@@ -350,7 +350,7 @@ namespace BuildXL.Execution.Analyzer
             var processExecMonitoringReportedEvent = data.ToProcessExecutionMonitoringReportedEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.ProcessExecutionMonitoringReported,
+                EventTypeID = Xldb.Proto.ExecutionEventId.ProcessExecutionMonitoringReported,
                 PipId = data.PipId.Value,
                 UUID = Guid.NewGuid().ToString()
             };
@@ -366,7 +366,7 @@ namespace BuildXL.Execution.Analyzer
             var processFingerprintComputedEvent = data.ToProcessFingerprintComputationEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.ProcessFingerprintComputation,
+                EventTypeID = Xldb.Proto.ExecutionEventId.ProcessFingerprintComputation,
                 PipId = data.PipId.Value,
                 UUID = Guid.NewGuid().ToString()
             };
@@ -382,7 +382,7 @@ namespace BuildXL.Execution.Analyzer
             var extraEvent = data.ToExtraEventDataReported(WorkerID.Value);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.ExtraEventDataReported,
+                EventTypeID = Xldb.Proto.ExecutionEventId.ExtraEventDataReported,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -397,7 +397,7 @@ namespace BuildXL.Execution.Analyzer
             var dependencyViolationEvent = data.ToDependencyViolationReportedEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.DependencyViolationReported,
+                EventTypeID = Xldb.Proto.ExecutionEventId.DependencyViolationReported,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -412,7 +412,7 @@ namespace BuildXL.Execution.Analyzer
             var pipExecStepPerformanceEvent = data.ToPipExecutionStepPerformanceReportedEvent(WorkerID.Value);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.PipExecutionStepPerformanceReported,
+                EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionStepPerformanceReported,
                 PipId = data.PipId.Value,
                 UUID = Guid.NewGuid().ToString()
             };
@@ -428,7 +428,7 @@ namespace BuildXL.Execution.Analyzer
             var pipCacheMissEvent = data.ToPipCacheMissEvent(WorkerID.Value);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.PipCacheMiss,
+                EventTypeID = Xldb.Proto.ExecutionEventId.PipCacheMiss,
                 PipId = data.PipId.Value,
                 UUID = Guid.NewGuid().ToString()
             };
@@ -444,7 +444,7 @@ namespace BuildXL.Execution.Analyzer
             var statusReportedEvent = data.ToResourceUsageReportedEvent(WorkerID.Value);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.ResourceUsageReported,
+                EventTypeID = Xldb.Proto.ExecutionEventId.ResourceUsageReported,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -459,7 +459,7 @@ namespace BuildXL.Execution.Analyzer
             var bxlInvEvent = data.ToBXLInvocationEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.BxlInvocation,
+                EventTypeID = Xldb.Proto.ExecutionEventId.BxlInvocation,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -474,7 +474,7 @@ namespace BuildXL.Execution.Analyzer
             var pipExecDirectoryOutputEvent = data.ToPipExecutionDirectoryOutputsEvent(WorkerID.Value, PathTable);
             var eq = new EventTypeQuery
             {
-                EventTypeID = Xldb.ExecutionEventId.PipExecutionDirectoryOutputs,
+                EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionDirectoryOutputs,
                 UUID = Guid.NewGuid().ToString()
             };
 
@@ -488,7 +488,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var totalNumberOfPips = CachedGraph.PipTable.StableKeys.Count;
             var pipIds = CachedGraph.PipTable.StableKeys;
-            var concurrency = Environment.ProcessorCount;
+            var concurrency = Environment.ProcessorCount / 2;
             var partitionSize = totalNumberOfPips / concurrency;
             Console.WriteLine("Ingesting pips now ...");
 
@@ -569,7 +569,7 @@ namespace BuildXL.Execution.Analyzer
                         var pipIdQuery = new PipQueryPipId()
                         {
                             PipId = hydratedPip.PipId.Value,
-                            PipType = (Xldb.PipType)pipType
+                            PipType = (Xldb.Proto.PipType)pipType
                         };
 
                         // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.

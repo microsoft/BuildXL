@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Extraction.CPResources;
 using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;
@@ -21,6 +22,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         private readonly ApplicationConfiguration m_configuration = null;
         private ICslQueryProvider m_queryProvider = null;
         private string m_query = null;
+        private static readonly int s_maxRetryBuilds = Convert.ToInt32(constants.MaxRetryBuilds);
 
         /// <summary>
         /// Constructor
@@ -43,27 +45,40 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         }
 
         /// <summary>
-        /// This is the action queries kusto for a set of builds (less than or equal to MaxBuilds)
+        /// This is the action queries kusto for a set of builds (less than or equal to MaxBuilds * 5)
+        /// We obtain more than one because we will retry all failed with new builds
         /// </summary>
         protected override GetKustoBuildOutput Perform(GetKustoBuildInput input)
         {
             s_logger.Debug($"GetKustoBuild starts");
             try
             {
-                var builds = new List<KustoBuild>();
+                var builds = new List<List<KustoBuild>>();
                 using (var reader = m_queryProvider.ExecuteQuery(m_query, null))
                 {
                     // each line has a single build
+                    var pack = new List<KustoBuild>();
                     while (reader.Read())
                     {
-                        builds.Add(new KustoBuild() {
-                            BuildId = reader.GetString(0),
-                            LogDirectory = reader.GetString(1),
-                            StartTime = reader.GetDateTime(2).Ticks,
-                            BuildDurationMs = Convert.ToDouble(reader.GetInt64(3)),
-                            BuildControllerMachineName = reader.GetString(4),
-                            BuildQueue = reader.GetString(5)
-                        });
+
+                        pack.Add(
+                            new KustoBuild()
+                            {
+                                BuildId = reader.GetString(0),
+                                LogDirectory = reader.GetString(1),
+                                StartTime = reader.GetDateTime(2).Ticks,
+                                BuildDurationMs = Convert.ToDouble(reader.GetInt64(3)),
+                                BuildControllerMachineName = reader.GetString(4),
+                                BuildQueue = reader.GetString(5)
+                            }
+                        );
+                        if(pack.Count == s_maxRetryBuilds)
+                        {
+                            var values = new KustoBuild[pack.Count];
+                            pack.CopyTo(values);
+                            builds.Add(new List<KustoBuild>(values));
+                            pack = new List<KustoBuild>();
+                        }
                     }
                     return new GetKustoBuildOutput(builds);
                 }
@@ -84,7 +99,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 .Replace("{0}", Convert.ToString(input.Year))
                 .Replace("{1}", Convert.ToString(input.Month))
                 .Replace("{2}", Convert.ToString(input.Day))
-                .Replace("{3}", Convert.ToString(input.NumBuilds));
+                .Replace("{3}", Convert.ToString(input.NumBuilds * s_maxRetryBuilds));
             s_logger.Debug($"Target Query: {m_query}");
 
         }
@@ -141,13 +156,13 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
     public class GetKustoBuildOutput
     {
         /// <summary>
-        /// The kusto data read
+        /// The kusto data read. Its a list of list, each containing s_maxRetryBuilds results
         /// </summary>
-        public List<KustoBuild> KustoBuildData { get; }
+        public List<List<KustoBuild>> KustoBuildData { get; }
         /// <summary>
         /// Constructor
         /// </summary>
-        public GetKustoBuildOutput(List<KustoBuild> k)
+        public GetKustoBuildOutput(List<List<KustoBuild>> k)
         {
             KustoBuildData = k;
         }

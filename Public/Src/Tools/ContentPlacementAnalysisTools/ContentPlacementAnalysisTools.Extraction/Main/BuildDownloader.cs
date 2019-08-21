@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -33,7 +34,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
             {
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
                 // so in here we will create a new network.
-                var buildInfoBlock = new TransformManyBlock<GetKustoBuildInput, KustoBuild>(i =>
+                var buildInfoBlock = new TransformManyBlock<GetKustoBuildInput, List<KustoBuild>>(i =>
                 {
                     var action = new GetKustoBuild(arguments.AppConfig);
                     var result = action.PerformAction(i);
@@ -45,7 +46,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     }
                     return result.Result.KustoBuildData;
                 });
-                var downloadBlock = new TransformBlock<KustoBuild, TimedActionResult<BuildDownloadOutput>>( i => 
+                var downloadBlock = new TransformBlock<List<KustoBuild>, TimedActionResult<DecompressionOutput>>( i => 
                 {
                     var action = new BuildDownload(arguments.AppConfig, arguments.OutputDirectory);
                     return action.PerformAction(i);
@@ -53,22 +54,6 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                     new ExecutionDataflowBlockOptions()
                     {
                         MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDownloadTasks
-                    }
-                );
-                var decompressBlock = new TransformBlock<TimedActionResult<BuildDownloadOutput>, TimedActionResult<DecompressionOutput>>( i =>
-                {
-                    // check
-                    if (i.ExecutionStatus)
-                    {
-                        // decompress if build was successfull
-                        var action = new Decompression(arguments.AppConfig);
-                        return action.PerformAction(i.Result);
-                    }
-                    return new TimedActionResult<DecompressionOutput>(i.Exception);
-                },
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDecompressionTasks
                     }
                 );
                 var analysisBlock = new ActionBlock<TimedActionResult<DecompressionOutput>>(i =>
@@ -88,8 +73,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                 );
                 // link them
                 buildInfoBlock.LinkTo(downloadBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                downloadBlock.LinkTo(decompressBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                decompressBlock.LinkTo(analysisBlock, new DataflowLinkOptions { PropagateCompletion = true });
+                downloadBlock.LinkTo(analysisBlock, new DataflowLinkOptions { PropagateCompletion = true });
                 var input = new GetKustoBuildInput(arguments.NumBuilds, arguments.Year, arguments.Month, arguments.Day);
                 // post the task...
                 buildInfoBlock.Post(input);
@@ -161,10 +145,6 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         /// </summary>
         public int MaxDownloadTasks { get; set; }
         /// <summary>
-        /// Maximum number of concurrent decompression tasks
-        /// </summary>
-        public int MaxDecompressionTasks { get; set; }
-        /// <summary>
         /// Maximum number of concurrent analysis tasks
         /// </summary>
         public int MaxAnalysisTasks { get; set; }
@@ -174,7 +154,6 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         {
             return new StringBuilder()
                 .Append("MaxDownloadTasks=").Append(MaxDownloadTasks).Append(", ")
-                .Append("MaxDecompressionTasks=").Append(MaxDecompressionTasks).Append(", ")
                 .Append("MaxAnalysisTasks=").Append(MaxAnalysisTasks)
                 .ToString();
         }

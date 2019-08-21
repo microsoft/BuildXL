@@ -8,10 +8,10 @@ using System.Linq;
 using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
 using Google.Protobuf;
-using Xldb.Proto;
-using PipType = Xldb.Proto.PipType;
+using BuildXL.Xldb.Proto;
+using PipType = BuildXL.Xldb.Proto.PipType;
 
-namespace Xldb
+namespace BuildXL.Xldb
 {
     public sealed class XldbDataStore : IDisposable
     {

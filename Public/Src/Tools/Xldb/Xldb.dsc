@@ -7,16 +7,11 @@ namespace Xldb {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "Xldb",
-        rootNamespace: "BuildXL.Xldb",
+        assemblyName: "BuildXL.Xldb",
         skipDocumentationGeneration: true,
         sources: globR(d`.`, "*.cs"),
         
         references: [
-            ...addIf(
-                BuildXLSdk.isFullFramework,
-                NetFx.Microsoft.CSharp.dll
-            ),
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("Google.Protobuf").pkg,

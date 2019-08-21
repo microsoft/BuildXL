@@ -8,7 +8,7 @@ using BuildXL.Execution.Analyzer;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xldb;
+using BuildXL.Xldb;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;

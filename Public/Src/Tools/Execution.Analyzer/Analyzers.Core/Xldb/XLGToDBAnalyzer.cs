@@ -13,9 +13,9 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Xldb.Proto;
 using Google.Protobuf;
-using Xldb;
-using Xldb.Proto;
+using BuildXL.Xldb;
 using PipType = BuildXL.Pips.Operations.PipType;
 
 namespace BuildXL.Execution.Analyzer

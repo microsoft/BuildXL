@@ -6,9 +6,9 @@ syntax = "proto3";
 import "tools/google/protobuf/timestamp.proto";
 import "tools/google/protobuf/duration.proto";
 
-package Xldb.Proto;
+package BuildXL.Xldb.Proto;
 
-option csharp_namespace = "Xldb.Proto";
+option csharp_namespace = "BuildXL.Xldb.Proto";
 
 //
 // Enums

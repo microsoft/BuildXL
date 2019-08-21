@@ -6,7 +6,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using Xldb.Proto;
+using BuildXL.Xldb.Proto;
+using BuildXL.Xldb;
 
 namespace Xldb.Analyzer
 {
@@ -15,7 +16,6 @@ namespace Xldb.Analyzer
     /// </summary>
     public class Program
     {
-
         private const string s_eventStatsAnalyzer = "eventstats";
         private const string s_dumpPipAnalyzer = "dumppip";
 

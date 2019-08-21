@@ -22,7 +22,6 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
-            importFrom("BuildXL.Tools").Xldb.Analyzer.exe,
 
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
                 importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,

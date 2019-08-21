@@ -7,8 +7,7 @@ import * as GrpcSdk from "Sdk.Protocols.Grpc";
 namespace Xldb.Proto {
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "Xldb.Proto",
-        rootNamespace: "BuildXL.Xldb.Proto",
+        assemblyName: "BuildXL.Xldb.Proto",
         skipDocumentationGeneration: true,
         sources: GrpcSdk.generate({
             proto: globR(d`.`, "*.proto"), 

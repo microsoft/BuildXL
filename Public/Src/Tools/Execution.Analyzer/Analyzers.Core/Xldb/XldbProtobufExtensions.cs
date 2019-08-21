@@ -6,7 +6,7 @@ using BuildXL.Engine;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
-using Xldb.Proto;
+using BuildXL.Xldb.Proto;
 using AbsolutePath = BuildXL.Utilities.AbsolutePath;
 using CopyFile = BuildXL.Pips.Operations.CopyFile;
 using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;

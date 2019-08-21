@@ -165,14 +165,17 @@ namespace BuildXL.Execution.Analyzer
             // so, start by creating the build itself
             var build = new BxlBuild
             {
-                BuidId = m_buildId,
-                BuildQueue = m_buildQueue,
-                BuildDurationMs = m_buildDurationMs,
-                BuildStartTimeTicks = m_buildStartTicks,
-                TotalPips = totalPips,
-                TotalArtifacts = m_fileContentMap.Count,
-                EmptyArtifacts = m_countEmptyArtifacts.Count,
-                SampledArtifacts = samples.Count
+                Meta = new BxlBuildMeta()
+                {
+                    BuidId = m_buildId,
+                    BuildQueue = m_buildQueue,
+                    BuildDurationMs = m_buildDurationMs,
+                    BuildStartTimeTicks = m_buildStartTicks,
+                    TotalPips = totalPips,
+                    TotalArtifacts = m_fileContentMap.Count,
+                    EmptyArtifacts = m_countEmptyArtifacts.Count,
+                    SampledArtifacts = samples.Count
+                }
             };
             // and now for each artifact, add it to the build
             PopulateBuild(samples, build);

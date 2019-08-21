@@ -25,10 +25,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
         }
 
         /// <inheritdoc />
-        protected override void CleanUp(BuildDownloadOutput input, DecompressionOutput output)
-        {
-            // nothing to do here
-        }
+        protected override void CleanUp(BuildDownloadOutput input, DecompressionOutput output){}
         /// <summary>
         /// Decompresses the result of a build download
         /// </summary>
@@ -67,15 +64,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
             
         }
         /// <inheritdoc />
-        protected override void Setup(BuildDownloadOutput input)
-        {
-            // some checks
-            if(input.DownloadedFiles != 2)
-            {
-                Directory.Delete(input.OutputDirectory, true);
-                throw new Exception("Could not decompress files, they where not downloaded correctly...");
-            }
-        }
+        protected override void Setup(BuildDownloadOutput input){}
     }
 
     /// <summary>

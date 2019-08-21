@@ -13,6 +13,42 @@ namespace ContentPlamentAnalysisTools.Core
     public class BxlBuild
     {
         /// <summary>
+        /// Build metadata
+        /// </summary>
+        public BxlBuildMeta Meta { get; set; }
+        /// <summary>
+        /// Artifacts in this build
+        /// </summary>
+        public List<BxlArtifact> Artifacts { get; set; } = new List<BxlArtifact>();
+        internal static void WriteJsonPropertyToStream<T>(JsonTextWriter writer, string name, T value)
+        {
+            writer.WritePropertyName(name);
+            writer.WriteValue(value);
+        }
+        /// <summary>
+        /// Writes a build to a json file using a stream
+        /// </summary>
+        public void WriteToJsonStream(JsonTextWriter writer)
+        {
+            writer.WriteStartObject();
+            Meta.WriteToJsonStream(writer, "Meta");
+            writer.WritePropertyName("Artifacts");
+            writer.WriteStartArray();
+            foreach (var artifact in Artifacts)
+            {
+                artifact.WriteToJsonStream(writer);
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+    }
+
+    /// <summary>
+    /// Represents info regarding a single build
+    /// </summary>
+    public class BxlBuildMeta
+    {
+        /// <summary>
         /// The Id of the build
         /// </summary>
         public string BuidId { get; set; }
@@ -45,39 +81,20 @@ namespace ContentPlamentAnalysisTools.Core
         /// </summary>
         public int SampledArtifacts { get; set; }
         /// <summary>
-        /// Collected file artifacts
+        /// Writes a meta to a json file using a stream
         /// </summary>
-        public List<BxlArtifact> Artifacts { get; set; } = new List<BxlArtifact>();
-        /// <summary>
-        /// Utility method to write a json attr to a json stream
-        /// </summary>
-        public static void WriteJsonPropertyToStream<T>(JsonTextWriter writer, string name, T value)
+        public void WriteToJsonStream(JsonTextWriter writer, string attrName)
         {
-            writer.WritePropertyName(name);
-            writer.WriteValue(value);
-        }
-
-        /// <summary>
-        /// Writes a build to a json file using a stream
-        /// </summary>
-        public void WriteToJsonStream(JsonTextWriter writer)
-        {
+            writer.WritePropertyName(attrName);
             writer.WriteStartObject();
-            WriteJsonPropertyToStream(writer, "BuidId", BuidId);
-            WriteJsonPropertyToStream(writer, "BuildQueue", BuildQueue);
-            WriteJsonPropertyToStream(writer, "BuildStartTimeTicks", BuildStartTimeTicks);
-            WriteJsonPropertyToStream(writer, "BuildDurationMs", BuildDurationMs);
-            WriteJsonPropertyToStream(writer, "TotalPips", TotalPips);
-            WriteJsonPropertyToStream(writer, "TotalArtifacts", TotalArtifacts);
-            WriteJsonPropertyToStream(writer, "EmptyArtifacts", EmptyArtifacts);
-            WriteJsonPropertyToStream(writer, "SampledArtifacts", SampledArtifacts);
-            writer.WritePropertyName("Artifacts");
-            writer.WriteStartArray();
-            foreach (var artifact in Artifacts)
-            {
-                artifact.WriteToJsonStream(writer);
-            }
-            writer.WriteEndArray();
+            BxlBuild.WriteJsonPropertyToStream(writer, "BuidId", BuidId);
+            BxlBuild.WriteJsonPropertyToStream(writer, "BuildQueue", BuildQueue);
+            BxlBuild.WriteJsonPropertyToStream(writer, "BuildStartTimeTicks", BuildStartTimeTicks);
+            BxlBuild.WriteJsonPropertyToStream(writer, "BuildDurationMs", BuildDurationMs);
+            BxlBuild.WriteJsonPropertyToStream(writer, "TotalPips", TotalPips);
+            BxlBuild.WriteJsonPropertyToStream(writer, "TotalArtifacts", TotalArtifacts);
+            BxlBuild.WriteJsonPropertyToStream(writer, "EmptyArtifacts", EmptyArtifacts);
+            BxlBuild.WriteJsonPropertyToStream(writer, "SampledArtifacts", SampledArtifacts);
             writer.WriteEndObject();
         }
     }

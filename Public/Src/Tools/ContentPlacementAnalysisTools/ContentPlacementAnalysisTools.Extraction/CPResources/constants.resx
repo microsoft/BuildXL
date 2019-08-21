@@ -121,4 +121,16 @@
     <value>CPResources\Query\get_build_data.kql</value>
     <comment>A query to get the build info of a single build</comment>
   </data>
+  <data name="JsonResultsFileName" xml:space="preserve">
+    <value>CpResults.json</value>
+    <comment>Name of the file with build parsing results</comment>
+  </data>
+  <data name="MaxRetryBuilds" xml:space="preserve">
+    <value>5</value>
+    <comment>The number of retry builds in case one cannot be downloaded</comment>
+  </data>
+  <data name="ResultDirectoryName" xml:space="preserve">
+    <value>Results</value>
+    <comment>Name of the dir where the parsing results will be stored</comment>
+  </data>
 </root>

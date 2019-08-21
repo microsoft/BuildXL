@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -28,35 +29,76 @@ namespace ContentPlacementAnalysisTools.ML.Main
             {
                 return;
             }
-            // this is where we will keep the consolidated artifacts
-            var consolidatedArtifacs = new MultiValueDictionary<string, ArtifactWithBuild>();
             s_logger.Info($"DataConsolidator starting");
             try
             {
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
-                // create the pipeline. The first step here is to parse the input files, and we can do this in parallel
-                var buildArtifactParsingBlock = new TransformBlock<ParseBuildArtifactsInput, TimedActionResult<ParseBuildArtifactsOutput>>(i =>
+                if (!arguments.LinearizeOnly)
                 {
-                    var action = new ParseBuildArtifacts();
+                    // create the pipeline. The first step here is to parse the input files, and we can do this in parallel
+                    var buildArtifactParsingBlock = new TransformBlock<ParseBuildArtifactsInput, TimedActionResult<ParseBuildArtifactsOutput>>(i =>
+                    {
+                        var action = new ParseBuildArtifacts();
+                        return action.PerformAction(i);
+                    },
+                         new ExecutionDataflowBlockOptions()
+                         {
+                             MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxBuildParsingTasks
+                         }
+                    );
+                    // the second is to save artifacts in a central folder
+                    var storeArtifactBlock = new ActionBlock<TimedActionResult<ParseBuildArtifactsOutput>>(i =>
+                    {
+                        // the exception will be logged even if we dont do it here
+                        if (i.ExecutionStatus)
+                        {
+                            var action = new StoreBuildArtifacts(arguments.OutputDirectory);
+                            action.PerformAction(i.Result);
+                        }
+
+                    },
+                         new ExecutionDataflowBlockOptions()
+                         {
+                             MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxArtifactStoreTasks
+                         }
+                    );
+                    // link them
+                    var numParsingTasks = 0;
+                    buildArtifactParsingBlock.LinkTo(storeArtifactBlock, new DataflowLinkOptions { PropagateCompletion = true });
+                    // do now we can post to the initial queue
+                    foreach (var file in Directory.EnumerateFiles(arguments.InputDirectory, "*.json"))
+                    {
+                        buildArtifactParsingBlock.Post(new ParseBuildArtifactsInput(file));
+                        ++numParsingTasks;
+                    }
+                    s_logger.Info($"Posted {numParsingTasks} parsing tasks, processing");
+                    // now wait
+                    buildArtifactParsingBlock.Complete();
+                    storeArtifactBlock.Completion.Wait();
+                }
+                var collectedArtifacts = new MultiValueDictionary<int, MLArtifact>();
+                var linearFile = $"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(Environment.TickCount)}.csv")}";
+                var linearOutput = TextWriter.Synchronized(new StreamWriter(linearFile));
+                s_logger.Info($"Linearizing to [{linearFile}]");
+                // write the headers
+                MLArtifact.WriteColumnsToStream(linearOutput);
+                // so now we are ready to linearize
+                var linearizeBlock = new TransformBlock<LinearizeArtifactsInput, TimedActionResult<LinearizeArtifactsOutput>>(i =>
+                {
+                    var action = new LinearizeArtifacts(linearOutput);
                     return action.PerformAction(i);
+
                 },
-                     new ExecutionDataflowBlockOptions()
-                     {
-                         MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxBuildParsingTasks
-                     }
+                    new ExecutionDataflowBlockOptions()
+                    {
+                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxArtifactLinearizationTasks
+                    }
                 );
-                // the second one is to consolidate, and this one is serialized
-                var consolidateArtifactsBlock = new ActionBlock<TimedActionResult<ParseBuildArtifactsOutput>>(i =>
+                var collectLinearResultsBlock = new ActionBlock<TimedActionResult<LinearizeArtifactsOutput>>(i =>
                 {
                     if (i.ExecutionStatus)
                     {
-                        var action = new ConsolidateArtifacts(consolidatedArtifacs);
-                        action.PerformAction(i.Result);
-                    }
-                    else
-                    {
-                        // its better to log this as warning here, in case of error its already on the log
-                        s_logger.Warn("One of the input files could not be processed correctly, check output logs");
+                        collectedArtifacts.Add(i.Result.NumQueues, i.Result.Linear);
                     }
 
                 },
@@ -66,29 +108,49 @@ namespace ContentPlacementAnalysisTools.ML.Main
                         MaxDegreeOfParallelism = 1
                     }
                 );
-                // link them
-                var numParsingTasks = 0;
-                buildArtifactParsingBlock.LinkTo(consolidateArtifactsBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                // do now we can post to the initial queue
-                foreach(var file in Directory.EnumerateFiles(arguments.InputDirectory, "*.json"))
+                // connect
+                linearizeBlock.LinkTo(collectLinearResultsBlock, new DataflowLinkOptions { PropagateCompletion = true });
+                // and post the tasks
+                var posted = 0;
+                foreach(var hashDir in Directory.EnumerateDirectories(arguments.OutputDirectory))
                 {
-                    buildArtifactParsingBlock.Post(new ParseBuildArtifactsInput(file));
-                    ++numParsingTasks;
+                    linearizeBlock.Post(new LinearizeArtifactsInput(hashDir));
+                    ++posted;
                 }
-                s_logger.Info($"Posted {numParsingTasks} parsing tasks, processing");
-                // now wait
-                buildArtifactParsingBlock.Complete();
-                consolidateArtifactsBlock.Completion.Wait();
-                // and now we can continue
-                s_logger.Info($"Consolidated {consolidatedArtifacs.Count} artifacts from {numParsingTasks} files, linearizing...");
+                s_logger.Info($"Posted {posted} linearizing tasks, waiting...");
+                linearizeBlock.Complete();
+                // and wait
+                collectLinearResultsBlock.Completion.Wait();
+                // and close...
+                linearOutput.Close();
+                // now, scale to create the samples...
+                s_logger.Info($"Creating {arguments.NumSamples} samples of size {arguments.SampleSize}");
+                var scale = new Dictionary<int, int>();
+                foreach (var entry in collectedArtifacts)
+                {
+                    var queueCount = entry.Key;
+                    var entryCount = entry.Value.Count;
+                    var proportion = 1.0 * (entryCount * arguments.SampleSize) / (1.0 * entryCount);
+                    scale[queueCount] = (int)Math.Ceiling(proportion);
+                }
+                // we have the scale, lets post tasks here
+                var createSampleBlocks = new ActionBlock<SampleArtifactsInput>(i =>
+                {
+                    
 
+                },
+                    // one per each sample
+                    new ExecutionDataflowBlockOptions()
+                    {
+                        MaxDegreeOfParallelism = arguments.NumSamples
+                    }
+                );
             }
             finally
             {
                 s_logger.Info("Done...");
             }
         }
-
 
         /// <summary>
         /// Represents the configuration file of this app. A configuration file has the form
@@ -127,11 +189,21 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// Maximum number of concurrent build parsing tasks
             /// </summary>
             public int MaxBuildParsingTasks { get; set; }
+            /// <summary>
+            /// Maximum number of concurrent artifact store tasks
+            /// </summary>
+            public int MaxArtifactStoreTasks { get; set; }
+            /// <summary>
+            /// Maximum number of concurrent artifact store tasks
+            /// </summary>
+            public int MaxArtifactLinearizationTasks { get; set; }
             /// <inheritdoc />
             public override string ToString()
             {
                 return new StringBuilder()
-                    .Append("MaxBuildParsingTasks=").Append(MaxBuildParsingTasks)
+                    .Append("MaxBuildParsingTasks=").Append(MaxBuildParsingTasks).Append(", ")
+                    .Append("MaxArtifactStoreTasks=").Append(MaxArtifactStoreTasks).Append(", ")
+                    .Append("MaxArtifactLinearizationTasks=").Append(MaxArtifactLinearizationTasks)
                     .ToString();
             }
         }
@@ -152,6 +224,18 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// </summary>
             public string OutputDirectory { get; } = null;
             /// <summary>
+            /// If true, then we will read an existing database
+            /// </summary>
+            public bool LinearizeOnly { get; } = false;
+            /// <summary>
+            /// The number of samples to create from the output
+            /// </summary>
+            public int NumSamples { get; } = 1;
+            /// <summary>
+            /// The size of each sample
+            /// </summary>
+            public int SampleSize { get; } = -1;
+            /// <summary>
             /// True if help was requested
             /// </summary>
             public bool Help { get; } = false;
@@ -168,7 +252,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     }
                     else if (opt.Name.Equals("applicationConfig", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ac", StringComparison.OrdinalIgnoreCase))
                     {
-                        string name = ParseStringOption(opt);
+                        var name = ParseStringOption(opt);
                         Contract.Requires(File.Exists(name), "You must specify a configuration file");
                         AppConfig = ApplicationConfiguration.FromJson(name);
                     }
@@ -180,12 +264,26 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     {
                         OutputDirectory = ParseStringOption(opt);
                     }
+                    else if (opt.Name.Equals("linearizeOnly", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("lo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        LinearizeOnly = ParseBooleanOption(opt);
+                    }
+                    else if (opt.Name.Equals("numSamples", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ns", StringComparison.OrdinalIgnoreCase))
+                    {
+                        NumSamples = ParseInt32Option(opt, 0, int.MaxValue);
+                    }
+                    else if (opt.Name.Equals("sampleSize", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ss", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SampleSize = ParseInt32Option(opt, 0, int.MaxValue);
+                    }
 
                 }
                 // and a couple of checks here
                 Contract.Requires(AppConfig != null, "You must specify a configuration file");
                 Contract.Requires(OutputDirectory != null, "You must specify an output directory");
                 Contract.Requires(InputDirectory != null, "You must specify an input directory");
+                Contract.Requires(NumSamples >= 1, "You must specify at least one sample");
+                Contract.Requires(SampleSize > 0, "The sample size must be positive");
                 Contract.Requires(Directory.Exists(OutputDirectory), "The output directory must exist");
                 Contract.Requires(Directory.Exists(InputDirectory), "The input directory must exist");
             }
@@ -196,7 +294,11 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 writer.WriteBanner("cptools.ml.consolidate - Tool consolidating existing build artifact files (see cptools.builddownloader)");
                 writer.WriteLine("");
                 writer.WriteOption("applicationConfig", "Required. File containing the application config parameters (json)", shortName: "ac");
+                writer.WriteOption("inputDirectory", "Required. The directory where the inputs will be taken from", shortName: "id");
                 writer.WriteOption("outputDirectory", "Required. The directory where the outputs will be stored", shortName: "od");
+                writer.WriteOption("linearizeOnly", "Optional. If true, then no input will be read, only the output directory will be linearized", shortName: "lo");
+                writer.WriteOption("numSamples", "Optional. The number of samples to be taken (from the global output)", shortName: "ns");
+                writer.WriteOption("sampleSize", "Optional. The size of each sample", shortName: "ns");
             }
         }
     }

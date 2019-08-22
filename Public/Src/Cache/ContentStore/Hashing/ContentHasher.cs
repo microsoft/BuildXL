@@ -183,8 +183,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private static readonly byte[] EmptyByteArray = new byte[0];
             private static readonly Task<bool> TrueTask = Task.FromResult(true);
 
-            private static readonly Stopwatch _sw = Stopwatch.StartNew();
-
             private readonly ActionBlock<Pool<Buffer>.PoolHandle> _hashingBufferBlock;
 
             private readonly Stream _baseStream;
@@ -387,10 +385,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void TransformBlock(byte[] buffer, int offset, int count, byte[] outputBuffer, int outputOffset)
             {
-                var start = _sw.ElapsedTicks;
+                Stopwatch sw = Stopwatch.StartNew();
                 _hashAlgorithm.TransformBlock(buffer, offset, count, outputBuffer, outputOffset);
-                var elapsedTicks = _sw.ElapsedTicks - start;
-                Interlocked.Add(ref _ticksSpentHashing, elapsedTicks);
+                Interlocked.Add(ref _ticksSpentHashing, sw.ElapsedTicks);
             }
 
             /// <inheritdoc />

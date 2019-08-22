@@ -803,6 +803,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 UseSpecPublicFacadeAndAstWhenAvailable = false,
                 CycleDetectorStartupDelay = 1,
                 EnableIncrementalFrontEnd = false,
+                AllowUnsafeAmbient = true
             };
         }
 

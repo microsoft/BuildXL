@@ -26,7 +26,6 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public PipGraphFragmentProvenance(AbsolutePath path, string description)
         {
-            Contract.Requires(path.IsValid);
             Path = path;
             Description = description ?? string.Empty;
         }

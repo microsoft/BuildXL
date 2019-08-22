@@ -9,7 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Pips.Operations
 {
@@ -77,16 +76,36 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(filePath.IsValid);
             
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
+
+            if (!File.Exists(fileName))
+            {
+                throw new FileNotFoundException($"File '{fileName}' not found");
+            }
+
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                return Deserialize(stream, handleDeserializedPip, fragmentDescriptionOverride, filePath);
+            }
+        }
+
+        /// <summary>
+        /// Deserializes a pip graph fragment from stream.
+        /// </summary>
+        public bool Deserialize(
+            Stream stream,
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
+            string fragmentDescriptionOverride = null,
+            AbsolutePath filePathOrigin = default)
+        {
             using (var reader = new PipRemapReader(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
             {
                 string serializedDescription = reader.ReadNullableString();
-                FragmentDescription = (fragmentDescriptionOverride ?? serializedDescription) ?? filePath.ToString(m_pipExecutionContext.PathTable);
-                var provenance = new PipGraphFragmentProvenance(filePath, FragmentDescription);
+                FragmentDescription = fragmentDescriptionOverride ?? serializedDescription;
+                var provenance = new PipGraphFragmentProvenance(filePathOrigin, FragmentDescription);
 
                 m_totalPipsToDeserialize = reader.ReadInt32();
 
-                for(int i = 0; i < m_totalPipsToDeserialize; i++)
+                for (int i = 0; i < m_totalPipsToDeserialize; i++)
                 {
                     var pip = Pip.Deserialize(reader);
 
@@ -122,9 +141,19 @@ namespace BuildXL.Pips.Operations
 
             string fileName = filePath.ToString(m_pipExecutionContext.PathTable);
             using (var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                Serialize(stream, pipsToSerialize, fragmentDescription ?? fileName);
+            }
+        }
+
+        /// <summary>
+        /// Serializes list of pips to a stream.
+        /// </summary>
+        public void Serialize(Stream stream, IReadOnlyCollection<Pip> pipsToSerialize, string fragmentDescription)
+        {
             using (var writer = new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
             {
-                FragmentDescription = fragmentDescription ?? fileName;
+                FragmentDescription = fragmentDescription;
                 writer.WriteNullableString(FragmentDescription);
 
                 m_totalPipsToSerialize = pipsToSerialize.Count;

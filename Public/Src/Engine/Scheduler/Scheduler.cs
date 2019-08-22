@@ -59,6 +59,7 @@ using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.Storage.InputChange;
+using BuildXL.ViewModel;
 
 namespace BuildXL.Scheduler
 {
@@ -1434,7 +1435,7 @@ namespace BuildXL.Scheduler
         /// This is called after all pips have been added and the pip queue has emptied.
         /// Warning: Some variables may be null if scheduler's Init() is not called.
         /// </remarks>
-        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext)
+        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
         {
             Dictionary<string, long> statistics = new Dictionary<string, long>();
             lock (m_statusLock)
@@ -1445,7 +1446,7 @@ namespace BuildXL.Scheduler
 
                 OperationTracker.Stop(Context, m_configuration.Logging, PipExecutionCounters, Worker.WorkerStatusOperationKinds);
 
-                LogCriticalPath(statistics);
+                LogCriticalPath(statistics, buildSummary);
 
                 int processPipsStartOrShutdownService = m_serviceManager.TotalServicePipsCompleted + m_serviceManager.TotalServiceShutdownPipsCompleted;
 
@@ -4206,7 +4207,7 @@ namespace BuildXL.Scheduler
 
         #region Critical Path Logging
 
-        private void LogCriticalPath(Dictionary<string, long> statistics)
+        private void LogCriticalPath(Dictionary<string, long> statistics, [CanBeNull] BuildSummary buildSummary)
         {
             int currentCriticalPathTailPipIdValue;
             PipRuntimeInfo criticalPathRuntimeInfo;
@@ -4287,19 +4288,36 @@ namespace BuildXL.Scheduler
                         numPathSetsDownloaded: performance.CacheLookupPerfInfo.NumPathSetsDownloaded);
 
                     Func<TimeSpan, string> formatTime = (t) => string.Format("{0:hh\\:mm\\:ss}", t);
-                    string scheduledTime, completedTime;
+
+                    string scheduledTime = "N/A";
+                    string completedTime = "N/A";
+                    TimeSpan scheduledTimeTs = TimeSpan.Zero;
+                    TimeSpan completedTimeTs = TimeSpan.Zero;
+
                     if (m_processStartTimeUtc.HasValue)
                     {
-                        scheduledTime = formatTime(performance.ScheduleTime - m_processStartTimeUtc.Value);
-                        completedTime = formatTime(performance.CompletedTime - m_processStartTimeUtc.Value);
-                    }
-                    else
-                    {
-                        scheduledTime = "N/A";
-                        completedTime = "N/A";
+                        scheduledTimeTs = performance.ScheduleTime - m_processStartTimeUtc.Value;
+                        scheduledTime = formatTime(scheduledTimeTs);
+                        completedTimeTs = performance.CompletedTime - m_processStartTimeUtc.Value;
+                        completedTime = formatTime(completedTimeTs);
                     }
 
                     summaryTable.AppendLine(I($"{pipDurationMs,16} | {runtimeInfo.ProcessExecuteTimeMs,15} | {pipQueueDurationMs,18} | {runtimeInfo.Result,12} | {scheduledTime,14} | {completedTime,14} | {pip.GetDescription(Context)}"));
+
+                    if (buildSummary != null)
+                    {
+                        buildSummary.CriticalPathSummary.Lines.Add(
+                            new CriticalPathSummaryLine
+                            {
+                                PipDuration = TimeSpan.FromMilliseconds(pipDurationMs),
+                                ProcessExecuteTime = TimeSpan.FromMilliseconds(runtimeInfo.ProcessExecuteTimeMs),
+                                PipQueueDuration = TimeSpan.FromMilliseconds(pipQueueDurationMs),
+                                Result = runtimeInfo.Result.ToString(),
+                                ScheduleTime = scheduledTimeTs,
+                                Completed = completedTimeTs,
+                                PipDescription = pip.GetDescription(Context),
+                            });
+                    }
 
                     totalStepDurations = totalStepDurations.Zip(performance.StepDurations, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
                     totalMasterQueueDurations = totalMasterQueueDurations.Zip(performance.QueueDurations.Value, (x, y) => (x + (long)y.TotalMilliseconds)).ToList();
@@ -4327,6 +4345,13 @@ namespace BuildXL.Scheduler
 
                 builder.AppendLine(I($"{totalCriticalPathRunningTime,16} | {exeDurationCriticalPathMs,15} | {totalMasterQueueTime,18} | {string.Empty,12} | {string.Empty,14} | {string.Empty,14} | *Total"));
                 builder.AppendLine(summaryTable.ToString());
+
+                if (buildSummary != null)
+                {
+                    buildSummary.CriticalPathSummary.TotalCriticalPathRuntime = TimeSpan.FromMilliseconds(totalCriticalPathRunningTime);
+                    buildSummary.CriticalPathSummary.ExeDurationCriticalPath = TimeSpan.FromMilliseconds(exeDurationCriticalPathMs);
+                    buildSummary.CriticalPathSummary.TotalMasterQueueTime = TimeSpan.FromMilliseconds(totalMasterQueueTime);
+                }
 
                 builder.AppendLine(detailedLog.ToString());
 
@@ -4965,11 +4990,6 @@ namespace BuildXL.Scheduler
             else
             {
                 m_fileChangeTracker = FileChangeTracker.CreateDisabledTracker(loggingContext);
-            }
-
-            if (m_testHooks != null)
-            {
-                m_testHooks.FileChangeTracker = m_fileChangeTracker;
             }
         }
 

@@ -134,7 +134,7 @@ namespace NugetPackages {
         targetRuntime: "win-x64"
     };
 
-    const xldblibrary = pack({
+    const xldblibrary = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.Xldb`,
         deployment: {
             contents: [ 
@@ -182,11 +182,11 @@ namespace NugetPackages {
                 cacheLibraries,
                 cacheInterfaces,
                 cacheHashing,
+                xldblibrary,
             ]),
             sdks,
             ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, toolsOrchestrator),
             toolsSandBoxExec,
-            xldblibrary,
         ]
     };
 

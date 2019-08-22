@@ -131,7 +131,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 {
                     var queueCount = entry.Key;
                     var entryCount = entry.Value.Count;
-                    var proportion = 1.0 * (entryCount * arguments.SampleSize) / (1.0 * entryCount);
+                    var proportion = 1.0 * Math.BigMul(entryCount, arguments.SampleSize) / (1.0 * posted);
                     scale[queueCount] = (int)Math.Ceiling(proportion);
                 }
                 // we have the scale, lets post tasks here
@@ -148,7 +148,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     }
                 );
                 // post some tasks in here
-                for(var i = 0; i < arguments.NumSamples; ++i)
+                for (var i = 0; i < arguments.NumSamples; ++i)
                 {
                     createSampleBlocks.Post(new SampleArtifactsInput($"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}-sample{i}.csv")}", scale, collectedArtifacts)); 
                 }
@@ -245,7 +245,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// <summary>
             /// The size of each sample
             /// </summary>
-            public int SampleSize { get; } = -1;
+            public int SampleSize { get; } = 10000;
             /// <summary>
             /// True if help was requested
             /// </summary>
@@ -281,11 +281,11 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     }
                     else if (opt.Name.Equals("numSamples", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ns", StringComparison.OrdinalIgnoreCase))
                     {
-                        NumSamples = ParseInt32Option(opt, 0, int.MaxValue);
+                        NumSamples = ParseInt32Option(opt, 1, int.MaxValue);
                     }
                     else if (opt.Name.Equals("sampleSize", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ss", StringComparison.OrdinalIgnoreCase))
                     {
-                        SampleSize = ParseInt32Option(opt, 0, int.MaxValue);
+                        SampleSize = ParseInt32Option(opt, 1, int.MaxValue);
                     }
 
                 }
@@ -308,8 +308,8 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 writer.WriteOption("inputDirectory", "Required. The directory where the inputs will be taken from", shortName: "id");
                 writer.WriteOption("outputDirectory", "Required. The directory where the outputs will be stored", shortName: "od");
                 writer.WriteOption("linearizeOnly", "Optional. If true, then no input will be read, only the output directory will be linearized", shortName: "lo");
-                writer.WriteOption("numSamples", "Optional. The number of samples to be taken (from the global output)", shortName: "ns");
-                writer.WriteOption("sampleSize", "Optional. The size of each sample", shortName: "ns");
+                writer.WriteOption("numSamples", "Optional. The number of samples to be taken (from the global output). Defaults to 1", shortName: "ns");
+                writer.WriteOption("sampleSize", "Optional. The size of each sample. Defaults to 10000", shortName: "ss");
             }
         }
     }

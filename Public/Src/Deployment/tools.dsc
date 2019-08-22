@@ -24,8 +24,7 @@ namespace Tools {
             ]
         };
     
-        @@public
-        export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
+        const deployed = Context.getCurrentHost().os !== "win" ? undefined : BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
             targetLocation: r`${qualifier.configuration}/tools/XldbAnalyzer/${qualifier.targetRuntime}`,
         });

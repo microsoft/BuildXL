@@ -1175,7 +1175,7 @@ namespace BuildXL
             /// <summary>
             /// The path to the log directory
             /// </summary>
-            public string RootLogDirectory { get; private set; }
+            public readonly string RootLogDirectory;
 
             public AppLoggers(
                 DateTime startTime,
@@ -1195,6 +1195,7 @@ namespace BuildXL
                 m_displayWarningErrorTime = displayWarningErrorTime;
 
                 LogPath = configuration.Log.ToString(pathTable);
+                RootLogDirectory = Path.GetDirectoryName(LogPath);
 
                 m_noLogMask = new EventMask(enabledEvents: null, disabledEvents: configuration.NoLog, nonMaskableLevel: EventLevel.Error);
                 m_warningManager = CreateWarningManager(configuration);
@@ -1242,7 +1243,6 @@ namespace BuildXL
                 {
                     Contract.Assume(!m_disposed);
 
-                    RootLogDirectory = m_configuration.LogsDirectory.IsValid ? m_configuration.LogsDirectory.ToString(m_pathTable) : null;
                     ConfigureTrackingListener();
 
                     if (m_configuration.FileVerbosity != VerbosityLevel.Off && m_configuration.LogsDirectory.IsValid)
@@ -1796,12 +1796,7 @@ namespace BuildXL
 
                     if (!OperatingSystemHelper.IsUnixOS)
                     {
-                        string[] filesToAttach = m_configuration != null
-                        ? new[]
-                            {
-                                loggers.LogPath,
-                            }
-                        : new string[0];
+                        string[] filesToAttach = new[] { loggers.LogPath };
 
                         WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, Events.StaticContext?.Session?.Id);
                     }
@@ -1832,7 +1827,7 @@ namespace BuildXL
             {
                 // Oh my, this isn't going very well.
                 WriteErrorToConsole("Unhandled exception in exception handler");
-                WriteErrorToConsole(ex.ToString());
+                WriteErrorToConsole(ex.DemystifyToString());
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
             finally

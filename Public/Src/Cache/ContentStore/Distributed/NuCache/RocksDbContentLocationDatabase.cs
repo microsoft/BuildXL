@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -21,6 +22,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using Unit = BuildXL.Utilities.Tasks.Unit;
@@ -81,6 +83,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public RocksDbContentLocationDatabase(IClock clock, RocksDbContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
             : base(clock, configuration, getInactiveMachines)
         {
+            Contract.Requires(configuration.FlushPreservePercentInMemory >= 0 && configuration.FlushPreservePercentInMemory <= 1);
+            Contract.Requires(configuration.FlushDegreeOfParallelism > 0);
+            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntries > 0);
+
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
         }
@@ -769,49 +775,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
             return _keyValueStore.Use(store => {
-                var cutoffTimeUtc = (Clock.UtcNow - _configuration.MetadataGarbageCollectionProtectionTime).ToFileTimeUtc();
-                int removedEntries = 0;
-                int scannedEntries = 0;
-                ulong dbSizeInBytesAfterGc = 0;
-                ulong dbRemovedBytesDuringGc = 0;
+                // NOTE(jubayard): the most expensive part of this procedure is iterating over the whole database, so
+                // the less we take _while_ we do that, the better. An alternative to this procedure is to compute a
+                // quantile sketch and remove unneeded entries as we go.
 
-                // TODO(jubayard): we may want to use a single WriteBatch here if this ends up affecting perf
-                foreach (var kvp in store.PrefixSearch((byte[])null, columnFamilyName: nameof(Columns.Metadata)))
+                var liveDbSizeInBytesBeforeGc = int.Parse(store.GetProperty(
+                    "rocksdb.estimate-live-data-size",
+                    columnFamilyName: nameof(Columns.Metadata)));
+
+                var stopwatch = new Stopwatch();
+
+                // These are sorted in ascending order by its LastAccessTimeUtc, which means more recently accessed
+                // entries are located at the end.
+                var sortedEntries = new List<(long fileTimeUtc, byte[] strongFingerprint)>();
+                foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
+                    // This is the reason we do this loop
                     if (context.Token.IsCancellationRequested)
                     {
                         break;
                     }
 
-                    scannedEntries++;
-                    Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Increment();
-                    
-                    var lastAccessTimeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
-                    if (lastAccessTimeUtc < cutoffTimeUtc)
-                    {
-                        RemoveMetadata(store, kvp.Key);
-
-                        dbRemovedBytesDuringGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
-                        removedEntries++;
-                        Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Increment();
-                    }
-                    else
-                    {
-                        dbSizeInBytesAfterGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
-                    }
+                    sortedEntries.Add((
+                        fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
+                        strongFingerprint: keyValuePair.Key));
                 }
 
-                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, EntriesAfterGc={scannedEntries - removedEntries}, DbSizeInBytesAfterGc={dbSizeInBytesAfterGc}, DbRemovedBytesDuringGc={dbRemovedBytesDuringGc}");
+                var timeToEnumerate = stopwatch.Elapsed;
+
+                stopwatch.Restart();
+                sortedEntries.Sort();
+                var timeToSort = stopwatch.Elapsed;
+
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(sortedEntries.Count);
+
+                // This is actually the index we want to remove up to plus one (i.e. the total number of items we want
+                // to remove)
+                var cutoffIndex = Math.Max(0, sortedEntries.Count - _configuration.MetadataGarbageCollectionMaximumNumberOfEntries);
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(cutoffIndex);
+
+                stopwatch.Restart();
+
+                store.RemoveBatch(
+                    sortedEntries.Take(cutoffIndex).Select(entry => entry.strongFingerprint),
+                    columnFamilyNames: new[] { nameof(Columns.Metadata) });
+
+                var timeToRemove = stopwatch.Elapsed;
+
+                var liveDbSizeInBytesAfterGc = int.Parse(store.GetProperty(
+                    "rocksdb.estimate-live-data-size",
+                    columnFamilyName: nameof(Columns.Metadata)));
+
+                // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
+                // new tombstones have been added. However, there is way to compute how much we added/removed that
+                // doesn't involve either keeping track of the values, or doing two passes over the column family.
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={sortedEntries.Count}, RemovedEntries={cutoffIndex}, EntriesAfterGc={sortedEntries.Count - cutoffIndex}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}, TimeToEnumerate={timeToEnumerate.TotalMilliseconds}ms, TimeToSort={timeToSort.TotalMilliseconds}ms, TimeToRemove={timeToRemove.TotalMilliseconds}");
 
                 return Unit.Void;
             }).ToBoolResult();
-        }
-
-        private void RemoveMetadata(IBuildXLKeyValueStore store, byte[] strongFingerprint)
-        {
-            // TODO(jubayard): Right now, this only removes the metadata, we can also remove content in the future. For
-            // that, we'll need the metadata and a reverse index stored.
-            store.Remove(strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
         }
 
         /// <summary>

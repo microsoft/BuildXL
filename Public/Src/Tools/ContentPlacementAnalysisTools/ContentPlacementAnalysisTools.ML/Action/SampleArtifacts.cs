@@ -1,46 +1,59 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
-using System.Security.Policy;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using ContentPlacementAnalysisTools.Core;
-using ContentPlamentAnalysisTools.Core;
-using Newtonsoft.Json;
-
 namespace ContentPlacementAnalysisTools.ML.Action
 {
     /// <summary>
-    /// This action takes a directory that contains all the outputs for an artifact an "linearize" it,
-    /// so it will write a single row for an artifact in a csv file
+    /// This action takes a set of linearized artifacts and creates a sample of size input.SampleSize.
+    /// The sample has the same CDF (or similar) that the universe in terms of the number of queues each
+    /// hash has been seen
     /// </summary>
     public class SampleArtifacts : TimedAction<SampleArtifactsInput, SampleArtifactsOutput>
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
-        private Random m_Random = new Random(Environment.TickCount * Thread.CurrentThread.ManagedThreadId);
+        private readonly Random m_random = new Random(Thread.CurrentThread.GetHashCode());
+        private StreamWriter m_writer = null;
 
         /// <inheritdoc />
-        protected override void CleanUp(SampleArtifactsInput input, SampleArtifactsOutput output){}        
+        protected override void CleanUp(SampleArtifactsInput input, SampleArtifactsOutput output)
+        {
+            if(m_writer != null)
+            {
+                m_writer.Dispose();
+            }
+        }        
 
         /// <summary>
-        /// This action takes a set of artifacts (from a single build) and groups them in an accumulator
+        /// Write the samples in this specific format. 
         /// </summary>
         protected override SampleArtifactsOutput Perform(SampleArtifactsInput input)
         {
+            s_logger.Debug("SampleArtifacts starts...");
+            var written = 0;
             try
             {
+                // write the headers
+                var sampled = new List<MLArtifact>();
+                MLArtifact.WriteColumnsToStream(m_writer);
                 // we have the scale, now we can just randomly choose
-                foreach(var scaled in input.Scale)
+                foreach (var scaled in input.Scale)
                 {
                     var nq = scaled.Key;
-                    if(input.Artifacts[nq].Count <= scaled.Value)
+                    var linearized = input.Artifacts[nq];
+                    if (linearized.Count <= scaled.Value)
                     {
-                        // take all
-
+                        // write all
+                        foreach(var linear in linearized)
+                        {
+                            linear.WriteToCsvStream(m_writer);
+                            sampled.Add(linear);
+                            ++written;
+                        }
                     }
                     else
                     {
@@ -48,22 +61,33 @@ namespace ContentPlacementAnalysisTools.ML.Action
                         var randomIds = new HashSet<int>();
                         while(randomIds.Count < scaled.Value)
                         {
-                            randomIds.Add(m_Random.Next(input.Artifacts[nq].Count));
+                            randomIds.Add(m_random.Next(input.Artifacts[nq].Count));
+                        }
+                        // now take them
+                        foreach(var pos in randomIds)
+                        {
+                            linearized[pos].WriteToCsvStream(m_writer);
+                            sampled.Add(linearized[pos]);
+                            ++written;
                         }
                     }
                 }
-                return new SampleArtifactsOutput();
+                return new SampleArtifactsOutput(sampled, input.SampleFileName);
             }
             finally
             {
-                // this guy will not log, this task is too small and that will hurt performance
+                s_logger.Debug($"SampleArtifacts ends in {Stopwatch.ElapsedMilliseconds}ms, sample [{input.SampleFileName}] contains {written} artifacts");
             }
         }
 
         
 
         /// <inheritdoc />
-        protected override void Setup(SampleArtifactsInput input){}
+        protected override void Setup(SampleArtifactsInput input)
+        {
+            m_writer = new StreamWriter(input.SampleFileName);
+            Contract.Requires(File.Exists(input.SampleFileName), "Could not create output file for sample");
+        }
     }
 
     /// <summary>
@@ -95,10 +119,23 @@ namespace ContentPlacementAnalysisTools.ML.Action
     }
 
     /// <summary>
-    /// Placeholder for this type of item, this action is not meant to return a value
+    /// The output contains the sampled artifacts
     /// </summary>
     public class SampleArtifactsOutput
     {
-       
+        /// <summary>
+        /// The artifacts belonging to this sample
+        /// </summary>
+        public List<MLArtifact> Sample { get; set; }
+        /// <summary>
+        /// The full path of the sample file name
+        /// </summary>
+        public string SampleFileName { get; set; }
+
+        public SampleArtifactsOutput(List<MLArtifact> arts, string file)
+        {
+            Sample = arts;
+            SampleFileName = file;
+        }
     }
 }

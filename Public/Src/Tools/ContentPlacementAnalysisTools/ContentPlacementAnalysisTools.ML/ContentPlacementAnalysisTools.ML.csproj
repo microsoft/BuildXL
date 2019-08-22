@@ -190,8 +190,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Action\ConsolidateArtifacts.cs" />
+    <Compile Include="Action\WriteArrf.cs" />
+    <Compile Include="Action\SampleArtifacts.cs" />
+    <Compile Include="Action\LinearizeArtifacts.cs" />
     <Compile Include="Action\ParseBuildArtifacts.cs" />
+    <Compile Include="Action\StoreBuildArtifacts.cs" />
     <Compile Include="Main\DataConsolidator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

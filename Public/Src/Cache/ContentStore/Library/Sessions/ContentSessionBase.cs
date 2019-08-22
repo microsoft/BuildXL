@@ -219,7 +219,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                             return message;
                         }
 
-                        return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime}ms";
+                        return message + $" Gate.OccupiedCount={result.Metadata.GateOccupiedCount} Gate.Wait={result.Metadata.GateWaitTime.TotalMilliseconds}ms";
                     },
                     counter: _counters[ContentSessionBaseCounters.PutFile]));
         }

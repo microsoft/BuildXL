@@ -126,6 +126,6 @@ public:
     bool ReportChildProcessSpawned(pid_t childPid);
 };
 
-#endif ES_SANDBOX
+#endif /* ES_SANDBOX */
 
 #endif /* AccessHandler_hpp */

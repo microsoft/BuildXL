@@ -24,6 +24,12 @@ typedef struct {
     uintptr_t runLoop;
 } ESConnectionInfo;
 
+enum class EventType {
+    IOEvent,
+    LookupEvent,
+    ProcessEvent
+};
+
 extern "C"
 {
     void InitializeEndpointSecuritySandbox(ESConnectionInfo *info, pid_t host);
@@ -41,18 +47,23 @@ private:
     
     Trie *trackedProcesses_;
     
-    /*! This is the number of observed ES events, keep this up to date with the active events in observed_events_ otherwise ES behaves very odd! */
-    static const int numberOfSubscribedEvents_ = 18;
-    
-    const es_event_type_t observed_events_[numberOfSubscribedEvents_] =
+    static const uint32_t numberOfSubscribedProcEvents_ = 3;
+    const es_event_type_t proc_observed_events_[numberOfSubscribedProcEvents_] =
     {
         // Process life cycle
         ES_EVENT_TYPE_NOTIFY_EXEC,
         ES_EVENT_TYPE_NOTIFY_FORK,
         ES_EVENT_TYPE_NOTIFY_EXIT,
-
-        // Process file operations
-        ES_EVENT_TYPE_NOTIFY_OPEN,
+    };
+    
+    static const uint32_t numberOfSubscribedIOEvents_ = 13;
+    const es_event_type_t io_observed_events_[numberOfSubscribedIOEvents_] =
+    {
+        // Process I/O operations
+        
+        // Currently deactivated, done through ES_EVENT_TYPE_NOTIFY_CLOSE
+        // ES_EVENT_TYPE_NOTIFY_OPEN,
+        
         ES_EVENT_TYPE_NOTIFY_CLOSE,
         ES_EVENT_TYPE_NOTIFY_CREATE,
         ES_EVENT_TYPE_NOTIFY_EXCHANGEDATA,
@@ -60,15 +71,17 @@ private:
         ES_EVENT_TYPE_NOTIFY_LINK,
         ES_EVENT_TYPE_NOTIFY_UNLINK,
         ES_EVENT_TYPE_NOTIFY_READLINK,
-        
         ES_EVENT_TYPE_NOTIFY_WRITE,
         ES_EVENT_TYPE_NOTIFY_SETATTRLIST,
         ES_EVENT_TYPE_NOTIFY_SETEXTATTR,
         ES_EVENT_TYPE_NOTIFY_SETFLAGS,
         ES_EVENT_TYPE_NOTIFY_SETMODE,
         ES_EVENT_TYPE_NOTIFY_SETOWNER,
-        
-          // Crashes with segmentation faults and assert violations frequently with serious workload (radar created)
+    };
+            
+    static const uint32_t numberOfSubscribedLookupEvents_ = 1;
+    const es_event_type_t lookup_observed_events_[numberOfSubscribedLookupEvents_] =
+    {
         ES_EVENT_TYPE_NOTIFY_LOOKUP
     };
 
@@ -109,8 +122,31 @@ public:
     
     inline CFRunLoopSourceContext* GetRunLoopSourceContext() { return &sourceContext_; }
     
-    inline es_event_type_t* GetSubscibedESEvents() { return (es_event_type_t*) observed_events_; }
-    inline int GetSubscribedESEventsCount() { return numberOfSubscribedEvents_; }
+    inline es_event_type_t* GetEventsForType(EventType type)
+    {
+        switch (type)
+        {
+            case EventType::ProcessEvent:
+                return (es_event_type_t*) proc_observed_events_;
+            case EventType::IOEvent:
+                return (es_event_type_t*) io_observed_events_;
+            case EventType::LookupEvent:
+                return (es_event_type_t*) lookup_observed_events_;
+        }
+    }
+    
+    inline int GetEventCountForType(EventType type)
+    {
+        switch (type)
+        {
+            case EventType::ProcessEvent:
+                return numberOfSubscribedProcEvents_;
+            case EventType::IOEvent:
+                return numberOfSubscribedIOEvents_;
+            case EventType::LookupEvent:
+                return numberOfSubscribedLookupEvents_;
+        }
+    }
     
     inline es_handler_block_t GetObservationHandler() { return esObservationHandler_; }
     

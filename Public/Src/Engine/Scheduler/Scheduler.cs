@@ -294,7 +294,7 @@ namespace BuildXL.Scheduler
         /// Holds change affected outputs of the build
         /// </summary>
         /// <remarks>
-        /// Only scheduler in master update output list. Results are passed to workers along with the pip execution request
+        /// Only scheduler in master update output list.
         /// </remarks>
         private AffectedOutputList m_affectedOutputList;
 
@@ -2284,17 +2284,17 @@ namespace BuildXL.Scheduler
 
                 if (!IsDistributedWorker && m_affectedOutputList != null && (pipType == PipType.CopyFile || pipType == PipType.Process))
                 {
-                    IReadOnlyCollection<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent;
+                    IReadOnlyCollection<FileArtifact> outputContent;
                     IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null;
                     PipResultStatus status = result.Status;
                    
                     if (pipType == PipType.CopyFile)
                     {
-                        outputContent = new List<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>() { (((CopyFile)(runnablePip.Pip)).Destination, new FileMaterializationInfo(), ToPipOutputOrigin(status)) };
+                        outputContent = new List<FileArtifact>() { ((CopyFile)(runnablePip.Pip)).Destination };
                     }
                     else
                     {
-                        outputContent = runnablePip.ExecutionResult.OutputContent;
+                        outputContent = runnablePip.ExecutionResult.OutputContent.Select(o => o.Item1).ToReadOnlyArray();
                         directoryOutputs = runnablePip.ExecutionResult.DirectoryOutputs.Select(d => d.directoryArtifact).AsReadOnlyCollection();
                     }
 
@@ -3548,7 +3548,7 @@ namespace BuildXL.Scheduler
                         processRunnable.Executed = true;
 
                         // Since the source change affected outputs are only maintained on the master, 
-                        // The Affected Inputs of the pip can only be computed on master.
+                        // The affected inputs of the pip can only be computed on master.
                         // The result will be set in the processRunnable and passed along to the worker who execute the process
                         if (!IsDistributedWorker && m_affectedOutputList != null && processRunnable.Process.ChangeAffectedInputListWrittenFilePath.IsValid)
                         {
@@ -4079,22 +4079,6 @@ namespace BuildXL.Scheduler
 
                 default:
                     throw Contract.AssertFailure("Do not know how to run pip " + pip);
-            }
-        }
-
-        private PipOutputOrigin ToPipOutputOrigin(PipResultStatus pipResultStatus)
-        {
-            switch (pipResultStatus)
-            {
-                case PipResultStatus.Succeeded:
-                    return PipOutputOrigin.Produced;
-                case PipResultStatus.UpToDate:
-                    return PipOutputOrigin.UpToDate;
-                case PipResultStatus.DeployedFromCache:
-                    return PipOutputOrigin.DeployedFromCache;
-                case PipResultStatus.NotMaterialized:
-                default:
-                    return PipOutputOrigin.NotMaterialized;
             }
         }
 
@@ -4929,9 +4913,9 @@ namespace BuildXL.Scheduler
                     DirectoryTranslator);
 
                 // Only master maintain the list
-                if (!IsDistributedBuild)
+                if (!IsDistributedWorker && "DynamicCodeCov".Equals(Environment.GetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType")))
                 {
-                    m_affectedOutputList = new AffectedOutputList(Context.PathTable);
+                    m_affectedOutputList = new AffectedOutputList(Context.PathTable, m_fileContentManager);
                     m_configuration.Sandbox.AreAllInputsAffected = m_affectedOutputList.InitialAffectedOutputList(inputChangeList, Context.PathTable);
                 }
             }

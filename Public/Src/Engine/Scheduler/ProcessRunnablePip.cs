@@ -60,7 +60,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Source change affected input of the pip
         /// </summary>
-        public IReadOnlyCollection<FileArtifact> ChangeAffectedInputs { get; set; }
+        public IReadOnlyCollection<AbsolutePath> ChangeAffectedInputs { get; set; }
 
     private readonly int m_weightBasedOnHistoricCpuUsage;
 

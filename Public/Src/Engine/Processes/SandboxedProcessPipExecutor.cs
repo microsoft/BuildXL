@@ -620,7 +620,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null, IReadOnlyCollection<FileArtifact> changeAffectedInputs = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null, IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
         {
             try
             {
@@ -2566,7 +2566,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// ChangeAffectedInputListFile file is created before executing pips that consume it
         /// </summary>
-        private async Task<bool> PrepareChangeAffectedInputListFile(IReadOnlyCollection<FileArtifact> changeAffectedInputs = null)
+        private async Task<bool> PrepareChangeAffectedInputListFile(IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
         {
             // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
             if (m_pip.ChangeAffectedInputListWrittenFilePath.IsValid && changeAffectedInputs != null)
@@ -2584,7 +2584,7 @@ namespace BuildXL.Processes
                        destination,
                        string.Join(
                            Environment.NewLine,
-                           changeAffectedInputs.Select(i => i.Path.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet()
+                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet()
                        ),
                     System.Text.Encoding.UTF8);
                 }

@@ -4,6 +4,7 @@ using System.Linq;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Artifacts;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.InputChange;
@@ -27,16 +28,19 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         private readonly ConcurrentBigSet<FileArtifact> m_sourceChangeAffectedOutputFiles = new ConcurrentBigSet<FileArtifact>();
 
         /// <summary>
-        /// Output file contents which affected by the source change of this build. 
+        /// Output directories which affected by the source change of this build. 
         /// </summary>
         private readonly ConcurrentBigSet<DirectoryArtifact> m_sourceChangeAffectedOutputDirectories = new ConcurrentBigSet<DirectoryArtifact>();
 
         private PathTable m_pathTable;
 
+        private FileContentManager m_fileContentManager;
+
         /// <nodoc />
-        public AffectedOutputList(PathTable pathTable)
+        public AffectedOutputList(PathTable pathTable, FileContentManager fileContentManager)
         {
             m_pathTable = pathTable;
+            m_fileContentManager = fileContentManager;
         }
 
         /// <summary>
@@ -81,13 +85,13 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         }
 
         /// <summary>
-        /// Compute the intersection of the pip's dependencies and global affected SourceChangeAffectedOutputs of the build
+        /// Compute the intersection of the pip's dependencies and global affected outputs of the build
         /// </summary>
-        public IReadOnlyCollection<FileArtifact> GetChangeAffectedInputs(Process process)
+        public IReadOnlyCollection<AbsolutePath> GetChangeAffectedInputs(Process process)
         {
-            var changeAffectedInputs = new HashSet<FileArtifact>();
+            var changeAffectedInputs = new HashSet<AbsolutePath>();
 
-            changeAffectedInputs.AddRange(GetSourceChangeAffectedOutputs().Intersect(process.Dependencies));
+            changeAffectedInputs.AddRange(GetSourceChangeAffectedOutputs().Intersect(process.Dependencies).Select(o => o.Path));
 
             foreach (var file in GetSourceChangeAffectedOutputs())
             {
@@ -95,7 +99,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                 {
                     if (file.Path.IsWithin(m_pathTable, directory.Path))
                     {
-                        changeAffectedInputs.Add(file);
+                        changeAffectedInputs.Add(file.Path);
                     }
                 }
             }
@@ -114,18 +118,18 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                                 if (attributes == FileAttributes.Archive)
                                 {
                                     var fullPath = Path.Combine(dir, fileName);
-                                    changeAffectedInputs.Add(new FileArtifact(AbsolutePath.Create(m_pathTable, fullPath)));
+                                    changeAffectedInputs.Add(AbsolutePath.Create(m_pathTable, fullPath));
                                 }
                             });
                     }
                 }
             }
 
-            return ReadOnlyArray<FileArtifact>.FromWithoutCopy(changeAffectedInputs.ToArray());
+            return ReadOnlyArray<AbsolutePath>.FromWithoutCopy(changeAffectedInputs.ToArray());
         }
 
         /// <summary>
-        /// Check if there is any output of this pip are affected by the source change
+        /// Check if the outputs of this pip are affected by the source change
         /// </summary>
         private bool IsOutputAffectedBySourceChange(
             PathTable pathTable,
@@ -151,16 +155,14 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations)
         {
-            // sourceChangeAffectedOutputFiles and sourceChangeAffectedOutputDirectroies 
-            // are initilized with the source change list.
-            // If it is null, that means no file or directory change for this build.
+            // sourceChangeAffectedOutputFiles is initilized with the source change list.
+            // If it is null, that means no file change for this build.
             // Thus no output is affected by the change.
 
             var sourceChangeAffectedOutputFiles = GetSourceChangeAffectedOutputs();
             var sourceChangeAffectedOutputDirectroies = GetSourceChangeAffectedOutputDirectories();
 
-            if ((sourceChangeAffectedOutputFiles == null || !sourceChangeAffectedOutputFiles.Any())
-                && (sourceChangeAffectedOutputDirectroies == null || !sourceChangeAffectedOutputDirectroies.Any()))
+            if (sourceChangeAffectedOutputFiles == null || !sourceChangeAffectedOutputFiles.Any())
             {
                 return false;
             }
@@ -181,7 +183,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                 {
                     foreach (var dynamicDir in dynamicallyObservedEnumerations)
                     {
-                        if (dynamicDir.IsWithin(pathTable, affectedDir))
+                        if (dynamicDir.IsWithin(pathTable, affectedDir) || affectedDir.Path.IsWithin(pathTable, dynamicDir))
                         {
                             return true;
                         }
@@ -189,9 +191,12 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
 
                     foreach (var staticDir in process.DirectoryDependencies)
                     {
-                        if (staticDir.Path.IsWithin(pathTable, affectedDir))
+                        foreach ( var content in m_fileContentManager.ListSealedDirectoryContents(staticDir))
                         {
-                            return true;
+                            if (content.Path.IsWithin(pathTable, affectedDir))
+                            {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -209,7 +214,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
 
                     foreach (var staticDir in process.DirectoryDependencies)
                     {
-                        if (affectedFile.Path.IsWithin(pathTable, staticDir.Path))
+                        if (m_fileContentManager.ListSealedDirectoryContents(staticDir).Contains(affectedFile))
                         {
                             return true;
                         }
@@ -226,7 +231,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
             Pip pip,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
-            IReadOnlyCollection<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)> outputContent = null,
+            IReadOnlyCollection<FileArtifact> outputContent = null,
             IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null)
         {
             if (IsOutputAffectedBySourceChange(m_pathTable, pip, dynamicallyObservedFiles, dynamicallyObservedEnumerations))
@@ -235,10 +240,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                 {
                     foreach (var output in outputContent)
                     {
-                        if (output.Item3 == PipOutputOrigin.Produced)
-                        {
-                            m_sourceChangeAffectedOutputFiles.GetOrAdd(output.Item1);
-                        }
+                        m_sourceChangeAffectedOutputFiles.GetOrAdd(output);
                     }
                 }
 

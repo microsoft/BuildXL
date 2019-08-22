@@ -1138,7 +1138,7 @@ namespace BuildXL.Scheduler
 
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
-            IReadOnlyCollection<FileArtifact> changeAffectedInputs = null,
+            IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null,
             Action<int> processIdListener = null,
             int expectedRamUsageMb = 0)
         {

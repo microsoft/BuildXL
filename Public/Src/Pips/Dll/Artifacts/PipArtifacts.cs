@@ -239,11 +239,11 @@ namespace BuildXL.Pips.Artifacts
         /// <summary>
         /// Gets the input files consumed by a pip, enumerate the input directories recuresively to get all files.
         /// </summary>
-        public static IReadOnlyCollection<FileArtifact> GetAllInputs(Process process, PathTable pathTable)
+        public static IReadOnlyCollection<AbsolutePath> GetAllInputs(Process process, PathTable pathTable)
         {
-            var inputs = new HashSet<FileArtifact>();
+            var inputs = new HashSet<AbsolutePath>();
 
-            inputs.AddRange(process.Dependencies);
+            inputs.AddRange(process.Dependencies.Select(d => d.Path));
 
             foreach (var inDir in process.DirectoryDependencies)
             {
@@ -255,11 +255,11 @@ namespace BuildXL.Pips.Artifacts
                         if (attributes == FileAttributes.Archive)
                         {
                             var fullPath = Path.Combine(dir, fileName);
-                            inputs.Add(new FileArtifact(AbsolutePath.Create(pathTable, fullPath)));
+                            inputs.Add(AbsolutePath.Create(pathTable, fullPath));
                         }
                     });
             }
-            return ReadOnlyArray<FileArtifact>.FromWithoutCopy(inputs.ToArray());
+            return ReadOnlyArray<AbsolutePath>.FromWithoutCopy(inputs.ToArray());
         }
     }
 }

@@ -20,6 +20,7 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public ChangeAffectedInputTests(ITestOutputHelper output) : base(output)
         {
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType", "DynamicCodeCov");
         }
 
         [Fact]
@@ -39,14 +40,30 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact bOutput = CreateOutputFileArtifact();
             FileArtifact changeAffectedWrittenFile = CreateOutputFileArtifact();
             var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) });
+            pipBuilderB.SetEnvironmentVariable(StringId.Create(Context.StringTable, "[Sdk.BuildXL]qCodeCoverageEnumType"), "");
+            SchedulePipBuilder(pipBuilderB);
+
+            RunScheduler().AssertSuccess();
+
+            ResetPipGraphBuilder();
+            SchedulePipBuilder(pipBuilderA);
+            SchedulePipBuilder(pipBuilderB);
+
+            RunScheduler().AssertCacheHit();
+
+            ResetPipGraphBuilder();
+            SchedulePipBuilder(pipBuilderA);
+            pipBuilderB.SetEnvironmentVariable(StringId.Create(Context.StringTable, "[Sdk.BuildXL]qCodeCoverageEnumType"), "DynamicCodeCov");
             pipBuilderB.SetChangeAffectedInputListWrittenFilePath(changeAffectedWrittenFile);
             SchedulePipBuilder(pipBuilderB);
+
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
             Configuration.Schedule.InputChanges = inputChangesFile.Path;
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType", "DynamicCodeCov");
 
-            RunScheduler().AssertSuccess();
+            RunScheduler().AssertCacheMiss();
 
             var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
             var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
@@ -218,9 +235,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(InputAccessType.DirectoryInput)]
         public void TransitiveAffectedDirectoryInputWithSealTest(InputAccessType pipBInputAccessType, bool accessExistingFile = false)
         {
-            // aInputDir -> (pipA) ->pip-a-out-file-> (seal) -> aOutputDir -> (pipB) -> bOutputDir -> (pipC) -> pip-c-out-file           
-            //  |- pip-a-input-file                /             |- pip-a-out-file                               |- pip-b-out-file   
-            //                       existing-file               |- existing-file
+            // aInputDir -> (pipA) ->pip-a-out-file-> (copy) ->pip-a-output-file-copy -> (seal) -> copyDir -> (pipB)     ->   bOutputDir -> (pipC) -> pip-c-out-file           
+            //  |- pip-a-input-file                                                 /               |- pip-a-output-file-copy  |- pip-b-out-file   
+            //                                                         existing-file                |- existing-file
             //                            
             // Execepted change affected input for pipC is pip-b-out-file          
 
@@ -235,7 +252,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             var aOutputDirPath = AbsolutePath.Create(Context.PathTable, aOutputDir);
             var aOutputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aOutputDirPath);
             var aOutputFileInOutputeDir = CreateOutputFileArtifact(root: aOutputDir, prefix: "pip-a-out-file");
-            var aExistingFileInOutputeDir = CreateSourceFile(root: aOutputDirPath, prefix: "existing-file");
+
+            var copyDir = Path.Combine(ObjectRoot, "copyDir");
+            var copyDirPath = AbsolutePath.Create(Context.PathTable, copyDir);
+            var copyFilePath = CreateSourceFile(root: copyDirPath, prefix: "pip-a-output-file-copy").Path;
+
+            var aExistingFileInOutputeDir = CreateSourceFile(root: copyDirPath, prefix: "existing-file");
             File.WriteAllText(ArtifactToString(aExistingFileInOutputeDir), "This is an existing file");
 
             var bOutDir = Path.Combine(ObjectRoot, "bOutputDir");
@@ -253,7 +275,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderA.AddInputDirectory(sealInputDir);
             var pipA = SchedulePipBuilder(pipBuilderA);
 
-            var sealedaOutput = SealDirectory(aOutputDirPath, SealDirectoryKind.Full, aExistingFileInOutputeDir, aOutputFileInOutputeDir);
+            var copiedFile = CopyFile(aOutputFileInOutputeDir, copyFilePath);
+            var sealedaOutput = SealDirectory(copyDirPath, SealDirectoryKind.Full, aExistingFileInOutputeDir, copiedFile);
 
             var operations = new List<Operation>() { };
             switch (pipBInputAccessType)
@@ -265,7 +288,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                     }
                     else
                     {
-                        operations.Add(Operation.ReadFile(aOutputFileInOutputeDir, doNotInfer: true));
+                        operations.Add(Operation.ReadFile(copiedFile, doNotInfer: true));
                     }                    
                     break;
                 case InputAccessType.DynamicDirEnumeration:

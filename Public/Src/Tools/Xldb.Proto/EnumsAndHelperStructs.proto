@@ -52,22 +52,24 @@ enum PipOutputOrigin{
 }
 
 enum PipExecutionStep{
-    PipExecutionStep_None = 0;
-    Start = 1;
-    Cancel = 2;
-    SkipDueToFailedDependencies = 3;
-    CheckIncrementalSkip = 4;
-    MaterializeInputs = 5;
-    MaterializeOutputs = 6;
-    ExecuteNonProcessPip = 7;
-    PipExecutionStep_CacheLookup = 8;
-    RunFromCache = 9;
-    ExecuteProcess = 10;
-    PostProcess = 11;
-    HandleResult = 12;
-    PipExecutionStep_ChooseWorkerCpu = 13;
-    PipExecutionStep_ChooseWorkerCacheLookup = 14;
-    Done = 15;
+    // Since PipExecutionStep is used as a key, we need an invalid enum for 0 
+    PipExecutionStep_Invalid = 0;
+    PipExecutionStep_None = 1;
+    Start = 2;
+    Cancel = 3;
+    SkipDueToFailedDependencies = 4;
+    CheckIncrementalSkip = 5;
+    MaterializeInputs = 6;
+    MaterializeOutputs = 7;
+    ExecuteNonProcessPip = 8;
+    PipExecutionStep_CacheLookup = 9;
+    RunFromCache = 10;
+    ExecuteProcess = 11;
+    PostProcess = 12;
+    HandleResult = 13;
+    PipExecutionStep_ChooseWorkerCpu = 14;
+    PipExecutionStep_ChooseWorkerCacheLookup = 15;
+    Done = 16;
 }
 
 enum WorkDispatcher_DispatcherKind{
@@ -272,8 +274,10 @@ enum ReportedFileOperation{
 }
 
 enum FingerprintComputationKind{
-    Execution = 0;
-    CacheCheck = 1;
+    // Since FingerprintComputationKind is used as a key, we need an invalid enum for 0 
+    FingerprintComputationKind_Invalid = 0;
+    Execution = 1;
+    CacheCheck = 2;
 }
 
 enum ObservedInputType{
@@ -320,15 +324,17 @@ enum GraphCacheFile{
 }
 
 enum PipType{
-    PipType_WriteFile = 0;
-    PipType_CopyFile = 1;
-    PipType_Process = 2;
-    PipType_Ipc = 3;
-    PipType_Value = 4;
-    PipType_SpecFile = 5;
-    PipType_Module = 6;
-    PipType_HashSourceFile = 7;
-    PipType_SealDirectory = 8;
+    // Since PipType is used as a key, we need an invalid enum for 0
+    PipType_Invalid = 0;
+    PipType_WriteFile = 1;
+    PipType_CopyFile = 2;
+    PipType_Process = 3;
+    PipType_Ipc = 4;
+    PipType_Value = 5;
+    PipType_SpecFile = 6;
+    PipType_Module = 7;
+    PipType_HashSourceFile = 8;
+    PipType_SealDirectory = 9;
 }
 
 enum SealDirectoryType{
@@ -768,12 +774,6 @@ message ProcessStrongFingerprintComputationData{
 
 message DirectoryFingerprint{
     ContentHash Hash = 1;
-}
-
-message DirectoryOutput{
-    DirectoryArtifact DirectoryArtifact = 1;
-    
-    repeated FileArtifact fileArtifactArray = 2;
 }
 
 message DirectoryArtifact{

@@ -2,14 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
-using Google.Protobuf;
 using BuildXL.Xldb.Proto;
-using PipType = BuildXL.Xldb.Proto.PipType;
+using Google.Protobuf;
 
 namespace BuildXL.Xldb
 {
@@ -70,6 +70,7 @@ namespace BuildXL.Xldb
             m_eventParserDictionary.Add(ExecutionEventId.BxlInvocation, BXLInvocationEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipExecutionDirectoryOutputs, PipExecutionDirectoryOutputsEvent.Parser);
 
+            // We only store non-meta pips into this database, so module, hash, value, and specfile are not included
             m_pipParserDictionary.Add(PipType.CopyFile, CopyFile.Parser);
             m_pipParserDictionary.Add(PipType.WriteFile, WriteFile.Parser);
             m_pipParserDictionary.Add(PipType.Process, ProcessPip.Parser);
@@ -80,18 +81,30 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all the events of a certain type from the DB
         /// </summary>
-        /// <returns>List of events, empty if no such event exists</returns>
+        /// <returns>List of events, empty if no such events exist</returns>
         private IEnumerable<IMessage> GetEventsByType(ExecutionEventId eventTypeID)
         {
             Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
-            var storedEvents = new List<IMessage>();
             var eventQuery = new EventTypeQuery
             {
                 EventTypeID = eventTypeID,
             };
 
-            if (!m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
+            return GetEventsByQuery(eventQuery);
+        }
+
+        /// <summary>
+        /// Gets events from the DB based on the eventQuery
+        /// </summary>
+        /// <returns>List of events, empty if no such events exist</returns>
+        private IEnumerable<IMessage> GetEventsByQuery(EventTypeQuery eventQuery)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var storedEvents = new List<IMessage>();
+
+            if (!m_eventParserDictionary.TryGetValue(eventQuery.EventTypeID, out var parser))
             {
                 return storedEvents;
             }
@@ -112,37 +125,172 @@ namespace BuildXL.Xldb
             return storedEvents;
         }
 
-        public IMessage GetEventByKey(ExecutionEventId eventTypeID, uint pipID)
+        /// <summary>
+        /// Gets a depdendency violated events by key
+        /// </summary>
+        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolatedEventByKey(uint violatorPipID, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var eventQuery = new EventTypeQuery
+            {
+                EventTypeID = ExecutionEventId.DependencyViolationReported,
+                ViolatorPipID = violatorPipID,
+                WorkerID = workerID
+            };
+
+            return GetEventsByQuery(eventQuery).Cast<DependencyViolationReportedEvent>();
+        }
+
+        /// <summary>
+        /// Gets pip execution step performance events by key
+        /// </summary>
+        public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = 0, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var eventQuery = new EventTypeQuery
+            {
+                EventTypeID = ExecutionEventId.PipExecutionStepPerformanceReported,
+                WorkerID = workerID,
+                PipId = pipID,
+                PipExecutionStepPerformanceKey = new PipExecutionStepPerformanceKey()
+                {
+                    Step = pipExecutionStep
+                }
+            };
+
+            return GetEventsByQuery(eventQuery).Cast<PipExecutionStepPerformanceReportedEvent>();
+        }
+
+        /// <summary>
+        /// Gets process fingerprint computation events by key
+        /// </summary>
+        public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var eventQuery = new EventTypeQuery
+            {
+                EventTypeID = ExecutionEventId.ProcessFingerprintComputation,
+                WorkerID = workerID,
+                PipId = pipID,
+                ProcessFingerprintComputationKey = new ProcessFingerprintComputationKey()
+                {
+                    Kind = computationKind
+                }
+            };
+
+            return GetEventsByQuery(eventQuery).Cast<ProcessFingerprintComputationEvent>();
+        }
+
+        /// <summary>
+        /// Gets directory membership hashed event by key
+        /// </summary>
+        public IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var eventQuery = new EventTypeQuery
+            {
+                EventTypeID = ExecutionEventId.DirectoryMembershipHashed,
+                WorkerID = workerID,
+                PipId = pipID,
+                DirectoryMembershipHashedKey = new DirectoryMembershipHashedKey()
+                {
+                    Path = directoryPath
+                }
+            };
+
+            return GetEventsByQuery(eventQuery).Cast<DirectoryMembershipHashedEvent>();
+        }
+
+        /// <summary>
+        /// Gets pip execution directory output event by key
+        /// </summary>
+        public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = null, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var eventQuery = new EventTypeQuery
+            {
+                EventTypeID = ExecutionEventId.PipExecutionDirectoryOutputs,
+                WorkerID = workerID,
+                PipId = pipID,
+                PipExecutionDirectoryOutputKey = new PipExecutionDirectoryOutputKey()
+                {
+                    Path = directoryPath
+                }
+            };
+
+            return GetEventsByQuery(eventQuery).Cast<PipExecutionDirectoryOutputsEvent>();
+        }
+
+        /// <summary>
+        /// Gets file artficat content decided event by key
+        /// </summary>
+        public IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int rewriteCount = 0, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+
+            var eventQuery = new EventTypeQuery
+            {
+                EventTypeID = ExecutionEventId.FileArtifactContentDecided,
+                WorkerID = workerID,
+                FileArtifactContentDecidedKey = new FileArtifactContentDecidedKey()
+                {
+                    Path = directoryPath,
+                    ReWriteCount = rewriteCount
+                }
+            };
+
+            return GetEventsByQuery(eventQuery).Cast<FileArtifactContentDecidedEvent>();
+        }
+
+        /// <summary>
+        /// Gets pip execution performance events by key
+        /// </summary>
+        public IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            return GetPipIdEvents(ExecutionEventId.PipExecutionPerformance, pipID, workerID).Cast<PipExecutionPerformanceEvent>();
+        }
+
+        /// <summary>
+        /// Gets process execution monitoring reported events by key
+        /// </summary>
+        public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            return GetPipIdEvents(ExecutionEventId.ProcessExecutionMonitoringReported, pipID, workerID).Cast<ProcessExecutionMonitoringReportedEvent>();
+        }
+
+        /// <summary>
+        /// Gets pip cache miss events by key
+        /// </summary>
+        public IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint workerID = 0)
+        {
+            Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
+            return GetPipIdEvents(ExecutionEventId.PipCacheMiss, pipID, workerID).Cast<PipCacheMissEvent>();
+        }
+
+        /// <summary>
+        /// Get events that only use PipID as the key
+        /// </summary>
+        private IEnumerable<IMessage> GetPipIdEvents(ExecutionEventId eventTypeID, uint pipID, uint workerID = 0)
         {
             Contract.Requires(Accessor != null, "XldbStore must be initialized via OpenDatastore first");
 
             var eventQuery = new EventTypeQuery
             {
                 EventTypeID = eventTypeID,
-                PipId = pipID
+                PipId = pipID,
+                WorkerID = workerID
             };
 
-            if (!m_eventParserDictionary.TryGetValue(eventTypeID, out var parser))
-            {
-                return null;
-            }
-
-            var maybeFound = Accessor.Use(database =>
-            {
-                foreach (var kvp in database.PrefixSearch(eventQuery.ToByteArray(), EventColumnFamilyName))
-                {
-                    return parser.ParseFrom(kvp.Value);
-                }
-                return null;
-            });
-
-            if (!maybeFound.Succeeded)
-            {
-                maybeFound.Failure.Throw();
-            }
-
-            return maybeFound.Result;
+            return GetEventsByQuery(eventQuery);
         }
+
 
         /// <summary>
         /// Returns the count and payload of events by the event type
@@ -251,7 +399,7 @@ namespace BuildXL.Xldb
         public IEnumerable<PipCacheMissEvent> GetPipCacheMissEvents() => GetEventsByType(ExecutionEventId.PipCacheMiss).Cast<PipCacheMissEvent>();
 
         /// <summary>
-        /// Gets all the BXL Invocation Events
+        /// Gets all the BXL Invocation Events.
         /// </summary>
         public IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.BxlInvocation).Cast<BXLInvocationEvent>();
 
@@ -333,6 +481,79 @@ namespace BuildXL.Xldb
 
             return foundPip;
         }
+
+        /// <summary>
+        /// Gets all pips of a certain type. If 0 is passed into pipType, gets all pips.
+        /// </summary>
+        /// <returns>Returns list of all pips of certain type, empty if no such pips exist.</returns>
+        public IEnumerable<IMessage> GetAllPipsByType(PipType pipType)
+        {
+            var storedPips = new List<IMessage>();
+
+            if (!m_pipParserDictionary.TryGetValue(pipType, out var parser) && pipType != PipType.Invalid)
+            {
+                return storedPips;
+            }
+
+            var pipQuery = new PipQueryPipId();
+
+            var maybeFound = Accessor.Use(database =>
+            {
+                foreach (var kvp in database.PrefixSearch(pipQuery.ToByteArray(), PipColumnFamilyName))
+                {
+                    var pipKey = PipQueryPipId.Parser.ParseFrom(kvp.Key);
+                    if (pipType != PipType.Invalid)
+                    {
+                        // PipType is not invalid (0), so we can use the parser since all the pips will be of the same type
+                        if(pipKey.PipType == pipType)
+                        {
+                            storedPips.Add(parser.ParseFrom(kvp.Value));
+                        }
+                    }
+                    else
+                    {
+                        // PipType is invalid (ie 0) which means prefix search will match all pips stored.
+                        // We need to get the parser for each of the different pips that we encounter in this case
+                        if (m_pipParserDictionary.TryGetValue(pipKey.PipType, out var parser))
+                        {
+                            storedPips.Add(parser.ParseFrom(kvp.Value));
+                        }
+                    }
+                }
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return storedPips;
+        }
+
+        /// <summary>
+        /// Gets all Process Pips
+        /// </summary>
+        public IEnumerable<ProcessPip> GetAllProcessPips() => GetAllPipsByType(PipType.Process).Cast<ProcessPip>();
+
+        /// <summary>
+        /// Gets all WriteFile Pips
+        /// </summary>
+        public IEnumerable<WriteFile> GetAllWriteFilePips () => GetAllPipsByType(PipType.WriteFile).Cast<WriteFile>();
+
+        /// <summary>
+        /// Gets all CopyFile Pips
+        /// </summary>
+        public IEnumerable<CopyFile> GetAllCopyFilePips() => GetAllPipsByType(PipType.CopyFile).Cast<CopyFile>();
+
+        /// <summary>
+        /// Gets all IPC Pips
+        /// </summary>
+        public IEnumerable<IpcPip> GetAllIPCPips() => GetAllPipsByType(PipType.Ipc).Cast<IpcPip>();
+
+        /// <summary>
+        /// Gets all Seal Directory Pips
+        /// </summary>
+        public IEnumerable<SealDirectory> GetAllSealDirectoryPips() => GetAllPipsByType(PipType.SealDirectory).Cast<SealDirectory>();
 
         /// <summary>
         /// Gets the pip graph meta data

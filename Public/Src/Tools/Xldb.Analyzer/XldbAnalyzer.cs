@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using BuildXL.Xldb.Proto;
 using BuildXL.Xldb;
+using BuildXL.Xldb.Proto;
 
 namespace Xldb.Analyzer
 {
@@ -236,18 +236,25 @@ namespace Xldb.Analyzer
                         break;
                 }
 
-                writer.WriteLine(pipType.ToString());
-                writer.WriteLine(pip.ToString());
+                writer.WriteLine($"PipType: {pipType.ToString()}");
+                writer.WriteLine("Pip Information: \n" + pip.ToString());
 
+                uint pipId = castedPip.GraphInfo.PipId;
+
+                writer.WriteLine("Bxl Invocation Information:\n");
                 dataStore.GetBXLInvocationEvents().ToList().ForEach(ev => writer.WriteLine(ev.ToString()));
+                writer.WriteLine("Pip Execution Performance Information:\n");
+                dataStore.GetPipExecutionPerformanceEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(i));
+                writer.WriteLine("Pip Execution Step Performance Information:\n");
+                dataStore.GetPipExecutionStepPerformanceEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(i));
+                writer.WriteLine("Process Execution Monitoring Information:\n");
+                dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(i));
+                writer.WriteLine("Process Fingerprint Computation Information:\n");
+                dataStore.GetProcessFingerprintComputationEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(i));
+                writer.WriteLine("Directory Membership Hashted Information:\n");
+                dataStore.GetDirectoryMembershipHashedEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(i));
 
-                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionPerformance, castedPip.GraphInfo.PipId)?.ToString() ?? "PipExecutionPerformance empty or null");
-                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.PipExecutionStepPerformanceReported, castedPip.GraphInfo.PipId)?.ToString() ?? "PipExecutionStepPerformanceReported empty or null");
-                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessExecutionMonitoringReported, castedPip.GraphInfo.PipId)?.ToString() ?? "ProcessExecutionMonitoringReported empty or null");
-                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ProcessFingerprintComputation, castedPip.GraphInfo.PipId)?.ToString() ?? "ProcessFingerprintComputation empty or null");
-                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.ObservedInputs, castedPip.GraphInfo.PipId)?.ToString() ?? "ObservedInputs empty or null");
-                writer.WriteLine(dataStore.GetEventByKey(ExecutionEventId.DirectoryMembershipHashed, castedPip.GraphInfo.PipId)?.ToString() ?? "DirectoryMembershipHashed empty or null");
-
+                writer.WriteLine("Dependency Violation Reported Event:\n");
                 var depViolatedEvents = dataStore.GetDependencyViolationReportedEvents();
 
                 foreach (var ev in depViolatedEvents)
@@ -264,12 +271,9 @@ namespace Xldb.Analyzer
                     var pipExecutionDirEvents = dataStore.GetPipExecutionDirectoryOutputsEvents();
                     foreach (var ev in pipExecutionDirEvents)
                     {
-                        foreach (var dirOutput in ev.DirectoryOutput)
+                        if (castedPip.DirectoryOutputs.Contains(ev.DirectoryArtifact))
                         {
-                            if (castedPip.DirectoryOutputs.Contains(dirOutput.DirectoryArtifact))
-                            {
-                                dirOutput.FileArtifactArray.ToList().ForEach(file => writer.WriteLine(file.ToString()));
-                            }
+                            ev.FileArtifactArray.ToList().ForEach(file => writer.WriteLine(file.ToString()));
                         }
                     }
 

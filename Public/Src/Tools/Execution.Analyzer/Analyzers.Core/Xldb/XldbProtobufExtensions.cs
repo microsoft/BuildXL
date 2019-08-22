@@ -194,7 +194,7 @@ namespace BuildXL.Execution.Analyzer
             var processFingerprintComputationEvent = new ProcessFingerprintComputationEvent
             {
                 WorkerID = workerID,
-                Kind = (Xldb.Proto.FingerprintComputationKind)data.Kind,
+                Kind = (Xldb.Proto.FingerprintComputationKind)(data.Kind + 1),
                 PipID = data.PipId.Value,
                 WeakFingerprint = new WeakContentFingerPrint()
                 {
@@ -306,7 +306,7 @@ namespace BuildXL.Execution.Analyzer
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
                 Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(data.Duration),
-                Step = (PipExecutionStep)data.Step,
+                Step = (PipExecutionStep)(data.Step + 1),
                 Dispatcher = (WorkDispatcher_DispatcherKind)data.Dispatcher
             };
 
@@ -374,30 +374,6 @@ namespace BuildXL.Execution.Analyzer
             };
 
             return bxlInvEvent;
-        }
-
-        /// <nodoc />
-        public static PipExecutionDirectoryOutputsEvent ToPipExecutionDirectoryOutputsEvent(this PipExecutionDirectoryOutputs data, uint workerID, PathTable pathTable)
-        {
-            var pipExecDirectoryOutputEvent = new PipExecutionDirectoryOutputsEvent
-            {
-                WorkerID = workerID
-            };
-
-            foreach (var (directoryArtifact, fileArtifactArray) in data.DirectoryOutputs)
-            {
-                var directoryOutput = new DirectoryOutput()
-                {
-                    DirectoryArtifact = directoryArtifact.ToDirectoryArtifact(pathTable)
-                };
-
-                directoryOutput.FileArtifactArray.AddRange(
-                    fileArtifactArray.Select(
-                        file => file.ToFileArtifact(pathTable)));
-                pipExecDirectoryOutputEvent.DirectoryOutput.Add(directoryOutput);
-            }
-
-            return pipExecDirectoryOutputEvent;
         }
 
         /// <nodoc />

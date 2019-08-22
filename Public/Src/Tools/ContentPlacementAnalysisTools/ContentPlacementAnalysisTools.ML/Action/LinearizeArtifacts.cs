@@ -34,10 +34,11 @@ namespace ContentPlacementAnalysisTools.ML.Action
         }
 
         /// <summary>
-        /// This action takes a set of artifacts (from a single build) and groups them in an accumulator
+        /// Linearize artifacts one by one
         /// </summary>
         protected override LinearizeArtifactsOutput Perform(LinearizeArtifactsInput input)
         {
+            string currentFile = null;
             try
             {
                 var totalIpips = 0;
@@ -46,6 +47,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
                 // we are supposed to have a set of files here
                 foreach (var file in Directory.EnumerateFiles(input.ArtifactFolder, "*.json"))
                 {
+                    currentFile = file;
                     // so in here we will read a single input file and classify its artifacts
                     var artifact = new JsonSerializer().Deserialize<ArtifactWithBuildMeta>(
                         new JsonTextReader(
@@ -66,6 +68,11 @@ namespace ContentPlacementAnalysisTools.ML.Action
                 // done...
                 return new LinearizeArtifactsOutput(linear.Queues.Count, linear);
             }
+            catch(Exception)
+            {
+                s_logger.Error($"Artifact [{currentFile}] reported an exception");
+                throw;
+            }
             finally
             {
                 // this guy will not log, this task is too small and that will hurt performance
@@ -82,6 +89,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
             linear.AvgWeightForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
             linear.AvgTagCountForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
             linear.AvgSemaphoreCountForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+            linear.AvgPositionForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
             linear.AvgInputPips /= linear.Builds.Count;
             // output
             linear.AvgDepsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
@@ -91,6 +99,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
             linear.AvgWeightForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
             linear.AvgTagCountForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
             linear.AvgSemaphoreCountForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+            linear.AvgPositionForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
             linear.AvgOutputPips /= linear.Builds.Count;
         }
 
@@ -130,7 +139,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
                 avgPos += inputPips? CalculateRelativeStartPosition(pip, artifact.Meta) : CalculateRelativeEndPosition(pip, artifact.Meta);
                 ++pipCount;
             }
-            // now assign dependeing on type
+            // now assign depending on type
             if (inputPips)
             {
                 linear.AvgDepsForInputPips += avgDeps;
@@ -232,7 +241,9 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// The linearized artifact
         /// </summary>
         public MLArtifact Linear { get; }
-
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public LinearizeArtifactsOutput(int nq, MLArtifact lin) 
         {
             NumQueues = nq;

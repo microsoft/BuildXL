@@ -653,7 +653,7 @@ namespace Test.BuildXL.Scheduler
 
                 // Should not throw
                 Analysis.IgnoreResult(violation.ReportingType);
-                Analysis.IgnoreResult(violation.RenderForMessage(testContext.PathTable));
+                Analysis.IgnoreResult(violation.RenderForDFASummary(testContext.PathTable));
                 Analysis.IgnoreResult(violation.LegendText);
             }
         }

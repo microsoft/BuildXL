@@ -595,14 +595,14 @@ namespace BuildXL.Scheduler
                         }
 
                         // Write out the access information
-                        builder.AppendLine(worstAccess.RenderForMessage(pathTable));
+                        builder.AppendLine(worstAccess.RenderForDFASummary(pathTable));
                         legendText.Add(worstAccess.LegendText);
                     }
 
                     builder.AppendLine();
                 }
 
-                // Display summary information
+                // Display summary information for what file access abbreviations mean
                 if (legendText.Count > 0)
                 {
                     foreach (string line in legendText.OrderBy(s => s))
@@ -613,6 +613,7 @@ namespace BuildXL.Scheduler
                     builder.AppendLine();
                 }
 
+                // Reference any replated pips
                 if (relatedNodes.Count > 0)
                 {
                     builder.AppendLine("Violations related to pip(s):");
@@ -648,6 +649,83 @@ namespace BuildXL.Scheduler
                 ViolationMakesPipUncacheable = violationMakesPipUncacheable;
             }
 
+            /// <summary>
+            /// A simplified violation type for sake of displaying in the DisallowedFileAccess summary message
+            /// </summary>
+            public SimplifiedViolationType ReportingType
+            {
+                get
+                {
+                    switch (Type)
+                    {
+                        case DependencyViolationType.DoubleWrite:
+                            return SimplifiedViolationType.DoubleWrite;
+                        case DependencyViolationType.ReadRace:
+                        case DependencyViolationType.UndeclaredOrderedRead:
+                        case DependencyViolationType.MissingSourceDependency:
+                        case DependencyViolationType.UndeclaredReadCycle:
+                        case DependencyViolationType.ReadUndeclaredOutput:
+                            return SimplifiedViolationType.Read;
+                        case DependencyViolationType.UndeclaredOutput:
+                        case DependencyViolationType.WriteInSourceSealDirectory:
+                        case DependencyViolationType.WriteInUndeclaredSourceRead:
+                        case DependencyViolationType.WriteInExistingFile:
+                        case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
+                        case DependencyViolationType.WriteOnAbsentPathProbe:
+                            return SimplifiedViolationType.Write;
+                        case DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque:
+                            return SimplifiedViolationType.Probe;
+                        default:
+                            throw new NotImplementedException("Need to implement for: " + Type.ToString());
+                    }   
+                }
+            }
+
+            /// <summary>
+            /// Renders the violation for display in the DFA summary
+            /// </summary>
+            public string RenderForDFASummary(PathTable pathTable)
+            {
+                string path = Path.ToString(pathTable);
+                switch (ReportingType)
+                {
+                    case SimplifiedViolationType.Probe:
+                        return " P  " + path;
+                    case SimplifiedViolationType.Read:
+                        return " R  " + path;
+                    case SimplifiedViolationType.Write:
+                        return " W  " + path;
+                    case SimplifiedViolationType.DoubleWrite:
+                        return " DW  " + path;
+                    default:
+                        throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
+                }
+            }
+
+            /// <summary>
+            /// Legend informaiton to display in the DFA summary
+            /// </summary>
+            public string LegendText
+            {
+                get
+                {
+                    switch (ReportingType)
+                    {
+                        case SimplifiedViolationType.Probe:
+                            return "P = Probe to an absent path";
+                        case SimplifiedViolationType.Read:
+                            return "R = Read";
+                        case SimplifiedViolationType.Write:
+                            return "W = Write";
+                        case SimplifiedViolationType.DoubleWrite:
+                            return "DW = Double Write";
+                        default:
+                            throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
+                    }
+                }
+            }
+
+            #region IEquatable
             public bool Equals(ReportedViolation other)
             {
                 return IsError == other.IsError &&
@@ -685,102 +763,21 @@ namespace BuildXL.Scheduler
                     ProcessPath.GetHashCode(),
                     ViolationMakesPipUncacheable.GetHashCode());
             }
-
-            /// <summary>
-            /// Determines whether the current violation is a write violation
-            /// </summary>
-            public bool IsWriteViolation
-            {
-                get
-                {
-                    switch (Type)
-                    {
-                        case DependencyViolationType.DoubleWrite:
-                        case DependencyViolationType.UndeclaredOutput:
-                        case DependencyViolationType.WriteOnAbsentPathProbe:
-                        case DependencyViolationType.WriteInUndeclaredSourceRead:
-                        case DependencyViolationType.WriteInExistingFile:
-                            return true;
-                        default:
-                            return false;
-                    }
-                }
-            }
-
-            public SimplifiedViolationType ReportingType
-            {
-                get
-                {
-                    switch (Type)
-                    {
-                        case DependencyViolationType.DoubleWrite:
-                            return SimplifiedViolationType.DoubleWrite;
-                        case DependencyViolationType.ReadRace:
-                        case DependencyViolationType.UndeclaredOrderedRead:
-                        case DependencyViolationType.MissingSourceDependency:
-                        case DependencyViolationType.UndeclaredReadCycle:
-                        case DependencyViolationType.ReadUndeclaredOutput:
-                            return SimplifiedViolationType.Read;
-                        case DependencyViolationType.UndeclaredOutput:
-                        case DependencyViolationType.WriteInSourceSealDirectory:
-                        case DependencyViolationType.WriteInUndeclaredSourceRead:
-                        case DependencyViolationType.WriteInExistingFile:
-                        case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
-                        case DependencyViolationType.WriteOnAbsentPathProbe:
-                            return SimplifiedViolationType.Write;
-                        case DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque:
-                            return SimplifiedViolationType.Probe;
-                        default:
-                            throw new NotImplementedException("Need to implement for: " + Type.ToString());
-                    }   
-                }
-            }
-
-            public string RenderForMessage(PathTable pathTable)
-            {
-                string path = Path.ToString(pathTable);
-                switch (ReportingType)
-                {
-                    case SimplifiedViolationType.Probe:
-                        return " P  " + path;
-                    case SimplifiedViolationType.Read:
-                        return " R  " + path;
-                    case SimplifiedViolationType.Write:
-                        return " W  " + path;
-                    case SimplifiedViolationType.DoubleWrite:
-                        return " DW  " + path;
-                    default:
-                        throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
-                }
-            }
-
-            public string LegendText
-            {
-                get
-                {
-                    switch (ReportingType)
-                    {
-                        case SimplifiedViolationType.Probe:
-                            return "P = Probe to an absent path";
-                        case SimplifiedViolationType.Read:
-                            return "R = Read";
-                        case SimplifiedViolationType.Write:
-                            return "W = Write";
-                        case SimplifiedViolationType.DoubleWrite:
-                            return "DW = Double Write";
-                        default:
-                            throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
-                    }
-                }
-            }
+            #endregion
         }
 
-        public enum SimplifiedViolationType
+        /// <summary>
+        /// A simplified summary of the violation that controls what gets rendered in the DFA summary message
+        /// </summary>
+        /// <remarks>
+        /// These need to remain ordered in terms of increasing precedence 
+        /// </remarks>
+        public enum SimplifiedViolationType : byte
         {
-            Probe = 1,
-            Read = 2,
-            Write = 3,
-            DoubleWrite = 4,
+            Probe = 0,
+            Read = 1,
+            Write = 2,
+            DoubleWrite = 3,
         }
 
         /// <summary>

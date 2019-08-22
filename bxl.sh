@@ -48,7 +48,17 @@ function setMinimal() {
 }
 
 function setInternal() {
-    arg_Positional+=(/sandboxKind:macOsKext "/p:[Sdk.BuildXL]microsoftInternal=1")
+    arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
+    
+    for arg in "$@" 
+    do
+        to_lower=`printf '%s\n' "$arg" | awk '{ print tolower($0) }'`
+        if [[ " $to_lower " == *"endpointsecurity"* ]]; then
+            return
+        fi
+    done
+    
+    arg_Positional+=(/sandboxKind:macOsKext)
 }
 
 function compileWithBxl() {
@@ -123,7 +133,7 @@ if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
 fi
 
 if [[ -n "$arg_Internal" ]]; then
-    setInternal
+    setInternal $@
 fi
 
 if [[ -n "$arg_UseDev" ]]; then

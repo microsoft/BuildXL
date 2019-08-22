@@ -26,20 +26,24 @@ namespace Test.DScript.Ast.Interpretation
             var spec = @"
 export const x = Unsafe.outputFile(p`a/b/c`);
 export const y = Unsafe.outputFile(p`d/e/f`, 2);
+export const xPath = p`a/b/c`;
+export const yPath = p`d/e/f`;
 ";
             var result = Build()
                 .AddSpec("spec.dsc", spec)
                 .RootSpec("spec.dsc")
-                .EvaluateExpressionsWithNoErrors("x", "y");
+                .EvaluateExpressionsWithNoErrors("x", "y", "xPath", "yPath");
 
             var x = result.Get<FileArtifact>("x");
             var y = result.Get<FileArtifact>("y");
+            var xPath = result.Get<AbsolutePath>("xPath");
+            var yPath = result.Get<AbsolutePath>("yPath");
 
             XAssert.IsTrue(x.IsOutputFile);
-            XAssert.IsTrue(x.Path.ToString(PathTable).EndsWith(@"a\b\c", System.StringComparison.OrdinalIgnoreCase));
+            XAssert.AreEqual(xPath, x.Path);
             XAssert.IsTrue(y.IsOutputFile);
             XAssert.AreEqual(2, y.RewriteCount);
-            XAssert.IsTrue(y.Path.ToString(PathTable).EndsWith(@"d\e\f", System.StringComparison.OrdinalIgnoreCase));
+            XAssert.AreEqual(yPath, y.Path);
         }
 
         [Fact]
@@ -47,16 +51,18 @@ export const y = Unsafe.outputFile(p`d/e/f`, 2);
         {
             var spec = @"
 export const x = Unsafe.exOutputDirectory(p`a/b/c`);
+export const xPath = p`a/b/c`;
 ";
             var result = Build()
                 .AddSpec("spec.dsc", spec)
                 .RootSpec("spec.dsc")
-                .EvaluateExpressionsWithNoErrors("x");
+                .EvaluateExpressionsWithNoErrors("x", "xPath");
 
             var x = result.Get<DirectoryArtifact>("x");
+            var xPath = result.Get<AbsolutePath>("xPath");
 
             XAssert.AreEqual((uint)0, x.PartialSealId);
-            XAssert.IsTrue(x.Path.ToString(PathTable).EndsWith(@"a\b\c", System.StringComparison.OrdinalIgnoreCase));            
+            XAssert.AreEqual(xPath, x.Path);            
         }
     }
 }

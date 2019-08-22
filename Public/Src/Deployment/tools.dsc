@@ -16,15 +16,11 @@ namespace Tools {
 
         export const deployment : Deployment.Definition = {
             contents: [
-                importFrom("BuildXL.Tools").Xldb.Analyzer.withQualifier({
-                    configuration: qualifier.configuration,
-                    targetFramework: "netcoreapp3.0",
-                    targetRuntime: "win-x64"
-                }).exe,
+                importFrom("BuildXL.Tools").Xldb.Analyzer.exe,
             ]
         };
     
-        const deployed = Context.getCurrentHost().os !== "win" ? undefined : BuildXLSdk.DeploymentHelpers.deploy({
+        const deployed = BuildXLSdk.DeploymentHelpers.deploy({
             definition: deployment,
             targetLocation: r`${qualifier.configuration}/tools/XldbAnalyzer/${qualifier.targetRuntime}`,
         });

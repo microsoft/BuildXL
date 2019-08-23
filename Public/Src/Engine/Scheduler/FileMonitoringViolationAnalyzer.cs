@@ -137,7 +137,7 @@ namespace BuildXL.Scheduler
             /// Detected a write inside a source seal directory
             /// </summary>
             WriteInSourceSealDirectory,
-            
+
             /// <summary>
             /// Detected a write to the same path that is treated as an undeclared source file
             /// </summary>
@@ -295,18 +295,23 @@ namespace BuildXL.Scheduler
                         isWhitelistedViolation: true);
                 }
 
-                var errorPaths = new HashSet<AccessViolationPath>();
-                var warningPaths = new HashSet<AccessViolationPath>();
+                var errorPaths = new HashSet<ReportedViolation>();
+                var warningPaths = new HashSet<ReportedViolation>();
 
                 // For violation analysis results
                 if (reportedDependencyViolations != null)
                 {
-                    Func<ReportedFileAccess, AccessViolationPath?> getAccessViolationPath =
+                    Func<ReportedFileAccess, ReportedViolation?> getAccessViolationPath =
                         a =>
                         {
                             if (TryGetAccessedAndProcessPaths(pip, a, out var path, out var processPath))
                             {
-                                return new AccessViolationPath(path, a.IsWriteViolation, processPath);
+                                return new ReportedViolation(isError: false,
+                                    a.IsWriteViolation ? DependencyViolationType.UndeclaredOutput : DependencyViolationType.UndeclaredOrderedRead, 
+                                    path: path, 
+                                    violatorPipId: pip.PipId, 
+                                    relatedPipId: null, 
+                                    processPath: processPath);
                             }
 
                             // The failure to parse the accessed path has already been logged in TryParseAbsolutePath.
@@ -315,7 +320,7 @@ namespace BuildXL.Scheduler
 
                     if (violations.Count != reportedDependencyViolations.Length)
                     {
-                        // Populated non-reported violations.
+                        // Populated non-reported violations. Note that this modifies the underlying errorPaths and warningPaths hashet
                         var errorOrWarningPaths = m_unexpectedFileAccessesAsErrors ? errorPaths : warningPaths;
 
                         // If unexpectedFileAccessesAsErrors is false, then (violations - reportedDependencyViolations) are warnings.
@@ -340,8 +345,7 @@ namespace BuildXL.Scheduler
                 if (reportedDependencyViolationsForWhitelisted != null && reportedDependencyViolationsForWhitelisted.Length > 0)
                 {
                     // If /validateDistribution is enabled, we need to log errors from reportedDependencyViolationsForWhitelisted.
-                    var errors = reportedDependencyViolationsForWhitelisted.Where(a => a.IsError)
-                        .Select(a => new AccessViolationPath(a.Path, a.IsWriteViolation, a.ProcessPath));
+                    var errors = reportedDependencyViolationsForWhitelisted.Where(a => a.IsError);
                     errorPaths.UnionWith(errors);
                 }
 
@@ -384,7 +388,7 @@ namespace BuildXL.Scheduler
             foreach (var content in convergedContent)
             {
                 // If the converged content changed, then the allowed double write becomes a true violation
-                if (allowedDoubleWriteViolations.TryGetValue(content.fileArtifact, out var originalContentAndViolation) && 
+                if (allowedDoubleWriteViolations.TryGetValue(content.fileArtifact, out var originalContentAndViolation) &&
                     originalContentAndViolation.fileMaterializationInfo.Hash != content.fileInfo.Hash)
                 {
                     ReportedViolation violation = originalContentAndViolation.reportedViolation;
@@ -392,18 +396,18 @@ namespace BuildXL.Scheduler
 
                     disallowedViolationsOnConvergence.Add(
                         HandleDependencyViolation(
-                            violation.Type, 
-                            AccessLevel.Write, 
-                            violation.Path, 
-                            (Process) m_graph.HydratePip(violation.ViolatorPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations), 
+                            violation.Type,
+                            AccessLevel.Write,
+                            violation.Path,
+                            (Process)m_graph.HydratePip(violation.ViolatorPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                             isWhitelistedViolation: false,
                             (Process)m_graph.HydratePip(violation.RelatedPipId.Value, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations),
                             violation.ProcessPath));
                 }
             }
 
-            var errorPaths = new HashSet<AccessViolationPath>();
-            var warningPaths = new HashSet<AccessViolationPath>();
+            var errorPaths = new HashSet<ReportedViolation>();
+            var warningPaths = new HashSet<ReportedViolation>();
             PopulateErrorsAndWarnings(disallowedViolationsOnConvergence, errorPaths, warningPaths);
 
             LogErrorsAndWarnings(pip, errorPaths, warningPaths);
@@ -440,14 +444,14 @@ namespace BuildXL.Scheduler
 
             using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.AnalyzeDynamicViolationsDuration))
             {
-                var errorPaths = new HashSet<AccessViolationPath>();
-                var warningPaths = new HashSet<AccessViolationPath>();
+                var errorPaths = new HashSet<ReportedViolation>();
+                var warningPaths = new HashSet<ReportedViolation>();
 
                 List<ReportedViolation> dynamicViolations = ReportDynamicViolations(
-                    pip, 
-                    exclusiveOpaqueDirectoryContent, 
-                    sharedOpaqueDirectoryWriteAccesses, 
-                    allowedUndeclaredReads, 
+                    pip,
+                    exclusiveOpaqueDirectoryContent,
+                    sharedOpaqueDirectoryWriteAccesses,
+                    allowedUndeclaredReads,
                     absentPathProbesUnderOutputDirectories,
                     GetOutputArtifactInfoMap(pip, outputsContent),
                     // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
@@ -495,15 +499,20 @@ namespace BuildXL.Scheduler
             return dynamicViolations;
         }
 
-        private void LogErrorsAndWarnings(Process pip, HashSet<AccessViolationPath> errorPaths, HashSet<AccessViolationPath> warningPaths)
+        private void LogErrorsAndWarnings(Process pip, HashSet<ReportedViolation> errorPaths, HashSet<ReportedViolation> warningPaths)
         {
+            Func<PipId, string> getDescription = (pipId) =>
+            {
+                return m_graph.HydratePip(pipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations).GetDescription(Context);
+            };
+
             if (errorPaths.Count > 0)
             {
                 Logger.Log.FileMonitoringError(
                     LoggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(Context),
-                    AggregateAccessViolationPaths(errorPaths, Context.PathTable));
+                    AggregateAccessViolationPaths(errorPaths, Context.PathTable, getDescription));
             }
 
             if (warningPaths.Count > 0)
@@ -512,7 +521,7 @@ namespace BuildXL.Scheduler
                     LoggingContext,
                     pip.SemiStableHash,
                     pip.GetDescription(Context),
-                    AggregateAccessViolationPaths(warningPaths, Context.PathTable));
+                    AggregateAccessViolationPaths(warningPaths, Context.PathTable, getDescription));
             }
         }
 
@@ -523,133 +532,103 @@ namespace BuildXL.Scheduler
                    && AbsolutePath.TryCreate(Context.PathTable, reportedAccess.Process.Path, out processPath);
         }
 
-        private readonly struct AccessViolationPath : IEquatable<AccessViolationPath>
+
+        private void PopulateErrorsAndWarnings(IEnumerable<ReportedViolation> reportedDependencyViolations, ISet<ReportedViolation> errorPaths, ISet<ReportedViolation> warningPaths)
         {
-            public readonly AbsolutePath FilePath;
-            public readonly bool IsWriteViolation;
-            public readonly AbsolutePath ProcessPath;
-
-            public AccessViolationPath(AbsolutePath path, bool writeViolation, AbsolutePath processPath)
-            {
-                FilePath = path;
-                IsWriteViolation = writeViolation;
-                ProcessPath = processPath;
-            }
-
-            public bool Equals(AccessViolationPath other)
-            {
-                return IsWriteViolation == other.IsWriteViolation && FilePath.Value == other.FilePath.Value && ProcessPath == other.ProcessPath;
-            }
-
-            public override bool Equals(object obj)
-            {
-                return StructUtilities.Equals(this, obj);
-            }
-
-            public static bool operator ==(AccessViolationPath left, AccessViolationPath right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(AccessViolationPath left, AccessViolationPath right)
-            {
-                return !left.Equals(right);
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(FilePath.GetHashCode() , ProcessPath.GetHashCode());
-            }
-        }
-
-        private void PopulateErrorsAndWarnings(IEnumerable<ReportedViolation> reportedDependencyViolations, ISet<AccessViolationPath> errorPaths, ISet<AccessViolationPath> warningPaths)
-        {
-            var errors = reportedDependencyViolations.Where(a => a.IsError).Select(a => new AccessViolationPath(a.Path, a.IsWriteViolation, a.ProcessPath));
-            var warnings = reportedDependencyViolations.Where(a => !a.IsError).Select(a => new AccessViolationPath(a.Path, a.IsWriteViolation, a.ProcessPath));
+            var errors = reportedDependencyViolations.Where(a => a.IsError);
+            var warnings = reportedDependencyViolations.Where(a => !a.IsError);
 
             (m_unexpectedFileAccessesAsErrors ? errorPaths : warningPaths).UnionWith(errors);
             warningPaths.UnionWith(warnings);
         }
 
-        /// <summary>
-        /// Compresses the log message, so it only contains a single line for each path
-        /// </summary>
-        private static string AggregateAccessViolationPaths(HashSet<AccessViolationPath> paths, PathTable pathTable)
+        internal static string AggregateAccessViolationPaths(HashSet<ReportedViolation> paths, PathTable pathTable, Func<PipId, string> getPipDescription)
         {
             using (var wrap = Pools.GetStringBuilder())
             {
                 var builder = wrap.Instance;
-                foreach (var processNameGroup in paths.GroupBy(path => path.ProcessPath))
+
+                HashSet<PipId> relatedNodes = new HashSet<PipId>();
+                HashSet<string> legendText = new HashSet<string>();
+
+                // Handle each process observed to have file accesses
+                var accessesByProcesses = paths.ToMultiValueDictionary(item => item.ProcessPath, item => item);
+                foreach (var accessByProcess in accessesByProcesses.OrderBy(item => item.Key.ToString(pathTable), StringComparer.OrdinalIgnoreCase))
                 {
-                    var arr = processNameGroup.GroupBy(path => path.FilePath, path => path.IsWriteViolation)
-                        // skip elements with invalid paths
-                        .Where(a => a.Key.IsValid)
-                        // reconstruct the violation descriptions using the same format
-                        // for each file, combine all violation types into a single entry (with Write-type violations taking the precedence)
-                        .Select(a => (a.Any(b => b) ? ReportedFileAccess.WriteDescriptionPrefix : ReportedFileAccess.ReadDescriptionPrefix) + a.Key.ToString(pathTable))
-                        .ToArray();
+                    var processPath = accessByProcess.Key;
+                    var processAccessesByPath = accessByProcess.Value.ToMultiValueDictionary(item => item.Path, item => item);
 
-                    Array.Sort(arr, StringComparer.OrdinalIgnoreCase);
-                    builder.AppendLine($"Disallowed file accesses performed by: {processNameGroup.Key.ToString(pathTable)}");
-                    builder.AppendLine(string.Join(Environment.NewLine, arr));
-                }
-                // cutting the trailing line break
-                return builder.ToString().Trim();
-            }
-        }
+                    bool printedProcessHeaderRow = false;
 
-        public readonly struct ReportedViolation
-        {
-            public readonly bool IsError;
-            public readonly PipId? RelatedPipId;
-            public readonly AbsolutePath Path;
-            public readonly DependencyViolationType Type;
-            public readonly PipId ViolatorPipId;
-            public readonly AbsolutePath ProcessPath;
-            public readonly bool ViolationMakesPipUncacheable;
-
-            public ReportedViolation(bool isError, DependencyViolationType type, AbsolutePath path, PipId violatorPipId, PipId? relatedPipId, AbsolutePath processPath, bool violationMakesPipUncacheable = true)
-            {
-                IsError = isError;
-                Type = type;
-                Path = path;
-                ViolatorPipId = violatorPipId;
-                RelatedPipId = relatedPipId;
-                ProcessPath = processPath;
-                ViolationMakesPipUncacheable = violationMakesPipUncacheable;
-            }
-
-            /// <summary>
-            /// Creates a short description of the operation and path. The following is the summary for writing bar.txt and
-            /// reading bar2.txt:
-            /// 
-            /// W c:\foo\bar.txt
-            /// R c:\foo\bar2.txt
-            /// </summary>
-            public string ShortDescribe(PathTable pathTable)
-            {
-                return (IsWriteViolation ? ReportedFileAccess.WriteDescriptionPrefix : ReportedFileAccess.ReadDescriptionPrefix) + Path.ToString(pathTable);
-            }
-
-            /// <summary>
-            /// Determines whether the current violation is a write violation
-            /// </summary>
-            public bool IsWriteViolation
-            {
-                get
-                {
-                    switch (Type)
+                    // Handle each path accessed by that process
+                    foreach (var pathsAccessed in processAccessesByPath.OrderBy(item => item.Key.ToString(pathTable), StringComparer.OrdinalIgnoreCase))
                     {
-                        case DependencyViolationType.DoubleWrite:
-                        case DependencyViolationType.UndeclaredOutput:
-                        case DependencyViolationType.WriteOnAbsentPathProbe:
-                        case DependencyViolationType.WriteInUndeclaredSourceRead:
-                        case DependencyViolationType.WriteInExistingFile:
-                            return true;
-                        default:
-                            return false;
+                        var path = pathsAccessed.Key;
+                        if (!path.IsValid)
+                        {
+                            // skip elements with invalid paths
+                            continue;
+                        }
+
+                        if (!printedProcessHeaderRow)
+                        {
+                            builder.AppendLine($"Disallowed file accesses performed by: {processPath.ToString(pathTable)}");
+                            printedProcessHeaderRow = true;
+                        }
+
+                        // There may be more than one access for the same path under the process. We pick the "worst" access to display
+                        ReportedViolation worstAccess = new ReportedViolation();
+                        for (int i = 0; i < pathsAccessed.Value.Count; i++)
+                        {
+                            var thisAccess = pathsAccessed.Value[i];
+
+                            // Collect any relatedNodes if applicable to display at the end of the message
+                            if (thisAccess.RelatedPipId.HasValue && thisAccess.RelatedPipId.Value.IsValid)
+                            {
+                                relatedNodes.Add(thisAccess.RelatedPipId.Value);
+                            }
+
+                            if (i == 0)
+                            {
+                                worstAccess = thisAccess;
+                            }
+                            else if(thisAccess.ReportingType > worstAccess.ReportingType)
+                            {
+                                worstAccess = thisAccess;
+                            }
+                        }
+
+                        // Write out the access information
+                        builder.AppendLine(worstAccess.RenderForDFASummary(pathTable));
+                        legendText.Add(worstAccess.LegendText);
+                    }
+
+                    builder.AppendLine();
+                }
+
+                // Display summary information for what file access abbreviations mean
+                if (legendText.Count > 0)
+                {
+                    foreach (string line in legendText.OrderBy(s => s))
+                    {
+                        builder.AppendLine(line);
+                    }
+
+                    builder.AppendLine();
+                }
+
+                // Reference any replated pips
+                if (relatedNodes.Count > 0)
+                {
+                    builder.AppendLine("Violations related to pip(s):");
+                    foreach (var pipId in relatedNodes)
+                    {
+                        builder.AppendLine(getPipDescription(pipId));
                     }
                 }
+
+                // cutting the trailing line break
+                return builder.ToString().Trim();
             }
         }
 

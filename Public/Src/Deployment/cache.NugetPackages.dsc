@@ -29,7 +29,7 @@ namespace Cache.NugetPackages {
                     Net472DistributedCacheHost.Configuration.dll,
                     Net472DistributedCacheHost.Service.dll,
                 ]
-            }
+            },
         ]
     };
 

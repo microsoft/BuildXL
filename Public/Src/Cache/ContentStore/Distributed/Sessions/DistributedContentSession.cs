@@ -99,16 +99,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             });
         }
 
-        private Task<TResult> PerformPutFileGatedOperationAsync<TResult>(OperationContext operationContext, Func<Task<TResult>> func)
+        private Task<PutResult> PerformPutFileGatedOperationAsync(OperationContext operationContext, Func<Task<PutResult>> func)
         {
-            return _putFileGate.GatedOperationAsync((timeWaiting) =>
+            return _putFileGate.GatedOperationAsync(async (timeWaiting) =>
             {
-                if (timeWaiting > Settings.PutFileWaitWarning)
-                {
-                    Tracer.Info(operationContext, $"Spent {timeWaiting} waiting for PutFile gate, exceeding deadline of {Settings.PutFileWaitWarning}");
-                }
+                var gateOccupiedCount = Settings.MaximumConcurrentPutFileOperations - _putFileGate.CurrentCount;
 
-                return func();
+                var result = await func();
+                result.Metadata = new PutResult.ExtraMetadata()
+                {
+                    GateWaitTime = timeWaiting,
+                    GateOccupiedCount = gateOccupiedCount,
+                };
+
+                return result;
             }, operationContext.Token);
         }
 
@@ -179,7 +183,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (putResult.Succeeded && Settings.EnableProactiveCopy)
             {
-                RequestProactiveCopyIfNeededAsync(context, putResult.ContentHash).FireAndForget(context);
+                // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
+                WithOperationContext(
+                    context,
+                    CancellationToken.None,
+                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, putResult.ContentHash)
+                ).FireAndForget(context);
             }
 
             return putResult;

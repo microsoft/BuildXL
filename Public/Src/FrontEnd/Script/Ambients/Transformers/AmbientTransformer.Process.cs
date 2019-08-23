@@ -135,7 +135,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_toolPrepareTempDirectory;
         private SymbolAtom m_toolDescription;
         private SymbolAtom m_weight;
-        
+        private SymbolAtom m_changeAffectedInputListWrittenFile;
+
         private SymbolAtom m_runtimeEnvironmentMinimumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMaximumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMinimumClrVersion;
@@ -247,6 +248,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
             m_weight = Symbol("weight");
             m_priority = Symbol("priority");
+            m_changeAffectedInputListWrittenFile = Symbol("changeAffectedInputListWrittenFile");
 
             m_argN = Symbol("n");
             m_argV = Symbol("v");
@@ -434,6 +436,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (consoleErrorOutput.IsValid)
             {
                 processBuilder.SetStandardErrorFile(consoleErrorOutput);
+            }
+
+            var changeAffectedInputListWrittenFile = Converter.ExtractPath(obj, m_changeAffectedInputListWrittenFile, allowUndefined: true);
+            if (changeAffectedInputListWrittenFile.IsValid)
+            {
+                processBuilder.SetChangeAffectedInputListWrittenFile(changeAffectedInputListWrittenFile);
             }
 
             // Environment variables.

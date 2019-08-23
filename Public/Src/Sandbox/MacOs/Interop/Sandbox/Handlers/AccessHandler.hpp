@@ -4,7 +4,7 @@
 #ifndef AccessHandler_hpp
 #define AccessHandler_hpp
 
-#ifdef ES_SANDBOX
+#if ES_SANDBOX
 
 #include "ESSandbox.h"
 #include "SandboxedPip.hpp"
@@ -126,6 +126,6 @@ public:
     bool ReportChildProcessSpawned(pid_t childPid);
 };
 
-#ifdef ES_SANDBOX
+#endif /* ES_SANDBOX */
 
 #endif /* AccessHandler_hpp */

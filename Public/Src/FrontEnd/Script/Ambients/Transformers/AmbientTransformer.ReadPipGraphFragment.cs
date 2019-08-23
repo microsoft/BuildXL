@@ -49,7 +49,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             context.FrontEndHost.Engine.RecordFrontEndFile(file.Path, "DScript");
 
             int id = Interlocked.Increment(ref s_uniqueFragmentId);
-            var readFragmentTask = context.FrontEndHost.PipGraphFragmentManager.AddFragmentFileToGraph(id, file, deps, description);
+            var readFragmentTask = context.FrontEndHost.PipGraphFragmentManager.AddFragmentFileToGraph(file, description);
             return EvaluationResult.Create(id);
         }
     }

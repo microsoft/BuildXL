@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifdef ES_SANDBOX
+#if ES_SANDBOX
 
 #include <signal.h>
 #include "ESSandbox.h"
@@ -12,19 +12,11 @@
 // initialized below in InitializeEndpointSecuritySandbox (which is called once by the host process)
 static ESSandbox *sandbox;
 
-void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg, pid_t host)
+void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg)
 {
     pid_t pid = audit_token_to_pid(msg->process->audit_token);
     
-    // Mute all events comming from BuildXL itself
-    if (pid == host)
-    {
-        es_mute_process(client, &msg->process->audit_token);
-        return;
-    }
-    
     IOHandler handler = IOHandler(sandbox);
-    
     if (handler.TryInitializeWithTrackedProcess(pid))
     {
         switch (msg->event_type)
@@ -84,7 +76,7 @@ extern "C"
     {
         sandbox = new ESSandbox(^(es_client_t *client, const es_message_t *msg)
         {
-            processEndpointSecurityEvent(client, msg, host);
+            processEndpointSecurityEvent(client, msg);
         });
         
         es_client_t *client;
@@ -158,10 +150,26 @@ extern "C"
         
         // Subsribe and activate the ES client
         
-        es_return_t status = es_subscribe(client, sandbox->GetSubscibedESEvents(), sandbox->GetSubscribedESEventsCount());
+        es_return_t status = es_subscribe(client, sandbox->GetEventsForType(EventType::ProcessEvent), sandbox->GetEventCountForType(EventType::ProcessEvent));
         if (status != ES_RETURN_SUCCESS)
         {
-            log_error("%s", "Failed subscribing to EndpointSecurity events, please check the sandbox configuration!");
+            log_error("%s", "Failed subscribing to EndpointSecurity process lifetime events, please check the sandbox configuration!");
+            if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
+            return;
+        }
+        
+        status = es_subscribe(client, sandbox->GetEventsForType(EventType::IOEvent), sandbox->GetEventCountForType(EventType::IOEvent));
+        if (status != ES_RETURN_SUCCESS)
+        {
+            log_error("%s", "Failed subscribing to EndpointSecurity I/O events, please check the sandbox configuration!");
+            if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
+            return;
+        }
+        
+        status = es_subscribe(client, sandbox->GetEventsForType(EventType::LookupEvent), sandbox->GetEventCountForType(EventType::LookupEvent));
+        if (status != ES_RETURN_SUCCESS)
+        {
+            log_error("%s", "Failed subscribing to EndpointSecurity lookup events, please check the sandbox configuration!");
             if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
             return;
         }

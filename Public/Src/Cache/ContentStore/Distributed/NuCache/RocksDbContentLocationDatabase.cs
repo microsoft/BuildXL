@@ -154,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
                             return BoolResult.Success;
-                        }, extraStartMessage: $"ColumnFamily={columnFamilyName}");
+                        }, messageFactory: _ => $"ColumnFamily={columnFamilyName}");
 
                         if (!result.Succeeded)
                         {
@@ -555,9 +555,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
         {
-            store.ApplyBatch(
-                pairs.Select(pair => db.GetKey(pair.Key)),
-                pairs.Select(pair => pair.Value != null ? db.SerializeContentLocationEntry(pair.Value) : null));
+            store.ApplyBatch(pairs.Select(
+                kvp => new KeyValuePair<byte[], byte[]>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null)));
             return Unit.Void;
         }
 
@@ -703,7 +702,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
         
         /// <inheritdoc />
-        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
             var selectors = new List<(long TimeUtc, Selector Selector)>();
             var status = _keyValueStore.Use(
@@ -721,15 +720,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 });
 
-            var result = new List<GetSelectorResult>(selectors
-                .OrderByDescending(entry => entry.TimeUtc)
-                .Select(entry => new GetSelectorResult(entry.Selector)));
             if (!status.Succeeded)
             {
-                result.Add(new GetSelectorResult(status.Failure.CreateException()));
+                return new Result<IReadOnlyList<Selector>>(status.Failure.CreateException());
             }
 
-            return result;
+            return new Result<IReadOnlyList<Selector>>(selectors
+                .OrderByDescending(entry => entry.TimeUtc)
+                .Select(entry => entry.Selector).ToList());
         }
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)

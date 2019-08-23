@@ -276,7 +276,7 @@ namespace BuildXL.Execution.Analyzer
             m_writer.WriteLine();
         }
 
-        private string NormalizeString(string s)
+        public static string NormalizeString(string s)
         {
             return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }

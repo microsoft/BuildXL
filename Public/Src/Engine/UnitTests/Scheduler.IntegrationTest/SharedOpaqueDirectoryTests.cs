@@ -1257,6 +1257,28 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void ReadWrittenFileUnderSharedOpaqueIsAllowed()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            FileArtifact outputInSharedOpaqueDir = CreateOutputFileArtifact(root: sharedOpaqueDir, prefix: "sod-file");
+            FileArtifact sourceFile = CreateSourceFile();
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(sourceFile),
+                Operation.WriteFile(outputInSharedOpaqueDir, doNotInfer: true),
+                Operation.Probe(outputInSharedOpaqueDir, doNotInfer: true),
+                Operation.ReadFile(outputInSharedOpaqueDir, doNotInfer: true)
+            });
+            builder.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            var pip = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertCacheMiss().AssertSuccess();
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

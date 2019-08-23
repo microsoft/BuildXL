@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -1360,6 +1361,7 @@ namespace BuildXL.Scheduler
                     // create fingerprint store copy in logs.
                     await FingerprintStore.CopyAsync(
                         m_loggingContext,
+                        m_testHooks?.FingerprintStoreTestHooks,
                         Context.PathTable,
                         m_configuration,
                         m_fingerprintStoreCounters);
@@ -2352,8 +2354,8 @@ namespace BuildXL.Scheduler
                     bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
                         || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
 
-                    // Early terminate the build if 
-                    // (1) StopOnFirstError is enabled or 
+                    // Early terminate the build if
+                    // (1) StopOnFirstError is enabled or
                     // (2) a materialization error is occurred in a distributed build.
                     bool earlyTerminate = m_scheduleConfiguration.StopOnFirstError || (hasMaterializationErrorHappened && IsDistributedMaster);
 
@@ -4757,10 +4759,20 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-                        
-                        sandboxConnection = OperatingSystemHelper.IsMacOSCatalinaOrHigher 
-                            ? ((ISandboxConnection) new SandboxConnectionES()) 
-                            : ((ISandboxConnection) new SandboxConnectionKext(config));
+
+                        switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
+                        {
+                            case SandboxKind.MacOsEndpointSecurity:
+                            {
+                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES();
+                                break;
+                            }
+                            default:
+                            {
+                                sandboxConnection = (ISandboxConnection) new SandboxConnectionKext(config);
+                                break;
+                            }
+                        }
 
                         if (m_performanceAggregator != null && config.KextConfig.Value.ResourceThresholds.IsProcessThrottlingEnabled())
                         {
@@ -4773,7 +4785,7 @@ namespace BuildXL.Scheduler
                                     : Convert.ToUInt32(Math.Round(availableRam));
                                 sandboxConnection.NotifyUsage(cpuUsageBasisPoints, availableRamMB);
                             };
-                        }   
+                        }
                     }
 
                     SandboxConnection = sandboxConnection;
@@ -4857,7 +4869,7 @@ namespace BuildXL.Scheduler
             if (m_configuration.Schedule.InputChanges.IsValid)
             {
                 inputChangeList = InputChangeList.CreateFromFile(
-                    loggingContext, 
+                    loggingContext,
                     m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
@@ -6409,7 +6421,7 @@ namespace BuildXL.Scheduler
 
             if (cancelQueue)
             {
-                // We cancel the queue for more aggressive but still graceful cancellation. 
+                // We cancel the queue for more aggressive but still graceful cancellation.
                 m_pipQueue.Cancel();
             }
         }

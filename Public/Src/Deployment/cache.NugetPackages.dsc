@@ -22,21 +22,12 @@ namespace Cache.NugetPackages {
     export const tools : Deployment.Definition = {
         contents: [
             {
-                subfolder: r`tools\net472`,
+                subfolder: r`tools`,
                 contents: [
                     Net472ContentStore.App.exe,
                     Net472MemoizationStore.App.exe,
                     Net472DistributedCacheHost.Configuration.dll,
                     Net472DistributedCacheHost.Service.dll,
-                ]
-            },
-            {
-                subfolder: r`tools\netcoreapp3.0\win-x64`,
-                contents: [
-                    WinX64ContentStore.App.exe,
-                    WinX64MemoizationStore.App.exe,
-                    WinX64DistributedCacheHost.Configuration.dll,
-                    WinX64DistributedCacheHost.Service.dll,
                 ]
             }
         ]

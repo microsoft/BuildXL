@@ -1,9 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -107,10 +105,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private CounterCollection<FlushableCacheCounters> PerformFlush(OperationContext context)
         {
-            var counters = new CounterCollection<FlushableCacheCounters>();
-            var stopwatch = new Stopwatch();
-
             _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Increment();
+            var counters = new CounterCollection<FlushableCacheCounters>();
 
             using (_database.Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
             {
@@ -119,8 +115,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _flushingCache = _cache;
                     _cache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
                 }
-
-                stopwatch.Start();
 
                 using (counters[FlushableCacheCounters.FlushingTime].Start()) {
                     if (_configuration.FlushSingleTransaction)
@@ -148,7 +142,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 counters[FlushableCacheCounters.Persisted].Add(_flushingCache.Count);
-                stopwatch.Restart();
 
                 _database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Add(_flushingCache.Count);
 

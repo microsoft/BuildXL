@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace ContentPlacementAnalysisTools.Core
 {
@@ -45,7 +47,10 @@ namespace ContentPlacementAnalysisTools.Core
             "NonShared"
         };
 
-        private static readonly Regex s_guidRegex = new Regex("([0-9a-f]{8}[-:_]{1}[0-9a-f]{4}[-:_]{1}[0-9a-f]{4}[-:_]{1}[0-9a-f]{4}[-:_]{1}[0-9a-f]{12})");
+        private static readonly Dictionary<string, int> s_sharingClassIds = new Dictionary<string, int> {
+            ["Shared"] = 0,
+            ["NonShared"] = 1
+        };
 
         /// <summary>
         /// The hash of this object 
@@ -148,7 +153,7 @@ namespace ContentPlacementAnalysisTools.Core
                 string.Join(
                     ",",
                     Queues.Count > 1 ? s_sharingClassLabels[0] : s_sharingClassLabels[1],
-                    Queues.Count > 1 ? 0 : 1,
+                    s_sharingClassIds[Queues.Count > 1 ? s_sharingClassLabels[0] : s_sharingClassLabels[1]],
                     Queues.Count,
                     Builds.Count,
                     SizeBytes,
@@ -172,6 +177,45 @@ namespace ContentPlacementAnalysisTools.Core
                     AvgSemaphoreCountForOutputPips
                 )
            );
+
+        /// <summary>
+        /// Represents an artifact as instance, mainly for testing purposes
+        /// </summary>
+        public Dictionary<string, double> AsInstance()
+        {
+            var instance = new Dictionary<string, double>
+            {
+                ["Class"] = s_sharingClassIds[Queues.Count > 1 ? s_sharingClassLabels[0] : s_sharingClassLabels[1]],
+                ["SizeBytes"] = SizeBytes,
+                ["AvgInputPips"] = AvgInputPips,
+                ["AvgOutputPips"] = AvgOutputPips,
+                ["AvgPositionForInputPips"] = AvgPositionForInputPips,
+                ["AvgPositionForOutputPips"] = AvgPositionForOutputPips,
+                ["AvgDepsForInputPips"] = AvgDepsForInputPips,
+                ["AvgDepsForOutputPips"] = AvgDepsForOutputPips,
+                ["AvgInputsForInputPips"] = AvgInputsForInputPips,
+                ["AvgInputsForOutputPips"] = AvgInputsForOutputPips,
+                ["AvgOutputsForInputPips"] = AvgOutputsForInputPips,
+                ["AvgOutputsForOutputPips"] = AvgOutputsForOutputPips,
+                ["AvgPriorityForInputPips"] = AvgPriorityForInputPips,
+                ["AvgPriorityForOutputPips"] = AvgPriorityForOutputPips,
+                ["AvgWeightForInputPips"] = AvgWeightForInputPips,
+                ["AvgWeightForOutputPips"] = AvgWeightForOutputPips,
+                ["AvgTagCountForInputPips"] = AvgTagCountForInputPips,
+                ["AvgTagCountForOutputPips"] = AvgTagCountForOutputPips,
+                ["AvgSemaphoreCountForInputPips"] = AvgSemaphoreCountForInputPips,
+                ["AvgSemaphoreCountForOutputPips"] = AvgSemaphoreCountForOutputPips
+            };
+            return instance;
+        }
+
+        /// <summary>
+        /// For testing purposes, compares the real class with the prediced class
+        /// </summary>
+        public static bool Evaluate(Dictionary<string, double> instance, string cl)
+        {
+            return s_sharingClassLabels[(int)instance["Class"]] == cl;
+        } 
     }
 
     /// <summary>
@@ -208,7 +252,7 @@ namespace ContentPlacementAnalysisTools.Core
     }
 
     /// <summary>
-    ///The configuation necessary to run a random tree
+    ///The configuation necessary to create a random tree IN WEKA
     /// </summary>
     public sealed class RandomTreeConfiguration
     {
@@ -221,20 +265,22 @@ namespace ContentPlacementAnalysisTools.Core
     public class RandomTreeNode
     {
         public static readonly string NoClass = "NOT_FROM_CLASS";
-        public string OutputClass { get; set; } = null;
+        public int Id { get; set; }
+        public string OutputClass { get; set; }
         public RandomTreeNode Parent { get; set; }
         public List<RandomTreeNode> Children { get; set; } = new List<RandomTreeNode>();
         public Predicate<Dictionary<string, double>> EvaluationPredicate { get; set; }
         public int Level { get; set; }
 
-        public bool Evaluate(Dictionary<string, double> instance) => EvaluationPredicate.Invoke(instance);
+        internal bool Evaluate(Dictionary<string, double> instance) => EvaluationPredicate.Invoke(instance);
 
-        public static RandomTreeNode BuildFromString(string predicateLine)
+        internal static RandomTreeNode BuildFromString(string predicateLine, int id)
         {
             var node = new RandomTreeNode
             {
                 // get the level, i.e., the number of '|' in the string
-                Level = DetermineLevel(predicateLine)
+                Level = DetermineLevel(predicateLine),
+                Id = id
             };
             // parse predicate. They look like: |   AvgDepsForOutputPips < 3446.5
             // or: AvgTagCountForOutputPips < 10.13 : Shared (4/1)
@@ -267,25 +313,75 @@ namespace ContentPlacementAnalysisTools.Core
         }
     }
 
+    /// <summary>
+    /// A random tree, as a set of interconnected nodes
+    /// </summary>
     public class RandomTree
     {
-        public List<RandomTreeNode> Roots { get; set; }
+        /// <summary>
+        /// These are the roots of the tree, since this kind of tree is not necessarily single root
+        /// </summary>
+        public List<RandomTreeNode> Roots { get; set; } = new List<RandomTreeNode>();
 
-        public static RandomTree FromStream(StreamReader reader)
+        internal string Evaluate(Dictionary<string, double> instance)
+        {
+            foreach (var root in Roots)
+            {
+                var evaluation = Evaluate(root, instance);
+                if (evaluation != RandomTreeNode.NoClass)
+                {
+                    return evaluation;
+                }
+            }
+            return RandomTreeNode.NoClass;
+        }
+
+        internal string Evaluate(RandomTreeNode node, Dictionary<string, double> instance)
+        {
+            var stack = new Stack<RandomTreeNode>();
+            stack.Push(node);
+            while (stack.Any())
+            {
+                var next = stack.Pop();
+                if (next.Evaluate(instance))
+                {
+                    if (next.OutputClass == null)
+                    {
+                        foreach (var child in next.Children)
+                        {
+                            stack.Push(child);
+                        }
+                    }
+                    else
+                    {
+                        return next.OutputClass;
+                    }
+                }
+            }
+            // tree could not classify instance...
+            return RandomTreeNode.NoClass;
+        }
+
+        internal static RandomTree FromStream(StreamReader reader, string firstLine)
         {
             var output = new RandomTree();
             var keepReading = true;
             RandomTreeNode previous = null;
-            while (keepReading){
+            int initialId = 0;
+            bool first = true;
+            while (keepReading)
+            {
+                ++initialId;
                 try
                 {
-                    var node = RandomTreeNode.BuildFromString(reader.ReadLine());
-                    if(node.Level == 0)
+                    var line = first ? firstLine : reader.ReadLine();
+                    var node = RandomTreeNode.BuildFromString(line, initialId);
+                    if (node.Level == 0)
                     {
                         // for roots
-                        node.Parent = null;
                         output.Roots.Add(node);
                         previous = node;
+                        first = false;
                     }
                     else
                     {
@@ -301,9 +397,9 @@ namespace ContentPlacementAnalysisTools.Core
                         {
                             // predecessor: travel backwards and look for the first parent 
                             // with level = level
-                            while(previous != null)
+                            while (previous != null)
                             {
-                                if(previous.Level == node.Level)
+                                if (previous.Level == node.Level)
                                 {
                                     // we found its sibling
                                     node.Parent = previous.Parent;
@@ -320,23 +416,121 @@ namespace ContentPlacementAnalysisTools.Core
                             node.Parent = previous.Parent;
                             previous = node;
                         }
-                        
                     }
-                    
                 }
-                catch(Exception)
+                #pragma warning disable ERP022
+                catch (Exception)
                 {
-                    // we could not read, so we are in the line after we finished...
-                    // how do we know? cause we could not build a predicate
+                    // we could not read, so we are in the line after we finished.. how do we know? cause we could not build a predicate
                     break;
                 }
+                #pragma warning enable ERP022
             }
             // done...
             return output;
         }
-       
+
 
     }
-   
+
+    /// <summary>
+    /// A random forest, which is a collection of decision trees
+    /// </summary>
+    public class RandomForest
+    {
+        /// <summary>
+        /// The trees that comprise the forest
+        /// </summary>
+        public List<RandomTree> Trees { get; set; } = new List<RandomTree>();
+        /// <summary>
+        /// The set of classes this kind of classifier can output
+        /// </summary>
+        public HashSet<string> Classes { get; set; }
+        /// <summary>
+        /// Constructors
+        /// </summary>
+        public RandomForest(HashSet<string> classes)
+        {
+            Classes = classes;
+        }
+
+        /// <summary>
+        /// Returns the class with most votes among all the trees
+        /// </summary>
+        public string Classify(Dictionary<string, double> instance)
+        {
+            var votes = VoteCounter();
+            foreach (var tree in Trees)
+            {
+                votes[tree.Evaluate(instance)] += 1;
+            }
+            return votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+        }
+
+        /// <summary>
+        /// Returns the class with most votes among all the trees. It uses multiple threads to evaluate 
+        /// </summary>
+        public string Classify(Dictionary<string, double> instance, int parallelism)
+        {
+            var votes = ParallelVoteCounter();
+            var options = new ParallelOptions() { MaxDegreeOfParallelism = parallelism };
+            Parallel.ForEach(Trees, options, tree =>
+            {
+                votes[tree.Evaluate(instance)] += 1;
+            });
+            return votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+        }
+
+        private ConcurrentDictionary<string, int> VoteCounter()
+        {
+            var votes = new ConcurrentDictionary<string, int>();
+            foreach (var cl in Classes)
+            {
+                votes[cl] = 0;
+            }
+            votes[RandomTreeNode.NoClass] = 0;
+            return votes;
+        }
+
+        private ConcurrentDictionary<string, int> ParallelVoteCounter()
+        {
+            var votes = new ConcurrentDictionary<string, int>();
+            foreach (var cl in Classes)
+            {
+                votes[cl] = 0;
+            }
+            votes[RandomTreeNode.NoClass] = 0;
+            return votes;
+        }
+
+        /// <summary>
+        /// Parses a random forest from a weka output file
+        /// </summary>
+        public static RandomForest FromWekaFile(string file, HashSet<string> classes)
+        {
+            var output = new RandomForest(classes);
+            var reader = new StreamReader(file);
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                // keep reading until we find one of these. This one is followed
+                // by another line with equal signs and then empty lines until we find the first text
+                if (line.StartsWith("RandomTree"))
+                {
+                    string firstLine;
+                    reader.ReadLine();
+                    while ((firstLine = reader.ReadLine()).Trim().Length == 0)
+                    {
+                        continue;
+                    }
+                    // now, we can start reading the tree
+                    output.Trees.Add(RandomTree.FromStream(reader, firstLine));
+                }
+            }
+            reader.Close();
+            return output;
+        }
+    }
+
 
 }

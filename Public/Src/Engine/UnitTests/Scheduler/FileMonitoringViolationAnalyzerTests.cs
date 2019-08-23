@@ -708,12 +708,11 @@ namespace Test.BuildXL.Scheduler
             string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(violations, testContext.PathTable, (pipId) => "PLACEHOLDER PIP DESCRIPTION");
 
             // Should see a single instance of " W " for the write files legend even though there are 2 write violations
-            XAssert.AreEqual(1, CountInstancesOfWord(" W ", result), result);
+            string legendMarker = " = ";
+            XAssert.AreEqual(1, CountInstancesOfWord(SimplifiedViolationType.Write.ToAbbreviation() + legendMarker, result), result);
 
-            XAssert.AreEqual(1, CountInstancesOfWord(" DW ", result), result);
-            XAssert.AreEqual(1, CountInstancesOfWord(" P ", result), result);
-
-            string[] resultLines = result.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
+            XAssert.AreEqual(1, CountInstancesOfWord(SimplifiedViolationType.DoubleWrite.ToAbbreviation() + legendMarker, result), result);
+            XAssert.AreEqual(1, CountInstancesOfWord(SimplifiedViolationType.Probe.ToAbbreviation() + legendMarker, result), result);
         }
 
         private int CountInstancesOfWord(string word, string stringToSearch)

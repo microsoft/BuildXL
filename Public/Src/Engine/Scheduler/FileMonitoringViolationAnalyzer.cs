@@ -10,7 +10,6 @@ using System.Linq;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -307,7 +306,12 @@ namespace BuildXL.Scheduler
                         {
                             if (TryGetAccessedAndProcessPaths(pip, a, out var path, out var processPath))
                             {
-                                return new ReportedViolation(isError: false, a.IsWriteViolation ? DependencyViolationType.UndeclaredOutput : DependencyViolationType.UndeclaredOrderedRead, path: path, violatorPipId: pip.PipId, relatedPipId: null, processPath: processPath);
+                                return new ReportedViolation(isError: false,
+                                    a.IsWriteViolation ? DependencyViolationType.UndeclaredOutput : DependencyViolationType.UndeclaredOrderedRead, 
+                                    path: path, 
+                                    violatorPipId: pip.PipId, 
+                                    relatedPipId: null, 
+                                    processPath: processPath);
                             }
 
                             // The failure to parse the accessed path has already been logged in TryParseAbsolutePath.
@@ -549,7 +553,7 @@ namespace BuildXL.Scheduler
 
                 // Handle each process observed to have file accesses
                 var accessesByProcesses = paths.ToMultiValueDictionary(item => item.ProcessPath, item => item);
-                foreach (var accessByProcess in accessesByProcesses.OrderBy(item => item.Key.ToString(pathTable)))
+                foreach (var accessByProcess in accessesByProcesses.OrderBy(item => item.Key.ToString(pathTable), StringComparer.OrdinalIgnoreCase))
                 {
                     var processPath = accessByProcess.Key;
                     var processAccessesByPath = accessByProcess.Value.ToMultiValueDictionary(item => item.Path, item => item);
@@ -557,7 +561,7 @@ namespace BuildXL.Scheduler
                     bool printedProcessHeaderRow = false;
 
                     // Handle each path accessed by that process
-                    foreach (var pathsAccessed in processAccessesByPath.OrderBy(item => item.Key.ToString(pathTable)))
+                    foreach (var pathsAccessed in processAccessesByPath.OrderBy(item => item.Key.ToString(pathTable), StringComparer.OrdinalIgnoreCase))
                     {
                         var path = pathsAccessed.Key;
                         if (!path.IsValid)
@@ -626,158 +630,6 @@ namespace BuildXL.Scheduler
                 // cutting the trailing line break
                 return builder.ToString().Trim();
             }
-        }
-
-        public readonly struct ReportedViolation : IEquatable<ReportedViolation>
-        {
-            public readonly bool IsError;
-            public readonly PipId? RelatedPipId;
-            public readonly AbsolutePath Path;
-            public readonly DependencyViolationType Type;
-            public readonly PipId ViolatorPipId;
-            public readonly AbsolutePath ProcessPath;
-            public readonly bool ViolationMakesPipUncacheable;
-
-            public ReportedViolation(bool isError, DependencyViolationType type, AbsolutePath path, PipId violatorPipId, PipId? relatedPipId, AbsolutePath processPath, bool violationMakesPipUncacheable = true)
-            {
-                IsError = isError;
-                Type = type;
-                Path = path;
-                ViolatorPipId = violatorPipId;
-                RelatedPipId = relatedPipId;
-                ProcessPath = processPath;
-                ViolationMakesPipUncacheable = violationMakesPipUncacheable;
-            }
-
-            /// <summary>
-            /// A simplified violation type for sake of displaying in the DisallowedFileAccess summary message
-            /// </summary>
-            public SimplifiedViolationType ReportingType
-            {
-                get
-                {
-                    switch (Type)
-                    {
-                        case DependencyViolationType.DoubleWrite:
-                            return SimplifiedViolationType.DoubleWrite;
-                        case DependencyViolationType.ReadRace:
-                        case DependencyViolationType.UndeclaredOrderedRead:
-                        case DependencyViolationType.MissingSourceDependency:
-                        case DependencyViolationType.UndeclaredReadCycle:
-                        case DependencyViolationType.ReadUndeclaredOutput:
-                            return SimplifiedViolationType.Read;
-                        case DependencyViolationType.UndeclaredOutput:
-                        case DependencyViolationType.WriteInSourceSealDirectory:
-                        case DependencyViolationType.WriteInUndeclaredSourceRead:
-                        case DependencyViolationType.WriteInExistingFile:
-                        case DependencyViolationType.WriteToTempPathInsideSharedOpaque:
-                        case DependencyViolationType.WriteOnAbsentPathProbe:
-                            return SimplifiedViolationType.Write;
-                        case DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque:
-                            return SimplifiedViolationType.Probe;
-                        default:
-                            throw new NotImplementedException("Need to implement for: " + Type.ToString());
-                    }   
-                }
-            }
-
-            /// <summary>
-            /// Renders the violation for display in the DFA summary
-            /// </summary>
-            public string RenderForDFASummary(PathTable pathTable)
-            {
-                string path = Path.ToString(pathTable);
-                switch (ReportingType)
-                {
-                    case SimplifiedViolationType.Probe:
-                        return " P  " + path;
-                    case SimplifiedViolationType.Read:
-                        return " R  " + path;
-                    case SimplifiedViolationType.Write:
-                        return " W  " + path;
-                    case SimplifiedViolationType.DoubleWrite:
-                        return " DW  " + path;
-                    default:
-                        throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
-                }
-            }
-
-            /// <summary>
-            /// Legend informaiton to display in the DFA summary
-            /// </summary>
-            public string LegendText
-            {
-                get
-                {
-                    switch (ReportingType)
-                    {
-                        case SimplifiedViolationType.Probe:
-                            return "P = Probe to an absent path";
-                        case SimplifiedViolationType.Read:
-                            return "R = Read";
-                        case SimplifiedViolationType.Write:
-                            return "W = Write";
-                        case SimplifiedViolationType.DoubleWrite:
-                            return "DW = Double Write";
-                        default:
-                            throw new NotImplementedException("Need to implement for: " + ReportingType.ToString());
-                    }
-                }
-            }
-
-            #region IEquatable
-            public bool Equals(ReportedViolation other)
-            {
-                return IsError == other.IsError &&
-                    RelatedPipId.Value == other.RelatedPipId.Value &&
-                    Path == other.Path &&
-                    Type == other.Type &&
-                    ViolatorPipId == other.ViolatorPipId &&
-                    ProcessPath == other.ProcessPath &&
-                    ViolationMakesPipUncacheable == other.ViolationMakesPipUncacheable;
-            }
-
-            public override bool Equals(object obj)
-            {
-                return StructUtilities.Equals(this, obj);
-            }
-
-            public static bool operator ==(ReportedViolation left, ReportedViolation right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(ReportedViolation left, ReportedViolation right)
-            {
-                return !left.Equals(right);
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCodeHelper.Combine(
-                    IsError.GetHashCode(),
-                    RelatedPipId.GetHashCode(),
-                    Path.GetHashCode(),
-                    Type.GetHashCode(),
-                    ViolatorPipId.GetHashCode(),
-                    ProcessPath.GetHashCode(),
-                    ViolationMakesPipUncacheable.GetHashCode());
-            }
-            #endregion
-        }
-
-        /// <summary>
-        /// A simplified summary of the violation that controls what gets rendered in the DFA summary message
-        /// </summary>
-        /// <remarks>
-        /// These need to remain ordered in terms of increasing precedence 
-        /// </remarks>
-        public enum SimplifiedViolationType : byte
-        {
-            Probe = 0,
-            Read = 1,
-            Write = 2,
-            DoubleWrite = 3,
         }
 
         /// <summary>

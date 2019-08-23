@@ -98,7 +98,7 @@ namespace Test.BuildXL.Scheduler
             new PipGraphFragmentSerializer(
                 Context, 
                 new PipGraphFragmentContext())
-                .Serialize(stream, m_pipGraph.RetrieveScheduledPips().ToList(), m_moduleId.Value.ToString(Context.StringTable));
+                .SerializeSerially(stream, m_pipGraph.RetrieveScheduledPips().ToList(), m_moduleId.Value.ToString(Context.StringTable));
 
         /// <summary>
         /// Creates a source file artifact.

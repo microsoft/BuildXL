@@ -173,10 +173,18 @@ namespace BuildXL.SandboxExec
         {
             m_options = options;
             s_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) : null;
+
+            var useEndpointSecuritySandbox = m_options.UseEndpointSecuritySandbox;
+#if PLATFORM_OSX
+            if (useEndpointSecuritySandbox && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
+            {
+                useEndpointSecuritySandbox = false;
+            }
+#endif
             m_sandboxConnection = OperatingSystemHelper.IsUnixOS
                 ?
 #if PLATFORM_OSX
-                m_options.UseEndpointSecuritySandbox
+                useEndpointSecuritySandbox
                     ? (ISandboxConnection) new SandboxConnectionES()
                     :
 #endif

@@ -784,6 +784,12 @@ namespace BuildXL
                             opt =>
                             {
                                 var parsedOption = CommandLineUtilities.ParseEnumOption<SandboxKind>(opt);
+#if PLATFORM_OSX
+                                if (parsedOption == SandboxKind.MacOsEndpointSecurity && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
+                                {
+                                    parsedOption = SandboxKind.MacOsKext;
+                                }
+#endif
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.SandboxKind = parsedOption;
                                 if ((parsedOption.ToString().StartsWith("Win") && OperatingSystemHelper.IsUnixOS) ||
                                     (parsedOption.ToString().StartsWith("Mac") && !OperatingSystemHelper.IsUnixOS))

@@ -61,7 +61,7 @@ private:
     {
         // Process I/O operations
         
-        // Currently deactivated, done through ES_EVENT_TYPE_NOTIFY_CLOSE
+        // Currently deactivated, done through ES_EVENT_TYPE_NOTIFY_CLOSE to reduce overall event count
         // ES_EVENT_TYPE_NOTIFY_OPEN,
         
         ES_EVENT_TYPE_NOTIFY_CLOSE,

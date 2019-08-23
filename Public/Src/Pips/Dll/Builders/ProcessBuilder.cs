@@ -172,6 +172,8 @@ namespace BuildXL.Pips.Builders
         private readonly AbsolutePath m_realUserProfilePath;
         private readonly AbsolutePath m_redirectedUserProfilePath;
 
+        private FileArtifact m_changeAffectedInputListWrittenFile;
+
         /// <nodoc />
         private ProcessBuilder(PathTable pathTable, PooledObjectWrapper<PipDataBuilder> argumentsBuilder)
         {
@@ -394,6 +396,16 @@ namespace BuildXL.Pips.Builders
 
             AddOutputFile(path, FileExistence.Required);
             m_standardErrorFile = FileArtifact.CreateOutputFile(path);
+        }
+
+        /// <nodoc />
+        public void SetChangeAffectedInputListWrittenFile(AbsolutePath path)
+        {
+            Contract.Requires(path.IsValid);
+            Contract.Assert(!m_changeAffectedInputListWrittenFile.IsValid, "Value already set");
+
+            AddOutputFile(path, FileExistence.Optional);
+            m_changeAffectedInputListWrittenFile = FileArtifact.CreateOutputFile(path);
         }
 
         /// <nodoc />

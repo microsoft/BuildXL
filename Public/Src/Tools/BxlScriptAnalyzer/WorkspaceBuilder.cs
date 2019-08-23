@@ -76,6 +76,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 AbsolutePath.Invalid,
                 AbsolutePath.Invalid,
                 progressHandler,
+                false,
                 out workspace,
                 out controller,
                 out _,
@@ -101,6 +102,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <param name="outputDirectory">Output directory that will be used for evaluation.</param>
         /// <param name="objectDirectory">Object directory that will be used for evaluation.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
+        /// <param name="topSort">If true, build a dependency graph from the read in pips to serialize and load them faster</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>
         /// <param name="frontEndHostController">The host controller used for computing the workspace</param>
         /// <param name="pipGraph">Resulting pip graph</param>
@@ -117,6 +119,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             AbsolutePath outputDirectory,
             AbsolutePath objectDirectory,
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
+            bool topSort,
             out Workspace workspace,
             out FrontEndHostController frontEndHostController,
             out IPipGraph pipGraph,
@@ -200,7 +203,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             5000,
                             false);
 
-                        pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config);
+                        if (topSort)
+                        {
+                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config);
+                        }
+                        else
+                        {
+                            pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config);
+                        }
 
                         // TODO: Think more if an analyzer wants to use the real pip graph builder.
                         //pipGraphBuilder = new PipGraph.Builder(
@@ -375,6 +385,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             string filter,
             string outputDirectory,
             string objectDirectory,
+            bool topSort,
             out Workspace workspace,
             out IPipGraph pipGraph,
             out IReadOnlyDictionary<AbsolutePath, ISourceFile> filesToAnalyze,
@@ -422,6 +433,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 outputDirectoryPath,
                 objectDirectoryPath,
                 progressHandler: null,
+                topSort,
                 workspace: out workspace,
                 frontEndHostController: out _,
                 pipGraph: out pipGraph,

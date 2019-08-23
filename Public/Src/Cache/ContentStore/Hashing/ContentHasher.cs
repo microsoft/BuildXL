@@ -183,6 +183,8 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private static readonly byte[] EmptyByteArray = new byte[0];
             private static readonly Task<bool> TrueTask = Task.FromResult(true);
 
+            private static readonly Stopwatch _sw = Stopwatch.StartNew();
+
             private readonly ActionBlock<Pool<Buffer>.PoolHandle> _hashingBufferBlock;
 
             private readonly Stream _baseStream;

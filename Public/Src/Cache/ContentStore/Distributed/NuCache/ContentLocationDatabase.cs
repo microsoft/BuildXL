@@ -598,15 +598,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
-                }, extraEndMessage: maybeStatistics =>
+                }, extraEndMessage: maybeCounters =>
                 {
-                    if (!maybeStatistics.Succeeded)
+                    if (!maybeCounters.Succeeded)
                     {
                         return string.Empty;
                     }
 
-                    var statistics = maybeStatistics.Value;
-                    return $"Persisted={statistics.Persisted} Leftover={statistics.Leftover} Growth={statistics.Growth} FlushingTime={statistics.FlushingTime.TotalMilliseconds}ms CleanupTime={statistics.CleanupTime.TotalMilliseconds}ms";
+                    var counters = maybeCounters.Value;
+                    return $"Persisted={counters[FlushableCache.FlushableCacheCounters.Persisted].Value} Leftover={counters[FlushableCache.FlushableCacheCounters.Leftover].Value} Growth={counters[FlushableCache.FlushableCacheCounters.Growth].Value} FlushingTime={counters[FlushableCache.FlushableCacheCounters.FlushingTime].Duration.TotalMilliseconds}ms CleanupTime={counters[FlushableCache.FlushableCacheCounters.CleanupTime].Duration.TotalMilliseconds}ms";
                 }).ThrowIfFailure();
         }
 

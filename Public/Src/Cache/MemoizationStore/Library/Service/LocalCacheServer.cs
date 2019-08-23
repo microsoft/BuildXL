@@ -40,15 +40,22 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Capabilities capabilities = Capabilities.All)
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
-            var nameByDrive = new Dictionary<string, string>();
-
+            var storesByName = new Dictionary<string, IContentStore>();
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
-                nameByDrive.Add(kvp.Value.DriveLetter.ToString(), kvp.Key);
+                fileSystem.CreateDirectory(kvp.Value);
+                var cache = cacheFactory(kvp.Value);
+                if (cache is IContentStore store)
+                {
+                    storesByName.Add(kvp.Key, store);
+                }
+                else
+                {
+                    throw new NotSupportedException($"Attempted to setup a cache that is not an IContentStore at path {kvp.Value}");
+                }
             }
 
-            // TODO: specify the right storeByName argument
-            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, new Dictionary<string, IContentStore>());
+            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByName);
             _grpcCacheServer = new GrpcCacheServer(logger, this);
         }
 

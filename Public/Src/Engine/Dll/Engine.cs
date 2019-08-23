@@ -3269,7 +3269,23 @@ namespace BuildXL.Engine
         /// <summary>
         /// Gets the update and delay time for status timers
         /// </summary>
-        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig) => loggingConfig == null || !loggingConfig.FancyConsole ? 5000 : 2000;
+        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig)
+        {
+            if (loggingConfig != null)
+            {
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+                {
+                    return 10_000;
+                }
+
+                if (loggingConfig.FancyConsole)
+                {
+                    return 2_000;
+                }
+            }
+
+            return 5_000;
+        }
     }
 
     /// <summary>

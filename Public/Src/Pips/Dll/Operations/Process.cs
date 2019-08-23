@@ -116,7 +116,7 @@ namespace BuildXL.Pips.Operations
         /// File path of which the source shange affected inputs are written into.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public AbsolutePath ChangeAffectedInputListWrittenFilePath { get; }
+        public FileArtifact ChangeAffectedInputListWrittenFilePath { get; }
 
         /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
@@ -386,7 +386,7 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            AbsolutePath changeAffectedInputListWrittenFilePath = default)
+            FileArtifact changeAffectedInputListWrittenFilePath = default)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -543,7 +543,7 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            AbsolutePath? changeAffectedInputListWrittenFilePath = default)
+            FileArtifact? changeAffectedInputListWrittenFilePath = default)
         {
             return new Process(
                 executable ?? Executable,
@@ -826,7 +826,7 @@ namespace BuildXL.Pips.Operations
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
                 preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
-                changeAffectedInputListWrittenFilePath: reader.ReadAbsolutePath()
+                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact()
                 );
         }
 

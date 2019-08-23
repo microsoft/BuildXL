@@ -2571,7 +2571,7 @@ namespace BuildXL.Processes
             // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
             if (m_pip.ChangeAffectedInputListWrittenFilePath.IsValid && changeAffectedInputs != null)
             {
-                string destination = m_pip.ChangeAffectedInputListWrittenFilePath.ToString(m_context.PathTable);
+                string destination = m_pip.ChangeAffectedInputListWrittenFilePath.Path.ToString(m_context.PathTable);
                 try
                 {
                     string directoryName = ExceptionUtilities.HandleRecoverableIOException(

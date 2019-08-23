@@ -89,8 +89,6 @@ namespace BuildXL.Pips.Builders
 
         private Dictionary<StringId, ProcessSemaphoreInfo> m_semaphores;
 
-        private AbsolutePath m_changeAffectedInputListWrittenFile;
-
         /// <summary>
         /// The weighted value of this pip when limiting concurrency of process pips.
         /// The higher the weight, the fewer process pips that can run in parallel.
@@ -515,7 +513,7 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// Set the file path that will be used to write the change affected inputs
         /// </summary>
-        public void SetChangeAffectedInputListWrittenFilePath(AbsolutePath path)
+        public void SetChangeAffectedInputListWrittenFilePath(FileArtifact path)
         {
             m_changeAffectedInputListWrittenFile = path;
         }

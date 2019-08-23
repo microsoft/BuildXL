@@ -294,7 +294,7 @@ namespace Xldb.Analyzer
                         {
                             if (kvp.Artifact == directory.artifact)
                             {
-                                var currPipId = kvp.Value;
+                                var currPipId = kvp.PipId;
                                 var currPip = dataStore.GetPipByPipId(currPipId, out var currPipType);
 
                                 if (currPipType == PipType.SealDirectory)

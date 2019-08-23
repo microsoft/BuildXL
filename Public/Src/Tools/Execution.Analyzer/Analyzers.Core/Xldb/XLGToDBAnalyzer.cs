@@ -10,9 +10,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.KeyValueStores;
+using BuildXL.Pips;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Xldb;
 using BuildXL.Xldb.Proto;
@@ -143,7 +145,8 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class XLGToDBAnalyzerInner : Analyzer
     {
-        private const int outputBatchLogSize = 100000;
+        private const int s_eventOutputBatchLogSize = 100000;
+        private const int s_pipOutputBatchLogSize = 10000;
 
         /// <summary>
         /// Output directory path
@@ -163,6 +166,9 @@ namespace BuildXL.Execution.Analyzer
         private Dictionary<Scheduler.Tracing.ExecutionEventId, EventCountByTypeValue> m_eventCountByType = new Dictionary<Scheduler.Tracing.ExecutionEventId, EventCountByTypeValue>();
         private string[] m_additionalColumns = { XldbDataStore.EventColumnFamilyName, XldbDataStore.PipColumnFamilyName, XldbDataStore.StaticGraphColumnFamilyName };
 
+        private ConcurrentBigMap<Utilities.FileArtifact, HashSet<uint>> m_fileConsumerMap = new ConcurrentBigMap<Utilities.FileArtifact, HashSet<uint>>();
+        private ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>> m_directoryConsumerMap = new ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>>();
+
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
         {
             m_stopWatch = new Stopwatch();
@@ -173,7 +179,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var eventCount = Interlocked.Increment(ref m_eventCount);
 
-            if (eventCount % outputBatchLogSize == 0)
+            if (eventCount % s_eventOutputBatchLogSize == 0)
             {
                 Console.WriteLine($"Processed {eventCount} events so far. {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds have elapsed.");
             }
@@ -185,7 +191,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Prepare()
         {
-            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns, openBulkLoad: false);
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns, openBulkLoad: true);
 
             if (accessor.Succeeded)
             {
@@ -248,6 +254,12 @@ namespace BuildXL.Execution.Analyzer
 
             WriteToDb(graphMetadata.ToByteArray(), xldbPipGraph.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
             Console.WriteLine($"\nPipGraph metadata ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
+
+            Console.WriteLine("\nStarting to ingest file and directory consumer/producer information.");
+
+            IngestProducerConsumerInformation();
+            Console.WriteLine($"\nConsumer/producer information ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
+
             return 0;
         }
 
@@ -424,10 +436,10 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionStepPerformanceReported,
-                PipId = data.PipId.Value, 
+                PipId = data.PipId.Value,
                 PipExecutionStepPerformanceKey = new PipExecutionStepPerformanceKey()
                 {
-                    Step = pipExecStepPerformanceEvent.Step, 
+                    Step = pipExecStepPerformanceEvent.Step,
                     SequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
                 }
             };
@@ -513,7 +525,7 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Ingest all of the pips to RocksDB
         /// </summary>
-        public void IngestAllPips()
+        private void IngestAllPips()
         {
             var totalNumberOfPips = CachedGraph.PipTable.StableKeys.Count;
             var pipIds = CachedGraph.PipTable.StableKeys;
@@ -523,7 +535,6 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.For(0, concurrency, i =>
             {
-
                 // Hold only one lock while inserting all of these keys into the DB
                 var maybeInserted = m_accessor.Use(database =>
                 {
@@ -538,7 +549,7 @@ namespace BuildXL.Execution.Analyzer
                         var pipId = pipIds[j];
                         pipsIngested++;
 
-                        if (pipsIngested % outputBatchLogSize == 0)
+                        if (pipsIngested % s_pipOutputBatchLogSize == 0)
                         {
                             Console.Write(".");
                             database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
@@ -563,16 +574,32 @@ namespace BuildXL.Execution.Analyzer
                         {
                             var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
                             xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
+
+                            foreach (var fileArtifact in ipcPip.FileDependencies)
+                            {
+                                AddToFileConsumerMap(fileArtifact, pipId);
+                            }
+
+                            foreach (var directoryArtifact in ipcPip.DirectoryDependencies)
+                            {
+                                AddToDirectoryConsumerMap(directoryArtifact, pipId);
+                            }
                         }
                         else if (pipType == PipType.SealDirectory)
                         {
                             var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
                             xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
+
+                            foreach (var fileArtifact in sealDirectoryPip.Contents)
+                            {
+                                AddToFileConsumerMap(fileArtifact, pipId);
+                            }
                         }
                         else if (pipType == PipType.CopyFile)
                         {
                             var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
                             xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
+                            AddToFileConsumerMap(copyFilePip.Destination, pipId);
                         }
                         else if (pipType == PipType.WriteFile)
                         {
@@ -583,6 +610,19 @@ namespace BuildXL.Execution.Analyzer
                         {
                             var processPip = (Pips.Operations.Process)hydratedPip;
                             xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
+
+                            AddToFileConsumerMap(processPip.StandardInputFile, pipId);
+                            AddToFileConsumerMap(processPip.Executable, pipId);
+
+                            foreach (var fileArtifact in processPip.Dependencies)
+                            {
+                                AddToFileConsumerMap(fileArtifact, pipId);
+                            }
+
+                            foreach (var directoryArtifact in processPip.DirectoryDependencies)
+                            {
+                                AddToDirectoryConsumerMap(directoryArtifact, pipId);
+                            }
                         }
 
                         var pipSemistableQuery = new PipQuerySemiStableHash()
@@ -621,6 +661,92 @@ namespace BuildXL.Execution.Analyzer
                     maybeInserted.Failure.Throw();
                 }
             });
+        }
+
+        private void IngestProducerConsumerInformation()
+        {
+            var parallelOptions = new ParallelOptions();
+            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+
+            Parallel.ForEach(m_fileConsumerMap, parallelOptions, kvp =>
+            {
+                var fileConsumerKey = new FileConsumerKey()
+                {
+                    FileArtifact = kvp.Key.ToFileArtifact(PathTable)
+                };
+
+                var fileConsumerValue = new FileConsumerValue();
+                fileConsumerValue.PipIds.AddRange(kvp.Value.Select(pipId => pipId));
+
+                WriteToDb(fileConsumerKey.ToByteArray(), fileConsumerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            });
+
+            Parallel.ForEach(m_directoryConsumerMap, parallelOptions, kvp =>
+            {
+                var directoryConsumerKey = new DirectoryConsumerKey()
+                {
+                    DirectoryArtifact = kvp.Key.ToDirectoryArtifact(PathTable)
+                };
+
+                var directoryConsumerValue = new DirectoryConsumerValue();
+                directoryConsumerValue.PipIds.AddRange(kvp.Value.Select(pipId => pipId));
+
+                WriteToDb(directoryConsumerKey.ToByteArray(), directoryConsumerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            });
+
+            Parallel.ForEach(CachedGraph.PipGraph.AllFilesAndProducers, parallelOptions, kvp =>
+            {
+                var fileProducerKey = new FileProducerKey()
+                {
+                    FileArtifact = kvp.Key.ToFileArtifact(PathTable)
+                };
+
+                var fileProducerValue = new FileProducerValue()
+                {
+                    PipId = kvp.Value.Value
+                };
+
+                WriteToDb(fileProducerKey.ToByteArray(), fileProducerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            });
+
+            Parallel.ForEach(CachedGraph.PipGraph.AllOutputDirectoriesAndProducers, parallelOptions, kvp =>
+            {
+                var directoryProducerKey = new DirectoryProducerKey()
+                {
+                    DirectoryArtifact = kvp.Key.ToDirectoryArtifact(PathTable)
+                };
+
+                var directoryProducerValue = new DirectoryProducerValue()
+                {
+                    PipId = kvp.Value.Value
+                };
+
+                WriteToDb(directoryProducerKey.ToByteArray(), directoryProducerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            });
+        }
+
+        /// <summary>
+        /// Add file artifacts to the file consumer map
+        /// </summary>
+        private void AddToFileConsumerMap(Utilities.FileArtifact fileArtifact, PipId pipId)
+        {
+            var consumers = m_fileConsumerMap.GetOrAdd(fileArtifact, new HashSet<uint>()).Item.Value;
+            lock (consumers)
+            {
+                consumers.Add(pipId.Value);
+            }
+        }
+
+        /// <summary>
+        /// Add directory artifacts to the directory consumer map 
+        /// </summary>
+        private void AddToDirectoryConsumerMap(Utilities.DirectoryArtifact directoryArtifact, PipId pipId)
+        {
+            var consumers = m_directoryConsumerMap.GetOrAdd(directoryArtifact, new HashSet<uint>()).Item.Value;
+            lock (consumers)
+            {
+                // consumers.Add(pipId.Value);
+            }
         }
 
         /// <summary>

@@ -816,20 +816,10 @@ namespace BuildXL.Execution.Analyzer
                 ApiServerMoniker = pipGraph.ApiServerMoniker.ToString(pathTable)
             };
 
-            xldbPipGraph.AllFilesAndProducers.AddRange(pipGraph.AllFilesAndProducers.Select(kvp => new FileArtifactMap()
-            {
-                Artifact = kvp.Key.ToFileArtifact(pathTable),
-                Value = kvp.Value.Value
-            }));
             xldbPipGraph.AllSealDirectoriesAndProducers.AddRange(pipGraph.AllSealDirectoriesAndProducers.Select(kvp => new DirectoryArtifactMap()
             {
                 Artifact = kvp.Key.ToDirectoryArtifact(pathTable),
-                Value = kvp.Value.Value
-            }));
-            xldbPipGraph.AllOutputDirectoriesAndProducers.AddRange(pipGraph.AllOutputDirectoriesAndProducers.Select(kvp => new DirectoryArtifactMap()
-            {
-                Artifact = kvp.Key.ToDirectoryArtifact(pathTable),
-                Value = kvp.Value.Value
+                PipId = kvp.Value.Value
             }));
             xldbPipGraph.StableKeys.AddRange(pipTable.StableKeys.Select(stableKey => stableKey.Value));
 

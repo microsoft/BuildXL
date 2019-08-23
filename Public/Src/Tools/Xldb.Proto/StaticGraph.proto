@@ -38,6 +38,40 @@ message PipQueryPipId{
     PipType PipType = 2;
 }
 
+message FileProducerKey{
+    FileArtifact FileArtifact = 1;
+}
+
+message FileProducerValue{
+    uint32 PipId = 1;
+}
+
+message FileConsumerKey{
+    FileArtifact FileArtifact = 1;
+}
+
+message FileConsumerValue{
+    repeated uint32 PipIds = 1;
+}
+
+message DirectoryProducerKey{
+    DirectoryArtifact DirectoryArtifact = 1;
+}
+
+message DirectoryProducerValue{
+    uint32 PipId = 1;
+}
+
+message DirectoryConsumerKey{
+    DirectoryArtifact DirectoryArtifact = 1;
+}
+
+message DirectoryConsumerValue{
+    repeated uint32 PipIds = 1;
+}
+
+
+
 //
 //  Map Messages -> Protobuf does not allow for float, double, bytes, or message types to be 
 //  used as keys for maps, so the alternative is to make a "primitive" map type message as follows:
@@ -49,13 +83,13 @@ message PipQueryPipId{
 message FileArtifactMap{
     FileArtifact Artifact = 1;
 
-    uint32 Value = 2;
+    uint32 PipId = 2;
 }
 
 message DirectoryArtifactMap{
     DirectoryArtifact Artifact = 1;
 
-    uint32 Value = 2;
+    uint32 PipId = 2;
 }
 
 message PipIdSet{
@@ -95,23 +129,15 @@ message PipGraph{
 
     repeated DirectoryArtifactMap AllSealDirectoriesAndProducers = 5;
 
-    repeated FileArtifactMap AllFilesAndProducers = 6;
+    int32 FileCount = 6;
 
-    repeated DirectoryArtifactMap AllOutputDirectoriesAndProducers = 7;
+    int32 ContentCount = 7;
 
-    int32 FileCount = 8;
+    int32 ArtifactContentCount = 8;
 
-    int32 ContentCount = 9;
+    map<string, NodeId> Modules = 9;
 
-    int32 ArtifactContentCount = 10;
+    string ApiServerMoniker = 10;
 
-    repeated NodeValuesMap Values = 11;
-
-    repeated FileArtifactMap SpecFiles = 12;
-
-    map<string, NodeId> Modules = 13;
-
-    string ApiServerMoniker = 14;
-
-    repeated uint32 StableKeys = 15;
+    repeated uint32 StableKeys = 11;
 }

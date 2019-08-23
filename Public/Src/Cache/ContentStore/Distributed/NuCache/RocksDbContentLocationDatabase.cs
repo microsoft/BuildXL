@@ -796,15 +796,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         break;
                     }
 
-                    entries.Push((
-                        fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
-                        strongFingerprint: keyValuePair.Key));
-                    if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries)
-                    {
-                        var entryToRemove = entries.Top;
-                        entries.Pop();
-                        store.Remove(entryToRemove.strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
+                    var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
+                        strongFingerprint: keyValuePair.Key);
 
+                    byte[] strongFingerprintToRemove = null;
+                    if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries && entries.Top.fileTimeUtc < entry.fileTimeUtc)
+                    {
+                        strongFingerprintToRemove = entry.strongFingerprint;
+                    }
+                    else
+                    {
+                        entries.Push(entry);
+
+                        if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries)
+                        {
+                            strongFingerprintToRemove = entries.Top.strongFingerprint;
+                            entries.Pop();
+                        }
+                    }
+
+                    if (!(strongFingerprintToRemove is null))
+                    {
+                        store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
                         removedEntries++;
                     }
 

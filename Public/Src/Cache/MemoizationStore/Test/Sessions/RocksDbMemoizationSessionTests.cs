@@ -119,7 +119,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         }
 
         [Fact]
-        public Task GarbageCollectionRuns()
+        public Task GarbageCollectionKeepsLastAdded()
         {
             var context = new Context(Logger);
             var weakFingerprint = Fingerprint.Random();
@@ -150,6 +150,60 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                     var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
                     r2.Should().BeEquivalentTo(contentHashListWithDeterminism2);
+                },
+                createStoreFunc: createStoreInternal);
+
+            // This is needed because type errors arise if you inline
+            IMemoizationStore createStoreInternal(DisposableDirectory disposableDirectory)
+            {
+                return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
+                {
+                    configuration.MetadataGarbageCollectionEnabled = true;
+                    configuration.MetadataGarbageCollectionMaximumNumberOfEntries = 1;
+                    // Disables automatic GC
+                    configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
+                });
+            }
+        }
+
+        [Fact]
+        public Task GarbageCollectionDeletesInLruOrder()
+        {
+            var context = new Context(Logger);
+            var weakFingerprint = Fingerprint.Random();
+
+            var selector1 = Selector.Random();
+            var strongFingerprint1 = new StrongFingerprint(weakFingerprint, selector1);
+            var contentHashListWithDeterminism1 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
+            var selector2 = Selector.Random();
+            var strongFingerprint2 = new StrongFingerprint(weakFingerprint, selector2);
+            var contentHashListWithDeterminism2 = new ContentHashListWithDeterminism(ContentHashList.Random(), CacheDeterminism.None);
+
+            return RunTestAsync(context,
+                funcAsync: async (store, session) => {
+                    await session.AddOrGetContentHashListAsync(context, strongFingerprint1, contentHashListWithDeterminism1, Token).ShouldBeSuccess();
+                    _clock.Increment();
+
+                    await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
+                    _clock.Increment();
+
+                    // Force update the last access time of the first fingerprint
+                    await session.GetContentHashListAsync(context, strongFingerprint1, Token).ShouldBeSuccess();
+                    _clock.Increment();
+
+                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
+                    Contract.Assert(database != null);
+
+                    var ctx = new OperationContext(context);
+                    database.GarbageCollect(ctx);
+
+                    var r1 = database.GetContentHashList(ctx, strongFingerprint1).ShouldBeSuccess().ContentHashListWithDeterminism;
+                    r1.Should().BeEquivalentTo(contentHashListWithDeterminism1);
+
+                    var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
+                    r2.ContentHashList.Should().BeNull();
+                    r2.Determinism.Should().Be(CacheDeterminism.None);
                 },
                 createStoreFunc: createStoreInternal);
 

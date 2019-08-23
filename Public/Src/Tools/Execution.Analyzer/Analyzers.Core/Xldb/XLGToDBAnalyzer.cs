@@ -191,7 +191,7 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override void Prepare()
         {
-            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns, openBulkLoad: true);
+            var accessor = KeyValueStoreAccessor.Open(storeDirectory: OutputDirPath, additionalColumns: m_additionalColumns, openBulkLoad: false);
 
             if (accessor.Succeeded)
             {
@@ -436,10 +436,10 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionStepPerformanceReported,
-                PipId = data.PipId.Value,
+                PipId = data.PipId.Value, 
                 PipExecutionStepPerformanceKey = new PipExecutionStepPerformanceKey()
                 {
-                    Step = pipExecStepPerformanceEvent.Step,
+                    Step = pipExecStepPerformanceEvent.Step, 
                     SequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
                 }
             };
@@ -663,6 +663,9 @@ namespace BuildXL.Execution.Analyzer
             });
         }
 
+        /// <summary>
+        /// Ingest file and directory producer and consumer information to RocksDB
+        /// </summary>
         private void IngestProducerConsumerInformation()
         {
             var parallelOptions = new ParallelOptions();
@@ -670,8 +673,9 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.ForEach(m_fileConsumerMap, parallelOptions, kvp =>
             {
-                var fileConsumerKey = new FileConsumerKey()
+                var fileConsumerKey = new FileProducerConsumerQuery()
                 {
+                    Type = ProducerConsumerType.Consumer,
                     FileArtifact = kvp.Key.ToFileArtifact(PathTable)
                 };
 
@@ -683,8 +687,9 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.ForEach(m_directoryConsumerMap, parallelOptions, kvp =>
             {
-                var directoryConsumerKey = new DirectoryConsumerKey()
+                var directoryConsumerKey = new DirectoryProducerConsumerQuery()
                 {
+                    Type = ProducerConsumerType.Consumer,
                     DirectoryArtifact = kvp.Key.ToDirectoryArtifact(PathTable)
                 };
 
@@ -696,8 +701,9 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.ForEach(CachedGraph.PipGraph.AllFilesAndProducers, parallelOptions, kvp =>
             {
-                var fileProducerKey = new FileProducerKey()
+                var fileProducerKey = new FileProducerConsumerQuery()
                 {
+                    Type = ProducerConsumerType.Producer,
                     FileArtifact = kvp.Key.ToFileArtifact(PathTable)
                 };
 
@@ -711,8 +717,9 @@ namespace BuildXL.Execution.Analyzer
 
             Parallel.ForEach(CachedGraph.PipGraph.AllOutputDirectoriesAndProducers, parallelOptions, kvp =>
             {
-                var directoryProducerKey = new DirectoryProducerKey()
+                var directoryProducerKey = new DirectoryProducerConsumerQuery()
                 {
+                    Type = ProducerConsumerType.Producer,
                     DirectoryArtifact = kvp.Key.ToDirectoryArtifact(PathTable)
                 };
 

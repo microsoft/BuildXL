@@ -38,32 +38,35 @@ message PipQueryPipId{
     PipType PipType = 2;
 }
 
-message FileProducerKey{
-    FileArtifact FileArtifact = 1;
+enum ProducerConsumerType{
+    /// Since this is used in a key, we need an invalid enum for 0
+    ProducerConsumerType_Invalid = 0;
+    ProducerConsumerType_Producer = 1;
+    ProducerConsumerType_Consumer = 2;
+}
+
+message FileProducerConsumerQuery{
+    ProducerConsumerType Type = 1;
+
+    FileArtifact FileArtifact = 2;
 }
 
 message FileProducerValue{
     uint32 PipId = 1;
 }
 
-message FileConsumerKey{
-    FileArtifact FileArtifact = 1;
-}
-
 message FileConsumerValue{
     repeated uint32 PipIds = 1;
 }
 
-message DirectoryProducerKey{
-    DirectoryArtifact DirectoryArtifact = 1;
+message DirectoryProducerConsumerQuery{
+    ProducerConsumerType Type = 1;
+
+    DirectoryArtifact DirectoryArtifact = 2;
 }
 
 message DirectoryProducerValue{
     uint32 PipId = 1;
-}
-
-message DirectoryConsumerKey{
-    DirectoryArtifact DirectoryArtifact = 1;
 }
 
 message DirectoryConsumerValue{

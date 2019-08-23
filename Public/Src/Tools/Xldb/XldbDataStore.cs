@@ -19,8 +19,8 @@ namespace BuildXL.Xldb
         /// Rocks DB Accessor for XLG++ data
         /// </summary>
         private KeyValueStoreAccessor Accessor { get; set; }
-        private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
-        private Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
+        public Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
+        public Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
 
         public const string EventCountKey = "EventCount";
         public const string EventColumnFamilyName = "Event";
@@ -253,7 +253,7 @@ namespace BuildXL.Xldb
         public IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint workerID = 0)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
-            return GetPipIdEvents(ExecutionEventId.PipExecutionPerformance, pipID, workerID).Cast<PipExecutionPerformanceEvent>();
+            return GetEventsByPipIdOnly(ExecutionEventId.PipExecutionPerformance, pipID, workerID).Cast<PipExecutionPerformanceEvent>();
         }
 
         /// <summary>
@@ -262,7 +262,7 @@ namespace BuildXL.Xldb
         public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint workerID = 0)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
-            return GetPipIdEvents(ExecutionEventId.ProcessExecutionMonitoringReported, pipID, workerID).Cast<ProcessExecutionMonitoringReportedEvent>();
+            return GetEventsByPipIdOnly(ExecutionEventId.ProcessExecutionMonitoringReported, pipID, workerID).Cast<ProcessExecutionMonitoringReportedEvent>();
         }
 
         /// <summary>
@@ -271,13 +271,13 @@ namespace BuildXL.Xldb
         public IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint workerID = 0)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
-            return GetPipIdEvents(ExecutionEventId.PipCacheMiss, pipID, workerID).Cast<PipCacheMissEvent>();
+            return GetEventsByPipIdOnly(ExecutionEventId.PipCacheMiss, pipID, workerID).Cast<PipCacheMissEvent>();
         }
 
         /// <summary>
         /// Get events that only use PipID as the key
         /// </summary>
-        private IEnumerable<IMessage> GetPipIdEvents(ExecutionEventId eventTypeID, uint pipID, uint workerID = 0)
+        private IEnumerable<IMessage> GetEventsByPipIdOnly(ExecutionEventId eventTypeID, uint pipID, uint workerID = 0)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
@@ -483,7 +483,7 @@ namespace BuildXL.Xldb
         }
 
         /// <summary>
-        /// Gets all pips of a certain type. If 0 is passed into pipType, gets all pips.
+        /// Gets all pips of a certain type.
         /// </summary>
         /// <returns>Returns list of all pips of certain type, empty if no such pips exist.</returns>
         public IEnumerable<IMessage> GetAllPipsByType(PipType pipType)
@@ -492,7 +492,7 @@ namespace BuildXL.Xldb
 
             var storedPips = new List<IMessage>();
 
-            if (!m_pipParserDictionary.TryGetValue(pipType, out var parser) && pipType != PipType.Invalid)
+            if (!m_pipParserDictionary.TryGetValue(pipType, out var parser))
             {
                 return storedPips;
             }
@@ -504,22 +504,9 @@ namespace BuildXL.Xldb
                 foreach (var kvp in database.PrefixSearch(pipQuery.ToByteArray(), PipColumnFamilyName))
                 {
                     var pipKey = PipQueryPipId.Parser.ParseFrom(kvp.Key);
-                    if (pipType != PipType.Invalid)
+                    if (pipKey.PipType == pipType)
                     {
-                        // PipType is not invalid (0), so we can use the parser since all the pips will be of the same type
-                        if(pipKey.PipType == pipType)
-                        {
-                            storedPips.Add(parser.ParseFrom(kvp.Value));
-                        }
-                    }
-                    else
-                    {
-                        // PipType is invalid (ie 0) which means prefix search will match all pips stored.
-                        // We need to get the parser for each of the different pips that we encounter in this case
-                        if (m_pipParserDictionary.TryGetValue(pipKey.PipType, out var parser))
-                        {
-                            storedPips.Add(parser.ParseFrom(kvp.Value));
-                        }
+                        storedPips.Add(parser.ParseFrom(kvp.Value));
                     }
                 }
             });
@@ -540,7 +527,7 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all WriteFile Pips
         /// </summary>
-        public IEnumerable<WriteFile> GetAllWriteFilePips () => GetAllPipsByType(PipType.WriteFile).Cast<WriteFile>();
+        public IEnumerable<WriteFile> GetAllWriteFilePips() => GetAllPipsByType(PipType.WriteFile).Cast<WriteFile>();
 
         /// <summary>
         /// Gets all CopyFile Pips
@@ -560,7 +547,33 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all scheduled pips (ie. all the non meta pips)
         /// </summary>
-        public IEnumerable<IMessage> GetAllScheduledPips() => GetAllPipsByType(PipType.Invalid).Cast<IMessage>();
+        public IEnumerable<(PipType, IMessage)> GetAllScheduledPips()
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var allPips = new List<(PipType, IMessage)>();
+            var pipIdQuery = new PipQueryPipId();
+
+            var maybeFound = Accessor.Use(database =>
+            {
+                foreach (var kvp in database.PrefixSearch(pipIdQuery.ToByteArray(), StaticGraphColumnFamilyName))
+                {
+                    var pipType = PipQueryPipId.Parser.ParseFrom(kvp.Key).PipType;
+                    if (m_pipParserDictionary.TryGetValue(pipType, out var parser))
+                    {
+                        var xldbPip = parser.ParseFrom(kvp.Value);
+                        allPips.Add((pipType, xldbPip));
+                    }
+                }
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return allPips;
+        }
 
         /// <summary>
         /// Gets the pip graph meta data
@@ -587,6 +600,166 @@ namespace BuildXL.Xldb
             }
 
             return maybeFound.Result;
+        }
+
+        /// <summary>
+        /// Gets all the information about a certain path (which pips produce, which consume and more? TODO:
+        /// </summary>
+        public IMessage GetProducerAndConsumersOfPath(string path)
+        {
+            return new PipGraph();
+        }
+
+        /// <summary>
+        /// Gets all producers of a particular file 
+        /// </summary>
+        public IEnumerable<(PipType, IMessage)> GetProducersOfFile(string path)
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var fileProducerQuery = new FileProducerConsumerQuery()
+            {
+                Type = ProducerConsumerType.Producer,
+                FileArtifact = new FileArtifact()
+                {
+                    Path = new AbsolutePath() { Value = path }
+                }
+            };
+
+            return GetProducerConsumerOfFileByQuery(fileProducerQuery);
+        }
+
+        /// <summary>
+        /// Gets all consumers of a particular file
+        /// </summary>
+        public IEnumerable<(PipType, IMessage)> GetConsumersOfFile(string path)
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var fileConsumerQuery = new FileProducerConsumerQuery()
+            {
+                Type = ProducerConsumerType.Consumer,
+                FileArtifact = new FileArtifact()
+                {
+                    Path = new AbsolutePath() { Value = path }
+                }
+            };
+
+            return GetProducerConsumerOfFileByQuery(fileConsumerQuery);
+        }
+
+        /// <summary>
+        /// Gets Producers of Consumers of a file based on the query passed in
+        /// </summary>
+        private IEnumerable<(PipType, IMessage)> GetProducerConsumerOfFileByQuery(FileProducerConsumerQuery query)
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var fileProducersOrConsumers = new List<(PipType, IMessage)>();
+
+            var maybeFound = Accessor.Use(database =>
+            {
+                foreach (var kvp in database.PrefixSearch(query.ToByteArray(), StaticGraphColumnFamilyName))
+                {
+                    if (query.Type == ProducerConsumerType.Producer)
+                    {
+                        var pipId = FileProducerValue.Parser.ParseFrom(kvp.Value).PipId;
+                        var xldbPip = GetPipByPipId(pipId, out var pipType);
+                        fileProducersOrConsumers.Add((pipType, xldbPip));
+                    }
+                    else if(query.Type == ProducerConsumerType.Consumer)
+                    {
+                        foreach (var pipId in FileConsumerValue.Parser.ParseFrom(kvp.Value).PipIds)
+                        {
+                            var xldbPip = GetPipByPipId(pipId, out var pipType);
+                            fileProducersOrConsumers.Add((pipType, xldbPip));
+                        }
+                    }
+                }
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return fileProducersOrConsumers;
+        }
+
+        /// <summary>
+        /// Gets all producers of a particular directory 
+        /// </summary>
+        public IEnumerable<(PipType, IMessage)> GetProducersOfDirectory(string path)
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var directoryProducerQuery = new DirectoryProducerConsumerQuery()
+            {
+                Type = ProducerConsumerType.Producer,
+                DirectoryArtifact = new DirectoryArtifact()
+                {
+                    Path = new AbsolutePath() { Value = path }
+                }
+            };
+
+            return GetProducerConsumerOfDirectoryByQuery(directoryProducerQuery);
+        }
+
+        /// <summary>
+        /// Gets all consumers of a particular directory
+        /// </summary>
+        public IEnumerable<(PipType, IMessage)> GetConsumersOfDirectory(string path)
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var directoryConsumerQuery = new DirectoryProducerConsumerQuery()
+            {
+                Type = ProducerConsumerType.Consumer,
+                DirectoryArtifact = new DirectoryArtifact()
+                {
+                    Path = new AbsolutePath() { Value = path }
+                }
+            };
+
+            return GetProducerConsumerOfDirectoryByQuery(directoryConsumerQuery);
+        }
+
+        /// <summary>
+        /// Gets Producers of Consumers of a file based on the query passed in
+        /// </summary>
+        private IEnumerable<(PipType, IMessage)> GetProducerConsumerOfDirectoryByQuery(DirectoryProducerConsumerQuery query)
+        {
+            Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
+
+            var directoryProducerOrConsumers = new List<(PipType, IMessage)>();
+
+            var maybeFound = Accessor.Use(database =>
+            {
+                foreach (var kvp in database.PrefixSearch(query.ToByteArray(), StaticGraphColumnFamilyName))
+                {
+                    if (query.Type == ProducerConsumerType.Producer)
+                    {
+                        var pipId = FileProducerValue.Parser.ParseFrom(kvp.Value).PipId;
+                        var xldbPip = GetPipByPipId(pipId, out var pipType);
+                        directoryProducerOrConsumers.Add((pipType, xldbPip));
+                    }
+                    else if (query.Type == ProducerConsumerType.Consumer)
+                    {
+                        foreach (var pipId in FileConsumerValue.Parser.ParseFrom(kvp.Value).PipIds)
+                        {
+                            var xldbPip = GetPipByPipId(pipId, out var pipType);
+                            directoryProducerOrConsumers.Add((pipType, xldbPip));
+                        }
+                    }
+                }
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return directoryProducerOrConsumers;
         }
 
         /// <summary>

@@ -48,6 +48,16 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// </summary>
         public readonly string OutputDirectory;
 
+        /// <summary>
+        /// Localappdata location to redirect in cloudbuild.
+        /// </summary>
+        public readonly string RedirectedUserProfileJunctionRoot;
+
+        /// <summary>
+        /// Whether evaluating in cloudbuild or not
+        /// </summary>
+        public readonly bool InCloudBuild;
+
         /// <nodoc />
         public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
             : base(args)
@@ -78,6 +88,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 {
                     Config = opt.Value;
                 }
+                else if (opt.Name.Equals("InCloudBuild", StringComparison.OrdinalIgnoreCase))
+                {
+                    InCloudBuild = ParseBooleanOption(opt);
+                }
                 else if (opt.Name.Equals("objectDirectory", StringComparison.OrdinalIgnoreCase))
                 {
                     ObjectDirectory = GetFullPath(opt.Value, opt);
@@ -85,6 +99,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 else if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase))
                 {
                     OutputDirectory = GetFullPath(opt.Value, opt);
+                }
+                else if (opt.Name.Equals("RedirectedUserProfileJunctionRoot", StringComparison.OrdinalIgnoreCase))
+                {
+                    RedirectedUserProfileJunctionRoot = GetFullPath(opt.Value, opt);
                 }
                 else if (opt.Name.Equals("fix", StringComparison.OrdinalIgnoreCase))
                 {

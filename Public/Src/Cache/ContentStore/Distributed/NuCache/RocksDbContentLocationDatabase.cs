@@ -22,7 +22,6 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using Unit = BuildXL.Utilities.Tasks.Unit;

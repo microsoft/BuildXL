@@ -159,8 +159,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(60 * 60)]
             public int RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds { get; set; }
 
-            [DefaultValue(60 * 60 * 2)]
-            public int RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds { get; set; }
+            [DefaultValue(500_000)]
+            public int RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntries { get; set; }
         }
 
         /// <inheritdoc />
@@ -241,7 +241,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         CleanOnInitialize = false,
                         GarbageCollectionInterval = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionIntervalInSeconds),
                         MetadataGarbageCollectionEnabled = true,
-                        MetadataGarbageCollectionProtectionTime = TimeSpan.FromSeconds(config.RocksDbMemoizationStoreGarbageCollectionProtectionTimeInSeconds),
+                        MetadataGarbageCollectionMaximumNumberOfEntries = config.RocksDbMemoizationStoreGarbageCollectionMaximumNumberOfEntries,
                     },
                 };
 

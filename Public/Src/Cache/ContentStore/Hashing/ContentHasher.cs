@@ -385,9 +385,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void TransformBlock(byte[] buffer, int offset, int count, byte[] outputBuffer, int outputOffset)
             {
-                Stopwatch sw = Stopwatch.StartNew();
+                var start = _sw.Elapsed;
                 _hashAlgorithm.TransformBlock(buffer, offset, count, outputBuffer, outputOffset);
-                Interlocked.Add(ref _ticksSpentHashing, sw.ElapsedTicks);
+                var elapsed = _sw.Elapsed - start;
+                Interlocked.Add(ref _ticksSpentHashing, elapsed.Ticks);
             }
 
             /// <inheritdoc />

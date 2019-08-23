@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -771,14 +771,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
-        private class SortMetadataByFileTimeUtcComparer : IComparer<(long fileTimeUtc, byte[] strongFingerprint)>
-        {
-            public int Compare((long fileTimeUtc, byte[] strongFingerprint) x, (long fileTimeUtc, byte[] strongFingerprint) y)
-            {
-                return x.fileTimeUtc.CompareTo(y.fileTimeUtc);
-            }
-        }
-
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
@@ -796,7 +788,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
                     capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntries + 1,
-                    comparer: new SortMetadataByFileTimeUtcComparer());
+                    comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Default);
                 foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
                     if (context.Token.IsCancellationRequested)

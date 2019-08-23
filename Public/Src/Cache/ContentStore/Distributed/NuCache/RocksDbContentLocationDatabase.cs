@@ -22,6 +22,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using Unit = BuildXL.Utilities.Tasks.Unit;
@@ -770,6 +771,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
+        private class SortMetadataByFileTimeUtcComparer : IComparer<(long fileTimeUtc, byte[] strongFingerprint)>
+        {
+            public int Compare((long fileTimeUtc, byte[] strongFingerprint) x, (long fileTimeUtc, byte[] strongFingerprint) y)
+            {
+                return x.fileTimeUtc.CompareTo(y.fileTimeUtc);
+            }
+        }
+
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
@@ -782,44 +791,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     "rocksdb.estimate-live-data-size",
                     columnFamilyName: nameof(Columns.Metadata)));
 
-                var stopwatch = new Stopwatch();
+                var scannedEntries = 0;
+                var removedEntries = 0;
 
-                // These are sorted in ascending order by its LastAccessTimeUtc, which means more recently accessed
-                // entries are located at the end.
-                var sortedEntries = new List<(long fileTimeUtc, byte[] strongFingerprint)>();
+                var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
+                    capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntries + 1,
+                    comparer: new SortMetadataByFileTimeUtcComparer());
                 foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
-                    // This is the reason we do this loop
                     if (context.Token.IsCancellationRequested)
                     {
                         break;
                     }
 
-                    sortedEntries.Add((
+                    entries.Push((
                         fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
                         strongFingerprint: keyValuePair.Key));
+                    if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries)
+                    {
+                        var entryToRemove = entries.Top;
+                        entries.Pop();
+                        store.Remove(entryToRemove.strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
+
+                        removedEntries++;
+                    }
+
+                    scannedEntries++;
                 }
 
-                var timeToEnumerate = stopwatch.Elapsed;
-
-                stopwatch.Restart();
-                sortedEntries.Sort();
-                var timeToSort = stopwatch.Elapsed;
-
-                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(sortedEntries.Count);
-
-                // This is actually the index we want to remove up to plus one (i.e. the total number of items we want
-                // to remove)
-                var cutoffIndex = Math.Max(0, sortedEntries.Count - _configuration.MetadataGarbageCollectionMaximumNumberOfEntries);
-                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(cutoffIndex);
-
-                stopwatch.Restart();
-
-                store.RemoveBatch(
-                    sortedEntries.Take(cutoffIndex).Select(entry => entry.strongFingerprint),
-                    columnFamilyNames: new[] { nameof(Columns.Metadata) });
-
-                var timeToRemove = stopwatch.Elapsed;
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(removedEntries);
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(scannedEntries);
 
                 var liveDbSizeInBytesAfterGc = int.Parse(store.GetProperty(
                     "rocksdb.estimate-live-data-size",
@@ -828,7 +829,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
                 // new tombstones have been added. However, there is way to compute how much we added/removed that
                 // doesn't involve either keeping track of the values, or doing two passes over the column family.
-                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={sortedEntries.Count}, RemovedEntries={cutoffIndex}, EntriesAfterGc={sortedEntries.Count - cutoffIndex}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}, TimeToEnumerate={timeToEnumerate.TotalMilliseconds}ms, TimeToSort={timeToSort.TotalMilliseconds}ms, TimeToRemove={timeToRemove.TotalMilliseconds}");
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}");
 
                 return Unit.Void;
             }).ToBoolResult();

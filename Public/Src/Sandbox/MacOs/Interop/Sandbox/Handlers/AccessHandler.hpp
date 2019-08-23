@@ -24,6 +24,10 @@ struct AccessHandler
 {
 private:
 
+    const char *IgnoreDataPartitionPrefix(const char* path);
+    const char *kDataPartitionPrefix = "/System/Volumes/Data/";
+    const size_t kAdjustedPrefixLength = strlen("/System/Volumes/Data");
+    
     ESSandbox *sandbox_;
 
     SandboxedProcess *process_;

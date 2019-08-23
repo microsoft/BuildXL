@@ -18,11 +18,6 @@ namespace BuildXL.Scheduler
     public class SchedulerTestHooks
     {
         /// <summary>
-        /// File change tracker owned by the scheduler.
-        /// </summary>
-        public FileChangeTracker FileChangeTracker { get; set; }
-
-        /// <summary>
         /// Incremental scheduling state owned by the scheduler.
         /// </summary>
         public IIncrementalSchedulingState IncrementalSchedulingState { get; set; }
@@ -45,11 +40,5 @@ namespace BuildXL.Scheduler
         /// Test hooks for the <see cref="FingerprintStore"/>.
         /// </summary>
         public FingerprintStoreTestHooks FingerprintStoreTestHooks { get; set; }
-
-        /// <summary>
-        /// Whether <see cref="Scheduler.LogStats(Utilities.Instrumentation.Common.LoggingContext)"/> should be called after the
-        /// scheduler run is completed.
-        /// </summary>
-        public bool LogSchedulerStats = false;
     }
 }

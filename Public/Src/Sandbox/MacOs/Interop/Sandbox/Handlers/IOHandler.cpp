@@ -112,19 +112,18 @@ void IOHandler::HandleLookup(const es_message_t *msg)
     
     path[index] = '\0';
     
-    // TODO: Some KAuth events are not yet implemented in ES, thus our kOpKAuthVNodeProbe is based on lookup events and
-    //       reported back when in non-strict observation mode for now. This generates DFAs that need more changes in BuildXL code otherwise.
-    if ((GetProcess()->getPip()->getFamFlags() & FileAccessManifestFlag::FailUnexpectedFileAccesses) == FileAccessManifestFlag::None)
-    {
-        bool doesExist = exists(path);
-        FileOperation operation = doesExist ? kOpKAuthVNodeProbe : kOpMacLookup;
-        CheckFunc checker = doesExist ? Checkers::CheckProbe : Checkers::CheckLookup;
-        
-        CheckAndReport(operation, path, checker, msg, false);
-        return;
-    }
-    
     CheckAndReport(kOpMacLookup, path, Checkers::CheckLookup, msg, false);
+    
+    // TODO: KAuth offered notifications for file attribute, extended attribute and security flag reading, those are emitted once for every
+    //       file system entry also used by a process, we emit the probe here blindly when the lookup path exits and until we get
+    //       appropriate ES events implemented
+    int error = NO_ERROR;
+    mode_t mode = get_mode(path, &error);
+    if (error == NO_ERROR)
+    {
+        bool isDir = !S_ISREG(mode);
+        CheckAndReport(kOpKAuthVNodeProbe, path, Checkers::CheckProbe, msg, isDir);
+    }
 }
 
 void IOHandler::HandleOpen(const es_message_t *msg)
@@ -161,7 +160,7 @@ void IOHandler::HandleClose(const es_message_t *msg)
     }
     
     // TODO: This is currently the same code as in HandleOpen. HandleOpen is not hooked up due to the symmetry between
-    //       open <-> close and to reduce the number of callbacks from ES
+    //       open <-> close and to reduce the number of processed callbacks from ES
     int error = NO_ERROR;
     mode_t mode = get_mode(ext.Path(), &error);
     
@@ -291,6 +290,7 @@ void IOHandler::HandleCreate(const es_message_t *msg)
         {
             // TODO: Deny access
         }
+        
         return;
     }
         
@@ -335,6 +335,11 @@ void IOHandler::HandleWrite(const es_message_t *msg)
             es_event_write_t write = msg->event.write;
             PathExtractor ext = PathExtractor(write.target->path.data, write.target->path.length);
             path = ext.Path();
+            break;
+        }
+        default:
+        {
+            log_error("Failed to map HandleWrite to EndpointSecurity event (%d)!", msg->event_type);
             break;
         }
     }

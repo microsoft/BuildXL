@@ -240,6 +240,9 @@
   <data name="App_Main_Logs" xml:space="preserve">
     <value>Logs</value>
   </data>
+  <data name="App_Main_FailedToWriteSummary" xml:space="preserve">
+    <value>Error writing AzureDevOps summary file: {0}</value>
+  </data>
   <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
     <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
   </data>

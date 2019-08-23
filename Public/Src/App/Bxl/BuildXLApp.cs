@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -37,7 +38,6 @@ using BuildXL.Utilities.CrashReporting;
 using System.Diagnostics.Tracing;
 
 using static BuildXL.Utilities.FormattableStringEx;
-
 
 namespace BuildXL
 {
@@ -634,6 +634,28 @@ namespace BuildXL
 
                         appLoggers.LogEventSummary(pm.LoggingContext);
 
+
+                        // Log Ado Summary
+                        var buildSummary = m_buildViewModel.BuildSummary;
+                        if (buildSummary != null)
+                        {
+                            try
+                            {
+                                string filePath = buildSummary.RenderMarkdown();
+                                WriteToConsole("##vso[task.uploadsummary]" + filePath);
+                            }
+                            catch (IOException e)
+                            {
+                                WriteErrorToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
+                                // No need to change exit code, only behavior is lack of log in the extensions page.
+                            }
+                            catch (UnauthorizedAccessException e)
+                            {
+                                WriteErrorToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
+                                // No need to change exit code, only behavior is lack of log in the extensions page.
+                            }
+                        }
+
                         if (appLoggers.TrackingEventListener.HasFailures)
                         {
                             WriteErrorToConsoleWithDefaultColor(Strings.App_Main_BuildFailed);
@@ -644,7 +666,7 @@ namespace BuildXL
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
                             return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
-
+                        
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
 
                         LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
@@ -1245,6 +1267,11 @@ namespace BuildXL
                 {
                     ConfigureConsoleLogging(notWorker, buildViewModel);
                 }
+
+                if (notWorker && m_configuration.OptimizeConsoleOutputForAzureDevOps)
+                {
+                    ConfigureAzureDevOpsLogging(buildViewModel);
+                }
             }
 
             private static WarningManager CreateWarningManager(IWarningHandling configuration)
@@ -1394,6 +1421,18 @@ namespace BuildXL
                     optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps);
 
                 listener.SetBuildViewModel(buildViewModel);
+
+                AddListener(listener);
+            }
+
+            private void ConfigureAzureDevOpsLogging(BuildViewModel buildViewModel)
+            {
+                var listener = new AzureDevOpsListener(
+                    Events.Log,
+                    m_console,
+                    m_baseTime,
+                    buildViewModel
+                );
 
                 AddListener(listener);
             }
@@ -1964,6 +2003,8 @@ namespace BuildXL
                 EngineRunDurationMs = engineRunDuration,
             };
 
+            ReportStatsForBuildSummary(appPerfInfo);
+
             if (m_configuration.Engine.LogStatistics)
             {
                 BuildXL.Tracing.Logger.Log.Statistic(
@@ -1992,6 +2033,38 @@ namespace BuildXL
             }
 
             return result.EngineState;
+        }
+
+        private void ReportStatsForBuildSummary(AppPerformanceInfo appInfo)
+        {
+            var summary = m_buildViewModel.BuildSummary;
+            if (summary == null)
+            {
+                return;
+            }
+
+            // Overall Duration information
+            var engineInfo = appInfo.EnginePerformanceInfo;
+            var tree = new PerfTree("Build Duration", appInfo.EngineRunDurationMs)
+                       {
+                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs),
+                           new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
+                           {
+                               new PerfTree("Checking for pip graph reuse", engineInfo.GraphCacheCheckDurationMs),
+                               new PerfTree("Reloading pip graph", engineInfo.GraphReloadDurationMs),
+                               new PerfTree("Create graph", engineInfo.GraphConstructionDurationMs)
+                           },
+                           new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs),
+                           new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs),
+                           new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs),
+                       };
+            summary.DurationTree = tree;
+
+
+            // Cache stats
+            var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
+            summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+            summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]

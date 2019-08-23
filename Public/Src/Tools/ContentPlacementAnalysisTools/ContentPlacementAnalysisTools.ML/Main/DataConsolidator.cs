@@ -13,7 +13,6 @@ using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.ML.Main
 {
-
     /// <summary>
     /// TODO
     /// </summary>
@@ -33,134 +32,157 @@ namespace ContentPlacementAnalysisTools.ML.Main
             try
             {
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
-                if (!arguments.LinearizeOnly)
+                if (!(arguments.BuildRandomForestOnly || arguments.LinearizeOnly))
                 {
-                    // create the pipeline. The first step here is to parse the input files, and we can do this in parallel
-                    var buildArtifactParsingBlock = new TransformBlock<ParseBuildArtifactsInput, TimedActionResult<ParseBuildArtifactsOutput>>(i =>
-                    {
-                        var action = new ParseBuildArtifacts();
-                        return action.PerformAction(i);
-                    },
-                         new ExecutionDataflowBlockOptions()
-                         {
-                             MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxBuildParsingTasks
-                         }
-                    );
-                    // the second is to save artifacts in a central folder
-                    var storeArtifactBlock = new ActionBlock<TimedActionResult<ParseBuildArtifactsOutput>>(i =>
-                    {
-                        // the exception will be logged even if we dont do it here
-                        if (i.ExecutionStatus)
-                        {
-                            var action = new StoreBuildArtifacts(arguments.OutputDirectory);
-                            action.PerformAction(i.Result);
-                        }
-
-                    },
-                         new ExecutionDataflowBlockOptions()
-                         {
-                             MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxArtifactStoreTasks
-                         }
-                    );
-                    // link them
-                    var numParsingTasks = 0;
-                    buildArtifactParsingBlock.LinkTo(storeArtifactBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                    // do now we can post to the initial queue
-                    foreach (var file in Directory.EnumerateFiles(arguments.InputDirectory, "*.json"))
-                    {
-                        buildArtifactParsingBlock.Post(new ParseBuildArtifactsInput(file));
-                        ++numParsingTasks;
-                    }
-                    s_logger.Info($"Posted {numParsingTasks} parsing tasks, processing");
-                    // now wait
-                    buildArtifactParsingBlock.Complete();
-                    storeArtifactBlock.Completion.Wait();
+                    CreateDatabase(arguments);
                 }
-                var collectedArtifacts = new MultiValueDictionary<int, MLArtifact>();
-                var currentTicks = Environment.TickCount;
-                var linearFile = $"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}.csv")}";
-                var linearOutput = TextWriter.Synchronized(new StreamWriter(linearFile));
-                s_logger.Info($"Linearizing to [{linearFile}]");
-                // write the headers
-                MLArtifact.WriteColumnsToStream(linearOutput);
-                // so now we are ready to linearize
-                var linearizeBlock = new TransformBlock<LinearizeArtifactsInput, TimedActionResult<LinearizeArtifactsOutput>>(i =>
+                if (arguments.LinearizeOnly)
                 {
-                    var action = new LinearizeArtifacts(linearOutput);
-                    return action.PerformAction(i);
-
-                },
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxArtifactLinearizationTasks
-                    }
-                );
-                var collectLinearResultsBlock = new ActionBlock<TimedActionResult<LinearizeArtifactsOutput>>(i =>
-                {
-                    if (i.ExecutionStatus)
-                    {
-                        collectedArtifacts.Add(i.Result.NumQueues, i.Result.Linear);
-                    }
-
-                },
-                    // enforce serial
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = 1
-                    }
-                );
-                // connect
-                linearizeBlock.LinkTo(collectLinearResultsBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                // and post the tasks
-                var posted = 0;
-                foreach(var hashDir in Directory.EnumerateDirectories(arguments.OutputDirectory))
-                {
-                    linearizeBlock.Post(new LinearizeArtifactsInput(hashDir));
-                    ++posted;
+                    LinearizeDatabase(arguments);
                 }
-                s_logger.Info($"Posted {posted} linearizing tasks, waiting...");
-                linearizeBlock.Complete();
-                // and wait
-                collectLinearResultsBlock.Completion.Wait();
-                // and close...
-                linearOutput.Close();
-                // now, scale to create the samples...
-                s_logger.Info($"Creating {arguments.NumSamples} samples of size {arguments.SampleSize}");
-                var scale = new Dictionary<int, int>();
-                foreach (var entry in collectedArtifacts)
+                if (arguments.BuildRandomForestOnly)
                 {
-                    var queueCount = entry.Key;
-                    var entryCount = entry.Value.Count;
-                    var proportion = 1.0 * Math.BigMul(entryCount, arguments.SampleSize) / (1.0 * posted);
-                    scale[queueCount] = (int)Math.Ceiling(proportion);
+                    BuildRandomForest(arguments);
                 }
-                // we have the scale, lets post tasks here
-                var createSampleBlocks = new ActionBlock<SampleArtifactsInput>(i =>
-                {
-                    var action = new SampleArtifacts();
-                    action.PerformAction(i);
-
-                },
-                    // one per each sample
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = arguments.NumSamples
-                    }
-                );
-                // post some tasks in here
-                for (var i = 0; i < arguments.NumSamples; ++i)
-                {
-                    createSampleBlocks.Post(new SampleArtifactsInput($"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}-sample{i}.csv")}", scale, collectedArtifacts)); 
-                }
-                // and wait...
-                createSampleBlocks.Complete();
-                createSampleBlocks.Completion.Wait();
-                // done...
             }
             finally
             {
                 s_logger.Info("Done...");
             }
+        }
+
+        private static void BuildRandomForest(Args arguments)
+        {
+
+        }
+
+        private static void LinearizeDatabase(Args arguments)
+        {
+            var collectedArtifacts = new MultiValueDictionary<int, MLArtifact>();
+            var currentTicks = Environment.TickCount;
+            var linearFile = $"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}.csv")}";
+            var linearOutput = TextWriter.Synchronized(new StreamWriter(linearFile));
+            s_logger.Info($"Linearizing to [{linearFile}]");
+            // write the headers
+            MLArtifact.WriteColumnsToStream(linearOutput);
+            // so now we are ready to linearize
+            var linearizeBlock = new TransformBlock<LinearizeArtifactsInput, TimedActionResult<LinearizeArtifactsOutput>>(i =>
+            {
+                var action = new LinearizeArtifacts(linearOutput);
+                return action.PerformAction(i);
+
+            },
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxArtifactLinearizationTasks
+                }
+            );
+            var collectLinearResultsBlock = new ActionBlock<TimedActionResult<LinearizeArtifactsOutput>>(i =>
+            {
+                if (i.ExecutionStatus)
+                {
+                    collectedArtifacts.Add(i.Result.NumQueues, i.Result.Linear);
+                }
+
+            },
+                // enforce serial
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = 1
+                }
+            );
+            // connect
+            linearizeBlock.LinkTo(collectLinearResultsBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            // and post the tasks
+            var posted = 0;
+            foreach (var hashDir in Directory.EnumerateDirectories(arguments.OutputDirectory))
+            {
+                linearizeBlock.Post(new LinearizeArtifactsInput(hashDir));
+                ++posted;
+            }
+            s_logger.Info($"Posted {posted} linearizing tasks, waiting...");
+            linearizeBlock.Complete();
+            // and wait
+            collectLinearResultsBlock.Completion.Wait();
+            // and close...
+            linearOutput.Close();
+            // now, scale to create the samples...
+            s_logger.Info($"Creating {arguments.NumSamples} samples of size {arguments.SampleSize}");
+            var scale = new Dictionary<int, int>();
+            foreach (var entry in collectedArtifacts)
+            {
+                var queueCount = entry.Key;
+                var entryCount = entry.Value.Count;
+                var proportion = 1.0 * Math.BigMul(entryCount, arguments.SampleSize) / (1.0 * posted);
+                scale[queueCount] = (int)Math.Ceiling(proportion);
+            }
+            // we have the scale, lets post tasks here
+            var createSampleBlocks = new ActionBlock<SampleArtifactsInput>(i =>
+            {
+                var action = new SampleArtifacts();
+                action.PerformAction(i);
+
+            },
+                // one per each sample
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = arguments.NumSamples
+                }
+            );
+            // post some tasks in here
+            for (var i = 0; i < arguments.NumSamples; ++i)
+            {
+                createSampleBlocks.Post(new SampleArtifactsInput($"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}-sample{i}.csv")}", scale, collectedArtifacts));
+            }
+            // and wait...
+            createSampleBlocks.Complete();
+            createSampleBlocks.Completion.Wait();
+            // done...
+        }
+
+        private static void CreateDatabase(Args arguments)
+        {
+            // create the pipeline. The first step here is to parse the input files, and we can do this in parallel
+            var buildArtifactParsingBlock = new TransformBlock<ParseBuildArtifactsInput, TimedActionResult<ParseBuildArtifactsOutput>>(i =>
+            {
+                var action = new ParseBuildArtifacts();
+                return action.PerformAction(i);
+            },
+                 new ExecutionDataflowBlockOptions()
+                 {
+                     MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxBuildParsingTasks
+                 }
+            );
+            // the second is to save artifacts in a central folder
+            var storeArtifactBlock = new ActionBlock<TimedActionResult<ParseBuildArtifactsOutput>>(i =>
+            {
+                // the exception will be logged even if we dont do it here
+                if (i.ExecutionStatus)
+                {
+                    var action = new StoreBuildArtifacts(arguments.OutputDirectory);
+                    action.PerformAction(i.Result);
+                }
+
+            },
+                 new ExecutionDataflowBlockOptions()
+                 {
+                     MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxArtifactStoreTasks
+                 }
+            );
+            // link them
+            var numParsingTasks = 0;
+            buildArtifactParsingBlock.LinkTo(storeArtifactBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            // do now we can post to the initial queue
+            foreach (var file in Directory.EnumerateFiles(arguments.InputDirectory, "*.json"))
+            {
+                buildArtifactParsingBlock.Post(new ParseBuildArtifactsInput(file));
+                ++numParsingTasks;
+            }
+            s_logger.Info($"Posted {numParsingTasks} parsing tasks, processing");
+            // now wait
+            buildArtifactParsingBlock.Complete();
+            storeArtifactBlock.Completion.Wait();
+            // done
         }
 
         /// <summary>
@@ -178,6 +200,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// </summary>
             public ConcurrencyConfiguration ConcurrencyConfig { get; set; }
             /// <summary>
+            /// Weka configuration
+            /// </summary>
+            public WekaConfiguration WekaConfig { get; set; }
+            /// <summary>
             /// Build from a json string
             /// </summary>
             public static ApplicationConfiguration FromJson(string json) => JsonConvert.DeserializeObject<ApplicationConfiguration>(File.ReadAllText(json));
@@ -185,7 +211,8 @@ namespace ContentPlacementAnalysisTools.ML.Main
             public override string ToString()
             {
                 return new StringBuilder()
-                    .Append("ConcurrencyConfig=[").Append(ConcurrencyConfig).Append("]")
+                    .Append("ConcurrencyConfig=[").Append(ConcurrencyConfig).Append("], ")
+                    .Append("WekaConfig=[").Append(WekaConfig).Append("]")
                     .ToString();
             }
         }
@@ -247,6 +274,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// </summary>
             public int SampleSize { get; } = 10000;
             /// <summary>
+            /// If true, only the random tree creator will be invoked
+            /// </summary>
+            public bool BuildRandomForestOnly { get; } = false;
+            /// <summary>
             /// True if help was requested
             /// </summary>
             public bool Help { get; } = false;
@@ -275,7 +306,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     {
                         OutputDirectory = ParseStringOption(opt);
                     }
-                    else if (opt.Name.Equals("linearizeOnly", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("lo", StringComparison.OrdinalIgnoreCase))
+                    else if (opt.Name.Equals("linearize", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("lo", StringComparison.OrdinalIgnoreCase))
                     {
                         LinearizeOnly = ParseBooleanOption(opt);
                     }
@@ -286,6 +317,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     else if (opt.Name.Equals("sampleSize", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ss", StringComparison.OrdinalIgnoreCase))
                     {
                         SampleSize = ParseInt32Option(opt, 1, int.MaxValue);
+                    }
+                    else if (opt.Name.Equals("buildRF", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("brfo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        BuildRandomForestOnly = ParseBooleanOption(opt);
                     }
 
                 }
@@ -307,9 +342,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 writer.WriteOption("applicationConfig", "Required. File containing the application config parameters (json)", shortName: "ac");
                 writer.WriteOption("inputDirectory", "Required. The directory where the inputs will be taken from", shortName: "id");
                 writer.WriteOption("outputDirectory", "Required. The directory where the outputs will be stored", shortName: "od");
-                writer.WriteOption("linearizeOnly", "Optional. If true, then no input will be read, only the output directory will be linearized", shortName: "lo");
+                writer.WriteOption("linearize", "Optional. If true, then no input will be read, only the output directory will be linearized", shortName: "lo");
                 writer.WriteOption("numSamples", "Optional. The number of samples to be taken (from the global output). Defaults to 1", shortName: "ns");
                 writer.WriteOption("sampleSize", "Optional. The size of each sample. Defaults to 10000", shortName: "ss");
+                writer.WriteOption("buildRF", "Optional. If the samples are already created, this will only run the random forest generator", shortName: "brfo");
             }
         }
     }

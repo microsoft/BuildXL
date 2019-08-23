@@ -81,33 +81,66 @@ namespace ContentPlacementAnalysisTools.ML.Action
 
         private void AdjustAverages(MLArtifact linear, double inputAdjust, double outputAdjust)
         {
-            // input
-            linear.AvgDepsForInputPips /= inputAdjust > 0? inputAdjust : 1.0;
-            linear.AvgInputsForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgOutputsForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgPriorityForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgWeightForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgTagCountForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgSemaphoreCountForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgPositionForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
-            linear.AvgInputPips /= linear.Builds.Count;
-            // output
-            linear.AvgDepsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgInputsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgOutputsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgPriorityForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgWeightForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgTagCountForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgSemaphoreCountForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgPositionForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
-            linear.AvgOutputPips /= linear.Builds.Count;
+            
+            if(linear.AvgInputPips > 0)
+            {
+                // input
+                linear.AvgDepsForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgInputsForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgOutputsForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgPriorityForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgWeightForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgTagCountForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgSemaphoreCountForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgPositionForInputPips /= inputAdjust > 0 ? inputAdjust : 1.0;
+                linear.AvgInputPips /= linear.Builds.Count;
+            }
+            else
+            {
+                // not present
+                linear.AvgDepsForInputPips = -1;
+                linear.AvgInputsForInputPips = -1;
+                linear.AvgOutputsForInputPips = -1;
+                linear.AvgPriorityForInputPips = -1;
+                linear.AvgWeightForInputPips = -1;
+                linear.AvgTagCountForInputPips = -1;
+                linear.AvgSemaphoreCountForInputPips = -1;
+                linear.AvgPositionForInputPips = -1;
+                linear.AvgInputPips = -1;
+            }
+            if(linear.AvgOutputPips > 0)
+            {
+                // output
+                linear.AvgDepsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgInputsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgOutputsForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgPriorityForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgWeightForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgTagCountForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgSemaphoreCountForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgPositionForOutputPips /= outputAdjust > 0 ? outputAdjust : 1.0;
+                linear.AvgOutputPips /= linear.Builds.Count;
+            }
+            else
+            {
+                // not present
+                linear.AvgDepsForOutputPips = -1;
+                linear.AvgInputsForOutputPips = -1;
+                linear.AvgOutputsForOutputPips = -1;
+                linear.AvgPriorityForOutputPips = -1;
+                linear.AvgWeightForOutputPips = -1;
+                linear.AvgTagCountForOutputPips = -1;
+                linear.AvgSemaphoreCountForOutputPips = -1;
+                linear.AvgPositionForOutputPips = -1;
+                linear.AvgOutputPips = -1;
+            }
+           
         }
 
         private Tuple<int, int> LinearizeTo(MLArtifact linear, ArtifactWithBuildMeta current)
         {
             linear.Queues.Add(current.Meta.BuildQueue);
             linear.Builds.Add(current.Meta.BuidId);
-            linear.ReportExtension(current.Artifact.ReportedFile.ToLower());
             // same hash == same size
             linear.SizeBytes = current.Artifact.ReportedSize;
             // now, do the pips....

@@ -6,6 +6,10 @@ namespace ContentPlacement.ML {
     export declare const qualifier: BuildXLSdk.FullFrameworkQualifier;
 
     const consolidateLogFile = f`cptools.ml.consolidate.exe.nlog`;
+    const staticResources = {
+        subfolder: "CPResources", contents : [ 
+            f`CPResources\weka.jar`,
+        ]};
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -15,6 +19,7 @@ namespace ContentPlacement.ML {
         sources: globR(d`.`, "*.cs"),
         runtimeContent: [
                 consolidateLogFile,
+                staticResources,
         ],
         references: [
             ...addIfLazy(

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using BuildXL.Utilities.Collections;
 using ContentPlacementAnalysisTools.Core;
@@ -37,9 +38,8 @@ namespace ContentPlacementAnalysisTools.ML.Action
             var written = 0;
             try
             {
-                // write the headers
-                var sampled = new List<MLArtifact>();
-                MLArtifact.WriteColumnsToStream(m_writer);
+                // store the sample
+                var sampled = new List<MLArtifact>();                
                 // we have the scale, now we can just randomly choose
                 foreach (var scaled in input.Scale)
                 {
@@ -50,9 +50,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
                         // write all
                         foreach(var linear in linearized)
                         {
-                            linear.WriteToCsvStream(m_writer);
                             sampled.Add(linear);
-                            ++written;
                         }
                     }
                     else
@@ -66,13 +64,21 @@ namespace ContentPlacementAnalysisTools.ML.Action
                         // now take them
                         foreach(var pos in randomIds)
                         {
-                            linearized[pos].WriteToCsvStream(m_writer);
                             sampled.Add(linearized[pos]);
-                            ++written;
                         }
                     }
                 }
-                return new SampleArtifactsOutput(sampled, input.SampleFileName);
+                // randomize
+                var randomized = sampled.OrderBy(a => m_random.Next()).ToList();
+                // write the headers
+                MLArtifact.WriteColumnsToStream(m_writer);
+                // and then write the randomized values
+                foreach (var linear in randomized)
+                {
+                    linear.WriteToCsvStream(m_writer);
+                } 
+                // done
+                return new SampleArtifactsOutput(randomized, sampled.Count, input.SampleFileName);
             }
             finally
             {
@@ -128,13 +134,18 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// </summary>
         public List<MLArtifact> Sample { get; set; }
         /// <summary>
+        /// The number of artifacts in the sample
+        /// </summary>
+        public int NumSamples { get; set; }
+        /// <summary>
         /// The full path of the sample file name
         /// </summary>
         public string SampleFileName { get; set; }
 
-        public SampleArtifactsOutput(List<MLArtifact> arts, string file)
+        public SampleArtifactsOutput(List<MLArtifact> arts, int numSamples, string file)
         {
             Sample = arts;
+            NumSamples = numSamples;
             SampleFileName = file;
         }
     }

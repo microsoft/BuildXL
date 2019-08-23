@@ -106,20 +106,19 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
         {
             // Unblock the caller
             await Task.Yield();
-
             var result = await store.TryGetCacheEntryAsync(
                                 new WeakContentFingerprint(fingerprint.Hash),
                                 s_dummyPathSetHash,
                                 node.NodeFingerprint);
 
-            Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Retrieving temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' Success='{result.Succeeded}'"));
-            if (result.Succeeded)
+            if (result.Succeeded && result.Result?.MetadataHash != null)
             {
+                Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Retrieving temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' Success='{result.Succeeded}'"));
                 Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Retrieved temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' MetadataHash='{result.Result?.MetadataHash ?? s_dummyPathSetHash}'"));
             }
             else
             {
-                Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Failed retrieval of temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' Failure:='{result.Failure.DescribeIncludingInnerFailures()}'"));
+                Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Failed retrieval of temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' Failure:='{result.Failure?.DescribeIncludingInnerFailures()}'"));
             }
 
             return result;

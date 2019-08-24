@@ -262,12 +262,5 @@ namespace BuildXL.Utilities.Configuration
         /// Temporary flag to use tool incremental behavior when preserve outputs is enabled.
         /// </summary>
         bool PreserveOutputsForIncrementalTool { get; }
-
-        /// <summary>
-        /// Flag indicate if all inputs files of the pip are affected by the source changes
-        /// When inputChanges commmand line option is presented, it is initiated as false.
-        /// If the change list contain any removal, it will fall back to false.
-        /// </summary>
-        bool AreAllInputsAffected { get; set; }
     }
 }

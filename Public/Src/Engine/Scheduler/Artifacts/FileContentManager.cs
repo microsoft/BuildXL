@@ -17,6 +17,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Scheduler.ChangeAffectedOutput;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
@@ -231,6 +232,14 @@ namespace BuildXL.Scheduler.Artifacts
         private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents =
             SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(new FileArtifact[0], OrdinalFileArtifactComparer.Instance);
 
+        /// <summary>
+        /// Holds change affected outputs of the build
+        /// </summary>
+        /// <remarks>
+        /// Only scheduler in master update output list.
+        /// </remarks>
+        public SourceChangeAffectedContents AffectedOutputList { get; }
+
         #endregion
 
         /// <summary>
@@ -254,6 +263,8 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 m_outputMaterializationExclusionMap.TryAdd(outputMaterializationExclusionRoot.Value, Unit.Void);
             }
+
+            AffectedOutputList = new SourceChangeAffectedContents(host.Context.PathTable, this);
         }
 
         /// <summary>

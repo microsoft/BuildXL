@@ -291,14 +291,6 @@ namespace BuildXL.Scheduler
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
         /// <summary>
-        /// Holds change affected outputs of the build
-        /// </summary>
-        /// <remarks>
-        /// Only scheduler in master update output list.
-        /// </remarks>
-        private AffectedOutputList m_affectedOutputList;
-
-        /// <summary>
         /// Enables distribution for the master node
         /// </summary>
         public void EnableDistribution(Worker[] remoteWorkers)
@@ -2282,29 +2274,24 @@ namespace BuildXL.Scheduler
                     Interlocked.Increment(ref m_numIpcPipsCompleted);
                 }
 
-                if (!IsDistributedWorker && m_affectedOutputList != null && (pipType == PipType.CopyFile || pipType == PipType.Process))
+                if (!IsDistributedWorker && m_configuration.Schedule.InputChanges.IsValid && (pipType == PipType.CopyFile || pipType == PipType.Process))
                 {
-                    IReadOnlyCollection<FileArtifact> outputContent;
-                    IReadOnlyCollection<DirectoryArtifact> directoryOutputs = null;
+                    ReadOnlyArray<FileArtifact> outputContents;
                     PipResultStatus status = result.Status;
                    
                     if (pipType == PipType.CopyFile)
                     {
-                        outputContent = new List<FileArtifact>() { ((CopyFile)(runnablePip.Pip)).Destination };
+                        outputContents = new[] { ((CopyFile)runnablePip.Pip).Destination }.ToReadOnlyArray();
                     }
                     else
                     {
-                        outputContent = runnablePip.ExecutionResult.OutputContent.Select(o => o.Item1).ToReadOnlyArray();
-                        directoryOutputs = runnablePip.ExecutionResult.DirectoryOutputs.Select(d => d.directoryArtifact).AsReadOnlyCollection();
+                        outputContents = runnablePip.ExecutionResult.OutputContent.SelectList(o => o.Item1).ToReadOnlyArray();
                     }
 
-                    m_affectedOutputList.ReportSourceChangeAffectedOutputs(
-                        status,
+                    m_fileContentManager.AffectedOutputList.ReportSourceChangeAffectedFiles(
                         pip,
                         result.DynamicallyObservedFiles,
-                        result.DynamicallyObservedEnumerations,
-                        outputContent,
-                        directoryOutputs);
+                        outputContents);
                 }
 
                 if (!succeeded)
@@ -3547,14 +3534,10 @@ namespace BuildXL.Scheduler
 
                         processRunnable.Executed = true;
 
-                        // Since the source change affected outputs are only maintained on the master, 
-                        // The affected inputs of the pip can only be computed on master.
-                        // The result will be set in the processRunnable and passed along to the worker who execute the process
-                        if (!IsDistributedWorker && m_affectedOutputList != null && processRunnable.Process.ChangeAffectedInputListWrittenFilePath.IsValid)
+
+                        if (processRunnable.Process.ChangeAffectedInputListWrittenFilePath.IsValid && runnablePip.Worker?.IsLocal == true)
                         {
-                            processRunnable.ChangeAffectedInputs = m_configuration.Sandbox.AreAllInputsAffected
-                                ? PipArtifacts.GetAllInputs(processRunnable.Process, Context.PathTable)
-                                : m_affectedOutputList.GetChangeAffectedInputs(processRunnable.Process);
+                            processRunnable.ChangeAffectedInputs = m_fileContentManager.AffectedOutputList.GetChangeAffectedInputs(processRunnable.Process);
                         }
 
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
@@ -4912,12 +4895,7 @@ namespace BuildXL.Scheduler
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
 
-                // Only master maintain the list
-                if (!IsDistributedWorker && "DynamicCodeCov".Equals(Environment.GetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType")))
-                {
-                    m_affectedOutputList = new AffectedOutputList(Context.PathTable, m_fileContentManager);
-                    m_configuration.Sandbox.AreAllInputsAffected = m_affectedOutputList.InitialAffectedOutputList(inputChangeList, Context.PathTable);
-                }
+                    m_fileContentManager.AffectedOutputList.InitialAffectedOutputList(inputChangeList, Context.PathTable);
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;

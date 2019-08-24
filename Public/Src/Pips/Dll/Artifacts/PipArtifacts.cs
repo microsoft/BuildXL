@@ -235,31 +235,5 @@ namespace BuildXL.Pips.Artifacts
 
             return result;
         }
-
-        /// <summary>
-        /// Gets the input files consumed by a pip, enumerate the input directories recuresively to get all files.
-        /// </summary>
-        public static IReadOnlyCollection<AbsolutePath> GetAllInputs(Process process, PathTable pathTable)
-        {
-            var inputs = new HashSet<AbsolutePath>();
-
-            inputs.AddRange(process.Dependencies.Select(d => d.Path));
-
-            foreach (var inDir in process.DirectoryDependencies)
-            {
-                FileUtilities.EnumerateDirectoryEntries(
-                    inDir.Path.ToString(pathTable),
-                    true,
-                    (dir, fileName, attributes) =>
-                    {
-                        if (attributes == FileAttributes.Archive)
-                        {
-                            var fullPath = Path.Combine(dir, fileName);
-                            inputs.Add(AbsolutePath.Create(pathTable, fullPath));
-                        }
-                    });
-            }
-            return ReadOnlyArray<AbsolutePath>.FromWithoutCopy(inputs.ToArray());
-        }
     }
 }

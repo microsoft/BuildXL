@@ -835,7 +835,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + "Process response file could not be prepared, path '{2}', error code {3:X8}: {4}")]
+            Message = EventConstants.PipSpecPrefix + "File containing change affected inputs could not be prepared, path '{2}', error code {3:X8}: {4}")]
         public abstract void PipProcessChangeAffectedInputsWrittenFileCreationFailed(
             LoggingContext context,
             long pipSemiStableHash,

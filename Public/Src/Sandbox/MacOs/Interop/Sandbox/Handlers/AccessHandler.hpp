@@ -24,6 +24,10 @@ struct AccessHandler
 {
 private:
 
+    const char *IgnoreDataPartitionPrefix(const char* path);
+    const char *kDataPartitionPrefix = "/System/Volumes/Data/";
+    const size_t kAdjustedPrefixLength = strlen("/System/Volumes/Data");
+    
     ESSandbox *sandbox_;
 
     SandboxedProcess *process_;
@@ -126,6 +130,6 @@ public:
     bool ReportChildProcessSpawned(pid_t childPid);
 };
 
-#endif ES_SANDBOX
+#endif /* ES_SANDBOX */
 
 #endif /* AccessHandler_hpp */

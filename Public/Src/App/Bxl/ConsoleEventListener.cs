@@ -46,15 +46,13 @@ namespace BuildXL
         private readonly string m_logsDirectory;
 
         /// <summary>
-        /// Wheter the console output should be optimized for Azure devops output
+        /// Whether the console output should be optimized for Azure devops output
         /// </summary>
         private readonly bool m_optimizeForAzureDevOps;
 
         /// <summary>
-        /// The last reported percentage. To avoid double reporting the same percentage over and over
+        /// This provides access to viewmodel data of the build for instance to get the list of running pips in fancy console mode.
         /// </summary>
-        private int m_lastReportedProgress = -1;
-
         private BuildViewModel m_buildViewModel;
 
         /// <summary>
@@ -348,22 +346,11 @@ namespace BuildXL
                         if (m_notWorker)
                         {
                             m_console.ReportProgress((ulong)done, (ulong)total);
-
-                            if (m_optimizeForAzureDevOps)
-                            {
-                                double processPercent = (100.0 * procsDone) / (procsTotal * 1.0);
-                                int currentProgress = Convert.ToInt32(Math.Floor(processPercent));
-                                if (m_lastReportedProgress != currentProgress)
-                                {
-                                    m_lastReportedProgress = currentProgress;
-                                    m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
-                                }
-                            }
                         }
 
                         break;
                     }
-                    
+
                 case (int)EventId.DisplayHelpLink:
                     {
                         m_console.WriteOutputLine(MessageLevel.Info, Strings.DX_Help_Link_Prefix + " " + Strings.DX_Help_Link);
@@ -423,9 +410,7 @@ namespace BuildXL
         protected override void OnError(EventWrittenEventArgs eventData)
         {
             Interlocked.Increment(ref m_errorsLogged);
-
-            TryLogAzureDevOpsIssue(eventData, "error");
-
+            
             if (eventData.EventId == (int)EventId.PipProcessError)
             {
                 // Try to be a bit fancy and only show the tool errors in red. The pip name and log file will stay in
@@ -455,8 +440,6 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
         {
-            TryLogAzureDevOpsIssue(eventData, "warning");
-
             if (eventData.EventId == (int)EventId.PipProcessWarning)
             {
                 string warnings = (string)eventData.Payload[5];
@@ -480,56 +463,6 @@ namespace BuildXL
 
             // We couldn't do the fancy formatting
             base.OnWarning(eventData);
-        }
-
-        private void TryLogAzureDevOpsIssue(EventWrittenEventArgs eventData, string eventType)
-        {
-            if (!m_optimizeForAzureDevOps)
-            {
-                return;
-            }
-
-            var builder = new StringBuilder();
-            builder.Append("##vso[task.logIssue type=");
-            builder.Append(eventType);
-
-            var message = eventData.Message;
-            var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
-            string body;
-
-            // see if this event provides provenance info
-            if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
-            {
-                Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
-
-                // file
-                builder.Append(";sourcepath=");
-                builder.Append(args[0]);
-
-                //line
-                builder.Append(";linenumber=");
-                builder.Append(args[1]);
-
-                //column
-                builder.Append(";columnnumber=");
-                builder.Append(args[2]);
-
-                //code
-                builder.Append(";code=DX");
-                builder.Append(eventData.EventId.ToString("D4"));
-            }
-            
-            // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
-            body = string.Format(CultureInfo.CurrentCulture, message, args);
-
-            builder.Append(";]");
-
-            // substitute newlines in the message
-            const string newLineAlternative = " ### ";
-            builder.Append(body.Replace("\r\n", newLineAlternative).Replace("\n", newLineAlternative));
-
-
-            m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());
         }
 
         private static string FinalizeFormatStringLayout(StringBuilder buffer, string statusLine, long maxNum)

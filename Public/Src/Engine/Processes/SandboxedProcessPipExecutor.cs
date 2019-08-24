@@ -3935,7 +3935,7 @@ namespace BuildXL.Processes
                         m_pip.SemiStableHash,
                         m_pip.GetDescription(m_context),
                         numErrors,
-                        Environment.NewLine + string.Join(Environment.NewLine, unexpectedSurvivingChildProcesses.Select(p => p.Path)));
+                        Environment.NewLine + string.Join(Environment.NewLine, unexpectedSurvivingChildProcesses.Select(p => $"{p.Path} ({p.ProcessId})")));
             }
 
             return numErrors;

@@ -459,7 +459,7 @@ namespace Test.BuildXL.Scheduler
                     // to write out the stats perf JSON file
                     var logsDir = config.Logging.LogsDirectory.ToString(Context.PathTable);
                     Directory.CreateDirectory(logsDir);
-                    testScheduler.LogStats(localLoggingContext);
+                    testScheduler.LogStats(localLoggingContext, null);
                 }
 
                 var runResult = new ScheduleRunResult

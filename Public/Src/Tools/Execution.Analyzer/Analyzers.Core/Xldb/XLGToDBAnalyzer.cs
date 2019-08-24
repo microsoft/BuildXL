@@ -167,7 +167,9 @@ namespace BuildXL.Execution.Analyzer
         private string[] m_additionalColumns = { XldbDataStore.EventColumnFamilyName, XldbDataStore.PipColumnFamilyName, XldbDataStore.StaticGraphColumnFamilyName };
 
         private ConcurrentBigMap<Utilities.FileArtifact, HashSet<uint>> m_fileConsumerMap = new ConcurrentBigMap<Utilities.FileArtifact, HashSet<uint>>();
+        private ConcurrentBigMap<Utilities.FileArtifact, uint> m_dynamicFileProducerMap = new ConcurrentBigMap<Utilities.FileArtifact, uint>();
         private ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>> m_directoryConsumerMap = new ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>>();
+        private ConcurrentBigMap<Utilities.DirectoryArtifact, uint> m_dynamicDirectoryProducerMap = new ConcurrentBigMap<Utilities.DirectoryArtifact, uint>();
 
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
         {
@@ -361,6 +363,13 @@ namespace BuildXL.Execution.Analyzer
                 }
             };
 
+            AddToDirectoryConsumerMap(Utilities.DirectoryArtifact.CreateWithZeroPartialSealId(data.Directory), data.PipId);
+
+            foreach (var file in data.Members)
+            {
+                AddToFileConsumerMap(new Utilities.FileArtifact(file, rewriteCount: 1), data.PipId);
+            }
+
             WriteToDb(eq.ToByteArray(), directoryMembershipEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
         }
 
@@ -517,6 +526,13 @@ namespace BuildXL.Execution.Analyzer
                         Path = directoryArtifact.Path.ToString(PathTable, PathFormat.HostOs)
                     }
                 };
+
+                m_dynamicDirectoryProducerMap.Add(directoryArtifact, data.PipId.Value);
+
+                foreach (var file in fileArtifactArray)
+                {
+                    m_dynamicFileProducerMap.Add(file, data.PipId.Value);
+                }
 
                 WriteToDb(eq.ToByteArray(), pipExecDirectoryOutputEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
             }

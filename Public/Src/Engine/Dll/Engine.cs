@@ -318,9 +318,18 @@ namespace BuildXL.Engine
             m_rootTranslator = new RootTranslator(m_directoryTranslator.GetReverseTranslator());
 
             m_collector = collector;
-            m_buildViewModel = buildViewModel;
             m_commitId = commitId;
             m_buildVersion = buildVersion;
+            m_buildViewModel = buildViewModel;
+
+            var loggingConfig = Configuration.Logging;
+            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+            {
+                var filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), loggingConfig.LogPrefix + ".Summary.md");
+                
+                // Tell the build viewmodel to collect a builder summary which we report to azure devops.
+                m_buildViewModel.BuildSummary = new BuildSummary(filePath);
+            }
 
             // Designate a temp directory under ObjectDirectory for FileUtilities to move files to during deletion attempts
             m_moveDeleteTempDirectory = Path.Combine(configuration.Layout.ObjectDirectory.ToString(context.PathTable), MoveDeleteTempDirectoryName);
@@ -2985,7 +2994,7 @@ namespace BuildXL.Engine
                 && constructScheduleResult != ConstructScheduleResult.Failure
                 && constructScheduleResult != ConstructScheduleResult.None)
             {
-                m_enginePerformanceInfo.SchedulerPerformanceInfo = schedule.LogStats(loggingContext);
+                m_enginePerformanceInfo.SchedulerPerformanceInfo = schedule.LogStats(loggingContext, m_buildViewModel.BuildSummary);
             }
 
             foreach (var type in BuildXLWriterStats.Types.OrderByDescending(type => BuildXLWriterStats.GetBytes(type)))
@@ -3260,7 +3269,23 @@ namespace BuildXL.Engine
         /// <summary>
         /// Gets the update and delay time for status timers
         /// </summary>
-        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig) => loggingConfig == null || !loggingConfig.FancyConsole ? 5000 : 2000;
+        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig)
+        {
+            if (loggingConfig != null)
+            {
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+                {
+                    return 10_000;
+                }
+
+                if (loggingConfig.FancyConsole)
+                {
+                    return 2_000;
+                }
+            }
+
+            return 5_000;
+        }
     }
 
     /// <summary>

@@ -186,6 +186,11 @@ namespace Transformer {
          * Minimum value is 0, maximum value is 99
          */
         priority?: number;
+
+        /**
+         * File to write the change affected input list of the pip before it execute.
+         */
+        changeAffectedInputListWrittenFile?: Path;
     }
 
     @@public

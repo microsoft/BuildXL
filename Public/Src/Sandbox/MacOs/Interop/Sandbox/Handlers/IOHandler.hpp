@@ -8,6 +8,8 @@
 
 #include "AccessHandler.hpp"
 
+#define NO_ERROR 0
+
 struct IOHandler : public AccessHandler
 {
 public:

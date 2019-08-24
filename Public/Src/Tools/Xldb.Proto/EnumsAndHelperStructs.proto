@@ -14,15 +14,15 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 // Enums
 //
 
-// Note that enum values use C++ scoping rules, meaning that enum values are siblings of their type, 
-// not children of it. Therefore, enum values must be unique within "BuildXL.Execution.Analyzer", not 
+// Note that enum values use C++ scoping rules, meaning that enum values are siblings of their type,
+// not children of it. Therefore, enum values must be unique within "BuildXL.Execution.Analyzer", not
 // just within a particular enum. If there are conflicting enum values, append the name of the enum in front.
 // ie: ChooseWorkerCpu ---> PipExecutionStep_ChooseWorkerCpu
 
 enum ExecutionEventId{
-    // Since we are using ExecutionEventId as in the key and protobuf 
-    // does not serialize default values, the pattern matching was bugging out. 
-    // A solution is to have an "invalid" enum constant take position 0. 
+    // Since we are using ExecutionEventId as in the key and protobuf
+    // does not serialize default values, the pattern matching was bugging out.
+    // A solution is to have an "invalid" enum constant take position 0.
     ExecutionEventId_Invalid = 0;
 
     FileArtifactContentDecided = 1;
@@ -31,7 +31,7 @@ enum ExecutionEventId{
     DirectoryMembershipHashed = 4;
 
     // Deprecated in favor of ProcessFingerprintComputation (enum 10)
-    ObservedInputs = 5; 
+    ObservedInputs = 5;
 
     ProcessExecutionMonitoringReported = 6;
     ExecutionEventId_ExtraEventDataReported = 7;
@@ -205,7 +205,7 @@ enum RequestedAccess{
     Enumerate = 8;
     EnumerationProbe = 16;
     // Read | Write = 1 | 2 = 3
-    ReadWrite = 3; 
+    ReadWrite = 3;
     // Read | Write | Probe | Enumerate | EnumerationProbe
     All = 31;
 }
@@ -300,6 +300,7 @@ enum SandboxKind{
     WinDetours = 2;
     MaxOsKext = 3;
     MacOsKextIgnoreFileAccesses = 4;
+    MacOsEndpointSecurity = 5;
 }
 
 enum DoubleWritePolicy{
@@ -528,7 +529,7 @@ message FileArtifact{
 }
 
 message FileContentInfo{
-    // [IsKnownExistenceFlag | Existence | IsKnownLengthFlag | Length]; 
+    // [IsKnownExistenceFlag | Existence | IsKnownLengthFlag | Length];
     int64 LengthAndExistence = 1;
 
     ContentHash Hash = 2;
@@ -538,19 +539,19 @@ message PipExecutionPerformance{
     int32 PipExecutionLevel = 1;
 
     google.protobuf.Timestamp ExecutionStart = 2;
-    
+
     google.protobuf.Timestamp ExecutionStop = 3;
 }
 
 message ProcessPipExecutionPerformance{
     google.protobuf.Duration ProcessExecutionTime = 1;
-    
+
     IOTypeCounters ReadCounters = 2;
 
     IOTypeCounters WriteCounters = 3;
 
     IOTypeCounters OtherCounters = 4;
-    
+
     google.protobuf.Duration UserTime = 5;
 
     google.protobuf.Duration KernelTime = 6;
@@ -786,7 +787,7 @@ message DirectoryArtifact{
 
 message FileOrDirectoryArtifact{
     FileArtifact FileArtifact = 1;
-    
+
     DirectoryArtifact DirectoryArtifact = 2;
 
     bool IsFile = 3;
@@ -802,7 +803,7 @@ message Pip{
     NodeId NodeId = 3;
 
     repeated Edge IncomingEdges = 4;
-    
+
     repeated Edge OutgoingEdges = 5;
 }
 
@@ -903,7 +904,7 @@ message SealDirectory{
     SealDirectoryKind Kind = 2;
 
     repeated string Patterns = 3;
-    
+
     AbsolutePath DirectoryRoot = 4;
 
     repeated FileArtifact Contents = 5;
@@ -967,7 +968,7 @@ message StandardInput{
 
 message EnvironmentVariable{
     string Name = 1;
-    
+
     PipData Value = 2;
 
     bool IsPassThrough = 3;

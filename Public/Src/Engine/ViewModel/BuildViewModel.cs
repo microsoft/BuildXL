@@ -21,6 +21,11 @@ namespace BuildXL.ViewModel
         public PipExecutionContext Context { get; private set; }
 
         /// <summary>
+        /// Optional field to collect a build summary page
+        /// </summary>
+        public BuildSummary BuildSummary { get; set; }
+
+        /// <summary>
         /// Gets the currently execution pips
         /// </summary>
         /// <returns></returns>

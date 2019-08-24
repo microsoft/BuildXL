@@ -19,8 +19,8 @@ namespace BuildXL.Xldb
         /// Rocks DB Accessor for XLG++ data
         /// </summary>
         private KeyValueStoreAccessor Accessor { get; set; }
-        public Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
-        public Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
+        private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
+        private Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
 
         public const string EventCountKey = "EventCount";
         public const string EventColumnFamilyName = "Event";
@@ -605,9 +605,14 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all the information about a certain path (which pips produce, which consume and more? TODO:
         /// </summary>
-        public IMessage GetProducerAndConsumersOfPath(string path)
+        public (IEnumerable<(PipType, IMessage)>, IEnumerable<(PipType, IMessage)>) GetProducerAndConsumersOfPath(string path, bool isDirectory)
         {
-            return new PipGraph();
+            if (isDirectory)
+            {
+                return (GetProducersOfDirectory(path), GetConsumersOfDirectory(path));
+            }
+
+            return (GetProducersOfFile(path), GetConsumersOfFile(path));
         }
 
         /// <summary>

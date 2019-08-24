@@ -54,6 +54,58 @@ namespace ContentPlacementAnalysisTools.ML.Main
         private static void BuildRandomForest(Args arguments)
         {
 
+            // create the tree from the sample csvs...
+            var treeCreationBlock = new TransformBlock<RandomForestFromWekaInput, TimedActionResult<RandomForestFromWekaOutput>>(i =>
+            {
+                var action = new RandomForestFromWeka(arguments.AppConfig);
+                return action.PerformAction(i);
+
+            },
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxForestCreationTasks
+                }
+            );
+            // check out the tree
+            var treeEvaluationBlock = new ActionBlock<TimedActionResult<RandomForestFromWekaOutput>>(i =>
+            {
+                if (i.ExecutionStatus)
+                {
+                    foreach (var evaluationFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
+                    {
+                        if(evaluationFile.Contains("-sample") && evaluationFile != i.Result.PredictorInputFileName)
+                        {
+                            s_logger.Info($"Evaluating tree from [{i.Result.PredictorFileName}] against [{evaluationFile}]");
+                            s_logger.Info($"Predictor has {i.Result.Predictor.Trees.Count} trees, evaluating sequentially");
+                            i.Result.Predictor.EvaluateOnTrainingSet(evaluationFile, true, false, 0);
+                            s_logger.Info($"Evaluating in parallel with {arguments.AppConfig.WekaConfig.RandomTreeConfig.MaxClassificationParallelism} threads");
+                            i.Result.Predictor.EvaluateOnTrainingSet(evaluationFile, true, true, arguments.AppConfig.WekaConfig.RandomTreeConfig.MaxClassificationParallelism);
+                        }
+                    }   
+                }
+
+            },
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = 1
+                }
+            );
+            // link
+            treeCreationBlock.LinkTo(treeEvaluationBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            // post each action
+            foreach (var trainingFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
+            {
+                if (trainingFile.Contains("-sample"))
+                {
+                    var input = new RandomForestFromWekaInput(trainingFile, arguments.AppConfig.WekaConfig.RandomTreeConfig.ClassificationClasses());
+                    treeCreationBlock.Post(input);
+                }
+            }
+            // complete
+            treeCreationBlock.Complete();
+            // wait
+            treeEvaluationBlock.Completion.Wait();
+            // done...
         }
 
         private static void LinearizeDatabase(Args arguments)
@@ -186,6 +238,44 @@ namespace ContentPlacementAnalysisTools.ML.Main
         }
 
         /// <summary>
+        ///The configuation necessary to run weka as a process
+        /// </summary>
+        public sealed class WekaConfiguration
+        {
+            /// <summary>
+            /// Weka jar file, fullpath
+            /// </summary>
+            public string WekaJar { get; set; }
+            /// <summary>
+            /// GB of memory used to run weka
+            /// </summary>
+            public int MemoryGB { get; set; }
+            /// <summary>
+            /// Weka command to run forest creation
+            /// </summary>
+            public string WekaRunRTCommand { get; set; }
+            /// <summary>
+            /// Weka command to create arff file
+            /// </summary>
+            public string WekaRunArffCommand { get; set; }
+            /// <summary>
+            /// Values related to the random tree creation
+            /// </summary>
+            public RandomTreeConfiguration RandomTreeConfig { get; set; }
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                return new StringBuilder()
+                    .Append("WekaJar=").Append(WekaJar).Append(", ")
+                    .Append("MemoryGB=").Append(MemoryGB).Append(", ")
+                    .Append("WekaRunArffCommand=").Append(WekaRunArffCommand).Append(", ")
+                    .Append("WekaRunRTCommand=").Append(WekaRunRTCommand).Append(", ")
+                    .Append("RandomTreeConfig=[").Append(RandomTreeConfig).Append("]")
+                    .ToString();
+            }
+        }
+
+        /// <summary>
         /// Represents the configuration file of this app. A configuration file has the form
         /// {
         ///     "ConcurrencyConfig":{
@@ -235,13 +325,18 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// Maximum number of concurrent artifact store tasks
             /// </summary>
             public int MaxArtifactLinearizationTasks { get; set; }
+            /// <summary>
+            /// Maximum forest creation/evaluation tasks
+            /// </summary>
+            public int MaxForestCreationTasks { get; set; }
             /// <inheritdoc />
             public override string ToString()
             {
                 return new StringBuilder()
                     .Append("MaxBuildParsingTasks=").Append(MaxBuildParsingTasks).Append(", ")
                     .Append("MaxArtifactStoreTasks=").Append(MaxArtifactStoreTasks).Append(", ")
-                    .Append("MaxArtifactLinearizationTasks=").Append(MaxArtifactLinearizationTasks)
+                    .Append("MaxArtifactLinearizationTasks=").Append(MaxArtifactLinearizationTasks).Append(", ")
+                    .Append("MaxForestCreationTasks=").Append(MaxForestCreationTasks)
                     .ToString();
             }
         }

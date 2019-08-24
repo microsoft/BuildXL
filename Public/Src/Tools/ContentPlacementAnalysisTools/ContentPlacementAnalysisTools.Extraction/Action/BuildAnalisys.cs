@@ -1,14 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ContentPlacementAnalysisTools.Core;
 using ContentPlacementAnalysisTools.Extraction.CPResources;
 using ContentPlacementAnalysisTools.Extraction.Main;
-using ContentPlamentAnalysisTools.Core;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action
 {

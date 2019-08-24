@@ -61,6 +61,7 @@ namespace BuildXL.Pips.Builders
         private readonly PooledObjectWrapper<HashSet<FileArtifact>> m_inputFiles;
         private readonly PooledObjectWrapper<HashSet<DirectoryArtifact>> m_inputDirectories;
         private readonly PooledObjectWrapper<HashSet<PipId>> m_servicePipDependencies;
+        private readonly PooledObjectWrapper<HashSet<PipId>> m_orderPipDependencies;
 
         // Outputs 
         private readonly PooledObjectWrapper<HashSet<FileArtifactWithAttributes>> m_outputFiles;
@@ -181,6 +182,7 @@ namespace BuildXL.Pips.Builders
             m_inputFiles = Pools.GetFileArtifactSet();
             m_inputDirectories = Pools.GetDirectoryArtifactSet();
             m_servicePipDependencies = PipPools.PipIdSetPool.GetInstance();
+            m_orderPipDependencies = PipPools.PipIdSetPool.GetInstance();
 
             m_outputFiles = Pools.GetFileArtifactWithAttributesSet();
             m_outputDirectories = Pools.GetDirectoryArtifactSet();
@@ -332,6 +334,14 @@ namespace BuildXL.Pips.Builders
             // It is a service client if it has a dependency to a service pip.
             ServiceKind = ServicePipKind.ServiceClient;
             m_servicePipDependencies.Instance.Add(pipId);
+        }
+
+        /// <nodoc />
+        public void AddOrderDependency(PipId pipId)
+        {
+            Contract.Requires(pipId.IsValid);
+
+            m_orderPipDependencies.Instance.Add(pipId);
         }
 
         /// <nodoc />
@@ -617,7 +627,7 @@ namespace BuildXL.Pips.Builders
 
                 dependencies: ReadOnlyArray<FileArtifact>.From(m_inputFiles.Instance),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(m_inputDirectories.Instance),
-                orderDependencies: ReadOnlyArray<PipId>.Empty, // There is no code setting this yet.
+                orderDependencies: ReadOnlyArray<PipId>.From(m_orderPipDependencies.Instance),
 
                 outputs: outputFiles,
                 directoryOutputs: directoryOutputs,
@@ -663,6 +673,7 @@ namespace BuildXL.Pips.Builders
             m_inputFiles.Dispose();
             m_inputDirectories.Dispose();
             m_servicePipDependencies.Dispose();
+            m_orderPipDependencies.Dispose();
 
             m_outputFiles.Dispose();
             m_outputDirectories.Dispose();

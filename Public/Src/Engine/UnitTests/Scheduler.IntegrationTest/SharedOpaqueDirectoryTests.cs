@@ -1478,6 +1478,92 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void ProbesAndEnumerationsOnPathsLeadingToProducedFiles()
+        {
+            /*
+                pipA->sod\subDir\file1
+                pipB->sod\subDir\file2
+
+                1st run: begin->pipB->pipA->end
+
+                2nd run: begin->pipA->pipB->end
+
+                Note: Operation.CreateDir -- even though it's a 'write' access, it will be converted into either 
+                                             AbsentPathProbe or ExistingDirectoryProbe in ObserveInputProcessor
+
+                We use Priority, Weight, and OrderDependency to force pips to run in a particular order without
+                declaring an artifact dependency between them.
+            */
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            DirectoryArtifact sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);            
+
+            var sharedOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir");
+            var sharedOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir);
+            var sharedOpaqueSubDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDirPath);
+
+            var firstOutputInSharedOpaqueSubDir = CreateOutputFileArtifact(sharedOpaqueSubDir);
+            var secondOutputInSharedOpaqueSubDir = CreateOutputFileArtifact(sharedOpaqueSubDir);
+            
+            var fileContent = "content";
+            
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.CreateDir(sharedOpaqueDirArtifact, doNotInfer: true),
+                Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer: true),
+                Operation.WriteFile(firstOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),
+                
+                Operation.Probe(sharedOpaqueSubDirArtifact, doNotInfer: true),
+                Operation.EnumerateDir(sharedOpaqueSubDirArtifact, doNotInfer: true)
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);            
+            builderA.Weight = 99;
+            builderA.Priority = 0;
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {    
+                Operation.CreateDir(sharedOpaqueDirArtifact, doNotInfer: true),                
+                Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer:true),                                
+                Operation.WriteFile(secondOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),
+
+                //Operation.EnumerateDir(sharedOpaqueSubDirArtifact, doNotInfer: true)
+            });            
+            builderB.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);            
+            builderB.Weight = 99;
+            builderB.Priority = 99;
+            
+            // We do not need order dependency here because there is no prior content,
+            // so no meaningful cache check will be happening.
+            var pipB = SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertSuccess().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+
+            // reset the graph and add the pips in a different order
+            ResetPipGraphBuilder(); 
+            
+            builderA.Priority = 99;
+            builderB.Priority = 0;
+            
+            pipA = SchedulePipBuilder(builderA);
+
+            // without order dependency both pips will do the cache lookup at the same time, and we do not want that
+            builderB.AddOrderDependency(pipA.Process.PipId);
+            pipB = SchedulePipBuilder(builderB);            
+
+            var result = RunScheduler();
+
+            // the following assert captures the current logic of how we handle the Operation.EnumerateDir
+            // if you change that logic, you might need to change the assert as well
+            result.AssertCacheHit(pipA.Process.PipId);
+            
+            // this asserts checks that the probes do not affect the cacheability of the pip
+            result.AssertCacheHit(pipB.Process.PipId);            
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

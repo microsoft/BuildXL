@@ -1576,8 +1576,40 @@ namespace BuildXL.Scheduler
             counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime);
 
             using (operationContext.StartOperation(PipExecutorCounter.ProcessOutputsDuration))
+            using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
             {
                 ObservedInputProcessingResult observedInputValidationResult;
+
+
+                // ObservedFileAccesses might include various accesses to directories leading to the files inside of shared opaques,
+                // mainly CreateDirectory and ProbeDirectory. To make strong fingerprint computation more stable, we are excluding such
+                // accesses from the list that is passed into the ObservedInputProcessor (as a result, they will not be a part of the path set).
+                //
+                // Given this path: '\sod\dir1\dir2\file.txt', we will exclude accesses to dir1 and dir2 only.
+                var excludedPaths = excludedPathsWrapper.Instance;
+                foreach (var sod in executionResult.SharedDynamicDirectoryWriteAccesses)
+                {
+                    foreach (var file in sod.Value)
+                    {
+                        var pathElement = file.GetParent(pathTable);
+                        while (pathElement.IsValid && pathElement != sod.Key && !excludedPaths.Contains(pathElement))
+                        {
+                            excludedPaths.Add(pathElement);
+                            pathElement = pathElement.GetParent(pathTable);
+                        }
+                    }
+                }
+
+                var filteredAccesses = executionResult.ObservedFileAccesses
+                    .Where(access =>
+                        // if it's an enumeration -> include always
+                        (access.ObservationFlags & ObservationFlags.Enumeration) == ObservationFlags.Enumeration
+                        // otherwise, check whether it's an excluded path 
+                        || !excludedPaths.Contains(access.Path))                        
+                    .ToArray();
+
+                var accessesToProcessAndValidate = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(
+                    ReadOnlyArray<ObservedFileAccess>.FromWithoutCopy(filteredAccesses), executionResult.ObservedFileAccesses.Comparer);
 
                 using (operationContext.StartOperation(PipExecutorCounter.ProcessOutputsObservedInputValidationDuration))
                 {
@@ -1594,7 +1626,7 @@ namespace BuildXL.Scheduler
                             state,
                             state.GetCacheableProcess(pip, environment),
                             fileAccessReportingContext,
-                            executionResult.ObservedFileAccesses,
+                            accessesToProcessAndValidate,
                             trackFileChanges: succeeded);
                 }
 

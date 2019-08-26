@@ -49,7 +49,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly int _bufferSize;
         private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
-        private readonly Lazy<Task<Result<IReadOnlyContentSession>>> _proactiveCopySession;
 
         /// <nodoc />
         public GrpcContentServer(
@@ -69,35 +68,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
             _pool = new ByteArrayPool(_bufferSize);
-            _proactiveCopySession = new Lazy<Task<Result<IReadOnlyContentSession>>>(() => CreateCopySession());
-        }
-
-        /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
-        {
-            if (_proactiveCopySession.IsValueCreated)
-            {
-                var session = await _proactiveCopySession.Value.ThrowIfFailureAsync();
-                await session.ShutdownAsync(context).ThrowIfFailure();
-            }
-
-            return BoolResult.Success;
-        }
-
-        private Task<Result<IReadOnlyContentSession>> CreateCopySession()
-        {
-            var sessionId = Guid.NewGuid();
-            var context = new OperationContext(new Context(sessionId, _logger));
-            return context.PerformOperationAsync(_tracer,
-                async () =>
-                {
-                    // NOTE: We use ImplicitPin.None so that the OpenStream calls triggered by RequestCopy will only pull the content, NOT pin it in the local store.
-                    var sessionResult = _contentStoreByCacheName.Values.First().CreateReadOnlySession(context, $"{sessionId}-DefaultCopy", ImplicitPin.None).ThrowIfFailure();
-                    var session = sessionResult.Session;
-
-                    await session.StartupAsync(context).ThrowIfFailure();
-                    return Result.Success(session);
-                });
         }
 
         /// <nodoc />
@@ -327,26 +297,30 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             OperationStarted();
 
-            var startTime = DateTime.UtcNow;
-            var context = new OperationContext(new Context(new Guid(request.TraceId), _logger), cancellationToken);
+            OperationStarted();
 
-            var sessionResult = await _proactiveCopySession.Value;
-            if (!sessionResult.Succeeded)
+            DateTime startTime = DateTime.UtcNow;
+            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
+
+            // Iterate through all known stores, looking for content in each.
+            // In most of our configurations there is just one store anyway,
+            // and doing this means both we can callers don't have
+            // to deal with cache roots and drive letters.
+
+            if (_contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault() is ICopyRequestHandler handler)
             {
-                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
+                var result = await handler.RequestCopyFileAsync(cacheContext, hash);
+                if (result.Succeeded)
+                {
+                    return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
+                }
+
+                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
+
             }
 
-            var session = sessionResult.Value;
-
-            // Opening stream to ensure the content is copied locally. Stream is immediately disposed.
-            var openStreamResult = await session.OpenStreamAsync(context, request.ContentHash.ToContentHash((HashType)request.HashType), cancellationToken);
-            if (openStreamResult.Succeeded)
-            {
-                openStreamResult.Stream.Dispose();
-                return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
-            }
-
-            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, openStreamResult.ErrorMessage) };
+            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, $"No stores implement {nameof(ICopyRequestHandler)}.") };
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);

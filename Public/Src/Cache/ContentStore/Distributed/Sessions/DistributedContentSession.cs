@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IContentLocationStore contentLocationStore,
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
-            byte[] localMachineLocation,
+            MachineLocation localMachineLocation,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)

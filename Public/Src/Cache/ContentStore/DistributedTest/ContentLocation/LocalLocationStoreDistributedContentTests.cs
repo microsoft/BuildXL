@@ -81,12 +81,11 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         /// <nodoc />
-        protected virtual bool EnableProactiveCopy => false;
+        protected bool EnableProactiveCopy { get; set; } = false;
 
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
-            ICopyRequester copyRequester,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
@@ -163,7 +162,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 pathTransformer,
-                copyRequester,
+                fileCopier,
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,
@@ -184,6 +183,55 @@ namespace ContentStoreTest.Distributed.Sessions
 
             distributedContentStore.DisposeContentStoreFactory = false;
             return distributedContentStore;
+        }
+
+        [Fact]
+        public async Task ProactiveCopyDistributedTest()
+        {
+            EnableProactiveCopy = true;
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 3;
+            ConfigureWithOneMaster();
+
+            // We need pin better to be triggered.
+            PinConfiguration = new PinConfiguration();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
+
+                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+
+                    // Insert random file #1 into worker #1
+                    var putResult1 = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    var hash1 = putResult1.ContentHash;
+
+                    var getBulkResult1 = await masterStore.GetBulkAsync(context, hash1, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // LocationStore knew no machines, so copying should not be possible. However, next time it will know location 1.
+                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(1);
+
+                    // Insert random file #2 into worker #2
+                    var putResult2 = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    var hash2 = putResult2.ContentHash;
+
+                    await Task.Delay(TimeSpan.FromSeconds(1)); // Wait for proactive copy to finish in the background.
+
+                    var getBulkResult2 = await masterStore.GetBulkAsync(context, hash2, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // Should have proactively copied to worker #1
+                    getBulkResult2.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+                },
+                implicitPin: ImplicitPin.None);
         }
 
         private LocalRedisProcessDatabase GetDatabase(Context context, ref int index)
@@ -775,7 +823,7 @@ namespace ContentStoreTest.Distributed.Sessions
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public async Task MultiLevelContentLocationStoreDatabasePinTests(bool usePinBulk)
+        public virtual async Task MultiLevelContentLocationStoreDatabasePinTests(bool usePinBulk)
         {
             ConfigureWithOneMaster();
             int storeCount = 3;

@@ -235,10 +235,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 traceOperationStarted: false,
                 operation: () =>
                 {
-                    var targetPath = new AbsolutePath(targetLocation.Path);
-                    var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
-
-                    return _ioGate.GatedOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
+                    return _ioGate.GatedOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetLocation), context.Token);
                 });
         }
 

@@ -4,7 +4,7 @@
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
-namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
+namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
     /// Transforms content hashes to an opaque path that a remote interface can operate with.

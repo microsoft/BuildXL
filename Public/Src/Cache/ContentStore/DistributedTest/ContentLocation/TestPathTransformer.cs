@@ -5,6 +5,7 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Distributed;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {

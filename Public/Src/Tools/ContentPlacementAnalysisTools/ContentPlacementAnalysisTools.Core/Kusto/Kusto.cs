@@ -2,7 +2,7 @@
 using System.Text;
 using Newtonsoft.Json;
 
-namespace ContentPlacementAnalysisTools.Core
+namespace ContentPlacementAnalysisTools.Core.Kusto
 {
     /// <summary>
     /// Contains the parameters necessary to establish a connection to kusto, and its meant

@@ -1,70 +1,24 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
+using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ContentPlacementAnalysisTools.Core
+namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 {
-    /// <summary>
-    ///The configuation necessary to operate a random tree
-    /// </summary>
-    public sealed class RandomTreeConfiguration
-    {
-        /// <summary>
-        ///  When creating tree with weka, which columns of the datasets to remove (1 based)
-        /// </summary>
-        public string RemovedColumns { get; set; }
-        /// <summary>
-        ///  The number of random trees weka will create
-        /// </summary>
-        public int RandomTreeCount { get; set; }
-        /// <summary>
-        ///  The percentage that will be kept in bag (weka)
-        /// </summary>
-        public int BagSizePercentage { get; set; }
-        /// <summary>
-        ///  How many threads to use when creating (weka)
-        /// </summary>
-        public int MaxCreationParallelism { get; set; }
-        /// <summary>
-        ///  When using a tree, if this is greater than zero it will clasiffy an instance in parallel with this many threads
-        /// </summary>
-        public int MaxClassificationParallelism { get; set; }
-        /// <summary>
-        ///  The classes the forst can output (classification)
-        /// </summary>
-        public string Classes { get; set; }
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return new StringBuilder()
-                    .Append("RemovedColumns=").Append(RemovedColumns).Append(", ")
-                    .Append("RandomTreeCount=").Append(RandomTreeCount).Append(", ")
-                    .Append("BagSizePercentage=").Append(BagSizePercentage).Append(", ")
-                    .Append("MaxCreationParallelism=").Append(MaxCreationParallelism).Append(", ")
-                    .Append("MaxClassificationParallelism=").Append(MaxClassificationParallelism)
-                    .ToString();
-        }
-        /// <summary>
-        ///  Gets the classes we will use for classification
-        /// </summary>
-        public HashSet<string> ClassificationClasses()
-        {
-            return new HashSet<string>(Classes.Split(','));
-        }
-    }
-
+    
     /// <summary>
     /// A random forest, which is a collection of decision trees
     /// </summary>
-    public class RandomForest
+    public class RandomForest : MLClassifier
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
+
         private static readonly int s_defaultPrecision = 10;
         /// <summary>
         /// The trees that comprise the forest
@@ -77,9 +31,41 @@ namespace ContentPlacementAnalysisTools.Core
         /// <summary>
         /// Constructors
         /// </summary>
-        public RandomForest(HashSet<string> classes)
+        public RandomForest(HashSet<string> classes) => Classes = classes;
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public RandomForest() { }
+
+        /// <summary>
+        /// Returns the class with most votes among all the trees
+        /// </summary>
+        public override void Classify(MLInstance instance)
         {
-            Classes = classes;
+            var rfInstance = instance as RandomForestInstance;
+            var votes = VoteCounter();
+            foreach (var tree in Trees)
+            {
+                votes[tree.Evaluate(rfInstance)] += 1;
+            }
+            votes[RandomTreeNode.NoClass] = 0;
+            instance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+        }
+
+        /// <summary>
+        /// Returns the class with most votes among all the trees. It uses multiple threads to evaluate 
+        /// </summary>
+        public override void Classify(MLInstance instance, int parallelism)
+        {
+            var rfInstance = instance as RandomForestInstance;
+            var votes = ParallelVoteCounter();
+            var options = new ParallelOptions() { MaxDegreeOfParallelism = parallelism };
+            Parallel.ForEach(Trees, options, tree =>
+            {
+                votes[tree.Evaluate(rfInstance)] += 1;
+            });
+            votes[RandomTreeNode.NoClass] = 0;
+            instance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
         }
 
         /// <summary>
@@ -90,7 +76,7 @@ namespace ContentPlacementAnalysisTools.Core
             // parse the instances
             s_logger.Info($"Parsing instances from [{trainingFile}]");
             var rdr = new StreamReader(trainingFile);
-            var instances = new List<Dictionary<string, double>>();
+            var instances = new List<RandomForestInstance>();
             string line;
             while ((line = rdr.ReadLine()) != null)
             {
@@ -113,25 +99,28 @@ namespace ContentPlacementAnalysisTools.Core
             }
             foreach(var instance in instances)
             {
-                var prediction = parallel ? Classify(instance, maxParalellism) : Classify(instance);
-                if(MLArtifact.Evaluate(instance, prediction))
+                if (parallel)
                 {
-                    confusion[$"{prediction}-true"] += 1;
+                    Classify(instance, maxParalellism);
                 }
                 else
                 {
-                    confusion[$"{prediction}-false"] += 1;
+                    Classify(instance);
+                }
+
+                if(MLArtifact.Evaluate(instance))
+                {
+                    confusion[$"{instance.PredictedClass}-true"] += 1;
+                }
+                else
+                {
+                    confusion[$"{instance.PredictedClass}-false"] += 1;
                 }
             }
             timer.Stop();
             var elapsedEvaluationMillis = timer.ElapsedMilliseconds;
             var perInstanceTime = elapsedEvaluationMillis * 1.0 / instances.Count * 1.0;
-            s_logger.Info($"Times: Total={elapsedEvaluationMillis}ms, PerInstance={perInstanceTime}ms");
-            s_logger.Info("Confusion matrix :");
-            foreach(var entry in confusion)
-            {
-                s_logger.Info($"{entry.Key}: {entry.Value}");
-            }
+            s_logger.Info($"Times: Total={elapsedEvaluationMillis}ms, PerInstanceAvg={perInstanceTime}ms");          
             var correctlyClassified = 0.0;
             var errors = 0.0;
             foreach (var entry in confusion)
@@ -147,37 +136,6 @@ namespace ContentPlacementAnalysisTools.Core
             }
             s_logger.Info($"Overral accuracy: {(correctlyClassified) / (correctlyClassified + errors)}");
             rdr.Close();
-
-
-        }
-
-        /// <summary>
-        /// Returns the class with most votes among all the trees
-        /// </summary>
-        public string Classify(Dictionary<string, double> instance)
-        {
-            var votes = VoteCounter();
-            foreach (var tree in Trees)
-            {
-                votes[tree.Evaluate(instance)] += 1;
-            }
-            votes[RandomTreeNode.NoClass] = 0;
-            return votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
-        }
-
-        /// <summary>
-        /// Returns the class with most votes among all the trees. It uses multiple threads to evaluate 
-        /// </summary>
-        public string Classify(Dictionary<string, double> instance, int parallelism)
-        {
-            var votes = ParallelVoteCounter();
-            var options = new ParallelOptions() { MaxDegreeOfParallelism = parallelism };
-            Parallel.ForEach(Trees, options, tree =>
-            {
-                votes[tree.Evaluate(instance)] += 1;
-            });
-            votes[RandomTreeNode.NoClass] = 0;
-            return votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
         }
 
         private ConcurrentDictionary<string, int> VoteCounter()
@@ -242,6 +200,7 @@ namespace ContentPlacementAnalysisTools.Core
                 tree.LogTree();
             }
         }
+
     }
 
     /// <summary>
@@ -264,31 +223,26 @@ namespace ContentPlacementAnalysisTools.Core
         /// </summary>
         internal int NumNodes { get; set; }
 
-        internal string Evaluate(Dictionary<string, double> instance)
+        internal string Evaluate(RandomForestInstance instance)
         {
-            var maxDepthReached = 0;
             foreach (var root in Roots)
             {
                 var evaluation = Evaluate(root, instance);
-                maxDepthReached = Math.Max(maxDepthReached, evaluation.Item2);
-                if (evaluation.Item1 != RandomTreeNode.NoClass)
+                if (evaluation != RandomTreeNode.NoClass)
                 {
-                    return evaluation.Item1;
+                    return evaluation;
                 }
             }
-            // Console.WriteLine($"Instance gets {maxDepthReached} in tree {Id}");
             return RandomTreeNode.NoClass;
         }
 
-        internal Tuple<string, int> Evaluate(RandomTreeNode node, Dictionary<string, double> instance)
+        internal string Evaluate(RandomTreeNode node, RandomForestInstance instance)
         {
-            var depthReached = 0;
             var stack = new Stack<RandomTreeNode>();
             stack.Push(node);
             while (stack.Any())
             {
                 var next = stack.Pop();
-                depthReached = Math.Max(next.Level, depthReached);
                 if (next.Evaluate(instance))
                 {
                     // its not a leaf
@@ -302,12 +256,12 @@ namespace ContentPlacementAnalysisTools.Core
                     // its a leaf
                     else
                     {
-                        return new Tuple<string, int>(next.OutputClass, depthReached);
+                        return next.OutputClass;
                     }
                 }
             }
             // tree could not classify instance...
-            return new Tuple<string, int>(RandomTreeNode.NoClass, depthReached);
+            return RandomTreeNode.NoClass;
         }
 
         internal static RandomTree FromStream(StreamReader reader, string firstLine, int nodePrecision, int id)
@@ -404,8 +358,6 @@ namespace ContentPlacementAnalysisTools.Core
             }
         }
     }
-
-
     /// <summary>
     /// A random tree node
     /// </summary>
@@ -418,10 +370,13 @@ namespace ContentPlacementAnalysisTools.Core
         internal string OutputClass { get; set; } = null;
         internal RandomTreeNode Parent { get; set; }
         internal List<RandomTreeNode> Children { get; set; } = new List<RandomTreeNode>();
-        internal Predicate<Dictionary<string, double>> EvaluationPredicate { get; set; }
+        internal Predicate<RandomForestInstance> EvaluationPredicate { get; set; }
         internal int Level { get; set; }
 
-        internal bool Evaluate(Dictionary<string, double> instance) => EvaluationPredicate.Invoke(instance);
+        internal bool Evaluate(RandomForestInstance instance)
+        {
+            return EvaluationPredicate.Invoke(instance);
+        }
 
         internal static RandomTreeNode BuildFromString(string predicateLine, int id, int precision)
         {
@@ -437,7 +392,7 @@ namespace ContentPlacementAnalysisTools.Core
             // now, split by spaces 
             var pieces = predicateText.Split(' ');
             // here, 0 is the name, 1 is the op and 2 is the value
-            node.EvaluationPredicate = BuildPredicate(pieces[0], pieces[1], pieces[2], precision);
+            node.EvaluationPredicate = PredicateBuilder.BuildPredicate(pieces[0], pieces[1], pieces[2], precision);
             // now, check if this outputs something
             if (predicateLine.Contains(":"))
             {
@@ -456,20 +411,88 @@ namespace ContentPlacementAnalysisTools.Core
             s_logger.Info($"{tabs.ToString()}Id={Id}, Level={Level}, Parent={(Parent != null ? Parent.Id : -1)}");
         }
 
-        private static int DetermineLevel(string predicateLine) => predicateLine.Count(e => e == '|');
+        private static int DetermineLevel(string predicateLine)
+        {
+            return predicateLine.Count(e => e == '|');
+        }
 
-        private static Predicate<Dictionary<string, double>> BuildPredicate(string attr, string operation, string value, int precision)
+        
+    }
+
+    /// <summary>
+    /// Utility to build predicates, outside of the node class
+    /// </summary>
+    internal static class PredicateBuilder
+    {
+        internal static Predicate<RandomForestInstance> BuildPredicate(string attr, string operation, string value, int precision)
         {
             switch (operation)
             {
-                case ">": return instance => instance[attr] > Math.Round(Convert.ToDouble(value), precision);
-                case ">=": return instance => instance[attr] >= Math.Round(Convert.ToDouble(value), precision);
-                case "<": return instance => instance[attr] < Math.Round(Convert.ToDouble(value), precision);
-                case "<=": return instance => instance[attr] <= Math.Round(Convert.ToDouble(value), precision);
-                case "=": return instance => instance[attr] == Math.Round(Convert.ToDouble(value), precision);
+                case ">": return instance => instance.Attributes[attr] > Math.Round(Convert.ToDouble(value), precision);
+                case ">=": return instance => instance.Attributes[attr] >= Math.Round(Convert.ToDouble(value), precision);
+                case "<": return instance => instance.Attributes[attr] < Math.Round(Convert.ToDouble(value), precision);
+                case "<=": return instance => instance.Attributes[attr] <= Math.Round(Convert.ToDouble(value), precision);
+                case "=": return instance => instance.Attributes[attr] == Math.Round(Convert.ToDouble(value), precision);
             }
             throw new Exception($"Unknown operator, could not create predicate ({operation})");
         }
     }
 
+    /// <summary>
+    ///The configuation necessary to operate a random tree
+    /// </summary>
+    public sealed class RandomTreeConfiguration
+    {
+        /// <summary>
+        ///  When creating tree with weka, which columns of the datasets to remove (1 based)
+        /// </summary>
+        public string RemovedColumns { get; set; }
+        /// <summary>
+        ///  The number of random trees weka will create
+        /// </summary>
+        public int RandomTreeCount { get; set; }
+        /// <summary>
+        ///  The percentage that will be kept in bag (weka)
+        /// </summary>
+        public int BagSizePercentage { get; set; }
+        /// <summary>
+        ///  How many threads to use when creating (weka)
+        /// </summary>
+        public int MaxCreationParallelism { get; set; }
+        /// <summary>
+        ///  When using a tree, if this is greater than zero it will clasiffy an instance in parallel with this many threads
+        /// </summary>
+        public int MaxClassificationParallelism { get; set; }
+        /// <summary>
+        ///  The classes the forst can output (classification)
+        /// </summary>
+        public string Classes { get; set; }
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return new StringBuilder()
+                    .Append("RemovedColumns=").Append(RemovedColumns).Append(", ")
+                    .Append("RandomTreeCount=").Append(RandomTreeCount).Append(", ")
+                    .Append("BagSizePercentage=").Append(BagSizePercentage).Append(", ")
+                    .Append("MaxCreationParallelism=").Append(MaxCreationParallelism).Append(", ")
+                    .Append("MaxClassificationParallelism=").Append(MaxClassificationParallelism)
+                    .ToString();
+        }
+        /// <summary>
+        ///  Gets the classes we will use for classification
+        /// </summary>
+        public HashSet<string> ClassificationClasses()
+        {
+            return new HashSet<string>(Classes.Split(','));
+        }
+    }
+
+    /// <summary>
+    ///  A random forest should only classify this kind of instances. 
+    /// </summary>
+    [Serializable]
+    public class RandomForestInstance : MLInstance
+    {
+
+    }
 }

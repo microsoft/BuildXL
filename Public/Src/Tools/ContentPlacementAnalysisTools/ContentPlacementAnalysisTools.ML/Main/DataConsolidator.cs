@@ -7,7 +7,9 @@ using System.Text;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Collections;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.ML;
+using ContentPlacementAnalysisTools.Core.ML.Classifier;
+using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.ML.Action;
 using Newtonsoft.Json;
 
@@ -32,7 +34,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             try
             {
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
-                if (!(arguments.BuildRandomForestOnly || arguments.LinearizeOnly))
+                if (!(arguments.BuildRandomForestOnly || arguments.LinearizeOnly || arguments.EvaluateRandomForestOnly))
                 {
                     CreateDatabase(arguments);
                 }
@@ -44,6 +46,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 {
                     BuildRandomForest(arguments);
                 }
+                if (arguments.EvaluateRandomForestOnly)
+                {
+                    EvaluateForests(arguments);
+                }
             }
             finally
             {
@@ -51,47 +57,56 @@ namespace ContentPlacementAnalysisTools.ML.Main
             }
         }
 
-        private static void BuildRandomForest(Args arguments)
+        private static void EvaluateForests(Args arguments)
         {
-
+            // we have a bunch of forests and we will compare them by classifying against
+            // unknown samples. The forests are in weka format (wtree)
+            s_logger.Info("Evaluating random forests...");
             // create the tree from the sample csvs...
-            var treeCreationBlock = new TransformBlock<RandomForestFromWekaInput, TimedActionResult<RandomForestFromWekaOutput>>(i =>
+            var treeEvaluationBlock = new ActionBlock<string>(i =>
             {
-                var action = new RandomForestFromWeka(arguments.AppConfig);
-                return action.PerformAction(i);
-
-            },
-                new ExecutionDataflowBlockOptions()
+                var classifier = RandomForest.FromWekaFile(i, arguments.AppConfig.WekaConfig.RandomTreeConfig.ClassificationClasses());
+                // and now evaluate
+                foreach(var evaluationFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
                 {
-                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxForestCreationTasks
-                }
-            );
-            // check out the tree
-            var treeEvaluationBlock = new ActionBlock<TimedActionResult<RandomForestFromWekaOutput>>(i =>
-            {
-                if (i.ExecutionStatus)
-                {
-                    foreach (var evaluationFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
+                    if (evaluationFile.Contains("-sample"))
                     {
-                        if(evaluationFile.Contains("-sample") && evaluationFile != i.Result.PredictorInputFileName)
-                        {
-                            s_logger.Info($"Evaluating tree from [{i.Result.PredictorFileName}] against [{evaluationFile}]");
-                            s_logger.Info($"Predictor has {i.Result.Predictor.Trees.Count} trees, evaluating sequentially");
-                            i.Result.Predictor.EvaluateOnTrainingSet(evaluationFile, true, false, 0);
-                            s_logger.Info($"Evaluating in parallel with {arguments.AppConfig.WekaConfig.RandomTreeConfig.MaxClassificationParallelism} threads");
-                            i.Result.Predictor.EvaluateOnTrainingSet(evaluationFile, true, true, arguments.AppConfig.WekaConfig.RandomTreeConfig.MaxClassificationParallelism);
-                        }
-                    }   
+                        classifier.EvaluateOnTrainingSet(evaluationFile, true, false, 0);
+                    }
                 }
-
             },
                 new ExecutionDataflowBlockOptions()
                 {
                     MaxDegreeOfParallelism = 1
                 }
             );
-            // link
-            treeCreationBlock.LinkTo(treeEvaluationBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            // post each action
+            foreach (var treeFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.wtree"))
+            {
+                treeEvaluationBlock.Post(treeFile);
+            }
+            // complete
+            treeEvaluationBlock.Complete();
+            // wait
+            treeEvaluationBlock.Completion.Wait();
+            // done...
+        }
+
+        private static void BuildRandomForest(Args arguments)
+        {
+
+            s_logger.Info("Building random forests...");
+            // create the tree from the sample csvs...
+            var treeCreationBlock = new ActionBlock<RandomForestFromWekaInput>(i =>
+            {
+                var action = new RandomForestFromWeka(arguments.AppConfig);
+                action.PerformAction(i);
+            },
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxForestCreationTasks
+                }
+            );
             // post each action
             foreach (var trainingFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
             {
@@ -104,7 +119,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             // complete
             treeCreationBlock.Complete();
             // wait
-            treeEvaluationBlock.Completion.Wait();
+            treeCreationBlock.Completion.Wait();
             // done...
         }
 
@@ -373,6 +388,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// </summary>
             public bool BuildRandomForestOnly { get; } = false;
             /// <summary>
+            /// If true, only the existing trees will be loaded and evaluated
+            /// </summary>
+            public bool EvaluateRandomForestOnly { get; } = false;
+            /// <summary>
             /// True if help was requested
             /// </summary>
             public bool Help { get; } = false;
@@ -418,6 +437,12 @@ namespace ContentPlacementAnalysisTools.ML.Main
                         BuildRandomForestOnly = ParseBooleanOption(opt);
                     }
 
+                    else if (opt.Name.Equals("evalRF", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("erfo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        EvaluateRandomForestOnly = ParseBooleanOption(opt);
+                    }
+                    
+
                 }
                 // and a couple of checks here
                 Contract.Requires(AppConfig != null, "You must specify a configuration file");
@@ -441,6 +466,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 writer.WriteOption("numSamples", "Optional. The number of samples to be taken (from the global output). Defaults to 1", shortName: "ns");
                 writer.WriteOption("sampleSize", "Optional. The size of each sample. Defaults to 10000", shortName: "ss");
                 writer.WriteOption("buildRF", "Optional. If the samples are already created, this will only run the random forest generator", shortName: "brfo");
+                writer.WriteOption("evalRF", "Optional. If the forests are already created, this will only run the evaluation phase", shortName: "erfo");
             }
         }
     }

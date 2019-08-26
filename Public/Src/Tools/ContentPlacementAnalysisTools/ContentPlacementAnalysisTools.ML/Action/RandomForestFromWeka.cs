@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.ML.Classifier;
+using ContentPlacementAnalysisTools.Core.Utils;
 using static ContentPlacementAnalysisTools.ML.Main.DataConsolidator;
 
 namespace ContentPlacementAnalysisTools.ML.Action
@@ -32,38 +33,43 @@ namespace ContentPlacementAnalysisTools.ML.Action
             s_logger.Debug($"RandomForestFromWeka starts");
             try
             {
-                var outputFile = $"{input.TrainingSetCsv}.wtree";
+                var outputTreeFile = $"{input.TrainingSetCsv}.wtree";
                 var outputArffFile = $"{input.TrainingSetCsv}.arff";
-                // lets analyze this in here
-                try
+                RandomForest forest = null;
+                if (!File.Exists(outputTreeFile))
                 {
-                    var arffExitCode = WriteArff(input, outputArffFile);
-                    s_logger.Debug($"ArffWrite returns exitCode={arffExitCode}");
-                    if (File.Exists(outputArffFile))
+                    // lets analyze this in here
+                    try
                     {
-                        var exitCode = RunWeka(input, outputArffFile, outputFile);
-                        s_logger.Debug($"RandomForestFromWeka returns exitCode={exitCode}");
+                        var arffExitCode = WriteArff(input, outputArffFile);
+                        s_logger.Debug($"ArffWrite returns exitCode={arffExitCode}");
+                        if (File.Exists(outputArffFile))
+                        {
+                            var exitCode = RunWeka(input, outputArffFile, outputTreeFile);
+                            s_logger.Debug($"RandomForestFromWeka returns exitCode={exitCode}");
+                        }
+                        else
+                        {
+                            s_logger.Error($"Could not write arff file for [{input.TrainingSetCsv}]");
+                        }
                     }
-                    else
+                    catch (Exception e)
                     {
-                        s_logger.Error($"Could not write arff file for [{input.TrainingSetCsv}]");
+                        s_logger.Error(e, "An exception ocurred when writting forest from weka");
                     }
-                }
-                catch (Exception e)
-                {
-                    s_logger.Error(e, "An exception ocurred when writting forest from weka");
-                }
-                finally
-                {
-                    if (!File.Exists(outputFile))
+                    finally
                     {
-                        throw new Exception($"RandomForestFromWeka task failed to write output to [{outputFile}]");
+                        if (!File.Exists(outputTreeFile))
+                        {
+                            throw new Exception($"RandomForestFromWeka task failed to write output to [{outputTreeFile}]");
+                        }
                     }
+
                 }
                 // and now load the forest
-                var forest = RandomForest.FromWekaFile(outputFile, input.Classes);
+                forest = RandomForest.FromWekaFile(outputTreeFile, input.Classes);
                 // done
-                return new RandomForestFromWekaOutput(forest, input.TrainingSetCsv, outputFile);
+                return new RandomForestFromWekaOutput(forest, input.TrainingSetCsv, outputTreeFile);
             }
             finally
             {
@@ -151,8 +157,17 @@ namespace ContentPlacementAnalysisTools.ML.Action
     /// </summary>
     public class RandomForestFromWekaInput
     {
+        /// <summary>
+        /// The classes the classifier will use
+        /// </summary>
         public HashSet<string> Classes { get; set; }
+        /// <summary>
+        /// A training set for the classifier
+        /// </summary>
         public string TrainingSetCsv { get; set; }
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public RandomForestFromWekaInput(string ts, HashSet<string> cl)
         {
             TrainingSetCsv = ts;
@@ -160,13 +175,25 @@ namespace ContentPlacementAnalysisTools.ML.Action
         }
     }
     /// <summary>
-    /// Conatins the parsed random forest
+    /// Contains the parsed random forest
     /// </summary>
     public class RandomForestFromWekaOutput
     {
+        /// <summary>
+        /// File used to train the classifier
+        /// </summary>
         public string PredictorInputFileName { get; set; }
+        /// <summary>
+        /// The classifier file name
+        /// </summary>
         public string PredictorFileName { get; set; }
+        /// <summary>
+        /// The classifier
+        /// </summary>
         public RandomForest Predictor { get; set; }
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public RandomForestFromWekaOutput(RandomForest p, string ifn, string pfn)
         {
             Predictor = p;

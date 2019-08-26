@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using ContentPlacementAnalysisTools.Core;
-using ContentPlacementAnalysisTools.Extraction.CPResources;
+using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.Extraction.Main;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action

@@ -15,7 +15,7 @@ using BuildXL.Storage;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips.Artifacts;
 using Newtonsoft.Json;
-using ContentPlamentAnalysisTools.Core;
+using ContentPlamentAnalysisTools.Core.Analyzer;
 using BuildXL.Utilities.Collections;
 using System.Diagnostics;
 

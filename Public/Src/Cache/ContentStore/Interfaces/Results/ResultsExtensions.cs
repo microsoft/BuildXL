@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -103,6 +104,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             var result = await task;
             result.ThrowIfFailure();
             return result;
+        }
+
+        /// <summary>
+        /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
+        /// </summary>
+        public static async Task<TResult> ThrowIfFailureAsync<T, TResult>(this Task<T> task, Func<T, TResult> resultSelector)
+            where T : ResultBase
+        {
+            var result = await task;
+            result.ThrowIfFailure();
+            return resultSelector(result);
         }
 
         /// <summary>

@@ -45,7 +45,7 @@ function checkForUpdates() {
             minor: 0
         };
         // Our build version is in the form of "date.index.minor"
-        const thisExtension = vscode_1.extensions.getExtension("Microsoft.buildxldscript");
+        const thisExtension = vscode_1.extensions.getExtension("Microsoft.dscript");
         const thisVersion = thisExtension.packageJSON.version;
         const splitVersion = thisVersion.split('.');
         if (splitVersion.length === 3) {

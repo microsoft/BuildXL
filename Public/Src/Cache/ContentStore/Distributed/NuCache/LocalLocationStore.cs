@@ -280,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await EventStore.StartupAsync(context).ThrowIfFailure();
 
-            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation);
+            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
 
             // Configuring a heartbeat timer. The timer is used differently by a master and by a worker.
             _heartbeatTimer = new Timer(
@@ -1234,11 +1234,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return GlobalStore.GetBlobAsync(context, hash);
         }
-
-        /// <summary>
-        /// Gets a random machine location, excluding a specified location.
-        /// </summary>
-        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except) => ClusterState.GetRandomMachineLocation(except);
 
         /// <summary>
         /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by

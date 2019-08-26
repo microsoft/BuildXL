@@ -87,17 +87,15 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Applies a batch Put and Delete operations. Useful only in the case when a large number of operations have 
         /// to be performed on the store. May or may not be atomic.
         /// </summary>
-        /// <param name="keys">
-        /// The key of each entry.
-        /// </param>
-        /// <param name="values">
-        /// The value of each entry. Must be the same size as the keys. If a value is null, then a Delete will be 
+        /// <param name="keyValuePairs">
+        /// The key-value pair for each entry. If a value is null, then a Delete will be 
         /// performed; otherwise, a Put.
         /// </param>
         /// <param name="columnFamilyName">
         /// The column family to use.
         /// </param>
-        void ApplyBatch(IEnumerable<TKey> keys, IEnumerable<TValue> values, string columnFamilyName = null);
+        /// 
+        void ApplyBatch(IEnumerable<KeyValuePair<TKey, TValue>> keyValuePairs, string columnFamilyName = null);
 
         /// <summary>
         /// Fetches keys and values with the same prefix. Order is dependant on the underlying store's guarantees.

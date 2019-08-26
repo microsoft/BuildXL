@@ -4,12 +4,11 @@
 using System;
 using System.IO;
 using System.Linq;
-using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Execution.Analyzer;
-using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.Xldb;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;

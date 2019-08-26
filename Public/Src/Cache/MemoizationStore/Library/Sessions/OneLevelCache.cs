@@ -247,7 +247,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 var createMemoizationResult = MemoizationStore.CreateReadOnlySession(context, name);
                 if (!createMemoizationResult.Succeeded)
                 {
-                    return new CreateSessionResult<IReadOnlyCacheSession>(createContentResult, "Memoization session creation failed");
+                    return new CreateSessionResult<IReadOnlyCacheSession>(createMemoizationResult, "Memoization session creation failed");
                 }
                 var memoizationReadOnlySession = createMemoizationResult.Session;
 

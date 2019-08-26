@@ -507,9 +507,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
 
         [DataMember]
-        public int PutFileWaitWarningMilliseconds { get; set; } = 5000;
-
-        [DataMember]
         public bool EnableMetadataStore { get; set; } = false;
 
         #endregion

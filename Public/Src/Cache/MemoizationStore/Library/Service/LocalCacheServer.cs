@@ -67,5 +67,23 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
         /// <inheritdoc />
         protected override CreateSessionResult<ICacheSession> CreateSession(ICache store, OperationContext context, string name, ImplicitPin implicitPin) => store.CreateSession(context, name, implicitPin);
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            await _grpcContentServer.StartupAsync(context).ThrowIfFailure();
+
+            return await base.StartupCoreAsync(context);
+        }
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            var result = await base.ShutdownCoreAsync(context);
+
+            result &= await _grpcContentServer.ShutdownAsync(context);
+
+            return result;
+        }
     }
 }

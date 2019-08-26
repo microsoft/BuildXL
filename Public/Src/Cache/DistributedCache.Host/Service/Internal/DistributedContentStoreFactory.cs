@@ -97,10 +97,9 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush, v => dbConfig.CacheMaximumUpdatesPerFlush = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheFlushingMaximumInterval, v => dbConfig.CacheFlushingMaximumInterval = v);
 
-                if (_distributedSettings.FullRangeCompactionIntervalMinutes != null)
-                {
-                    dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(_distributedSettings.FullRangeCompactionIntervalMinutes.Value);
-                }
+                ApplyIfNotNull(
+                    _distributedSettings.FullRangeCompactionIntervalMinutes,
+                    v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
 
                 redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
@@ -205,7 +204,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                         EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
-                        PutFileWaitWarning = TimeSpan.FromMilliseconds(_distributedSettings.PutFileWaitWarningMilliseconds),
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,

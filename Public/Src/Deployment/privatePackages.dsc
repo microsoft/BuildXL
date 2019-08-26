@@ -16,6 +16,7 @@ namespace PrivatePackages {
 
     const net451Qualifier : BuildXLSdk.DefaultQualifierWithNet451 = { configuration: qualifier.configuration, targetFramework: "net451", targetRuntime: "win-x64" };
     const net472Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "net472", targetRuntime: "win-x64" };
+    const winx64Qualifier : BuildXLSdk.DefaultQualifier = { configuration: qualifier.configuration, targetFramework: "netcoreapp3.0", targetRuntime: "win-x64" };
 
     const cloudBuildlibrary = NugetPackages.pack({
         id: "BuildXL.library.forCloudBuild",
@@ -80,6 +81,17 @@ namespace PrivatePackages {
                         importFrom("BuildXL.Utilities.Instrumentation").withQualifier(net451Qualifier).Common.dll.runtime,
                         ...importFrom("Microsoft.Diagnostics.Tracing.EventSource.Redist").withQualifier(
                             { targetFramework: "net451" }).pkg.runtime,
+                    ],
+                },
+                {
+                    subfolder: r`lib/netcoreapp3.0/win-x64`,
+                    contents: [
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).dll.runtime,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Collections.dll.runtime,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Configuration.dll.runtime,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.dll.runtime,
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Interop.dll.runtime,
+                        importFrom("BuildXL.Utilities.Instrumentation").withQualifier(winx64Qualifier).Common.dll.runtime,
                     ],
                 },
                 {

@@ -252,6 +252,11 @@ bool StringLooksLikeRCTempFile(PCPathChar str, size_t str_length)
     if (!IsPathCharEqual(c3, 'C') && !IsPathCharEqual(c3, 'D') && !IsPathCharEqual(c3, 'F')) {
         return false;
     }
+    PathChar c4 = str[str_length - 4];
+    if (IsPathCharEqual(c4, '.')) {
+        // RC's temp files have no extension.
+        return false;
+    }
     return true;
 }
 

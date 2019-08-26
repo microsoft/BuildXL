@@ -71,7 +71,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// FileArtifact for generic TestProcess.exe
         /// </summary>
-        protected readonly FileArtifact TestProcessExecutable;
+        protected FileArtifact TestProcessExecutable { get; set; }
 
         protected readonly AbsolutePath[] TestProcessDependencies;
 
@@ -1184,6 +1184,12 @@ namespace Test.BuildXL.Scheduler
 
             PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
 
+        }
+
+        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(moduleName));
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName);
         }
 
         #region IO Helpers

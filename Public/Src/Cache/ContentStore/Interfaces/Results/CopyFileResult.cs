@@ -6,7 +6,7 @@ using System;
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
     /// <summary>
-    /// Return type for <see cref="FileSystem.IFileCopier{T}"/>
+    /// Return type for IFileCopier{T} />
     /// </summary>
     /// <remarks>
     /// For file copies, a error represents the source file being missing or unavailable. This is opaque to any file system

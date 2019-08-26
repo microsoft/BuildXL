@@ -775,10 +775,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
             return _keyValueStore.Use(store => {
-                // NOTE(jubayard): the most expensive part of this procedure is iterating over the whole database, so
-                // the less we take _while_ we do that, the better. An alternative to this procedure is to compute a
-                // quantile sketch and remove unneeded entries as we go.
-
+                // The strategy here is to follow what the SQLite memoization store does: we want to keep the top K
+                // elements by last access time (i.e. an LRU policy). This is slightly worse than that, because our
+                // iterator will go stale as time passes: since we iterate over a snapshot of the DB, we can't
+                // guarantee that an entry we remove is truly the one we should be removing. Moreover, since we store
+                // information what the last access times were, our internal priority queue may go stale over time as
+                // well.
                 var liveDbSizeInBytesBeforeGc = int.Parse(store.GetProperty(
                     "rocksdb.estimate-live-data-size",
                     columnFamilyName: nameof(Columns.Metadata)));
@@ -786,11 +788,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var scannedEntries = 0;
                 var removedEntries = 0;
 
+                // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
+                // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
+                // a new element is smaller than the Top, it's not in the top K, if larger, it is.
                 var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
                     capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntries + 1,
                     comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Default);
                 foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
+                    // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
+                    // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
+                    // unneeded entries as we go. We could also batch deletions here.
+
                     if (context.Token.IsCancellationRequested)
                     {
                         break;
@@ -800,12 +809,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         strongFingerprint: keyValuePair.Key);
 
                     byte[] strongFingerprintToRemove = null;
-                    if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries && entries.Top.fileTimeUtc < entry.fileTimeUtc)
+
+                    if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntries && entries.Top.fileTimeUtc > entry.fileTimeUtc)
                     {
+                        // If we already reached the maximum number of elements to keep, and the current entry is older
+                        // than the oldest in the top K, we can just remove the current entry.
                         strongFingerprintToRemove = entry.strongFingerprint;
                     }
                     else
                     {
+                        // We either didn't reach the number of elements we want to keep, or the entry has a last
+                        // access time larger than the current smallest one in the top K.
                         entries.Push(entry);
 
                         if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries)
@@ -832,7 +846,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     columnFamilyName: nameof(Columns.Metadata)));
 
                 // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
-                // new tombstones have been added. However, there is way to compute how much we added/removed that
+                // new tombstones have been added. However, there is no way to compute how much we added/removed that
                 // doesn't involve either keeping track of the values, or doing two passes over the column family.
                 Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}");
 

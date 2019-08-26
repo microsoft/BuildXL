@@ -150,6 +150,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
                     var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
                     r2.Should().BeEquivalentTo(contentHashListWithDeterminism2);
+
+                    database.Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Value.Should().Be(1);
+                    database.Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Value.Should().Be(2);
                 },
                 createStoreFunc: createStoreInternal);
 
@@ -204,6 +207,9 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     var r2 = database.GetContentHashList(ctx, strongFingerprint2).ShouldBeSuccess().ContentHashListWithDeterminism;
                     r2.ContentHashList.Should().BeNull();
                     r2.Determinism.Should().Be(CacheDeterminism.None);
+
+                    database.Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Value.Should().Be(1);
+                    database.Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Value.Should().Be(2);
                 },
                 createStoreFunc: createStoreInternal);
 

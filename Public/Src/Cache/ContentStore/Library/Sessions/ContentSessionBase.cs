@@ -117,7 +117,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                             return $"{contentHashes[result.Index].ToShortString()}:{result.Item}";
                         }));
 
-                        return $"Hashes=[{resultString}]";
+                        return $"Count={contentHashes.Count}, Hashes=[{resultString}]";
                     },
                     traceOperationStarted: false,
                     counter: _counters[ContentSessionBaseCounters.PinBulk]));

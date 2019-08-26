@@ -1982,6 +1982,10 @@ namespace BuildXL.Native.IO.Windows
 
                         throw;
                     }
+                    catch (FileNotFoundException)
+                    {
+                        throw;
+                    }
                 },
                 ex =>
                 {

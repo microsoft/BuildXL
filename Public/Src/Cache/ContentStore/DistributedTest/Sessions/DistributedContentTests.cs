@@ -50,7 +50,6 @@ namespace ContentStoreTest.Distributed.Sessions
         protected abstract IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
-            ICopyRequester copyRequester,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
@@ -76,6 +75,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 Sessions = sessions;
                 Stores = stores;
                 Iteration = iteration;
+
+                for (int i = 0; i < Stores.Count; i++)
+                {
+                    var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
+                    fileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                }
             }
 
             public static implicit operator Context(TestContext context) => context.Context;
@@ -85,14 +90,6 @@ namespace ContentStoreTest.Distributed.Sessions
             public DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
             {
                 var session = Sessions[idx];
-                if (session is TestServiceClientContentSession scs)
-                {
-                    if (scs.Store is TestInProcessServiceClientContentStore store)
-                    {
-                        return (DistributedContentSession<AbsolutePath>)((SessionCapturingStore)store.Server.StoresByName.FirstOrDefault().Value).ContentSessions.FirstOrDefault();
-                    }
-                    return null;
-                }
                 return (DistributedContentSession<AbsolutePath>)session;
             }
 
@@ -108,12 +105,6 @@ namespace ContentStoreTest.Distributed.Sessions
             internal IContentStore GetDistributedStore(int idx)
             {
                 var store = Stores[idx];
-
-                if (store is TestInProcessServiceClientContentStore scs)
-                {
-                    return ((SessionCapturingStore)scs.Server.StoresByName.Values.First()).Inner;
-                }
-
                 return store;
             }
 
@@ -976,7 +967,6 @@ namespace ContentStoreTest.Distributed.Sessions
                         CreateStore(
                             context,
                             testFileCopier,
-                            copyRequester: null,
                             directory.Directory,
                             directory.Index,
                             enableDistributedEviction,

@@ -145,24 +145,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets a random locations excluding the specified location. Returns default if operation is not possible.
         /// </summary>
-        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
+        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)
         {
             using (_lock.AcquireReadLock())
             {
-                if (_locationByIdMap.Where((location, index) => !_inactiveMachinesSet[index]).Any(location => !location.Equals(except)))
+                var candidates = _locationByIdMap
+                    .Where((location, index) => location.Data != null && !_inactiveMachinesSet[index])
+                    .Except(except)
+                    .ToList();
+                if (candidates.Any())
                 {
-                    MachineLocation location = default;
-                    do
-                    {
-                        var index = ThreadSafeRandom.Generator.Next(MaxMachineId + 1);
-                        if (!_inactiveMachinesSet[index])
-                        {
-                            location = _locationByIdMap[index];
-                        }
-                    }
-                    while (location.Equals(default) || location.Equals(except));
-
-                    return new Result<MachineLocation>(location);
+                    var index = ThreadSafeRandom.Generator.Next(candidates.Count);
+                    return candidates[index];
                 }
 
                 return new Result<MachineLocation>("Could not select a machine location.");

@@ -29,7 +29,12 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <summary>
         /// Execution tracer for the session.
         /// </summary>
-        protected readonly ContentSessionTracer SessionTracer = new ContentSessionTracer(nameof(MultiplexedContentStore));
+        protected readonly ContentSessionTracer SessionTracer = new ContentSessionTracer(nameof(MultiplexedContentSession));
+
+        /// <summary>
+        /// Execution tracer for the readonly session.
+        /// </summary>
+        protected readonly ContentSessionTracer ReadOnlySessionTracer = new ContentSessionTracer(nameof(MultiplexedReadOnlyContentSession));
 
         /// <summary>
         ///     Execution tracer.
@@ -164,7 +169,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     sessions.Add(entry.Key, result.Session);
                 }
 
-                var multiCacheSession = new MultiplexedReadOnlyContentSession(SessionTracer, sessions, name, _preferredCacheDrive);
+                var multiCacheSession = new MultiplexedReadOnlyContentSession(ReadOnlySessionTracer, sessions, name, _preferredCacheDrive);
                 return new CreateSessionResult<IReadOnlyContentSession>(multiCacheSession);
             });
         }

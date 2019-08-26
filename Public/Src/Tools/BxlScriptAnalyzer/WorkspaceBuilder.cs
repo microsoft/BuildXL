@@ -75,6 +75,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 EvaluationFilter.Empty, // TODO: consider passing a filter that scopes down the build to the root folder
                 AbsolutePath.Invalid,
                 AbsolutePath.Invalid,
+                AbsolutePath.Invalid,
+                false,
                 progressHandler,
                 false,
                 out workspace,
@@ -101,6 +103,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <param name="evaluationFilter">Evaluation filter that defines the build extent to care about.</param>
         /// <param name="outputDirectory">Output directory that will be used for evaluation.</param>
         /// <param name="objectDirectory">Object directory that will be used for evaluation.</param>
+        /// <param name="redirectedUserProfileJunctionRoot">If a valid path, the path will be redirected to a stable user profile lcoation.</param>
+        /// <param name="inCloudBuild">If true, build a graph a graph with work arounds for cloudbuild.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
         /// <param name="topSort">If true, build a dependency graph from the read in pips to serialize and load them faster</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>
@@ -118,6 +122,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EvaluationFilter evaluationFilter,
             AbsolutePath outputDirectory,
             AbsolutePath objectDirectory,
+            AbsolutePath redirectedUserProfileJunctionRoot,
+            bool inCloudBuild,
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
             bool topSort,
             out Workspace workspace,
@@ -145,8 +151,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 phase, 
                 configFile,
                 outputDirectory,
-                objectDirectory);
-
+                objectDirectory,
+                redirectedUserProfileJunctionRoot,
+                inCloudBuild);
+            BuildXLEngine.ModifyConfigurationForCloudbuild(commandlineConfig, false, pathTable, loggingContext);
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandlineConfig, pathTable, bxlExeLocation: null);
 
             var statistics = new FrontEndStatistics(progressHandler);
@@ -323,7 +331,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             EnginePhases phase,
             AbsolutePath configFile,
             AbsolutePath outputDirectory,
-            AbsolutePath objectDirectory)
+            AbsolutePath objectDirectory,
+            AbsolutePath redirectedUserProfileJunctionRoot,
+            bool inCloudBuild)
         {
             return new CommandLineConfiguration
             {
@@ -362,6 +372,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 {
                     OutputDirectory = outputDirectory,
                     ObjectDirectory = objectDirectory,
+                    RedirectedUserProfileJunctionRoot = redirectedUserProfileJunctionRoot
                 },
                 Logging =
                 {
@@ -370,7 +381,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 Cache =
                 {
                     CacheSpecs = SpecCachingOption.Disabled
-                }
+                },
+                InCloudBuild = inCloudBuild
             };
         }
 
@@ -385,6 +397,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             string filter,
             string outputDirectory,
             string objectDirectory,
+            string redirectedUserProfileJunctionRoot,
+            bool inCloudBuild,
             bool topSort,
             out Workspace workspace,
             out IPipGraph pipGraph,
@@ -423,6 +437,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 ? AbsolutePath.Create(pathTable, objectDirectory)
                 : AbsolutePath.Invalid;
 
+            var redirectedUserProfileJunctionRootPath = !string.IsNullOrEmpty(redirectedUserProfileJunctionRoot)
+                ? AbsolutePath.Create(pathTable, redirectedUserProfileJunctionRoot)
+                : AbsolutePath.Invalid;
+
             // Try parsing the workspace from config and evaluation filter
             if (!TryBuildWorkspace(
                 phase,
@@ -432,6 +450,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 evaluationFilter,
                 outputDirectoryPath,
                 objectDirectoryPath,
+                redirectedUserProfileJunctionRootPath,
+                inCloudBuild,
                 progressHandler: null,
                 topSort,
                 workspace: out workspace,

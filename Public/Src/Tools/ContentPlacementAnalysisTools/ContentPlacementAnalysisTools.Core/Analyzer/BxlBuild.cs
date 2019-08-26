@@ -5,7 +5,7 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace ContentPlamentAnalysisTools.Core
+namespace ContentPlamentAnalysisTools.Core.Analyzer
 {
     /// <summary>
     /// Represents a single build as a set of file artifacts

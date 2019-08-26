@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace ContentPlacementAnalysisTools.Core
+namespace ContentPlacementAnalysisTools.Core.Utils
 {
     /// <summary>
     /// Represents an action inside a pipeline of actions whose execution time can be measured. For intermmediate actions

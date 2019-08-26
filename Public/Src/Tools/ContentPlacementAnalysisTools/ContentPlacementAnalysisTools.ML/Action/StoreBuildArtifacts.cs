@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.Utils;
 using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.ML.Action

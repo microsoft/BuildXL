@@ -6,9 +6,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.ToolSupport;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.Kusto;
+using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.Extraction.Action;
-using ContentPlamentAnalysisTools.Core;
+using ContentPlamentAnalysisTools.Core.Analyzer;
 using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.Extraction.Main

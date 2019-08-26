@@ -1,14 +1,9 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using ContentPlacementAnalysisTools.Core.ML.Classifier;
 
-namespace ContentPlacementAnalysisTools.Core
+namespace ContentPlacementAnalysisTools.Core.ML
 {
     /// <summary>
     ///The data structutre that stores ML related data for each artifact
@@ -186,59 +181,71 @@ namespace ContentPlacementAnalysisTools.Core
         /// <summary>
         /// Represents an artifact as instance, mainly for testing purposes
         /// </summary>
-        public Dictionary<string, double> AsInstance()
+        public RandomForestInstance AsInstance()
         {
-            var instance = new Dictionary<string, double>
+            var instance = new RandomForestInstance()
             {
-                ["Class"] = s_sharingClassIds[Queues.Count > 1 ? SharingClassLabels[0] : SharingClassLabels[1]],
-                ["SizeBytes"] = SizeBytes,
-                ["AvgInputPips"] = Math.Round(AvgInputPips, s_defaultPrecision),
-                ["AvgOutputPips"] = Math.Round(AvgOutputPips, s_defaultPrecision),
-                ["AvgPositionForInputPips"] = Math.Round(AvgPositionForInputPips, s_defaultPrecision),
-                ["AvgPositionForOutputPips"] = Math.Round(AvgPositionForOutputPips, s_defaultPrecision),
-                ["AvgDepsForInputPips"] = Math.Round(AvgDepsForInputPips, s_defaultPrecision),
-                ["AvgDepsForOutputPips"] = Math.Round(AvgDepsForOutputPips, s_defaultPrecision),
-                ["AvgInputsForInputPips"] = Math.Round(AvgInputsForInputPips, s_defaultPrecision),
-                ["AvgInputsForOutputPips"] = Math.Round(AvgInputsForOutputPips, s_defaultPrecision),
-                ["AvgOutputsForInputPips"] = Math.Round(AvgOutputsForInputPips, s_defaultPrecision),
-                ["AvgOutputsForOutputPips"] = Math.Round(AvgOutputsForOutputPips, s_defaultPrecision),
-                ["AvgPriorityForInputPips"] = Math.Round(AvgPriorityForInputPips, s_defaultPrecision),
-                ["AvgPriorityForOutputPips"] = Math.Round(AvgPriorityForOutputPips, s_defaultPrecision),
-                ["AvgWeightForInputPips"] = Math.Round(AvgWeightForInputPips, s_defaultPrecision),
-                ["AvgWeightForOutputPips"] = Math.Round(AvgWeightForOutputPips, s_defaultPrecision),
-                ["AvgTagCountForInputPips"] = Math.Round(AvgTagCountForInputPips, s_defaultPrecision),
-                ["AvgTagCountForOutputPips"] = Math.Round(AvgTagCountForOutputPips, s_defaultPrecision),
-                ["AvgSemaphoreCountForInputPips"] = Math.Round(AvgSemaphoreCountForInputPips, s_defaultPrecision),
-                ["AvgSemaphoreCountForOutputPips"] = Math.Round(AvgSemaphoreCountForOutputPips, s_defaultPrecision)
+                PredictedClass = Queues.Count > 1? SharingClassLabels[0] : SharingClassLabels[1],
+                Attributes = new Dictionary<string, double>()
+                {
+                    ["SizeBytes"] = SizeBytes,
+                    ["AvgInputPips"] = Math.Round(AvgInputPips, s_defaultPrecision),
+                    ["AvgOutputPips"] = Math.Round(AvgOutputPips, s_defaultPrecision),
+                    ["AvgPositionForInputPips"] = Math.Round(AvgPositionForInputPips, s_defaultPrecision),
+                    ["AvgPositionForOutputPips"] = Math.Round(AvgPositionForOutputPips, s_defaultPrecision),
+                    ["AvgDepsForInputPips"] = Math.Round(AvgDepsForInputPips, s_defaultPrecision),
+                    ["AvgDepsForOutputPips"] = Math.Round(AvgDepsForOutputPips, s_defaultPrecision),
+                    ["AvgInputsForInputPips"] = Math.Round(AvgInputsForInputPips, s_defaultPrecision),
+                    ["AvgInputsForOutputPips"] = Math.Round(AvgInputsForOutputPips, s_defaultPrecision),
+                    ["AvgOutputsForInputPips"] = Math.Round(AvgOutputsForInputPips, s_defaultPrecision),
+                    ["AvgOutputsForOutputPips"] = Math.Round(AvgOutputsForOutputPips, s_defaultPrecision),
+                    ["AvgPriorityForInputPips"] = Math.Round(AvgPriorityForInputPips, s_defaultPrecision),
+                    ["AvgPriorityForOutputPips"] = Math.Round(AvgPriorityForOutputPips, s_defaultPrecision),
+                    ["AvgWeightForInputPips"] = Math.Round(AvgWeightForInputPips, s_defaultPrecision),
+                    ["AvgWeightForOutputPips"] = Math.Round(AvgWeightForOutputPips, s_defaultPrecision),
+                    ["AvgTagCountForInputPips"] = Math.Round(AvgTagCountForInputPips, s_defaultPrecision),
+                    ["AvgTagCountForOutputPips"] = Math.Round(AvgTagCountForOutputPips, s_defaultPrecision),
+                    ["AvgSemaphoreCountForInputPips"] = Math.Round(AvgSemaphoreCountForInputPips, s_defaultPrecision),
+                    ["AvgSemaphoreCountForOutputPips"] = Math.Round(AvgSemaphoreCountForOutputPips, s_defaultPrecision)
+                }
+                
             };
             return instance;
         }
 
-        public static Dictionary<string, double> FromCsvString(string input, int precision)
+        /// <summary>
+        /// Represents an artifact as instance, mainly for testing purposes
+        /// </summary>
+        public static RandomForestInstance FromCsvString(string input, int precision)
         {
-            string[] values = input.Split(',');
-            return new Dictionary<string, double>()
+            var values = input.Split(',');
+            return new RandomForestInstance()
             {
-                ["Class"] = s_sharingClassIds[values[0]],
-                ["SizeBytes"] = Convert.ToDouble(values[4]),
-                ["AvgInputPips"] = Math.Round(Convert.ToDouble(values[5]), precision),
-                ["AvgOutputPips"] = Math.Round(Convert.ToDouble(values[6]), precision),
-                ["AvgPositionForInputPips"] = Math.Round(Convert.ToDouble(values[7]), precision),
-                ["AvgPositionForOutputPips"] = Math.Round(Convert.ToDouble(values[8]), precision),
-                ["AvgDepsForInputPips"] = Math.Round(Convert.ToDouble(values[9]), precision),
-                ["AvgDepsForOutputPips"] = Math.Round(Convert.ToDouble(values[10]), precision),
-                ["AvgInputsForInputPips"] = Math.Round(Convert.ToDouble(values[11]), precision),
-                ["AvgInputsForOutputPips"] = Math.Round(Convert.ToDouble(values[12]), precision),
-                ["AvgOutputsForInputPips"] = Math.Round(Convert.ToDouble(values[13]), precision),
-                ["AvgOutputsForOutputPips"] = Math.Round(Convert.ToDouble(values[14]), precision),
-                ["AvgPriorityForInputPips"] = Math.Round(Convert.ToDouble(values[15]), precision),
-                ["AvgPriorityForOutputPips"] = Math.Round(Convert.ToDouble(values[16]), precision),
-                ["AvgWeightForInputPips"] = Math.Round(Convert.ToDouble(values[17]), precision),
-                ["AvgWeightForOutputPips"] = Math.Round(Convert.ToDouble(values[18]), precision),
-                ["AvgTagCountForInputPips"] = Math.Round(Convert.ToDouble(values[19]), precision),
-                ["AvgTagCountForOutputPips"] = Math.Round(Convert.ToDouble(values[20]), precision),
-                ["AvgSemaphoreCountForInputPips"] = Math.Round(Convert.ToDouble(values[21]), precision),
-                ["AvgSemaphoreCountForOutputPips"] = Math.Round(Convert.ToDouble(values[22]), precision)
+                PredictedClass = null,
+                Attributes = new Dictionary<string, double>()
+                {
+                    ["Class"] = s_sharingClassIds[values[0]],
+                    ["SizeBytes"] = Convert.ToDouble(values[4]),
+                    ["AvgInputPips"] = Math.Round(Convert.ToDouble(values[5]), precision),
+                    ["AvgOutputPips"] = Math.Round(Convert.ToDouble(values[6]), precision),
+                    ["AvgPositionForInputPips"] = Math.Round(Convert.ToDouble(values[7]), precision),
+                    ["AvgPositionForOutputPips"] = Math.Round(Convert.ToDouble(values[8]), precision),
+                    ["AvgDepsForInputPips"] = Math.Round(Convert.ToDouble(values[9]), precision),
+                    ["AvgDepsForOutputPips"] = Math.Round(Convert.ToDouble(values[10]), precision),
+                    ["AvgInputsForInputPips"] = Math.Round(Convert.ToDouble(values[11]), precision),
+                    ["AvgInputsForOutputPips"] = Math.Round(Convert.ToDouble(values[12]), precision),
+                    ["AvgOutputsForInputPips"] = Math.Round(Convert.ToDouble(values[13]), precision),
+                    ["AvgOutputsForOutputPips"] = Math.Round(Convert.ToDouble(values[14]), precision),
+                    ["AvgPriorityForInputPips"] = Math.Round(Convert.ToDouble(values[15]), precision),
+                    ["AvgPriorityForOutputPips"] = Math.Round(Convert.ToDouble(values[16]), precision),
+                    ["AvgWeightForInputPips"] = Math.Round(Convert.ToDouble(values[17]), precision),
+                    ["AvgWeightForOutputPips"] = Math.Round(Convert.ToDouble(values[18]), precision),
+                    ["AvgTagCountForInputPips"] = Math.Round(Convert.ToDouble(values[19]), precision),
+                    ["AvgTagCountForOutputPips"] = Math.Round(Convert.ToDouble(values[20]), precision),
+                    ["AvgSemaphoreCountForInputPips"] = Math.Round(Convert.ToDouble(values[21]), precision),
+                    ["AvgSemaphoreCountForOutputPips"] = Math.Round(Convert.ToDouble(values[22]), precision)
+                }
+                
             };
         }
 
@@ -246,10 +253,7 @@ namespace ContentPlacementAnalysisTools.Core
         /// <summary>
         /// For testing purposes, compares the real class with the prediced class
         /// </summary>
-        public static bool Evaluate(Dictionary<string, double> instance, string cl)
-        {
-            return SharingClassLabels[(int)instance["Class"]] == cl;
-        } 
+        public static bool Evaluate(RandomForestInstance instance) => instance.PredictedClass == SharingClassLabels[(int)instance.Attributes["Class"]];
     }
 
 }

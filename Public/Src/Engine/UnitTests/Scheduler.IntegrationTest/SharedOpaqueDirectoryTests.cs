@@ -1528,9 +1528,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             {    
                 Operation.CreateDir(sharedOpaqueDirArtifact, doNotInfer: true),                
                 Operation.CreateDir(sharedOpaqueSubDirArtifact, doNotInfer:true),                                
-                Operation.WriteFile(secondOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),
-
-                //Operation.EnumerateDir(sharedOpaqueSubDirArtifact, doNotInfer: true)
+                Operation.WriteFile(secondOutputInSharedOpaqueSubDir, content: fileContent, doNotInfer: true),                
             });            
             builderB.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);            
             builderB.Weight = 99;

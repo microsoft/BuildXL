@@ -336,7 +336,9 @@ namespace BuildXL.Pips.Builders
             m_servicePipDependencies.Instance.Add(pipId);
         }
 
-        /// <nodoc />
+        /// <summary>
+        /// This is for testing purposes only.
+        /// </summary>        
         public void AddOrderDependency(PipId pipId)
         {
             Contract.Requires(pipId.IsValid);

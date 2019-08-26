@@ -103,6 +103,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <param name="evaluationFilter">Evaluation filter that defines the build extent to care about.</param>
         /// <param name="outputDirectory">Output directory that will be used for evaluation.</param>
         /// <param name="objectDirectory">Object directory that will be used for evaluation.</param>
+        /// <param name="redirectedUserProfileJunctionRoot">If a valid path, the path will be redirected to a stable user profile lcoation.</param>
+        /// <param name="inCloudBuild">If true, build a graph a graph with work arounds for cloudbuild.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
         /// <param name="topSort">If true, build a dependency graph from the read in pips to serialize and load them faster</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>

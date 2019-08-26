@@ -116,10 +116,10 @@ namespace BuildXL.Engine.Cache.Fingerprints.SinglePhase
             {
                 if (result.Result?.MetadataHash != null)
                 {
-                    Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Retrieved temporal cache entry Successfully: Node='{node}', Fingerprint='{fingerprint}' MetadataHash='{result.Result?.MetadataHash}'"));
+                    Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Successfully retrieved temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' MetadataHash='{result.Result?.MetadataHash}'"));
                 }
                 else {
-                    Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Failed retrieval of temporal cache entry: Node='{node}', Fingerprint='{fingerprint}' MetadataHash='null' Failure:= 'NoMatchingFingerprintFailure'"));
+                    Logger.Log.TemporalCacheEntryTrace(loggingContext, I($"Query for temporal cache entry returned no results: Node='{node}', Fingerprint='{fingerprint}'"));
                 }
             }
             else

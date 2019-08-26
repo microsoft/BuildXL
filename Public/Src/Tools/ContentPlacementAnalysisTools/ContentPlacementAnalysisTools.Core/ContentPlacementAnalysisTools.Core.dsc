@@ -15,7 +15,8 @@ namespace ContentPlacement.Core {
         ],
         internalsVisibleTo: [
             "bxlanalyzer",
-            "cptools.builddownloader"
+            "cptools.builddownloader",
+            "cptools.ml.consolidate",
         ],
     });
 }

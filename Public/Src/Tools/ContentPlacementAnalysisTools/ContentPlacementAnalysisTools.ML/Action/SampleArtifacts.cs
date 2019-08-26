@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using BuildXL.Utilities.Collections;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.ML;
+using ContentPlacementAnalysisTools.Core.Utils;
+
 namespace ContentPlacementAnalysisTools.ML.Action
 {
     /// <summary>

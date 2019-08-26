@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Net;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.Utils;
+using ContentPlacementAnalysisTools.Core.Kusto;
 using ContentPlacementAnalysisTools.Extraction.Main;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action

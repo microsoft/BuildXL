@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Diagnostics.ContractsLight;
 using System.IO;
-using ContentPlacementAnalysisTools.Core;
+using ContentPlacementAnalysisTools.Core.Kusto;
+using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.Extraction.Main;
 using ICSharpCode.SharpZipLib.Zip;
 

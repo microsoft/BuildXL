@@ -232,8 +232,15 @@ namespace BuildXL
         /// </summary>
         public static string GetDeploymentCacheHash(string deploymentDir)
         {
-            AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
-            return serverDeployment.TimestampBasedHash.ToHex();
+            try {
+                AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
+                return serverDeployment.TimestampBasedHash.ToHex();
+            }
+            catch (FileNotFoundException)
+            {
+                return null;
+            }
+
         }
 
         /// <summary>

@@ -387,10 +387,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void TransformBlock(byte[] buffer, int offset, int count, byte[] outputBuffer, int outputOffset)
             {
-                var start = _sw.ElapsedTicks;
+                var start = _sw.Elapsed;
                 _hashAlgorithm.TransformBlock(buffer, offset, count, outputBuffer, outputOffset);
-                var elapsedTicks = _sw.ElapsedTicks - start;
-                Interlocked.Add(ref _ticksSpentHashing, elapsedTicks);
+                var elapsed = _sw.Elapsed - start;
+                Interlocked.Add(ref _ticksSpentHashing, elapsed.Ticks);
             }
 
             /// <inheritdoc />

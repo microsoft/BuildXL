@@ -162,7 +162,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
                 {
                     configuration.MetadataGarbageCollectionEnabled = true;
-                    configuration.MetadataGarbageCollectionMaximumNumberOfEntries = 1;
+                    configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = 1;
                     // Disables automatic GC
                     configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
                 });
@@ -219,7 +219,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 return CreateStore(testDirectory: disposableDirectory, configMutator: (configuration) =>
                 {
                     configuration.MetadataGarbageCollectionEnabled = true;
-                    configuration.MetadataGarbageCollectionMaximumNumberOfEntries = 1;
+                    configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = 1;
                     // Disables automatic GC
                     configuration.GarbageCollectionInterval = Timeout.InfiniteTimeSpan;
                 });

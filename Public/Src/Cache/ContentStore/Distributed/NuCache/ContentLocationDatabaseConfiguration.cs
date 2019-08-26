@@ -87,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <remarks>
         /// Default is the same as in the SQLiteMemoizationStore
         /// </remarks>
-        public int MetadataGarbageCollectionMaximumNumberOfEntries { get; set; } = 500_000;
+        public int MetadataGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; } = 500_000;
     }
 
     /// <summary>

@@ -85,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(configuration.FlushPreservePercentInMemory >= 0 && configuration.FlushPreservePercentInMemory <= 1);
             Contract.Requires(configuration.FlushDegreeOfParallelism > 0);
-            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntries > 0);
+            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep > 0);
 
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
@@ -792,7 +792,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
                 // a new element is smaller than the Top, it's not in the top K, if larger, it is.
                 var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
-                    capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntries + 1,
+                    capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
                     comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Default);
                 foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
@@ -810,7 +810,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     byte[] strongFingerprintToRemove = null;
 
-                    if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntries && entries.Top.fileTimeUtc > entry.fileTimeUtc)
+                    if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
                     {
                         // If we already reached the maximum number of elements to keep, and the current entry is older
                         // than the oldest in the top K, we can just remove the current entry.
@@ -822,7 +822,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         // access time larger than the current smallest one in the top K.
                         entries.Push(entry);
 
-                        if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntries)
+                        if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep)
                         {
                             strongFingerprintToRemove = entries.Top.strongFingerprint;
                             entries.Pop();

@@ -58,7 +58,6 @@ using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using BuildXL.Utilities.VmCommandProxy;
 using BuildXL.Storage.InputChange;
-using BuildXL.Scheduler.ChangeAffectedOutput;
 
 namespace BuildXL.Scheduler
 {
@@ -3533,12 +3532,6 @@ namespace BuildXL.Scheduler
                         }
 
                         processRunnable.Executed = true;
-
-
-                        if (processRunnable.Process.ChangeAffectedInputListWrittenFilePath.IsValid && runnablePip.Worker?.IsLocal == true)
-                        {
-                            processRunnable.ChangeAffectedInputs = m_fileContentManager.AffectedOutputList.GetChangeAffectedInputs(processRunnable.Process);
-                        }
 
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 

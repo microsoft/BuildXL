@@ -1126,7 +1126,6 @@ namespace BuildXL.Scheduler
         /// <param name="state">the pip scoped execution state</param>
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
-        /// <param name="changeAffectedInputs">Then names of the source change affected input of the pip</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
         /// <param name="expectedRamUsageMb">the expected ram usage for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
@@ -1138,7 +1137,6 @@ namespace BuildXL.Scheduler
 
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
-            IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null,
             Action<int> processIdListener = null,
             int expectedRamUsageMb = 0)
         {
@@ -1385,6 +1383,12 @@ namespace BuildXL.Scheduler
                                 {
                                     counters.IncrementCounter(PipExecutorCounter.ExternalProcessCount);
                                     environment.SetMaxExternalProcessRan();
+                                }
+
+                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null;
+                                if (pip.ChangeAffectedInputListWrittenFilePath.IsValid)
+                                {
+                                    changeAffectedInputs = environment.State.FileContentManager.AffectedOutputList.GetChangeAffectedInputs(pip);
                                 }
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);

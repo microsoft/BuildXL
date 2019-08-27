@@ -139,13 +139,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         public enum InputAccessType
         {
             DynamicFileAccess,
-            DynamicDirEnumeration,
             DirectoryInput,
         }
 
         [Theory]
         [InlineData(InputAccessType.DynamicFileAccess)]
-        [InlineData(InputAccessType.DynamicDirEnumeration)]
         [InlineData(InputAccessType.DirectoryInput)]
         public void TransitiveAffectedDirectoryInputTest(InputAccessType pipBInputAccessType)
         {
@@ -179,6 +177,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var bOutFileArtifact = CreateOutputFileArtifact(root: bOutDirArtifact, prefix: "pip-b-out-file");
 
             var cOutFileArtifact = CreateOutputFileArtifact(prefix: "pip-c-out-file");
+            var expectedAffectedInput = "";
 
             var pipBuilderA = CreatePipBuilder(new Operation[]
             {
@@ -192,14 +191,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipA = SchedulePipBuilder(pipBuilderA);
 
             var operations = new List<Operation>() { };
-            switch (pipBInputAccessType)
+            if (pipBInputAccessType == InputAccessType.DynamicFileAccess)
             {
-                case InputAccessType.DynamicFileAccess:
-                    operations.Add(Operation.ReadFile(aOutputFileInOutputeDir, doNotInfer: true));
-                    break;
-                case InputAccessType.DynamicDirEnumeration:
-                    operations.Add(Operation.EnumerateDir(aOutputSubDirArtifact, doNotInfer: true));
-                    break;
+                operations.Add(Operation.ReadFile(aOutputFileInOutputeDir, doNotInfer: true));
+                expectedAffectedInput = bOutFileArtifact.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             }
             operations.Add(Operation.WriteFile(bOutFileArtifact, doNotInfer: true));
             var pipBuilderB = CreatePipBuilder(operations);
@@ -224,14 +219,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
               
             var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
-            var expectedAffectedInput = bOutFileArtifact.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);  
         }
 
         [Theory]
         [InlineData(InputAccessType.DynamicFileAccess, true)]
         [InlineData(InputAccessType.DynamicFileAccess, false)]
-        [InlineData(InputAccessType.DynamicDirEnumeration)]
         [InlineData(InputAccessType.DirectoryInput)]
         public void TransitiveAffectedDirectoryInputWithSealTest(InputAccessType pipBInputAccessType, bool accessExistingFile = false)
         {
@@ -239,7 +232,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             //  |- pip-a-input-file                                                 /               |- pip-a-output-file-copy  |- pip-b-out-file   
             //                                                         existing-file                |- existing-file
             //                            
-            // Execepted change affected input for pipC is pip-b-out-file          
+            // Execepted change affected input for pipC is pip-b-out-file or ""      
 
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
@@ -266,7 +259,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             var bOutFileArtifact = CreateOutputFileArtifact(root: bOutDirArtifact, prefix: "pip-b-out-file");
 
             var cOutFileArtifact = CreateOutputFileArtifact(prefix: "pip-c-out-file");
-           
+
+            var expectedAffectedInput = "";
+
             var pipBuilderA = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(aInputFile, doNotInfer: true),
@@ -279,21 +274,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             var sealedaOutput = SealDirectory(copyDirPath, SealDirectoryKind.Full, aExistingFileInOutputeDir, copiedFile);
 
             var operations = new List<Operation>() { };
-            switch (pipBInputAccessType)
+            if (pipBInputAccessType == InputAccessType.DynamicFileAccess)
             {
-                case InputAccessType.DynamicFileAccess:
-                    if (accessExistingFile)
-                    {
-                        operations.Add(Operation.ReadFile(aExistingFileInOutputeDir, doNotInfer: true));
-                    }
-                    else
-                    {
-                        operations.Add(Operation.ReadFile(copiedFile, doNotInfer: true));
-                    }                    
-                    break;
-                case InputAccessType.DynamicDirEnumeration:
-                    operations.Add(Operation.EnumerateDir(aOutputDirArtifact, doNotInfer: true));
-                    break;
+                if (accessExistingFile)
+                {
+                    operations.Add(Operation.ReadFile(aExistingFileInOutputeDir, doNotInfer: true));
+                }
+                else
+                {
+                    operations.Add(Operation.ReadFile(copiedFile, doNotInfer: true));
+                    expectedAffectedInput = bOutFileArtifact.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+                }
             }
             operations.Add(Operation.WriteFile(bOutFileArtifact, doNotInfer: true));
             var pipBuilderB = CreatePipBuilder(operations);
@@ -319,7 +310,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
 
             var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
-            var expectedAffectedInput = bOutFileArtifact.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
     }

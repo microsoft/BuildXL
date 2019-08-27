@@ -108,23 +108,12 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                 return false;
             }
 
-            var inputsOfProcess = dynamicallyObservedFiles.Concat(process.Dependencies.Select(f=>f.Path));
-
-            foreach (var directory in process.DirectoryDependencies)
-            {
-                var contents = m_fileContentManager.ListSealedDirectoryContents(directory).Select(f => f.Path);
-                inputsOfProcess = inputsOfProcess.Concat(contents);
-            }
-
-            return inputsOfProcess.Any(f => m_sourceChangeAffectedFiles.Contains(f));
+            return dynamicallyObservedFiles.Concat(process.Dependencies.Select(f=>f.Path)).Any(f => m_sourceChangeAffectedFiles.Contains(f));
         }
 
         /// <summary>
         /// This function executes on the master to maintain the globle source change affected output list m_sourceChangeAffectedOutputFiles
         /// </summary>
-        /// <param name="pip"></param>
-        /// <param name="dynamicallyObservedFiles"></param>
-        /// <param name="outputContents"></param>
         public void ReportSourceChangeAffectedFiles(
             Pip pip,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
@@ -142,8 +131,6 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         /// <summary>
         /// Check if this file is a change affected file
         /// </summary>
-        /// <param name="path"></param>
-        /// <returns></returns>
         public bool IsSourceChangedAffectedFile(AbsolutePath path)
         {
             return m_sourceChangeAffectedFiles.Contains(path);
@@ -151,7 +138,6 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         /// <summary>
         /// This function execute on worker
         /// </summary>
-        /// <param name="path"></param>
         public void ReportSourceChangedAffectedFile(AbsolutePath path)
         {
             m_sourceChangeAffectedFiles.Add(path);

@@ -2569,7 +2569,7 @@ namespace BuildXL.Processes
         private async Task<bool> PrepareChangeAffectedInputListFile(IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
         {
             // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
-            if (m_pip.ChangeAffectedInputListWrittenFilePath.IsValid && changeAffectedInputs != null)
+            if (changeAffectedInputs != null)
             {
                 string destination = m_pip.ChangeAffectedInputListWrittenFilePath.Path.ToString(m_context.PathTable);
                 try
@@ -2584,7 +2584,7 @@ namespace BuildXL.Processes
                        destination,
                        string.Join(
                            Environment.NewLine,
-                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet()
+                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet().OrderBy(n=>n)
                        ),
                     System.Text.Encoding.UTF8);
                 }

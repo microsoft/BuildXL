@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
@@ -43,9 +44,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
             int maxConnections = DefaultMaxConnections,
+            CounterCollection<ContentSessionBaseCounters> parentCounters = null,
             CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
             CounterCollection<Counters> dedupParentCounters = null)
-            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, pinInlineThreshold, ignorePinThreshold, maxConnections, backingContentStoreParentCounters, dedupParentCounters)
+            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, pinInlineThreshold, ignorePinThreshold, maxConnections, parentCounters, backingContentStoreParentCounters, dedupParentCounters)
         {
             _artifactFileSystem = VstsFileSystem.Instance;
             _uploadSession = DedupStoreClient.CreateUploadSession(

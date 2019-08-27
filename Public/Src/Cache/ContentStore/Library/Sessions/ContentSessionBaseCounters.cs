@@ -5,7 +5,7 @@ using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
-    internal enum ContentSessionBaseCounters
+    public enum ContentSessionBaseCounters
     {
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]

@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// </summary>
     public abstract class ContentSessionBase : StartupShutdownBase, IContentSession
     {
-        private CounterCollection<ContentSessionBaseCounters> _counters { get; } = new CounterCollection<ContentSessionBaseCounters>();
+        public CounterCollection<ContentSessionBaseCounters> _counters { get; } = new CounterCollection<ContentSessionBaseCounters>();
 
         /// <inheritdoc />
         public string Name { get; }
@@ -41,9 +41,10 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected virtual bool TracePinFinished => true;
 
         /// <nodoc />
-        protected ContentSessionBase(string name)
+        protected ContentSessionBase(string name, CounterCollection<ContentSessionBaseCounters> parentCounters = null)
         {
             Name = name;
+            _counters = new CounterCollection<ContentSessionBaseCounters>(parentCounters);
         }
 
         /// <inheritdoc />

@@ -137,9 +137,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
             bool downloadBlobsThroughBlobStore,
+            CounterCollection<ContentSessionBaseCounters> parentCounters = null,
             CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
             CounterCollection<Counters> blobParentCounters = null)
-            : base(name)
+            : base(name, parentCounters)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);

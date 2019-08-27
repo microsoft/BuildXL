@@ -137,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
         /// <param name="parentCounters">Parent counters to track the session.</param>
         /// <param name="backingContentStoreParentCounters">Parent counters to track the session.</param>
-        /// <param name="blobParentCounters">Parent counters to track the session.</param>
+        /// <param name="dedupParentCounters">Parent counters to track the session.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
             string name,

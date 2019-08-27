@@ -3098,9 +3098,9 @@ namespace BuildXL.Processes
                         foreach (var file in sod.Value)
                         {
                             var pathElement = file.GetParent(m_context.PathTable);
-                            while (pathElement.IsValid && pathElement != sod.Key && !excludedPaths.Contains(pathElement))
-                            {
-                                excludedPaths.Add(pathElement);
+                            
+                            while (pathElement.IsValid && pathElement != sod.Key && excludedPaths.Add(pathElement))
+                            {                                
                                 pathElement = pathElement.GetParent(m_context.PathTable);
                             }
                         }

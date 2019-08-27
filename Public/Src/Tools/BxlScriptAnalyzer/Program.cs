@@ -51,6 +51,20 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <inheritdoc />
         public override int Run(Args arguments)
         {
+            try
+            {
+                return RunInner(arguments);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("General error: " + e);
+                return 1;
+            }
+        }
+
+        /// <inheritdoc />
+        private int RunInner(Args arguments)
+        {
             if (arguments.Help)
             {
                 return 0;

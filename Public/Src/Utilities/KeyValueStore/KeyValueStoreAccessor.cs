@@ -162,7 +162,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             /// <summary>
             /// Value that indicates the store has no versioning or the versioning should be ignored when opening the store.
-            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool)"/>,
+            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool)"/>,
             /// all stores using <see cref="KeyValueStoreAccessor"/> are also inherently versioned on <see cref="AccessorVersionHash"/>.
             /// </summary>
             public const int IgnoreStore = -1;
@@ -187,7 +187,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <summary>
         /// Opens or creates a key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
-        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool)"/>
+        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool)"/>
         /// to open or create a versioned key value store.
         /// </summary>
         /// <param name="storeDirectory">
@@ -228,6 +228,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="rotateLogs">
         /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
         /// </param>
+        /// <param name="openBulkLoad">
+        /// Have RocksDb open for bulk loading.
+        /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
             string storeDirectory,
             bool defaultColumnKeyTracked = false,
@@ -237,7 +240,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
-            bool rotateLogs = false)
+            bool rotateLogs = false, 
+            bool openBulkLoad = false)
         {
             return OpenWithVersioning(
                 storeDirectory,
@@ -249,7 +253,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 openReadOnly,
                 dropMismatchingColumns,
                 onFailureDeleteExistingStoreAndRetry,
-                rotateLogs);
+                rotateLogs, 
+                openBulkLoad);
         }
 
         /// <summary>
@@ -296,6 +301,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="rotateLogs">
         /// Have RocksDb rotate logs, useful for debugging performance issues. See <see cref="RocksDbStore"/> for details on this.
         /// </param>
+        /// <param name="openBulkLoad">
+        /// Have RocksDb open for bulk loading.
+        /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
             string storeDirectory,
             int storeVersion,
@@ -306,7 +314,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
-            bool rotateLogs = false)
+            bool rotateLogs = false, 
+            bool openBulkLoad = false)
         {
             // First attempt
             var possibleAccessor = OpenInternal(
@@ -319,7 +328,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     openReadOnly,
                     dropMismatchingColumns,
                     createNew: !FileUtilities.DirectoryExistsNoFollow(storeDirectory),
-                    rotateLogs: rotateLogs);
+                    rotateLogs: rotateLogs,
+                    openBulkLoad: openBulkLoad);
 
             if (!possibleAccessor.Succeeded 
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
@@ -335,7 +345,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     openReadOnly,
                     dropMismatchingColumns,
                     createNew: true,
-                    rotateLogs: rotateLogs);
+                    rotateLogs: rotateLogs,
+                    openBulkLoad: openBulkLoad);
             }
 
             return possibleAccessor;
@@ -351,7 +362,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool openReadOnly,
             bool dropMismatchingColumns,
             bool createNew,
-            bool rotateLogs)
+            bool rotateLogs,
+            bool openBulkLoad)
         {
             KeyValueStoreAccessor accessor = null;
             bool useVersioning = storeVersion != VersionConstants.IgnoreStore;
@@ -415,7 +427,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     openReadOnly,
                     dropMismatchingColumns,
                     createNew,
-                    rotateLogs);
+                    rotateLogs,
+                    openBulkLoad);
             }
             catch (Exception ex)
             {
@@ -528,7 +541,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool openReadOnly,
             bool dropColumns,
             bool createdNewStore,
-            bool rotateLogs)
+            bool rotateLogs,
+            bool openBulkLoad)
         {
             Contract.Assert(storeVersion != VersionConstants.InvalidStore, "No store should pass the invalid store version since it is not safe to open an invalid store.");
             StoreDirectory = storeDirectory;
@@ -543,7 +557,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 additionalKeyTrackedColumns,
                 openReadOnly,
                 dropColumns,
-                rotateLogs);
+                rotateLogs,
+                openBulkLoad);
 
             m_failureHandler = failureHandler;
         }

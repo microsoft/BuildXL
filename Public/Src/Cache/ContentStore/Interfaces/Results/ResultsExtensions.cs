@@ -108,6 +108,17 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Awaits the task and throws <see cref="ResultPropagationException"/> if the result is not successful.
+        /// </summary>
+        public static async Task<TResult> ThrowIfFailureAsync<T, TResult>(this Task<T> task, Func<T, TResult> resultSelector)
+            where T : ResultBase
+        {
+            var result = await task;
+            result.ThrowIfFailure();
+            return resultSelector(result);
+        }
+
+        /// <summary>
         /// Special method to ignore potentially not successful result of an operation explicitly.
         /// </summary>
         public static void IgnoreFailure(this ResultBase result)

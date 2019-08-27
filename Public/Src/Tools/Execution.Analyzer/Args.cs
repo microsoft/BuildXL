@@ -158,10 +158,9 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Additional executionLog to compare parameter is required");
             }
 
-            // The fingerprint store based cache miss analyzer and the bxl invocation analyzer
-            // only use graph information from the newer build, so skip loading the graph for the earlier build
-            // TODO: To avoid large "||" statements, convert this to a list or enum or struct and check if the mode is "in" that data structure
-            if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.BXLInvocationXLG)
+            // The fingerprint store based cache miss analyzer
+            // only uses graph information from the newer build, so skip loading the graph for the earlier build
+            if (m_mode.Value != AnalysisMode.CacheMiss)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))
                 {
@@ -342,15 +341,6 @@ namespace BuildXL.Execution.Analyzer
                     break;
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
-                    break;
-                case AnalysisMode.BXLInvocationXLG:
-                    m_analyzer = InitializeBXLInvocationAnalyzer();
-                    break;
-                case AnalysisMode.EventStatsXldb:
-                    m_analyzer = InitializeEventStatsXldbAnalyzer();
-                    break;
-                case AnalysisMode.DumpPipXldb:
-                    m_analyzer = InitializeDumpPipXldbAnalyzer();
                     break;
                 case AnalysisMode.DebugLogs:
                     ConsoleListener.RegisterEventSource(ETWLogger.Log);
@@ -633,9 +623,6 @@ namespace BuildXL.Execution.Analyzer
             // TODO: Uncomment out help messages when analyzers are more polished.
             //writer.WriteLine("");
             //WriteXLGToDBHelp(writer);
-
-            //writer.WriteLine("");
-            //WriteDominoInvocationHelp(writer);
 
             writer.WriteLine("");
             WriteDebugLogsAnalyzerHelp(writer);

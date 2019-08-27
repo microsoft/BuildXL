@@ -1,2 +1,4 @@
+#include "Shared.xcconfig"
+
 BUILDXL_BUNDLE_IDENTIFIER = com.microsoft.buildxl.debug.sandbox
 BUILDXL_CLASS_PREFIX = com_microsoft_buildxl_debug_

@@ -2,13 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
@@ -51,9 +46,9 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <summary>
-        /// Add a single pip graph fragment to the graph.
+        /// Adds a single pip graph fragment to the graph.
         /// </summary>
-        public bool AddFragmentFileToGraph(int id, AbsolutePath filePath, int[] dependencyIds, string description)
+        public bool AddFragmentFileToGraph(AbsolutePath filePath, string description)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             try
@@ -69,6 +64,29 @@ namespace BuildXL.Scheduler.Graph
             catch (Exception e) when (e is BuildXLException || e is IOException)
             {
                 Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Adds a single pip graph fragment to the graph.
+        /// </summary>
+        public bool AddFragmentFileToGraph(Stream stream, string description)
+        {
+            var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
+            try
+            {
+                var result = deserializer.Deserialize(
+                    stream,
+                    (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
+                    description);
+                Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+
+                return result;
+            }
+            catch (Exception e) when (e is BuildXLException || e is IOException)
+            {
+                Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, nameof(stream), e.ToString());
                 return false;
             }
         }

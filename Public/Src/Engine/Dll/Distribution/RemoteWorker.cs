@@ -72,7 +72,6 @@ namespace BuildXL.Engine.Distribution
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
-        private readonly bool m_isGrpcEnabled;
         private readonly IWorkerClient m_workerClient;
 
         #region Distributed execution log state
@@ -92,14 +91,12 @@ namespace BuildXL.Engine.Distribution
         /// Constructor
         /// </summary>
         public RemoteWorker(
-            bool isGrpcEnabled,
             LoggingContext appLoggingContext,
             uint workerId,
             MasterService masterService,
             ServiceLocation serviceLocation)
             : base(workerId, name: I($"#{workerId} ({serviceLocation.IpAddress}::{serviceLocation.Port})"))
         {
-            m_isGrpcEnabled = isGrpcEnabled;
             m_appLoggingContext = appLoggingContext;
             m_masterService = masterService;
             m_buildRequests = new BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>>();
@@ -107,17 +104,7 @@ namespace BuildXL.Engine.Distribution
             m_executionBlobCompletion = TaskSourceSlim.Create<bool>();
 
             m_serviceLocation = serviceLocation;
-
-            if (isGrpcEnabled)
-            {
-                m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port, OnConnectionTimeOutAsync);
-            }
-            else
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_workerClient = new InternalBond.BondWorkerClient(m_appLoggingContext, Name, serviceLocation.IpAddress, serviceLocation.Port, masterService.DistributionServices, OnActivateConnection, OnDeactivateConnection, OnConnectionTimeOutAsync);
-#endif
-            }
+            m_workerClient = new Grpc.GrpcWorkerClient(m_appLoggingContext, masterService.DistributionServices.BuildId, serviceLocation.IpAddress, serviceLocation.Port, OnConnectionTimeOutAsync);
 
             // Depending on how long send requests take. It might make sense to use the same thread between all workers. 
             m_sendThread = new Thread(SendBuildRequests);
@@ -200,9 +187,6 @@ namespace BuildXL.Engine.Distribution
                         // This seems to be very inefficient; but it is so rare that we completely fail to send the build request to the worker after retries.
                         ResetAvailableHashes(m_pipGraph);
 
-                        // Change status on connection failure
-                        // Try to pause so next pips will skip this worker.
-                        ChangeStatus(WorkerNodeStatus.Running, WorkerNodeStatus.Paused);
                         m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesFailedSentToWorkers);
                     }
                     else
@@ -223,6 +207,14 @@ namespace BuildXL.Engine.Distribution
         public async Task LogExecutionBlobAsync(WorkerNotificationArgs notification)
         {
             Contract.Requires(notification.ExecutionLogData != null || notification.ExecutionLogData.Count != 0);
+
+            if (m_executionBlobQueue.IsCompleted)
+            {
+                // If master already decided to shut-down the worker, there was a connection issue with the worker for a long time and  master was forced to exit the worker. 
+                // However, we received execution log event from worker, it means that the worker was still able to connect to master via its Channel.
+                // In that case, we do not process that log event. 
+                return;
+            }
 
             m_executionBlobQueue.Add(notification);
 

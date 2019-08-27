@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "BuildXL.dscript",
+        "ms-vscode.csharp",
+        "ms-vscode.cpptools",
+        "zxh404.vscode-proto3"
+    ]
+}

@@ -6,21 +6,26 @@ You can build BuildXL locally from the master branch of its repo, or pick it up 
 TODO: Link to final NuGet feed location
 
 ## [Visual Studio Code](https://code.visualstudio.com) Plug-in
-This plug-in offers DScript language support. We currently only support building the plugin locally. You can build the plugin using a local copy of the BuildXL repo with:
+This plug-in offers DScript language support. 
+### Windows
+You can find the plugin in the marketplace under "BuildXL". It should be recommended for our repo.
 
-`bxl out\bin\debug\ide\*`
+The steps to take are:
 
-### VSCode plug-in install
+![Screenshot of VsCode with arrows for steps how to install the BuildXL extension](./InstallBuildXLToVsCode.png)
+
+### MacOS
+The plugin only contains windows binaries at the moment. For MacOS we currently only support building the plugin locally. You can build the plugin using a local copy of the BuildXL repo with:
+
+1. `bxl out\bin\debug\ide\*`
 1. Launch VsCode
 1. Type 'Ctrl'+'Shift'+'P' (or choose 'View -> Command Palette...' from the main menu)
 1. Type `vsix`
 
      ![installvsix.png](./installvsix.png)
 1. Select 'Extensions: Install from VSIX
-1. Navigate to: 
-   Option 1. `<YourEnlistmentRoot>\Out\Bin\debug\ide` if you want to install the extension you just built locally 
-   Option 2. **Pending**: install a published extension
-1. Select `BuildXL.vscode.win.vsix` if running on Windows, or `BuildXL.vscode.osx.vsix` if running on macOS
+1. Navigate to: `<YourEnlistmentRoot>\Out\Bin\debug\ide` to install the extension you just built locally 
+1. Select `BuildXL.vscode.osx.vsix`
 1. Open a `.dsc` file to see the extension in action
 1. **[macOS only]** The first time you open a `.dsc` file after installing the extension you might get the following error message
 ![ScreenShot2019-03-04.png](./ScreenShot2019-03-04.png)
@@ -28,10 +33,6 @@ The most likely reason for this is the `BuildXL.Ide.LanguageServer` file from th
     ```bash
     chmod +x ~/.vscode/extensions/microsoft.buildxl.dscript-0.1.0-devBuild/bin/BuildXL.Ide.LanguageServer
     ```
-
-### DScript Theme
-The VsCode plug-in comes with a DScript syntax-coloring theme.
-You can change the Theme by pressing 'Ctrl'+'K', 'Ctrl'+'T' and selecting e.g. _BuildXL DScript Dark_
 
 ## Visual Studio Plugin
 This plugin enables C# and C++ target language support for building using BuildXL in Visual Studio. It is meant to be used in conjunction with the command line `bxl /vs` command that generates .g.csproj and .g.vcxproj files from DScript build specs.

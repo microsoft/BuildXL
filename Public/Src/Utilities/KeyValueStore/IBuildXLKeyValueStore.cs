@@ -86,6 +86,14 @@ namespace BuildXL.Engine.Cache
         /// Create snapshot
         /// </summary>
         IBuildXLKeyValueStore CreateSnapshot();
+
+        /// <summary>
+        /// Retrieves the value of a given property for the database. These are values internal to the database, thus
+        /// depending on the particular implementation.
+        /// </summary>
+        /// <param name="propertyName">Name of the property to fetch</param>
+        /// <param name="columnFamilyName">The column family to use. If null, the store's default column is used.</param>
+        string GetProperty(string propertyName, string columnFamilyName = null);
     }
 
     /// <summary>

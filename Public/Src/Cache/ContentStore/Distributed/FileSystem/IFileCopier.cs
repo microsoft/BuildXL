@@ -5,11 +5,12 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 // ReSharper disable All
-namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
+namespace BuildXL.Cache.ContentStore.Distributed
 {
     /// <summary>
     /// Represents an interface that allows copying files from a remote source to a local path.
@@ -62,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         /// <param name="context">The context of the operation</param>
         /// <param name="hash">The hash of the file to be copied.</param>
-        /// <param name="targetMachineName">The machine that should copy the file</param>
-        Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName);
+        /// <param name="targetMachine">The machine that should copy the file</param>
+        Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, MachineLocation targetMachine);
     }
 }

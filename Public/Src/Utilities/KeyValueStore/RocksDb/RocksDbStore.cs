@@ -763,6 +763,16 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             }
 
             /// <inheritdoc />
+            /// <remarks>
+            /// See https://github.com/facebook/rocksdb/blob/master/include/rocksdb/db.h#L547 for a list of all the
+            /// valid properties.
+            /// </remarks>
+            public string GetProperty(string propertyName, string columnFamilyName = null)
+            {
+                return m_store.GetProperty(propertyName, GetColumnFamilyInfo(columnFamilyName).Handle);
+            }
+
+            /// <inheritdoc />
             public IEnumerable<KeyValuePair<string, string>> PrefixSearch(string prefix, string columnFamilyName = null)
             {
                 return PrefixSearch(StringToBytes(prefix), columnFamilyName).Select(kvp => new KeyValuePair<string, string>(BytesToString(kvp.Key), BytesToString(kvp.Value)));

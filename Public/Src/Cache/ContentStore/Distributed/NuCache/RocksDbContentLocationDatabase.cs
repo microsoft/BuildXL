@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -21,6 +22,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Threading;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using Unit = BuildXL.Utilities.Tasks.Unit;
@@ -81,6 +83,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public RocksDbContentLocationDatabase(IClock clock, RocksDbContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
             : base(clock, configuration, getInactiveMachines)
         {
+            Contract.Requires(configuration.FlushPreservePercentInMemory >= 0 && configuration.FlushPreservePercentInMemory <= 1);
+            Contract.Requires(configuration.FlushDegreeOfParallelism > 0);
+            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep > 0);
+
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
         }
@@ -769,49 +775,83 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
             return _keyValueStore.Use(store => {
-                var cutoffTimeUtc = (Clock.UtcNow - _configuration.MetadataGarbageCollectionProtectionTime).ToFileTimeUtc();
-                int removedEntries = 0;
-                int scannedEntries = 0;
-                ulong dbSizeInBytesAfterGc = 0;
-                ulong dbRemovedBytesDuringGc = 0;
+                // The strategy here is to follow what the SQLite memoization store does: we want to keep the top K
+                // elements by last access time (i.e. an LRU policy). This is slightly worse than that, because our
+                // iterator will go stale as time passes: since we iterate over a snapshot of the DB, we can't
+                // guarantee that an entry we remove is truly the one we should be removing. Moreover, since we store
+                // information what the last access times were, our internal priority queue may go stale over time as
+                // well.
+                var liveDbSizeInBytesBeforeGc = int.Parse(store.GetProperty(
+                    "rocksdb.estimate-live-data-size",
+                    columnFamilyName: nameof(Columns.Metadata)));
 
-                // TODO(jubayard): we may want to use a single WriteBatch here if this ends up affecting perf
-                foreach (var kvp in store.PrefixSearch((byte[])null, columnFamilyName: nameof(Columns.Metadata)))
+                var scannedEntries = 0;
+                var removedEntries = 0;
+
+                // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
+                // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
+                // a new element is smaller than the Top, it's not in the top K, if larger, it is.
+                var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
+                    capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
+                    comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Default);
+                foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
+                    // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
+                    // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
+                    // unneeded entries as we go. We could also batch deletions here.
+
                     if (context.Token.IsCancellationRequested)
                     {
                         break;
                     }
 
-                    scannedEntries++;
-                    Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Increment();
-                    
-                    var lastAccessTimeUtc = DeserializeMetadataLastAccessTimeUtc(kvp.Value);
-                    if (lastAccessTimeUtc < cutoffTimeUtc)
-                    {
-                        RemoveMetadata(store, kvp.Key);
+                    var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
+                        strongFingerprint: keyValuePair.Key);
 
-                        dbRemovedBytesDuringGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
-                        removedEntries++;
-                        Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Increment();
+                    byte[] strongFingerprintToRemove = null;
+
+                    if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
+                    {
+                        // If we already reached the maximum number of elements to keep, and the current entry is older
+                        // than the oldest in the top K, we can just remove the current entry.
+                        strongFingerprintToRemove = entry.strongFingerprint;
                     }
                     else
                     {
-                        dbSizeInBytesAfterGc += (ulong)kvp.Key.Length + (ulong)kvp.Value.Length;
+                        // We either didn't reach the number of elements we want to keep, or the entry has a last
+                        // access time larger than the current smallest one in the top K.
+                        entries.Push(entry);
+
+                        if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep)
+                        {
+                            strongFingerprintToRemove = entries.Top.strongFingerprint;
+                            entries.Pop();
+                        }
                     }
+
+                    if (!(strongFingerprintToRemove is null))
+                    {
+                        store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
+                        removedEntries++;
+                    }
+
+                    scannedEntries++;
                 }
 
-                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, EntriesAfterGc={scannedEntries - removedEntries}, DbSizeInBytesAfterGc={dbSizeInBytesAfterGc}, DbRemovedBytesDuringGc={dbRemovedBytesDuringGc}");
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(removedEntries);
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(scannedEntries);
+
+                var liveDbSizeInBytesAfterGc = int.Parse(store.GetProperty(
+                    "rocksdb.estimate-live-data-size",
+                    columnFamilyName: nameof(Columns.Metadata)));
+
+                // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
+                // new tombstones have been added. However, there is no way to compute how much we added/removed that
+                // doesn't involve either keeping track of the values, or doing two passes over the column family.
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}");
 
                 return Unit.Void;
             }).ToBoolResult();
-        }
-
-        private void RemoveMetadata(IBuildXLKeyValueStore store, byte[] strongFingerprint)
-        {
-            // TODO(jubayard): Right now, this only removes the metadata, we can also remove content in the future. For
-            // that, we'll need the metadata and a reverse index stored.
-            store.Remove(strongFingerprint, columnFamilyName: nameof(Columns.Metadata));
         }
 
         /// <summary>

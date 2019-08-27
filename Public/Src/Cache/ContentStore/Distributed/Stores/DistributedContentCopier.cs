@@ -166,22 +166,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         break;
                     }
 
-                    if (attemptCount == _retryIntervals.Count - 1)
-                    {
-                        // This is the last attempt, no need to wait any more.
-                        break;
-                    }
-
-                    long waitTicks = _retryIntervals[attemptCount].Ticks;
-
-                    // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
-                    TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
-
-                    Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
-
                     attemptCount++;
 
-                    await Task.Delay(waitDelay, cts);
+                    if (attemptCount < _retryIntervals.Count)
+                    {
+                        long waitTicks = _retryIntervals[attemptCount].Ticks;
+
+                        // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
+                        TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
+
+                        // Log with the original attempt count
+                        Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
+
+                        await Task.Delay(waitDelay, cts);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
 
                 // now that retries are exhausted, combine the missing and bad locations.
@@ -235,10 +237,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 traceOperationStarted: false,
                 operation: () =>
                 {
-                    var targetPath = new AbsolutePath(targetLocation.Path);
-                    var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
-
-                    return _ioGate.GatedOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetMachineName), context.Token);
+                    return _ioGate.GatedOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetLocation), context.Token);
                 });
         }
 

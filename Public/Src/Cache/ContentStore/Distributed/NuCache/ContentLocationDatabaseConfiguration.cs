@@ -80,11 +80,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool MetadataGarbageCollectionEnabled { get; set; } = false;
 
         /// <summary>
-        /// Minimum amount of time to protect a metadata entry since its last usage time.
+        /// Maximum number of metadata entries to keep after garbage collection.
         ///
         /// Only useful when <see cref="MetadataGarbageCollectionEnabled"/> is true.
         /// </summary>
-        public TimeSpan MetadataGarbageCollectionProtectionTime { get; set; } = TimeSpan.FromHours(2);
+        /// <remarks>
+        /// Default is the same as in the SQLiteMemoizationStore
+        /// </remarks>
+        public int MetadataGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; } = 500_000;
     }
 
     /// <summary>

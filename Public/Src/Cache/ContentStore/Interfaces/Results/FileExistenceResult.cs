@@ -83,6 +83,15 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="FileExistenceResult" /> class.
+        /// </summary>
+        public FileExistenceResult(ResultBase other, string message = null)
+            : base(other, message)
+        {
+            Code = ResultCode.Error;
+        }
+
+        /// <summary>
         /// Returns true if the file exists.
         /// </summary>
         public bool Exists => Code == ResultCode.FileExists;

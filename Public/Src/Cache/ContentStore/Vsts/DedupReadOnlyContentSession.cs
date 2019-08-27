@@ -42,14 +42,18 @@ namespace BuildXL.Cache.ContentStore.Vsts
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public class DedupReadOnlyContentSession : ContentSessionBase
     {
-        private enum Counters
+        /// <nodoc />
+        public enum Counters
         {
+            /// <nodoc />
             PinInlined,
+
+            /// <nodoc />
             PinIgnored
         }
 
-        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
-        private CounterCollection<Counters> _dedupCounters { get; } = new CounterCollection<Counters>();
+        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; }
+        private CounterCollection<Counters> _dedupCounters { get; }
 
         /// <summary>
         /// Default number of oustanding connections to throttle Artifact Services.
@@ -139,7 +143,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
-            int maxConnections = DefaultMaxConnections)
+            int maxConnections = DefaultMaxConnections,
+            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
+            CounterCollection<Counters> dedupParentCounters = null)
             : base(name)
         {
             Contract.Requires(fileSystem != null);
@@ -155,6 +161,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             _pinInlineThreshold = pinInlineThreshold;
             _ignorePinThreshold = ignorePinThreshold;
+
+            _counters = new CounterCollection<BackingContentStore.SessionCounters>(backingContentStoreParentCounters);
+            _dedupCounters = new CounterCollection<Counters>(dedupParentCounters);
         }
 
         /// <summary>

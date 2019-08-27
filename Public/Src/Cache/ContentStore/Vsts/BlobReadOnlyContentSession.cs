@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     public class BlobReadOnlyContentSession : ContentSessionBase
     {
         /// <nodoc />
-        private enum BlobContentSessionCounters
+        public enum Counters
         {
             /// <summary>
             /// Download URI had to be obtained from calling a remote VSTS service.
@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
-        private CounterCollection<BlobContentSessionCounters> _blobCounters { get; } = new CounterCollection<BlobContentSessionCounters>();
+        private CounterCollection<Counters> _blobCounters { get; } = new CounterCollection<Counters>();
 
         /// <summary>
         ///     The only HashType recognizable by the server.
@@ -136,7 +136,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
-            bool downloadBlobsThroughBlobStore)
+            bool downloadBlobsThroughBlobStore,
+            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
+            CounterCollection<Counters> blobParentCounters = null)
             : base(name)
         {
             Contract.Requires(fileSystem != null);
@@ -165,6 +167,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             TempDirectory = new DisposableDirectory(fileSystem);
             BuildXL.Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
+
+            _counters = new CounterCollection<BackingContentStore.SessionCounters>(backingContentStoreParentCounters);
+            _blobCounters = new CounterCollection<Counters>(blobParentCounters);
         }
 
         /// <inheritdoc />
@@ -519,7 +524,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
                 {
-                    _blobCounters[BlobContentSessionCounters.VstsDownloadUriFetchedFromRemote].Increment();
+                    _blobCounters[Counters.VstsDownloadUriFetchedFromRemote].Increment();
                     var blobId = contentHash.ToBlobIdentifier();
 
                     var mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
@@ -540,7 +545,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 }
                 else
                 {
-                    _blobCounters[BlobContentSessionCounters.VstsDownloadUriFetchedInMemory].Increment();
+                    _blobCounters[Counters.VstsDownloadUriFetchedInMemory].Increment();
                 }
 
                 return await GetStreamThroughAzureBlobs(

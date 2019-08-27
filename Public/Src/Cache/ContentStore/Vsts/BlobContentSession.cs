@@ -44,8 +44,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
-            bool downloadBlobsThroughBlobStore)
-            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore)
+            bool downloadBlobsThroughBlobStore,
+            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
+            CounterCollection<Counters> blobParentCounters = null)
+            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore, backingContentStoreParentCounters, blobParentCounters)
         {
         }
 

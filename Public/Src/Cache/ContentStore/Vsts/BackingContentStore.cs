@@ -11,7 +11,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
 
@@ -35,6 +37,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             /// </summary>
             PinSatisfiedInMemory
         }
+
+        private CounterCollection<SessionCounters> _sessionCounters;
+        private CounterCollection<BlobReadOnlyContentSession.Counters> _blobCounters;
+        private CounterCollection<DedupReadOnlyContentSession.Counters> _dedupCounters;
 
         private readonly IAbsFileSystem _fileSystem;
         private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;
@@ -162,15 +168,23 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (_useDedupStore)
             {
                 return new CreateSessionResult<IContentSession>(new DedupContentSession(
-                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold));
+                    context, _fileSystem, name, implicitPin, _artifactHttpClient as IDedupStoreHttpClient, _timeToKeepContent, _pinInlineThreshold, _ignorePinThreshold, backingContentStoreParentCounters: _sessionCounters, dedupParentCounters: _dedupCounters));
             }
 
             return new CreateSessionResult<IContentSession>(new BlobContentSession(
-                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _downloadBlobsThroughBlobStore));
+                _fileSystem, name, implicitPin, _artifactHttpClient as IBlobStoreHttpClient, _timeToKeepContent, _downloadBlobsThroughBlobStore, _sessionCounters, _blobCounters));
         }
 
         /// <inheritdoc />
-        public Task<GetStatsResult> GetStatsAsync(Context context) => Task.FromResult(new GetStatsResult(new CounterSet()));
+        public Task<GetStatsResult> GetStatsAsync(Context context)
+        {
+            var result = _sessionCounters.ToCounterSet();
+
+            result.Merge(_blobCounters.ToCounterSet(), "Blob.");
+            result.Merge(_dedupCounters.ToCounterSet(), "Dedup.");
+
+            return Task.FromResult(new GetStatsResult(result));
+        }
 
         /// <inheritdoc />
         public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)

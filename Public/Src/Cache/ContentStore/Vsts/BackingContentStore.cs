@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
+using Microsoft.TeamFoundation.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.Content.Common;
 
@@ -180,8 +181,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             var result = _sessionCounters.ToCounterSet();
 
-            result.Merge(_blobCounters.ToCounterSet(), "Blob.");
-            result.Merge(_dedupCounters.ToCounterSet(), "Dedup.");
+            if (_useDedupStore)
+            {
+                result.Merge(_dedupCounters.ToCounterSet(), "Dedup.");
+            }
+            else
+            {
+                result.Merge(_blobCounters.ToCounterSet(), "Blob.");
+            }
 
             return Task.FromResult(new GetStatsResult(result));
         }

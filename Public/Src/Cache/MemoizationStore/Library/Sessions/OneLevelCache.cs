@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
@@ -26,7 +27,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.
     /// </summary>
-    public class OneLevelCache : ICache, IStreamStore, IRepairStore, ICopyRequestHandler
+    public class OneLevelCache : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler
     {
         private readonly CacheTracer _tracer = new CacheTracer(nameof(OneLevelCache));
 
@@ -362,6 +363,28 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             }
 
             return new BoolResult($"{ContentStore} does not implement {nameof(ICopyRequestHandler)} in {nameof(OneLevelCache)}.");
+        }
+
+        CreateSessionResult<IReadOnlyContentSession> IContentStore.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
+        {
+            return CreateReadOnlySession(context, name, implicitPin).Select(session => (IReadOnlyContentSession)session);
+        }
+
+        CreateSessionResult<IContentSession> IContentStore.CreateSession(Context context, string name, ImplicitPin implicitPin)
+        {
+            return CreateSession(context, name, implicitPin).Select(session => (IContentSession)session);
+        }
+
+        /// <inheritdoc />
+        public Task<DeleteResult> DeleteAsync(Context context, ContentHash contentHash)
+        {
+            return ContentStore.DeleteAsync(context, contentHash);
+        }
+
+        /// <inheritdoc />
+        public void PostInitializationCompleted(Context context, BoolResult result)
+        {
+            ContentStore.PostInitializationCompleted(context, result);
         }
     }
 }

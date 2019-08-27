@@ -7,8 +7,10 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -21,7 +23,7 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 namespace BuildXL.Cache.Host.Service.Internal
 {
     // TODO: move it to the library?
-    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore
+    public class MultiplexedContentStore : IContentStore, IRepairStore, IStreamStore, ICopyRequestHandler
     {
         private readonly Dictionary<string, IContentStore> _drivesWithContentStore;
         private readonly string _preferredCacheDrive;
@@ -29,7 +31,12 @@ namespace BuildXL.Cache.Host.Service.Internal
         /// <summary>
         /// Execution tracer for the session.
         /// </summary>
-        protected readonly ContentSessionTracer SessionTracer = new ContentSessionTracer(nameof(MultiplexedContentStore));
+        protected readonly ContentSessionTracer SessionTracer = new ContentSessionTracer(nameof(MultiplexedContentSession));
+
+        /// <summary>
+        /// Execution tracer for the readonly session.
+        /// </summary>
+        protected readonly ContentSessionTracer ReadOnlySessionTracer = new ContentSessionTracer(nameof(MultiplexedReadOnlyContentSession));
 
         /// <summary>
         ///     Execution tracer.
@@ -164,7 +171,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     sessions.Add(entry.Key, result.Session);
                 }
 
-                var multiCacheSession = new MultiplexedReadOnlyContentSession(SessionTracer, sessions, name, _preferredCacheDrive);
+                var multiCacheSession = new MultiplexedReadOnlyContentSession(ReadOnlySessionTracer, sessions, name, _preferredCacheDrive);
                 return new CreateSessionResult<IReadOnlyContentSession>(multiCacheSession);
             });
         }
@@ -262,57 +269,38 @@ namespace BuildXL.Cache.Host.Service.Internal
             });
         }
 
-        public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        /// <inheritdoc />
+        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
-            OpenStreamResult openStreamResult = null;
-
-            // Check primary content store
-            var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
-            if (preferredCacheStore is IStreamStore streamStore)
-            {
-                openStreamResult = await streamStore.StreamContentAsync(context, contentHash);
-
-                if (openStreamResult.Succeeded)
-                {
-                    return openStreamResult;
-                }
-            }
-
-            foreach (var kvp in _drivesWithContentStore)
-            {
-                if (kvp.Key == _preferredCacheDrive)
-                {
-                    // Already checked the preferred cache
-                    continue;
-                }
-
-                if (kvp.Value is IStreamStore otherStreamStore)
-                {
-                    openStreamResult = await otherStreamStore.StreamContentAsync(context, contentHash);
-
-                    if (openStreamResult.Succeeded)
-                    {
-                        return openStreamResult;
-                    }
-                }
-            }
-
-            return openStreamResult ?? new OpenStreamResult($"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
+            return PerformStoreOperationAsync<IStreamStore, OpenStreamResult>(store => store.StreamContentAsync(context, contentHash));
         }
 
-        public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
+        /// <inheritdoc />
+        public Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
         {
-            FileExistenceResult fileExistenceResult = null;
+            return PerformStoreOperationAsync<IStreamStore, FileExistenceResult>(store => store.CheckFileExistsAsync(context, contentHash));
+        }
+
+        /// <inheritdoc />
+        public Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        {
+            return PerformStoreOperationAsync<ICopyRequestHandler, BoolResult>(store => store.RequestCopyFileAsync(context, hash));
+        }
+
+        private async Task<TResult> PerformStoreOperationAsync<TStore, TResult>(Func<TStore, Task<TResult>> executeAsync)
+            where TResult : ResultBase
+        {
+            TResult result = null;
 
             // Check primary content store
             var preferredCacheStore = _drivesWithContentStore[_preferredCacheDrive];
-            if (preferredCacheStore is IStreamStore streamStore)
+            if (preferredCacheStore is TStore store)
             {
-                fileExistenceResult = await streamStore.CheckFileExistsAsync(context, contentHash);
+                result = await executeAsync(store);
 
-                if (fileExistenceResult.Succeeded)
+                if (result.Succeeded)
                 {
-                    return fileExistenceResult;
+                    return result;
                 }
             }
 
@@ -324,18 +312,18 @@ namespace BuildXL.Cache.Host.Service.Internal
                     continue;
                 }
 
-                if (kvp.Value is IStreamStore otherStreamStore)
+                if (kvp.Value is TStore otherStore)
                 {
-                    fileExistenceResult = await otherStreamStore.CheckFileExistsAsync(context, contentHash);
+                    result = await executeAsync(otherStore);
 
-                    if (fileExistenceResult.Succeeded)
+                    if (result.Succeeded)
                     {
-                        return fileExistenceResult;
+                        return result;
                     }
                 }
             }
 
-            return fileExistenceResult ?? new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"Could not find a content store which implements {nameof(IStreamStore)} in {nameof(MultiplexedContentStore)}.");
+            return result ?? new ErrorResult($"Could not find a content store which implements {typeof(TStore).Name} in {nameof(MultiplexedContentStore)}.").AsResult<TResult>();
         }
 
         /// <inheritdoc />

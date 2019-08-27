@@ -522,7 +522,7 @@ namespace BuildXL.Processes.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Unexpected child processes survived: {2} process(es){3}")]
-        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count,  string paths);
+        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count, string paths);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessChildrenSurvivedTooMany,

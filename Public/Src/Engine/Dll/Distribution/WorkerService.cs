@@ -128,14 +128,8 @@ namespace BuildXL.Engine.Distribution
         private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData> ();
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
-        private readonly bool m_isGrpcEnabled;
         private IMasterClient m_masterClient;
         private readonly IServer m_workerServer;
-
-#if !DISABLE_FEATURE_BOND_RPC
-        private InternalBond.BondMasterClient m_bondMasterClient;
-        private readonly InternalBond.BondWorkerServer m_bondWorkerService;
-#endif
 
         /// <summary>
         /// Class constructor
@@ -146,23 +140,11 @@ namespace BuildXL.Engine.Distribution
         /// <param name="buildId">the build id</param>
         public WorkerService(LoggingContext appLoggingContext, int maxProcesses, IDistributionConfiguration config, string buildId)
         {
-            m_isGrpcEnabled = config.IsGrpcEnabled;
-
             m_appLoggingContext = appLoggingContext;
             m_maxProcesses = maxProcesses;
             m_port = config.BuildServicePort;
             m_services = new DistributionServices(buildId);
-            if (m_isGrpcEnabled)
-            {
-                m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
-            }
-            else
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_bondWorkerService = new InternalBond.BondWorkerServer(appLoggingContext, this, m_port, m_services);
-                m_workerServer = m_bondWorkerService;
-#endif
-            }
+            m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
 
             m_attachCompletionSource = TaskSourceSlim.Create<bool>();
             m_exitCompletionSource = TaskSourceSlim.Create<bool>();
@@ -400,20 +382,8 @@ namespace BuildXL.Engine.Distribution
                 new LoggingContext.SessionInfo(buildStartData.SessionId, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
                 m_appLoggingContext);
 
-
-            if (m_isGrpcEnabled)
-            {
-                m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
-            }
-            else
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_bondWorkerService.UpdateLoggingContext(m_appLoggingContext);
-                m_bondMasterClient = new InternalBond.BondMasterClient(m_appLoggingContext, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port);
-                m_masterClient = m_bondMasterClient;
-#endif
-            }
-
+            m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
+            
             WorkerId = BuildStartData.WorkerId;
 
             m_attachCompletionSource.TrySetResult(true);
@@ -422,13 +392,6 @@ namespace BuildXL.Engine.Distribution
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         private async Task<bool> SendAttachCompletedAfterProcessBuildRequestStartedAsync()
         {
-            if (!m_isGrpcEnabled)
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_bondMasterClient.Start(m_services, OnConnectionTimeOutAsync);
-#endif
-            }
-
             var cacheValidationContent = Guid.NewGuid().ToByteArray();
             var cacheValidationContentHash = ContentHashingUtilities.HashBytes(cacheValidationContent);
 
@@ -833,10 +796,6 @@ namespace BuildXL.Engine.Distribution
             m_workerPipStateManager?.Dispose();
 
             m_workerServer.Dispose();
-
-#if !DISABLE_FEATURE_BOND_RPC
-            m_bondMasterClient?.Dispose();
-#endif
         }
 
         bool IDistributionService.Initialize()

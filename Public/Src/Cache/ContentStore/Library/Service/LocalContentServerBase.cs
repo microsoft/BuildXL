@@ -670,31 +670,16 @@ namespace BuildXL.Cache.ContentStore.Service
         private void TrySetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out var buildId))
+            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
             {
                 operationLogger.RegisterBuildId(buildId);
             }
         }
 
-        private static bool TryExtractBuildId(string sessionName, out string buildId)
-        {
-            if (sessionName?.Contains(Context.BuildIdPrefix) == true)
-            {
-                var index = sessionName.IndexOf(Context.BuildIdPrefix) + Context.BuildIdPrefix.Length;
-                buildId = sessionName.Substring(index);
-
-                // Return true only if buildId is actually a guid.
-                return Guid.TryParse(buildId, out _);
-            }
-
-            buildId = null;
-            return false;
-        }
-
         private void TryUnsetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out _))
+            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out _))
             {
                 operationLogger.UnregisterBuildId();
             }

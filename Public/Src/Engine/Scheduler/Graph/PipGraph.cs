@@ -806,6 +806,12 @@ namespace BuildXL.Scheduler.Graph
             => PipProducers.Select(kvp => new KeyValuePair<FileArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
 
         /// <summary>
+        /// Gets all seal directories and their producers
+        /// </summary>
+        public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllSealDirectoriesAndProducers
+            => m_sealedDirectoryNodes.Select(kvp => new KeyValuePair<DirectoryArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
+
+        /// <summary>
         /// Gets all output directories and their corresponding producers.
         /// </summary>
         public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllOutputDirectoriesAndProducers

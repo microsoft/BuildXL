@@ -340,6 +340,7 @@ namespace Test.BuildXL.EngineTests
                     translatedDirectory,
                     properties,
                     dict => { specialFolderInitializerWasCalled = true; },
+                    true,
                     Context.PathTable,
                     LoggingContext);
 

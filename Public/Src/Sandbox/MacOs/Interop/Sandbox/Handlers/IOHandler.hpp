@@ -4,9 +4,11 @@
 #ifndef IOHandler_hpp
 #define IOHandler_hpp
 
-#ifdef ES_SANDBOX
+#if ES_SANDBOX
 
 #include "AccessHandler.hpp"
+
+#define NO_ERROR 0
 
 struct IOHandler : public AccessHandler
 {

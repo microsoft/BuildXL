@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 
@@ -79,11 +80,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public bool MetadataGarbageCollectionEnabled { get; set; } = false;
 
         /// <summary>
-        /// Minimum amount of time to protect a metadata entry since its last usage time.
+        /// Maximum number of metadata entries to keep after garbage collection.
         ///
         /// Only useful when <see cref="MetadataGarbageCollectionEnabled"/> is true.
         /// </summary>
-        public TimeSpan MetadataGarbageCollectionProtectionTime { get; set; } = TimeSpan.FromHours(2);
+        /// <remarks>
+        /// Default is the same as in the SQLiteMemoizationStore
+        /// </remarks>
+        public int MetadataGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; } = 500_000;
     }
 
     /// <summary>
@@ -127,6 +131,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Required because of our workload tends to generate a lot of short-lived entries, which clutter the deeper
         /// levels of the RocksDB LSM tree.
         /// </summary>
-        public TimeSpan FullRangeCompactionInterval { get; set; } = TimeSpan.FromHours(6);
+        public TimeSpan FullRangeCompactionInterval { get; set; } = Timeout.InfiniteTimeSpan;
     }
 }

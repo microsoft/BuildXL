@@ -65,6 +65,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 var logger = Logger.CreateLogger();
 
+                // This needs to be passed in as a path through environment variable because it changes every 
                 if (!WorkspaceBuilder.TryBuildWorkspaceAndCollectFilesToAnalyze(
                     logger,
                     pathTable,
@@ -73,6 +74,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     arguments.Filter,
                     arguments.OutputDirectory,
                     arguments.ObjectDirectory,
+                    arguments.RedirectedUserProfileJunctionRoot,
+                    arguments.InCloudBuild,
+                    arguments.Analyzers.Any(a => a.SerializeUsingTopSort),
                     out var workspace,
                     out var pipGraph,
                     out var filesToAnalyze,

@@ -133,8 +133,6 @@ export function install(args: Arguments) : Result {
                         ...(args.privateCache ? [] : [
                             // We don't have a private cache so untrack the appdata cache folder
                             d`${Context.getMount("LocalAppData").path}/yarn`,
-                            // CB creates a junction from %LocalAppData%\yarn to d:\dbs\profile\bxlint\appdata\local\yarn
-                            d`d:/dbs/profile/bxlint/appdata/local/yarn`,
                         ]),
                     ],
                 },

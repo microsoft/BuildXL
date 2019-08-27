@@ -1,0 +1,284 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+import "tools/google/protobuf/timestamp.proto";
+import "tools/google/protobuf/duration.proto";
+import "EnumsAndHelperStructs.proto";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+//
+//  Generic Event Info (key, count, etc)
+//
+
+// Message that keeps track of total number of events processed
+message EventCount{
+    uint32 Value = 1;
+}
+
+message EventCountByTypeKey{
+    ExecutionEventId EventTypeID = 1;
+}
+
+message EventCountByTypeValue{
+    map<uint32, int32> WorkerToCountMap = 1;
+
+    map<uint32, int32> WorkerToPayloadMap = 2;
+}
+
+// Event query should be of this format. It also serves as the key to the DB
+message EventTypeQuery{
+    // ID of the Event - required
+    ExecutionEventId EventTypeID = 1; 
+
+    uint32 PipId = 2;
+    
+    // Other ideas to keep in EventTypeQuery were as follows:
+    // string (or int64) Path (or hash of path) = 2;
+    // string RewriteContent = 3;
+    // int32 WorkerID = 4;
+    
+    // UUID to make the key unique. TODO: remove once a minimal key is formulated and decided upon
+    string UUID = 99;   
+}
+
+//
+//  Event Data
+//
+
+// The FileArtifactContentDecided Event message
+message FileArtifactContentDecidedEvent{
+    uint32 WorkerID = 1;
+
+    FileArtifact FileArtifact = 2;
+
+    FileContentInfo FileContentInfo = 3;
+
+    PipOutputOrigin OutputOrigin = 4;
+}
+
+// The WorkerList Event message
+message WorkerListEvent{
+    uint32 WorkerID = 1;
+
+    repeated string Workers = 2;
+}
+
+// The PipExecutionPerformance Event message
+message PipExecutionPerformanceEvent{
+    uint32 WorkerID = 1;
+
+    uint32 PipID = 2;
+
+    PipExecutionPerformance PipExecutionPerformance = 3;
+
+    ProcessPipExecutionPerformance ProcessPipExecutionPerformance = 4;
+}
+
+// The DirectoryMembershipHashed Event message
+message DirectoryMembershipHashedEvent{
+    uint32 WorkerID = 1;
+
+    DirectoryFingerprint DirectoryFingerprint = 3;
+
+    AbsolutePath Directory = 4;
+
+    bool IsStatic = 5;
+
+    bool IsSearchPath = 6;
+
+    uint32 PipID = 7;
+
+    repeated AbsolutePath Members = 8;
+
+    string EnumeratePatternRegex = 9;
+}
+
+// The ProcessExecutionMonitoringReported Event message
+message ProcessExecutionMonitoringReportedEvent{
+    uint32 WorkerID = 1;
+
+    uint32 PipID = 2;
+
+    repeated ReportedProcess ReportedProcesses = 3;
+
+    repeated ReportedFileAccess ReportedFileAccesses = 4;
+    
+    repeated ReportedFileAccess WhitelistedReportedFileAccesses = 5;
+
+    repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
+}
+
+// The ExtraEventDataReported Event message
+message ExtraEventDataReported{
+    uint32 WorkerID = 1;
+
+    bool DisableDetours = 2;
+
+    bool IgnoreReparsePoints = 3;
+
+    bool IgnorePreloadedDlls = 4;
+
+    bool ExistingDirectoryProbesAsEnumerations = 5;
+
+    bool NtFileCreateMonitored = 6;
+
+    bool ZwFileCreateOpenMonitored = 7;
+
+    bool IgnoreZwRenameFileInformation = 8;
+
+    bool IgnoreZwOtherFileInformation = 9;
+
+    bool IgnoreNonCreateFileReparsePoints = 10;
+
+    bool IgnoreSetFileInformationByHandle = 11;
+
+    bool IgnoreGetFinalPathNameByHandle = 12;
+
+    int32 FingerprintVersion = 13;
+
+    string FingerprintSalt = 14;
+
+    ContentHash SearchPathToolsHash = 15;
+
+    bool UnexpectedFileAccessesAreErrors = 16;
+
+    bool MonitorFileAccesses = 17;
+
+    bool MaskUntrackedAccesses = 18;
+
+    bool NormalizeReadTimestamps = 19;
+
+    bool PipWarningsPromotedToErrors = 20;
+
+    bool ValidateDistribution = 21;
+
+    string RequiredKextVersionNumber = 22;
+}
+
+// The DependencyViolationReported Event message
+message DependencyViolationReportedEvent{
+    uint32 WorkerID = 1;
+
+    uint32 ViolatorPipID = 2;
+
+    uint32 RelatedPipID = 3;
+
+    FileMonitoringViolationAnalyzer_DependencyViolationType ViolationType = 4;
+
+    FileMonitoringViolationAnalyzer_AccessLevel AccessLevel = 5;
+
+    AbsolutePath Path = 6;
+}
+
+// The PipExecutionStepPerformanceReported Event message
+message PipExecutionStepPerformanceReportedEvent{
+    uint32 WorkerID = 1;
+
+    uint32 PipID = 2;
+
+    google.protobuf.Timestamp StartTime = 3;
+
+    google.protobuf.Duration Duration = 4;
+
+    PipExecutionStep Step = 5;
+
+    WorkDispatcher_DispatcherKind Dispatcher = 6;
+}
+
+// The StatusReported Event message
+message StatusReportedEvent{
+    uint32 WorkerID = 1;
+
+    google.protobuf.Timestamp Time = 2;
+
+    int32 CpuPercent = 3;
+
+    repeated int32 DiskPercents = 4;
+    
+    repeated int32 DiskQueueDepths = 5;
+
+    int32 RamPercent = 6;
+
+    int32 MachineRamUtilizationMB = 7;
+
+    int32 CommitPercent = 8;
+
+    int32 CommitTotalMB = 9;
+
+    int32 ProcessCpuPercent = 10;
+
+    int32 ProcessWorkingSetMB = 11;
+
+    int32 CpuWaiting = 12;
+    
+    int32 CpuRunning = 13;
+
+    int32 IoCurrentMax = 14;
+
+    int32 IoWaiting = 15;
+
+    int32 IoRunning = 16;
+
+    int32 LookupWaiting = 17;
+
+    int32 LookupRunning = 18;
+
+    int32 ExternalProcesses = 19;
+
+    repeated int64 PipsSucceededAllTypes = 20;
+
+    ExecutionSampler_LimitingResource LimitingResource = 21;
+
+    int32 UnresponsivenessFactor = 22;
+
+    int64 ProcessPipsPending = 23;
+
+    int64 ProcessPipsAllocatedSlots = 24;
+}
+
+// The ProcessFingerprintComputation Event message
+message ProcessFingerprintComputationEvent{
+    uint32 WorkerID = 1;
+    
+    FingerprintComputationKind Kind = 2;
+
+    uint32 PipID = 3;
+    
+    WeakContentFingerPrint WeakFingerprint = 4;
+
+    repeated ProcessStrongFingerprintComputationData StrongFingerprintComputations = 5;
+}
+
+// The PipCacheMiss Event message
+message PipCacheMissEvent{
+    uint32 WorkerID = 1;
+
+    uint32 PipID = 2;
+
+    PipCacheMissType CacheMissType = 3;
+}
+
+// The PipExecutionDirectoryOutputs Event message
+message PipExecutionDirectoryOutputsEvent{
+    uint32 WorkerID = 1;
+
+    repeated DirectoryOutput DirectoryOutput = 2;
+}
+
+// The BXLInvocation Event message
+message BXLInvocationEvent{
+    uint32 WorkerID = 1;
+
+    AbsolutePath SubstSource = 2;
+    
+    AbsolutePath SubstTarget = 3;
+
+    bool IsSubstSourceValid = 4;
+    
+    bool IsSubstTargetValid = 5; 
+}

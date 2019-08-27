@@ -70,7 +70,6 @@ namespace ContentStoreTest.Distributed.Sessions
         protected override IContentStore CreateStore(
             Context context,
             TestFileCopier fileCopier,
-            ICopyRequester copyRequester,
             DisposableDirectory testDirectory,
             int index,
             bool enableDistributedEviction,
@@ -132,7 +131,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 pathTransformer,
-                copyRequester,
+                fileCopier,
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,

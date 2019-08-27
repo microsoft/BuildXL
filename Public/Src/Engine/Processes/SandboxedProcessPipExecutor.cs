@@ -2692,6 +2692,13 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            char c4 = fileName[len - 4];
+            if (c4.ToUpperInvariantFast() == '.')
+            {
+                // RC's temp files have no extension.
+                return false;
+            }
+
             return true;
         }
 
@@ -2710,19 +2717,19 @@ namespace BuildXL.Processes
             }
 
             char c1 = fileName[beginCharIndex + 1];
-            if (c1 != 'R')
+            if (c1.ToUpperInvariantFast() != 'R')
             {
                 return false;
             }
 
             char c2 = fileName[beginCharIndex + 2];
-            if (c2 != 'C')
+            if (c2.ToUpperInvariantFast() != 'C')
             {
                 return false;
             }
 
             char c3 = fileName[beginCharIndex + 3];
-            if (c3 != 'X')
+            if (c3.ToUpperInvariantFast() != 'X')
             {
                 return false;
             }
@@ -3975,7 +3982,7 @@ namespace BuildXL.Processes
                         m_pip.SemiStableHash,
                         m_pip.GetDescription(m_context),
                         numErrors,
-                        Environment.NewLine + string.Join(Environment.NewLine, unexpectedSurvivingChildProcesses.Select(p => p.Path)));
+                        Environment.NewLine + string.Join(Environment.NewLine, unexpectedSurvivingChildProcesses.Select(p => $"{p.Path} ({p.ProcessId})")));
             }
 
             return numErrors;

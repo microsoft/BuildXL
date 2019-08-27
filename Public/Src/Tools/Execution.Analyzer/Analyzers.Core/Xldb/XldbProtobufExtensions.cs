@@ -538,11 +538,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.PipData ToPipData(this PipData pipData)
+        public static Xldb.Proto.PipData ToPipData(this PipData pipData, PathTable pathTable)
         {
             return !pipData.IsValid ? null : new Xldb.Proto.PipData
             {
-                FragmentSeparator = pipData.FragmentSeparator.ToString(),
+                FragmentSeparator = pipData.FragmentSeparator.ToString(pathTable),
                 FragmentCount = pipData.FragmentCount,
                 FragmentEscaping = (PipDataFragmentEscaping)pipData.FragmentEscaping
             };
@@ -553,7 +553,7 @@ namespace BuildXL.Execution.Analyzer
         {
             return provenance == null ? null : new Xldb.Proto.PipProvenance()
             {
-                Usage = provenance.Usage.ToPipData(),
+                Usage = provenance.Usage.ToPipData(pathTable),
                 ModuleId = provenance.ModuleId.Value.ToString(pathTable),
                 ModuleName = provenance.ModuleName.ToString(pathTable),
                 SemiStableHash = provenance.SemiStableHash
@@ -669,7 +669,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 GraphInfo = parentPip,
                 Destination = pip.Destination.ToFileArtifact(pathTable),
-                Contents = pip.Contents.ToPipData(),
+                Contents = pip.Contents.ToPipData(pathTable),
                 Encoding = (WriteFileEncoding)pip.Encoding,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
@@ -690,18 +690,18 @@ namespace BuildXL.Execution.Analyzer
                 GraphInfo = parentPip,
                 ProcessOptions = (Options)pip.ProcessOptions,
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
-                StandardInputData = pip.StandardInputData.ToPipData(),
+                StandardInputData = pip.StandardInputData.ToPipData(pathTable),
                 StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable),
-                    Data = pip.StandardInput.Data.ToPipData(),
+                    Data = pip.StandardInput.Data.ToPipData(pathTable),
                 },
                 ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable),
-                ResponseFileData = pip.ResponseFileData.ToPipData(),
+                ResponseFileData = pip.ResponseFileData.ToPipData(pathTable),
                 Executable = pip.Executable.ToFileArtifact(pathTable),
-                ToolDescription = pip.ToolDescription.ToString(),
+                ToolDescription = pip.ToolDescription.ToString(pathTable),
                 WorkingDirectory = pip.WorkingDirectory.ToAbsolutePath(pathTable),
-                Arguments = pip.Arguments.ToPipData(),
+                Arguments = pip.Arguments.ToPipData(pathTable),
                 TempDirectory = pip.TempDirectory.ToAbsolutePath(pathTable),
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
@@ -721,7 +721,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             xldbProcessPip.EnvironmentVariable.AddRange(pip.EnvironmentVariables.Select(
-                envVar => new EnvironmentVariable() { Name = envVar.Name.ToString(), Value = envVar.Value.ToPipData(), IsPassThrough = envVar.IsPassThrough }));
+                envVar => new EnvironmentVariable() { Name = envVar.Name.ToString(pathTable), Value = envVar.Value.ToPipData(pathTable), IsPassThrough = envVar.IsPassThrough }));
             xldbProcessPip.Dependencies.AddRange(pip.Dependencies.Select(file => file.ToFileArtifact(pathTable)));
             xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.UntrackedPaths.AddRange(pip.UntrackedPaths.Select(path => path.ToAbsolutePath(pathTable)));
@@ -749,9 +749,9 @@ namespace BuildXL.Execution.Analyzer
                 GraphInfo = parentPip,
                 IpcInfo = new IpcClientInfo()
                 {
-                    IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(),
+                    IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(pathTable),
                 },
-                MessageBody = pip.MessageBody.ToPipData(),
+                MessageBody = pip.MessageBody.ToPipData(pathTable),
                 IsServiceFinalization = pip.IsServiceFinalization,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };

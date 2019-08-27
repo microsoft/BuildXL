@@ -48,7 +48,7 @@ enum ProducerConsumerType{
 message FileProducerConsumerQuery{
     ProducerConsumerType Type = 1;
 
-    FileArtifact FileArtifact = 2;
+    string FileArtifact = 2;
 }
 
 message FileProducerValue{
@@ -62,7 +62,7 @@ message FileConsumerValue{
 message DirectoryProducerConsumerQuery{
     ProducerConsumerType Type = 1;
 
-    DirectoryArtifact DirectoryArtifact = 2;
+    string DirectoryArtifact = 2;
 }
 
 message DirectoryProducerValue{

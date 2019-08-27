@@ -30,32 +30,6 @@ message EventCountByTypeValue{
     map<uint32, int32> WorkerToPayloadMap = 2;
 }
 
-message PipExecutionStepPerformanceKey{
-    PipExecutionStep Step = 1;
-
-    int32 SequenceNumber = 2;
-}
-
-message ProcessFingerprintComputationKey{
-    FingerprintComputationKind Kind = 1;
-}
-
-message FileArtifactContentDecidedKey{
-    string Path = 1;
-
-    int32 ReWriteCount = 2;
-}
-
-message DirectoryMembershipHashedKey{
-    string Path = 1;
-
-    int32 SequenceNumber = 3;
-}
-
-message PipExecutionDirectoryOutputKey{
-    string Path = 1;
-}
-
 // Event query should be of this format. It also serves as the key to the DB
 message EventTypeQuery{
     // ID of the Event - required
@@ -67,21 +41,26 @@ message EventTypeQuery{
     // Used for PipExecPerf, ProcExecMonitoring, PipCacheMiss, PipExecStepPerf, ProcessFingerpintComp, DirMembHashed, PipExecDirOut
     uint32 PipId = 3;
 
-    PipExecutionStepPerformanceKey PipExecutionStepPerformanceKey = 4;
+    // PipExecutionStepPerformanceKey
+    PipExecutionStep PipExecutionStepPerformanceKey = 4;
 
-    ProcessFingerprintComputationKey ProcessFingerprintComputationKey = 5;
+    // ProcessFingerprintComputationKey
+    FingerprintComputationKind ProcessFingerprintComputationKey = 5;
 
-    DirectoryMembershipHashedKey DirectoryMembershipHashedKey = 6;
+    // DirectoryMembershipHashedKey
+    string DirectoryMembershipHashedKey = 6;
 
-    PipExecutionDirectoryOutputKey PipExecutionDirectoryOutputKey = 7;
+    // PipExecutionDirectoryOutputKey
+    string PipExecutionDirectoryOutputKey = 7;
 
-    FileArtifactContentDecidedKey FileArtifactContentDecidedKey = 8;
+    // FileArtifactContentDecidedKey
+    string FileArtifactContentDecidedKey = 8;
 
-    // Used for StatusReport
-    int32 StatusReportedSeqNumber = 9;
-    
     // Used for DependencyViolatedEvent
-    uint32 ViolatorPipID = 10;  
+    uint32 ViolatorPipID = 9; 
+
+    // Used for Events that don't have unique key like StatusReported or for events like PipExecutionStepPerformance that can have multiple keys for the same PipId
+    int32 EventSequenceNumber = 10;    
 }
 
 //

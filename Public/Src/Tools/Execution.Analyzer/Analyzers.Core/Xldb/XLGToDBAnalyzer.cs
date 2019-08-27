@@ -206,7 +206,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             m_eventCount = 0;
-            m_eventSequenceNumber = 0;
+            m_eventSequenceNumber = 1;
         }
 
         /// <inheritdoc/>
@@ -307,11 +307,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.FileArtifactContentDecided,
-                FileArtifactContentDecidedKey = new FileArtifactContentDecidedKey()
-                {
-                    Path = data.FileArtifact.Path.ToString(PathTable, PathFormat.HostOs),
-                    ReWriteCount = data.FileArtifact.RewriteCount
-                }
+                FileArtifactContentDecidedKey = data.FileArtifact.Path.ToString(PathTable, PathFormat.HostOs),
             };
 
             WriteToDb(eq.ToByteArray(), fileArtifactContentDecidedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -356,11 +352,8 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.DirectoryMembershipHashed,
                 PipId = data.PipId.Value,
-                DirectoryMembershipHashedKey = new DirectoryMembershipHashedKey()
-                {
-                    Path = data.Directory.ToString(PathTable, PathFormat.HostOs),
-                    SequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
-                }
+                DirectoryMembershipHashedKey = data.Directory.ToString(PathTable, PathFormat.HostOs),
+                EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
             AddToDirectoryConsumerMap(Utilities.DirectoryArtifact.CreateWithZeroPartialSealId(data.Directory), data.PipId);
@@ -398,10 +391,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.ProcessFingerprintComputation,
                 PipId = data.PipId.Value,
-                ProcessFingerprintComputationKey = new ProcessFingerprintComputationKey()
-                {
-                    Kind = processFingerprintComputedEvent.Kind
-                }
+                ProcessFingerprintComputationKey = processFingerprintComputedEvent.Kind,
             };
 
             WriteToDb(eq.ToByteArray(), processFingerprintComputedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -446,11 +436,8 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionStepPerformanceReported,
                 PipId = data.PipId.Value, 
-                PipExecutionStepPerformanceKey = new PipExecutionStepPerformanceKey()
-                {
-                    Step = pipExecStepPerformanceEvent.Step, 
-                    SequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
-                }
+                PipExecutionStepPerformanceKey = pipExecStepPerformanceEvent.Step, 
+                EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
             WriteToDb(eq.ToByteArray(), pipExecStepPerformanceEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -480,7 +467,7 @@ namespace BuildXL.Execution.Analyzer
             var eq = new EventTypeQuery
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.ResourceUsageReported,
-                StatusReportedSeqNumber = Interlocked.Increment(ref m_eventSequenceNumber)
+                EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
             WriteToDb(eq.ToByteArray(), statusReportedEvent.ToByteArray(), XldbDataStore.EventColumnFamilyName);
@@ -521,10 +508,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionDirectoryOutputs,
                     PipId = data.PipId.Value,
-                    PipExecutionDirectoryOutputKey = new PipExecutionDirectoryOutputKey()
-                    {
-                        Path = directoryArtifact.Path.ToString(PathTable, PathFormat.HostOs)
-                    }
+                    PipExecutionDirectoryOutputKey = directoryArtifact.Path.ToString(PathTable, PathFormat.HostOs)
                 };
 
                 m_dynamicDirectoryProducerMap.Add(directoryArtifact, data.PipId.Value);
@@ -692,7 +676,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileConsumerKey = new FileProducerConsumerQuery()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    FileArtifact = kvp.Key.ToFileArtifact(PathTable)
+                    FileArtifact = kvp.Key.Path.ToString(PathTable)
                 };
 
                 var fileConsumerValue = new FileConsumerValue();
@@ -706,7 +690,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryConsumerKey = new DirectoryProducerConsumerQuery()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    DirectoryArtifact = kvp.Key.ToDirectoryArtifact(PathTable)
+                    DirectoryArtifact = kvp.Key.Path.ToString(PathTable)
                 };
 
                 var directoryConsumerValue = new DirectoryConsumerValue();
@@ -720,7 +704,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerQuery()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = kvp.Key.ToFileArtifact(PathTable)
+                    FileArtifact = kvp.Key.Path.ToString(PathTable)
                 };
 
                 var fileProducerValue = new FileProducerValue()
@@ -736,7 +720,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryProducerKey = new DirectoryProducerConsumerQuery()
                 {
                     Type = ProducerConsumerType.Producer,
-                    DirectoryArtifact = kvp.Key.ToDirectoryArtifact(PathTable)
+                    DirectoryArtifact = kvp.Key.Path.ToString(PathTable)
                 };
 
                 var directoryProducerValue = new DirectoryProducerValue()

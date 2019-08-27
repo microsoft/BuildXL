@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -154,10 +153,7 @@ namespace BuildXL.Xldb
                 EventTypeID = ExecutionEventId.PipExecutionStepPerformanceReported,
                 WorkerID = workerID,
                 PipId = pipID,
-                PipExecutionStepPerformanceKey = new PipExecutionStepPerformanceKey()
-                {
-                    Step = pipExecutionStep
-                }
+                PipExecutionStepPerformanceKey = pipExecutionStep
             };
 
             return GetEventsByQuery(eventQuery).Cast<PipExecutionStepPerformanceReportedEvent>();
@@ -175,10 +171,7 @@ namespace BuildXL.Xldb
                 EventTypeID = ExecutionEventId.ProcessFingerprintComputation,
                 WorkerID = workerID,
                 PipId = pipID,
-                ProcessFingerprintComputationKey = new ProcessFingerprintComputationKey()
-                {
-                    Kind = computationKind
-                }
+                ProcessFingerprintComputationKey = computationKind
             };
 
             return GetEventsByQuery(eventQuery).Cast<ProcessFingerprintComputationEvent>();
@@ -196,10 +189,7 @@ namespace BuildXL.Xldb
                 EventTypeID = ExecutionEventId.DirectoryMembershipHashed,
                 WorkerID = workerID,
                 PipId = pipID,
-                DirectoryMembershipHashedKey = new DirectoryMembershipHashedKey()
-                {
-                    Path = directoryPath
-                }
+                DirectoryMembershipHashedKey = directoryPath
             };
 
             return GetEventsByQuery(eventQuery).Cast<DirectoryMembershipHashedEvent>();
@@ -217,10 +207,7 @@ namespace BuildXL.Xldb
                 EventTypeID = ExecutionEventId.PipExecutionDirectoryOutputs,
                 WorkerID = workerID,
                 PipId = pipID,
-                PipExecutionDirectoryOutputKey = new PipExecutionDirectoryOutputKey()
-                {
-                    Path = directoryPath
-                }
+                PipExecutionDirectoryOutputKey = directoryPath
             };
 
             return GetEventsByQuery(eventQuery).Cast<PipExecutionDirectoryOutputsEvent>();
@@ -237,11 +224,7 @@ namespace BuildXL.Xldb
             {
                 EventTypeID = ExecutionEventId.FileArtifactContentDecided,
                 WorkerID = workerID,
-                FileArtifactContentDecidedKey = new FileArtifactContentDecidedKey()
-                {
-                    Path = directoryPath,
-                    ReWriteCount = rewriteCount
-                }
+                FileArtifactContentDecidedKey = directoryPath,
             };
 
             return GetEventsByQuery(eventQuery).Cast<FileArtifactContentDecidedEvent>();
@@ -556,7 +539,7 @@ namespace BuildXL.Xldb
 
             var maybeFound = Accessor.Use(database =>
             {
-                foreach (var kvp in database.PrefixSearch(pipIdQuery.ToByteArray(), StaticGraphColumnFamilyName))
+                foreach (var kvp in database.PrefixSearch(pipIdQuery.ToByteArray(), PipColumnFamilyName))
                 {
                     var pipType = PipQueryPipId.Parser.ParseFrom(kvp.Key).PipType;
                     if (m_pipParserDictionary.TryGetValue(pipType, out var parser))
@@ -605,7 +588,7 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all the information about a certain path (which pips produce, which consume and more? TODO:
         /// </summary>
-        public (IEnumerable<(PipType, IMessage)>, IEnumerable<(PipType, IMessage)>) GetProducerAndConsumersOfPath(string path, bool isDirectory)
+        public (IEnumerable<uint>, IEnumerable<uint>) GetProducerAndConsumersOfPath(string path, bool isDirectory)
         {
             if (isDirectory)
             {
@@ -618,17 +601,14 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all producers of a particular file 
         /// </summary>
-        public IEnumerable<(PipType, IMessage)> GetProducersOfFile(string path)
+        public IEnumerable<uint> GetProducersOfFile(string path)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
             var fileProducerQuery = new FileProducerConsumerQuery()
             {
                 Type = ProducerConsumerType.Producer,
-                FileArtifact = new FileArtifact()
-                {
-                    Path = new AbsolutePath() { Value = path }
-                }
+                FileArtifact = path
             };
 
             return GetProducerConsumerOfFileByQuery(fileProducerQuery);
@@ -637,17 +617,14 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all consumers of a particular file
         /// </summary>
-        public IEnumerable<(PipType, IMessage)> GetConsumersOfFile(string path)
+        public IEnumerable<uint> GetConsumersOfFile(string path)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
             var fileConsumerQuery = new FileProducerConsumerQuery()
             {
                 Type = ProducerConsumerType.Consumer,
-                FileArtifact = new FileArtifact()
-                {
-                    Path = new AbsolutePath() { Value = path }
-                }
+                FileArtifact = path
             };
 
             return GetProducerConsumerOfFileByQuery(fileConsumerQuery);
@@ -656,11 +633,11 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets Producers of Consumers of a file based on the query passed in
         /// </summary>
-        private IEnumerable<(PipType, IMessage)> GetProducerConsumerOfFileByQuery(FileProducerConsumerQuery query)
+        private IEnumerable<uint> GetProducerConsumerOfFileByQuery(FileProducerConsumerQuery query)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
-            var fileProducersOrConsumers = new List<(PipType, IMessage)>();
+            var fileProducersOrConsumers = new List<uint>();
 
             var maybeFound = Accessor.Use(database =>
             {
@@ -669,15 +646,13 @@ namespace BuildXL.Xldb
                     if (query.Type == ProducerConsumerType.Producer)
                     {
                         var pipId = FileProducerValue.Parser.ParseFrom(kvp.Value).PipId;
-                        var xldbPip = GetPipByPipId(pipId, out var pipType);
-                        fileProducersOrConsumers.Add((pipType, xldbPip));
+                        fileProducersOrConsumers.Add(pipId);
                     }
                     else if(query.Type == ProducerConsumerType.Consumer)
                     {
                         foreach (var pipId in FileConsumerValue.Parser.ParseFrom(kvp.Value).PipIds)
                         {
-                            var xldbPip = GetPipByPipId(pipId, out var pipType);
-                            fileProducersOrConsumers.Add((pipType, xldbPip));
+                            fileProducersOrConsumers.Add(pipId);
                         }
                     }
                 }
@@ -694,17 +669,14 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all producers of a particular directory 
         /// </summary>
-        public IEnumerable<(PipType, IMessage)> GetProducersOfDirectory(string path)
+        public IEnumerable<uint> GetProducersOfDirectory(string path)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
             var directoryProducerQuery = new DirectoryProducerConsumerQuery()
             {
                 Type = ProducerConsumerType.Producer,
-                DirectoryArtifact = new DirectoryArtifact()
-                {
-                    Path = new AbsolutePath() { Value = path }
-                }
+                DirectoryArtifact = path
             };
 
             return GetProducerConsumerOfDirectoryByQuery(directoryProducerQuery);
@@ -713,17 +685,14 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all consumers of a particular directory
         /// </summary>
-        public IEnumerable<(PipType, IMessage)> GetConsumersOfDirectory(string path)
+        public IEnumerable<uint> GetConsumersOfDirectory(string path)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
             var directoryConsumerQuery = new DirectoryProducerConsumerQuery()
             {
                 Type = ProducerConsumerType.Consumer,
-                DirectoryArtifact = new DirectoryArtifact()
-                {
-                    Path = new AbsolutePath() { Value = path }
-                }
+                DirectoryArtifact = path
             };
 
             return GetProducerConsumerOfDirectoryByQuery(directoryConsumerQuery);
@@ -732,11 +701,11 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets Producers of Consumers of a file based on the query passed in
         /// </summary>
-        private IEnumerable<(PipType, IMessage)> GetProducerConsumerOfDirectoryByQuery(DirectoryProducerConsumerQuery query)
+        private IEnumerable<uint> GetProducerConsumerOfDirectoryByQuery(DirectoryProducerConsumerQuery query)
         {
             Contract.Requires(Accessor != null, "XldbDataStore must be initialized first with constructor");
 
-            var directoryProducerOrConsumers = new List<(PipType, IMessage)>();
+            var directoryProducerOrConsumers = new List<uint>();
 
             var maybeFound = Accessor.Use(database =>
             {
@@ -745,15 +714,13 @@ namespace BuildXL.Xldb
                     if (query.Type == ProducerConsumerType.Producer)
                     {
                         var pipId = FileProducerValue.Parser.ParseFrom(kvp.Value).PipId;
-                        var xldbPip = GetPipByPipId(pipId, out var pipType);
-                        directoryProducerOrConsumers.Add((pipType, xldbPip));
+                        directoryProducerOrConsumers.Add(pipId);
                     }
                     else if (query.Type == ProducerConsumerType.Consumer)
                     {
                         foreach (var pipId in FileConsumerValue.Parser.ParseFrom(kvp.Value).PipIds)
                         {
-                            var xldbPip = GetPipByPipId(pipId, out var pipType);
-                            directoryProducerOrConsumers.Add((pipType, xldbPip));
+                            directoryProducerOrConsumers.Add(pipId);
                         }
                     }
                 }

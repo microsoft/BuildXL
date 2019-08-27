@@ -55,9 +55,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             {
                 return RunInner(arguments);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.Error.WriteLine("General error: " + e);
+                ConsoleColor original = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine(ex.GetLogEventMessage());
+                Console.ForegroundColor = original;
                 return 1;
             }
         }

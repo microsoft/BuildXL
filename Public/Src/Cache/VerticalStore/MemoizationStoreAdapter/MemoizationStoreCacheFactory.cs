@@ -15,6 +15,7 @@ using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BuildXL.Cache.ContentStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -176,6 +177,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(false)]
             public bool ReplaceExistingOnPlaceFile { get; set; }
+
+            /// <summary>
+            /// Whether the cache will communicate with a server in a separate process via GRPC.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool EnableMetadataServer { get; set; }
 
             /// <nodoc />
             [DefaultValue(false)]
@@ -400,29 +407,51 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static LocalCache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
         {
-            LocalCacheConfiguration localCacheConfiguration;
-            if (config.EnableContentServer)
+            var rootPath = new AbsolutePath(config.CacheRootPath);
+
+            if (config.EnableContentServer && config.EnableMetadataServer)
             {
-                localCacheConfiguration = LocalCacheConfiguration.CreateServerEnabled(
-                    config.GrpcPort,
-                    config.CacheName,
-                    config.ScenarioName,
-                    config.RetryIntervalSeconds,
-                    config.RetryCount);
+                Contract.Assert(config.RetryIntervalSeconds >= 0);
+                Contract.Assert(config.RetryCount >= 0);
+
+                var rpcConfiguration = new ServiceClientRpcConfiguration(config.GrpcPort);
+                var serviceClientConfiguration = new ServiceClientContentStoreConfiguration(config.CacheName, rpcConfiguration, config.ScenarioName)
+                {
+                    RetryIntervalSeconds = (uint)config.RetryIntervalSeconds,
+                    RetryCount = (uint)config.RetryCount,
+                };
+
+                return LocalCache.CreateRpcCache(logger, rootPath, serviceClientConfiguration);
             }
             else
             {
-                localCacheConfiguration = LocalCacheConfiguration.CreateServerDisabled();
+                Contract.Assert(!config.EnableMetadataServer, "It is not supported to use a Metadata server without a Content server");
+
+                LocalCacheConfiguration localCacheConfiguration;
+                if (config.EnableContentServer)
+                {
+                    localCacheConfiguration = LocalCacheConfiguration.CreateServerEnabled(
+                        config.GrpcPort,
+                        config.CacheName,
+                        config.ScenarioName,
+                        config.RetryIntervalSeconds,
+                        config.RetryCount);
+                }
+                else
+                {
+                    localCacheConfiguration = LocalCacheConfiguration.CreateServerDisabled();
+                }
+
+                return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(logger,
+                    rootPath,
+                    GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, GetCasConfig(config)),
+                    localCacheConfiguration,
+                    configurationModel: CreateConfigurationModel(GetCasConfig(config)),
+                    clock: null,
+                    checkLocalFiles: config.CheckLocalFiles,
+                    emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
             }
 
-            return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(logger,
-                new AbsolutePath(config.CacheRootPath),
-                GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, GetCasConfig(config)),
-                localCacheConfiguration,
-                configurationModel: CreateConfigurationModel(GetCasConfig(config)),
-                clock: null,
-                checkLocalFiles: config.CheckLocalFiles,
-                emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
         }
 
         private static LocalCache CreateLocalCacheWithStreamPathCas(Config config, DisposeLogger logger)

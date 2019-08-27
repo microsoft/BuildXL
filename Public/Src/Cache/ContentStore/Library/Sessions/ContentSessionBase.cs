@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// </summary>
     public abstract class ContentSessionBase : StartupShutdownBase, IContentSession
     {
-        public CounterCollection<ContentSessionBaseCounters> _counters { get; } = new CounterCollection<ContentSessionBaseCounters>();
+        private CounterCollection<ContentSessionBaseCounters> _counters { get; } = new CounterCollection<ContentSessionBaseCounters>();
 
         /// <inheritdoc />
         public string Name { get; }

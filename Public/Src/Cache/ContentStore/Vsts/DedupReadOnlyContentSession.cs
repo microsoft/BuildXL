@@ -135,6 +135,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
         /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
+        /// <param name="parentCounters">Parent counters to track the session.</param>
+        /// <param name="backingContentStoreParentCounters">Parent counters to track the session.</param>
+        /// <param name="blobParentCounters">Parent counters to track the session.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
             string name,

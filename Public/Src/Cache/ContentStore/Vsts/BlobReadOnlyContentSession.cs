@@ -130,6 +130,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
+        /// <param name="parentCounters">Parent counters to track the session.</param>
+        /// <param name="backingContentStoreParentCounters">Parent counters to track the session.</param>
+        /// <param name="blobParentCounters">Parent counters to track the session.</param>
         public BlobReadOnlyContentSession(
             IAbsFileSystem fileSystem,
             string name,

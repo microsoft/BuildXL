@@ -39,6 +39,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// If true, gets blobs through BlobStore. If false, gets blobs from the Azure
         /// Uri.
         /// </param>
+        /// <param name="parentCounters">Parent counters to track the session.</param>
+        /// <param name="backingContentStoreParentCounters">Parent counters to track the session.</param>
+        /// <param name="blobParentCounters">Parent counters to track the session.</param>
         public BlobContentSession(
             IAbsFileSystem fileSystem,
             string name,

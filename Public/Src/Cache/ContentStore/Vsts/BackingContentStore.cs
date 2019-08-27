@@ -38,10 +38,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
             PinSatisfiedInMemory
         }
 
-        private CounterCollection<ContentSessionBaseCounters> _sessionCounters;
-        private CounterCollection<SessionCounters> _backingSessionCounters;
-        private CounterCollection<BlobReadOnlyContentSession.Counters> _blobCounters;
-        private CounterCollection<DedupReadOnlyContentSession.Counters> _dedupCounters;
+        private CounterCollection<ContentSessionBaseCounters> _sessionCounters = new CounterCollection<ContentSessionBaseCounters>();
+        private CounterCollection<SessionCounters> _backingSessionCounters = new CounterCollection<SessionCounters>();
+        private CounterCollection<BlobReadOnlyContentSession.Counters> _blobCounters = new CounterCollection<BlobReadOnlyContentSession.Counters>();
+        private CounterCollection<DedupReadOnlyContentSession.Counters> _dedupCounters = new CounterCollection<DedupReadOnlyContentSession.Counters>();
 
         private readonly IAbsFileSystem _fileSystem;
         private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;

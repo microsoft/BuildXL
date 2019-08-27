@@ -4,11 +4,11 @@
 extern alias Async;
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -26,7 +26,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.
     /// </summary>
-    public class OneLevelCache : ICache, IStreamStore
+    public class OneLevelCache : ICache, IStreamStore, IRepairStore, ICopyRequestHandler
     {
         private readonly CacheTracer _tracer = new CacheTracer(nameof(OneLevelCache));
 
@@ -340,6 +340,28 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             }
 
             return new FileExistenceResult(FileExistenceResult.ResultCode.Error, $"{ContentStore} does not implement {nameof(IStreamStore)} in {nameof(OneLevelCache)}.");
+        }
+
+        /// <inheritdoc />
+        public async Task<StructResult<long>> RemoveFromTrackerAsync(Context context)
+        {
+            if (ContentStore is IRepairStore innerRepairStore)
+            {
+                return await innerRepairStore.RemoveFromTrackerAsync(context);
+            }
+
+            return new StructResult<long>($"{ContentStore} does not implement {nameof(IRepairStore)} in {nameof(OneLevelCache)}.");
+        }
+
+        /// <inheritdoc />
+        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        {
+            if (ContentStore is ICopyRequestHandler innerCopyStore)
+            {
+                return await innerCopyStore.RequestCopyFileAsync(context, hash);
+            }
+
+            return new BoolResult($"{ContentStore} does not implement {nameof(ICopyRequestHandler)} in {nameof(OneLevelCache)}.");
         }
     }
 }

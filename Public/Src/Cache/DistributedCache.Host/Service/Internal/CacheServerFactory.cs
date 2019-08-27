@@ -13,9 +13,9 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -38,7 +38,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _fileSystem = new PassThroughFileSystem(_logger);
         }
 
-        public StartupShutdownBase Create()
+        public (LocalContentServer contentServer, LocalCacheServer cacheServer) Create()
         {
             var cacheConfig = _arguments.Configuration;
             cacheConfig.LocalCasSettings = cacheConfig.LocalCasSettings.FilterUnsupportedNamedCaches(_arguments.HostInfo.Capabilities, _logger);
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private StartupShutdownBase CreateLocalServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
+        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
         {
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
 
@@ -73,37 +73,30 @@ namespace BuildXL.Cache.Host.Service.Internal
                 Func<AbsolutePath, ICache> cacheFactory = path => {
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => {
-                            return new RocksDbMemoizationStore(_logger, SystemClock.Instance, new RocksDbMemoizationStoreConfiguration()
-                            {
-                                Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore") {
-                                    MetadataGarbageCollectionEnabled = true,
-                                },
-                            });
-                        },
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
 
-                return new LocalCacheServer(
+                return (null, new LocalCacheServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration);
+                    localServerConfiguration));
             }
             else
             {
-                return new LocalContentServer(
+                return (new LocalContentServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
-                    localServerConfiguration);
+                    localServerConfiguration), null);
             }
         }
 
-        private StartupShutdownBase CreateDistributedServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
+        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
         {
             var cacheConfig = _arguments.Configuration;
 
@@ -132,41 +125,54 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             if (enableMetadataStore)
             {
-                Func<AbsolutePath, ICache> cacheFactory = path => {
+                Func<AbsolutePath, ICache> cacheFactory = path =>
+                {
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => {
-                            // TODO(jubayard): This will create one memoization store per named cache root in the
-                            // local server configuration, which means that there will be one database per drive.
-                            // Fixing this right now would take a lot of rewriting. Sharing a single instance of the
-                            // memoization store means it will be initialized and shutdown multiple times.
-                            return new RocksDbMemoizationStore(_logger, SystemClock.Instance, new RocksDbMemoizationStoreConfiguration()
-                            {
-                                Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore") {
-                                    MetadataGarbageCollectionEnabled = true,
-                                },
-                            });
-                        },
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
 
-                return new LocalCacheServer(
+                // NOTE(jubayard): When generating the service configuration, we create a single named cache root in
+                // the distributed case. This means that the factories will be called exactly once, so we will have
+                // a single MultiplexedContentStore and MemoizationStore. The latter will be located in the last cache
+                // root listed as per production configuration, which currently (8/27/2019) points to the SSD drives.
+                return (null, new LocalCacheServer(
                     _fileSystem,
                     _logger,
                     _arguments.Configuration.LocalCasSettings.ServiceSettings.ScenarioName,
                     cacheFactory,
-                    localServerConfiguration);
+                    localServerConfiguration));
             }
             else
             {
-                return new LocalContentServer(
+                return (new LocalContentServer(
                     _fileSystem,
                     _logger,
                     cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName,
                     contentStoreFactory,
-                    localServerConfiguration);
+                    localServerConfiguration), null);
             }
+        }
+
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path)
+        {
+            var config = new RocksDbMemoizationStoreConfiguration()
+            {
+                Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
+                {
+                    MetadataGarbageCollectionEnabled = true,
+                },
+            };
+
+            var distributedContentSettings = _arguments.Configuration.DistributedContentSettings;
+            if (distributedContentSettings != null)
+            {
+                config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedContentSettings.MaximumNumberOfMetadataEntriesToStore;
+            }
+
+            return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
         }
 
         private static LocalServerConfiguration CreateLocalServerConfiguration(LocalCasServiceSettings localCasServiceSettings, ServiceConfiguration serviceConfiguration)

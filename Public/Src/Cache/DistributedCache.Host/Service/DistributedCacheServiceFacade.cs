@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Service.Internal;
 
 namespace BuildXL.Cache.Host.Service
@@ -33,7 +34,8 @@ namespace BuildXL.Cache.Host.Service
 
             await host.OnStartingServiceAsync();
 
-            using (var server = factory.Create())
+            var eitherServer = factory.Create();
+            using (var server = ((StartupShutdownBase)eitherServer.cacheServer) ?? eitherServer.contentServer)
             {
                 var context = new Context(logger);
 

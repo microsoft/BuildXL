@@ -155,7 +155,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public bool ReplaceExistingOnPlaceFile { get; set; }
 
             [DefaultValue(false)]
-            public bool UseGrpcMemoizationStore { get; set; }
+            public bool EnableMetadataServer { get; set; }
 
             [DefaultValue(false)]
             public bool UseRocksDbMemoizationStore { get; set; }
@@ -230,7 +230,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             };
 
             LocalCache localCache;
-            if (cacheConfig.UseGrpcMemoizationStore)
+            if (cacheConfig.EnableMetadataServer)
             {
                 localCache = LocalCache.CreateRpcCache(logger, metadataRootPath, serviceClientConfiguration);
             }

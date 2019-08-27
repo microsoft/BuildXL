@@ -364,7 +364,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        private static MemoizationStoreConfiguration GetMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
+        private static MemoizationStoreConfiguration GetInProcMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
         {
             if (config.UseRocksDbMemoizationStore)
             {
@@ -415,16 +415,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 localCacheConfiguration = LocalCacheConfiguration.CreateServerDisabled();
             }
 
-            var configCore = GetCasConfig(config);
-            var configurationModel = CreateConfigurationModel(configCore);
-            var cacheRoot = new AbsolutePath(config.CacheRootPath);
-            var memoConfig = GetMemoizationStoreConfiguration(cacheRoot, config, configCore);
-            return new LocalCache(
-                logger,
-                cacheRoot,
-                memoConfig,
+            return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(logger,
+                new AbsolutePath(config.CacheRootPath),
+                GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, GetCasConfig(config)),
                 localCacheConfiguration,
-                configurationModel: configurationModel,
+                configurationModel: CreateConfigurationModel(GetCasConfig(config)),
                 clock: null,
                 checkLocalFiles: config.CheckLocalFiles,
                 emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
@@ -435,19 +430,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             Contract.Requires(config.UseStreamCAS);
 
             SetDefaultsForStreamCas(config);
-
             var configCoreForPath = GetCasConfig(config);
-            var configurationModelForPath = CreateConfigurationModel(configCoreForPath);
-            var configurationModelForStreams = CreateConfigurationModel(config.StreamCAS);
-            
-            var memoConfig = GetMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, configCoreForPath);
-            return new LocalCache(
+            return LocalCache.CreateStreamPathContentStoreInProcMemoizationStoreCache(
                 logger,
                 new AbsolutePath(config.StreamCAS.CacheRootPath),
                 new AbsolutePath(configCoreForPath.CacheRootPath),
-                memoConfig,
-                configurationModelForStreams,
-                configurationModelForPath);
+                GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, configCoreForPath),
+                CreateConfigurationModel(config.StreamCAS),
+                CreateConfigurationModel(configCoreForPath));
         }
 
         /// <inheritdoc />

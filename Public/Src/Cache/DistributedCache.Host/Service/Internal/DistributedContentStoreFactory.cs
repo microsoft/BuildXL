@@ -331,6 +331,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.MaxEventProcessingConcurrency,
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
+
+            ApplyIfNotNull(
+                _distributedSettings.EventBatchSize,
+                value => eventStoreConfiguration.EventBatchSize = value);
+
+            ApplyIfNotNull(
+                _distributedSettings.EventProcessingMaxQueueSize,
+                value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
         }
 
         private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Secret> secrets, StringBuilder errorBuilder)

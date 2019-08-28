@@ -506,6 +506,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
 
+        [DataMember]
+        public bool EnableMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
+
         #endregion
 
         /// <summary>

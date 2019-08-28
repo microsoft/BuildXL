@@ -2815,15 +2815,7 @@ namespace BuildXL.Scheduler.Artifacts
             if (declaredArtifact.IsFile)
             {
                 DirectoryArtifact dynamicDirectoryArtifact;
-                if (declaredArtifact.FileArtifact.IsSourceFile)
-                {
-                    consumerDescription = m_host.GetConsumerDescription(declaredArtifact);
-                    if (consumerDescription != null)
-                    {
-                        return consumerDescription;
-                    }
-                }
-                else if (m_dynamicOutputFileDirectories.TryGetValue(declaredArtifact.FileArtifact, out dynamicDirectoryArtifact))
+                if (m_dynamicOutputFileDirectories.TryGetValue(declaredArtifact.FileArtifact, out dynamicDirectoryArtifact))
                 {
                     declaredArtifact = dynamicDirectoryArtifact;
                 }

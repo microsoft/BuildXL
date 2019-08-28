@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             {
                                 var serializer = new ContentLocationEventDataSerializer(configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off);
                                 return new ActionBlock<ProcessEventsInput>(
-                                    t => ProcessEventsCoreAsync(t, serializer, index: index),
+                                    t => ProcessEventsCoreAsync(t, serializer),
                                     new ExecutionDataflowBlockOptions()
                                     {
                                         MaxDegreeOfParallelism = 1,
@@ -241,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
             else
             {
-                await ProcessEventsCoreAsync(new ProcessEventsInput(state, messages), EventDataSerializer, index: 0);
+                await ProcessEventsCoreAsync(new ProcessEventsInput(state, messages), EventDataSerializer);
             }
 
             async Task<BoolResult> sendToActionBlockAsync()
@@ -286,7 +286,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             return sender?.ToString();
         }
 
-        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer, int index)
+        private async Task ProcessEventsCoreAsync(ProcessEventsInput input, ContentLocationEventDataSerializer eventDataSerializer)
         {
             var context = input.State.Context;
             var counters = input.State.EventStoreCounters;
@@ -297,7 +297,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     Tracer,
                     async () =>
                     {
-                        int filteredEvents = 0;
                         foreach (var message in input.Messages)
                         {
                             // Extracting information from the message
@@ -323,7 +322,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             if (!foundEventFilter || !string.Equals(eventFilter as string, _configuration.Epoch))
                             {
                                 counters[FilteredEvents].Increment();
-                                filteredEvents++;
                                 continue;
                             }
 
@@ -348,12 +346,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             }
                         }
 
-                        Counters.Append(counters);
-
                         return BoolResult.Success;
                     },
-                    counters[ProcessEvents])
-                        .IgnoreFailure(); // The error is logged
+                    counters[ProcessEvents]).IgnoreFailure(); // The error is logged
             }
             finally
             {
@@ -497,6 +492,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     int duration = (int)_stopwatch.ElapsedMilliseconds;
                     Store.UpdatingPendingEventProcessingStates();
                     Context.LogProcessEventsOverview(EventStoreCounters, duration);
+
+                    Store.Counters.Append(EventStoreCounters);
                 }
             }
         }

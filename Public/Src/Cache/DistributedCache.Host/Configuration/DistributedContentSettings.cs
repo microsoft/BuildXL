@@ -410,6 +410,12 @@ namespace BuildXL.Cache.Host.Configuration
         public int? MaxEventProcessingConcurrency { get; set; }
 
         [DataMember]
+        public int? EventBatchSize { get; set; }
+
+        [DataMember]
+        public int? EventProcessingMaxQueueSize { get; set; }
+
+        [DataMember]
         public string[] AzureStorageSecretNames { get; set; }
 
         [DataMember]

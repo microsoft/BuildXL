@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BuildXL.Utilities.Tracing
 {
@@ -17,7 +18,7 @@ namespace BuildXL.Utilities.Tracing
         internal ConcurrentDictionary<string, CounterTracker> _trackers = new ConcurrentDictionary<string, CounterTracker>();
 
         /// <nodoc />
-        public KeyValuePair<Type, CounterCollection>[] CounterColletions => _counters.ToArray();
+        public CounterCollection[] CounterCollections => _counters.Values.ToArray();
 
         /// <nodoc />
         public KeyValuePair<string, CounterTracker>[] ChildCounterTrackers => _trackers.ToArray();
@@ -29,5 +30,15 @@ namespace BuildXL.Utilities.Tracing
         /// <nodoc />
         public CounterTracker AddOrGetChildCounterTracker(string name)
             => _trackers.GetOrAdd(name, _ => new CounterTracker());
+
+        /// <summary>
+        /// Creates a new CounterCollection with a CounterTracker as a parent.
+        /// </summary>
+        public static CounterCollection<TEnum> CreateCounterCollection<TEnum>(CounterTracker counterTracker)
+            where TEnum : struct
+        {
+            var parent = counterTracker?.AddOrGetCounterCollection<TEnum>();
+            return new CounterCollection<TEnum>(parent);
+        }
     }
 }

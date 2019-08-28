@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected ContentSessionBase(string name, CounterTracker counterTracker = null)
         {
             Name = name;
-            _counters = new CounterCollection<ContentSessionBaseCounters>(parent: counterTracker?.AddOrGetCounterCollection<ContentSessionBaseCounters>());
+            _counters = CounterTracker.CreateCounterCollection<ContentSessionBaseCounters>(counterTracker);
         }
 
         /// <inheritdoc />

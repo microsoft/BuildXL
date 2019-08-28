@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 
@@ -27,6 +28,24 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             return counterSet;
+        }
+
+        /// <nodoc />
+        public static CounterSet ToCounterSet(this CounterTracker counterTracker)
+        {
+            var result = new CounterSet();
+
+            foreach (var counterCollection in counterTracker.CounterCollections)
+            {
+                result.Merge(counterCollection.ToCounterSet());
+            }
+
+            foreach ((var name, var tracker) in counterTracker.ChildCounterTrackers)
+            {
+                result.Merge(tracker.ToCounterSet(), name);
+            }
+
+            return result;
         }
     }
 }

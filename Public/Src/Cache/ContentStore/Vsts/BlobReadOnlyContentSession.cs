@@ -135,7 +135,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
             bool downloadBlobsThroughBlobStore,
-            CounterTracker counterTracker)
+            CounterTracker counterTracker = null)
             : base(name, counterTracker)
         {
             Contract.Requires(fileSystem != null);
@@ -165,8 +165,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TempDirectory = new DisposableDirectory(fileSystem);
             Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
 
-            _counters = new CounterCollection<BackingContentStore.SessionCounters>(parent: counterTracker?.AddOrGetCounterCollection<BackingContentStore.SessionCounters>());
-            _blobCounters = new CounterCollection<Counters>(parent: counterTracker?.AddOrGetCounterCollection<Counters>());
+            _counters = CounterTracker.CreateCounterCollection<BackingContentStore.SessionCounters>(counterTracker);
+            _blobCounters = CounterTracker.CreateCounterCollection<Counters>(counterTracker);
         }
 
         /// <inheritdoc />

@@ -8,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -190,6 +189,9 @@ namespace BuildXL.Utilities.Tracing
             return (long)(timespan.Ticks / s_tickFrequency);
         }
 
+        /// <summary>
+        /// Returns all the counters. Default implementation will return an empty array since it has no information about counter names.
+        /// </summary>
         public virtual IEnumerable<(Counter, string name)> GetCounters() => Array.Empty<(Counter, string)>();
 
         /// <summary>
@@ -379,6 +381,7 @@ namespace BuildXL.Utilities.Tracing
             }
         }
 
+        /// <inheritdoc />
         public override IEnumerable<(Counter, string name)> GetCounters()
         {
             foreach (var counterEnum in EnumTraits<TEnum>.EnumerateValues())

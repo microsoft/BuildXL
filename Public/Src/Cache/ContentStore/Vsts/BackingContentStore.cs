@@ -37,8 +37,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             PinSatisfiedInMemory
         }
 
-        private CounterTracker _sessionCounterTracker = new CounterTracker();
-
+        private readonly CounterTracker _sessionCounterTracker = new CounterTracker();
         private readonly IAbsFileSystem _fileSystem;
         private readonly IArtifactHttpClientFactory _artifactHttpClientFactory;
         private readonly TimeSpan _timeToKeepContent;

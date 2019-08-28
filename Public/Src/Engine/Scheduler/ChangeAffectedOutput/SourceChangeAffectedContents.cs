@@ -41,6 +41,11 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         /// </summary>
         public void InitialAffectedOutputList(InputChangeList inputChangeList, PathTable pathTable)
         {
+            if (inputChangeList == null)
+            {
+                return;
+            }
+
             foreach (var changePath in inputChangeList.ChangedPaths)
             {
                 switch (changePath.PathChanges)

@@ -2278,19 +2278,17 @@ namespace BuildXL.Scheduler
 
                 if (!IsDistributedWorker && m_configuration.Schedule.InputChanges.IsValid && (pipType == PipType.CopyFile || pipType == PipType.Process))
                 {
-                    ReadOnlyArray<FileArtifact> outputContents;
+                    ReadOnlyArray<FileArtifact> outputContents = ReadOnlyArray<FileArtifact>.Empty;
                     PipResultStatus status = result.Status;
-                   
                     if (pipType == PipType.CopyFile)
                     {
                         outputContents = new[] { ((CopyFile)runnablePip.Pip).Destination }.ToReadOnlyArray();
                     }
-                    else
+                    else if (runnablePip.ExecutionResult?.OutputContent != null)
                     {
                         outputContents = runnablePip.ExecutionResult.OutputContent.SelectList(o => o.Item1).ToReadOnlyArray();
                     }
-
-                    m_fileContentManager.AffectedOutputList.ReportSourceChangeAffectedFiles(
+                    m_fileContentManager.SourceChangeAffectedContents.ReportSourceChangeAffectedFiles(
                         pip,
                         result.DynamicallyObservedFiles,
                         outputContents);
@@ -4925,7 +4923,7 @@ namespace BuildXL.Scheduler
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
 
-                    m_fileContentManager.AffectedOutputList.InitialAffectedOutputList(inputChangeList, Context.PathTable);
+                    m_fileContentManager.SourceChangeAffectedContents.InitialAffectedOutputList(inputChangeList, Context.PathTable);
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;

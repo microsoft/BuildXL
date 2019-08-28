@@ -233,12 +233,9 @@ namespace BuildXL.Scheduler.Artifacts
             SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(new FileArtifact[0], OrdinalFileArtifactComparer.Instance);
 
         /// <summary>
-        /// Holds change affected outputs of the build
+        /// Holds change affected artifacts of the build
         /// </summary>
-        /// <remarks>
-        /// Only scheduler in master update output list.
-        /// </remarks>
-        public SourceChangeAffectedContents AffectedOutputList { get; }
+        public SourceChangeAffectedContents SourceChangeAffectedContents { get; }
 
         #endregion
 
@@ -264,7 +261,7 @@ namespace BuildXL.Scheduler.Artifacts
                 m_outputMaterializationExclusionMap.TryAdd(outputMaterializationExclusionRoot.Value, Unit.Void);
             }
 
-            AffectedOutputList = new SourceChangeAffectedContents(host.Context.PathTable, this);
+            SourceChangeAffectedContents = new SourceChangeAffectedContents(host.Context.PathTable, this);
         }
 
         /// <summary>

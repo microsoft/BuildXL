@@ -1388,7 +1388,7 @@ namespace BuildXL.Scheduler
                                 IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null;
                                 if (pip.ChangeAffectedInputListWrittenFilePath.IsValid)
                                 {
-                                    changeAffectedInputs = environment.State.FileContentManager.AffectedOutputList.GetChangeAffectedInputs(pip);
+                                    changeAffectedInputs = environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip);
                                 }
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);

@@ -28,16 +28,18 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             // aInput->(pipA)->aOutput->(pipB)->bOutput
             // Execepted change affected input for pipB is aOutput.
-            
+
             // Process A.
-            FileArtifact aInput = CreateSourceFile();
-            FileArtifact aOutput = CreateOutputFileArtifact();
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            FileArtifact aInput = CreateSourceFile(root: dirPath, prefix: "pip-a-input-file");
+            FileArtifact aOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-a-out-file");
 
             var pipBuilderA= CreatePipBuilder(new[] { Operation.ReadFile(aInput), Operation.WriteFile(aOutput) });
             SchedulePipBuilder(pipBuilderA);
 
             // Process B.
-            FileArtifact bOutput = CreateOutputFileArtifact();
+            FileArtifact bOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-b-out-file");
             FileArtifact changeAffectedWrittenFile = CreateOutputFileArtifact();
             var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) });
             pipBuilderB.SetEnvironmentVariable(StringId.Create(Context.StringTable, "[Sdk.BuildXL]qCodeCoverageEnumType"), "");

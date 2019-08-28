@@ -6,6 +6,7 @@ extern alias Async;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 
@@ -23,7 +25,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     ///     An IReadOnlyCacheSession implemented with one level of content and memoization.
     /// </summary>
-    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors
+    public class ReadOnlyOneLevelCacheSession : IReadOnlyCacheSessionWithLevelSelectors, IHibernateContentSession
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
@@ -248,6 +250,22 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> PlaceFileAsync(Context context, IReadOnlyList<ContentHashWithPath> hashesWithPaths, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             return _contentReadOnlySession.PlaceFileAsync(context, hashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint);
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<ContentHash> EnumeratePinnedContentHashes()
+        {
+            return _contentReadOnlySession is IHibernateContentSession session
+                ? session.EnumeratePinnedContentHashes()
+                : Enumerable.Empty<ContentHash>();
+        }
+
+        /// <inheritdoc />
+        public Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
+        {
+            return _contentReadOnlySession is IHibernateContentSession session
+                ? session.PinBulkAsync(context, contentHashes)
+                : Task.FromResult(0);
         }
     }
 }

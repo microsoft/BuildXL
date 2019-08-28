@@ -1,15 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System.Linq;
-using System.Security;
-using System.Text;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+﻿using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.Host.Configuration;
-using BuildXL.Cache.Host.Service;
 
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {

@@ -81,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
         /// <nodoc />
         public CreateSessionResult<B> Select<B>(Func<T, B> transform)
-            where B: IName
+            where B : IName
         {
             if (Success)
             {

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
@@ -60,19 +61,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             var result = new CounterSet();
 
-            foreach (var kvp in counterTracker.CounterColletions)
+            foreach ((var counterType, var counterCollection) in counterTracker.CounterColletions)
             {
-                var counterType = kvp.Key;
-                var counterCollection = kvp.Value;
-
                 result.Merge(counterCollection.ToCounterSet(counterType));
             }
 
-            foreach (var kvp in counterTracker.ChildCounterTrackers)
+            foreach ((var name, var tracker) in counterTracker.ChildCounterTrackers)
             {
-                var name = kvp.Key;
-                var tracker = kvp.Value;
-
                 result.Merge(tracker.ToCounterSet(), name);
             }
 

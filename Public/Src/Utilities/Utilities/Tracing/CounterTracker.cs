@@ -17,10 +17,10 @@ namespace BuildXL.Utilities.Tracing
         internal ConcurrentDictionary<string, CounterTracker> _trackers = new ConcurrentDictionary<string, CounterTracker>();
 
         /// <nodoc />
-        public IReadOnlyDictionary<Type, CounterCollection> CounterColletions => (IReadOnlyDictionary<Type, CounterCollection>)_counters;
+        public KeyValuePair<Type, CounterCollection>[] CounterColletions => _counters.ToArray();
 
         /// <nodoc />
-        public IReadOnlyDictionary<string, CounterTracker> ChildCounterTrackers => (IReadOnlyDictionary<string, CounterTracker>)_trackers;
+        public KeyValuePair<string, CounterTracker>[] ChildCounterTrackers => _trackers.ToArray();
 
         /// <nodoc />
         public CounterCollection<T> AddOrGetCounterCollection<T>() where T : struct

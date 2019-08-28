@@ -51,6 +51,23 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <inheritdoc />
         public override int Run(Args arguments)
         {
+            try
+            {
+                return RunInner(arguments);
+            }
+            catch (Exception ex)
+            {
+                ConsoleColor original = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine(ex.GetLogEventMessage());
+                Console.ForegroundColor = original;
+                return 1;
+            }
+        }
+
+        /// <inheritdoc />
+        private int RunInner(Args arguments)
+        {
             if (arguments.Help)
             {
                 return 0;

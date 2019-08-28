@@ -190,9 +190,9 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <summary>
-        /// Returns all the counters. Default implementation will return an empty array since it has no information about counter names.
+        /// Returns all the counters. Default implementation will return null since it has no information about counter names.
         /// </summary>
-        public virtual IEnumerable<(Counter, string name)> GetCounters() => Array.Empty<(Counter, string)>();
+        public virtual IEnumerable<(Counter, string name)> GetCounters() => null;
 
         /// <summary>
         /// Stopwatch context of a counter. Adds to the counter when disposed.

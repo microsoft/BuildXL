@@ -146,11 +146,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
-            int maxConnections = DefaultMaxConnections,
-            CounterCollection<ContentSessionBaseCounters> parentCounters = null,
-            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
-            CounterCollection<Counters> dedupParentCounters = null)
-            : base(name, parentCounters)
+            CounterTracker counterTracker,
+            int maxConnections = DefaultMaxConnections)
+            : base(name, counterTracker)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);
@@ -166,8 +164,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _pinInlineThreshold = pinInlineThreshold;
             _ignorePinThreshold = ignorePinThreshold;
 
-            _counters = new CounterCollection<BackingContentStore.SessionCounters>(backingContentStoreParentCounters);
-            _dedupCounters = new CounterCollection<Counters>(dedupParentCounters);
+            _counters = new CounterCollection<BackingContentStore.SessionCounters>(parent: counterTracker?.AddOrGetCounterCollection<BackingContentStore.SessionCounters>());
+            _dedupCounters = new CounterCollection<Counters>(parent: counterTracker?.AddOrGetCounterCollection<Counters>());
         }
 
         /// <summary>

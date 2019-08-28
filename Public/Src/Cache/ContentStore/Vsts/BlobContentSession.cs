@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -12,7 +11,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
@@ -49,10 +47,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
             bool downloadBlobsThroughBlobStore,
-            CounterCollection<ContentSessionBaseCounters> parentCounters = null,
-            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
-            CounterCollection<Counters> blobParentCounters = null)
-            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore, parentCounters, backingContentStoreParentCounters, blobParentCounters)
+            CounterTracker counterTracker)
+            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore, counterTracker)
         {
         }
 

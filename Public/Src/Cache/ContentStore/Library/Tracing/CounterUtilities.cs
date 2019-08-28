@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private static MethodInfo CachedGenericMethodDefiinition = null;
 
         /// <nodoc />
-        public static CounterSet ToCounterSet(this CounterCollection counters, Type enumType)
+        private static CounterSet ToCounterSet(this CounterCollection counters, Type enumType)
         {
             // We cache the method since using Reflection is an expensive operation.
             var method = CachedRelfectionMethods.GetOrAdd(enumType, theEnumType =>
@@ -53,6 +53,30 @@ namespace BuildXL.Cache.ContentStore.Tracing
             });
 
             return method(counters);
+        }
+
+        /// <nodoc />
+        public static CounterSet ToCounterSet(this CounterTracker counterTracker)
+        {
+            var result = new CounterSet();
+
+            foreach (var kvp in counterTracker.CounterColletions)
+            {
+                var counterType = kvp.Key;
+                var counterCollection = kvp.Value;
+
+                result.Merge(counterCollection.ToCounterSet(counterType));
+            }
+
+            foreach (var kvp in counterTracker.ChildCounterTrackers)
+            {
+                var name = kvp.Key;
+                var tracker = kvp.Value;
+
+                result.Merge(tracker.ToCounterSet(), name);
+            }
+
+            return result;
         }
     }
 }

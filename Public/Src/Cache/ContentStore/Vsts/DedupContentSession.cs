@@ -43,11 +43,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
-            int maxConnections = DefaultMaxConnections,
-            CounterCollection<ContentSessionBaseCounters> parentCounters = null,
-            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
-            CounterCollection<Counters> dedupParentCounters = null)
-            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, pinInlineThreshold, ignorePinThreshold, maxConnections, parentCounters, backingContentStoreParentCounters, dedupParentCounters)
+            CounterTracker counterTracker,
+            int maxConnections = DefaultMaxConnections)
+            : base(fileSystem, name, implicitPin, dedupStoreHttpClient, timeToKeepContent, pinInlineThreshold, ignorePinThreshold, counterTracker, maxConnections)
         {
             _artifactFileSystem = VstsFileSystem.Instance;
             _uploadSession = DedupStoreClient.CreateUploadSession(

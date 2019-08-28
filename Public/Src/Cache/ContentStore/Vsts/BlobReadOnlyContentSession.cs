@@ -19,11 +19,9 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
@@ -140,10 +138,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
             bool downloadBlobsThroughBlobStore,
-            CounterCollection<ContentSessionBaseCounters> parentCounters = null,
-            CounterCollection<BackingContentStore.SessionCounters> backingContentStoreParentCounters = null,
-            CounterCollection<Counters> blobParentCounters = null)
-            : base(name, parentCounters)
+            CounterTracker counterTracker)
+            : base(name, counterTracker)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);
@@ -170,10 +166,10 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         DefaultMaxSegmentDownloadRetries.ToString()));
 
             TempDirectory = new DisposableDirectory(fileSystem);
-            BuildXL.Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
+            Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
 
-            _counters = new CounterCollection<BackingContentStore.SessionCounters>(backingContentStoreParentCounters);
-            _blobCounters = new CounterCollection<Counters>(blobParentCounters);
+            _counters = new CounterCollection<BackingContentStore.SessionCounters>(parent: counterTracker?.AddOrGetCounterCollection<BackingContentStore.SessionCounters>());
+            _blobCounters = new CounterCollection<Counters>(parent: counterTracker?.AddOrGetCounterCollection<Counters>());
         }
 
         /// <inheritdoc />

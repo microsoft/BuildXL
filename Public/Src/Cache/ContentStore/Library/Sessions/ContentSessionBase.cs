@@ -41,10 +41,10 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected virtual bool TracePinFinished => true;
 
         /// <nodoc />
-        protected ContentSessionBase(string name, CounterCollection<ContentSessionBaseCounters> parentCounters = null)
+        protected ContentSessionBase(string name, CounterTracker counterTracker = null)
         {
             Name = name;
-            _counters = new CounterCollection<ContentSessionBaseCounters>(parentCounters);
+            _counters = new CounterCollection<ContentSessionBaseCounters>(parent: counterTracker?.AddOrGetCounterCollection<ContentSessionBaseCounters>());
         }
 
         /// <inheritdoc />

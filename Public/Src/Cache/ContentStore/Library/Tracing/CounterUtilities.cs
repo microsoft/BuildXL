@@ -1,13 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Collections.Concurrent;
-using System.Linq;
-using System.Reflection;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Tracing
@@ -18,15 +12,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
     public static class CounterUtilities
     {
         /// <nodoc />
-        public static CounterSet ToCounterSet<TEnum>(this CounterCollection<TEnum> counters)
-            where TEnum : struct
+        public static CounterSet ToCounterSet(this CounterCollection counters)
         {
-            CounterSet counterSet = new CounterSet();
-            foreach (var counterEnum in EnumTraits<TEnum>.EnumerateValues())
+            var counterSet = new CounterSet();
+            foreach ((var counter, var counterName) in counters.GetCounters())
             {
-                var counter = counters[counterEnum];
-                var counterName = counterEnum.ToString();
-
                 counterSet.Add($"{counterName}.Count", (long)counter.Value, counter.Name);
 
                 if (counter.IsStopwatch)
@@ -37,41 +27,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             return counterSet;
-        }
-
-        private static readonly ConcurrentDictionary<Type, Func<CounterCollection, CounterSet>> CachedRelfectionMethods = new ConcurrentDictionary<Type, Func<CounterCollection, CounterSet>>();
-        private static MethodInfo CachedGenericMethodDefiinition = null;
-
-        /// <nodoc />
-        private static CounterSet ToCounterSet(this CounterCollection counters, Type enumType)
-        {
-            // We cache the method since using Reflection is an expensive operation.
-            var method = CachedRelfectionMethods.GetOrAdd(enumType, theEnumType =>
-            {
-                CachedGenericMethodDefiinition = CachedGenericMethodDefiinition ?? typeof(CounterUtilities).GetMethods().Single(method => method.Name == nameof(ToCounterSet) && method.IsGenericMethodDefinition);
-                var genericMethod = CachedGenericMethodDefiinition.MakeGenericMethod(theEnumType);
-                return counterCollection => (CounterSet)genericMethod.Invoke(null, new object[] { counterCollection });
-            });
-
-            return method(counters);
-        }
-
-        /// <nodoc />
-        public static CounterSet ToCounterSet(this CounterTracker counterTracker)
-        {
-            var result = new CounterSet();
-
-            foreach ((var counterType, var counterCollection) in counterTracker.CounterColletions)
-            {
-                result.Merge(counterCollection.ToCounterSet(counterType));
-            }
-
-            foreach ((var name, var tracker) in counterTracker.ChildCounterTrackers)
-            {
-                result.Merge(tracker.ToCounterSet(), name);
-            }
-
-            return result;
         }
     }
 }

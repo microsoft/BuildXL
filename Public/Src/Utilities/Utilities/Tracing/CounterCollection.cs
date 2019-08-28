@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -188,6 +189,8 @@ namespace BuildXL.Utilities.Tracing
         {
             return (long)(timespan.Ticks / s_tickFrequency);
         }
+
+        public virtual IEnumerable<(Counter, string name)> GetCounters() => Array.Empty<(Counter, string)>();
 
         /// <summary>
         /// Stopwatch context of a counter. Adds to the counter when disposed.
@@ -373,6 +376,14 @@ namespace BuildXL.Utilities.Tracing
             {
                 ushort counterIndex = GetCounterIndex(counterId);
                 return new Counter(this, counterIndex, s_counterTypes[counterIndex], s_counterNames[counterIndex]);
+            }
+        }
+
+        public override IEnumerable<(Counter, string name)> GetCounters()
+        {
+            foreach (var counterEnum in EnumTraits<TEnum>.EnumerateValues())
+            {
+                yield return (this[counterEnum], counterEnum.ToString());
             }
         }
 

@@ -758,7 +758,9 @@ namespace BuildXL.Scheduler.Fingerprints
             (DirectoryMembershipFilter directoryMemberShipFilter, DirectoryEnumerationMode directoryEnumerationMode) tuple;
 
             AbsolutePath parent = path.GetParent(pathTable);
-            if (enumeratedDirectories.TryGetValue(parent, out tuple) && tuple.directoryEnumerationMode == DirectoryEnumerationMode.RealFilesystem && tuple.directoryMemberShipFilter.Include(pathTable, path))
+            if (enumeratedDirectories.TryGetValue(parent, out tuple) 
+                && (tuple.directoryEnumerationMode == DirectoryEnumerationMode.RealFilesystem || tuple.directoryEnumerationMode == DirectoryEnumerationMode.MinimalGraph)
+                && tuple.directoryMemberShipFilter.Include(pathTable, path))
             {
                 return true;
             }

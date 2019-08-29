@@ -67,9 +67,9 @@ namespace BuildXL.Processes.Tracing
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
         PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,
         FileAccessWhitelistFailedToParsePath = 274,
-        
-        //// Reserved = 306,
-        //// Reserved = 307,
+
+        WriteChangeAffectedInputsToFileFail = 306,
+        WriteChangeAffectedInputsToFileSuccuss = 307,
         PipFailSymlinkCreation = 308,
         //// Reserved = 309,
 

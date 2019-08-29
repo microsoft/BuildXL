@@ -613,8 +613,7 @@ namespace BuildXL.Utilities.Tracing
         InvalidTempDirectoryUnderNonWritableRoot = 2003,
         InvalidTempDirectoryInvalidPath = 2004,
         RewritingPreservedOutput = 2005,
-
-        // FREE SLOT = 2005,
+        GetChangeAffectedInputs = 2100,
 
         // Free slot 2100,
         // Reserved = 2101,

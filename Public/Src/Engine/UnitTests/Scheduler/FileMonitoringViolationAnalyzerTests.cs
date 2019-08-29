@@ -953,7 +953,7 @@ namespace Test.BuildXL.Scheduler
             Pip related,
             AbsolutePath processPath)
         {
-            ReportedViolation reportedViolation = new ReportedViolation(true, violationType, path, violator.PipId, related?.PipId ?? PipId.Invalid, processPath);
+            ReportedViolation reportedViolation = new ReportedViolation(true, violationType, path, violator.PipId, related?.PipId, processPath);
             if (m_doLogging)
             {
                 reportedViolation = base.HandleDependencyViolation(violationType, accessLevel, path, violator, isWhitelistedViolation, related, processPath);

@@ -32,6 +32,8 @@ using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
 
+/// Many enums have been shifted or incremented and this is to avoid protobuf's design to not serialize 
+/// int/enum values that are equal to 0. Thus we make "0" as an invalid value for each ProtoBuf enum.
 namespace BuildXL.Execution.Analyzer
 {
     /// <summary>
@@ -51,7 +53,7 @@ namespace BuildXL.Execution.Analyzer
                     LengthAndExistence = data.FileContentInfo.SerializedLengthAndExistence,
                     Hash = new ContentHash() { Value = data.FileContentInfo.Hash.ToString() }
                 },
-                OutputOrigin = (PipOutputOrigin)data.OutputOrigin
+                OutputOrigin = (PipOutputOrigin)(data.OutputOrigin + 1)
             };
         }
 
@@ -193,8 +195,6 @@ namespace BuildXL.Execution.Analyzer
             var processFingerprintComputationEvent = new ProcessFingerprintComputationEvent
             {
                 WorkerID = workerID,
-                // + 1 is here since FingerprintComputationKind is part of the key, and protobuf does not serialize 0 for ints, so we
-                // are shifting every enum value by 1
                 Kind = (Xldb.Proto.FingerprintComputationKind)(data.Kind + 1),
                 PipID = data.PipId.Value,
                 WeakFingerprint = new WeakContentFingerPrint()
@@ -235,7 +235,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     processStrongFingerprintComputationData.ObservedInputs.Add(new ObservedInput()
                     {
-                        Type = (ObservedInputType)observedInput.Type,
+                        Type = (ObservedInputType)(observedInput.Type + 1),
                         Hash = new ContentHash()
                         {
                             Value = observedInput.Hash.ToString()
@@ -292,8 +292,8 @@ namespace BuildXL.Execution.Analyzer
                 WorkerID = workerID,
                 ViolatorPipID = data.ViolatorPipId.Value,
                 RelatedPipID = data.RelatedPipId.Value,
-                ViolationType = (FileMonitoringViolationAnalyzer_DependencyViolationType)data.ViolationType,
-                AccessLevel = (FileMonitoringViolationAnalyzer_AccessLevel)data.AccessLevel,
+                ViolationType = (FileMonitoringViolationAnalyzer_DependencyViolationType)(data.ViolationType + 1),
+                AccessLevel = (FileMonitoringViolationAnalyzer_AccessLevel)(data.AccessLevel + 1),
                 Path = data.Path.ToAbsolutePath(pathTable)
             };
         }
@@ -307,11 +307,8 @@ namespace BuildXL.Execution.Analyzer
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
                 Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(data.Duration),
-
-                // + 1 is here since PipExecutionStep is part of the key, and protobuf does not serialize 0 for ints, so we
-                // are shifting every enum value by 1
                 Step = (PipExecutionStep)(data.Step + 1),
-                Dispatcher = (WorkDispatcher_DispatcherKind)data.Dispatcher
+                Dispatcher = (WorkDispatcher_DispatcherKind)(data.Dispatcher + 1)
             };
 
             return pipExecStepPerformanceEvent;
@@ -350,7 +347,7 @@ namespace BuildXL.Execution.Analyzer
                 LookupWaiting = data.LookupWaiting,
                 LookupRunning = data.LookupRunning,
                 ExternalProcesses = data.ExternalProcesses,
-                LimitingResource = (ExecutionSampler_LimitingResource)data.LimitingResource,
+                LimitingResource = (ExecutionSampler_LimitingResource)(data.LimitingResource + 1),
                 UnresponsivenessFactor = data.UnresponsivenessFactor,
                 ProcessPipsPending = data.ProcessPipsPending,
                 ProcessPipsAllocatedSlots = data.ProcessPipsAllocatedSlots
@@ -380,24 +377,50 @@ namespace BuildXL.Execution.Analyzer
             return bxlInvEvent;
         }
 
+        /// <summary>
+        /// Convert BXL RequestedAccess enum to the protobuf version and take into account hexadecimal values and ORing enum values
+        /// </summary>
+        public static RequestedAccess ToRequestedAccess(this Processes.RequestedAccess requestedAccess)
+        {
+            if (requestedAccess == Processes.RequestedAccess.None)
+            {
+                return RequestedAccess.None;
+            }
+            else if (requestedAccess == Processes.RequestedAccess.ReadWrite)
+            {
+                return RequestedAccess.ReadWrite;
+            }
+            else if (requestedAccess == Processes.RequestedAccess.All)
+            {
+                return RequestedAccess.All;
+            }
+            else
+            {
+                return (RequestedAccess)((int)requestedAccess << 1);
+            }
+        }
+
         /// <nodoc />
         public static Xldb.Proto.ReportedFileAccess ToReportedFileAccess(this ReportedFileAccess reportedFileAccess, PathTable pathTable)
         {
             return new Xldb.Proto.ReportedFileAccess()
             {
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Invalid=0 did not change the bxl->protobuf enum mapping
                 CreationDisposition = (CreationDisposition)reportedFileAccess.CreationDisposition,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Invalid=0 did not change the bxl->protobuf enum mapping
                 DesiredAccess = (DesiredAccess)reportedFileAccess.DesiredAccess,
                 Error = reportedFileAccess.Error,
                 Usn = reportedFileAccess.Usn.Value,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Invalid=0 did not change the bxl->protobuf enum mapping
                 FlagsAndAttributes = (FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
                 Path = reportedFileAccess.Path,
                 ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.Windows),
                 Process = reportedFileAccess.Process.ToReportedProcess(),
-                ShareMode = (ShareMode)reportedFileAccess.ShareMode,
-                Status = (FileAccessStatus)reportedFileAccess.Status,
-                Method = (FileAccessStatusMethod)reportedFileAccess.Method,
-                RequestedAccess = (RequestedAccess)reportedFileAccess.RequestedAccess,
-                Operation = (ReportedFileOperation)reportedFileAccess.Operation,
+                ShareMode = reportedFileAccess.ShareMode == Processes.ShareMode.FILE_SHARE_NONE ? ShareMode.FileShareNone : (ShareMode)((int)reportedFileAccess.ShareMode << 1),
+                Status = (FileAccessStatus)(reportedFileAccess.Status + 1),
+                Method = (FileAccessStatusMethod)(reportedFileAccess.Method + 1),
+                RequestedAccess = reportedFileAccess.RequestedAccess.ToRequestedAccess(),
+                Operation = (ReportedFileOperation)(reportedFileAccess.Operation + 1),
                 ExplicitlyReported = reportedFileAccess.ExplicitlyReported,
                 EnumeratePattern = reportedFileAccess.EnumeratePattern
             };
@@ -427,7 +450,7 @@ namespace BuildXL.Execution.Analyzer
                 },
                 UnsafeConfiguration = new UnsafeSandboxConfiguration()
                 {
-                    PreserveOutputs = (PreserveOutputsMode)unsafeOption.UnsafeConfiguration.PreserveOutputs,
+                    PreserveOutputs = (PreserveOutputsMode)(unsafeOption.UnsafeConfiguration.PreserveOutputs + 1),
                     MonitorFileAccesses = unsafeOption.UnsafeConfiguration.MonitorFileAccesses,
                     IgnoreZwRenameFileInformation = unsafeOption.UnsafeConfiguration.IgnoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = unsafeOption.UnsafeConfiguration.IgnoreZwOtherFileInformation,
@@ -438,7 +461,7 @@ namespace BuildXL.Execution.Analyzer
                     ExistingDirectoryProbesAsEnumerations = unsafeOption.UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations,
                     MonitorNtCreateFile = unsafeOption.UnsafeConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = unsafeOption.UnsafeConfiguration.MonitorZwCreateOpenQueryFile,
-                    SandboxKind = (SandboxKind)unsafeOption.UnsafeConfiguration.SandboxKind,
+                    SandboxKind = (SandboxKind)(unsafeOption.UnsafeConfiguration.SandboxKind + 1),
                     UnexpectedFileAccessesAreErrors = unsafeOption.UnsafeConfiguration.UnexpectedFileAccessesAreErrors,
                     IgnoreGetFinalPathNameByHandle = unsafeOption.UnsafeConfiguration.IgnoreGetFinalPathNameByHandle,
                     IgnoreDynamicWritesOnAbsentProbes = unsafeOption.UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes,
@@ -448,7 +471,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (unsafeOption.UnsafeConfiguration.DoubleWritePolicy != null)
             {
-                unsafeOpt.UnsafeConfiguration.DoubleWritePolicy = (DoubleWritePolicy)unsafeOption.UnsafeConfiguration.DoubleWritePolicy;
+                unsafeOpt.UnsafeConfiguration.DoubleWritePolicy = (DoubleWritePolicy)(unsafeOption.UnsafeConfiguration.DoubleWritePolicy + 1);
             }
 
             return unsafeOpt;
@@ -614,7 +637,7 @@ namespace BuildXL.Execution.Analyzer
             var xldbSealDirectory = new Xldb.Proto.SealDirectory
             {
                 GraphInfo = parentPip,
-                Kind = (SealDirectoryKind)pip.Kind,
+                Kind = (SealDirectoryKind)(pip.Kind + 1),
                 IsComposite = pip.IsComposite,
                 Scrub = pip.Scrub,
                 Directory = pip.Directory.ToDirectoryArtifact(pathTable),
@@ -662,7 +685,7 @@ namespace BuildXL.Execution.Analyzer
                 GraphInfo = parentPip,
                 Destination = pip.Destination.ToFileArtifact(pathTable),
                 Contents = pip.Contents.IsValid ? pip.Contents.ToString(pathTable) : "",
-                Encoding = (WriteFileEncoding)pip.Encoding,
+                Encoding = (WriteFileEncoding)(pip.Encoding + 1),
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
 
@@ -680,7 +703,7 @@ namespace BuildXL.Execution.Analyzer
             var xldbProcessPip = new ProcessPip
             {
                 GraphInfo = parentPip,
-                ProcessOptions = (Options)pip.ProcessOptions,
+                ProcessOptions = pip.ProcessOptions == Process.Options.None ? Options.None : (Options) ((int)pip.ProcessOptions << 1),
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
                 StandardInputData = pip.StandardInputData.IsValid ? pip.StandardInputData.ToString(pathTable) : "",
                 StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
@@ -702,7 +725,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 var serviceInfo = new ServiceInfo
                 {
-                    Kind = (ServicePipKind)pip.ServiceInfo.Kind,
+                    Kind = (ServicePipKind)(pip.ServiceInfo.Kind + 1),
                     ShutdownPipId = pip.ServiceInfo.ShutdownPipId.Value,
                     IsStartOrShutdownKind = pip.ServiceInfo.IsStartOrShutdownKind
                 };
@@ -725,7 +748,7 @@ namespace BuildXL.Execution.Analyzer
             xldbProcessPip.UntrackedScopes.AddRange(pip.UntrackedScopes.Select(path => path.ToAbsolutePath(pathTable)));
             xldbProcessPip.FileOutputs.AddRange(pip.FileOutputs.Select(
                 output => !output.IsValid ? null : new Xldb.Proto.FileArtifactWithAttributes()
-                { Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.Proto.FileExistence)output.FileExistence }));
+                { Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.Proto.FileExistence)(output.FileExistence + 1)}));
             xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable)));
             xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable)));

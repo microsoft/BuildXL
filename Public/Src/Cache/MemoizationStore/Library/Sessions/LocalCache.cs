@@ -21,9 +21,9 @@ using BuildXL.Cache.MemoizationStore.Stores;
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {
     /// <summary>
-    ///     A single-level local cache. This is a factory for <see cref="OneLevelCache"/>. There are many combinations
-    ///     of <see cref="IMemoizationStore"/> and <see cref="IContentStore"/> supported, each depending on which
-    ///     function is being called.
+    ///     A single-level local cache. This is also a factory for <see cref="OneLevelCache"/>. There are many mixes of
+    ///     <see cref="IMemoizationStore"/> and <see cref="IContentStore"/> supported, each depending on which function
+    ///     is being called.
     /// </summary>
     /// <remarks>
     ///     "Local" here is used in the sense that it is located in this machine, and not over the network. For
@@ -139,11 +139,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <summary>
-        ///     Both content and metadata are entirely backed by a remote cache.
+        ///     Both content and metadata are entirely backed by an out-of-proc cache.
         /// </summary>
         public static ICache CreateRpcCache(
             ILogger logger,
-            AbsolutePath rootPath,
             ServiceClientContentStoreConfiguration serviceClientCacheConfiguration)
         {
             var fileSystem = new PassThroughFileSystem(logger);

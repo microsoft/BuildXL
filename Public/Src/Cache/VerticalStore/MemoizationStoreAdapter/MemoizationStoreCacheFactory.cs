@@ -407,8 +407,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static MemoizationStore.Interfaces.Caches.ICache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
         {
-            var rootPath = new AbsolutePath(config.CacheRootPath);
-
             if (config.EnableContentServer && config.EnableMetadataServer)
             {
                 Contract.Assert(config.RetryIntervalSeconds >= 0);
@@ -421,7 +419,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     RetryCount = (uint)config.RetryCount,
                 };
 
-                return LocalCache.CreateRpcCache(logger, rootPath, serviceClientConfiguration);
+                return LocalCache.CreateRpcCache(logger, serviceClientConfiguration);
             }
             else
             {
@@ -443,7 +441,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 }
 
                 return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(logger,
-                    rootPath,
+                    new AbsolutePath(config.CacheRootPath),
                     GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, GetCasConfig(config)),
                     localCacheConfiguration,
                     configurationModel: CreateConfigurationModel(GetCasConfig(config)),

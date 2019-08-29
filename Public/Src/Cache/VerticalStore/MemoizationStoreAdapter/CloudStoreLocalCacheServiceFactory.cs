@@ -222,7 +222,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 rpcConfiguration = new ServiceClientRpcConfiguration(port);
             }
 
-            var metadataRootPath = new AbsolutePath(cacheConfig.MetadataRootPath);
             var serviceClientConfiguration = new ServiceClientContentStoreConfiguration(cacheConfig.CacheName, rpcConfiguration, cacheConfig.ScenarioName)
             {
                 RetryCount = cacheConfig.ConnectionRetryCount,
@@ -232,10 +231,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             MemoizationStore.Interfaces.Caches.ICache localCache;
             if (cacheConfig.EnableMetadataServer)
             {
-                localCache = LocalCache.CreateRpcCache(logger, metadataRootPath, serviceClientConfiguration);
+                localCache = LocalCache.CreateRpcCache(logger, serviceClientConfiguration);
             }
             else
             {
+                var metadataRootPath = new AbsolutePath(cacheConfig.MetadataRootPath);
+
                 localCache = LocalCache.CreateRpcContentStoreInProcMemoizationStoreCache(logger,
                     metadataRootPath,
                     serviceClientConfiguration,

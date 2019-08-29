@@ -2692,6 +2692,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
 
         [GeneratedEvent(
+            (ushort)LogEventId.EnvVars,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Value of environment varialbe: {envName} is {envValue}")]
+        internal abstract void LogEnvironmentVariables(LoggingContext context, string envName, string envValue);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FailedToGetJournalAccessor,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

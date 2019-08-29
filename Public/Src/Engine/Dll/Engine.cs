@@ -285,6 +285,16 @@ namespace BuildXL.Engine
                 (int)GrpcSettings.CallTimeout.TotalMinutes, 
                 (int)GrpcSettings.InactiveTimeout.TotalMinutes);
 
+            Logger.Log.LogEnvironmentVariables(
+                loggingContext,
+                "NUGET_CREDENTIALPROVIDERS_PATH",
+                Environment.GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH"));
+
+            Logger.Log.LogEnvironmentVariables(
+                loggingContext,
+                "NUGET_PLUGIN_PATHS",
+                Environment.GetEnvironmentVariable("NUGET_PLUGIN_PATHS"));
+
             Context = context;
             Configuration = configuration;
 

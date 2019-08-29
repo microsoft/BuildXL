@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
@@ -29,7 +30,10 @@ namespace BuildXL.Cache.MemoizationStore.Service
         public Guid Id { get; } = Guid.NewGuid();
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ServiceClientCache));
+        protected override ContentStoreTracer ExecutionTracer { get; } = new ContentStoreTracer(nameof(ServiceClientCache));
+
+        /// <inheritdoc />
+        protected override ServiceClientContentSessionTracer SessionTracer { get; } = new ServiceClientContentSessionTracer(nameof(ServiceClientCacheSession));
 
         /// <nodoc />
         public ServiceClientCache(

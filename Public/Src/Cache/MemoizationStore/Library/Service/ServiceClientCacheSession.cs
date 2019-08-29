@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -26,6 +27,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// <todoc />
     public class ServiceClientCacheSession : ServiceClientContentSession, ICacheSession, IReadOnlyMemoizationSessionWithLevelSelectors
     {
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(ServiceClientCacheSession));
+
         private readonly GrpcCacheClient _rpcCacheClient;
 
         /// <nodoc />

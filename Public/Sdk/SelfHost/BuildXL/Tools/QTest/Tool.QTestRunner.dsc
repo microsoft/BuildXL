@@ -123,7 +123,15 @@ export function runQTest(args: QTestArguments): Result {
         const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
         qTestContextInfoPath = qTestContextInfoFile.path;
     }
+     
+    let changeAffectedInputListWrittenFile = undefined;
+    let changeAffectedInputListWrittenFileArg = {};
+    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+        changeAffectedInputListWrittenFile = p`${logDir}/changeAffectedInputs.txt`;
+        changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
+    }
     
+
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -173,7 +181,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
-        Cmd.option("--buildSystem ", "BuildXL")
+        Cmd.option("--buildSystem ", "BuildXL"),
+        Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile)       
     ];          
 
     let unsafeOptions = {
@@ -187,35 +196,38 @@ export function runQTest(args: QTestArguments): Result {
         ]
     };
 
-    let result = Transformer.execute({
-        tool: args.qTestTool ? args.qTestTool : qTestTool,
-        tags: args.tags,
-        description: args.description,
-        arguments: commandLineArgs,
-        consoleOutput: consolePath,
-        workingDirectory: sandboxDir,
-        tempDirectory: qtestRunTempDirectory,
-        weight: args.weight,
-        environmentVariables: [
-            { name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },
-            ...(args.qTestEnvironmentVariables || [])
-        ],
-        disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
-        additionalTempDirectories : [sandboxDir],
-        privilegeLevel: args.privilegeLevel,
-        dependencies: [
-            //When there are test failures, and PDBs are looked up to generate the stack traces,
-            //the original location of PDBs is used instead of PDBs in test sandbox. This is
-            //a temporary solution until a permanent fix regarding the lookup is identified
-            ...(args.qTestInputs ? args.qTestInputs.filter(
-                f => f.name.hasExtension && f.name.extension === a`.pdb`
-            ) : []),
-            ...(args.qTestRuntimeDependencies || []),
-        ],
-        unsafe: unsafeOptions,
-        retryExitCodes: [2],
-        changeAffectedInputListWrittenFile: p`${logDir}/changeAffectedInputs.txt`
-    });
+    let result = Transformer.execute(
+        Object.merge<Transformer.ExecuteArguments>(
+        {
+            tool: args.qTestTool ? args.qTestTool : qTestTool,
+            tags: args.tags,
+            description: args.description,
+            arguments: commandLineArgs,
+            consoleOutput: consolePath,
+            workingDirectory: sandboxDir,
+            tempDirectory: qtestRunTempDirectory,
+            weight: args.weight,
+            environmentVariables: [
+                { name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },
+                ...(args.qTestEnvironmentVariables || [])
+            ],
+            disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),
+            additionalTempDirectories : [sandboxDir],
+            privilegeLevel: args.privilegeLevel,
+            dependencies: [
+                //When there are test failures, and PDBs are looked up to generate the stack traces,
+                //the original location of PDBs is used instead of PDBs in test sandbox. This is
+                //a temporary solution until a permanent fix regarding the lookup is identified
+                ...(args.qTestInputs ? args.qTestInputs.filter(
+                    f => f.name.hasExtension && f.name.extension === a`.pdb`
+                ) : []),
+                ...(args.qTestRuntimeDependencies || []),
+            ],
+            unsafe: unsafeOptions,
+            retryExitCodes: [2],
+        },
+        changeAffectedInputListWrittenFileArg
+    ));
 
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
 

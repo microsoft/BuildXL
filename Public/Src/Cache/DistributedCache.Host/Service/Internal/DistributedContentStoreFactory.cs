@@ -85,7 +85,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     StoreClusterState = _distributedSettings.StoreClusterStateInDatabase
                 };
 
-                redisContentLocationStoreConfiguration.Database = dbConfig;
                 if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)
                 {
                     dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(_distributedSettings.ContentLocationDatabaseGcIntervalMinutes.Value);
@@ -102,6 +101,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.FullRangeCompactionIntervalMinutes,
                     v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
 
+                redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
             }
 
@@ -331,6 +331,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.MaxEventProcessingConcurrency,
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
+
+            ApplyIfNotNull(
+                _distributedSettings.EventBatchSize,
+                value => eventStoreConfiguration.EventBatchSize = value);
+
+            ApplyIfNotNull(
+                _distributedSettings.EventProcessingMaxQueueSize,
+                value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
         }
 
         private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Secret> secrets, StringBuilder errorBuilder)

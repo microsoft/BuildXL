@@ -611,8 +611,8 @@ namespace BuildXL.Cache.ContentStore.App
             int maxSizeQuotaMB,
             string dataRootPath,
             CancellationToken ct,
-            int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null)
+            int? bufferSizeForGrpcCopies,
+            int? gzipBarrierSizeForGrpcCopies)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 

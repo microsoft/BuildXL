@@ -208,7 +208,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int MaxRetentionGb { get; set; } = 20;
 
         /// <summary>
-        /// Defines the target maximum number of simulataneous copies
+        /// Defines the target maximum number of simultaneous copies
         /// </summary>
         public int MaxSimultaneousCopies { get; set; } = 10;
     }

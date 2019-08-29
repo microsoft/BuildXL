@@ -190,6 +190,11 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <summary>
+        /// Returns all the counters. Default implementation will return null since it has no information about counter names.
+        /// </summary>
+        public virtual IEnumerable<(Counter, string name)> GetCounters() => null;
+
+        /// <summary>
         /// Stopwatch context of a counter. Adds to the counter when disposed.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
@@ -373,6 +378,15 @@ namespace BuildXL.Utilities.Tracing
             {
                 ushort counterIndex = GetCounterIndex(counterId);
                 return new Counter(this, counterIndex, s_counterTypes[counterIndex], s_counterNames[counterIndex]);
+            }
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<(Counter, string name)> GetCounters()
+        {
+            foreach (var counterEnum in EnumTraits<TEnum>.EnumerateValues())
+            {
+                yield return (this[counterEnum], counterEnum.ToString());
             }
         }
 

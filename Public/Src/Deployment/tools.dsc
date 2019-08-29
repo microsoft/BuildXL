@@ -74,8 +74,10 @@ namespace Tools {
         };
 
         export const deployment : Deployment.Definition = {
-            contents: addIf(!BuildXLSdk.Flags.excludeBuildXLExplorer,
-                {
+            contents: [
+                ...(BuildXLSdk.Flags.excludeBuildXLExplorer
+                ? []
+                : [{
                     // There is an error when deploying a single sealed directory where the graph
                     // invalidly thinks there is a duplicate deployment between robocopy and the sealed
                     // directory... Using a subfolder is a workaround for now.
@@ -83,8 +85,8 @@ namespace Tools {
                     contents: [
                         importFrom("BuildXL.Explorer").App.app.appFolder
                     ]
-                }
-            )
+                }])
+            ]            
         };
             
         const deployed = BuildXLSdk.DeploymentHelpers.deploy({

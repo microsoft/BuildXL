@@ -658,6 +658,14 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void ReportedViolationEqualityTest()
+        {
+            ReportedViolation violation = new ReportedViolation(isError: false, type: DependencyViolationType.DoubleWrite, path: AbsolutePath.Invalid, violatorPipId: PipId.Invalid, relatedPipId: PipId.Invalid, processPath: AbsolutePath.Invalid);
+            ReportedViolation violation2 = new ReportedViolation(isError: false, type: DependencyViolationType.DoubleWrite, path: AbsolutePath.Invalid, violatorPipId: PipId.Invalid, relatedPipId: null, processPath: AbsolutePath.Invalid);
+            Assert.NotEqual(violation, violation2);
+        }
+
         /// <summary>
         /// Makes sure that when multiple file operations happen on the same path the appropriate precidence is chosen.
         /// </summary>
@@ -945,7 +953,7 @@ namespace Test.BuildXL.Scheduler
             Pip related,
             AbsolutePath processPath)
         {
-            ReportedViolation reportedViolation = new ReportedViolation(true, violationType, path, violator.PipId, related?.PipId, processPath);
+            ReportedViolation reportedViolation = new ReportedViolation(true, violationType, path, violator.PipId, related?.PipId ?? PipId.Invalid, processPath);
             if (m_doLogging)
             {
                 reportedViolation = base.HandleDependencyViolation(violationType, accessLevel, path, violator, isWhitelistedViolation, related, processPath);

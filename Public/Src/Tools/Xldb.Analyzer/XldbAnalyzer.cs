@@ -39,7 +39,7 @@ namespace Xldb.Analyzer
                 switch (mode)
                 {
                     case s_eventStatsAnalyzer:
-                       return p.AnalyzeEventStats();
+                        return p.AnalyzeEventStats();
                     case s_dumpPipAnalyzer:
                         return p.AnalyzeDumpPip();
                     default:
@@ -92,8 +92,8 @@ namespace Xldb.Analyzer
         /// </summary>
         public bool ParseSemistableHash(string pipHash, out long parsedHash)
         {
-            var adjustedOption = pipHash.ToUpper().Replace("PIP", "");
-            return (long.TryParse(adjustedOption, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedHash) || parsedHash == 0);
+            var hexedHash = pipHash.ToUpper().Replace("PIP", "");
+            return long.TryParse(hexedHash, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedHash);
         }
 
         /// <summary>
@@ -244,8 +244,6 @@ namespace Xldb.Analyzer
 
                 uint pipId = castedPip.GraphInfo.PipId;
 
-                writer.WriteLine("Bxl Invocation Information:\n");
-                dataStore.GetBXLInvocationEvents().ToList().ForEach(ev => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(ev, Formatting.Indented))));
                 writer.WriteLine("Pip Execution Performance Information:\n");
                 dataStore.GetPipExecutionPerformanceEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
                 writer.WriteLine("Pip Execution Step Performance Information:\n");
@@ -258,27 +256,18 @@ namespace Xldb.Analyzer
                 dataStore.GetDirectoryMembershipHashedEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
 
                 writer.WriteLine("Dependency Violation Reported Event:\n");
-                var depViolatedEvents = dataStore.GetDependencyViolationReportedEvents();
+                var depViolationEvents = dataStore.GetDependencyViolatedEventByKey(pipId);
 
-                foreach (var ev in depViolatedEvents)
+                foreach (var ev in depViolationEvents)
                 {
-                    if (ev.ViolatorPipID == castedPip.GraphInfo.PipId || ev.RelatedPipID == castedPip.GraphInfo.PipId)
-                    {
-                        writer.WriteLine(JsonConvert.SerializeObject(ev, Formatting.Indented));
-                    }
+                    writer.WriteLine(JsonConvert.SerializeObject(ev, Formatting.Indented));
                 }
 
                 if (pipType == PipType.Process)
                 {
                     writer.WriteLine("Getting directory output information for Process Pip");
-                    var pipExecutionDirEvents = dataStore.GetPipExecutionDirectoryOutputsEvents();
-                    foreach (var ev in pipExecutionDirEvents)
-                    {
-                        if (castedPip.DirectoryOutputs.Contains(ev.DirectoryArtifact))
-                        {
-                            ev.FileArtifactArray.ToList().ForEach(file => writer.WriteLine(JsonConvert.SerializeObject(file, Formatting.Indented)));
-                        }
-                    }
+                    dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId).ToList().ForEach(
+                        output => output.FileArtifactArray.ToList().ForEach(file => writer.WriteLine(JsonConvert.SerializeObject(file, Formatting.Indented))));
 
                     writer.WriteLine("Geting directory dependency information for Process Pip");
 
@@ -297,12 +286,12 @@ namespace Xldb.Analyzer
                         {
                             if (kvp.Artifact == directory.artifact)
                             {
-                                var currPipId = kvp.PipId;
-                                var currPip = dataStore.GetPipByPipId(currPipId, out var currPipType);
+                                var currentPipId = kvp.PipId;
+                                var currPip = dataStore.GetPipByPipId(currentPipId, out var currPipType);
 
                                 if (currPipType == PipType.SealDirectory)
                                 {
-                                    foreach (var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tupple => tupple.path))
+                                    foreach (var nestedDirectory in ((SealDirectory)currPip).ComposedDirectories.Select(d => (artifact: d, path: d.Path.Value)).OrderByDescending(tuple => tuple.path))
                                     {
                                         directories.Push((nestedDirectory.artifact, nestedDirectory.path));
                                     }

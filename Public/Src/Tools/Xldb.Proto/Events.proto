@@ -31,7 +31,7 @@ message EventCountByTypeValue{
 }
 
 // Event query should be of this format. It also serves as the key to the DB
-message EventTypeQuery{
+message EventKey{
     // ID of the Event - required
     ExecutionEventId EventTypeID = 1; 
 
@@ -56,11 +56,14 @@ message EventTypeQuery{
     // FileArtifactContentDecidedKey
     string FileArtifactContentDecidedKey = 8;
 
+    // File rewrite count for FileArtifactContentDecided Event
+    int32 FileRewriteCount = 9;
+
     // Used for DependencyViolatedEvent
-    uint32 ViolatorPipID = 9; 
+    uint32 ViolatorPipID = 10; 
 
     // Used for Events that don't have unique key like StatusReported or for events like PipExecutionStepPerformance that can have multiple keys for the same PipId
-    int32 EventSequenceNumber = 10;    
+    int32 EventSequenceNumber = 11;    
 }
 
 //

@@ -20,7 +20,6 @@ using NodeRange = BuildXL.Scheduler.Graph.NodeRange;
 using ObservedPathEntry = BuildXL.Scheduler.Fingerprints.ObservedPathEntry;
 using ObservedPathSet = BuildXL.Scheduler.Fingerprints.ObservedPathSet;
 using Pip = BuildXL.Pips.Operations.Pip;
-using PipData = BuildXL.Pips.Operations.PipData;
 using PipGraph = BuildXL.Scheduler.Graph.PipGraph;
 using PipProvenance = BuildXL.Pips.Operations.PipProvenance;
 using PipTable = BuildXL.Pips.PipTable;
@@ -64,7 +63,7 @@ namespace BuildXL.Execution.Analyzer
                 WorkerID = workerID
             };
 
-            workerListEvent.Workers.AddRange(data.Workers.Select(worker => worker));
+            workerListEvent.Workers.AddRange(data.Workers);
             return workerListEvent;
         }
 
@@ -194,6 +193,8 @@ namespace BuildXL.Execution.Analyzer
             var processFingerprintComputationEvent = new ProcessFingerprintComputationEvent
             {
                 WorkerID = workerID,
+                // + 1 is here since FingerprintComputationKind is part of the key, and protobuf does not serialize 0 for ints, so we
+                // are shifting every enum value by 1
                 Kind = (Xldb.Proto.FingerprintComputationKind)(data.Kind + 1),
                 PipID = data.PipId.Value,
                 WeakFingerprint = new WeakContentFingerPrint()
@@ -306,6 +307,9 @@ namespace BuildXL.Execution.Analyzer
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
                 Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(data.Duration),
+
+                // + 1 is here since PipExecutionStep is part of the key, and protobuf does not serialize 0 for ints, so we
+                // are shifting every enum value by 1
                 Step = (PipExecutionStep)(data.Step + 1),
                 Dispatcher = (WorkDispatcher_DispatcherKind)data.Dispatcher
             };
@@ -352,9 +356,9 @@ namespace BuildXL.Execution.Analyzer
                 ProcessPipsAllocatedSlots = data.ProcessPipsAllocatedSlots
             };
 
-            statusReportedEvent.DiskPercents.AddRange(data.DiskPercents.Select(percent => percent));
-            statusReportedEvent.DiskQueueDepths.AddRange(data.DiskQueueDepths.Select(depth => depth));
-            statusReportedEvent.PipsSucceededAllTypes.AddRange(data.PipsSucceededAllTypes.Select(type => type));
+            statusReportedEvent.DiskPercents.AddRange(data.DiskPercents);
+            statusReportedEvent.DiskQueueDepths.AddRange(data.DiskQueueDepths);
+            statusReportedEvent.PipsSucceededAllTypes.AddRange(data.PipsSucceededAllTypes);
 
             return statusReportedEvent;
         }
@@ -387,7 +391,7 @@ namespace BuildXL.Execution.Analyzer
                 Usn = reportedFileAccess.Usn.Value,
                 FlagsAndAttributes = (FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
                 Path = reportedFileAccess.Path,
-                ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.HostOs),
+                ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.Windows),
                 Process = reportedFileAccess.Process.ToReportedProcess(),
                 ShareMode = (ShareMode)reportedFileAccess.ShareMode,
                 Status = (FileAccessStatus)reportedFileAccess.Status,
@@ -460,7 +464,7 @@ namespace BuildXL.Execution.Analyzer
         {
             return new Xldb.Proto.AbsolutePath()
             {
-                Value = path.ToString(pathTable, PathFormat.HostOs)
+                Value = path.ToString(pathTable, PathFormat.Windows)
             };
         }
 
@@ -538,22 +542,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.PipData ToPipData(this PipData pipData, PathTable pathTable)
-        {
-            return !pipData.IsValid ? null : new Xldb.Proto.PipData
-            {
-                FragmentSeparator = pipData.FragmentSeparator.ToString(pathTable),
-                FragmentCount = pipData.FragmentCount,
-                FragmentEscaping = (PipDataFragmentEscaping)pipData.FragmentEscaping
-            };
-        }
-
-        /// <nodoc />
         public static Xldb.Proto.PipProvenance ToPipProvenance(this PipProvenance provenance, PathTable pathTable)
         {
             return provenance == null ? null : new Xldb.Proto.PipProvenance()
             {
-                Usage = provenance.Usage.ToPipData(pathTable),
+                Usage = provenance.Usage.IsValid ? provenance.Usage.ToString(pathTable) : "",
                 ModuleId = provenance.ModuleId.Value.ToString(pathTable),
                 ModuleName = provenance.ModuleName.ToString(pathTable),
                 SemiStableHash = provenance.SemiStableHash
@@ -592,7 +585,7 @@ namespace BuildXL.Execution.Analyzer
                 PipId = pip.PipId.Value,
             };
 
-            foreach(var incomingEdge in cachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
+            foreach (var incomingEdge in cachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
             {
                 var pipType = cachedGraph.PipTable.HydratePip(incomingEdge.OtherNode.ToPipId(), Pips.PipQueryContext.Explorer).PipType;
 
@@ -622,7 +615,6 @@ namespace BuildXL.Execution.Analyzer
             {
                 GraphInfo = parentPip,
                 Kind = (SealDirectoryKind)pip.Kind,
-                DirectoryRoot = pip.DirectoryRoot.ToAbsolutePath(pathTable),
                 IsComposite = pip.IsComposite,
                 Scrub = pip.Scrub,
                 Directory = pip.Directory.ToDirectoryArtifact(pathTable),
@@ -669,7 +661,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 GraphInfo = parentPip,
                 Destination = pip.Destination.ToFileArtifact(pathTable),
-                Contents = pip.Contents.ToPipData(pathTable),
+                Contents = pip.Contents.IsValid ? pip.Contents.ToString(pathTable) : "",
                 Encoding = (WriteFileEncoding)pip.Encoding,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
@@ -683,25 +675,25 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.ProcessPip ToProcessPip(this Process pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
+        public static ProcessPip ToProcessPip(this Process pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
         {
             var xldbProcessPip = new ProcessPip
             {
                 GraphInfo = parentPip,
                 ProcessOptions = (Options)pip.ProcessOptions,
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
-                StandardInputData = pip.StandardInputData.ToPipData(pathTable),
+                StandardInputData = pip.StandardInputData.IsValid ? pip.StandardInputData.ToString(pathTable) : "",
                 StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable),
-                    Data = pip.StandardInput.Data.ToPipData(pathTable),
+                    Data = pip.StandardInput.Data.ToString(pathTable),
                 },
                 ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable),
-                ResponseFileData = pip.ResponseFileData.ToPipData(pathTable),
+                ResponseFileData = pip.ResponseFileData.IsValid ? pip.ResponseFileData.ToString(pathTable) : "",
                 Executable = pip.Executable.ToFileArtifact(pathTable),
                 ToolDescription = pip.ToolDescription.ToString(pathTable),
                 WorkingDirectory = pip.WorkingDirectory.ToAbsolutePath(pathTable),
-                Arguments = pip.Arguments.ToPipData(pathTable),
+                Arguments = pip.Arguments.IsValid ? pip.Arguments.ToString(pathTable) : "",
                 TempDirectory = pip.TempDirectory.ToAbsolutePath(pathTable),
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
@@ -721,7 +713,12 @@ namespace BuildXL.Execution.Analyzer
             }
 
             xldbProcessPip.EnvironmentVariable.AddRange(pip.EnvironmentVariables.Select(
-                envVar => new EnvironmentVariable() { Name = envVar.Name.ToString(pathTable), Value = envVar.Value.ToPipData(pathTable), IsPassThrough = envVar.IsPassThrough }));
+                envVar => new EnvironmentVariable()
+                {
+                    Name = envVar.Name.ToString(pathTable),
+                    Value = envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "",
+                    IsPassThrough = envVar.IsPassThrough
+                }));
             xldbProcessPip.Dependencies.AddRange(pip.Dependencies.Select(file => file.ToFileArtifact(pathTable)));
             xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.UntrackedPaths.AddRange(pip.UntrackedPaths.Select(path => path.ToAbsolutePath(pathTable)));
@@ -751,7 +748,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(pathTable),
                 },
-                MessageBody = pip.MessageBody.ToPipData(pathTable),
+                MessageBody = pip.MessageBody.IsValid ? pip.MessageBody.ToString(pathTable) : "",
                 IsServiceFinalization = pip.IsServiceFinalization,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };

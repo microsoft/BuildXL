@@ -3,9 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
+using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -54,26 +58,25 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // In practice, we don't really pass in a null distributedSettings. Hence, we'll enable the metadata
                 // store whenever its set to true. This can only happen in the Application verb, because the Service
                 // verb doesn't change the defaults.
-                return CreateLocalServer(localServerConfiguration,
-                    enableMetadataStore: distributedSettings?.EnableMetadataStore ?? false);
+                return CreateLocalServer(localServerConfiguration, distributedSettings);
             }
             else
             {
-                return CreateDistributedServer(localServerConfiguration,
-                    enableMetadataStore: distributedSettings.EnableMetadataStore);
+                return CreateDistributedServer(localServerConfiguration, distributedSettings);
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
+        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
 
-            if (enableMetadataStore)
+            if (distributedSettings.EnableMetadataStore)
             {
-                Func<AbsolutePath, ICache> cacheFactory = path => {
+                Func<AbsolutePath, ICache> cacheFactory = path =>
+                {
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, redisConnectionString: null),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -96,7 +99,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
+        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             var cacheConfig = _arguments.Configuration;
 
@@ -123,13 +126,22 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
             };
 
-            if (enableMetadataStore)
+            if (distributedSettings.EnableMetadataStore)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
+                    // Result should already be cached and this should not block.
+                    var secrets = factory.TryRetrieveSecretsAsync(CancellationToken.None, null).GetAwaiter().GetResult();
+
+                    string redisConnectionString = null;
+                    if (secrets.TryGetValue(distributedSettings.GlobalRedisSecretName, out var secret) && secret is PlainTextSecret pts)
+                    {
+                        redisConnectionString = pts.Secret;
+                    }
+
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, redisConnectionString),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -156,23 +168,48 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path)
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, string redisConnectionString = null)
         {
-            var config = new RocksDbMemoizationStoreConfiguration()
-            {
-                Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
-                {
-                    MetadataGarbageCollectionEnabled = true,
-                },
-            };
+            var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
-            var distributedContentSettings = _arguments.Configuration.DistributedContentSettings;
-            if (distributedContentSettings != null)
+            var storeType = Enum.Parse(typeof(MetadataStoreType), distributedSettings.MetadataStoreType);
+
+            switch (storeType)
             {
-                config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedContentSettings.MaximumNumberOfMetadataEntriesToStore;
+                case MetadataStoreType.RocksDb:
+                    return CreateRocksDbStore();
+
+                case MetadataStoreType.Redis:
+                    return CreateRedisStore();
+
+                default:
+                    throw new NotSupportedException($"Metadata store type {storeType} is not supported.");
             }
 
-            return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
+            IMemoizationStore CreateRocksDbStore()
+            {
+                var config = new RocksDbMemoizationStoreConfiguration()
+                {
+                    Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
+                    {
+                        MetadataGarbageCollectionEnabled = true,
+                    },
+                };
+
+                if (distributedSettings != null)
+                {
+                    config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedSettings.MaximumNumberOfMetadataEntriesToStore;
+                }
+
+                return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
+            }
+
+            IMemoizationStore CreateRedisStore()
+            {
+                Contract.Assert(redisConnectionString != null);
+                var connectionStringProvider = new LiteralConnectionStringProvider(redisConnectionString);
+                return RedisMemoizationStore.Create(_logger, connectionStringProvider, distributedSettings.KeySpacePrefix, SystemClock.Instance);
+            }
         }
 
         private static LocalServerConfiguration CreateLocalServerConfiguration(LocalCasServiceSettings localCasServiceSettings, ServiceConfiguration serviceConfiguration)

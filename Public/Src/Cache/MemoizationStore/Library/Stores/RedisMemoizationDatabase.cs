@@ -12,7 +12,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Utilities;
-using Grpc.Core;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using System.Linq;
 using StackExchange.Redis;
@@ -44,10 +43,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         /// <nodoc />
         public RedisMemoizationDatabase(
-            RedisDatabaseAdapter redis
+            RedisDatabaseAdapter redis,
+            IClock clock
             )
         {
             _redis = redis;
+            _clock = clock;
         }
 
         /// <inheritdoc />
@@ -56,7 +57,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             var key = GetKey(strongFingerprint.WeakFingerprint);
             byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector);
 
-            await _metadataLocks[selectorBytes[0]].WaitAsync();
+            await _metadataLocks[strongFingerprint.WeakFingerprint.ToByteArray()[0]].WaitAsync();
 
             try
             {

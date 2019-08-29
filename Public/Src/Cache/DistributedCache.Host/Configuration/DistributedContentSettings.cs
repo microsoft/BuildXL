@@ -512,6 +512,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
+        /// <summary>
+        /// Valid values are: RocksDb, Redis
+        /// </summary>
+        [DataMember]
+        public string MetadataStoreType { get; set; } = "RocksDb";
+
         #endregion
 
         /// <summary>

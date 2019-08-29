@@ -54,13 +54,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             _fileSystem = new PassThroughFileSystem(_logger);
         }
 
-        public IContentStore CreateContentStore(
-            AbsolutePath localCacheRoot,
-            NagleQueue<ContentHash> evictionAnnouncer = null,
-            ProactiveReplicationArgs replicationSettings = null,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            bool checkLocalFiles = true,
-            TrimBulkAsync trimBulkAsync = null)
+        private RedisContentLocationStoreConfiguration GetRedisContentLocationStoreConfiguration(AbsolutePath localCacheRoot)
         {
             var redisContentLocationStoreConfiguration = new RedisContentLocationStoreConfiguration
             {
@@ -116,6 +110,20 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 redisContentLocationStoreConfiguration.GarbageCollectionConfiguration = null;
             }
+
+            return redisContentLocationStoreConfiguration;
+        }
+
+        public IContentStore CreateContentStore(
+            AbsolutePath localCacheRoot,
+            NagleQueue<ContentHash> evictionAnnouncer = null,
+            ProactiveReplicationArgs replicationSettings = null,
+            DistributedEvictionSettings distributedEvictionSettings = null,
+            bool checkLocalFiles = true,
+            TrimBulkAsync trimBulkAsync = null
+            )
+        {
+            var redisContentLocationStoreConfiguration = GetRedisContentLocationStoreConfiguration(localCacheRoot);
 
             var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
@@ -401,8 +409,15 @@ updatingSasToken.TokenUpdated += (_, sasToken) =>
 
         }
 
-        private async Task<Dictionary<string, Secret>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
+        private Dictionary<string, Secret> _cachedSecrets = null;
+
+        public async Task<Dictionary<string, Secret>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
         {
+            if (_cachedSecrets != null)
+            {
+                return _cachedSecrets;
+            }
+
             _logger.Debug(
                 $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
                 $"{nameof(_distributedSettings.AzureStorageSecretName)}: {_distributedSettings.AzureStorageSecretName}, " +
@@ -478,6 +493,7 @@ updatingSasToken.TokenUpdated += (_, sasToken) =>
                 }
             }
 
+            _cachedSecrets = secrets;
             return secrets;
 
             bool appendIfNull(object value, string propertyName)

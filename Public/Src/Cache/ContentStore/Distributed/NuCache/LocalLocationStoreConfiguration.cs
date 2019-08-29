@@ -358,6 +358,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public bool UseIncrementalCheckpointing { get; set; }
 
+        /// <nodoc />
+        public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
+
         /// <summary>
         /// The working directory used by checkpoint manager for staging checkpoints before upload and restore.
         /// </summary>

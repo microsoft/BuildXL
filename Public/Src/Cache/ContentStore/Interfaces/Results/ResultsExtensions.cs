@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results

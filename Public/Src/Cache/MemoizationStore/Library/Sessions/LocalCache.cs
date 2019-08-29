@@ -21,11 +21,16 @@ using BuildXL.Cache.MemoizationStore.Stores;
 namespace BuildXL.Cache.MemoizationStore.Sessions
 {
     /// <summary>
-    ///     A single-level local cache.
+    ///     A single-level local cache. This is a factory for <see cref="OneLevelCache"/>. There are many combinations
+    ///     of <see cref="IMemoizationStore"/> and <see cref="IContentStore"/> supported, each depending on which
+    ///     function is being called.
     /// </summary>
     /// <remarks>
     ///     "Local" here is used in the sense that it is located in this machine, and not over the network. For
     ///     example, the cache could live in a different process and communicate over gRPC.
+    ///
+    ///     "InProc" and "Remote" refer to whether the cache logic is executed in the process that is building the
+    ///     object or in a external process.
     /// </remarks>
     public class LocalCache : OneLevelCache
     {
@@ -35,10 +40,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         private bool _disposed;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="LocalCache" /> class backed by
-        ///     <see cref="FileSystemContentStore"/>. Its content store may actually be backed by a
-        ///     <see cref="ServiceClientContentStore"/> if <see cref="LocalCacheConfiguration.EnableContentServer"/> is
-        ///     true.
+        ///     Content Stores:
+        ///         - <see cref="ServiceClientContentStore"/> if <see cref="LocalCacheConfiguration.EnableContentServer"/>
+        ///         - <see cref="FileSystemContentStore"/> otherwise
+        ///     Memoization Stores:
+        ///         - <see cref="CreateInProcessLocalMemoizationStoreFactory(ILogger, IClock, MemoizationStoreConfiguration)"/>
         /// </summary>
         public static LocalCache CreateUnknownContentStoreInProcMemoizationStoreCache(
             ILogger logger,
@@ -53,7 +59,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             clock = clock ?? SystemClock.Instance;
 
             var fileSystem = new PassThroughFileSystem(logger);
-            var contentStoreSettings = new ContentStoreSettings() {
+            var contentStoreSettings = new ContentStoreSettings()
+            {
                 CheckFiles = checkLocalFiles,
                 UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled
             };
@@ -112,8 +119,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="LocalCache" /> class for which content is backed by
-        ///     <see cref="ServiceClientContentStore"/>, and metadata is backed by a local memoization store.
+        ///     Content Stores:
+        ///         - <see cref="ServiceClientContentStore"/>
+        ///     Memoization Stores:
+        ///         - <see cref="CreateInProcessLocalMemoizationStoreFactory(ILogger, IClock, MemoizationStoreConfiguration)"/>
         /// </summary>
         public static LocalCache CreateRpcContentStoreInProcMemoizationStoreCache(ILogger logger,
             AbsolutePath rootPath,
@@ -130,8 +139,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="LocalCache" /> class entirely backed by
-        ///     <see cref="ServiceClientCache"/>
+        ///     Both content and metadata are entirely backed by a remote cache.
         /// </summary>
         public static ICache CreateRpcCache(
             ILogger logger,

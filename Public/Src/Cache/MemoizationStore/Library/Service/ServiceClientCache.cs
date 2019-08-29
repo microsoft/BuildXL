@@ -75,19 +75,19 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// <inheritdoc />
         public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
         {
-            return CreateReadOnlySession(context, name, ImplicitPin.None).Select(session => (IReadOnlyMemoizationSession)session);
+            return CreateReadOnlySession(context, name, ImplicitPin.None).Map(session => (IReadOnlyMemoizationSession)session);
         }
 
         /// <inheritdoc />
         public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
         {
-            return CreateSession(context, name, ImplicitPin.None).Select(session => (IMemoizationSession)session);
+            return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
         }
 
         /// <inheritdoc />
         CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name, IContentSession contentSession)
         {
-            return CreateSession(context, name, ImplicitPin.None).Select(session => (IMemoizationSession)session);
+            return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
         }
 
         /// <inheritdoc />

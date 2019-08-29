@@ -372,12 +372,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         CreateSessionResult<IReadOnlyContentSession> IContentStore.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateReadOnlySession(context, name, implicitPin).Select(session => (IReadOnlyContentSession)session);
+            return CreateReadOnlySession(context, name, implicitPin).Map(session => (IReadOnlyContentSession)session);
         }
 
         CreateSessionResult<IContentSession> IContentStore.CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateSession(context, name, implicitPin).Select(session => (IContentSession)session);
+            return CreateSession(context, name, implicitPin).Map(session => (IContentSession)session);
         }
 
         /// <inheritdoc />

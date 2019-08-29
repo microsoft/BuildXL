@@ -405,7 +405,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        private static LocalCache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
+        private static MemoizationStore.Interfaces.Caches.ICache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
         {
             var rootPath = new AbsolutePath(config.CacheRootPath);
 

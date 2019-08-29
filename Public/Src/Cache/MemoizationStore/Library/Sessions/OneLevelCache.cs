@@ -51,6 +51,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="OneLevelCache" /> class.
         /// </summary>
+        /// <remarks>
+        ///     It is assumed that the produced sessions are different objects.
+        /// </remarks>
         public OneLevelCache(Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id)
         {
             Contract.Requires(contentStoreFunc != null);
@@ -59,6 +62,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ContentStore = contentStoreFunc();
             MemoizationStore = memoizationStoreFunc();
             Id = id;
+
+            Contract.Assert(!ReferenceEquals(ContentStore, MemoizationStore));
         }
 
         /// <summary>

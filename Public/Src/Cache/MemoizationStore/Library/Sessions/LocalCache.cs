@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.Service;
 using BuildXL.Cache.MemoizationStore.Stores;
@@ -132,14 +133,13 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         ///     Initializes a new instance of the <see cref="LocalCache" /> class entirely backed by
         ///     <see cref="ServiceClientCache"/>
         /// </summary>
-        public static LocalCache CreateRpcCache(
+        public static ICache CreateRpcCache(
             ILogger logger,
             AbsolutePath rootPath,
             ServiceClientContentStoreConfiguration serviceClientCacheConfiguration)
         {
             var fileSystem = new PassThroughFileSystem(logger);
-            var remoteCache = new ServiceClientCache(logger, fileSystem, serviceClientCacheConfiguration);
-            return new LocalCache(fileSystem, () => remoteCache, () => remoteCache, LoadPersistentCacheGuid(rootPath, fileSystem));
+            return new ServiceClientCache(logger, fileSystem, serviceClientCacheConfiguration);
         }
 
         private LocalCache(IAbsFileSystem fileSystem, Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id)

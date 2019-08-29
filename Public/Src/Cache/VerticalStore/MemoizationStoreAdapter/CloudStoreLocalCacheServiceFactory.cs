@@ -229,7 +229,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 RetryIntervalSeconds = cacheConfig.ConnectionRetryIntervalSeconds,
             };
 
-            LocalCache localCache;
+            MemoizationStore.Interfaces.Caches.ICache localCache;
             if (cacheConfig.EnableMetadataServer)
             {
                 localCache = LocalCache.CreateRpcCache(logger, metadataRootPath, serviceClientConfiguration);

@@ -87,7 +87,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// <inheritdoc />
         CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name, IContentSession contentSession)
         {
-            Contract.Requires(contentSession == null);
             return CreateSession(context, name, ImplicitPin.None).Select(session => (IMemoizationSession)session);
         }
 

@@ -39,6 +39,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         public readonly List<Analyzer> Analyzers;
 
         /// <summary>
+        /// File containing the list of environment variables which should be set before analyzing the script
+        /// Format for each line of the file: VariableName=VariableValue
+        /// </summary>
+        public readonly string EnvironmentFile;
+
+        /// <summary>
         /// Object directory used for evaluation.
         /// </summary>
         public readonly string ObjectDirectory;
@@ -100,6 +106,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 {
                     OutputDirectory = GetFullPath(opt.Value, opt);
                 }
+                else if (opt.Name.Equals("EnvironmentFile", StringComparison.OrdinalIgnoreCase))
+                {
+                    EnvironmentFile = GetFullPath(opt.Value, opt);
+                }
                 else if (opt.Name.Equals("RedirectedUserProfileJunctionRoot", StringComparison.OrdinalIgnoreCase))
                 {
                     RedirectedUserProfileJunctionRoot = GetFullPath(opt.Value, opt);
@@ -160,6 +170,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             writer.WriteOption(nameof(Config), "Optional main config file to be used.", shortName: "c");
             writer.WriteOption(nameof(Filter), "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
+            writer.WriteOption(nameof(EnvironmentFile), "File path containing environment variables to set before analyzing script.  Format is each line: VariableName=VariableValue");
             writer.WriteOption("Analyzer", "One or more analyzers to run. Subsequent arguments are analyzer specific.", shortName: "a");
             writer.WriteOption($"{nameof(Fix)}[+|-]", "Whether the analyzer should fix the specs.");
 

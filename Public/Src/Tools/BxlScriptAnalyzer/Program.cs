@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using System.IO;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -71,6 +72,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             if (arguments.Help)
             {
                 return 0;
+            }
+
+            if (arguments.EnvironmentFile != null )
+            {
+                SetEnvironment(arguments.EnvironmentFile);
             }
 
             // TODO: Don't assume particular hash types (this is particularly seen in WorkspaceNugetModuleResolver.TryGetExpectedContentHash).
@@ -141,6 +147,21 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 }
 
                 return 0;
+            }
+        }
+
+        private static void SetEnvironment(string environmentFile)
+        {
+            if (File.Exists(environmentFile))
+            {
+                foreach (var environmentLine in File.ReadAllLines(environmentFile))
+                {
+                    int equalsIndex = environmentLine.IndexOf('=');
+                    if (equalsIndex != -1)
+                    {
+                        Environment.SetEnvironmentVariable(environmentLine.Substring(0, equalsIndex), environmentLine.Substring(equalsIndex + 1));
+                    }
+                }
             }
         }
 

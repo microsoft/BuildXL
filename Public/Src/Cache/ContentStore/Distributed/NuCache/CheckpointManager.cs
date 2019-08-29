@@ -73,7 +73,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Counters = counters;
         }
 
-
         /// <summary>
         /// Creates a checkpoint for a given sequence point.
         /// </summary>
@@ -136,6 +135,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             InitializeIncrementalCheckpointIfNeeded(restoring: false);
 
             var incrementalCheckpointsPrefix = $"incrementalCheckpoints/{sequencePoint.SequenceNumber}.{Guid.NewGuid()}.";
+            // See the comment of _incrementalCheckpointInfo for the meaning of keys and values.
             var newCheckpointInfo = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             // Get files in checkpoint and apply changes to the incremental checkpoint directory (locally and in blob storage)
@@ -151,7 +151,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             checkpointId += IncrementalCheckpointIdSuffix;
 
             await _checkpointRegistry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailure();
-            UpdateIncrementalCheckpointInfo(newCheckpointInfo);
+
+            // Have to create a dictionary in .NET 4.5.1 because ConcurrentDictionary does not implement IReadOnlyDictionary there.
+#if NET_FRAMEWORK_451
+            IReadOnlyDictionary<string, string> readOnlyCheckpointInfo = new Dictionary<string, string>(newCheckpointInfo);
+#else
+            IReadOnlyDictionary<string, string> readOnlyCheckpointInfo = newCheckpointInfo;
+#endif
+            UpdateIncrementalCheckpointInfo(readOnlyCheckpointInfo);
         }
 
         private async Task UploadFilesAsync(OperationContext context, List<AbsolutePath> files, ConcurrentDictionary<string, string> newCheckpointInfo, string incrementalCheckpointsPrefix)
@@ -329,7 +336,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             if (isIncrementalCheckpoint)
                             {
-                                successfullyUpdatedIncrementalState = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
+                                var restoreCheckpointResult = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
+                                successfullyUpdatedIncrementalState = restoreCheckpointResult;
+
+                                if (!restoreCheckpointResult)
+                                {
+                                    _tracer.Debug(context, $"Failed restoring incremental checkpoint '{restoreCheckpointResult}'. Restoring the full checkpoing...");
+                                    RestoreFullCheckpointAsync(checkpointFile, extractedCheckpointDirectory);
+                                }
                             }
                             else
                             {
@@ -353,22 +367,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ZipFile.ExtractToDirectory(checkpointFile.ToString(), extractedCheckpointDirectory.ToString());
         }
 
-        private async Task<bool> RestoreCheckpointIncrementalAsync(OperationContext context, AbsolutePath checkpointFile, AbsolutePath checkpointTargetDirectory)
+        private Task<BoolResult> RestoreCheckpointIncrementalAsync(OperationContext context, AbsolutePath checkpointFile, AbsolutePath checkpointTargetDirectory)
         {
-            InitializeIncrementalCheckpointIfNeeded(restoring: true);
+            return context.PerformOperationAsync(
+                _tracer,
+                async () =>
+                {
+                    InitializeIncrementalCheckpointIfNeeded(restoring: true);
 
-            // Parse the checkpoint info for the checkpoint being restored
-            var newCheckpointInfo = ParseCheckpointInfo(checkpointFile);
+                    // Parse the checkpoint info for the checkpoint being restored
+                    var newCheckpointInfo = ParseCheckpointInfo(checkpointFile);
 
-            foreach (var (key, value) in newCheckpointInfo)
-            {
-                await RestoreFileAsync(context, checkpointTargetDirectory, key, value).ThrowIfFailure();
-            }
-            
-            // Finalize by adding the incremental checkpoint info file to the local incremental checkpoint directory
-            await HardlinkWithFallBackAsync(context, checkpointFile, _incrementalCheckpointInfoFile);
-            UpdateIncrementalCheckpointInfo(newCheckpointInfo);
-            return true;
+                    foreach (var (key, value) in newCheckpointInfo)
+                    {
+                        await RestoreFileAsync(context, checkpointTargetDirectory, key, value).ThrowIfFailure();
+                    }
+
+                    // Finalize by adding the incremental checkpoint info file to the local incremental checkpoint directory
+                    await HardlinkWithFallBackAsync(context, checkpointFile, _incrementalCheckpointInfoFile);
+                    UpdateIncrementalCheckpointInfo(newCheckpointInfo);
+                    return BoolResult.Success;
+                });
         }
 
         private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId)

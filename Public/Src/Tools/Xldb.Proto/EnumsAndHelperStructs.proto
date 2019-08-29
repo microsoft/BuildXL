@@ -106,6 +106,7 @@ enum FileMonitoringViolationAnalyzer_AccessLevel{
 
 enum PipCacheMissType{
     Invalid = 0;
+    Hit = 51;
     MissForDescriptorsDueToStrongFingerprints = 53;
     MissForDescriptorsDueToWeakFingerprints = 54;
     MissForDescriptorsDueToArtificialMissOptions = 55;
@@ -114,7 +115,6 @@ enum PipCacheMissType{
     MissForProcessMetadata = 58;
     MissForProcessMetadataFromHistoricMetadata = 59;
     MissForProcessOutputContent = 60;
-    Hit = 51;
     MissForProcessConfiguredUncacheable = 61;
 }
 
@@ -808,7 +808,7 @@ message Pip{
 }
 
 message PipProvenance{
-    PipData Usage = 1;
+    string Usage = 1;
 
     string ModuleId = 2;
 
@@ -824,13 +824,13 @@ message ProcessPip{
 
     FileArtifact StandardInputFile = 3;
 
-    PipData StandardInputData = 4;
+    string StandardInputData = 4;
 
     StandardInput StandardInput = 5;
 
     FileArtifact ResponseFile = 6;
 
-    PipData ResponseFileData = 7;
+    string ResponseFileData = 7;
 
     FileArtifact Executable = 8;
 
@@ -838,7 +838,7 @@ message ProcessPip{
 
     AbsolutePath WorkingDirectory = 10;
 
-    PipData Arguments = 11;
+    string Arguments = 11;
 
     repeated EnvironmentVariable EnvironmentVariable = 12;
 
@@ -873,7 +873,7 @@ message WriteFile{
 
     FileArtifact Destination = 2;
 
-    PipData Contents = 3;
+    string Contents = 3;
 
     WriteFileEncoding Encoding = 4;
 
@@ -905,24 +905,22 @@ message SealDirectory{
 
     repeated string Patterns = 3;
 
-    AbsolutePath DirectoryRoot = 4;
+    repeated FileArtifact Contents = 4;
 
-    repeated FileArtifact Contents = 5;
+    repeated DirectoryArtifact ComposedDirectories = 5;
 
-    repeated DirectoryArtifact ComposedDirectories = 6;
+    bool IsComposite = 6;
 
-    bool IsComposite = 7;
+    bool Scrub = 7;
 
-    bool Scrub = 8;
+    DirectoryArtifact Directory = 8;
 
-    DirectoryArtifact Directory = 9;
-
-    bool IsSealSourceDirectory = 10;
+    bool IsSealSourceDirectory = 9;
 
     // Overridden Member Variables
-    repeated string Tags = 11;
+    repeated string Tags = 10;
 
-    PipProvenance Provenance = 12;
+    PipProvenance Provenance = 11;
 }
 
 message IpcPip{
@@ -930,7 +928,7 @@ message IpcPip{
 
     IpcClientInfo IpcInfo = 2;
 
-    PipData MessageBody = 3;
+    string MessageBody = 3;
 
     repeated uint32 ServicePipDependencies = 4;
 
@@ -948,28 +946,16 @@ message IpcPip{
     PipProvenance Provenance = 10;
 }
 
-message PipData{
-    string FragmentSeparator = 1;
-
-    int32 FragmentCount = 2;
-
-    PipDataFragmentEscaping FragmentEscaping = 3;
-
-    PipDataEntry HeaderEntry = 4;
-
-    repeated PipDataEntry Entries = 5;
-}
-
 message StandardInput{
     FileArtifact File = 1;
 
-    PipData Data = 2;
+    string Data = 2;
 }
 
 message EnvironmentVariable{
     string Name = 1;
 
-    PipData Value = 2;
+    string Value = 2;
 
     bool IsPassThrough = 3;
 }

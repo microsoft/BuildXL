@@ -536,7 +536,7 @@ if (!$skipFilter){
     $IdeFilter = "spec='Public\src\Deployment\ide.dsc'";
     $TestDeploymentFilter = "spec='Public\src\Deployment\tests.dsc'";
     $PrivateWdgFilter = "dpt(spec='private\Guests\WDG\*')";
-    $BxlLongRunningFilter = "dpt(spec='*\Test.BuildXL.FrontEnd.Script.Interpretation.dsc')";
+    $BxlLongRunningFilter = "spec='*\Test.BuildXL.FrontEnd.Script.Interpretation.dsc'";
 
     if ($Minimal) {
         # filtering by core deployment.

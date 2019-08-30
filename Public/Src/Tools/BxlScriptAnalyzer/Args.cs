@@ -36,7 +36,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         private readonly PathTable m_pathTable;
 
         /// <nodoc />
-        public Args(CommandLineConfiguration commandLineConfig, PathTable pathTable, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
+        public Args(CommandLineConfiguration commandLineConfig, PathTable pathTable, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
             : base(args)
         {
             CommandLineConfig = commandLineConfig;

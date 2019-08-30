@@ -32,6 +32,11 @@ namespace BuildXL.Utilities
         public const string DummyString = "Dummy_String";
 
         /// <summary>
+        /// Dummy String 2
+        /// </summary>
+        public const string DummyString2 = "Dummy_String";
+
+        /// <summary>
         /// Name of the (psuedo-)environment variable indicating if the build is running in CloudBuild or not.
         /// </summary>
         /// <remarks>

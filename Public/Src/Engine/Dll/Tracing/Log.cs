@@ -2688,7 +2688,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
+            Message = "Testing Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
 
         [GeneratedEvent(

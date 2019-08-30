@@ -26,8 +26,6 @@ message EventCountByTypeKey{
 
 message EventCountByTypeValue{
     map<uint32, int32> WorkerToCountMap = 1;
-
-    map<uint32, int32> WorkerToPayloadMap = 2;
 }
 
 // Event query should be of this format. It also serves as the key to the DB

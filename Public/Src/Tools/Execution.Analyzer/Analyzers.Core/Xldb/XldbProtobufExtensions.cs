@@ -307,7 +307,6 @@ namespace BuildXL.Execution.Analyzer
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
                 Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(data.Duration),
-
                 // + 1 is here since PipExecutionStep is part of the key, and protobuf does not serialize 0 for ints, so we
                 // are shifting every enum value by 1
                 Step = (PipExecutionStep)(data.Step + 1),
@@ -723,9 +722,12 @@ namespace BuildXL.Execution.Analyzer
             xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.UntrackedPaths.AddRange(pip.UntrackedPaths.Select(path => path.ToAbsolutePath(pathTable)));
             xldbProcessPip.UntrackedScopes.AddRange(pip.UntrackedScopes.Select(path => path.ToAbsolutePath(pathTable)));
-            xldbProcessPip.FileOutputs.AddRange(pip.FileOutputs.Select(
-                output => !output.IsValid ? null : new Xldb.Proto.FileArtifactWithAttributes()
-                { Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.Proto.FileExistence)output.FileExistence }));
+            xldbProcessPip.FileOutputs.AddRange(pip.FileOutputs.Select(output => !output.IsValid ? null : new Xldb.Proto.FileArtifactWithAttributes()
+            {
+                Path = output.Path.ToAbsolutePath(pathTable),
+                RewriteCount = output.RewriteCount,
+                FileExistence = (Xldb.Proto.FileExistence)output.FileExistence
+            }));
             xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable)));
             xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable)));
             xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable)));

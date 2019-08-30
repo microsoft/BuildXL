@@ -122,7 +122,7 @@ namespace Xldb.Analyzer
             using (var outputStream = File.OpenWrite(outputFilePath))
             using (var writer = new StreamWriter(outputStream))
             {
-                var workerToEventDict = new Dictionary<uint, Dictionary<ExecutionEventId, (int, int)>>();
+                var workerToEventDict = new Dictionary<uint, Dictionary<ExecutionEventId, int>>();
                 foreach (ExecutionEventId eventId in Enum.GetValues(typeof(ExecutionEventId)))
                 {
                     var eventCount = dataStore.GetCountByEvent(eventId);
@@ -133,20 +133,14 @@ namespace Xldb.Analyzer
                         {
                             if (workerToEventDict.TryGetValue(workerCount.Key, out var eventDict))
                             {
-                                eventDict[eventId] = (workerCount.Value, 0);
+                                eventDict[eventId] = workerCount.Value;
                             }
                             else
                             {
-                                var dict = new Dictionary<ExecutionEventId, (int, int)>();
-                                dict.Add(eventId, (workerCount.Value, 0));
+                                var dict = new Dictionary<ExecutionEventId, int>();
+                                dict.Add(eventId, workerCount.Value);
                                 workerToEventDict.Add(workerCount.Key, dict);
                             }
-                        }
-                        foreach (var payloadSize in eventCount.WorkerToPayloadMap)
-                        {
-                            workerToEventDict.TryGetValue(payloadSize.Key, out var eventDict);
-                            eventDict.TryGetValue(eventId, out var tup);
-                            eventDict[eventId] = (tup.Item1, payloadSize.Value);
                         }
                     }
                 }
@@ -158,10 +152,9 @@ namespace Xldb.Analyzer
                     foreach (var eventStats in workerDict.Value)
                     {
                         writer.WriteLine(
-                        "{0}: {1} Count = {2}",
+                        "{0}: Count = {1}",
                         eventStats.Key.ToString().PadRight(maxLength, ' '),
-                        eventStats.Value.Item2.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '),
-                        eventStats.Value.Item1.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '));
+                        eventStats.Value.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '));
                     }
                     writer.WriteLine();
                 }
@@ -245,15 +238,34 @@ namespace Xldb.Analyzer
                 uint pipId = castedPip.GraphInfo.PipId;
 
                 writer.WriteLine("Pip Execution Performance Information:\n");
-                dataStore.GetPipExecutionPerformanceEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
+                foreach (var i in dataStore.GetPipExecutionPerformanceEventByKey(pipId))
+                {
+                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+                }
+
                 writer.WriteLine("Pip Execution Step Performance Information:\n");
-                dataStore.GetPipExecutionStepPerformanceEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
+                foreach (var i in dataStore.GetPipExecutionStepPerformanceEventByKey(pipId))
+                {
+                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+                }
+
                 writer.WriteLine("Process Execution Monitoring Information:\n");
-                dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
+                foreach(var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
+                {
+                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+                }
+
                 writer.WriteLine("Process Fingerprint Computation Information:\n");
-                dataStore.GetProcessFingerprintComputationEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
+                foreach(var i in dataStore.GetProcessFingerprintComputationEventByKey(pipId))
+                {
+                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+                }
+
                 writer.WriteLine("Directory Membership Hashted Information:\n");
-                dataStore.GetDirectoryMembershipHashedEventByKey(pipId).ToList().ForEach(i => writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented))));
+                foreach(var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
+                {
+                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
+                }
 
                 writer.WriteLine("Dependency Violation Reported Event:\n");
                 var depViolationEvents = dataStore.GetDependencyViolatedEventByKey(pipId);
@@ -266,14 +278,24 @@ namespace Xldb.Analyzer
                 if (pipType == PipType.Process)
                 {
                     writer.WriteLine("Getting directory output information for Process Pip");
-                    dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId).ToList().ForEach(
-                        output => output.FileArtifactArray.ToList().ForEach(file => writer.WriteLine(JsonConvert.SerializeObject(file, Formatting.Indented))));
+
+                    foreach (var output in dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId))
+                    {
+                        foreach (var file in output.FileArtifactArray)
+                        {
+                            writer.WriteLine(JsonConvert.SerializeObject(file, Formatting.Indented));
+                        }
+                    }
 
                     writer.WriteLine("Geting directory dependency information for Process Pip");
 
                     var pipGraph = dataStore.GetPipGraphMetaData();
                     var sealDirectoryAndProducersDict = new Dictionary<DirectoryArtifact, uint>();
-                    pipGraph.AllSealDirectoriesAndProducers.ToList().ForEach(kvp => sealDirectoryAndProducersDict.Add(kvp.Artifact, kvp.PipId));
+
+                    foreach(var kvp in pipGraph.AllSealDirectoriesAndProducers)
+                    {
+                        sealDirectoryAndProducersDict.Add(kvp.Artifact, kvp.PipId);
+                    }
 
                     var directories = new Stack<(DirectoryArtifact artifact, string path)>(
                         ((ProcessPip)castedPip).DirectoryDependencies

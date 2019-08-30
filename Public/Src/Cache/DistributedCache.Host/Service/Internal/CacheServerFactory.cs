@@ -172,21 +172,13 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
-            var storeType = Enum.Parse(typeof(MetadataStoreType), distributedSettings.MetadataStoreType);
-
-            switch (storeType)
+            if (distributedSettings.UseRedisMetadataStore)
             {
-                case MetadataStoreType.RocksDb:
-                    return CreateRocksDbStore();
-
-                case MetadataStoreType.Redis:
-                    return CreateRedisStore();
-
-                default:
-                    throw new NotSupportedException($"Metadata store type {storeType} is not supported.");
+                Contract.Assert(redisConnectionString != null);
+                var connectionStringProvider = new LiteralConnectionStringProvider(redisConnectionString);
+                return RedisMemoizationStore.Create(_logger, connectionStringProvider, distributedSettings.KeySpacePrefix, SystemClock.Instance);
             }
-
-            IMemoizationStore CreateRocksDbStore()
+            else
             {
                 var config = new RocksDbMemoizationStoreConfiguration()
                 {
@@ -202,13 +194,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                 }
 
                 return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
-            }
-
-            IMemoizationStore CreateRedisStore()
-            {
-                Contract.Assert(redisConnectionString != null);
-                var connectionStringProvider = new LiteralConnectionStringProvider(redisConnectionString);
-                return RedisMemoizationStore.Create(_logger, connectionStringProvider, distributedSettings.KeySpacePrefix, SystemClock.Instance);
             }
         }
 

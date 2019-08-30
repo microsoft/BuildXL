@@ -54,18 +54,29 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <inheritdoc />
         public override int Run(Args arguments)
         {
-            try
+            int retries = 0;
+            int maxRetries = 3;
+            while (retries < maxRetries)
             {
-                return RunInner(arguments);
+                try
+                {
+                    retries++;
+                    return RunInner(arguments);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Try: {retries} of {maxRetries} to analyze workspace hit an error.");
+                    if (retries == maxRetries)
+                    {
+                        ConsoleColor original = Console.ForegroundColor;
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Error.WriteLine(ex.GetLogEventMessage());
+                        Console.ForegroundColor = original;
+                    }
+                }
             }
-            catch (Exception ex)
-            {
-                ConsoleColor original = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine(ex.GetLogEventMessage());
-                Console.ForegroundColor = original;
-                return 1;
-            }
+
+            return 1;
         }
 
         /// <inheritdoc />

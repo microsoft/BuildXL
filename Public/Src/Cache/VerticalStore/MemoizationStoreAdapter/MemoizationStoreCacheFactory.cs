@@ -15,6 +15,7 @@ using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BuildXL.Cache.ContentStore.Sessions;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -176,6 +177,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             /// <nodoc />
             [DefaultValue(false)]
             public bool ReplaceExistingOnPlaceFile { get; set; }
+
+            /// <summary>
+            /// Whether the cache will communicate with a server in a separate process via GRPC.
+            /// </summary>
+            [DefaultValue(false)]
+            public bool EnableMetadataServer { get; set; }
 
             /// <nodoc />
             [DefaultValue(false)]
@@ -364,7 +371,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        private static MemoizationStoreConfiguration GetMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
+        private static MemoizationStoreConfiguration GetInProcMemoizationStoreConfiguration(AbsolutePath cacheRoot, Config config, CasConfig configCore)
         {
             if (config.UseRocksDbMemoizationStore)
             {
@@ -398,36 +405,51 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        private static LocalCache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
+        private static MemoizationStore.Interfaces.Caches.ICache CreateLocalCacheWithSingleCas(Config config, DisposeLogger logger)
         {
-            LocalCacheConfiguration localCacheConfiguration;
-            if (config.EnableContentServer)
+            if (config.EnableContentServer && config.EnableMetadataServer)
             {
-                localCacheConfiguration = LocalCacheConfiguration.CreateServerEnabled(
-                    config.GrpcPort,
-                    config.CacheName,
-                    config.ScenarioName,
-                    config.RetryIntervalSeconds,
-                    config.RetryCount);
+                Contract.Assert(config.RetryIntervalSeconds >= 0);
+                Contract.Assert(config.RetryCount >= 0);
+
+                var rpcConfiguration = new ServiceClientRpcConfiguration(config.GrpcPort);
+                var serviceClientConfiguration = new ServiceClientContentStoreConfiguration(config.CacheName, rpcConfiguration, config.ScenarioName)
+                {
+                    RetryIntervalSeconds = (uint)config.RetryIntervalSeconds,
+                    RetryCount = (uint)config.RetryCount,
+                };
+
+                return LocalCache.CreateRpcCache(logger, serviceClientConfiguration);
             }
             else
             {
-                localCacheConfiguration = LocalCacheConfiguration.CreateServerDisabled();
+                Contract.Assert(!config.EnableMetadataServer, "It is not supported to use a Metadata server without a Content server");
+
+                LocalCacheConfiguration localCacheConfiguration;
+                if (config.EnableContentServer)
+                {
+                    localCacheConfiguration = LocalCacheConfiguration.CreateServerEnabled(
+                        config.GrpcPort,
+                        config.CacheName,
+                        config.ScenarioName,
+                        config.RetryIntervalSeconds,
+                        config.RetryCount);
+                }
+                else
+                {
+                    localCacheConfiguration = LocalCacheConfiguration.CreateServerDisabled();
+                }
+
+                return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(logger,
+                    new AbsolutePath(config.CacheRootPath),
+                    GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, GetCasConfig(config)),
+                    localCacheConfiguration,
+                    configurationModel: CreateConfigurationModel(GetCasConfig(config)),
+                    clock: null,
+                    checkLocalFiles: config.CheckLocalFiles,
+                    emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
             }
 
-            var configCore = GetCasConfig(config);
-            var configurationModel = CreateConfigurationModel(configCore);
-            var cacheRoot = new AbsolutePath(config.CacheRootPath);
-            var memoConfig = GetMemoizationStoreConfiguration(cacheRoot, config, configCore);
-            return new LocalCache(
-                logger,
-                cacheRoot,
-                memoConfig,
-                localCacheConfiguration,
-                configurationModel: configurationModel,
-                clock: null,
-                checkLocalFiles: config.CheckLocalFiles,
-                emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
         }
 
         private static LocalCache CreateLocalCacheWithStreamPathCas(Config config, DisposeLogger logger)
@@ -435,19 +457,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             Contract.Requires(config.UseStreamCAS);
 
             SetDefaultsForStreamCas(config);
-
             var configCoreForPath = GetCasConfig(config);
-            var configurationModelForPath = CreateConfigurationModel(configCoreForPath);
-            var configurationModelForStreams = CreateConfigurationModel(config.StreamCAS);
-            
-            var memoConfig = GetMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, configCoreForPath);
-            return new LocalCache(
+            return LocalCache.CreateStreamPathContentStoreInProcMemoizationStoreCache(
                 logger,
                 new AbsolutePath(config.StreamCAS.CacheRootPath),
                 new AbsolutePath(configCoreForPath.CacheRootPath),
-                memoConfig,
-                configurationModelForStreams,
-                configurationModelForPath);
+                GetInProcMemoizationStoreConfiguration(new AbsolutePath(config.CacheRootPath), config, configCoreForPath),
+                CreateConfigurationModel(config.StreamCAS),
+                CreateConfigurationModel(configCoreForPath));
         }
 
         /// <inheritdoc />

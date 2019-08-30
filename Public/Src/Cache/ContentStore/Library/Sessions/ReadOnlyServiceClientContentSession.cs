@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected readonly TempFileStreamFactory TempFileStreamFactory;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer("ServiceClientContentSession");
+        protected override Tracer Tracer { get; } = new Tracer(nameof(ReadOnlyServiceClientContentSession));
 
         /// <summary>
         ///     Request to server retry policy.

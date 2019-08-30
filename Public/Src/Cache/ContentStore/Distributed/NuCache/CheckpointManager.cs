@@ -107,7 +107,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     finally
                     {
-                        ClearIncrementalCheckpointStateIfNeeded(successfullyUpdatedIncrementalState);
+                        ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
                     }
                 });
         }
@@ -153,12 +153,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             await _checkpointRegistry.RegisterCheckpointAsync(context, checkpointId, sequencePoint).ThrowIfFailure();
 
             // Have to create a dictionary in .NET 4.5.1 because ConcurrentDictionary does not implement IReadOnlyDictionary there.
-#if NET_FRAMEWORK_451
-            IReadOnlyDictionary<string, string> readOnlyCheckpointInfo = new Dictionary<string, string>(newCheckpointInfo);
-#else
-            IReadOnlyDictionary<string, string> readOnlyCheckpointInfo = newCheckpointInfo;
-#endif
-            UpdateIncrementalCheckpointInfo(readOnlyCheckpointInfo);
+            UpdateIncrementalCheckpointInfo(new Dictionary<string, string>(newCheckpointInfo));
         }
 
         private async Task UploadFilesAsync(OperationContext context, List<AbsolutePath> files, ConcurrentDictionary<string, string> newCheckpointInfo, string incrementalCheckpointsPrefix)
@@ -262,10 +257,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void ClearIncrementalCheckpointStateIfNeeded(bool successfullyUpdatedIncrementalState)
+        private void ClearIncrementalCheckpointStateIfNeeded(OperationContext context, bool successfullyUpdatedIncrementalState)
         {
             if (!successfullyUpdatedIncrementalState && _configuration.UseIncrementalCheckpointing)
             {
+                _tracer.Debug(context, $"Incremental checkpoint state is invalid or corrupted. Deleting '{_incrementalCheckpointInfoFile}'.");
                 _incrementalCheckpointInfo = CollectionUtilities.EmptyDictionary<string, string>();
                 _fileSystem.DeleteFile(_incrementalCheckpointInfoFile);
             }
@@ -336,14 +332,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             if (isIncrementalCheckpoint)
                             {
-                                var restoreCheckpointResult = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
-                                successfullyUpdatedIncrementalState = restoreCheckpointResult;
-
-                                if (!restoreCheckpointResult)
-                                {
-                                    _tracer.Debug(context, $"Failed restoring incremental checkpoint '{restoreCheckpointResult}'. Restoring the full checkpoing...");
-                                    RestoreFullCheckpointAsync(checkpointFile, extractedCheckpointDirectory);
-                                }
+                                successfullyUpdatedIncrementalState = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
                             }
                             else
                             {
@@ -356,7 +345,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     finally
                     {
-                        ClearIncrementalCheckpointStateIfNeeded(successfullyUpdatedIncrementalState);
+                        ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
                     }
                 });
         }
@@ -396,7 +385,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _tracer,
                 async () =>
                 {
-                    var incrementalCheckpointFile = _incrementalCheckpointDirectory / relativePath;
+                    var incrementalCheckpointFileResult = CreatePath(_incrementalCheckpointDirectory, relativePath);
+                    if (!incrementalCheckpointFileResult.Succeeded)
+                    {
+                        return incrementalCheckpointFileResult;
+                    }
+
+                    var incrementalCheckpointFile = incrementalCheckpointFileResult.Value;
                     if ((_incrementalCheckpointInfo.TryGetValue(relativePath, out var fileStorageId)
                             && storageId == fileStorageId)
                         && _database.IsImmutable(incrementalCheckpointFile)
@@ -417,8 +412,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Move the file from the incremental checkpoint into the extraction directory for loading by the database
                     await HardlinkWithFallBackAsync(context, incrementalCheckpointFile, checkpointTargetDirectory / relativePath);
                     return BoolResult.Success;
-                }, extraStartMessage: relativePath
-            );
+                },
+                extraStartMessage: relativePath);
+        }
+
+        private static Result<AbsolutePath> CreatePath(AbsolutePath basePath, string relativePath)
+        {
+            try
+            {
+                // In some cases, the incremental checkpoint state can be corrupted,
+                // causing this operation to fail with ArgumentException.
+                return basePath / relativePath;
+            }
+            catch (ArgumentException e) when (e.Message.Contains("Illegal characters in path"))
+            {
+                return Result.FromErrorMessage<AbsolutePath>($"Illegal characters in path '{relativePath}'.");
+            }
         }
     }
 }

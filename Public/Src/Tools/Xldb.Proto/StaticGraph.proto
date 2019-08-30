@@ -85,12 +85,6 @@ message DirectoryConsumerValue{
 //  message wraper { repeated primitiveMap; }
 //
 
-message FileArtifactMap{
-    FileArtifact Artifact = 1;
-
-    uint32 PipId = 2;
-}
-
 message DirectoryArtifactMap{
     DirectoryArtifact Artifact = 1;
 

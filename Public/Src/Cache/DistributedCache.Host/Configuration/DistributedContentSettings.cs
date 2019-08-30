@@ -410,6 +410,12 @@ namespace BuildXL.Cache.Host.Configuration
         public int? MaxEventProcessingConcurrency { get; set; }
 
         [DataMember]
+        public int? EventBatchSize { get; set; }
+
+        [DataMember]
+        public int? EventProcessingMaxQueueSize { get; set; }
+
+        [DataMember]
         public string[] AzureStorageSecretNames { get; set; }
 
         [DataMember]
@@ -505,6 +511,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        [DataMember]
+        public bool EnableMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
         #endregion
 

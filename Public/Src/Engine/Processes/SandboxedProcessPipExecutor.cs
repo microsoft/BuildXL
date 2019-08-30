@@ -2967,6 +2967,7 @@ namespace BuildXL.Processes
                     ProcessPools.DynamicWriteAccesses.GetInstance())
                 using (PooledObjectWrapper<List<ObservedFileAccess>> accessesUnsortedWrapper =
                     ProcessPools.AccessUnsorted.GetInstance())
+                using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
@@ -3086,12 +3087,39 @@ namespace BuildXL.Processes
                         accessesUnsorted.Add(new ObservedFileAccess(entry.Key, observationFlags, entry.Value));
                     }
 
+                    // AccessesUnsorted might include various accesses to directories leading to the files inside of shared opaques,
+                    // mainly CreateDirectory and ProbeDirectory. To make strong fingerprint computation more stable, we are excluding such
+                    // accesses from the list that is passed into the ObservedInputProcessor (as a result, they will not be a part of the path set).
+                    //
+                    // Example, given this path: '\sod\dir1\dir2\file.txt', we will exclude accesses to dir1 and dir2 only.
+                    var excludedPaths = excludedPathsWrapper.Instance;
+                    foreach (var sod in dynamicWriteAccesses)
+                    {
+                        foreach (var file in sod.Value)
+                        {
+                            var pathElement = file.GetParent(m_context.PathTable);
+                            
+                            while (pathElement.IsValid && pathElement != sod.Key && excludedPaths.Add(pathElement))
+                            {                                
+                                pathElement = pathElement.GetParent(m_context.PathTable);
+                            }
+                        }
+                    }
+
+                    var filteredAccessesUnsorted = accessesUnsorted
+                        .Where(access =>
+                            // if it's an enumeration -> include always
+                            (access.ObservationFlags & ObservationFlags.Enumeration) == ObservationFlags.Enumeration
+                            // otherwise, check whether it's an excluded path 
+                            || !excludedPaths.Contains(access.Path))
+                        .ToList();
+
                     sharedDynamicDirectoryWriteAccesses = dynamicWriteAccesses.ToDictionary(
                         kvp => kvp.Key,
                         kvp => (IReadOnlyCollection<AbsolutePath>)kvp.Value.ToReadOnlyArray());
 
                     return SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
-                        accessesUnsorted,
+                        filteredAccessesUnsorted,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
                 }
             }

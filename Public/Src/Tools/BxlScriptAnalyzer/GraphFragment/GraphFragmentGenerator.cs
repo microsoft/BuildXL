@@ -100,10 +100,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 return false;
             }
 
-            var serializer = new PipGraphFragmentSerializer(Context, new PipGraphFragmentContext());
-
             try
             {
+                var serializer = new PipGraphFragmentSerializer(Context, new PipGraphFragmentContext());
                 var pips = PipGraph.RetrieveScheduledPips().ToList();
                 if (SerializeUsingTopSort)
                 {
@@ -117,7 +116,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
                 Logger.GraphFragmentSerializationStats(LoggingContext, serializer.FragmentDescription, serializer.Stats.ToString());
             }
-            catch (Exception e) when (e is BuildXLException || e is IOException)
+            catch (Exception e)
             {
                 Logger.GraphFragmentExceptionOnSerializingFragment(LoggingContext, m_absoluteOutputPath.ToString(Context.PathTable), e.ToString());
                 return false;

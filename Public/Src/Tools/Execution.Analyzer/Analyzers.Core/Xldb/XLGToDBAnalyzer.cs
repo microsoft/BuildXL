@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.KeyValueStores;
 using BuildXL.Pips;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -280,17 +281,13 @@ namespace BuildXL.Execution.Analyzer
             {
                 eventCountVal.WorkerToCountMap.TryGetValue(workerId, out var count);
                 count++;
-                eventCountVal.WorkerToPayloadMap.TryGetValue(workerId, out var payload);
-                payload += eventPayloadSize;
 
                 eventCountVal.WorkerToCountMap[workerId] = count;
-                eventCountVal.WorkerToPayloadMap[workerId] = payload;
             }
             else
             {
                 eventCountVal = new EventCountByTypeValue();
                 eventCountVal.WorkerToCountMap.Add(workerId, 1);
-                eventCountVal.WorkerToPayloadMap.Add(workerId, eventPayloadSize);
                 m_eventCountByType.Add(eventId, eventCountVal);
             }
 
@@ -307,7 +304,7 @@ namespace BuildXL.Execution.Analyzer
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.FileArtifactContentDecided,
-                FileArtifactContentDecidedKey = data.FileArtifact.Path.ToString(PathTable, PathFormat.Windows),
+                FileArtifactContentDecidedKey = AbsolutePathToXldbString(data.FileArtifact.Path),
                 FileRewriteCount = data.FileArtifact.RewriteCount
             };
 
@@ -353,7 +350,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.DirectoryMembershipHashed,
                 PipId = data.PipId.Value,
-                DirectoryMembershipHashedKey = data.Directory.ToString(PathTable, PathFormat.Windows),
+                DirectoryMembershipHashedKey = AbsolutePathToXldbString(data.Directory),
                 EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
@@ -503,7 +500,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     EventTypeID = Xldb.Proto.ExecutionEventId.PipExecutionDirectoryOutputs,
                     PipId = data.PipId.Value,
-                    PipExecutionDirectoryOutputKey = directoryArtifact.Path.ToString(PathTable, PathFormat.Windows)
+                    PipExecutionDirectoryOutputKey = AbsolutePathToXldbString(directoryArtifact.Path)
                 };
 
                 foreach (var file in fileArtifactArray)
@@ -583,9 +580,35 @@ namespace BuildXL.Execution.Analyzer
                             var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
                             xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
 
-                            foreach (var directoryArtifact in sealDirectoryPip.ComposedDirectories)
+                            // If it is a shared opaque, then flatten the list of composted directories
+                            if (sealDirectoryPip.Kind == Pips.Operations.SealDirectoryKind.SharedOpaque)
                             {
-                                AddToDirectoryConsumerMap(directoryArtifact, pipId);
+                                var directoryQueue = new Queue<Utilities.DirectoryArtifact>();
+
+                                foreach (var initialDirectory in sealDirectoryPip.ComposedDirectories)
+                                {
+                                    directoryQueue.Enqueue(initialDirectory);
+                                }
+
+                                while (directoryQueue.Count > 0)
+                                {
+                                    var nestedDirectory = directoryQueue.Dequeue();
+                                    var nestedPipId = CachedGraph.PipGraph.GetSealedDirectoryNode(nestedDirectory).ToPipId();
+
+                                    if (CachedGraph.PipTable.IsSealDirectoryComposite(nestedPipId))
+                                    {
+                                        var nestedPip = (Pips.Operations.SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(nestedDirectory, Pips.PipQueryContext.SchedulerExecuteSealDirectoryPip);
+                                        foreach (var pendingDirectory in nestedPip.ComposedDirectories)
+                                        {
+                                            directoryQueue.Enqueue(pendingDirectory);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Contract.Assert(nestedDirectory.IsOutputDirectory());
+                                        AddToDirectoryConsumerMap(nestedDirectory, pipId);
+                                    }
+                                }
                             }
 
                             foreach (var fileArtifact in sealDirectoryPip.Contents)
@@ -624,7 +647,7 @@ namespace BuildXL.Execution.Analyzer
                         }
                         else
                         {
-                            Contract.Assert(false, "Unknown pip type parsed. Exiting analyzer ...");
+                            Contract.Assert(false, "Unknown pip type parsed");
                         }
 
                         // If the SemiStableHash != 0, then we want to create the SemistableHash -> PipId indirection.
@@ -644,13 +667,13 @@ namespace BuildXL.Execution.Analyzer
                             pipSemistableMap.Add(pipSemistableHashKey.ToByteArray(), pipIdValue.ToByteArray());
                         }
 
-                        var pipIdQuery = new PipIdKey()
+                        var pipIdKey = new PipIdKey()
                         {
                             PipId = hydratedPip.PipId.Value,
                             PipType = (Xldb.Proto.PipType)(pipType + 1)
                         };
 
-                        pipIdMap.Add(pipIdQuery.ToByteArray(), xldbSpecificPip.ToByteArray());
+                        pipIdMap.Add(pipIdKey.ToByteArray(), xldbSpecificPip.ToByteArray());
                     }
 
                     database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
@@ -678,7 +701,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileConsumerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    FileArtifact = kvp.Key.Path.ToString(PathTable, PathFormat.Windows),
+                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -693,7 +716,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryConsumerKey = new DirectoryProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    DirectoryArtifact = kvp.Key.Path.ToString(PathTable, PathFormat.Windows)
+                    DirectoryArtifact = AbsolutePathToXldbString(kvp.Key.Path)
                 };
 
                 var directoryConsumerValue = new DirectoryConsumerValue();
@@ -707,7 +730,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = kvp.Key.Path.ToString(PathTable, PathFormat.Windows),
+                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -724,7 +747,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryProducerKey = new DirectoryProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    DirectoryArtifact = kvp.Key.Path.ToString(PathTable, PathFormat.Windows)
+                    DirectoryArtifact = AbsolutePathToXldbString(kvp.Key.Path)
                 };
 
                 var directoryProducerValue = new DirectoryProducerValue()
@@ -740,7 +763,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = kvp.Key.Path.ToString(PathTable, PathFormat.Windows),
+                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -792,6 +815,14 @@ namespace BuildXL.Execution.Analyzer
                 Console.WriteLine("Failed to insert event data into RocksDb. Exiting analyzer now ...");
                 maybeInserted.Failure.Throw();
             }
+        }
+
+        /// <summary>
+        /// Convert an absolute path to a string specifically and only with windows path format (to keep it consistent amongst all databases)
+        /// </summary>
+        private string AbsolutePathToXldbString(Utilities.AbsolutePath path)
+        {
+            return path.ToString(PathTable, PathFormat.Windows);
         }
     }
 }

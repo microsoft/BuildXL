@@ -51,6 +51,23 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <inheritdoc />
         public override int Run(Args arguments)
         {
+            try
+            {
+                return RunInner(arguments);
+            }
+            catch (Exception ex)
+            {
+                ConsoleColor original = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine(ex.GetLogEventMessage());
+                Console.ForegroundColor = original;
+                return 1;
+            }
+        }
+
+        /// <inheritdoc />
+        private int RunInner(Args arguments)
+        {
             if (arguments.Help)
             {
                 return 0;
@@ -65,6 +82,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 var logger = Logger.CreateLogger();
 
+                // This needs to be passed in as a path through environment variable because it changes every 
                 if (!WorkspaceBuilder.TryBuildWorkspaceAndCollectFilesToAnalyze(
                     logger,
                     pathTable,
@@ -73,6 +91,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     arguments.Filter,
                     arguments.OutputDirectory,
                     arguments.ObjectDirectory,
+                    arguments.RedirectedUserProfileJunctionRoot,
+                    arguments.InCloudBuild,
                     arguments.Analyzers.Any(a => a.SerializeUsingTopSort),
                     out var workspace,
                     out var pipGraph,

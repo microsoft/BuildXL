@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -610,8 +611,8 @@ namespace BuildXL.Cache.ContentStore.App
             int maxSizeQuotaMB,
             string dataRootPath,
             CancellationToken ct,
-            int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null)
+            int? bufferSizeForGrpcCopies,
+            int? gzipBarrierSizeForGrpcCopies)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 

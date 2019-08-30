@@ -105,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IContentLocationStore contentLocationStore,
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
-            byte[] localMachineLocation,
+            MachineLocation localMachineLocation,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
@@ -114,11 +114,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Contract.Requires(name != null);
             Contract.Requires(inner != null);
             Contract.Requires(contentLocationStore != null);
-            Contract.Requires(localMachineLocation != null);
+            Contract.Requires(localMachineLocation.IsValid);
 
             Inner = inner;
             ContentLocationStore = contentLocationStore;
-            LocalCacheRootMachineLocation = new MachineLocation(localMachineLocation);
+            LocalCacheRootMachineLocation = localMachineLocation;
             _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
             Settings = settings;
 

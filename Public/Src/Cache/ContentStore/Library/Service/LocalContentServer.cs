@@ -57,5 +57,23 @@ namespace BuildXL.Cache.ContentStore.Service
         ///     Attempt to open event that will signal an imminent service shutdown or restart.
         /// </summary>
         public static EventWaitHandle OpenShutdownEvent(Context context, string scenario) => ServiceReadinessChecker.OpenShutdownEvent(context, scenario);
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            await _grpcContentServer.StartupAsync(context).ThrowIfFailure();
+
+            return await base.StartupCoreAsync(context);
+        }
+
+        /// <inheritdoc />
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        {
+            var result = await base.ShutdownCoreAsync(context);
+
+            result &= await _grpcContentServer.ShutdownAsync(context);
+
+            return result;
+        }
     }
 }

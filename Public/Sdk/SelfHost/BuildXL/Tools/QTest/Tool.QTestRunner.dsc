@@ -127,7 +127,10 @@ export function runQTest(args: QTestArguments): Result {
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
     if (qCodeCoverageEnumType === "DynamicCodeCov"){
-        changeAffectedInputListWrittenFile = p`${logDir}/changeAffectedInputs.txt`;
+        const parentDir = d`${logDir}`.parent;
+        const leafDir = d`${logDir}`.nameWithoutExtension;
+        const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
+        changeAffectedInputListWrittenFile = p`${dir}/changeAffectedInputs.txt`;
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
     

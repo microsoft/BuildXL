@@ -2697,7 +2697,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Value of environment varialbe: {envName} is {envValue}")]
+            Message = "Value of environment variable: {envName} is {envValue}")]
         internal abstract void LogEnvironmentVariables(LoggingContext context, string envName, string envValue);
 
         [GeneratedEvent(

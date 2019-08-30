@@ -803,30 +803,6 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
-            (int)LogEventId.WriteChangeAffectedInputsToFileFail,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = "Affected input lists {affectedInputNameSet} haven't been written into {writtenFilePath}.")]
-        public abstract void WriteChangeAffectedInputsToFileFail(
-            LoggingContext context,
-            string writtenFilePath, 
-            string affectedInputNameSet);
-
-        [GeneratedEvent(
-            (int)LogEventId.WriteChangeAffectedInputsToFileSuccuss,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = "Affected input lists {affectedInputNameSet} have been written into {writtenFilePath}.")]
-        public abstract void WriteChangeAffectedInputsToFileSuccuss(
-            LoggingContext context,
-            string writtenFilePath,
-            string affectedInputNameSet);      
-
-        [GeneratedEvent(
             (int)LogEventId.ReadWriteFileAccessConvertedToReadWarning,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

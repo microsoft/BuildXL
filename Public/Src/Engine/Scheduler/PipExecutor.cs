@@ -1389,12 +1389,6 @@ namespace BuildXL.Scheduler
                                 if (pip.ChangeAffectedInputListWrittenFilePath.IsValid)
                                 {
                                     changeAffectedInputs = environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip);
-                                    Logger.Log.GetChangeAffectedInputs(
-                                        operationContext,
-                                        processDescription,
-                                        pip.ChangeAffectedInputListWrittenFilePath.Path.ToString(pathTable),
-                                        changeAffectedInputs.ToString()
-                                    );
                                 }
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);

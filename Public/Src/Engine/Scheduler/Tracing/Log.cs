@@ -863,15 +863,6 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseStrongFingerprintComputedForPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string strongFingerprint);
 
         [GeneratedEvent(
-            (int)EventId.GetChangeAffectedInputs,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.Diagnostics,
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Affected input lists {affectedPathSet} has been retrieved and will be written into {writtenFilePath}.")]
-        internal abstract void GetChangeAffectedInputs(LoggingContext loggingContext, string pipDescription, string writtenFilePath, string affectedPathSet);
-
-        [GeneratedEvent(
             (int)EventId.TwoPhaseStrongFingerprintMatched,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

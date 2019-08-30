@@ -644,6 +644,11 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
+                if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
+                    {
+                        return SandboxedProcessPipExecutionResult.PreparationFailure();
+                    }
+
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -665,11 +670,6 @@ namespace BuildXL.Processes
                     }
 
                     if (!await PrepareOutputsAsync())
-                    {
-                        return SandboxedProcessPipExecutionResult.PreparationFailure();
-                    }
-
-                    if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
@@ -2579,32 +2579,14 @@ namespace BuildXL.Processes
                         ex => { throw new BuildXLException("Cannot get directory name", ex); });
 
                     PreparePathForOutputFile(m_pip.ChangeAffectedInputListWrittenFilePath);
-
-                    var content = string.Join(
-                           Environment.NewLine,
-                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet().OrderBy(n => n));
-
                     FileUtilities.CreateDirectory(directoryName);
                     await FileUtilities.WriteAllTextAsync(
                        destination,
-                       content,
+                       string.Join(
+                           Environment.NewLine,
+                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet().OrderBy(n=>n)
+                       ),
                     System.Text.Encoding.UTF8);
-
-                    if (!FileUtilities.FileExistsNoFollow(destination))
-                    {
-                        Tracing.Logger.Log.WriteChangeAffectedInputsToFileFail(
-                            m_loggingContext,
-                            destination,
-                            content);
-                    }
-                    else
-                    {
-                        Tracing.Logger.Log.WriteChangeAffectedInputsToFileSuccuss(
-                            m_loggingContext,
-                            destination,
-                            content);
-                    }
-
                 }
                 catch (BuildXLException ex)
                 {

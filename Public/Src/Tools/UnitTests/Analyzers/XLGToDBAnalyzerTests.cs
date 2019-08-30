@@ -132,9 +132,9 @@ namespace Test.Tool.Analyzers
             XAssert.AreNotEqual(0, dataStore.GetPipCacheMissEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetStatusReportedEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetBXLInvocationEvents().Count());
-            XAssert.AreNotEqual(0, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
 
             // For these tests, there should be no events logged
+            XAssert.AreEqual(0, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
             XAssert.AreEqual(0, dataStore.GetWorkerListEvents().Count());
             XAssert.AreEqual(0, dataStore.GetDependencyViolationReportedEvents().Count());
         }

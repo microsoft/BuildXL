@@ -26,7 +26,7 @@ namespace Script.Interpretation {
         ],
         //increase weight for frequent timeout pip
         runTestArgs: { 
-            weight: 2,
+            weight: 8,
         },
     });
 }

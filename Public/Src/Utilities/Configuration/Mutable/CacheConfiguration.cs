@@ -26,6 +26,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackingExclusionRoots = new List<AbsolutePath>();
             FileChangeTrackingInclusionRoots = new List<AbsolutePath>();
             ReplaceExistingFileOnMaterialization = false;
+            ElideMinimalGraphEnumerationAbsentPathProbes = true;
         }
 
         /// <nodoc />
@@ -56,6 +57,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseDedupStore = template.UseDedupStore;
             ReplaceExistingFileOnMaterialization = template.ReplaceExistingFileOnMaterialization;
             VfsCasRoot = pathRemapper.Remap(template.VfsCasRoot);
+            ElideMinimalGraphEnumerationAbsentPathProbes = template.ElideMinimalGraphEnumerationAbsentPathProbes;
         }
 
         /// <nodoc />
@@ -109,6 +111,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool DeterminismProbe { get; set; }
+
+        /// <inheritdoc />
+        public bool ElideMinimalGraphEnumerationAbsentPathProbes { get; set; }
 
         /// <inheritdoc />
         public bool? HistoricMetadataCache { get; set; }

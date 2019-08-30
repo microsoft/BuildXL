@@ -27,7 +27,6 @@ namespace Script.Interpretation {
         //increase weight for frequent timeout pip
         runTestArgs: { 
             weight: 2,
-            parallelBucketCount: 8,
         },
     });
 }

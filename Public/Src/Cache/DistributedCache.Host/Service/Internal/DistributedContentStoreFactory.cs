@@ -5,9 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Security;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -35,6 +33,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private readonly RedisContentSecretNames _redisContentSecretNames;
         private readonly string _keySpace;
         private readonly IAbsFileSystem _fileSystem;
+        private readonly DistributedCacheSecretRetriever _secretRetriever;
         private readonly ILogger _logger;
 
         private readonly DistributedContentSettings _distributedSettings;
@@ -44,7 +43,8 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         public DistributedContentStoreFactory(
             DistributedCacheServiceArguments arguments,
-            RedisContentSecretNames redisContentSecretNames)
+            RedisContentSecretNames redisContentSecretNames,
+            DistributedCacheSecretRetriever secretRetriever)
         {
             _logger = arguments.Logger;
             _arguments = arguments;
@@ -52,9 +52,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             _distributedSettings = arguments.Configuration.DistributedContentSettings;
             _keySpace = string.IsNullOrWhiteSpace(_arguments.Keyspace) ? RedisContentLocationStoreFactory.DefaultKeySpace : _arguments.Keyspace;
             _fileSystem = new PassThroughFileSystem(_logger);
+            _secretRetriever = secretRetriever;
         }
-
-        private RedisContentLocationStoreConfiguration GetRedisContentLocationStoreConfiguration(AbsolutePath localCacheRoot)
+        public IContentStore CreateContentStore(
+            AbsolutePath localCacheRoot,
+            NagleQueue<ContentHash> evictionAnnouncer = null,
+            ProactiveReplicationArgs replicationSettings = null,
+            DistributedEvictionSettings distributedEvictionSettings = null,
+            bool checkLocalFiles = true,
+            TrimBulkAsync trimBulkAsync = null)
         {
             var redisContentLocationStoreConfiguration = new RedisContentLocationStoreConfiguration
             {
@@ -110,20 +116,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 redisContentLocationStoreConfiguration.GarbageCollectionConfiguration = null;
             }
-
-            return redisContentLocationStoreConfiguration;
-        }
-
-        public IContentStore CreateContentStore(
-            AbsolutePath localCacheRoot,
-            NagleQueue<ContentHash> evictionAnnouncer = null,
-            ProactiveReplicationArgs replicationSettings = null,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            bool checkLocalFiles = true,
-            TrimBulkAsync trimBulkAsync = null
-            )
-        {
-            var redisContentLocationStoreConfiguration = GetRedisContentLocationStoreConfiguration(localCacheRoot);
 
             var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
@@ -248,7 +240,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)
         {
             var errorBuilder = new StringBuilder();
-            var secrets = await TryRetrieveSecretsAsync(CancellationToken.None, errorBuilder);
+            (var secrets, var errors) = await _secretRetriever.TryRetrieveSecretsAsync();
             if (secrets == null)
             {
                 _logger.Error($"Unable to configure Local Location Store. {errorBuilder}");
@@ -374,7 +366,7 @@ namespace BuildXL.Cache.Host.Service.Internal
         private AzureBlobStorageCredentials CreateAzureBlobCredentialsFromSasToken(string secretName, UpdatingSasToken updatingSasToken)
         {
             var storageCredentials = new StorageCredentials(sasToken: updatingSasToken.Token.Token);
-updatingSasToken.TokenUpdated += (_, sasToken) =>
+            updatingSasToken.TokenUpdated += (_, sasToken) =>
             {
                 _logger.Debug($"Updating SAS token for Azure Storage secret {secretName}");
                 storageCredentials.UpdateSASToken(sasToken.Token);
@@ -407,105 +399,6 @@ updatingSasToken.TokenUpdated += (_, sasToken) =>
                 $"Unable to configure Azure Storage. {nameof(DistributedContentSettings.AzureStorageSecretName)} or {nameof(DistributedContentSettings.AzureStorageSecretNames)} configuration options should be provided. ");
             return null;
 
-        }
-
-        private Dictionary<string, Secret> _cachedSecrets = null;
-
-        public async Task<Dictionary<string, Secret>> TryRetrieveSecretsAsync(CancellationToken token, StringBuilder errorBuilder)
-        {
-            if (_cachedSecrets != null)
-            {
-                return _cachedSecrets;
-            }
-
-            _logger.Debug(
-                $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
-                $"{nameof(_distributedSettings.AzureStorageSecretName)}: {_distributedSettings.AzureStorageSecretName}, " +
-                $"{nameof(_distributedSettings.GlobalRedisSecretName)}: {_distributedSettings.GlobalRedisSecretName}, " +
-                $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}.");
-
-            bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)}");
-            invalidConfiguration |= appendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");
-
-            if (invalidConfiguration)
-            {
-                return null;
-            }
-
-            // Create the credentials requests
-            var retrieveSecretsRequests = new List<RetrieveSecretsRequest>();
-
-            var storageSecretNames = GetAzureStorageSecretNames(errorBuilder);
-            if (storageSecretNames == null)
-            {
-                return null;
-            }
-
-            var azureBlobStorageCredentialsKind = _distributedSettings.AzureBlobStorageUseSasTokens ? SecretKind.SasToken : SecretKind.PlainText;
-            retrieveSecretsRequests.AddRange(storageSecretNames.Select(secretName => new RetrieveSecretsRequest(secretName, azureBlobStorageCredentialsKind)));
-
-            if (string.IsNullOrEmpty(_distributedSettings.EventHubSecretName) ||
-                string.IsNullOrEmpty(_distributedSettings.GlobalRedisSecretName))
-            {
-                return null;
-            }
-
-            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.EventHubSecretName, SecretKind.PlainText));
-
-            retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.GlobalRedisSecretName, SecretKind.PlainText));
-            if (!string.IsNullOrEmpty(_distributedSettings.SecondaryGlobalRedisSecretName))
-            {
-                retrieveSecretsRequests.Add(new RetrieveSecretsRequest(_distributedSettings.SecondaryGlobalRedisSecretName, SecretKind.PlainText));
-            }
-
-            // Ask the host for credentials
-            var retryPolicy = CreateSecretsRetrievalRetryPolicy(_distributedSettings);
-            var secrets = await retryPolicy.ExecuteAsync(
-                async () => await _arguments.Host.RetrieveSecretsAsync(retrieveSecretsRequests, token),
-                token);
-            if (secrets == null)
-            {
-                return null;
-            }
-
-            // Validate requests match as expected
-            foreach (var request in retrieveSecretsRequests)
-            {
-                if (secrets.TryGetValue(request.Name, out var secret))
-                {
-                    bool typeMatch = true;
-                    switch (request.Kind)
-                    {
-                        case SecretKind.PlainText:
-                            typeMatch = secret is PlainTextSecret;
-                            break;
-                        case SecretKind.SasToken:
-                            typeMatch = secret is UpdatingSasToken;
-                            break;
-                        default:
-                            throw new NotSupportedException("The requested kind is missing support for secret request matching");
-                    }
-
-                    if (!typeMatch)
-                    {
-                        throw new SecurityException($"The credentials produced by the host for secret named {request.Name} do not match the expected kind");
-                    }
-                }
-            }
-
-            _cachedSecrets = secrets;
-            return secrets;
-
-            bool appendIfNull(object value, string propertyName)
-            {
-                if (value is null)
-                {
-                    errorBuilder.Append($"{propertyName} should be provided. ");
-                    return true;
-                }
-
-                return false;
-            }
         }
 
         private static void ApplyIfNotNull<T>(T value, Action<T> apply) where T : class

@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -76,7 +77,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 {
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, redisConnectionString: null),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, redisConnectionStringProvider: null),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -106,9 +107,12 @@ namespace BuildXL.Cache.Host.Service.Internal
             var hostInfo = _arguments.HostInfo;
             _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
 
+            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
+
             var factory = new DistributedContentStoreFactory(
                 _arguments,
-                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId));
+                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId),
+                secretRetriever);
 
             Func<AbsolutePath, IContentStore> contentStoreFactory = path =>
             {
@@ -130,18 +134,22 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    // Result should already be cached and this should not block.
-                    var secrets = factory.TryRetrieveSecretsAsync(CancellationToken.None, null).GetAwaiter().GetResult();
-
-                    string redisConnectionString = null;
-                    if (secrets.TryGetValue(distributedSettings.GlobalRedisSecretName, out var secret) && secret is PlainTextSecret pts)
+                    var connectionStringProvider = new CallbackConnectionStringProvider(async () =>
                     {
-                        redisConnectionString = pts.Secret;
-                    }
+                        (var secrets, var error) = await secretRetriever.TryRetrieveSecretsAsync();
+
+                        string redisConnectionString = null;
+                        if (secrets.TryGetValue(distributedSettings.GlobalRedisSecretName, out var secret) && secret is PlainTextSecret pts)
+                        {
+                            redisConnectionString = pts.Secret;
+                        }
+
+                        return redisConnectionString;
+                    });
 
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, redisConnectionString),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, connectionStringProvider),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -168,15 +176,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, string redisConnectionString = null)
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, IConnectionStringProvider redisConnectionStringProvider = null)
         {
             var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
             if (distributedSettings.UseRedisMetadataStore)
             {
-                Contract.Assert(redisConnectionString != null);
-                var connectionStringProvider = new LiteralConnectionStringProvider(redisConnectionString);
-                return RedisMemoizationStore.Create(_logger, connectionStringProvider, distributedSettings.KeySpacePrefix, SystemClock.Instance);
+                Contract.Assert(redisConnectionStringProvider != null);
+                return RedisMemoizationStore.Create(_logger, redisConnectionStringProvider, distributedSettings.KeySpacePrefix, SystemClock.Instance);
             }
             else
             {

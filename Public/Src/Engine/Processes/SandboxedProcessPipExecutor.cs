@@ -644,11 +644,6 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
-                    {
-                        return SandboxedProcessPipExecutionResult.PreparationFailure();
-                    }
-
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -670,6 +665,11 @@ namespace BuildXL.Processes
                     }
 
                     if (!await PrepareOutputsAsync())
+                    {
+                        return SandboxedProcessPipExecutionResult.PreparationFailure();
+                    }
+
+                    if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }

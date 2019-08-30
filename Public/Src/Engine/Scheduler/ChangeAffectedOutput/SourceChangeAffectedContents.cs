@@ -12,7 +12,7 @@ using BuildXL.Utilities.Collections;
 namespace BuildXL.Scheduler.ChangeAffectedOutput
 {
     /// <summary>
-    /// Class representing source change affected output list.
+    /// Class representing source change affected output or input contents.
     /// </summary>
     public sealed class SourceChangeAffectedContents
     {
@@ -20,12 +20,12 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         private readonly FileContentManager m_fileContentManager;
 
         /// <summary>
-        /// Output file contents which affected by the source change. 
+        /// File contents which affected by the source change. 
         /// </summary>
         /// <remarks>
         /// This list should be initialized by the input change list provided from the InputChanges configuration option.
-        /// On the master, this list contains all the affected output contents of the build and is maintained by cally the function ReportSourceChangeAffectedOutputs() after execution of each pip.
-        /// On the workers, this list contains all the affected files distributed to the worker. It is maintained calling the function ReportSourceChangedAffectedFile() when receiving a file from master by worker.  
+        /// On the master, this list contains all the affected files of the build. It is maintained by calling the function ReportSourceChangeAffectedOutputs() after execution of each pip.
+        /// On the workers, this list contains all the affected files distributed to the worker. It is maintained by calling the function ReportSourceChangedAffectedFile() when reporting a file input from master by worker.  
         /// </remarks>
         private ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedFiles = new ConcurrentBigSet<AbsolutePath>();
 
@@ -60,9 +60,8 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         }
 
         /// <summary>
-        /// Compute the intersection of the pip's dependencies and global affected outputs of the build
+        /// Compute the intersection of the pip's dependencies and the affected contents of the build
         /// </summary>
-        /// 
         public IReadOnlyCollection<AbsolutePath> GetChangeAffectedInputs(Process process)
         {
             var changeAffectedInputs = new HashSet<AbsolutePath>();
@@ -117,7 +116,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         }
 
         /// <summary>
-        /// This function executes on the master to maintain the globle source change affected output list m_sourceChangeAffectedOutputFiles
+        /// This function executes on the master to maintain the globle source change affected contents
         /// </summary>
         public void ReportSourceChangeAffectedFiles(
             Pip pip,

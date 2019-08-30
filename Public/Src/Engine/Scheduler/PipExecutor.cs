@@ -1385,11 +1385,9 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null;
-                                if (pip.ChangeAffectedInputListWrittenFilePath.IsValid)
-                                {
-                                    changeAffectedInputs = environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip);
-                                }
+                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid 
+                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip) 
+                                    : null;
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);
 

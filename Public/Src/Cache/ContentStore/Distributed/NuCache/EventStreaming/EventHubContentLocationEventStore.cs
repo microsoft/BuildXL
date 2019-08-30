@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private const string EventFilterKey = "Epoch";
         private const string OperationIdKey = "OperationId";
 
-        private IEventHubClient _eventHubClient;
+        private readonly IEventHubClient _eventHubClient;
         private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
         private Processor _currentEventProcessor;
@@ -237,7 +237,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 await context.PerformOperationAsync(
                     Tracer,
                     () => sendToActionBlockAsync(),
-                    traceOperationStarted: false).TraceIfFailure(context);
+                    traceOperationStarted: false,
+                    extraEndMessage: _ => extraEndMessageForSendToActionBlock(),
+                    caller: "SendToActionBlockAsync").TraceIfFailure(context);
             }
             else
             {
@@ -254,6 +256,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var eventProcessingBlock = _eventProcessingBlocks[messageGroup.Key];
                     var input = new ProcessEventsInput(state, messageGroup);
                     bool success = await eventProcessingBlock.SendAsync(input);
+                    
                     if (!success)
                     {
                         // NOTE: This case should not actually occur.
@@ -264,6 +267,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 }
 
                 return BoolResult.Success;
+            }
+
+            string extraEndMessageForSendToActionBlock()
+            {
+                int messageCount = 0;
+                int fullQueueCount = 0;
+                int emptyQueueCount = 0;
+                foreach (var ab in _eventProcessingBlocks)
+                {
+                    var count = ab.InputCount;
+                    messageCount += count;
+                    if (count == _configuration.EventProcessingMaxQueueSize)
+                    {
+                        fullQueueCount++;
+                    }
+                    else if (count == 0)
+                    {
+                        emptyQueueCount++;
+                    }
+                }
+
+                return $"OverallQueueSize={messageCount}, FullQueues={fullQueueCount}, EmptyQueues={emptyQueueCount}";
             }
         }
 

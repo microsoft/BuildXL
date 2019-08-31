@@ -124,7 +124,7 @@ namespace Test.Tool.DScript.Analyzer
             var analyzer = new TAnalyzer();
             var pathTable = new PathTable();
             var args = new Args(
-                commandLineConfig: new CommandLineConfiguration() { Startup = { ConfigFile = AbsolutePath.Create(pathTable, @"b:\Fake.config.dsc") } },
+                commandLineConfig: new CommandLineConfiguration() { Startup = { ConfigFile = AbsolutePath.Create(pathTable, X("/b/Fake.config.dsc")) } },
                 pathTable: pathTable,
                 fix: fix,
                 help: false,

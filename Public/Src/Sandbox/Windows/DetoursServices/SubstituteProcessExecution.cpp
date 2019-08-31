@@ -51,9 +51,9 @@ static BOOL WINAPI InjectShim(
     wcscat_s(fullCommandLine, fullCmdLineSizeInChars, L"\" ");
     wcscat_s(fullCommandLine, fullCmdLineSizeInChars, argumentsWithoutCommand.c_str());
 
-    Dbg(L"Injecting substitute shim '%s' for process command line '%s'", g_substituteProcessExecutionShimPath, fullCommandLine);
+    Dbg(L"Injecting substitute shim '%s' for process command line '%s'", g_SubstituteProcessExecutionShimPath, fullCommandLine);
     BOOL rv = Real_CreateProcessW(
-        /*lpApplicationName:*/ g_substituteProcessExecutionShimPath,
+        /*lpApplicationName:*/ g_SubstituteProcessExecutionShimPath,
         /*lpCommandLine:*/ fullCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,
@@ -178,16 +178,28 @@ static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *a
 
 static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs, LPVOID lpEnvironment, LPCWSTR lpWorkingDirectory)
 {
-    assert(g_substituteProcessExecutionShimPath != nullptr);
+    assert(g_SubstituteProcessExecutionShimPath != nullptr);
+
+    if (lpEnvironment == nullptr)
+    {
+        lpEnvironment = GetEnvironmentStrings();
+    }
+
+    wchar_t curDir[MAX_PATH];
+    if (lpWorkingDirectory == nullptr)
+    {
+        GetCurrentDirectory(ARRAYSIZE(curDir), curDir);
+        lpWorkingDirectory = curDir;
+    }
 
     // Easy cases.
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
     {
         if (g_SubstituteProcessExecutionFilterFunc != nullptr)
         {
-            // Filter meaning is inclusive if we're shimming all processes, exclusive otherwise.
-            bool filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs.c_str(), lpEnvironment, lpWorkingDirectory) != 0;
-            return (filterMatch && g_ProcessExecutionShimAllProcesses) || (!foundMatch && !g_ProcessExecutionShimAllProcesses);
+            // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
+            bool filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
+            return (filterMatch && !g_ProcessExecutionShimAllProcesses) || (!filterMatch && !g_ProcessExecutionShimAllProcesses);
         }
 
         // Shim everything or shim nothing if there are no matches to compare and no filter DLL.
@@ -238,13 +250,13 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
     bool filterMatch = !g_ProcessExecutionShimAllProcesses;
     if (g_SubstituteProcessExecutionFilterFunc != nullptr)
     {
-        filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs.c_str(), lpEnvironment, lpWorkingDirectory)) != 0;
+        filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
     }
 
     if (g_ProcessExecutionShimAllProcesses)
     {
-        // A match means we don't want to shim - an opt-out list.
-        return !foundMatch && !filterMatch;
+        // A process or filter match mean we don't want to shim - an opt-out list.
+        return !foundMatch || !filterMatch;
     }
 
     // An opt-in list, shim if matching.
@@ -264,7 +276,7 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim)
 {
-    if (g_substituteProcessExecutionShimPath != nullptr && (lpCommandLine != nullptr || lpApplicationName != nullptr))
+    if (g_SubstituteProcessExecutionShimPath != nullptr && (lpCommandLine != nullptr || lpApplicationName != nullptr))
     {
         // When lpCommandLine is null we just use lpApplicationName as the command line to parse.
         // When lpCommandLine is not null, it contains the command, possibly with quotes containing spaces,
@@ -276,7 +288,7 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
         FindApplicationNameFromCommandLine(cmdLine, command, commandArgs);
         Dbg(L"Shim: Found command='%s', args='%s' from lpApplicationName='%s', lpCommandLine='%s'", command.c_str(), commandArgs.c_str(), lpApplicationName, lpCommandLine);
 
-        if (ShouldSubstituteShim(command, commandArgs.c_str()))
+        if (ShouldSubstituteShim(command, commandArgs.c_str(), lpEnvironment, lpCurrentDirectory))
         {
             // Instead of Detouring the child, run the requested shim
             // passing the original command line, but only for appropriate commands.

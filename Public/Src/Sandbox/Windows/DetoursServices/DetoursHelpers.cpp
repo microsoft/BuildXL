@@ -555,21 +555,22 @@ static void LoadSubstituteProcessExecutionFilterDLL()
     g_SubstituteProcessExecutionFilterDLLHandle = LoadLibraryW(g_SubstituteProcessExecutionFilterDLLPath);
     if (g_SubstituteProcessExecutionFilterDLLHandle != nullptr)
     {
-#if _WIN64
-        const wchar_t *const WinapiProcName = L"ShouldRunShim@@32";  // 4 64-bit parameters, see SubstituteProcessExecutionFilterFunc
-#elif _WIN32
-        const wchar_t *const WinapiProcName = L"ShouldRunShim@@16";  // 4 32-bit parameters
+#if defined(_WIN64)
+        const char *const WinapiProcName = "ShouldRunShim@@32";  // 4 64-bit parameters, see SubstituteProcessExecutionFilterFunc
+#elif defined(_WIN32)
+        const char *const WinapiProcName = "ShouldRunShim@@16";  // 4 32-bit parameters
 #endif
 
-        g_SubstituteProcessExecutionFilterFunc = (SubstituteProcessExecutionFilterFunc)GetProcAddressW(g_SubstituteProcessExecutionFilterDLLHandle, WinapiProcName);
+        g_SubstituteProcessExecutionFilterFunc = reinterpret_cast<SubstituteProcessExecutionFilterFunc>(
+            reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionFilterDLLHandle, WinapiProcName)));
         if (g_SubstituteProcessExecutionFilterFunc == nullptr)
         {
-            Dbg(L"Unable to find %s function in SubstituteProcessExecutionFilterDLLPath %s\r\n", (int)error, WinapiProcName, g_SubstituteProcessExecutionFilterDLLPath);
+            Dbg(L"Unable to find %S function in SubstituteProcessExecutionFilterDLLPath %s\r\n", WinapiProcName, g_SubstituteProcessExecutionFilterDLLPath);
         }
     }
     else
     {
-        Dbg(L"Failed LoadLibrary for SubstituteProcessExecutionFilterDLLPath %s\r\n", (int)error, g_SubstituteProcessExecutionFilterDLLPath);
+        Dbg(L"Failed LoadLibrary for SubstituteProcessExecutionFilterDLLPath %s\r\n", g_SubstituteProcessExecutionFilterDLLPath);
     }
 }
 
@@ -863,10 +864,10 @@ bool ParseFileAccessManifest(
     {
         g_ProcessExecutionShimAllProcesses = pShimInfo->ShimAllProcesses != 0;
 
-#if _WIN64
+#if defined(_WIN64)
         SkipWriteCharsString(payloadBytes, offset);  // Skip 32-bit path.
         g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
-#elif _WIN32
+#elif defined(_WIN32)
         g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
         SkipWriteCharsString(payloadBytes, offset);  // Skip 64-bit path.
 #endif

@@ -82,7 +82,7 @@ extern LPCSTR g_lpDllNameX64;
 /// https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
 ///
 /// workingDirectory: The working directory for the command.
-BOOL (WINAPI *SubstituteProcessExecutionFilterFunc)(const wchar_t* command, const wchar_t* arguments, LPVOID environmentBlock, const wchar_t* workingDirectory);
+typedef BOOL (__stdcall * SubstituteProcessExecutionFilterFunc)(const wchar_t* command, const wchar_t* arguments, LPVOID environmentBlock, const wchar_t* workingDirectory);
 
 extern wchar_t *g_SubstituteProcessExecutionShimPath;
 extern wchar_t *g_SubstituteProcessExecutionFilterDLLPath;

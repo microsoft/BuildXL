@@ -564,6 +564,8 @@ namespace BuildXL.Pips.Builders
             }
             var outputFiles = ReadOnlyArray<FileArtifactWithAttributes>.From(m_outputFiles.Instance);
 
+
+
             // Handle output directories
             var directoryOutputMap = new Dictionary<AbsolutePath, StaticDirectory>();
             int i = 0;

@@ -233,7 +233,10 @@ bool g_BreakOnAccessDenied;
 LPCSTR g_lpDllNameX86;
 LPCSTR g_lpDllNameX64;
 
-wchar_t *g_substituteProcessExecutionShimPath = nullptr;
+wchar_t *g_SubstituteProcessExecutionShimPath = nullptr;
+wchar_t *g_SubstituteProcessExecutionFilterDLLPath = nullptr;
+HMODULE g_SubstituteProcessExecutionFilterDLLHandle;
+SubstituteProcessExecutionFilterFunc g_SubstituteProcessExecutionFilterFunc;
 bool g_ProcessExecutionShimAllProcesses;
 vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
 

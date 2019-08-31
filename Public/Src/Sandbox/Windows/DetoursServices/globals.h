@@ -61,7 +61,33 @@ extern bool g_BreakOnAccessDenied;
 extern LPCSTR g_lpDllNameX86;
 extern LPCSTR g_lpDllNameX64;
 
-extern wchar_t *g_substituteProcessExecutionShimPath;
+/// The filter callback function that must be implemented as an extern "C" __declspec(dllexport) BOOL WINAPI ShouldRunShim(...)
+/// function exported from the substitute process execution filter DLL. One 32-bit and one 64-bit DLL must be provided to
+/// match the DetoursServices.dll flavor used for wrapping a process.
+///
+/// Returns TRUE or nonzero if the prospective process should have the shim process injected. Returns FALSE or zero otherwise.
+///
+/// Note for implementors: Process creation is halted for this process until this callback returns.
+/// WINAPI is used for register call efficiency.
+///
+/// command: The executable command. Can be a fully qualified path, relative path, or unqualified path
+/// that needs a PATH search.
+///
+/// arguments: The arguments to the command. May be an empty string.
+///
+/// environmentBlock: The environment block for the process. The format is a sequence of "var=value"
+/// null-terminated strings, with an empty string (i.e. double null character) terminator. Note that
+/// values can have equals signs in them; only the first equals sign is the variable name separator.
+/// See more formatting info in the lpEnvironment parameter description at
+/// https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
+///
+/// workingDirectory: The working directory for the command.
+BOOL (WINAPI *SubstituteProcessExecutionFilterFunc)(const wchar_t* command, const wchar_t* arguments, LPVOID environmentBlock, const wchar_t* workingDirectory);
+
+extern wchar_t *g_SubstituteProcessExecutionShimPath;
+extern wchar_t *g_SubstituteProcessExecutionFilterDLLPath;
+extern HMODULE g_SubstituteProcessExecutionFilterDLLHandle;
+extern SubstituteProcessExecutionFilterFunc g_SubstituteProcessExecutionFilterFunc;
 extern bool g_ProcessExecutionShimAllProcesses;
 extern vector<ShimProcessMatch*>* g_pShimProcessMatches;
 

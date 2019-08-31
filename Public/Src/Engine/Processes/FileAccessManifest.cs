@@ -460,7 +460,7 @@ namespace BuildXL.Processes
             m_rootNode.AddNodeWithScope(this, path, new FileAccessScope(mask, values), expectedUsn ?? ReportedFileAccess.NoUsn);
         }
 
-        private void WriteAnyBuildShimBlock(BinaryWriter writer)
+        private void WriteSubstituteProcessShimBlock(BinaryWriter writer)
         {
 #if DEBUG
             writer.Write(0xABCDEF04); // "ABCDEF04"
@@ -468,7 +468,7 @@ namespace BuildXL.Processes
 
             if (SubstituteProcessExecutionInfo == null)
             {
-                writer.Write((uint)0);  // ShimAllProcesses false value.
+                writer.Write((uint)0);  // Zero-length substituteProcessExecShimPath.
 
                 // Emit a zero-length substituteProcessExecShimPath when substitution is turned off.
                 WriteChars(writer, null);
@@ -477,6 +477,8 @@ namespace BuildXL.Processes
 
             writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0);
             WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable));
+            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionFilterDll32Path.ToString(m_pathTable));
+            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionFilterDll64Path.ToString(m_pathTable));
             writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
 
             if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)
@@ -792,7 +794,7 @@ namespace BuildXL.Processes
                 WritePipId(writer, PipId);
                 WriteReportBlock(writer, setup);
                 WriteDllBlock(writer, setup);
-                WriteAnyBuildShimBlock(writer);
+                WriteSubstituteProcessShimBlock(writer);
                 WriteManifestTreeBlock(writer);
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);

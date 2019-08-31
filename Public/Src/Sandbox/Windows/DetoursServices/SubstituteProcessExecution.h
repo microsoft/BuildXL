@@ -18,3 +18,4 @@ BOOL WINAPI MaybeInjectSubstituteProcessShim(
     _In_        LPSTARTUPINFOW        lpStartupInfo,
     _Out_       LPPROCESS_INFORMATION lpProcessInformation,
     _Out_       bool&                 injectedShim);
+

@@ -28,9 +28,24 @@ namespace BuildXL.Processes
         /// <summary>
         /// Children of the Detoured process are not directly executed,
         /// but instead this substitute shim process is injected instead, with
-        /// the original process's command line appended.
+        /// the original process's command line appended and implicitly with the original
+        /// process's environment and working directory.
         /// </summary>
         public AbsolutePath SubstituteProcessExecutionShimPath { get; set; }
+
+        /// <summary>
+        /// An unmanaged 32-bit filter DLL to load and call when determining whether to run child processes directly
+        /// or to inject the substitute process specified in <see cref="SubstituteProcessExecutionShimPath"/>.
+        /// This DLL must implement a ShouldRunShim() method; see SubstituteProcessExecutionFilterFunc.
+        /// </summary>
+        public AbsolutePath SubstituteProcessExecutionFilterDll32Path { get; set; }
+
+        /// <summary>
+        /// An unmanaged 64-bit filter DLL to load and call when determining whether to run child processes directly
+        /// or to inject the substitute process specified in <see cref="SubstituteProcessExecutionShimPath"/>.
+        /// This DLL must implement a ShouldRunShim() method; see SubstituteProcessExecutionFilterFunc.
+        /// </summary>
+        public AbsolutePath SubstituteProcessExecutionFilterDll64Path { get; set; }
 
         /// <summary>
         /// Specifies the shim injection mode. When true, <see cref="ShimProcessMatches"/>

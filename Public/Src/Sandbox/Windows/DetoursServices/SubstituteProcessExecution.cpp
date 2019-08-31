@@ -176,14 +176,21 @@ static bool CommandArgsContainMatch(const wchar_t *commandArgs, const wchar_t *a
     return wcsstr(commandArgs, argMatch) != nullptr;
 }
 
-static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs)
+static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandArgs, LPVOID lpEnvironment, LPCWSTR lpWorkingDirectory)
 {
     assert(g_substituteProcessExecutionShimPath != nullptr);
 
     // Easy cases.
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
     {
-        // Shim everything or shim nothing if there are no matches to compare.
+        if (g_SubstituteProcessExecutionFilterFunc != nullptr)
+        {
+            // Filter meaning is inclusive if we're shimming all processes, exclusive otherwise.
+            bool filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs.c_str(), lpEnvironment, lpWorkingDirectory) != 0;
+            return (filterMatch && g_ProcessExecutionShimAllProcesses) || (!foundMatch && !g_ProcessExecutionShimAllProcesses);
+        }
+
+        // Shim everything or shim nothing if there are no matches to compare and no filter DLL.
         return g_ProcessExecutionShimAllProcesses;
     }
 
@@ -227,14 +234,21 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
         }
     }
 
+    // Filter meaning is inclusive if we're shimming all processes, exclusive otherwise.
+    bool filterMatch = !g_ProcessExecutionShimAllProcesses;
+    if (g_SubstituteProcessExecutionFilterFunc != nullptr)
+    {
+        filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs.c_str(), lpEnvironment, lpWorkingDirectory)) != 0;
+    }
+
     if (g_ProcessExecutionShimAllProcesses)
     {
         // A match means we don't want to shim - an opt-out list.
-        return !foundMatch;
+        return !foundMatch && !filterMatch;
     }
 
     // An opt-in list, shim if matching.
-    return foundMatch;
+    return foundMatch && filterMatch;
 }
 
 BOOL WINAPI MaybeInjectSubstituteProcessShim(

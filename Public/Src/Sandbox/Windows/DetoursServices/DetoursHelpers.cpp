@@ -542,6 +542,37 @@ wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, ui
     return pStr;
 }
 
+inline void SkipWriteCharsString(const byte *payloadBytes, size_t &offset)
+{
+    uint32_t len = ParseUint32(payloadBytes, offset);
+    offset += sizeof(wchar_t) *len;
+}
+
+static void LoadSubstituteProcessExecutionFilterDLL()
+{
+    assert(g_SubstituteProcessExecutionFilterDLLPath != nullptr);
+
+    g_SubstituteProcessExecutionFilterDLLHandle = LoadLibraryW(g_SubstituteProcessExecutionFilterDLLPath);
+    if (g_SubstituteProcessExecutionFilterDLLHandle != nullptr)
+    {
+#if _WIN64
+        const wchar_t *const WinapiProcName = L"ShouldRunShim@@32";  // 4 64-bit parameters, see SubstituteProcessExecutionFilterFunc
+#elif _WIN32
+        const wchar_t *const WinapiProcName = L"ShouldRunShim@@16";  // 4 32-bit parameters
+#endif
+
+        g_SubstituteProcessExecutionFilterFunc = (SubstituteProcessExecutionFilterFunc)GetProcAddressW(g_SubstituteProcessExecutionFilterDLLHandle, WinapiProcName);
+        if (g_SubstituteProcessExecutionFilterFunc == nullptr)
+        {
+            Dbg(L"Unable to find %s function in SubstituteProcessExecutionFilterDLLPath %s\r\n", (int)error, WinapiProcName, g_SubstituteProcessExecutionFilterDLLPath);
+        }
+    }
+    else
+    {
+        Dbg(L"Failed LoadLibrary for SubstituteProcessExecutionFilterDLLPath %s\r\n", (int)error, g_SubstituteProcessExecutionFilterDLLPath);
+    }
+}
+
 bool ParseFileAccessManifest(
     const void* payload,
     DWORD)
@@ -827,10 +858,23 @@ bool ParseFileAccessManifest(
     PCManifestSubstituteProcessExecutionShim pShimInfo = reinterpret_cast<PCManifestSubstituteProcessExecutionShim>(&payloadBytes[offset]);
     pShimInfo->AssertValid();
     offset += pShimInfo->GetSize();
-    g_substituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
-    if (g_substituteProcessExecutionShimPath != nullptr)
+    g_SubstituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
+    if (g_SubstituteProcessExecutionShimPath != nullptr)
     {
         g_ProcessExecutionShimAllProcesses = pShimInfo->ShimAllProcesses != 0;
+
+#if _WIN64
+        SkipWriteCharsString(payloadBytes, offset);  // Skip 32-bit path.
+        g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
+#elif _WIN32
+        g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
+        SkipWriteCharsString(payloadBytes, offset);  // Skip 64-bit path.
+#endif
+        if (g_SubstituteProcessExecutionFilterDLLPath != nullptr)
+        {
+            LoadSubstituteProcessExecutionFilterDLL();
+        }
+        
         uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
         g_pShimProcessMatches = new vector<ShimProcessMatch*>();
         for (uint32_t i = 0; i < numProcessMatches; i++)

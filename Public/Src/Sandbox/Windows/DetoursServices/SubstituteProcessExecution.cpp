@@ -180,23 +180,23 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
 {
     assert(g_SubstituteProcessExecutionShimPath != nullptr);
 
-    if (lpEnvironment == nullptr)
-    {
-        lpEnvironment = GetEnvironmentStrings();
-    }
-
-    wchar_t curDir[MAX_PATH];
-    if (lpWorkingDirectory == nullptr)
-    {
-        GetCurrentDirectory(ARRAYSIZE(curDir), curDir);
-        lpWorkingDirectory = curDir;
-    }
-
     // Easy cases.
     if (g_pShimProcessMatches == nullptr || g_pShimProcessMatches->empty())
     {
         if (g_SubstituteProcessExecutionFilterFunc != nullptr)
         {
+            if (lpEnvironment == nullptr)
+            {
+                lpEnvironment = GetEnvironmentStrings();
+            }
+            
+            wchar_t curDir[MAX_PATH];
+            if (lpWorkingDirectory == nullptr)
+            {
+                GetCurrentDirectory(ARRAYSIZE(curDir), curDir);
+                lpWorkingDirectory = curDir;
+            }
+            
             // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
             bool filterMatch = g_SubstituteProcessExecutionFilterFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
             return (filterMatch && !g_ProcessExecutionShimAllProcesses) || (!filterMatch && !g_ProcessExecutionShimAllProcesses);

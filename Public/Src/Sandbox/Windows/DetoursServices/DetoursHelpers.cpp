@@ -545,7 +545,7 @@ wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, ui
 inline void SkipWriteCharsString(const byte *payloadBytes, size_t &offset)
 {
     uint32_t len = ParseUint32(payloadBytes, offset);
-    offset += sizeof(wchar_t) *len;
+    offset += sizeof(wchar_t) * len;
 }
 
 static void LoadSubstituteProcessExecutionFilterDLL()

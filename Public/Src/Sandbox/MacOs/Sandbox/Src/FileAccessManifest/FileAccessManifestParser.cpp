@@ -51,8 +51,8 @@ uint32_t SkipOverCharArray(const BYTE *&cursor)
 {
     uint32_t len = *((uint32_t *)(cursor));
     cursor += sizeof(uint32_t);
-    // skip over the path (don't care); chars in C# are 2 bytes
-    cursor += sizeof(char16_t) *len;
+    // Skip over the path (don't care); chars in C# are 2 bytes.
+    cursor += sizeof(char16_t) * len;
     return len;
 }
 

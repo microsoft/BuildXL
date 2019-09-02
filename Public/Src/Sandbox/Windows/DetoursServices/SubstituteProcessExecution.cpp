@@ -205,7 +205,7 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
         if (g_SubstituteProcessExecutionFilterFunc != nullptr)
         {
             // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
-            bool filterMatch = CallFilterfunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
+            bool filterMatch = CallFilterFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
             return (filterMatch && !g_ProcessExecutionShimAllProcesses) || (!filterMatch && !g_ProcessExecutionShimAllProcesses);
         }
 
@@ -253,11 +253,11 @@ static bool ShouldSubstituteShim(const wstring &command, const wchar_t *commandA
         }
     }
 
-    // Filter meaning is inclusive if we're shimming all processes, exclusive otherwise.
+    // Filter meaning is exclusive if we're shimming all processes, inclusive otherwise.
     bool filterMatch = !g_ProcessExecutionShimAllProcesses;
     if (g_SubstituteProcessExecutionFilterFunc != nullptr)
     {
-        filterMatch = CallFilterfunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
+        filterMatch = CallFilterFunc(command.c_str(), commandArgs, lpEnvironment, lpWorkingDirectory) != 0;
     }
 
     if (g_ProcessExecutionShimAllProcesses)

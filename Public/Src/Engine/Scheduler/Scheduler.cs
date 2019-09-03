@@ -5458,7 +5458,7 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Gets the first consumer description associated with a FileOrDirectory artifact.
+        /// Gets the consumer description if and only if a single consumer is associated with a FileOrDirectory artifact.
         /// </summary>
         /// <param name="artifact">The artifact for which to get the first consumer description.</param>
         /// <returns>The first consumer description or null if there is no consumer.</returns>
@@ -5466,14 +5466,18 @@ namespace BuildXL.Scheduler
         public string GetConsumerDescription(in FileOrDirectoryArtifact artifact)
         {
             var producerId = PipGraph.GetProducer(artifact);
+            string singleConsumer = null;
             foreach (var consumerEdge in DataflowGraph.GetOutgoingEdges(producerId.ToNodeId()))
             {
+                if (singleConsumer != null) {
+                    return null;    // More than 1 consumers
+                }
                 Pip consumer = PipGraph.GetPipFromPipId(consumerEdge.OtherNode.ToPipId());
-                return consumer.GetDescription(Context);
+                singleConsumer = consumer.GetDescription(Context);
             }
 
-            // No consumer
-            return null;
+            // Single consumer description or null for 0 consumers
+            return singleConsumer;
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

@@ -4,7 +4,8 @@
 namespace Tool.SymbolDaemon
 {
     /// <summary>
-    /// Result of a 'CreateRequestDebugEntry' operation (adding a single DebugEntry to a symbol request).
+    /// Result of a <see cref="Microsoft.VisualStudio.Services.Symbol.App.Core.ISymbolServiceClient.CreateRequestDebugEntriesAsync"/>
+    /// operation (adding a single DebugEntry to a symbol request).
     /// </summary>
     /// <remarks>
     /// These are our own statuses that are based on the fact whether we had to upload a blob or not

@@ -134,6 +134,7 @@ namespace Tool.SymbolDaemon
            needsIpcClient: false,
            clientAction: (conf, _) =>
            {
+               // This command is used when BXL creates a ServicePip for SymbolDaemon.
                SetupThreadPoolAndServicePoint(s_minWorkerThreads, s_minIoThreads, s_servicePointParallelism);
                var symbolConfig = CreateSymbolConfig(conf);
                var daemonConf = CreateDaemonConfig(conf);
@@ -152,7 +153,10 @@ namespace Tool.SymbolDaemon
                    symbolServiceClientTask: null,
                    bxlClient: client))
                {
-                   daemon.Start();
+                   daemon.Start();                   
+                   // We are blocking the thread here and waiting for the SymbolDaemon to process all the requests.
+                   // Once the daemon receives 'stop' command, GetResult will return, and we'll leave this method
+                   // (i.e., ServicePip will finish).
                    daemon.Completion.GetAwaiter().GetResult();
                    return 0;
                }

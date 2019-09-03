@@ -25,6 +25,7 @@ using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
 using static BuildXL.Utilities.FormattableStringEx;
 using static Tool.ServicePipDaemon.Statics;
@@ -65,6 +66,19 @@ namespace Tool.DropDaemon
         internal static IEnumerable<Command> SupportedCommands => Commands.Values;
 
         #region Options and commands
+
+        internal static readonly StrOption DropServiceConfigFile = RegisterDaemonConfigOption(new StrOption("dropServiceConfigFile")
+        {
+            ShortName = "c",
+            HelpText = "Drop service configuration file",
+            DefaultValue = null,
+            Expander = (fileName) =>
+            {
+                var json = System.IO.File.ReadAllText(fileName);
+                var jObject = JObject.Parse(json);
+                return jObject.Properties().Select(prop => new ParsedOption(PrefixKind.Long, prop.Name, prop.Value.ToString()));
+            },
+        });
 
         internal static readonly StrOption DropNameOption = RegisterDropConfigOption(new StrOption("name")
         {
@@ -901,7 +915,7 @@ namespace Tool.DropDaemon
 
         /// <summary>
         /// Creates an IPC client using the config from a ConfiguredCommand
-        /// </summary>        
+        /// </summary>
         public static IClient CreateClient(ConfiguredCommand conf)
         {
             var daemonConfig = CreateDaemonConfig(conf);

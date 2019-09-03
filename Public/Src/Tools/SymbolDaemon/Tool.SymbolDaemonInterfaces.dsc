@@ -74,7 +74,8 @@ export interface DaemonSettings {
     maxConcurrentClients?: number;
     
     /** Whether SymbolDaemon should send ETW events about the progress of symbol
-     *  operations for the purpose of integration with CloudBuild. */
+     *  operations for the purpose of integration with CloudBuild. 
+     */
     enableCloudBuildIntegration?: boolean;
     
     /** Verbose logging. */

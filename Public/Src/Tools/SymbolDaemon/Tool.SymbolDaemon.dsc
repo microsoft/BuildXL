@@ -21,7 +21,6 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
 
     references: [
         importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
-        importFrom("BuildXL.Engine").Scheduler.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
         importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
         importFrom("BuildXL.Utilities").dll,
@@ -32,8 +31,6 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
 
         importFrom("ArtifactServices.App.Shared").pkg,
         importFrom("ArtifactServices.App.Shared.Cache").pkg,        
-        importFrom("Drop.RemotableClient.Interfaces").pkg,
-        importFrom("ItemStore.Shared").pkg,
         importFrom("Microsoft.ApplicationInsights").pkg,
         importFrom("Microsoft.AspNet.WebApi.Client").pkg,
         importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
@@ -42,15 +39,13 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("Microsoft.VisualStudio.Services.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
         importFrom("Newtonsoft.Json").pkg,
-        importFrom("WindowsAzure.Storage").pkg,
 
         importFrom("Symbol.App.Core").pkg,
         importFrom("Symbol.Client").pkg,
         importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").pkg,
+        importFrom("System.Reflection.Metadata").pkg,
     ],
-    runtimeContent: [
-        ...symstoreX64Libs
-    ]
+    runtimeContent: symstoreX64Libs    
 });
 
 function getSymstoreX64Libs() : File[] {

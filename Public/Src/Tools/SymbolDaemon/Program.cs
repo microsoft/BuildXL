@@ -34,6 +34,14 @@ namespace Tool.SymbolDaemon
                 var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(args, new UnixParser());
                 if (confCommand.Command.NeedsIpcClient)
                 {
+                    // Even though NeedsIpcClient is 'true' for the majority of commands,
+                    // we should not step into this block when the code runs in production.
+                    // Main method will be called once per symbol request (part of starting
+                    // a service pip), and the 'start' command will be passed as an argument
+                    // (it will fall into 'else' branch).
+                    //
+                    // The main reason we have this code is to facilitate testing/debugging
+                    // without spinning up bxl.exe.
                     using (var rpc = CreateClient(confCommand))
                     {
                         var result = confCommand.Command.ClientAction(confCommand, rpc);

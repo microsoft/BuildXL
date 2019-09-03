@@ -32,7 +32,7 @@ namespace Tool.ServicePipDaemon
         /// <nodoc/>
         protected internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
         
-        private static readonly List<Option> DaemonConfigOptions = new List<Option>();
+        private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
 
         /// <summary>Initialized commands</summary>
         protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
@@ -224,10 +224,10 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <nodoc />
-        protected static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(DaemonConfigOptions, option);
+        protected static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(s_daemonConfigOptions, option);
 
         /// <remarks>
-        /// The <see cref="DaemonConfigOptions"/> options are added to every command.
+        /// The <see cref="s_daemonConfigOptions"/> options are added to every command.
         /// A non-mandatory string option "name" is added as well, which operation
         /// commands may want to use to explicitly specify a particular end point name
         /// (e.g., the target drop name).
@@ -244,7 +244,7 @@ namespace Tool.ServicePipDaemon
             var opts = (options ?? new Option[0]).ToList();
             if (addDaemonConfigOptions)
             {
-                opts.AddRange(DaemonConfigOptions);
+                opts.AddRange(s_daemonConfigOptions);
             }
 
             if (!opts.Exists(opt => opt.LongName == "name"))
@@ -340,7 +340,6 @@ namespace Tool.ServicePipDaemon
             });
 
         #endregion
-
 
         /// <nodoc />
         public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, ILogger logger, IIpcProvider rpcProvider = null, Client client = null)
@@ -474,8 +473,6 @@ namespace Tool.ServicePipDaemon
                 enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration));
         }
 
-        
-
         private static string Usage()
         {
             var builder = new StringBuilder();
@@ -524,7 +521,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <summary>
-        ///     Reconstructs a full command line corresponding to a <see cref="ConfiguredCommand"/>.
+        /// Reconstructs a full command line corresponding to a <see cref="ConfiguredCommand"/>.
         /// </summary>
         private static string ToPayload(ConfiguredCommand cmd) => ToPayload(cmd.Command.Name, cmd.Config);
 

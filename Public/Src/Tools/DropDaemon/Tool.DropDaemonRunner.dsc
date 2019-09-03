@@ -356,7 +356,7 @@ export namespace DropDaemonRunner {
                 Cmd.option("--logDir ", dropLogDirectory.path),
                 ...additionalCmdArgs,
                 Cmd.option(
-                    "--configFile ",
+                    "--dropServiceConfigFile ",
                     Artifact.input(args.dropServiceConfigFile)
                 ),
             ],

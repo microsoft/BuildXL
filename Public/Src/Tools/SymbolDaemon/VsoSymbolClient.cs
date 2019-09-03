@@ -35,7 +35,7 @@ namespace Tool.SymbolDaemon
         private readonly SymbolConfig m_config;
         private readonly ISymbolServiceClient m_symbolClient;
         private readonly CancellationTokenSource m_cancellationSource;
-        private CancellationToken Token => m_cancellationSource.Token;
+        private CancellationToken CancellationToken => m_cancellationSource.Token;
         private string m_requestId;
 
         private VssCredentials GetCredentials() =>
@@ -47,7 +47,7 @@ namespace Tool.SymbolDaemon
                 credentials: GetCredentials(),
                 httpSendTimeout: m_config.HttpSendTimeout,
                 tracer: Tracer,
-                verifyConnectionCancellationToken: Token);
+                verifyConnectionCancellationToken: CancellationToken);
 
         private Uri ServiceEndpoint => m_config.Service;
 
@@ -96,7 +96,7 @@ namespace Tool.SymbolDaemon
         {
             if (string.IsNullOrEmpty(m_requestId))
             {
-                var result = await m_symbolClient.GetRequestByNameAsync(RequestName, Token);
+                var result = await m_symbolClient.GetRequestByNameAsync(RequestName, CancellationToken);
                 m_requestId = result.Id;
             }
         }
@@ -114,7 +114,7 @@ namespace Tool.SymbolDaemon
         }
 
         /// <inheritdoc />
-        public Task<Request> CreateAsync() => CreateAsync(Token);
+        public Task<Request> CreateAsync() => CreateAsync(CancellationToken);
 
         /// <inheritdoc />
         public async Task<AddDebugEntryResult> AddFileAsync(SymbolFile symbolFile)
@@ -128,7 +128,7 @@ namespace Tool.SymbolDaemon
                 RequestId,
                 symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
                 DefaultDebugEntryCreateBehavior,
-                Token);
+                CancellationToken);
 
             var entriesWithMissingBlobs = result.Where(e => e.Status == DebugEntryStatus.BlobMissing).ToList();
 
@@ -145,7 +145,7 @@ namespace Tool.SymbolDaemon
                     RequestId,
                     symbolFile.FullFilePath,
                     entriesWithMissingBlobs[0].BlobIdentifier,
-                    Token);
+                    CancellationToken);
 
                 m_logger.Info($"File: '{symbolFile.FullFilePath}' -- upload result: {uploadResult.ToString()}");
 
@@ -155,7 +155,7 @@ namespace Tool.SymbolDaemon
                     RequestId,
                     entriesWithMissingBlobs,
                     DefaultDebugEntryCreateBehavior,
-                    Token);
+                    CancellationToken);
 
                 Contract.Assert(entriesWithMissingBlobs.All(e => e.Status != DebugEntryStatus.BlobMissing), "Entries with non-success code are present.");
 
@@ -182,7 +182,7 @@ namespace Tool.SymbolDaemon
         }
 
         /// <inheritdoc />
-        public Task<Request> FinalizeAsync() => FinalizeAsync(Token);
+        public Task<Request> FinalizeAsync() => FinalizeAsync(CancellationToken);
 
         private DateTime ComputeExpirationDate(TimeSpan retention)
         {

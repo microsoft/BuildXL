@@ -174,7 +174,6 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
     );
 }
 
-
 function overrideMustRunOnMaster(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {
     return args.override<Transformer.IpcSendArguments>({
         mustRunOnMaster: true

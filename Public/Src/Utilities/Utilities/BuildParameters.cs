@@ -9,7 +9,6 @@ using System.Linq;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 
-
 namespace BuildXL.Utilities
 {
     /// <summary>
@@ -25,11 +24,6 @@ namespace BuildXL.Utilities
         /// Name of the (psuedo-)environment variable indicating if the build is running 'elevated' or not.
         /// </summary>
         public const string IsElevatedVariableName = "BUILDXL_IS_ELEVATED";
-
-        /// <summary>
-        /// Dummy String
-        /// </summary>
-        public const string DummyString = "Dummy_String";
 
         /// <summary>
         /// Name of the (psuedo-)environment variable indicating if the build is running in CloudBuild or not.

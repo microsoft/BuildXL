@@ -552,6 +552,7 @@ static void LoadSubstituteProcessExecutionFilterDLL()
 {
     assert(g_SubstituteProcessExecutionFilterDLLPath != nullptr);
 
+    Dbg(L"Loading substitute process filter DLL at %s\r\n", g_SubstituteProcessExecutionFilterDLLPath);
     g_SubstituteProcessExecutionFilterDLLHandle = LoadLibraryW(g_SubstituteProcessExecutionFilterDLLPath);
     if (g_SubstituteProcessExecutionFilterDLLHandle != nullptr)
     {
@@ -565,12 +566,12 @@ static void LoadSubstituteProcessExecutionFilterDLL()
             reinterpret_cast<void*>(GetProcAddress(g_SubstituteProcessExecutionFilterDLLHandle, WinapiProcName)));
         if (g_SubstituteProcessExecutionFilterFunc == nullptr)
         {
-            Dbg(L"Unable to find %S function in SubstituteProcessExecutionFilterDLLPath %s\r\n", WinapiProcName, g_SubstituteProcessExecutionFilterDLLPath);
+            Dbg(L"Unable to find %S function in SubstituteProcessExecutionFilterDLLPath %s, lasterr=%d\r\n", WinapiProcName, g_SubstituteProcessExecutionFilterDLLPath, GetLastError());
         }
     }
     else
     {
-        Dbg(L"Failed LoadLibrary for SubstituteProcessExecutionFilterDLLPath %s\r\n", g_SubstituteProcessExecutionFilterDLLPath);
+        Dbg(L"Failed LoadLibrary for SubstituteProcessExecutionFilterDLLPath %s, lasterr=%d\r\n", g_SubstituteProcessExecutionFilterDLLPath, GetLastError());
     }
 }
 

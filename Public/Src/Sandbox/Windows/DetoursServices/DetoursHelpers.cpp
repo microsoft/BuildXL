@@ -542,7 +542,7 @@ wchar_t *CreateStringFromWriteChars(const byte *payloadBytes, size_t &offset, ui
     return pStr;
 }
 
-inline void SkipWriteCharsString(const byte *payloadBytes, size_t &offset)
+static inline void SkipWriteCharsString(const byte *payloadBytes, size_t &offset)
 {
     uint32_t len = ParseUint32(payloadBytes, offset);
     offset += sizeof(wchar_t) * len;

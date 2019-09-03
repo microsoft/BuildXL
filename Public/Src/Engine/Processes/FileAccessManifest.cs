@@ -477,9 +477,9 @@ namespace BuildXL.Processes
 
             writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0);
             WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable));
+            writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
             WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionFilterDll32Path.ToString(m_pathTable));
             WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionFilterDll64Path.ToString(m_pathTable));
-            writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
 
             if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)
             {

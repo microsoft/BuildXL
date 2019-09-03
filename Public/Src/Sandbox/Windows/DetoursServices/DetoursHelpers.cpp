@@ -861,16 +861,17 @@ bool ParseFileAccessManifest(
     pShimInfo->AssertValid();
     offset += pShimInfo->GetSize();
     g_SubstituteProcessExecutionShimPath = CreateStringFromWriteChars(payloadBytes, offset);
-#if defined(_WIN64)
-    SkipWriteCharsString(payloadBytes, offset);  // Skip 32-bit path.
-    g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
-#elif defined(_WIN32)
-    g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
-    SkipWriteCharsString(payloadBytes, offset);  // Skip 64-bit path.
-#endif
     if (g_SubstituteProcessExecutionShimPath != nullptr)
     {
         g_ProcessExecutionShimAllProcesses = pShimInfo->ShimAllProcesses != 0;
+
+#if defined(_WIN64)
+        SkipWriteCharsString(payloadBytes, offset);  // Skip 32-bit path.
+        g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
+#elif defined(_WIN32)
+        g_SubstituteProcessExecutionFilterDLLPath = CreateStringFromWriteChars(payloadBytes, offset);
+        SkipWriteCharsString(payloadBytes, offset);  // Skip 64-bit path.
+#endif
 
         uint32_t numProcessMatches = ParseUint32(payloadBytes, offset);
         g_pShimProcessMatches = new vector<ShimProcessMatch*>();

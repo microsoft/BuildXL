@@ -100,6 +100,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
+        private SymbolAtom m_executeErrorRegexOptions;
         private SymbolAtom m_executeTags;
         private SymbolAtom m_executeServiceShutdownCmd;
         private SymbolAtom m_executeServiceFinalizationCmds;
@@ -243,6 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAdditionalTempDirectories = Symbol("additionalTempDirectories");
             m_executeWarningRegex = Symbol("warningRegex");
             m_executeErrorRegex = Symbol("errorRegex");
+            m_executeErrorRegexOptions = Symbol("errorRegexOptions");
             m_executeAllowedSurvivingChildProcessNames = Symbol("allowedSurvivingChildProcessNames");
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
             m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
@@ -545,7 +547,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             var errorRegex = Converter.ExtractString(obj, m_executeErrorRegex, allowUndefined: true);
             if (errorRegex != null)
             {
-                processBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(context.StringTable, errorRegex), RegexOptions.None);
+                var regexOptions = Converter.ExtractNumber(obj, m_executeErrorRegexOptions, allowUndefined: true);
+                if (regexOptions != null && !ValidateRegexOptions(regexOptions.Value))
+                {
+                    throw new InputValidationException(
+                        I($"Invalid value for RegexOptions: {regexOptions.Value}.  See the C# RegexOptions enum for valid values"),
+                        new ErrorContext(name: m_executeErrorRegexOptions, objectCtx: obj));
+                }
+
+                processBuilder.ErrorRegex = new RegexDescriptor(
+                    StringId.Create(context.StringTable, errorRegex),
+                    regexOptions != null ? (RegexOptions)regexOptions.Value : RegexOptions.None);
             }
 
             // Tags.
@@ -670,6 +682,19 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (executeDependsOnCurrentHostOSDirectories == true)
             {
                 processBuilder.AddCurrentHostOSDirectories();
+            }
+        }
+
+        private static bool ValidateRegexOptions(int regexOptions)
+        {
+            try
+            {
+                new Regex(".", (RegexOptions)regexOptions);
+                return true;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return false;
             }
         }
 

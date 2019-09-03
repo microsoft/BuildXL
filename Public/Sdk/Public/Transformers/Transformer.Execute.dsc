@@ -33,7 +33,7 @@ namespace Transformer {
 
         /** Grant permissions permanently, i.e., until the service pip terminates. */
         permanent
-    } 
+    }
 
     @@public
     export interface ExecuteArgumentsCommon extends ExecuteArgumentsComposible {
@@ -83,9 +83,12 @@ namespace Transformer {
 
         /** Regex that would be used to extract warnings from the output. */
         warningRegex?: string;
-        
+
         /** Regex that would be used to extract errors from the output. */
         errorRegex?: string;
+
+        /** Options used to construct error regex (see the RegexOptions C# enum for valid values) */
+        errorRegexOptions?: number;
 
         /** Semaphores to acquire */
         acquireSemaphores?: SemaphoreInfo[];

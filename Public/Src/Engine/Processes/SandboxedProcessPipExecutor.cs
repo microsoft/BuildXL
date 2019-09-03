@@ -517,26 +517,77 @@ namespace BuildXL.Processes
             return m_warningRegex.IsMatch(line);
         }
 
-        private bool IsError(string line)
+        private readonly struct OutputFilter
         {
-            Contract.Requires(line != null, "line must not be null.");
+            internal readonly Predicate<string> LinePredicate;
+            internal readonly Regex Regex;
 
-            // in absence of regex, treating everything as error.
-            if (m_errorRegex == null)
+            internal OutputFilter(Predicate<string> linePredicate) 
+                : this(linePredicate, null)
             {
-                return true;
+                Contract.Requires(linePredicate != null);
             }
 
-            // An unusually long string causes pathologically slow Regex back-tracking.
-            // To avoid that, only scan the first 400 characters. That's enough for
-            // the longest possible prefix: MAX_PATH, plus a huge subcategory string, and an error location.
-            // After the regex is done, we can append the overflow.
-            if (line.Length > 400)
+            internal OutputFilter(Regex regex)
+                : this(null, regex)
             {
-                line = line.Substring(0, 400);
+                Contract.Requires(regex != null);
             }
 
-            return m_errorRegex.IsMatch(line);
+            private OutputFilter(Predicate<string> linePredicate, Regex regex)
+            {
+                Contract.Requires(linePredicate != null || regex != null);
+                LinePredicate = linePredicate;
+                Regex = regex;
+            }
+
+            internal string ExtractMatches(string inputChunk, string separator = null)
+            {
+                return LinePredicate != null
+                    ? (LinePredicate(inputChunk) ? inputChunk : string.Empty)
+                    : string.Join(separator ?? Environment.NewLine, Regex.Matches(inputChunk).Cast<Match>().Select(m => m.Value));
+            }
+        }
+
+        /// <summary>
+        /// If <see cref="m_errorRegex"/> is set and its options include <see cref="RegexOptions.Singleline"/> (which means that 
+        /// the whole input string---which in turn may contain multiple lines---should be treated as a single line), returns the 
+        /// regex itself (which is then used to find all the matches in the input string); otherwise, returns a line filter 
+        /// to be used to match individual lines from the input string.
+        /// </summary>
+        /// <remarks>
+        /// Must not be called before <see cref="TryInitializeErrorRegexAsync"/> is called.
+        /// </remarks>
+        private OutputFilter GetErrorFilter()
+        {
+            if (m_errorRegex != null && m_errorRegex.Options.HasFlag(RegexOptions.Singleline))
+            {
+                return new OutputFilter(m_errorRegex);
+            }
+            else
+            {
+                return new OutputFilter(line =>
+                {
+                    Contract.Requires(line != null, "line must not be null.");
+
+                    // in absence of regex, treating everything as error.
+                    if (m_errorRegex == null)
+                    {
+                        return true;
+                    }
+
+                    // An unusually long string causes pathologically slow Regex back-tracking.
+                    // To avoid that, only scan the first 400 characters. That's enough for
+                    // the longest possible prefix: MAX_PATH, plus a huge subcategory string, and an error location.
+                    // After the regex is done, we can append the overflow.
+                    if (line.Length > 400)
+                    {
+                        line = line.Substring(0, 400);
+                    }
+
+                    return m_errorRegex.IsMatch(line);
+                });
+            }
         }
 
         private void Observe(string line)
@@ -553,24 +604,36 @@ namespace BuildXL.Processes
         /// <param name="output">Output stream (from sandboxed process) to read from.</param>
         /// <param name="filterPredicate"> Predicate, used to filter lines of interest.</param>
         /// <param name="appendNewLine">Whether to append newLine on non-empty content. Defaults to false.</param>
-        private async Task<string> TryFilterAsync(SandboxedProcessOutput output, Predicate<string> filterPredicate, bool appendNewLine = false)
+        private Task<string> TryFilterLineByLineAsync(SandboxedProcessOutput output, Predicate<string> filterPredicate, bool appendNewLine = false)
+            => TryFilterAsync(output, new OutputFilter(filterPredicate), appendNewLine);
+
+        private async Task<string> TryFilterAsync(SandboxedProcessOutput output, OutputFilter filter, bool appendNewLine)
         {
+            Contract.Assert(filter.LinePredicate != null || filter.Regex != null);
+
+            bool isLineByLine = filter.LinePredicate != null;
             try
             {
                 using (PooledObjectWrapper<StringBuilder> wrapper = Pools.StringBuilderPool.GetInstance())
                 {
+                    StringBuilder sb = wrapper.Instance;
+
                     using (TextReader reader = output.CreateReader())
                     {
-                        StringBuilder sb = wrapper.Instance;
-                        while (true)
+                        while (reader.Peek() != -1)
                         {
-                            string line = await reader.ReadLineAsync();
-                            if (line == null)
+                            string inputChunk = isLineByLine
+                                ? await reader.ReadLineAsync()
+                                : await ReadNextChunkAsync(reader, output);
+
+                            if (inputChunk == null)
                             {
                                 break;
                             }
 
-                            if (filterPredicate(line))
+                            string outputText = filter.ExtractMatches(inputChunk);
+                                
+                            if (!string.IsNullOrEmpty(outputText))
                             {
                                 // only add leading newlines (when needed).
                                 // Trailing newlines would cause the message logged to have double newlines
@@ -579,7 +642,7 @@ namespace BuildXL.Processes
                                     sb.AppendLine();
                                 }
 
-                                sb.Append(line);
+                                sb.Append(outputText);
                                 if (sb.Length >= MaxConsoleLength)
                                 {
                                     // Make sure we have a newline before the ellipsis
@@ -591,9 +654,9 @@ namespace BuildXL.Processes
                                 }
                             }
                         }
-
-                        return sb.ToString();
                     }
+
+                    return sb.ToString();
                 }
             }
             catch (IOException ex)
@@ -3577,22 +3640,24 @@ namespace BuildXL.Processes
 
         private async Task<LogErrorResult> TryLogErrorAsync(SandboxedProcessResult result, bool exitedWithSuccessExitCode)
         {
-            bool errorWasTruncated = false;
             // Initializing error regex just before it is actually needed to save some cycles.
             if (!await TryInitializeErrorRegexAsync())
             {
-                return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
+                return new LogErrorResult(success: false, errorWasTruncated: false);
             }
 
+            var errorFilter = GetErrorFilter();
+
+            bool errorWasTruncated = false;
             var exceedsLimit = OutputExceedsLimit(result.StandardOutput) || OutputExceedsLimit(result.StandardError);
             if (!exceedsLimit || m_sandboxConfig.OutputReportingMode == OutputReportingMode.TruncatedOutputOnError)
             {
-                string standardError = await TryFilterAsync(result.StandardError, IsError, appendNewLine: true);
-                string standardOutput = await TryFilterAsync(result.StandardOutput, IsError, appendNewLine: true);
+                string standardError = await TryFilterAsync(result.StandardError, errorFilter, appendNewLine: true);
+                string standardOutput = await TryFilterAsync(result.StandardOutput, errorFilter, appendNewLine: true);
 
                 if (standardError == null || standardOutput == null)
                 {
-                    return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
+                    return new LogErrorResult(success: false, errorWasTruncated: false);
                 }
 
                 if (string.IsNullOrEmpty(standardError) && string.IsNullOrEmpty(standardOutput))
@@ -3600,8 +3665,8 @@ namespace BuildXL.Processes
                     // Standard error and standard output are empty.
                     // This could be because the filter is too aggressive and the entire output was filtered out.
                     // Rolling back to a non-filtered approach because some output is better than nothing.
-                    standardError = await TryFilterAsync(result.StandardError, s => true, appendNewLine: true);
-                    standardOutput = await TryFilterAsync(result.StandardOutput, s => true, appendNewLine: true);
+                    standardError = await TryFilterLineByLineAsync(result.StandardError, s => true, appendNewLine: true);
+                    standardOutput = await TryFilterLineByLineAsync(result.StandardOutput, s => true, appendNewLine: true);
                 }
 
                 if (standardError.Length != result.StandardError.Length ||
@@ -3622,7 +3687,7 @@ namespace BuildXL.Processes
             long stdErrTotalLength = 0;
 
             // The output exceeds the limit and the full output has been requested. Emit it in chunks
-            if (!await TryEmitFullOutputInChunks(IsError))
+            if (!await TryEmitFullOutputInChunks(errorFilter))
             {
                 return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
             }
@@ -3633,7 +3698,7 @@ namespace BuildXL.Processes
                 // This could be because the filter is too aggressive and the entire output was filtered out.
                 // Rolling back to a non-filtered approach because some output is better than nothing.
                 errorWasTruncated = false;
-                if (!await TryEmitFullOutputInChunks(filterPredicate: null))
+                if (!await TryEmitFullOutputInChunks(filter: null))
                 {
                     return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
                 }
@@ -3641,7 +3706,7 @@ namespace BuildXL.Processes
 
             return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
 
-            async Task<bool> TryEmitFullOutputInChunks(Predicate<string> filterPredicate)
+            async Task<bool> TryEmitFullOutputInChunks(OutputFilter? filter)
             {
                 using (TextReader errorReader = CreateReader(result.StandardError))
                 {
@@ -3654,12 +3719,18 @@ namespace BuildXL.Processes
 
                         while (errorReader.Peek() != -1 || outReader.Peek() != -1)
                         {
-                            string stdError = await ReadNextChunkAsync(errorReader, result.StandardError, filterPredicate);
-                            string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput, filterPredicate);
+                            string stdError = await ReadNextChunkAsync(errorReader, result.StandardError, filter?.LinePredicate);
+                            string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput, filter?.LinePredicate);
 
                             if (stdError == null || stdOut == null)
                             {
                                 return false;
+                            }
+
+                            if (filter?.Regex != null)
+                            {
+                                stdError = filter.Value.ExtractMatches(stdError);
+                                stdOut = filter.Value.ExtractMatches(stdOut);
                             }
 
                             if (string.IsNullOrEmpty(stdOut) && string.IsNullOrEmpty(stdError))
@@ -3682,7 +3753,6 @@ namespace BuildXL.Processes
                         }
 
                         return true;
-
                     }
                 }
             }
@@ -3873,8 +3943,8 @@ namespace BuildXL.Processes
         /// </summary>
         public async Task<bool> TryLogWarningAsync(SandboxedProcessOutput standardError, SandboxedProcessOutput standardOutput)
         {
-            string warningsError = standardError == null ? string.Empty : await TryFilterAsync(standardError, IsWarning, appendNewLine: true);
-            string warningsOutput = standardOutput == null ? string.Empty : await TryFilterAsync(standardOutput, IsWarning, appendNewLine: true);
+            string warningsError = standardError == null ? string.Empty : await TryFilterLineByLineAsync(standardError, IsWarning, appendNewLine: true);
+            string warningsOutput = standardOutput == null ? string.Empty : await TryFilterLineByLineAsync(standardOutput, IsWarning, appendNewLine: true);
 
             if (warningsError == null ||
                 warningsOutput == null)

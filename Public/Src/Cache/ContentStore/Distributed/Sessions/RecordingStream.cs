@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -14,21 +14,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     {
         private readonly byte[] _recordedBytes;
         private readonly Stream _inner;
-        private readonly long _capacity;
+        private readonly long? _capacity;
         private readonly MemoryStream _memoryStream;
         private long _readBytes = 0;
+
+        private bool FixedSizeStream => _capacity != null;
 
         /// <summary>
         /// RecordingStream constructor.
         /// </summary>
         /// <param name="inner">Inner stream that it will record.</param>
-        /// <param name="size">The amount of bytes that will be recorded. Will throw if more bytes are read from underlying stream.</param>
+        /// <param name="size">
+        /// The amount of bytes that will be recorded. Will throw if more bytes are read from underlying stream.
+        /// Ignored if <paramref name="inner"/> is not seekable.
+        /// </param>
         public RecordingStream(Stream inner, long size)
         {
             _inner = inner;
-            _capacity = size;
-            _recordedBytes = new byte[size];
-            _memoryStream = new MemoryStream(_recordedBytes);
+
+            if (inner.CanSeek)
+            {
+                _capacity = size;
+                _recordedBytes = new byte[size];
+                _memoryStream = new MemoryStream(_recordedBytes);
+            }
+            else
+            {
+                // If the inner stream is not seekable, create a backing expandable memory stream
+                // and do not validate length against _capacity.
+                _memoryStream = new MemoryStream();
+            }
         }
 
         /// <summary>
@@ -38,8 +53,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             get
             {
-                Contract.Assert(_memoryStream.Position == _capacity, "RecordingStream should record the entire content of a stream.");
-                return _recordedBytes;
+
+                Contract.Assert(!FixedSizeStream || _memoryStream.Position == _capacity, "RecordingStream should record the entire content of a stream.");
+                return FixedSizeStream ? _recordedBytes : _memoryStream.GetBuffer();
             }
         }
 
@@ -66,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             var bytesRead = _inner.Read(buffer, offset, count);
 
-            if (_readBytes + bytesRead > _capacity)
+            if (FixedSizeStream && _readBytes + bytesRead > _capacity)
             {
                 throw new InvalidOperationException($"Cannot exceed capacity set to {_capacity} bytes.");
             }

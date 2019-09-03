@@ -10,7 +10,7 @@ using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Configuration;
+using System.IO;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -19,6 +19,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
     /// </summary>
     internal sealed class Program : ToolProgram<Args>
     {
+        private PathTable m_pathTable = new PathTable();
+
         private Program()
             : base("Dsa")
         {
@@ -35,7 +37,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         {
             try
             {
-                arguments = new Args(rawArgs, AnalyzerFactory);
+                arguments = new Args(rawArgs, AnalyzerFactory, m_pathTable);
                 return true;
             }
             catch (Exception ex)
@@ -52,6 +54,34 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <inheritdoc />
         public override int Run(Args arguments)
         {
+            int retries = 0;
+            int maxRetries = 3;
+            while (retries < maxRetries)
+            {
+                try
+                {
+                    retries++;
+                    return RunInner(arguments);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Try: {retries} of {maxRetries} to analyze workspace hit an error.");
+                    if (retries == maxRetries)
+                    {
+                        ConsoleColor original = Console.ForegroundColor;
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Error.WriteLine(ex.GetLogEventMessage());
+                        Console.ForegroundColor = original;
+                    }
+                }
+            }
+
+            return 1;
+        }
+
+        /// <inheritdoc />
+        private int RunInner(Args arguments)
+        {
             if (arguments.Help)
             {
                 return 0;
@@ -62,17 +92,17 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             using (Logger.SetupEventListener(EventLevel.Informational))
             {
-                PathTable pathTable = new PathTable();
-
                 var logger = Logger.CreateLogger();
 
-                if (!WorkspaceBuilder.TryCollectFilesToAnalyze(
+                arguments.CommandLineConfig.Engine.Phase = arguments.Analyzers.Max(a => a.RequiredPhases);
+                // This needs to be passed in as a path through environment variable because it changes every 
+                if (!WorkspaceBuilder.TryBuildWorkspaceAndCollectFilesToAnalyze(
                     logger,
-                    pathTable,
-                    EnginePhases.AnalyzeWorkspace,
-                    arguments.Config,
-                    arguments.Filter,
+                    m_pathTable,
+                    arguments.CommandLineConfig,
+                    arguments.Analyzers.Any(a => a.SerializeUsingTopSort),
                     out var workspace,
+                    out var pipGraph,
                     out var filesToAnalyze,
                     out var context))
                 {
@@ -81,7 +111,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 foreach (var analyzer in arguments.Analyzers)
                 {
-                    if (!analyzer.SetSharedState(arguments, context, logger, workspace))
+                    if (!analyzer.SetSharedState(arguments, context, logger, workspace, pipGraph))
                     {
                         return 1;
                     }
@@ -135,7 +165,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     return new DocumentationGenerator();
                 case AnalyzerKind.Codex:
                     return new CodexAnalyzer();
-
+                case AnalyzerKind.GraphFragment:
+                    return new GraphFragmentGenerator();
                 default:
                     return null;
             }

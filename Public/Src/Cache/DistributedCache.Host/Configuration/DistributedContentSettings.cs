@@ -361,6 +361,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? UseIncrementalCheckpointing { get; set; }
 
         [DataMember]
+        public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
+
+        [DataMember]
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
 
         [DataMember]
@@ -384,6 +387,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public TimeSpan? ContentLocationDatabaseCacheFlushingMaximumInterval { get; set; }
 
+        [DataMember]
+        public int? FullRangeCompactionIntervalMinutes { get; set; }
+
         // Key Vault Settings
         [DataMember]
         public string KeyVaultSettingsString { get; set; }
@@ -405,6 +411,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? MaxEventProcessingConcurrency { get; set; }
+
+        [DataMember]
+        public int? EventBatchSize { get; set; }
+
+        [DataMember]
+        public int? EventProcessingMaxQueueSize { get; set; }
 
         [DataMember]
         public string[] AzureStorageSecretNames { get; set; }
@@ -483,6 +495,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EmptyFileHashShortcutEnabled { get; set; } = false;
 
         [DataMember]
+        public bool UseRedundantPutFileShortcut { get; set; } = false;
+
+        [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
         /// <summary>
@@ -496,6 +511,15 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        [DataMember]
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        [DataMember]
+        public bool EnableMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
         #endregion
 

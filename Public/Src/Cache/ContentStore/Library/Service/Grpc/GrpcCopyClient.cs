@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -94,19 +94,25 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct)
+        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct)
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _bufferSize, FileOptions.SequentialScan);
 
-            return CopyToAsync(context, hash, streamFactory, ct);
+            using (var operationContext = TrackShutdown(context, ct))
+            {
+                return await CopyToCoreAsync(operationContext, hash, streamFactory);
+            }
         }
         
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct)
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct)
         {
-            return CopyToAsync(context, hash, () => stream, ct);
+            using (var operationContext = TrackShutdown(context, ct))
+            {
+                return await CopyToCoreAsync(operationContext, hash, () => stream);
+            }
         }
 
         /// <summary>

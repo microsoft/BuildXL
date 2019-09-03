@@ -138,17 +138,17 @@ namespace BuildXL.Pips.Operations
         /// Returns the current value as a FileArtifact.
         /// </summary>
         /// <remarks>
-        /// You can only call this function for instances where Type is equal to <see cref="PipFragmentType.VsoHash"/>.
+        /// You can only call this function for instances where Type is equal to <see cref="PipFragmentType.VsoHash"/> or <see cref="PipFragmentType.FileId"/>.
         /// </remarks>
         public FileArtifact GetFileValue()
         {
-            Contract.Requires(FragmentType == PipFragmentType.VsoHash);
+            Contract.Requires(FragmentType == PipFragmentType.VsoHash || FragmentType == PipFragmentType.FileId);
 
             Contract.Assert(m_entries.Count >= 2);
             var entry1 = m_entries[0];
-            Contract.Assert(entry1.EntryType == PipDataEntryType.VsoHashEntry1Path);
+            Contract.Assert(entry1.EntryType == PipDataEntryType.VsoHashEntry1Path || entry1.EntryType == PipDataEntryType.FileId1Path);
             var entry2 = m_entries[1];
-            Contract.Assert(entry2.EntryType == PipDataEntryType.VsoHashEntry2RewriteCount);
+            Contract.Assert(entry2.EntryType == PipDataEntryType.VsoHashEntry2RewriteCount || entry2.EntryType == PipDataEntryType.FileId2RewriteCount);
             return new FileArtifact(entry1.GetPathValue(), entry2.GetIntegralValue());
         }
 

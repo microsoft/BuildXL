@@ -430,9 +430,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
                     "DISABLE_FEATURE_HTMLWRITER",
                     "DISABLE_FEATURE_EXTENDED_ENCODING"
                 ),
-                ...addIf(!Flags.isMicrosoftInternal || isDotNetCoreBuild,
-                    "DISABLE_FEATURE_BOND_RPC"
-                ),
                 ...addIf(Flags.isMicrosoftInternal,
                     "FEATURE_ARIA_TELEMETRY"
                 ),

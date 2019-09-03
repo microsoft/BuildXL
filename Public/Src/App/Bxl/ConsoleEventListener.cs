@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -14,9 +14,10 @@ using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Visualization.Models;
+using BuildXL.ViewModel;
 using Strings = bxl.Strings;
 
 namespace BuildXL
@@ -43,6 +44,16 @@ namespace BuildXL
         /// The full path to the logs directory
         /// </summary>
         private readonly string m_logsDirectory;
+
+        /// <summary>
+        /// Whether the console output should be optimized for Azure devops output
+        /// </summary>
+        private readonly bool m_optimizeForAzureDevOps;
+
+        /// <summary>
+        /// This provides access to viewmodel data of the build for instance to get the list of running pips in fancy console mode.
+        /// </summary>
+        private BuildViewModel m_buildViewModel;
 
         /// <summary>
         /// Creates a new instance with optional colorization.
@@ -89,6 +100,9 @@ namespace BuildXL
         /// <param name="maxStatusPips">
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
+        /// <param name="optimizeForAzureDevOps">
+        /// Whether console output should e optimized for Azure DevOps output.
+        /// </param>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public ConsoleEventListener(
             Events eventSource,
@@ -103,7 +117,8 @@ namespace BuildXL
             EventMask eventMask = null,
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
             PathTranslator pathTranslator = null,
-            int maxStatusPips = DefaultMaxStatusPips)
+            int maxStatusPips = DefaultMaxStatusPips,
+            bool optimizeForAzureDevOps = false)
             : this(
                 eventSource,
                 new StandardConsole(colorize, animateTaskbar, updatingConsole, pathTranslator),
@@ -114,7 +129,8 @@ namespace BuildXL
                 level: level,
                 eventMask: eventMask,
                 onDisabledDueToDiskWriteFailure: onDisabledDueToDiskWriteFailure,
-                maxStatusPips: maxStatusPips)
+                maxStatusPips: maxStatusPips,
+                optimizeForAzureDevOps: optimizeForAzureDevOps)
         {
         }
 
@@ -156,6 +172,9 @@ namespace BuildXL
         /// <param name="maxStatusPips">
         /// Maximum number of concurrently executing pips to render in Fancy Console view.
         /// </param>
+        /// <param name="optimizeForAzureDevOps">
+        /// Whether console output should be optimized for Azure DevOps output.
+        /// </param>
         public ConsoleEventListener(
             Events eventSource,
             IConsole console,
@@ -167,7 +186,8 @@ namespace BuildXL
             EventLevel level = EventLevel.Verbose,
             EventMask eventMask = null,
             DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null,
-            int maxStatusPips = DefaultMaxStatusPips)
+            int maxStatusPips = DefaultMaxStatusPips,
+            bool optimizeForAzureDevOps = false)
             : base(eventSource, baseTime, warningMapper, level, false, TimeDisplay.Seconds, eventMask, onDisabledDueToDiskWriteFailure, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.Requires(eventSource != null);
@@ -177,6 +197,15 @@ namespace BuildXL
             m_maxStatusPips = maxStatusPips;
             m_logsDirectory = logsDirectory;
             m_notWorker = notWorker;
+            m_optimizeForAzureDevOps = optimizeForAzureDevOps;
+        }
+
+        /// <summary>
+        /// Sets the build view model that when set this class can use to print the current running pips.
+        /// </summary>
+        public void SetBuildViewModel(BuildViewModel buildViewModel)
+        {
+            m_buildViewModel = buildViewModel;
         }
 
         /// <inheritdoc />
@@ -321,7 +350,7 @@ namespace BuildXL
 
                         break;
                     }
-                    
+
                 case (int)EventId.DisplayHelpLink:
                     {
                         m_console.WriteOutputLine(MessageLevel.Info, Strings.DX_Help_Link_Prefix + " " + Strings.DX_Help_Link);
@@ -381,7 +410,7 @@ namespace BuildXL
         protected override void OnError(EventWrittenEventArgs eventData)
         {
             Interlocked.Increment(ref m_errorsLogged);
-
+            
             if (eventData.EventId == (int)EventId.PipProcessError)
             {
                 // Try to be a bit fancy and only show the tool errors in red. The pip name and log file will stay in
@@ -426,6 +455,7 @@ namespace BuildXL
                         // Note - the MessageLevel below are really just for the sake of colorization
                         Output(EventLevel.Informational, eventData.EventId, eventData.EventName, eventData.Keywords, message.Substring(0, messageStart).TrimEnd(s_newLineCharArray));
                         Output(EventLevel.Warning, eventData.EventId, eventData.EventName, eventData.Keywords, warnings);
+
                         return;
                     }
                 }
@@ -482,7 +512,23 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
         {
-            m_console.WriteOutputLine(ConvertLevel(level), text.TrimEnd(s_newLineCharArray));
+            var outputText = text.TrimEnd(s_newLineCharArray);
+
+            if (m_optimizeForAzureDevOps)
+            {
+                switch  (level)
+                {
+                    case EventLevel.Critical:
+                    case EventLevel.Error:
+                        outputText = "##[error]" + outputText.Replace("\n", "\n##[error]");
+                        break;
+                    case EventLevel.Warning:
+                        outputText = "##[warning]" + outputText.Replace("\n", "\n##[warning]");
+                        break;
+                }
+            }
+
+            m_console.WriteOutputLine(ConvertLevel(level), outputText);
         }
 
         private void OutputUpdatable(EventLevel level, string standardText, string updatableText, bool onlyIfOverwriteIsSupported)
@@ -538,19 +584,13 @@ namespace BuildXL
         {
             lock (m_runningPipsLock)
             {
-                // First, bail out if the visualizer data isn't available
-                if (EngineModel.VisualizationInformation == null ||
-                    EngineModel.VisualizationInformation.Scheduler.State != Engine.Visualization.VisualizationValueState.Available ||
-                    EngineModel.VisualizationInformation.Context.State != Engine.Visualization.VisualizationValueState.Available ||
-                    EngineModel.VisualizationInformation.PipGraph.State != Engine.Visualization.VisualizationValueState.Available)
+                if (m_buildViewModel == null)
                 {
                     return null;
                 }
 
-                var context = EngineModel.VisualizationInformation.Context.Value;
-                var stringTable = context.StringTable;
-                var pathTable = context.PathTable;
-                var symbolTable = context.SymbolTable;
+                var context = m_buildViewModel.Context;
+                Contract.Assert(context != null);
 
                 if (m_runningPips == null)
                 {
@@ -560,7 +600,7 @@ namespace BuildXL
                 DateTime thisCollection = DateTime.UtcNow;
 
                 // Use the viewer's interface to fetch the info about which pips are currently running.
-                foreach (var pip in EngineModel.VisualizationInformation.Scheduler.Value.RetrieveExecutingProcessPips())
+                foreach (var pip in m_buildViewModel.RetrieveExecutingProcessPips())
                 {
                     PipInfo runningInfo;
                     if (!m_runningPips.TryGetValue(pip.PipId, out runningInfo))

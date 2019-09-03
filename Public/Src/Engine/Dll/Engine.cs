@@ -25,7 +25,7 @@ using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Engine.Recovery;
 using BuildXL.Engine.Tracing;
-using BuildXL.Engine.Visualization;
+using BuildXL.ViewModel;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
@@ -159,7 +159,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// The visualization information
         /// </summary>
-        private EngineLiveVisualizationInformation m_visualization;
+        private BuildViewModel m_buildViewModel;
 
         /// <summary>
         /// The snapshot collector.
@@ -262,6 +262,7 @@ namespace BuildXL.Engine
             ICommandLineConfiguration initialConfig, // some configuration options are still only on the initialConfig. When cleaned up this argument and member should be removed.
             IFrontEndControllerFactory frontEndControllerFactory,
             IFrontEndController frontEndController,
+            BuildViewModel buildViewModel,
             PerformanceCollector collector,
             DateTime? processStartTimeUtc,
             TrackingEventListener trackingEventListener,
@@ -273,19 +274,16 @@ namespace BuildXL.Engine
             Contract.Requires(configuration != null);
             Contract.Requires(initialConfig != null);
 
-            if (configuration.Distribution.IsGrpcEnabled)
-            {
-                bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
+            bool grpcHandlerInliningEnabled = GrpcSettings.HandlerInliningEnabled;
 
-#if NET_CORE
-                // Handler inlining causing deadlock on the mac platform.
-                grpcHandlerInliningEnabled = false;
-#endif
+            GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
 
-                GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
-
-                Logger.Log.GrpcSettings(loggingContext, GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled, (int)GrpcSettings.CallTimeout.TotalMinutes, (int)GrpcSettings.InactiveTimeout.TotalMinutes);
-            }
+            Logger.Log.GrpcSettings(
+                loggingContext, 
+                GrpcSettings.ThreadPoolSize, 
+                grpcHandlerInliningEnabled, 
+                (int)GrpcSettings.CallTimeout.TotalMinutes, 
+                (int)GrpcSettings.InactiveTimeout.TotalMinutes);
 
             Context = context;
             Configuration = configuration;
@@ -322,6 +320,16 @@ namespace BuildXL.Engine
             m_collector = collector;
             m_commitId = commitId;
             m_buildVersion = buildVersion;
+            m_buildViewModel = buildViewModel;
+
+            var loggingConfig = Configuration.Logging;
+            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+            {
+                var filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), loggingConfig.LogPrefix + ".Summary.md");
+                
+                // Tell the build viewmodel to collect a builder summary which we report to azure devops.
+                m_buildViewModel.BuildSummary = new BuildSummary(filePath);
+            }
 
             // Designate a temp directory under ObjectDirectory for FileUtilities to move files to during deletion attempts
             m_moveDeleteTempDirectory = Path.Combine(configuration.Layout.ObjectDirectory.ToString(context.PathTable), MoveDeleteTempDirectoryName);
@@ -335,6 +343,7 @@ namespace BuildXL.Engine
             EngineContext context,
             ICommandLineConfiguration initialCommandLineConfiguration,
             IFrontEndControllerFactory frontEndControllerFactory,
+            BuildViewModel buildViewModel,
             PerformanceCollector collector = null,
             DateTime? processStartTimeUtc = null,
             TrackingEventListener trackingEventListener = null,
@@ -343,6 +352,7 @@ namespace BuildXL.Engine
             string buildVersion = null)
         {
             Contract.Requires(context != null);
+            Contract.Requires(buildViewModel != null);
             Contract.Requires(initialCommandLineConfiguration != null);
             Contract.Requires(initialCommandLineConfiguration.Layout != null);
             Contract.Requires(initialCommandLineConfiguration.Layout.PrimaryConfigFile.IsValid, "The caller is responsible for making sure the initial layout is properly configured by calling PopulateLoggingAndLayoutConfiguration on the config.");
@@ -361,26 +371,9 @@ namespace BuildXL.Engine
             // to use the same config for multiple engine runs. So make a copy here to avoid invalidating the config
             // object that a consumer may want to use later
             var mutableInitialConfig = new CommandLineConfiguration(initialCommandLineConfiguration);
-
-            if (mutableInitialConfig.InCloudBuild())
+            if (!ModifyConfigurationForCloudbuild(mutableInitialConfig, true, context.PathTable, loggingContext))
             {
-                mutableInitialConfig.Startup.EnsurePropertiesWhenRunInCloudBuild();
-                ApplyTemporaryHackWhenRunInCloudBuild(context, mutableInitialConfig);
-            }
-
-            if (mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot.IsValid && !OperatingSystemHelper.IsUnixOS)
-            {
-                if (!RedirectUserProfileDirectory(
-                    mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot,
-                    mutableInitialConfig.Engine.DirectoriesToTranslate,
-                    mutableInitialConfig.Startup.Properties,
-                    SpecialFolderUtilities.InitRedirectedUserProfilePaths,
-                    context.PathTable,
-                    loggingContext))
-                {
-                    Contract.Assume(loggingContext.ErrorWasLogged, "Failed to redirect user profile, but no error was logged.");
-                    return null;
-                }
+                return null;
             }
 
             initialCommandLineConfiguration = mutableInitialConfig;
@@ -419,6 +412,7 @@ namespace BuildXL.Engine
                 initialCommandLineConfiguration,
                 frontEndControllerFactory,
                 frontEndController,
+                buildViewModel,
                 collector,
                 processStartTimeUtc,
                 trackingEventListener,
@@ -428,12 +422,47 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
+        /// Applies directory junctiones and redirection needed for cloudbuild
+        /// </summary>
+        /// <param name="mutableInitialConfig">Initial configuration</param>
+        /// <param name="createProfileRedirectionJunctions">If true, create directory junctions on disk for user profile redirection.  If false, just set the variables for redirection, but don't create the directories</param>
+        /// <param name="pathTable">Path table</param>
+        /// <param name="loggingContext">Logging context</param>
+        /// <returns>True if sucessful</returns>
+        public static bool ModifyConfigurationForCloudbuild(CommandLineConfiguration mutableInitialConfig, bool createProfileRedirectionJunctions, PathTable pathTable, LoggingContext loggingContext)
+        {
+            if (mutableInitialConfig.InCloudBuild())
+            {
+                mutableInitialConfig.Startup.EnsurePropertiesWhenRunInCloudBuild();
+                ApplyTemporaryHackWhenRunInCloudBuild(pathTable, mutableInitialConfig);
+            }
+
+            if (mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot.IsValid && !OperatingSystemHelper.IsUnixOS)
+            {
+                if (!RedirectUserProfileDirectory(
+                    mutableInitialConfig.Layout.RedirectedUserProfileJunctionRoot,
+                    mutableInitialConfig.Engine.DirectoriesToTranslate,
+                    mutableInitialConfig.Startup.Properties,
+                    SpecialFolderUtilities.InitRedirectedUserProfilePaths,
+                    createProfileRedirectionJunctions,
+                    pathTable,
+                    loggingContext))
+                {
+                    Contract.Assume(loggingContext.ErrorWasLogged, "Failed to redirect user profile, but no error was logged.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Temporary hack when BuildXL run in CloudBuild.
         /// </summary>
         /// <remarks>
         /// Once CloudBuild people fix the issue, then this hack can be removed.
         /// </remarks>
-        private static void ApplyTemporaryHackWhenRunInCloudBuild(EngineContext context, CommandLineConfiguration commandLineConfiguration)
+        private static void ApplyTemporaryHackWhenRunInCloudBuild(PathTable pathTable, CommandLineConfiguration commandLineConfiguration)
         {
             Contract.Requires(commandLineConfiguration != null);
             Contract.Requires(commandLineConfiguration.InCloudBuild());
@@ -482,8 +511,8 @@ namespace BuildXL.Engine
                         var sessionDir = sessionDirMatch.Value;
                         var fixedSsdSessionDir = sessionDirMatch.Result(Replacement);
 
-                        var sessionDirPath = AbsolutePath.Create(context.PathTable, sessionDir);
-                        var fixedSsdSessionDirPath = AbsolutePath.Create(context.PathTable, fixedSsdSessionDir);
+                        var sessionDirPath = AbsolutePath.Create(pathTable, sessionDir);
+                        var fixedSsdSessionDirPath = AbsolutePath.Create(pathTable, fixedSsdSessionDir);
 
                         if (!Directory.Exists(fixedSsdSessionDir))
                         {
@@ -1151,8 +1180,21 @@ namespace BuildXL.Engine
             List<TranslateDirectoryData> redirectedDirectories,
             Dictionary<string, string> properties,
             Action<IReadOnlyDictionary<string, string>> specialFolderInitializer,
+            bool createRedirectionJunctions,
             PathTable pathTable,
             LoggingContext loggingContext)
+        {
+            string currentUserProfile;
+            string redirectedProfile;
+            if (!SetRedirectedEnvironment(root, redirectedDirectories, properties, specialFolderInitializer, pathTable, loggingContext, out currentUserProfile, out redirectedProfile))
+            {
+                return false;
+            }
+
+            return !createRedirectionJunctions || CreateUserProfileRedirectionJunctions(currentUserProfile, redirectedProfile, loggingContext);
+        }
+
+        internal static bool SetRedirectedEnvironment(AbsolutePath root, List<TranslateDirectoryData> redirectedDirectories, Dictionary<string, string> properties, Action<IReadOnlyDictionary<string, string>> specialFolderInitializer, PathTable pathTable, LoggingContext loggingContext, out string currentUserProfile, out string redirectedProfile)
         {
             Contract.Requires(root.IsValid);
 
@@ -1160,16 +1202,18 @@ namespace BuildXL.Engine
             if (!FileUtilities.DirectoryExistsNoFollow(rootPath))
             {
                 Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Junction root '{rootPath}' does not exist."));
+                currentUserProfile = null;
+                redirectedProfile = null;
                 return false;
             }
 
             const string RedirectedUserName = "buildXLUserProfile";
 
             // get the current user AppData directory path before we make any changes
-            string currentUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            currentUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
             // <root>\RedirectedUserName
-            string redirectedProfile = Path.Combine(rootPath, RedirectedUserName);
+            redirectedProfile = Path.Combine(rootPath, RedirectedUserName);
 
             var homeDrive = Path.GetPathRoot(redirectedProfile).TrimEnd('\\');
             var homePath = redirectedProfile.Substring(homeDrive.Length);
@@ -1214,6 +1258,36 @@ namespace BuildXL.Engine
             specialFolderInitializer(redirectedEnvVariables);
             properties.AddRange(redirectedEnvVariables);
 
+            // Some tools use mysterious ways of getting paths under <currentUserProfile>\AppData.
+            // Create a directory translation here, this would take care of any potential leaks out of our redirected profile.
+
+            if (!AbsolutePath.TryCreate(pathTable, currentUserProfile, out var fromPath))
+            {
+                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to create an absolute path from '{currentUserProfile}'."));
+                return false;
+            }
+
+            if (!AbsolutePath.TryCreate(pathTable, redirectedProfile, out var toPath))
+            {
+                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to create an absolute path from '{redirectedProfile}'."));
+                return false;
+            }
+
+            redirectedDirectories.Add(new TranslateDirectoryData(I($"{currentUserProfile}<{redirectedProfile}"), fromPath, toPath));
+
+            Logger.Log.UsingRedirectedUserProfile(
+                loggingContext,
+                currentUserProfile,
+                redirectedProfile,
+                string.Join(Environment.NewLine, envVariables.Select(entry => I($"{entry.name}: '{entry.original}' -> '{entry.redirected}'"))));
+            return true;
+        }
+
+        private static bool CreateUserProfileRedirectionJunctions(
+            string currentUserProfile,
+            string redirectedProfile,
+            LoggingContext loggingContext)
+        {
             // Setup the junction: <root>\RedirectedUserName => <currentUserProfile>
 
             var r = FileUtilities.TryProbePathExistence(redirectedProfile, false);
@@ -1251,28 +1325,6 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            // Some tools use mysterious ways of getting paths under <currentUserProfile>\AppData.
-            // Create a directory translation here, this would take care of any potential leaks out of our redirected profile.
-
-            if (!AbsolutePath.TryCreate(pathTable, currentUserProfile, out var fromPath))
-            {
-                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to create an absolute path from '{currentUserProfile}'."));
-                return false;
-            }
-
-            if (!AbsolutePath.TryCreate(pathTable, redirectedProfile, out var toPath))
-            {
-                Logger.Log.FailedToRedirectUserProfile(loggingContext, I($"Failed to create an absolute path from '{redirectedProfile}'."));
-                return false;
-            }
-
-            redirectedDirectories.Add(new TranslateDirectoryData(I($"{currentUserProfile}<{redirectedProfile}"), fromPath, toPath));
-
-            Logger.Log.UsingRedirectedUserProfile(
-                loggingContext, 
-                currentUserProfile, 
-                redirectedProfile,
-                string.Join(Environment.NewLine, envVariables.Select(entry => I($"{entry.name}: '{entry.original}' -> '{entry.redirected}'"))));
             return true;
         }
 
@@ -1418,16 +1470,6 @@ namespace BuildXL.Engine
         /// Perf counter collector for the session. This may be null if perf counter collection is not enabled
         /// </summary>
         private readonly PerformanceCollector m_collector;
-
-        /// <summary>
-        /// Sets the visualization information to be collected
-        /// </summary>
-        public void SetVisualizationInformation(EngineLiveVisualizationInformation visualization)
-        {
-            Contract.Requires(visualization != null);
-
-            m_visualization = visualization;
-        }
 
         /// <summary>
         /// Sets the snapshot visitor
@@ -1962,12 +2004,6 @@ namespace BuildXL.Engine
                                     if (TestHooks?.Scheduler != null)
                                     {
                                         var isTransferred = engineSchedule.TransferPipTableOwnership(TestHooks.Scheduler.Value.PipGraph.PipTable);
-                                        Contract.Assume(isTransferred);
-                                    }
-
-                                    if (m_visualization?.PipTable.State == VisualizationValueState.Available)
-                                    {
-                                        var isTransferred = engineSchedule.TransferPipTableOwnership(m_visualization.PipTable.Value);
                                         Contract.Assume(isTransferred);
                                     }
 
@@ -2631,12 +2667,7 @@ namespace BuildXL.Engine
                     Context,
                     m_tempCleaner);
 
-            if (m_visualization != null)
-            {
-                m_visualization.Context.MakeAvailable(Context);
-                m_visualization.Configuration.MakeAvailable(Configuration);
-                m_visualization.LoggingContext.MakeAvailable(new LoggingContext(loggingContext, "Viewer"));
-            }
+            m_buildViewModel.SetContext(Context);
 
             var phase = Configuration.Engine.Phase;
             try
@@ -2923,12 +2954,8 @@ namespace BuildXL.Engine
 
         private void MakeScheduleInfoAvailableToViewer(EngineSchedule engineSchedule)
         {
-            if (m_visualization != null && engineSchedule != null)
-            {
-                m_visualization.Scheduler.MakeAvailable(engineSchedule.Scheduler);
-                m_visualization.PipGraph.MakeAvailable(engineSchedule.Scheduler.PipGraph);
-                m_visualization.PipTable.MakeAvailable(engineSchedule.PipTable);
-            }
+            var scheduler = engineSchedule.Scheduler;
+            m_buildViewModel.SetSchedulerDetails(scheduler.RetrieveExecutingProcessPips);
         }
 
         private void WarnForVirusScan(LoggingContext loggingContext, ILayoutConfiguration layout)
@@ -3008,7 +3035,7 @@ namespace BuildXL.Engine
                 && constructScheduleResult != ConstructScheduleResult.Failure
                 && constructScheduleResult != ConstructScheduleResult.None)
             {
-                m_enginePerformanceInfo.SchedulerPerformanceInfo = schedule.LogStats(loggingContext);
+                m_enginePerformanceInfo.SchedulerPerformanceInfo = schedule.LogStats(loggingContext, m_buildViewModel.BuildSummary);
             }
 
             foreach (var type in BuildXLWriterStats.Types.OrderByDescending(type => BuildXLWriterStats.GetBytes(type)))
@@ -3283,7 +3310,23 @@ namespace BuildXL.Engine
         /// <summary>
         /// Gets the update and delay time for status timers
         /// </summary>
-        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig) => loggingConfig == null || !loggingConfig.FancyConsole ? 5000 : 2000;
+        public static int GetTimerUpdatePeriodInMs(ILoggingConfiguration loggingConfig)
+        {
+            if (loggingConfig != null)
+            {
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+                {
+                    return 10_000;
+                }
+
+                if (loggingConfig.FancyConsole)
+                {
+                    return 2_000;
+                }
+            }
+
+            return 5_000;
+        }
     }
 
     /// <summary>

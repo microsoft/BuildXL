@@ -46,13 +46,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
             return new List<NamespaceFunctionDefinition>
             {
-                Function(Constants.Names.GlobFunction, this.Glob, GlobSignature),
+                Function(Constants.Names.GlobFunction, Glob, GlobSignature),
                 Function(Constants.Names.GlobRFunction, globRecursivelyBinding),
                 Function(Constants.Names.GlobRecursivelyFunction, globRecursivelyBinding),
-                Function(Constants.Names.GlobFoldersFunction, this.GlobFolders, GlobFoldersSignature),
+                Function(Constants.Names.GlobFoldersFunction, GlobFolders, GlobFoldersSignature),
                 Function("addIf", AddIf, AddIfSignature),
                 Function("addIfLazy", AddIfLazy, AddIfLazySignature),
-                Function("sign", Sign, SignSignature),
+                Function("sign", Sign, SignSignature)
             };
         }
 

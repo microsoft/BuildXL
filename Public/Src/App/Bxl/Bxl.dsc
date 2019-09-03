@@ -53,7 +53,7 @@ namespace Main {
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
-            importFrom("BuildXL.Engine").VisualizationModel.dll,
+            importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Ide").Script.Debugger.dll,
             importFrom("BuildXL.Ide").Generator.dll,
             importFrom("BuildXL.Ide").VSCode.DebugProtocol.dll,

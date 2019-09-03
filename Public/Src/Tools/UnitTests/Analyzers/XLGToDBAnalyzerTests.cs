@@ -4,12 +4,11 @@
 using System;
 using System.IO;
 using System.Linq;
-using BuildXL.Analyzers.Core.XLGPlusPlus;
 using BuildXL.Execution.Analyzer;
-using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
+using BuildXL.Xldb;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;
@@ -133,9 +132,9 @@ namespace Test.Tool.Analyzers
             XAssert.AreNotEqual(0, dataStore.GetPipCacheMissEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetStatusReportedEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetBXLInvocationEvents().Count());
-            XAssert.AreNotEqual(0, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
 
             // For these tests, there should be no events logged
+            XAssert.AreEqual(0, dataStore.GetPipExecutionDirectoryOutputsEvents().Count());
             XAssert.AreEqual(0, dataStore.GetWorkerListEvents().Count());
             XAssert.AreEqual(0, dataStore.GetDependencyViolationReportedEvents().Count());
         }

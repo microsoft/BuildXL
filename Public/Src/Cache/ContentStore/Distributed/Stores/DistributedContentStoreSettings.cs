@@ -152,5 +152,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         /// <nodoc />
         public static DistributedContentStoreSettings DefaultSettings { get; } = new DistributedContentStoreSettings();
+
+        /// <summary>
+        /// Maximum number of PutFile operations that can happen concurrently.
+        /// </summary>
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
     }
 }

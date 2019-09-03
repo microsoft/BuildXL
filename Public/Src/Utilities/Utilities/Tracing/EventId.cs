@@ -1104,6 +1104,7 @@ namespace BuildXL.Utilities.Tracing
         BuildHasPerfSmells = 14010,
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
+        ProblematicWorkerExitError = 14013,
 
         // Graph validation.
         InvalidGraphSinceOutputDirectoryContainsSourceFile = 14100,

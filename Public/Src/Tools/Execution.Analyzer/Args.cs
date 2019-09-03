@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,19 @@ using HelpLevel = BuildXL.ToolSupport.HelpLevel;
 
 namespace BuildXL.Execution.Analyzer
 {
+    internal class ConsoleEventListener : FormattingEventListener
+    {
+        public ConsoleEventListener(Events eventSource, DateTime baseTime, WarningMapper warningMapper = null, EventLevel level = EventLevel.Verbose, bool captureAllDiagnosticMessages = false, TimeDisplay timeDisplay = TimeDisplay.None, EventMask eventMask = null, DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null, bool listenDiagnosticMessages = false, bool useCustomPipDescription = false)
+            : base(eventSource, baseTime, warningMapper, level, captureAllDiagnosticMessages, timeDisplay, eventMask, onDisabledDueToDiskWriteFailure, listenDiagnosticMessages, useCustomPipDescription)
+        {
+        }
+
+        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.ff}] {text}");
+        }
+    }
+
     internal sealed partial class Args : CommandLineUtilities
     {
         private static readonly string[] s_helpStrings = new[] { "?", "help" };
@@ -36,6 +50,7 @@ namespace BuildXL.Execution.Analyzer
 
         public readonly LoggingContext LoggingContext = new LoggingContext("BuildXL.Execution.Analyzer");
         public readonly TrackingEventListener TrackingEventListener = new TrackingEventListener(Events.Log);
+        public readonly ConsoleEventListener ConsoleListener = new ConsoleEventListener(Events.Log, DateTime.UtcNow);
 
         // Variables that are unused without full telemetry
         private readonly bool m_telemetryDisabled = false;
@@ -143,10 +158,9 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Additional executionLog to compare parameter is required");
             }
 
-            // The fingerprint store based cache miss analyzer and the bxl invocation analyzer
-            // only use graph information from the newer build, so skip loading the graph for the earlier build
-            // TODO: To avoid large "||" statements, convert this to a list or enum or struct and check if the mode is "in" that data structure
-            if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.BXLInvocationXLG)
+            // The fingerprint store based cache miss analyzer
+            // only uses graph information from the newer build, so skip loading the graph for the earlier build
+            if (m_mode.Value != AnalysisMode.CacheMiss)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))
                 {
@@ -328,8 +342,10 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
                     break;
-                case AnalysisMode.BXLInvocationXLG:
-                    m_analyzer = InitializeBXLInvocationAnalyzer();
+                case AnalysisMode.DebugLogs:
+                    ConsoleListener.RegisterEventSource(ETWLogger.Log);
+                    ConsoleListener.RegisterEventSource(FrontEnd.Script.Debugger.ETWLogger.Log);
+                    m_analyzer = InitializeDebugLogsAnalyzer();
                     break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
@@ -608,8 +624,8 @@ namespace BuildXL.Execution.Analyzer
             //writer.WriteLine("");
             //WriteXLGToDBHelp(writer);
 
-            //writer.WriteLine("");
-            //WriteDominoInvocationHelp(writer);
+            writer.WriteLine("");
+            WriteDebugLogsAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

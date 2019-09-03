@@ -31,7 +31,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// in the pip graph for this package.
         /// TODO: Remove that and keep a reference to the module Pip instead.
         /// </summary>
-        public ModuleId ModuleId { get; set; }
+        public ModuleId ModuleId { get; }
 
         /// <summary>
         /// Package location.
@@ -62,7 +62,7 @@ namespace BuildXL.FrontEnd.Sdk
         public IPackageDescriptor Descriptor { get; }
 
         /// <nodoc />
-        private Package(PackageId id, AbsolutePath path, IPackageDescriptor descriptor, IEnumerable<AbsolutePath> parsedProjects = null)
+        private Package(PackageId id, AbsolutePath path, IPackageDescriptor descriptor, IEnumerable<AbsolutePath> parsedProjects, ModuleId moduleId)
         {
             Id = id;
             Path = path;
@@ -71,18 +71,19 @@ namespace BuildXL.FrontEnd.Sdk
             m_parsedProjects = parsedProjects != null
                 ? new HashSet<AbsolutePath>(parsedProjects)
                 : new HashSet<AbsolutePath>();
+            ModuleId = moduleId;
         }
 
         /// <summary>
         /// Creates a package.
         /// </summary>
-        public static Package Create(PackageId id, AbsolutePath path, IPackageDescriptor descriptor, IEnumerable<AbsolutePath> parsedProjects = null)
+        public static Package Create(PackageId id, AbsolutePath path, IPackageDescriptor descriptor, IEnumerable<AbsolutePath> parsedProjects = null, ModuleId moduleId = default)
         {
             Contract.Requires(id.IsValid);
             Contract.Requires(path.IsValid);
             Contract.Requires(descriptor != null);
 
-            return new Package(id, path, descriptor, parsedProjects);
+            return new Package(id, path, descriptor, parsedProjects, moduleId.IsValid ? moduleId : ModuleId.Create(id.Name));
         }
 
         /// <summary>

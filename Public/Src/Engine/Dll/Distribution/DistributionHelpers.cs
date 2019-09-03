@@ -88,52 +88,6 @@ namespace BuildXL.Engine.Distribution
             return new BondContentHash() { Data = byteString.ToArraySegmentByte() };
         }
 
-        /// <summary>
-        /// Check if an exception is trancient and is worth retrying.
-        /// </summary>
-        /// <param name="ex">The exception thrown by Bond code.</param>
-        /// <param name="verifierCounters">counters use to track transient error type occurrences</param>
-        /// <returns>True is the retry makes sense; false otherwise.</returns>
-        internal static bool IsTransientBondException(Exception ex, CounterCollection<DistributionCounter> verifierCounters)
-        {
-            // Unwrap if its an aggregate exception
-            AggregateException aggregateException = ex as AggregateException;
-            if (aggregateException != null && aggregateException.InnerExceptions.Count == 1)
-            {
-                ex = aggregateException.InnerExceptions[0];
-            }
-
-            // SocketException is thrown when something goes wrong in the TCP channel.
-            // InvalidOperationException is thrown when a previous call has closed the connection.
-            // In the second case a retry will reopen the connection.
-            // BondTcpClient.OnConnectionComplete throws IOException on failure instead of SocketException.
-            // Sometimes we get TimeoutException
-            if (ex is SocketException || ex is InvalidOperationException || ex is IOException || ex is TimeoutException)
-            {
-                return true;
-            }
-
-#if !DISABLE_FEATURE_BOND_RPC
-            // 'No such method' probably means the buffer was corrupted somehow
-            // Retry and see if it succeeds next time
-            if (ex is Microsoft.Bond.RpcException && ex.Message.Contains("No such method"))
-            {
-                verifierCounters.IncrementCounter(DistributionCounter.ClientNoSuchMethodErrorCount);
-                return true;
-            }
-#endif
-
-            // If the connection gets broken while waiting for response, we can see a bug in the NetlibConnection
-            // where it tries to initialize an array section with null. It throws an unhandled and unwrapped
-            // ArgumentNullException.
-            if ((ex is ArgumentNullException || ex is NullReferenceException) && ex.StackTrace.Contains("Netlib"))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
         internal static string GetServiceName(int port)
         {
             return GetServiceName(System.Net.Dns.GetHostName(), port);
@@ -174,6 +128,11 @@ namespace BuildXL.Engine.Distribution
                     sb.AppendFormat("ExecutionLogData: Size={0}, SequenceNumber={1}", notificationArgs.ExecutionLogData.Count, notificationArgs.ExecutionLogBlobSequenceNumber);
                 }
 
+                if (notificationArgs.ForwardedEvents?.Count > 0)
+                {
+                    sb.AppendFormat("ForwardedEvents: Count={0}", notificationArgs.ForwardedEvents.Count);
+                }
+
                 return sb.ToString();
             }
         }
@@ -189,17 +148,5 @@ namespace BuildXL.Engine.Distribution
                 }
             }
         }
-
-#if !DISABLE_FEATURE_BOND_RPC
-        internal static void SetChecksum<T>(this Microsoft.Bond.Message<T> message, uint checksum) where T : Microsoft.Bond.IBondSerializable, new()
-        {
-            message.Context.PacketHeaders.m_nettrace.m_traceID.Data1 = checksum;
-        }
-
-        internal static uint GetChecksum<T>(this Microsoft.Bond.Message<T> message) where T : Microsoft.Bond.IBondSerializable, new()
-        {
-            return message.Context.PacketHeaders.m_nettrace.m_traceID.Data1;
-        }
-#endif
     }
 }

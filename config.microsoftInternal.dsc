@@ -8,16 +8,13 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 // Or they contain code which is internal and can't be open sourced due to tying into Microsoft internal systems.
 // The dependent code is still open sourced, but not compiled in the public repo.
 export const pkgs = isMicrosoftInternal ? [
-    { id: "Bond.NET", version: "3.2.0", forceFullFrameworkQualifiersOnly: true },
-    { id: "Bond.Core.NET", version: "3.2.0" },
-    { id: "Bond.Rpc.NET", version: "3.2.0" },
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "1.98.99" },
     { id: "Aria.Cpp.SDK", version: "8.5.6" },
 
-    { id: "CB.QTest", version: "19.7.18.221046" },
+    { id: "CB.QTest", version: "19.8.23.151259" },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
@@ -64,8 +61,6 @@ export const pkgs = isMicrosoftInternal ? [
 export const resolver = {
     kind: "SourceResolver",
     modules: [
-        f`private/InternalSdk/Bond/module.config.dsc`,
-        f`private/InternalSdk/Bond.NET/module.config.dsc`,
         f`private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
         f`private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,

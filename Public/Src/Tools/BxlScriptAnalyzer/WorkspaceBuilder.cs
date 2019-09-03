@@ -18,8 +18,10 @@ using BuildXL.FrontEnd.Script.RuntimeModel.AstBridge;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Scheduler;
+using BuildXL.Pips;
 using BuildXL.Scheduler.Filter;
+using BuildXL.Scheduler.Graph;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -43,7 +45,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// </summary>
         public static bool TryBuildWorkspaceForIde(
             FrontEndContext frontEndContext,
-            PipExecutionContext engineContext,
+            EngineContext engineContext,
             FrontEndEngineAbstraction frontEndEngineAbstraction,
             AbsolutePath rootFolder,
             bool skipNuget,
@@ -66,14 +68,15 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             }
 
             return TryBuildWorkspace(
-                EnginePhases.AnalyzeWorkspace, // The IDE always wants to analyze the workspace
+                new CommandLineConfiguration() { Startup = { ConfigFile = config } },
                 frontEndContext,
                 engineContext,
-                config,
                 EvaluationFilter.Empty, // TODO: consider passing a filter that scopes down the build to the root folder
                 progressHandler,
+                false,
                 out workspace,
                 out controller,
+                out _,
                 new WorkspaceBuilderConfiguration()
                 {
                     CancelOnFirstParsingFailure = false, // We always want to do as much as we can for the IDE,
@@ -88,72 +91,79 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Tries to build/analyze a workspace given a config and an evaluation filter
         /// </summary>
-        /// <param name="phase">Engine phase, must have either <see cref="EnginePhases.ParseWorkspace"/> or <see cref="EnginePhases.AnalyzeWorkspace"/>.</param>
+        /// <param name="commandLineConfig">Command line parameters</param>
         /// <param name="frontEndContext">Contextual information used by BuildXL front-end.</param>
         /// <param name="engineContext">Contextual information used by BuildXL engine.</param>
-        /// <param name="configFile">Path to the primary configuration file. If invalid, a lookup will be performed</param>
         /// <param name="evaluationFilter">Evaluation filter that defines the build extent to care about.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
+        /// <param name="topSort">If true, build a dependency graph from the read in pips to serialize and load them faster</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>
         /// <param name="frontEndHostController">The host controller used for computing the workspace</param>
+        /// <param name="pipGraph">Resulting pip graph</param>
         /// <param name="configuration">Configuration for workspace construction</param>
         /// <param name="frontEndEngineAbstraction">The engine abstraction to use. A default one is used if not provided</param>
         /// <param name="collectMemoryAsSoonAsPossible">Flag to indicate if memory should be released as soon as possible after workspace creation</param>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public static bool TryBuildWorkspace(
-            EnginePhases phase,
+            ICommandLineConfiguration commandLineConfig,
             FrontEndContext frontEndContext,
-            PipExecutionContext engineContext,
-            AbsolutePath configFile,
+            EngineContext engineContext,
             EvaluationFilter evaluationFilter,
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
+            bool topSort,
             out Workspace workspace,
             out FrontEndHostController frontEndHostController,
+            out IPipGraph pipGraph,
             WorkspaceBuilderConfiguration configuration,
             FrontEndEngineAbstraction frontEndEngineAbstraction = null,
             bool collectMemoryAsSoonAsPossible = true)
         {
-            Contract.Requires((phase & (EnginePhases.ParseWorkspace | EnginePhases.AnalyzeWorkspace)) != EnginePhases.None);
+            Contract.Requires((commandLineConfig.Engine.Phase & (EnginePhases.ParseWorkspace | EnginePhases.AnalyzeWorkspace)) != EnginePhases.None);
             Contract.Requires(frontEndContext != null);
             Contract.Requires(engineContext != null);
-            Contract.Requires(configFile.IsValid);
+            Contract.Requires(commandLineConfig.Startup.ConfigFile.IsValid);
             Contract.Requires(evaluationFilter != null);
 
             workspace = null;
+            frontEndHostController = null;
+            pipGraph = null;
 
             var pathTable = engineContext.PathTable;
             var loggingContext = frontEndContext.LoggingContext;
 
-            var commandlineConfig = GetCommandLineConfiguration(configuration, phase, configFile);
-
-            BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandlineConfig, pathTable, bxlExeLocation: null);
+            var mutableCommandlineConfig = GetCommandLineConfiguration(
+                commandLineConfig,
+                configuration);
+            BuildXLEngine.ModifyConfigurationForCloudbuild(mutableCommandlineConfig, false, pathTable, loggingContext);
+            BuildXLEngine.PopulateLoggingAndLayoutConfiguration(mutableCommandlineConfig, pathTable, bxlExeLocation: null);
 
             var statistics = new FrontEndStatistics(progressHandler);
             var frontEndControllerFactory = FrontEndControllerFactory.Create(
                 mode: FrontEndMode.NormalMode,
                 loggingContext: loggingContext,
-                configuration: commandlineConfig,
+                configuration: mutableCommandlineConfig,
                 collector: null,
                 statistics: statistics,
                 collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
 
             var controller = frontEndControllerFactory.Create(engineContext.PathTable, engineContext.SymbolTable);
-            controller.InitializeHost(frontEndContext, commandlineConfig);
+            controller.InitializeHost(frontEndContext, mutableCommandlineConfig);
 
-            frontEndHostController = controller as FrontEndHostController;
+            frontEndHostController = (FrontEndHostController)controller;
 
-            // If there is an explicit engine abstraction, we set it
+            // If there is an explicit engine abstraction, we set it. This is used by IDE test.
             if (frontEndEngineAbstraction != null)
             {
-                frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: commandlineConfig);
+                frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: mutableCommandlineConfig);
             }
 
-            var config = controller.ParseConfig(commandlineConfig);
+            var config = controller.ParseConfig(mutableCommandlineConfig);
             if (config == null)
             {
-                frontEndHostController = null;
                 return false;
             }
+
+            IPipGraph pipGraphBuilder = null;
 
             using (var cache = Task.FromResult<Possible<EngineCache>>(
                 new EngineCache(
@@ -162,33 +172,125 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     // Note that we have an 'empty' store (no hits ever) rather than a normal in memory one.
                     new EmptyTwoPhaseFingerprintStore())))
             {
-                // Attempt to build and/or analyze the workspace
-                if (!controller.PopulateGraph(
-                    cache: cache,
-                    graph: null /* No need to create pips */,
-                    engineAbstraction: frontEndEngineAbstraction ?? new BasicFrontEndEngineAbstraction(frontEndContext.PathTable, frontEndContext.FileSystem,config),
-                    evaluationFilter: evaluationFilter,
-                    configuration: config,
-                    startupConfiguration: commandlineConfig.Startup))
+                
+                if (frontEndEngineAbstraction == null)
                 {
-                    Contract.Assert(frontEndHostController != null);
-                    workspace = frontEndHostController.GetWorkspace();
+                    if (mutableCommandlineConfig.Engine.Phase.HasFlag(EnginePhases.Schedule))
+                    {
+                        var mountsTable = MountsTable.CreateAndRegister(loggingContext, engineContext, config, mutableCommandlineConfig.Startup.Properties);
+                        frontEndEngineAbstraction = new FrontEndEngineImplementation(
+                            loggingContext,
+                            frontEndContext.PathTable,
+                            config,
+                            mutableCommandlineConfig.Startup,
+                            mountsTable,
+                            InputTracker.CreateDisabledTracker(loggingContext),
+                            null,
+                            null,
+                            () => FileContentTable.CreateStub(),
+                            5000,
+                            false);
 
-                    // Error has been reported already
-                    return false;
+                        if (topSort)
+                        {
+                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config);
+                        }
+                        else
+                        {
+                            pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config);
+                        }
+
+                        // TODO: Think more if an analyzer wants to use the real pip graph builder.
+                        //pipGraphBuilder = new PipGraph.Builder(
+                        //    EngineSchedule.CreateEmptyPipTable(engineContext),
+                        //    engineContext,
+                        //    Scheduler.Tracing.Logger.Log,
+                        //    loggingContext,
+                        //    config,
+                        //    mountsTable.MountPathExpander,
+                        //    fingerprintSalt: config.Cache.CacheSalt,
+                        //    directoryMembershipFingerprinterRules: new DirectoryMembershipFingerprinterRuleSet(config, engineContext.StringTable));
+                        if (!AddConfigurationMountsAndCompleteInitialization(config, loggingContext, mountsTable))
+                        {
+                            return false;
+                        }
+
+                        IDictionary<ModuleId, MountsTable> moduleMountsTableMap;
+                        if (!mountsTable.PopulateModuleMounts(config.ModulePolicies.Values, out moduleMountsTableMap))
+                        {
+                            Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.PopulateModuleMounts()");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        frontEndEngineAbstraction = new BasicFrontEndEngineAbstraction(frontEndContext.PathTable, frontEndContext.FileSystem, config);
+                    }
+                }
+
+                using (frontEndEngineAbstraction is IDisposable ? (IDisposable)frontEndEngineAbstraction : null)
+                {
+                    // Attempt to build and/or analyze the workspace
+                    if (!controller.PopulateGraph(
+                        cache: cache,
+                        graph: pipGraphBuilder,
+                        engineAbstraction: frontEndEngineAbstraction,
+                        evaluationFilter: evaluationFilter,
+                        configuration: config,
+                        startupConfiguration: mutableCommandlineConfig.Startup))
+                    {
+                        workspace = frontEndHostController.GetWorkspace();
+
+                        // Error has been reported already
+                        return false;
+                    }
+
+                    pipGraph = pipGraphBuilder;
+
+                    //if (pipGraphBuilder != null)
+                    //{
+                    //    pipGraph = pipGraphBuilder.Build();
+
+                    //    if (pipGraph == null)
+                    //    {
+                    //        // Error has been reported already.
+                    //        return false;
+                    //    }
+                    //}
                 }
             }
 
             Contract.Assert(frontEndHostController != null);
 
-            // If workspace construction is successfull, we run the linter on all specs.
-            // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
-            workspace = CreateLintedWorkspace(
-                frontEndHostController.GetWorkspace(),
+            workspace = frontEndHostController.GetWorkspace();
 
-                frontEndContext.LoggingContext,
-                config.FrontEnd,
-                pathTable);
+            if (mutableCommandlineConfig.Engine.Phase == EnginePhases.AnalyzeWorkspace)
+            {
+                // If workspace construction is successful, we run the linter on all specs.
+                // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
+                workspace = CreateLintedWorkspace(
+                    workspace,
+                    frontEndContext.LoggingContext,
+                    config.FrontEnd,
+                    pathTable);
+            }
+
+            return true;
+        }
+
+        private static bool AddConfigurationMountsAndCompleteInitialization(IConfiguration config, LoggingContext loggingContext, MountsTable mountsTable)
+        {
+            // Add configuration mounts
+            foreach (var mount in config.Mounts)
+            {
+                mountsTable.AddResolvedMount(mount, new LocationData(config.Layout.PrimaryConfigFile, 0, 0));
+            }
+
+            if (!mountsTable.CompleteInitialization())
+            {
+                Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after MountTable.CompleteInitialization()");
+                return false;
+            }
 
             return true;
         }
@@ -205,16 +307,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         }
 
         private static CommandLineConfiguration GetCommandLineConfiguration(
-            WorkspaceBuilderConfiguration configuration,
-            EnginePhases phase,
-            AbsolutePath configFile)
+            ICommandLineConfiguration commandLineConfig,
+            WorkspaceBuilderConfiguration configuration)
         {
-            return new CommandLineConfiguration
+            return new CommandLineConfiguration (commandLineConfig)
             {
-                Startup =
-                {
-                    ConfigFile = configFile,
-                },
                 FrontEnd =
                 {
                     DebugScript = false,
@@ -227,28 +324,43 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     // If SkipNuget is specified, then all the packages should be on disk.
                     // Skipping nuget restore in this case.
                     UsePackagesFromFileSystem = configuration.SkipNuget,
+                    
+                    // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
+                    // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
+                    ReleaseWorkspaceBeforeEvaluation = !commandLineConfig.Engine.Phase.HasFlag(EnginePhases.Evaluate),
+                    UnsafeOptimizedAstConversion = true,
+                    AllowUnsafeAmbient = true,
                 },
-                Engine =
+                Schedule =
                 {
-                    Phase = phase,
+                    UseFixedApiServerMoniker = true
                 },
+                Logging =
+                {
+                    LogsToRetain = 0,
+                },
+                Cache =
+                {
+                    CacheSpecs = SpecCachingOption.Disabled
+                }
             };
         }
 
         /// <summary>
         /// Builds a workspace and uses filter to find specs to evaluate.
         /// </summary>
-        public static bool TryCollectFilesToAnalyze(
+        public static bool TryBuildWorkspaceAndCollectFilesToAnalyze(
             Tracing.Logger logger,
             PathTable pathTable,
-            EnginePhases phase,
-            string configFile,
-            string filter,
+            ICommandLineConfiguration configuation,
+            bool topSort,
             out Workspace workspace,
+            out IPipGraph pipGraph,
             out IReadOnlyDictionary<AbsolutePath, ISourceFile> filesToAnalyze,
             out FrontEndContext context)
         {
             workspace = null;
+            pipGraph = null;
             filesToAnalyze = null;
 
             var loggingContext = new LoggingContext("DScriptAnalyzer");
@@ -259,45 +371,53 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             // Parse filter string into EvaluationFilter
             var evaluationFilter = EvaluationFilter.Empty;
-            if (!string.IsNullOrEmpty(filter))
+            if (!string.IsNullOrEmpty(configuation.Filter))
             {
-                if (!TryGetEvaluationFilter(logger, loggingContext, engineContext, filter, out evaluationFilter))
+                if (!TryGetEvaluationFilter(logger, loggingContext, engineContext, configuation.Filter, out evaluationFilter))
                 {
                     // Error has been reported already
                     return false;
                 }
             }
 
-            var configFilePath = AbsolutePath.Create(pathTable, configFile);
-
             // Try parsing the workspace from config and evaluation filter
             if (!TryBuildWorkspace(
-                phase,
+                configuation,
                 context,
                 engineContext,
-                configFilePath,
                 evaluationFilter,
                 progressHandler: null,
+                topSort,
                 workspace: out workspace,
                 frontEndHostController: out _,
+                pipGraph: out pipGraph,
                 configuration: GetDefaultConfiguration()))
             {
                 return false;
             }
 
-            // Find strict subset of specs in workspace that should be analyzed
-            var collectedFilesToAnalyze = CollectFilesToAnalyze(
-                workspace,
-                pathTable,
-                configFilePath,
-                evaluationFilter);
-            if (collectedFilesToAnalyze.Count == 0)
+            if (configuation.Engine.Phase == EnginePhases.AnalyzeWorkspace)
             {
-                logger.ErrorFilterHasNoMatchingSpecs(loggingContext, filter);
-                return false;
+                // Find strict subset of specs in workspace that should be analyzed
+                var collectedFilesToAnalyze = CollectFilesToAnalyze(
+                        workspace,
+                        pathTable,
+                        configuation.Startup.ConfigFile,
+                        evaluationFilter);
+
+                if (collectedFilesToAnalyze.Count == 0)
+                {
+                    logger.ErrorFilterHasNoMatchingSpecs(loggingContext, configuation.Filter);
+                    return false;
+                }
+
+                filesToAnalyze = collectedFilesToAnalyze;
+            }
+            else
+            {
+                filesToAnalyze = new Dictionary<AbsolutePath, ISourceFile>();
             }
 
-            filesToAnalyze = collectedFilesToAnalyze;
             return true;
         }
 

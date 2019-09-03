@@ -306,5 +306,15 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates whether historic cpu information should be used to decide the weight of process pips.
         /// </summary>
         bool UseHistoricalCpuUsageInfo { get; }
+
+        /// <summary>
+        /// Instead of creating a random moniker for API server, use a fixed predetermined moniker.
+        /// </summary>
+        bool UseFixedApiServerMoniker { get; }
+
+        /// <summary>
+        /// Path to file containing input changes.
+        /// </summary>
+        AbsolutePath InputChanges { get; }
     }
 }

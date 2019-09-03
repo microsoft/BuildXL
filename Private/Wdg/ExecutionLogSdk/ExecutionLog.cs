@@ -638,7 +638,7 @@ namespace Tool.ExecutionLogSdk
                                 m_dictModuleTable.Add(
                                     fullPip.Module,
                                     new ModuleDescriptor(
-                                        fullPip.Module.Value,
+                                        fullPip.Module.Value.Value,
                                         fullPip.Identity,
                                         fullPip.Location.Path,
                                         m_buildGraph.Context));
@@ -647,7 +647,7 @@ namespace Tool.ExecutionLogSdk
                     }
                     else
                     {
-                        m_modulesToSkip.Add(fullPip.Module.Value);
+                        m_modulesToSkip.Add(fullPip.Module.Value.Value);
                     }
                 }
 
@@ -658,7 +658,7 @@ namespace Tool.ExecutionLogSdk
                     {
                         Process fullPip = (Process)m_buildGraph.PipTable.HydratePip(pipId, pipQueryContext);
 
-                        if (m_modulesToSkip.Contains(fullPip.Provenance.ModuleId.Value))
+                        if (m_modulesToSkip.Contains(fullPip.Provenance.ModuleId.Value.Value))
                         {
                             m_pipsToSkip.Add(pipId.Value);
                         }

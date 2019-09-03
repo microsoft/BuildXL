@@ -35,6 +35,7 @@ using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
@@ -1421,7 +1422,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// At the end of the build this logs some important stats about the build
         /// </summary>
-        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext)
+        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 
@@ -1446,7 +1447,7 @@ namespace BuildXL.Engine
 #pragma warning restore SA1114 // Parameter list must follow declaration
             }
 
-            var schedulerPerformance = Scheduler.LogStats(loggingContext);
+            var schedulerPerformance = Scheduler.LogStats(loggingContext, buildSummary);
 
             // Log whitelist file statistics
             if (m_configFileState.FileAccessWhitelist != null && m_configFileState.FileAccessWhitelist.MatchedEntryCounts.Count > 0)

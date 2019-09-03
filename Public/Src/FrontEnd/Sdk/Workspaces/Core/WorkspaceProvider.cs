@@ -493,9 +493,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         private ModuleDefinition CreateConfigModuleDefinition(AbsolutePath mainConfig, HashSet<AbsolutePath> allSpecs, IWorkspaceModuleResolver configurationResolver)
         {
             var descriptorName = Names.ConfigModuleName;
-            var id = StringId.Create(PathTable.StringTable, descriptorName);
             var mdsc = new ModuleDescriptor(
-                id: new ModuleId(id.Value, friendlyNameForDebugging: descriptorName),
+                id: ModuleId.Create(PathTable.StringTable, descriptorName),
                 name: descriptorName,
                 displayName: descriptorName,
                 version: "0.0",

@@ -4,7 +4,7 @@
 #ifndef AccessHandler_hpp
 #define AccessHandler_hpp
 
-#ifdef ES_SANDBOX
+#if ES_SANDBOX
 
 #include "ESSandbox.h"
 #include "SandboxedPip.hpp"
@@ -24,6 +24,10 @@ struct AccessHandler
 {
 private:
 
+    const char *IgnoreDataPartitionPrefix(const char* path);
+    const char *kDataPartitionPrefix = "/System/Volumes/Data/";
+    const size_t kAdjustedPrefixLength = strlen("/System/Volumes/Data");
+    
     ESSandbox *sandbox_;
 
     SandboxedProcess *process_;
@@ -126,6 +130,6 @@ public:
     bool ReportChildProcessSpawned(pid_t childPid);
 };
 
-#ifdef ES_SANDBOX
+#endif /* ES_SANDBOX */
 
 #endif /* AccessHandler_hpp */

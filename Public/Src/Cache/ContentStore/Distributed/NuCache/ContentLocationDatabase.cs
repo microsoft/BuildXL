@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -51,8 +50,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
+        /// <nodoc />
+        protected bool IsDatabaseWriteable;
         private bool _isContentGarbageCollectionEnabled;
         private bool _isMetadataGarbageCollectionEnabled;
+
+        /// <nodoc />
         private bool IsGarbageCollectionEnabled => _isContentGarbageCollectionEnabled || _isMetadataGarbageCollectionEnabled;
 
         /// <summary>
@@ -79,6 +82,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Controls cache flushing due to timeout.
         /// </summary>
         private Timer _inMemoryCacheFlushTimer;
+
+        /// <nodoc />
+        protected readonly object TimerChangeLock = new object();
 
         private readonly object _cacheFlushTimerLock = new object();
 
@@ -121,10 +127,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Prepares the database for read only or read/write mode. This operation assumes no operations are underway
         /// while running. It is the responsibility of the caller to ensure that is so.
         /// </summary>
-        public void SetDatabaseMode(bool isDatabaseWriteable)
+        public virtual void SetDatabaseMode(bool isDatabaseWriteable)
         {
+            // The parameter indicates whether we will be in writeable state or not after this function runs. The
+            // following calls can see if we transition from read/only to read/write by looking at the internal value
             ConfigureGarbageCollection(isDatabaseWriteable);
             ConfigureInMemoryDatabaseCache(isDatabaseWriteable);
+
+            IsDatabaseWriteable = isDatabaseWriteable;
         }
 
         /// <summary>	
@@ -132,10 +142,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>	
         private void ConfigureGarbageCollection(bool isDatabaseWriteable)
         {
-            if (IsGarbageCollectionEnabled != isDatabaseWriteable)
+            if (IsDatabaseWriteable != isDatabaseWriteable)
             {
                 _isContentGarbageCollectionEnabled = isDatabaseWriteable;
-                _isMetadataGarbageCollectionEnabled = _configuration.MetadataGarbageCollectionEnabled && isDatabaseWriteable;
+                _isMetadataGarbageCollectionEnabled = isDatabaseWriteable && _configuration.MetadataGarbageCollectionEnabled;
 
                 var nextGcTimeSpan = IsGarbageCollectionEnabled ? _configuration.GarbageCollectionInterval : Timeout.InfiniteTimeSpan;
                 _gcTimer?.Change(nextGcTimeSpan, Timeout.InfiniteTimeSpan);
@@ -214,10 +224,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             _nagleOperationTracer?.Dispose();
 
-            lock (this)
+            lock (TimerChangeLock)
             {
                 _gcTimer?.Dispose();
+                _gcTimer = null;
+            }
+
+            lock (_cacheFlushTimerLock)
+            {
                 _inMemoryCacheFlushTimer?.Dispose();
+                _inMemoryCacheFlushTimer = null;
             }
 
             return base.ShutdownCoreAsync(context);
@@ -282,12 +298,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public void GarbageCollect(OperationContext context)
         {
-            lock (this)
+            if (ShutdownStarted)
             {
-                if (ShutdownStarted)
-                {
-                    return;
-                }
+                return;
             }
 
             context.PerformOperation(Tracer,
@@ -318,9 +331,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return BoolResult.Success;
                 }, counter: Counters[ContentLocationDatabaseCounters.GarbageCollect]).IgnoreFailure();
 
-            lock (this)
+            if (!ShutdownStarted)
             {
-                if (!ShutdownStarted)
+                lock (TimerChangeLock)
                 {
                     _gcTimer?.Change(_configuration.GarbageCollectionInterval, Timeout.InfiniteTimeSpan);
                 }
@@ -578,14 +591,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     try
                     {
                         await Task.Yield();
-                        await _inMemoryCache.FlushAsync(context);
-                        return BoolResult.Success;
+                        return Result.Success(await _inMemoryCache.FlushAsync(context));
                     }
                     finally
                     {
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
+                }, extraEndMessage: maybeCounters =>
+                {
+                    if (!maybeCounters.Succeeded)
+                    {
+                        return string.Empty;
+                    }
+
+                    var counters = maybeCounters.Value;
+                    return $"Persisted={counters[FlushableCache.FlushableCacheCounters.Persisted].Value} Leftover={counters[FlushableCache.FlushableCacheCounters.Leftover].Value} Growth={counters[FlushableCache.FlushableCacheCounters.Growth].Value} FlushingTime={counters[FlushableCache.FlushableCacheCounters.FlushingTime].Duration.TotalMilliseconds}ms CleanupTime={counters[FlushableCache.FlushableCacheCounters.CleanupTime].Duration.TotalMilliseconds}ms";
                 }).ThrowIfFailure();
         }
 
@@ -707,7 +728,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.
         /// </summary>
-        public abstract IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
+        public abstract Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
 
         /// <summary>
         /// Enumerates all strong fingerprints currently stored in the cache.

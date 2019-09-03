@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.Compression;
@@ -22,6 +23,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
@@ -32,9 +34,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// <summary>
     /// A CAS server implementation based on GRPC.
     /// </summary>
-    public class GrpcContentServer
+    public class GrpcContentServer : StartupShutdownSlimBase
     {
         private readonly Tracer _tracer = new Tracer(nameof(GrpcContentServer));
+
+        /// <inheritdoc />
+        protected override Tracer Tracer => _tracer;
 
         private readonly Capabilities _serviceCapabilities;
         private readonly ILogger _logger;
@@ -287,32 +292,35 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Implements a request copy file request
         /// </summary>
+        [SuppressMessage("AsyncUsage", "AsyncFixer02:DisposeAsync should be used instead of openStreamResult.Stream.Dispose")]
         private async Task<RequestCopyFileResponse> RequestCopyFileAsync(RequestCopyFileRequest request, CancellationToken cancellationToken)
         {
             OperationStarted();
 
-            var startTime = DateTime.UtcNow;
-            var context = new OperationContext(new Context(new Guid(request.TraceId), _logger), cancellationToken);
+            OperationStarted();
 
-            var sessionResult = await _sessionHandler.CreateSessionAsync(context, Guid.NewGuid().ToString(), cacheName: null, ImplicitPin.None, Capabilities.ContentOnly);
+            DateTime startTime = DateTime.UtcNow;
+            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
-            if (!sessionResult.Succeeded)
+            // Iterate through all known stores, looking for content in each.
+            // In most of our configurations there is just one store anyway,
+            // and doing this means both we can callers don't have
+            // to deal with cache roots and drive letters.
+
+            if (_contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault() is ICopyRequestHandler handler)
             {
-                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, sessionResult.ErrorMessage) };
+                var result = await handler.RequestCopyFileAsync(cacheContext, hash);
+                if (result.Succeeded)
+                {
+                    return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
+                }
+
+                return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
+
             }
 
-            var session = _sessionHandler.GetSession(sessionResult.Value.sessionId);
-
-            var pinResult = await session.PinAsync(context, request.ContentHash.ToContentHash((HashType)request.HashType), cancellationToken);
-
-            await _sessionHandler.ReleaseSessionAsync(context, sessionResult.Value.sessionId);
-
-            if (pinResult.Succeeded)
-            {
-                return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };
-            }
-
-            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, pinResult.ErrorMessage) };
+            return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, $"No stores implement {nameof(ICopyRequestHandler)}.") };
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);

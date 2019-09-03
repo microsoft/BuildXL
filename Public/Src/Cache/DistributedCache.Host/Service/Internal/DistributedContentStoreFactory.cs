@@ -85,7 +85,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     StoreClusterState = _distributedSettings.StoreClusterStateInDatabase
                 };
 
-                redisContentLocationStoreConfiguration.Database = dbConfig;
                 if (_distributedSettings.ContentLocationDatabaseGcIntervalMinutes != null)
                 {
                     dbConfig.GarbageCollectionInterval = TimeSpan.FromMinutes(_distributedSettings.ContentLocationDatabaseGcIntervalMinutes.Value);
@@ -98,6 +97,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush, v => dbConfig.CacheMaximumUpdatesPerFlush = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheFlushingMaximumInterval, v => dbConfig.CacheFlushingMaximumInterval = v);
 
+                ApplyIfNotNull(
+                    _distributedSettings.FullRangeCompactionIntervalMinutes,
+                    v => dbConfig.FullRangeCompactionInterval = TimeSpan.FromMinutes(v));
+
+                redisContentLocationStoreConfiguration.Database = dbConfig;
                 ApplySecretSettingsForLlsAsync(redisContentLocationStoreConfiguration, localCacheRoot).GetAwaiter().GetResult();
             }
 
@@ -199,6 +203,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
+                        MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,
@@ -227,7 +232,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 SelfCheckEpoch = settings.SelfCheckEpoch,
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
                 SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
-                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode
+                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
+                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut
             };
         }
 
@@ -272,6 +278,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => configuration.SafeToLazilyUpdateMachineCountThreshold = value);
             ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
+            ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 
             configuration.RedisGlobalStoreConnectionString = ((PlainTextSecret) GetRequiredSecret(secrets, _distributedSettings.GlobalRedisSecretName)).Secret;
 
@@ -325,6 +332,14 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.MaxEventProcessingConcurrency,
                 value => eventStoreConfiguration.MaxEventProcessingConcurrency = value);
+
+            ApplyIfNotNull(
+                _distributedSettings.EventBatchSize,
+                value => eventStoreConfiguration.EventBatchSize = value);
+
+            ApplyIfNotNull(
+                _distributedSettings.EventProcessingMaxQueueSize,
+                value => eventStoreConfiguration.EventProcessingMaxQueueSize = value);
         }
 
         private AzureBlobStorageCredentials[] GetStorageCredentials(Dictionary<string, Secret> secrets, StringBuilder errorBuilder)

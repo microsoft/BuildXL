@@ -123,6 +123,11 @@ namespace BuildXL.Utilities.Configuration
         bool UseDedupStore { get; }
 
         /// <summary>
+        /// Indicates whether minimal graph enumerations should elide absent path probes in the directory root
+        /// </summary>
+        bool ElideMinimalGraphEnumerationAbsentPathProbes { get; }
+
+        /// <summary>
         /// When enabled, the cache will be responsible for replacing exisiting file during file materialization.
         /// </summary>
         bool ReplaceExistingFileOnMaterialization { get; }

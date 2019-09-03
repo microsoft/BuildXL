@@ -87,8 +87,8 @@ namespace Transformer {
         /** Regex that would be used to extract errors from the output. */
         errorRegex?: string;
 
-        /** Options used to construct error regex (see the RegexOptions C# enum for valid values) */
-        errorRegexOptions?: number;
+        /** Whether 'errorRegex' should be matched across multiple lines. */
+        errorRegexEnableMultiLineMatches?: number;
 
         /** Semaphores to acquire */
         acquireSemaphores?: SemaphoreInfo[];

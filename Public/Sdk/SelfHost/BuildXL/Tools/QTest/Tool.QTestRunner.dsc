@@ -130,7 +130,7 @@ export function runQTest(args: QTestArguments): Result {
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
-        changeAffectedInputListWrittenFile = p`${dir}/changeAffectedInputs.txt`;
+        changeAffectedInputListWrittenFile = p`${dir}/fileWithImpactedTargets.txt`;
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
     

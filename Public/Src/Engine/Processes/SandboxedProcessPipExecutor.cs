@@ -541,19 +541,27 @@ namespace BuildXL.Processes
                 Regex = regex;
             }
 
-            internal string ExtractMatches(string inputChunk, string separator = null)
+            /// <summary>
+            /// When <see cref="LinePredicate" /> is specified: it is invoked against <paramref name="source" /> and if 
+            /// it returns true <paramref name="source" /> is returned.
+            ///
+            /// When <see cref="Regex" /> is specified: it is invoked against <paramref name="source" /> to find all
+            /// matches; the matches are joined by <paramref name="outputSeparator"/> (or <see cref="Environment.NewLine" />
+            /// if null) and returned.
+            /// </summary>
+            internal string ExtractMatches(string source, string outputSeparator = null)
             {
                 return LinePredicate != null
-                    ? (LinePredicate(inputChunk) ? inputChunk : string.Empty)
-                    : string.Join(separator ?? Environment.NewLine, Regex.Matches(inputChunk).Cast<Match>().Select(m => m.Value));
+                    ? (LinePredicate(source) ? source : string.Empty)
+                    : string.Join(outputSeparator ?? Environment.NewLine, Regex.Matches(source).Cast<Match>().Select(m => m.Value));
             }
         }
 
         /// <summary>
         /// If <see cref="m_errorRegex"/> is set and its options include <see cref="RegexOptions.Singleline"/> (which means that 
         /// the whole input string---which in turn may contain multiple lines---should be treated as a single line), returns the 
-        /// regex itself (which is then used to find all the matches in the input string); otherwise, returns a line filter 
-        /// to be used to match individual lines from the input string.
+        /// regex itself (to be used later to find all the matches in the input string); otherwise, returns a line filter 
+        /// (to be used later to match individual lines from the input string).
         /// </summary>
         /// <remarks>
         /// Must not be called before <see cref="TryInitializeErrorRegexAsync"/> is called.

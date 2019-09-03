@@ -88,7 +88,7 @@ namespace Transformer {
         errorRegex?: string;
 
         /** Whether 'errorRegex' should be matched across multiple lines. */
-        errorRegexEnableMultiLineMatches?: number;
+        errorRegexEnableMultiLineMatches?: boolean;
 
         /** Semaphores to acquire */
         acquireSemaphores?: SemaphoreInfo[];

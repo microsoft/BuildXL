@@ -43,8 +43,8 @@ namespace BuildXL.Scheduler.Graph
             var extraFingerprintSalts = new ExtraFingerprintSalts(
                 configuration,
                 PipFingerprintingVersion.TwoPhaseV2,
-                string.Empty,
-                searchPathToolsHash: null);
+                configuration.Cache.CacheSalt,
+                new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
 
             m_pipStaticFingerprinter = new PipStaticFingerprinter(
                 pipExecutionContext.PathTable,
@@ -82,7 +82,7 @@ namespace BuildXL.Scheduler.Graph
             var result = base.AddCopyFile(copyFile, valuePip);
             AddFileDependent(copyFile.Source, copyFile);
             m_fileProducers[copyFile.Destination] = copyFile.PipId;
-            copyFile.StaticFingerPrint = m_pipStaticFingerprinter.ComputeWeakFingerprint(copyFile).Hash;
+            copyFile.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(copyFile).Hash;
             return result;
         }
 
@@ -104,8 +104,8 @@ namespace BuildXL.Scheduler.Graph
                 m_opaqueDirectoryProducers[directoryOutput] = process.PipId;
             }
 
-            process.StaticFingerPrint = m_pipStaticFingerprinter.ComputeWeakFingerprint(process).Hash;
-            m_pipStaticFingerprints.AddFingerprint(process, new ContentFingerprint(process.StaticFingerPrint));
+            process.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(process).Hash;
+            m_pipStaticFingerprints.AddFingerprint(process, new ContentFingerprint(process.StaticFingerprint));
             return result;
         }
 
@@ -115,8 +115,8 @@ namespace BuildXL.Scheduler.Graph
             base.AddSealDirectory(sealDirectory, valuePip);
             AddFileDependents(sealDirectory.Contents, sealDirectory);
             AddDirectoryDependents(sealDirectory.ComposedDirectories, sealDirectory);
-            sealDirectory.StaticFingerPrint = m_pipStaticFingerprinter.ComputeWeakFingerprint(sealDirectory).Hash;
-            m_pipStaticFingerprints.AddFingerprint(sealDirectory, new ContentFingerprint(sealDirectory.StaticFingerPrint));
+            sealDirectory.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(sealDirectory).Hash;
+            m_pipStaticFingerprints.AddFingerprint(sealDirectory, new ContentFingerprint(sealDirectory.StaticFingerprint));
             return sealDirectory.Directory;
         }
 
@@ -125,7 +125,7 @@ namespace BuildXL.Scheduler.Graph
         {
             var result = base.AddWriteFile(writeFile, valuePip);
             m_fileProducers[writeFile.Destination] = writeFile.PipId;
-            writeFile.StaticFingerPrint = m_pipStaticFingerprinter.ComputeWeakFingerprint(writeFile).Hash;
+            writeFile.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(writeFile).Hash;
             return result;
         }
 

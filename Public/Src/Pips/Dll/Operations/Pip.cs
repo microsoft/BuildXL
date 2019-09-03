@@ -34,7 +34,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Static fingerprint
         /// </summary>
-        public Fingerprint StaticFingerPrint { get; set; }
+        public Fingerprint StaticFingerprint { get; set; }
 
         /// <summary>
         /// Tags used to enable pip-level filtering of the schedule.
@@ -193,7 +193,7 @@ namespace BuildXL.Pips.Operations
 
             if (reader.ReadBoolean())
             {
-                pip.StaticFingerPrint = FingerprintUtilities.CreateFrom(reader);
+                pip.StaticFingerprint = FingerprintUtilities.CreateFrom(reader);
             }
             reader.End();
             Contract.Assume(pip != null);
@@ -206,10 +206,10 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)PipType);
             writer.Start(GetType());
             InternalSerialize(writer);
-            if (StaticFingerPrint.Length >0)
+            if (StaticFingerprint.Length >0)
             {
                 writer.Write(true);
-                StaticFingerPrint.WriteTo(writer);
+                StaticFingerprint.WriteTo(writer);
             }
             else
             {

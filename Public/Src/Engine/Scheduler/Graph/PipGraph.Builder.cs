@@ -2912,9 +2912,9 @@ namespace BuildXL.Scheduler.Graph
                 {
                     fingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip, out fingerprintText);
                 }
-                else if (pip.StaticFingerPrint.Length > 0)
+                else if (pip.StaticFingerprint.Length > 0)
                 {
-                    fingerprint = new ContentFingerprint(pip.StaticFingerPrint);
+                    fingerprint = new ContentFingerprint(pip.StaticFingerprint);
                 }
                 else
                 {

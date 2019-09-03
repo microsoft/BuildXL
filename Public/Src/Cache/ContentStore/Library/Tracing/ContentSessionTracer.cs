@@ -127,16 +127,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        public void PinBulkStop(Context context, TimeSpan duration)
-        {
-            if (context.IsEnabled)
-            {
-                Debug(context, $"{Name}.{PinBulkCallName}() stop {duration.TotalMilliseconds}ms");
-            }
-
-            _pinBulkCallCounter.Completed(duration.Ticks);
-        }
-
         public void PinBulkStop(Context context, TimeSpan duration, IReadOnlyList<ContentHash> contentHashes, IEnumerable<Indexed<PinResult>> results, Exception error)
         {
             if (context.IsEnabled)
@@ -182,11 +172,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _openStreamCallCounter.Started();
         }
 
-        public virtual void OpenStreamStop(Context context, OpenStreamResult result)
+        public virtual void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{OpenStreamCallName} stop {result.DurationMs}ms input=[{contentHash.ToShortString()}] result=[{result}]");
             }
 
             _openStreamCallCounter.Completed(result.Duration.Ticks);
@@ -219,11 +209,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _placeFileRetryCounter.Increment();
         }
 
-        public virtual void PlaceFileStop(Context context, ContentHash input, PlaceFileResult result)
+        public virtual void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName} stop {result.DurationMs}ms input=[{input.ToShortString()}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.{PlaceFileCallName}({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode}) stop {result.DurationMs}ms result=[{result}]");
             }
 
             _placeFileCallCounter.Completed(result.Duration.Ticks);
@@ -241,11 +231,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _putFileCallCounter.Started();
         }
 
-        public virtual void PutFileStop(Context context, PutResult result, bool trusted)
+        public virtual void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode)
         {
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.{PutFileCallName} stop {result.DurationMs}ms result=[{result}] trusted={trusted}");
+                TracerOperationFinished(context, result, $"{Name}.{PutFileCallName}({path},{mode},{result.ContentHash.HashType}) stop {result.DurationMs}ms result=[{result}] trusted={trusted}");
             }
 
             _putFileCallCounter.Completed(result.Duration.Ticks);

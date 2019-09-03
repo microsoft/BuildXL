@@ -359,6 +359,9 @@ namespace BuildXL
                             "dbw",
                             opt => ParseServiceLocation(opt, distributionConfiguration.BuildWorkers)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "elideMinimalGraphEnumerationAbsentPathProbes",
+                            sign => cacheConfiguration.ElideMinimalGraphEnumerationAbsentPathProbes = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
                         OptionHandlerFactory.CreateBoolOption(

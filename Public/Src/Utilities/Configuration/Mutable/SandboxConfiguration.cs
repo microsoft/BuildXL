@@ -249,5 +249,5 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc /> 
         public bool PreserveOutputsForIncrementalTool { get; set; }
-    }
+}
 }

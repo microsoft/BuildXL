@@ -522,6 +522,14 @@ namespace BuildXL.Pips.Builders
             m_responseFileSpecification = specification;
         }
 
+        /// <summary>
+        /// Set the file path that will be used to write the change affected inputs
+        /// </summary>
+        public void SetChangeAffectedInputListWrittenFilePath(FileArtifact path)
+        {
+            m_changeAffectedInputListWrittenFile = path;
+        }
+
         private PipData FinishArgumentsAndCreateResponseFileIfNeeded(DirectoryArtifact defaultDirectory)
         {
             Contract.Requires(defaultDirectory.IsValid);
@@ -674,7 +682,8 @@ namespace BuildXL.Pips.Builders
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,
                 priority: Priority,
-                preserveOutputWhitelist: PreserveOutputWhitelist);
+                preserveOutputWhitelist: PreserveOutputWhitelist,
+                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
 
             return true;
         }

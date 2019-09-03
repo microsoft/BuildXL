@@ -84,6 +84,9 @@ struct FileArtifactKeyedHash
 
     /// The directory artifacts which contain the file
     9: nullable<vector<BondDirectoryArtifact>> AssociatedDirectories;
+   
+    /// Indicates whether the file is source change affected 
+    10: bool IsSourceAffected;
 }
 
 /// Defines information about a completed pip and its outputs

@@ -250,6 +250,7 @@ namespace BuildXL.Scheduler.Artifacts
             ITempCleaner tempDirectoryCleaner = null)
         {
             m_host = host;
+
             ArtifactContentCache = new ElidingArtifactContentCacheWrapper(host.ArtifactContentCache);
             OperationTracker = operationTracker;
             m_symlinkDefinitions = symlinkDefinitions;

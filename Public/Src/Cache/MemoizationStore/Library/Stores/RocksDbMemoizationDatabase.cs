@@ -40,7 +40,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
+        public override Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, string replacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
         {
             return Task.FromResult(Database.CompareExchange(context, strongFingerprint, expected, replacement).ToResult());
         }
@@ -52,9 +52,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<GetContentHashListResult> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        public override Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            return Task.FromResult(Database.GetContentHashList(context, strongFingerprint));
+            var contentHashListResult = Database.GetContentHashList(context, strongFingerprint);
+            return contentHashListResult.Succeeded
+                ? Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>(contentHashListResult))
+                : Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>((contentHashListResult.ContentHashListWithDeterminism, string.Empty)));
         }
 
         /// <inheritdoc />

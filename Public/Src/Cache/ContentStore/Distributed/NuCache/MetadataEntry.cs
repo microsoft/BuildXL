@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
@@ -25,12 +26,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public long LastAccessTimeUtc { get; }
 
+        /// <nodoc />
         public MetadataEntry(ContentHashListWithDeterminism contentHashListWithDeterminism, long lastAccessTimeUtc)
         {
             ContentHashListWithDeterminism = contentHashListWithDeterminism;
             LastAccessTimeUtc = lastAccessTimeUtc;
         }
 
+        /// <nodoc />
         public static MetadataEntry Deserialize(BuildXLReader reader)
         {
             var lastUpdateTimeUtc = reader.ReadInt64Compact();
@@ -38,11 +41,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return new MetadataEntry(contentHashListWithDeterminism, lastUpdateTimeUtc);
         }
 
+        /// <nodoc />
         public static long DeserializeLastAccessTimeUtc(BuildXLReader reader)
         {
             return reader.ReadInt64Compact();
         }
 
+        /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {
             writer.WriteCompact(LastAccessTimeUtc);

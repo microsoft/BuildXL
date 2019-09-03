@@ -3,15 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -75,9 +70,10 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
+                    var factory = CreateDistributedContentStoreFactory();
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, redisConnectionStringProvider: null),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -100,6 +96,21 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
+        private DistributedContentStoreFactory CreateDistributedContentStoreFactory()
+        {
+            var cacheConfig = _arguments.Configuration;
+
+            var hostInfo = _arguments.HostInfo;
+            _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
+
+            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
+
+            return new DistributedContentStoreFactory(
+                _arguments,
+                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId),
+                secretRetriever);
+        }
+
         private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
         {
             var cacheConfig = _arguments.Configuration;
@@ -109,10 +120,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
 
-            var factory = new DistributedContentStoreFactory(
-                _arguments,
-                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId),
-                secretRetriever);
+            var factory = CreateDistributedContentStoreFactory();
 
             Func<AbsolutePath, IContentStore> contentStoreFactory = path =>
             {
@@ -124,7 +132,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _logger.Debug($"Using [{settings.Key}]'s settings: {settings.Value}");
 
                     var rootPath = cacheConfig.LocalCasSettings.GetCacheRootPathWithScenario(settings.Key);
-                    drivesWithContentStore[GetRoot(rootPath)] = factory.CreateContentStore(rootPath, replicationSettings: null);
+                    drivesWithContentStore[GetRoot(rootPath)] = factory.CreateContentStore(rootPath);
                 }
 
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
@@ -134,22 +142,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
-                    var connectionStringProvider = new CallbackConnectionStringProvider(async () =>
-                    {
-                        (var secrets, var error) = await secretRetriever.TryRetrieveSecretsAsync();
-
-                        string redisConnectionString = null;
-                        if (secrets.TryGetValue(distributedSettings.GlobalRedisSecretName, out var secret) && secret is PlainTextSecret pts)
-                        {
-                            redisConnectionString = pts.Secret;
-                        }
-
-                        return redisConnectionString;
-                    });
-
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, connectionStringProvider),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -176,14 +171,13 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, IConnectionStringProvider redisConnectionStringProvider = null)
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, DistributedContentStoreFactory factory = null)
         {
             var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
             if (distributedSettings.UseRedisMetadataStore)
             {
-                Contract.Assert(redisConnectionStringProvider != null);
-                return RedisMemoizationStore.Create(_logger, redisConnectionStringProvider, distributedSettings.KeySpacePrefix, SystemClock.Instance);
+                return factory.CreateMemoizationStoreAsync(path).GetAwaiter().GetResult();
             }
             else
             {

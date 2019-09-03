@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <remarks>
     /// The instance of this type is not thread-safe.
     /// </remarks>
-    public sealed class StreamBinaryWriter
+    internal sealed class StreamBinaryWriter
     {
         public MemoryStream Buffer { get; }
         public BuildXLWriter Writer { get; }

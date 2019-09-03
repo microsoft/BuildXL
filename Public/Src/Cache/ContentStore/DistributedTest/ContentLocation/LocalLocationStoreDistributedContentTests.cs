@@ -140,7 +140,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 TestClock,
                 contentHashBumpTime: TimeSpan.FromHours(1),
                 keySpace: RedisContentLocationStoreFactory.DefaultKeySpace,
-                localMachineLocation: testPathTransformer.GetLocalMachineLocation(rootPath),
                 fileSystem: null,
                 configuration: configuration);
 

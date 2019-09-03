@@ -197,6 +197,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         Task<long> SetLengthAsync(RedisKey key, CommandFlags commandFlags = CommandFlags.None);
 
         /// <summary>
+        /// Compare exchange for metadata.
+        /// </summary>
+        Task<bool> CompareExchangeAsync(string weakFingerprintKey, byte[] selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList, string newReplacementToken);
+
+        /// <summary>
         /// Unset the machineId bit if local and remote last-access times are in sync.
         /// </summary>
         /// <returns>-1 if key doesn't exist in content tracker or if the local and remote last-access times match. Otherwise, it returns the distributed last-access time.</returns>

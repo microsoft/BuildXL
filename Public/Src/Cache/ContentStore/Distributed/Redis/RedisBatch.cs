@@ -244,6 +244,11 @@ return { requestedIncrement, currentValue }";
         private static readonly string Scan = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.Scan.lua");
 
         /// <summary>
+        /// -- bool CompareExchange(string: weakFingerprintKey, byte[]: selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList, string newReplacementToken)
+        /// </summary>
+        private static readonly string CompareExchange = GetEmbeddedResourceFile("BuildXL.Cache.ContentStore.Distributed.Redis.Scripts.CompareExchange.lua");
+
+        /// <summary>
         /// An individual redis operation in a batch and the associated result.
         /// </summary>
         private interface IRedisOperationAndResult
@@ -340,6 +345,29 @@ return { requestedIncrement, currentValue }";
             var result = await redisOperation.FinalTaskResult.Task;
             var arrayResult = (RedisResult[])result;
             return (machineId: (int)arrayResult[0], isAdded: ((int)arrayResult[1]) != 0);
+        }
+
+        /// -- bool CompareExchange(string: weakFingerprintKey, byte[]: selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList)
+        /// <inheritdoc />
+        public async Task<bool> CompareExchangeAsync(string weakFingerprintKey, byte[] selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList, string newReplacementToken)
+        {
+            var redisOperation =
+                new RedisOperationAndResult<RedisResult>(
+                    batch =>
+                        batch.ScriptEvaluateAsync(
+                            CompareExchange,
+                            new RedisKey[] { weakFingerprintKey },
+                            new RedisValue[]
+                            {
+                                selectorFieldName,
+                                tokenFieldName,
+                                expectedToken,
+                                contentHashList,
+                                newReplacementToken
+                            }));
+            _redisOperations.Add(redisOperation);
+            bool result = (bool)await redisOperation.FinalTaskResult.Task;
+            return result;
         }
 
         /// <inheritdoc />

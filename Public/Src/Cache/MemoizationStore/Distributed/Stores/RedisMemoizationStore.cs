@@ -6,13 +6,14 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.MemoizationStore.Stores;
 
-namespace BuildXL.Cache.MemoizationStore.Stores
+namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
-    public class RedisMemoizationStore : DatabaseMemoizationStore
+    internal class RedisMemoizationStore : DatabaseMemoizationStore
     {
         /// <nodoc />
-        public RedisMemoizationStore(ILogger logger, IClock clock, RedisDatabaseAdapter redis)
+        private RedisMemoizationStore(ILogger logger, IClock clock, RedisDatabaseAdapter redis)
             : base(logger, new RedisMemoizationDatabase(redis, clock))
         {
         }

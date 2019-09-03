@@ -841,7 +841,6 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 TimeSpan.FromDays(4),
                 "DM_S1CBPrefix", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
                 //"MW_S9PD", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
-                Encoding.UTF8.GetBytes("TestMachine"),
                 new PassThroughFileSystem(TestGlobal.Logger),
                 new RedisContentLocationStoreConfiguration()
                 {
@@ -852,7 +851,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             var r = await storeFactory.StartupAsync(context);
             r.ShouldBeSuccess();
 
-            var store = (RedisContentLocationStore)await storeFactory.CreateAsync();
+            var store = (RedisContentLocationStore)await storeFactory.CreateAsync(new MachineLocation("TestMachine"));
             r = await store.StartupAsync(context);
             r.ShouldBeSuccess();
 
@@ -880,7 +879,6 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 TimeSpan.FromDays(4),
                 "DM_S1CBPrefix", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
                 //"MW_S9PD", /* NOTE: This value may need to be changed if configured prefix is different for target environment. Find by using slowlog get 10 in redis console and find common prefix of commands */
-                Encoding.UTF8.GetBytes("TestMachine"),
                 new PassThroughFileSystem(TestGlobal.Logger),
                 new RedisContentLocationStoreConfiguration()
                 {
@@ -891,7 +889,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             var r = await storeFactory.StartupAsync(context);
             r.ShouldBeSuccess();
 
-            var store = (RedisContentLocationStore)await storeFactory.CreateAsync();
+            var store = (RedisContentLocationStore)await storeFactory.CreateAsync(new MachineLocation("TestMachine"));
             r = await store.StartupAsync(context);
             r.ShouldBeSuccess();
 

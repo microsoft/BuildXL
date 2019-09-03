@@ -152,10 +152,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         HashSetValue,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        CompareExchange,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        GetContentHashList,
     }
 
     /// <nodoc />
-    public class RedisDatabaseAdapter
+    internal class RedisDatabaseAdapter
     {
         /// <summary>
         /// The keyspace used to prefix keys in the database
@@ -331,7 +339,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Gets all the field names associated with a key
         /// </summary>
-        public Task<RedisValue[]> GetHashFieldsAsync(Context context, RedisKey key, CancellationToken token)
+        public Task<RedisValue[]> GetHashKeysAsync(Context context, RedisKey key, CancellationToken token)
             => PerformDatabaseOperationAsync(context, db => db.HashKeysAsync(key), Counters[RedisOperation.HashGetKeys], token);
 
         /// <summary>

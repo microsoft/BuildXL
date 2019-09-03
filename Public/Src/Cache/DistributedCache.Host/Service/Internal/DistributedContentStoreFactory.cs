@@ -18,11 +18,15 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.WindowsAzure.Storage.Auth;
 
@@ -54,13 +58,8 @@ namespace BuildXL.Cache.Host.Service.Internal
             _fileSystem = new PassThroughFileSystem(_logger);
             _secretRetriever = secretRetriever;
         }
-        public IContentStore CreateContentStore(
-            AbsolutePath localCacheRoot,
-            NagleQueue<ContentHash> evictionAnnouncer = null,
-            ProactiveReplicationArgs replicationSettings = null,
-            DistributedEvictionSettings distributedEvictionSettings = null,
-            bool checkLocalFiles = true,
-            TrimBulkAsync trimBulkAsync = null)
+
+        public RedisCacheFactory CreateRedisCacheFactory(AbsolutePath localCacheRoot, out RedisContentLocationStoreConfiguration config)
         {
             var redisContentLocationStoreConfiguration = new RedisContentLocationStoreConfiguration
             {
@@ -124,15 +123,30 @@ namespace BuildXL.Cache.Host.Service.Internal
             IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
             IConnectionStringProvider machineLocationsConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisMachineLocationsSecretName);
 
-            var redisContentLocationStoreFactory = new RedisContentLocationStoreFactory(
+            config = redisContentLocationStoreConfiguration;
+
+            return new RedisCacheFactory(
                 contentConnectionStringProvider,
                 machineLocationsConnectionStringProvider,
                 SystemClock.Instance,
                 contentHashBumpTime,
                 _keySpace,
-                localMachineLocation,
                 configuration: redisContentLocationStoreConfiguration
                 );
+        }
+
+        public async Task<IMemoizationStore> CreateMemoizationStoreAsync(AbsolutePath localCacheRoot)
+        {
+            var cacheFactory = CreateRedisCacheFactory(localCacheRoot, out var _);
+            await cacheFactory.StartupAsync(new Context(_logger)).ThrowIfFailure();
+            return cacheFactory.CreateMemoizationStore(_logger);
+        }
+
+        public IContentStore CreateContentStore(AbsolutePath localCacheRoot)
+        {
+            var redisContentLocationStoreFactory = CreateRedisCacheFactory(localCacheRoot, out var redisContentLocationStoreConfiguration);
+
+            var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
 
             ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee contentAvailabilityGuarantee;
             if (string.IsNullOrEmpty(_distributedSettings.ContentAvailabilityGuarantee))
@@ -159,6 +173,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 if (_distributedSettings.PinCacheReplicaCreditRetentionDecay.HasValue) pinConfiguration.PinCacheReplicaCreditRetentionDecay = _distributedSettings.PinCacheReplicaCreditRetentionDecay.Value;
             }
 
+            var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
             var lazyTouchContentHashBumpTime = _distributedSettings.IsTouchEnabled ? (TimeSpan?)contentHashBumpTime : null;
             if (redisContentLocationStoreConfiguration.ReadMode == ContentLocationMode.LocalLocationStore)
             {
@@ -239,11 +254,10 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)
         {
-            var errorBuilder = new StringBuilder();
             (var secrets, var errors) = await _secretRetriever.TryRetrieveSecretsAsync();
             if (secrets == null)
             {
-                _logger.Error($"Unable to configure Local Location Store. {errorBuilder}");
+                _logger.Error($"Unable to configure Local Location Store. {errors}");
                 return;
             }
 
@@ -296,6 +310,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 value => configuration.WriteMode = (ContentLocationMode)Enum.Parse(typeof(ContentLocationMode), value));
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, value => configuration.LocationEntryExpiry = TimeSpan.FromMinutes(value));
 
+            var errorBuilder = new StringBuilder();
             var storageCredentials = GetStorageCredentials(secrets, errorBuilder);
             Contract.Assert(storageCredentials != null && storageCredentials.Length > 0);
 

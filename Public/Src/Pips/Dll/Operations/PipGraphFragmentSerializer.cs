@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Pips.Operations
 {
@@ -69,8 +70,9 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Deserializes a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized.
         /// </summary>
-        public bool Deserialize(
+        public async Task<bool> DeserializeAsync(
             AbsolutePath filePath,
+            TaskFactory taskFactory,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null)
         {
@@ -84,15 +86,16 @@ namespace BuildXL.Pips.Operations
 
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                return Deserialize(stream, handleDeserializedPip, fragmentDescriptionOverride, filePath);
+                return await DeserializeAsync(stream, taskFactory, handleDeserializedPip, fragmentDescriptionOverride, filePath);
             }
         }
 
         /// <summary>
         /// Deserializes a pip graph fragment from stream.
         /// </summary>
-        public bool Deserialize(
+        public async Task<bool> DeserializeAsync(
             Stream stream,
+            TaskFactory taskFactory,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null,
             AbsolutePath filePathOrigin = default)
@@ -106,7 +109,7 @@ namespace BuildXL.Pips.Operations
                 Func<PipId, Pip, bool> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
                 if (serializedUsingTopSort)
                 {
-                    return DeserializeTopSort(handleDeserializedPipInFragment, reader);
+                    return await DeserializeTopSortAsync(handleDeserializedPipInFragment, reader, taskFactory);
                 }
                 else
                 {
@@ -134,7 +137,7 @@ namespace BuildXL.Pips.Operations
             return successful;
         }
 
-        private bool DeserializeTopSort(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader)
+        private async Task<bool> DeserializeTopSortAsync(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader, TaskFactory taskFactory)
         {
             bool successful = true;
             m_totalPipsToDeserialize = reader.ReadInt32();
@@ -155,16 +158,23 @@ namespace BuildXL.Pips.Operations
                     return (pip, pipId);
                 });
                 totalPipsRead += deserializedPips.Count;
-
-                Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
+                Task[] tasks = new Task[deserializedPips.Count];
+                int i = 0;
+                foreach (var deserializedPip in deserializedPips)
                 {
-                    if (!(handleDeserializedPip?.Invoke(deserializedPip.Item2, deserializedPip.Item1)).Value)
+                    // Run the pip on the custom dedicated thread task scheduler
+                    tasks[i] = taskFactory.StartNew(() =>
                     {
-                        successful = false;
-                    }
+                        Stats.Increment(deserializedPip.Item1, serialize: false);
+                        if (!(handleDeserializedPip?.Invoke(deserializedPip.Item2, deserializedPip.Item1)).Value)
+                        {
+                            successful = false;
+                        }
+                    });
+                    i++;
+                }
 
-                    Stats.Increment(deserializedPip.Item1, serialize: false);
-                });
+                await Task.WhenAll(tasks);
             }
 
             return successful;

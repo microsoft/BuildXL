@@ -2,14 +2,18 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.Graph
 {
@@ -35,6 +39,10 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
         private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
 
+        private readonly TaskFactory m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(Environment.ProcessorCount, "PipGraphFragmentManager"));
+
+        private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
+
         /// <summary>
         /// PipGraphFragmentManager
         /// </summary>
@@ -48,24 +56,44 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Adds a single pip graph fragment to the graph.
         /// </summary>
-        public bool AddFragmentFileToGraph(AbsolutePath filePath, string description)
+        public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
-            try
+            m_taskMap[filePath] = (deserializer, Task.Run(async () =>
             {
-                var result = deserializer.Deserialize(
-                    filePath,
-                    (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
-                    description);
-                Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+                var results = await Task.WhenAll(dependencies.Select(dependency => m_taskMap[dependency].Item2));
+                if (results.Any(success => !success))
+                {
+                    return false;
+                }
 
-                return result;
-            }
-            catch (Exception e) when (e is BuildXLException || e is IOException)
-            {
-                Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
-                return false;
-            }
+                try
+                {
+                    var result = await deserializer.DeserializeAsync(
+                        filePath,
+                        m_taskFactory,
+                        (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
+                        description);
+                    // Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+                    // m_taskMap.TryRemove(filePath, out var _);
+                    return result;
+                }
+                catch (Exception e) when (e is BuildXLException || e is IOException)
+                {
+                    Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
+                    return false;
+                }
+            }));
+
+            return true;
+        }
+
+        /// <summary>
+        /// GetAllFragmentTasks
+        /// </summary>
+        public IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks()
+        {
+            return m_taskMap.Select(x => x.Value).ToList();
         }
 
         /// <summary>
@@ -76,11 +104,12 @@ namespace BuildXL.Scheduler.Graph
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             try
             {
-                var result = deserializer.Deserialize(
+                var result = deserializer.DeserializeAsync(
                     stream,
+                    m_taskFactory,
                     (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
-                    description);
-                Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+                    description).Result;
+                // Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
 
                 return result;
             }

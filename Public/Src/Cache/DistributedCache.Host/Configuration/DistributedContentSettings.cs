@@ -361,6 +361,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? UseIncrementalCheckpointing { get; set; }
 
         [DataMember]
+        public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
+
+        [DataMember]
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
 
         [DataMember]
@@ -408,6 +411,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? MaxEventProcessingConcurrency { get; set; }
+
+        [DataMember]
+        public int? EventBatchSize { get; set; }
+
+        [DataMember]
+        public int? EventProcessingMaxQueueSize { get; set; }
 
         [DataMember]
         public string[] AzureStorageSecretNames { get; set; }
@@ -505,6 +514,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        [DataMember]
+        public bool EnableMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
         #endregion
 

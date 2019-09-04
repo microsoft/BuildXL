@@ -78,5 +78,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         {
             return base.GetHashCode() ^ Session.Name.GetHashCode();
         }
+
+        /// <nodoc />
+        public CreateSessionResult<B> Map<B>(Func<T, B> transform)
+            where B : IName
+        {
+            if (Success)
+            {
+                return new CreateSessionResult<B>(transform(Session));
+            }
+            else
+            {
+                return new CreateSessionResult<B>(this);
+            }
+        }
     }
 }

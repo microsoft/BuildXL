@@ -830,6 +830,21 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessChangeAffectedInputsWrittenFileCreationFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "File containing change affected inputs could not be prepared, path '{2}', error code {3:X8}: {4}")]
+        public abstract void PipProcessChangeAffectedInputsWrittenFileCreationFailed(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            int errorCode,
+            string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FailedToMergeOutputsToOriginalLocation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -22,33 +23,37 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// <summary>
     /// IPC interface to a file system memoization store.
     /// </summary>
-    public class LocalCacheService : LocalContentServerBase<ICache, ICacheSession>
+    public class LocalCacheServer : LocalContentServerBase<ICache, ICacheSession>
     {
         private readonly GrpcCacheServer _grpcCacheServer;
         private readonly GrpcContentServer _grpcContentServer;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheService));
+        protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheServer));
 
         /// <nodoc />
-        public LocalCacheService(
-            ILogger logger,
+        public LocalCacheServer(
             IAbsFileSystem fileSystem,
+            ILogger logger,
             string scenario,
-            Func<AbsolutePath, ICache> contentStoreFactory,
+            Func<AbsolutePath, ICache> cacheFactory,
             LocalServerConfiguration localContentServerConfiguration,
             Capabilities capabilities = Capabilities.All)
-        : base(logger, fileSystem, scenario, contentStoreFactory, localContentServerConfiguration)
+        : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
-            var nameByDrive = new Dictionary<string, string>();
-
+            var storesByName = new Dictionary<string, IContentStore>();
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
-                nameByDrive.Add(kvp.Value.DriveLetter.ToString(), kvp.Key);
+                AbsolutePath cacheRootPath = kvp.Value;
+                fileSystem.CreateDirectory(cacheRootPath);
+
+                var cache = cacheFactory(cacheRootPath);
+                Contract.Assert(cache is IContentStore, $"Attempted to setup a cache named '{kvp.Key}' that is not an {nameof(IContentStore)} at path {cacheRootPath}, type used is {cache.GetType().Name}");
+
+                storesByName.Add(kvp.Key, (IContentStore)cache);
             }
 
-            // TODO: specify the right storeByName argument
-            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, new Dictionary<string, IContentStore>());
+            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByName);
             _grpcCacheServer = new GrpcCacheServer(logger, this);
         }
 

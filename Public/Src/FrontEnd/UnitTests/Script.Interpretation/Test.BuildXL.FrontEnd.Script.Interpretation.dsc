@@ -25,6 +25,8 @@ namespace Script.Interpretation {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
         ],
         //increase weight for frequent timeout pip
-        runTestArgs: { weight: 2 },
+        runTestArgs: { 
+            weight: 8,
+        },
     });
 }

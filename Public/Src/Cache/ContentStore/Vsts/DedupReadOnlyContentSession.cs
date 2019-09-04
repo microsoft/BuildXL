@@ -48,8 +48,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             PinIgnored
         }
 
-        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
-        private CounterCollection<Counters> _dedupCounters { get; } = new CounterCollection<Counters>();
+        private CounterCollection<BackingContentStore.SessionCounters> _counters { get; }
+        private CounterCollection<Counters> _dedupCounters { get; }
 
         /// <summary>
         /// Default number of oustanding connections to throttle Artifact Services.
@@ -131,6 +131,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="pinInlineThreshold">Maximum time-to-live to inline pin calls.</param>
         /// <param name="ignorePinThreshold">Minimum time-to-live to ignore pin calls.</param>
         /// <param name="maxConnections">The maximum number of outboud connections to VSTS.</param>
+        /// <param name="counterTracker">Parent counters to track the session.</param>
         public DedupReadOnlyContentSession(
             IAbsFileSystem fileSystem,
             string name,
@@ -139,8 +140,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
             TimeSpan timeToKeepContent,
             TimeSpan pinInlineThreshold,
             TimeSpan ignorePinThreshold,
+            CounterTracker counterTracker = null,
             int maxConnections = DefaultMaxConnections)
-            : base(name)
+            : base(name, counterTracker)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);
@@ -155,6 +157,9 @@ namespace BuildXL.Cache.ContentStore.Vsts
 
             _pinInlineThreshold = pinInlineThreshold;
             _ignorePinThreshold = ignorePinThreshold;
+
+            _counters = CounterTracker.CreateCounterCollection<BackingContentStore.SessionCounters>(counterTracker);
+            _dedupCounters = CounterTracker.CreateCounterCollection<Counters>(counterTracker);
         }
 
         /// <summary>

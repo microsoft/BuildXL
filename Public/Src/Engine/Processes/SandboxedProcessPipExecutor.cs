@@ -620,7 +620,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null, IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
         {
             try
             {
@@ -665,6 +665,11 @@ namespace BuildXL.Processes
                     }
 
                     if (!await PrepareOutputsAsync())
+                    {
+                        return SandboxedProcessPipExecutionResult.PreparationFailure();
+                    }
+
+                    if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
@@ -2558,6 +2563,48 @@ namespace BuildXL.Processes
             return true;
         }
 
+        /// <summary>
+        /// ChangeAffectedInputListFile file is created before executing pips that consume it
+        /// </summary>
+        private async Task<bool> PrepareChangeAffectedInputListFile(IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
+        {
+            // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
+            if (changeAffectedInputs != null)
+            {
+                string destination = m_pip.ChangeAffectedInputListWrittenFilePath.Path.ToString(m_context.PathTable);
+                try
+                {
+                    string directoryName = ExceptionUtilities.HandleRecoverableIOException(
+                        () => Path.GetDirectoryName(destination),
+                        ex => { throw new BuildXLException("Cannot get directory name", ex); });
+
+                    PreparePathForOutputFile(m_pip.ChangeAffectedInputListWrittenFilePath);
+                    FileUtilities.CreateDirectory(directoryName);
+                    await FileUtilities.WriteAllTextAsync(
+                       destination,
+                       string.Join(
+                           Environment.NewLine,
+                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet().OrderBy(n=>n)
+                       ),
+                    System.Text.Encoding.UTF8);
+                }
+                catch (BuildXLException ex)
+                {
+                    Tracing.Logger.Log.PipProcessChangeAffectedInputsWrittenFileCreationFailed(
+                        m_loggingContext,
+                        m_pip.SemiStableHash,
+                        m_pip.GetDescription(m_context),
+                        destination,
+                        ex.LogEventErrorCode,
+                        ex.LogEventMessage);
+
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private enum SpecialProcessKind : byte
         {
             NotSpecial = 0,
@@ -2967,6 +3014,7 @@ namespace BuildXL.Processes
                     ProcessPools.DynamicWriteAccesses.GetInstance())
                 using (PooledObjectWrapper<List<ObservedFileAccess>> accessesUnsortedWrapper =
                     ProcessPools.AccessUnsorted.GetInstance())
+                using (var excludedPathsWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Initializes all shared directories in the pip with no accesses
                     var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
@@ -3086,12 +3134,39 @@ namespace BuildXL.Processes
                         accessesUnsorted.Add(new ObservedFileAccess(entry.Key, observationFlags, entry.Value));
                     }
 
+                    // AccessesUnsorted might include various accesses to directories leading to the files inside of shared opaques,
+                    // mainly CreateDirectory and ProbeDirectory. To make strong fingerprint computation more stable, we are excluding such
+                    // accesses from the list that is passed into the ObservedInputProcessor (as a result, they will not be a part of the path set).
+                    //
+                    // Example, given this path: '\sod\dir1\dir2\file.txt', we will exclude accesses to dir1 and dir2 only.
+                    var excludedPaths = excludedPathsWrapper.Instance;
+                    foreach (var sod in dynamicWriteAccesses)
+                    {
+                        foreach (var file in sod.Value)
+                        {
+                            var pathElement = file.GetParent(m_context.PathTable);
+                            
+                            while (pathElement.IsValid && pathElement != sod.Key && excludedPaths.Add(pathElement))
+                            {                                
+                                pathElement = pathElement.GetParent(m_context.PathTable);
+                            }
+                        }
+                    }
+
+                    var filteredAccessesUnsorted = accessesUnsorted
+                        .Where(access =>
+                            // if it's an enumeration -> include always
+                            (access.ObservationFlags & ObservationFlags.Enumeration) == ObservationFlags.Enumeration
+                            // otherwise, check whether it's an excluded path 
+                            || !excludedPaths.Contains(access.Path))
+                        .ToList();
+
                     sharedDynamicDirectoryWriteAccesses = dynamicWriteAccesses.ToDictionary(
                         kvp => kvp.Key,
                         kvp => (IReadOnlyCollection<AbsolutePath>)kvp.Value.ToReadOnlyArray());
 
                     return SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
-                        accessesUnsorted,
+                        filteredAccessesUnsorted,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
                 }
             }

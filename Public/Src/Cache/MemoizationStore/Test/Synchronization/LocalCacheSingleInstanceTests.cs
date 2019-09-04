@@ -32,7 +32,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
             var rootPath = testDirectory.Path;
             var config = new ContentStoreConfiguration(new MaxSizeQuota("1MB"), singleInstanceTimeoutSeconds: singleInstanceTimeoutSeconds);
 
-            return new LocalCache(
+            return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(
                 Logger,
                 rootPath,
                 new SQLiteMemoizationStoreConfiguration(rootPath) { MaxRowCount = MaxStrongFingerprints, SingleInstanceTimeoutSeconds = singleInstanceTimeoutSeconds },

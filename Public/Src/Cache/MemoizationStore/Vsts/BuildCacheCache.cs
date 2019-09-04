@@ -4,7 +4,6 @@
 extern alias Async;
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -395,10 +394,18 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 aggregateStats.Merge(cachestats);
                 if (_writeThroughContentStore != null)
                 {
-                    GetStatsResult writeThrouStoreStats = await _writeThroughContentStore.GetStatsAsync(context);
-                    if (writeThrouStoreStats.Succeeded)
+                    var writeThroughStoreStats = await _writeThroughContentStore.GetStatsAsync(context);
+                    if (writeThroughStoreStats.Succeeded)
                     {
-                        aggregateStats.Merge(writeThrouStoreStats.CounterSet, "WriteThroughStore.");
+                        aggregateStats.Merge(writeThroughStoreStats.CounterSet, "WriteThroughStore.");
+                    }
+                }
+                if (_backingContentStore != null)
+                {
+                    var backingContentStoreStats = await _backingContentStore.GetStatsAsync(context);
+                    if (backingContentStoreStats.Succeeded)
+                    {
+                        aggregateStats.Merge(backingContentStoreStats.CounterSet, "BackingContentStore.");
                     }
                 }
 

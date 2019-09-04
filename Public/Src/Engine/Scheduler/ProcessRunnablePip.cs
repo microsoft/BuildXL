@@ -57,7 +57,12 @@ namespace BuildXL.Scheduler
         /// </summary>
         public CacheableProcess CacheableProcess { get; private set; }
 
-        private readonly int m_weightBasedOnHistoricCpuUsage;
+        /// <summary>
+        /// Source change affected input of the pip
+        /// </summary>
+        public IReadOnlyCollection<AbsolutePath> ChangeAffectedInputs { get; set; }
+
+    private readonly int m_weightBasedOnHistoricCpuUsage;
 
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,

@@ -33,7 +33,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         /// <summary>
         /// Server instance that this client communicates to.
         /// </summary>
-        private readonly LocalCacheService _server;
+        private readonly LocalCacheServer _server;
 
         private readonly ServiceClientCache _client;
 
@@ -50,7 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
             // Initialize with fewer threads for tests
             GrpcEnvironment.InitializeIfNeeded(3);
-            _server = new LocalCacheService(logger, fileSystem, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration);
+            _server = new LocalCacheServer(fileSystem, logger, clientConfiguration.Scenario, contentStoreFactory, contentServerConfiguration);
             _client = new ServiceClientCache(logger, fileSystem, clientConfiguration);
             SetThreadPoolSizes();
         }

@@ -100,7 +100,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
-        private SymbolAtom m_executeErrorRegexEnableMultiLineMatches;
+        private SymbolAtom m_executeEnableMultiLineErrorScanning;
         private SymbolAtom m_executeTags;
         private SymbolAtom m_executeServiceShutdownCmd;
         private SymbolAtom m_executeServiceFinalizationCmds;
@@ -244,7 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAdditionalTempDirectories = Symbol("additionalTempDirectories");
             m_executeWarningRegex = Symbol("warningRegex");
             m_executeErrorRegex = Symbol("errorRegex");
-            m_executeErrorRegexEnableMultiLineMatches = Symbol("errorRegexEnableMultiLineMatches");
+            m_executeEnableMultiLineErrorScanning = Symbol("enableMultiLineErrorScanning");
             m_executeAllowedSurvivingChildProcessNames = Symbol("allowedSurvivingChildProcessNames");
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
             m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
@@ -547,10 +547,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             var errorRegex = Converter.ExtractString(obj, m_executeErrorRegex, allowUndefined: true);
             if (errorRegex != null)
             {
-                var enableMultiLine = Converter.ExtractOptionalBoolean(obj, m_executeErrorRegexEnableMultiLineMatches);
-                processBuilder.ErrorRegex = new RegexDescriptor(
-                    StringId.Create(context.StringTable, errorRegex),
-                    enableMultiLine == true ? RegexOptions.Singleline : RegexOptions.None);
+                processBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(context.StringTable, errorRegex), RegexOptions.None);
+            }
+
+            var enableMultiLineErrorScanning = Converter.ExtractOptionalBoolean(obj, m_executeEnableMultiLineErrorScanning);
+            if (enableMultiLineErrorScanning != null)
+            {
+                processBuilder.EnableMultiLineErrorScanning = enableMultiLineErrorScanning.Value;
             }
 
             // Tags.

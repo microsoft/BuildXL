@@ -35,38 +35,52 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         public static IEnumerable<object[]> Test1Data()
         {
+            const bool SingleLineScanning = false;
+            const bool MultiLineScanning = true;
             const string Text = @"
 * BEFORE *
 * <error> *
-* inside *
+* err1 *
 * </error> *
 * AFTER *
+* <error>err2</error> * <error>err3</error> *
 ";
-            const string Regex1 = "error";
-            const string Regex2 = "<error>.*</error>";
 
             foreach (var useStdErr in new[] { true, false })
             {
-                yield return new object[] { useStdErr, Text, Regex1, RegexOptions.None, @"
+                yield return new object[] { useStdErr, Text, "error", SingleLineScanning, @"
 * <error> *
-* </error> *" };
+* </error> *
+* <error>err2</error> * <error>err3</error> *" };
 
-                yield return new object[] { useStdErr, Text, Regex1, RegexOptions.Singleline, @"
+                yield return new object[] { useStdErr, Text, "(?s)error", MultiLineScanning, @"
+error
+error
+error
+error
 error
 error" };
 
-                yield return new object[] { useStdErr, Text, Regex2, RegexOptions.None, Text };
+                yield return new object[] { useStdErr, Text, "<error>[^<]*</error>", SingleLineScanning, @"
+* <error>err2</error> * <error>err3</error> *" };
 
-                yield return new object[] { useStdErr, Text, Regex2, RegexOptions.Singleline, @"
+                yield return new object[] { useStdErr, Text, "(?s)<error>[^<]*</error>", MultiLineScanning, @"
 <error> *
-* inside *
-* </error>" };
+* err1 *
+* </error>
+<error>err2</error>
+<error>err3</error>" };
+
+                yield return new object[] { useStdErr, Text, "(?s)<error>[\\s*]*(?<ErrorMessage>.*?)[\\s*]*</error>", MultiLineScanning, @"
+err1
+err2
+err3" };
             }
         }
 
         [Theory]
         [MemberData(nameof(Test1Data))]
-        public void Test1(bool useStdErr, string text, string errRegex, RegexOptions opts, string expectedPrintedError)
+        public void Test1(bool useStdErr, string text, string errRegex, bool enableMultiLineScanning, string expectedPrintedError)
         {
             var ops = SplitLines(text)
                 .Select(l => Operation.Echo(l, useStdErr))
@@ -76,9 +90,12 @@ error" };
                     Operation.Fail()
                 });
             var pipBuilder = CreatePipBuilder(ops);
-            pipBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(Context.StringTable, errRegex), opts);
+            pipBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(Context.StringTable, errRegex), RegexOptions.None);
+            pipBuilder.EnableMultiLineErrorScanning = enableMultiLineScanning;
+
             SchedulePipBuilder(pipBuilder);
             RunScheduler().AssertFailure();
+
             AssertErrorEventLogged(LogEventId.PipProcessError);
             XAssert.ArrayEqual(
                 SplitLines(expectedPrintedError), 

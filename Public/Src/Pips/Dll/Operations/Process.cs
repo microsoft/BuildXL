@@ -247,6 +247,30 @@ namespace BuildXL.Pips.Operations
         public RegexDescriptor ErrorRegex { get; }
 
         /// <summary>
+        /// When false (or not set): process output is scanned for error messages line by line;
+        /// 'errorRegex' is applied to each line and if ANY match is found the ENTIRE line is reported.
+        /// 
+        /// When true: process output is scanned in chunks of up to 1000 lines; 'errorRegex' is applied to
+        /// each chunk and only the matches are reported.Furthermore, if 'errorRegex' contains a capture
+        /// group named "ErrorMessage", the value of that group is reported; otherwise, the value of the
+        /// entire match is reported.
+        /// 
+        ///   NOTE: because this scanning is done against chunks of text (instead of the entire process output),
+        ///         false negatives are possible if an error message spans across multiple chunks.  The scanning
+        ///         is done in chunks because attempting to construct a single string from the entire process
+        ///         output can easily lead to OutOfMemory exception.
+        /// </summary>
+        /// <remarks>
+        /// Regarding fingerprinting: <see cref="ErrorRegex"/> and <see cref="WarningRegex"/> are
+        /// currently part of the process fingerprint, even though those two properties cannot affect
+        /// the outcome (success vs failure) of the process.  This is kind of strange and should probably
+        /// be changed at some point in the future.  In that vain, <see cref="EnableMultiLineErrorScanning"/>
+        /// is decided to not be included in the process fingerprint.
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool EnableMultiLineErrorScanning { get; }
+
+        /// <summary>
         /// File outputs. Each member of the array is distinct.
         /// </summary>
         /// <remarks>
@@ -362,6 +386,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath> additionalTempDirectories,
             RegexDescriptor warningRegex = default,
             RegexDescriptor errorRegex = default,
+            bool enableMultiLineErrorScanning = false,
             AbsolutePath uniqueOutputDirectory = default,
             AbsolutePath uniqueRedirectedDirectoryRoot = default,
             AbsolutePath tempDirectory = default,
@@ -462,6 +487,7 @@ namespace BuildXL.Pips.Operations
             RetryExitCodes = retryExitCodes ?? ReadOnlyArray<int>.Empty;
             WarningRegex = warningRegex;
             ErrorRegex = errorRegex;
+            EnableMultiLineErrorScanning = enableMultiLineErrorScanning;
             UniqueOutputDirectory = uniqueOutputDirectory;
             UniqueRedirectedDirectoryRoot = uniqueRedirectedDirectoryRoot;
             Semaphores = semaphores;
@@ -530,7 +556,8 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            bool? enableMultiLineErrorScanning = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -560,6 +587,7 @@ namespace BuildXL.Pips.Operations
                 additionalTempDirectories ?? AdditionalTempDirectories,
                 warningRegex ?? WarningRegex,
                 errorRegex ?? ErrorRegex,
+                enableMultiLineErrorScanning ?? EnableMultiLineErrorScanning,
                 uniqueOutputDirectory ?? UniqueOutputDirectory,
                 redirectedDirectoryRoot ?? UniqueRedirectedDirectoryRoot,
                 tempDirectory ?? TempDirectory,
@@ -798,6 +826,7 @@ namespace BuildXL.Pips.Operations
                 additionalTempDirectories: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 warningRegex: reader.ReadRegexDescriptor(),
                 errorRegex: reader.ReadRegexDescriptor(),
+                enableMultiLineErrorScanning: reader.ReadBoolean(),
                 uniqueOutputDirectory: reader.ReadAbsolutePath(),
                 uniqueRedirectedDirectoryRoot: reader.ReadAbsolutePath(),
                 tempDirectory: reader.ReadAbsolutePath(),
@@ -845,6 +874,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(AdditionalTempDirectories, (w, v) => w.Write(v));
             writer.Write(WarningRegex);
             writer.Write(ErrorRegex);
+            writer.Write(EnableMultiLineErrorScanning);
             writer.Write(UniqueOutputDirectory);
             writer.Write(UniqueRedirectedDirectoryRoot);
             writer.Write(TempDirectory);

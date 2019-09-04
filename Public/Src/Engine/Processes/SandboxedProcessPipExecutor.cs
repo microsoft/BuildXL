@@ -49,6 +49,12 @@ namespace BuildXL.Processes
         /// </remarks>
         private const uint AzureWatsonExitCode = 0xDEAD;
 
+        /// <summary>
+        /// Group name in <see cref="Process.ErrorRegex"/> to use to extract error message. 
+        /// When no such group exists, the entire match is used.
+        /// </summary>
+        private const string ErrorMessageGroupName = "ErrorMessage";
+
         private static readonly string s_appDataLocalMicrosoftClrPrefix =
             Path.Combine(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "CLR");
 
@@ -551,9 +557,27 @@ namespace BuildXL.Processes
             /// </summary>
             internal string ExtractMatches(string source, string outputSeparator = null)
             {
-                return LinePredicate != null
-                    ? (LinePredicate(source) ? source : string.Empty)
-                    : string.Join(outputSeparator ?? Environment.NewLine, Regex.Matches(source).Cast<Match>().Select(m => m.Value));
+                if (LinePredicate != null)
+                {
+                    return LinePredicate(source) ? source : string.Empty;
+                }
+                else
+                {
+                    return string.Join(
+                        outputSeparator ?? Environment.NewLine,
+                        Regex
+                            .Matches(source)
+                            .Cast<Match>()
+                            .Select(ExtractTextFromMatch));
+                }
+            }
+
+            private static string ExtractTextFromMatch(Match match)
+            {
+                var errorMessageGroup = match.Groups[ErrorMessageGroupName];
+                return errorMessageGroup.Success
+                    ? errorMessageGroup.Value
+                    : match.Value;
             }
         }
 
@@ -568,7 +592,7 @@ namespace BuildXL.Processes
         /// </remarks>
         private OutputFilter GetErrorFilter()
         {
-            if (m_errorRegex != null && m_errorRegex.Options.HasFlag(RegexOptions.Singleline))
+            if (m_errorRegex != null && m_pip.EnableMultiLineErrorScanning)
             {
                 return new OutputFilter(m_errorRegex);
             }
@@ -582,15 +606,6 @@ namespace BuildXL.Processes
                     if (m_errorRegex == null)
                     {
                         return true;
-                    }
-
-                    // An unusually long string causes pathologically slow Regex back-tracking.
-                    // To avoid that, only scan the first 400 characters. That's enough for
-                    // the longest possible prefix: MAX_PATH, plus a huge subcategory string, and an error location.
-                    // After the regex is done, we can append the overflow.
-                    if (line.Length > 400)
-                    {
-                        line = line.Substring(0, 400);
                     }
 
                     return m_errorRegex.IsMatch(line);

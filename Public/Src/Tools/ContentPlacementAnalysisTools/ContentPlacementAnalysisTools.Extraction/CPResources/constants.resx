@@ -121,13 +121,29 @@
     <value>CPResources\Query\get_build_data.kql</value>
     <comment>A query to get the build info of a single build</comment>
   </data>
+  <data name="GetMachineMapQuery" xml:space="preserve">
+    <value>CPResources\Query\get_queue_machine_map.kql</value>
+    <comment>Map machines to queues</comment>
+  </data>
+  <data name="GetMonthlyQueueDataQuery" xml:space="preserve">
+    <value>CPResources\Query\get_monthly_queue_data.kql</value>
+    <comment>Gets queue cummulative data for a single month</comment>
+  </data>
   <data name="JsonResultsFileName" xml:space="preserve">
     <value>CpResults.json</value>
     <comment>Name of the file with build parsing results</comment>
   </data>
+  <data name="MachineMapDirectoryName" xml:space="preserve">
+    <value>MachineMap</value>
+    <comment>Where the machine map will be stored</comment>
+  </data>
   <data name="MaxRetryBuilds" xml:space="preserve">
     <value>5</value>
     <comment>The number of retry builds in case one cannot be downloaded</comment>
+  </data>
+  <data name="QueueMapDirectoryName" xml:space="preserve">
+    <value>QueueMap</value>
+    <comment>Name of the dir in which the queue maps will be stored</comment>
   </data>
   <data name="ResultDirectoryName" xml:space="preserve">
     <value>Results</value>

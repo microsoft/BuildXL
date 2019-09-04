@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Security.Permissions;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier
@@ -18,6 +19,9 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     public class RandomForest : MLClassifier
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
+
+        private static readonly string[] s_classLabels = MLArtifact.SharingClassLabels;
+        private static readonly Dictionary<string, object> s_classLocks = new Dictionary<string, object>();
 
         private static readonly int s_defaultPrecision = 10;
         /// <summary>
@@ -31,11 +35,21 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// <summary>
         /// Constructors
         /// </summary>
-        public RandomForest(HashSet<string> classes) => Classes = classes;
+        public RandomForest(HashSet<string> classes) : this()
+        {
+            Classes = classes;
+        } 
         /// <summary>
         /// Constructor
         /// </summary>
-        public RandomForest() { }
+        public RandomForest()
+        {
+            foreach(var label in s_classLabels)
+            {
+                s_classLocks[label] = new object();
+            }
+            s_classLocks[RandomTreeNode.NoClass] = new object();
+        }
 
         /// <summary>
         /// Returns the class with most votes among all the trees
@@ -49,7 +63,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 votes[tree.Evaluate(rfInstance)] += 1;
             }
             votes[RandomTreeNode.NoClass] = 0;
-            instance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+            rfInstance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
         }
 
         /// <summary>
@@ -58,14 +72,18 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         public override void Classify(MLInstance instance, int parallelism)
         {
             var rfInstance = instance as RandomForestInstance;
-            var votes = ParallelVoteCounter();
+            var votes = VoteCounter();
             var options = new ParallelOptions() { MaxDegreeOfParallelism = parallelism };
             Parallel.ForEach(Trees, options, tree =>
             {
-                votes[tree.Evaluate(rfInstance)] += 1;
+                var evaluation = tree.Evaluate(rfInstance);
+                lock (s_classLocks[evaluation])
+                {
+                    votes[evaluation] += 1;
+                }
             });
             votes[RandomTreeNode.NoClass] = 0;
-            instance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+            rfInstance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
         }
 
         /// <summary>
@@ -91,12 +109,13 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             // now start evaluating them
             s_logger.Info($"Evaluation starting...");
             var timer = Stopwatch.StartNew();
-            var confusion = new Dictionary<string, int>();
+            var confusion = new Dictionary<string, double>();
             foreach(var cl in Classes)
             {
-                confusion[$"{cl}-true"]= 0;
-                confusion[$"{cl}-false"] = 0;
+                confusion[$"{cl}-true"]= 0.0;
+                confusion[$"{cl}-false"] = 0.0;
             }
+            var instanceCounter = 0;
             foreach(var instance in instances)
             {
                 if (parallel)
@@ -116,6 +135,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 {
                     confusion[$"{instance.PredictedClass}-false"] += 1;
                 }
+                ++instanceCounter;
             }
             timer.Stop();
             var elapsedEvaluationMillis = timer.ElapsedMilliseconds;
@@ -135,23 +155,25 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 }
             }
             s_logger.Info($"Overral accuracy: {(correctlyClassified) / (correctlyClassified + errors)}");
+            s_logger.Info("Confusion Matrix:");
+            foreach (var entry in confusion)
+            {
+                s_logger.Info($"{entry.Key}:{entry.Value}");
+            }
+            // per class stats
+            var sharedPrecision = confusion["Shared-true"] / (confusion["Shared-true"] + confusion["Shared-false"]);
+            var sharedRecall = confusion["Shared-true"] / (confusion["Shared-true"] + confusion["NonShared-false"]);
+            var nonSharedPrecision = confusion["NonShared-true"] / (confusion["NonShared-true"] + confusion["NonShared-false"]);
+            var nonSharedRecall = confusion["NonShared-true"] / (confusion["NonShared-true"] + confusion["Shared-false"]);
+            s_logger.Info("Per class stats:");
+            s_logger.Info($"Shared: precision={sharedPrecision}, recall={sharedRecall}");
+            s_logger.Info($"NonShared: precision={nonSharedPrecision}, recall={nonSharedRecall}");
             rdr.Close();
         }
 
-        private ConcurrentDictionary<string, int> VoteCounter()
+        private Dictionary<string, int> VoteCounter()
         {
-            var votes = new ConcurrentDictionary<string, int>();
-            foreach (var cl in Classes)
-            {
-                votes[cl] = 0;
-            }
-            votes[RandomTreeNode.NoClass] = 0;
-            return votes;
-        }
-
-        private ConcurrentDictionary<string, int> ParallelVoteCounter()
-        {
-            var votes = new ConcurrentDictionary<string, int>();
+            var votes = new Dictionary<string, int>();
             foreach (var cl in Classes)
             {
                 votes[cl] = 0;
@@ -163,9 +185,9 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// <summary>
         /// Parses a random forest from a weka output file
         /// </summary>
-        public static RandomForest FromWekaFile(string file, HashSet<string> classes)
+        public static RandomForest FromWekaFile(string file)
         {
-            var output = new RandomForest(classes);
+            var output = new RandomForest(new HashSet<string>(s_classLabels));
             var reader = new StreamReader(file);
             int id = 0;
             string line;
@@ -463,10 +485,6 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         ///  When using a tree, if this is greater than zero it will clasiffy an instance in parallel with this many threads
         /// </summary>
         public int MaxClassificationParallelism { get; set; }
-        /// <summary>
-        ///  The classes the forst can output (classification)
-        /// </summary>
-        public string Classes { get; set; }
         /// <inheritdoc />
         public override string ToString()
         {
@@ -478,21 +496,16 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                     .Append("MaxClassificationParallelism=").Append(MaxClassificationParallelism)
                     .ToString();
         }
-        /// <summary>
-        ///  Gets the classes we will use for classification
-        /// </summary>
-        public HashSet<string> ClassificationClasses()
-        {
-            return new HashSet<string>(Classes.Split(','));
-        }
     }
 
     /// <summary>
     ///  A random forest should only classify this kind of instances. 
     /// </summary>
-    [Serializable]
-    public class RandomForestInstance : MLInstance
+    public class RandomForestInstance : BinaryMLInstance
     {
-
+        /// <summary>
+        ///  The attributes used for classification
+        /// </summary>
+        public Dictionary<string, double> Attributes { get; set; } = new Dictionary<string, double>();
     }
 }

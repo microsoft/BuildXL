@@ -208,7 +208,6 @@ namespace ContentPlacementAnalysisTools.Core.ML
                     ["AvgSemaphoreCountForInputPips"] = Math.Round(AvgSemaphoreCountForInputPips, s_defaultPrecision),
                     ["AvgSemaphoreCountForOutputPips"] = Math.Round(AvgSemaphoreCountForOutputPips, s_defaultPrecision)
                 }
-                
             };
             return instance;
         }

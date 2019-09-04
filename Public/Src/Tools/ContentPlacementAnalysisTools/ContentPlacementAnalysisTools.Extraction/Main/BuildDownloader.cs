@@ -34,59 +34,147 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
             try
             {
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
-                // so in here we will create a new network.
-                var buildInfoBlock = new TransformManyBlock<GetKustoBuildInput, List<KustoBuild>>(i =>
+                if (!arguments.QueueDataOnly)
                 {
-                    var action = new GetKustoBuild(arguments.AppConfig);
-                    var result = action.PerformAction(i);
-                    // its not worth it to continue if this fails
-                    if (!result.ExecutionStatus)
-                    {
-                        s_logger.Error(result.Exception, "Could not download builds");
-                        throw result.Exception;
-                    }
-                    return result.Result.KustoBuildData;
-                });
-                var downloadBlock = new TransformBlock<List<KustoBuild>, TimedActionResult<DecompressionOutput>>( i => 
+                    DownloadBuilds(arguments);
+                }
+                else
                 {
-                    var action = new BuildDownload(arguments.AppConfig, arguments.OutputDirectory);
-                    return action.PerformAction(i);
-                }, 
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDownloadTasks
-                    }
-                );
-                var analysisBlock = new ActionBlock<TimedActionResult<DecompressionOutput>>(i =>
-                {
-                    // check
-                    if (i.ExecutionStatus)
-                    {
-                        // analyze if decompression succeded
-                        var action = new BuildAnalisys(arguments.AppConfig);
-                        action.PerformAction(i.Result);
-                    }
-                },
-                    new ExecutionDataflowBlockOptions()
-                    {
-                        MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxAnalysisTasks
-                    }
-                );
-                // link them
-                buildInfoBlock.LinkTo(downloadBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                downloadBlock.LinkTo(analysisBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                var input = new GetKustoBuildInput(arguments.NumBuilds, arguments.Year, arguments.Month, arguments.Day);
-                // post the task...
-                buildInfoBlock.Post(input);
-                // and complete
-                buildInfoBlock.Complete();
-                // wait for the last...
-                analysisBlock.Completion.Wait();
+                    DownloadMonthlyQueueData(arguments);
+                }
+                
             }
             finally
             {
                 s_logger.Info("Done...");
             }
+        }
+
+        private static void DownloadMonthlyQueueData(Args arguments)
+        {
+            s_logger.Info($"Downloading Queue data ({(arguments.IncludeMachineMap? "including machine map" : "no machine map will be included")})");
+            // couple of checks here
+            Contract.Requires(arguments.Year > 0, "You must specify a year");
+            Contract.Requires(arguments.Month > 0, "You must specify a month");
+            Contract.Requires(arguments.OutputDirectory != null, "You must specify an output directory");
+            Contract.Requires(Directory.Exists(arguments.OutputDirectory), "The output directory must exist");
+            if (arguments.IncludeMachineMap)
+            {
+                Contract.Requires(arguments.AppConfig.ConcurrencyConfig.MaxMachineMapTasks > 0, "You must specify a positive number of MaxMachineMapTasks");
+            }
+            // and now download the data to a file
+            var downloadQueueDataBlock = new TransformManyBlock<DownloadMonthlyQueueDataInput, KustoQueueData>(
+                i =>
+                {
+                    var action = new DownloadMonthlyQueueData(arguments.AppConfig);
+                    var result = action.PerformAction(i);
+                    // its not worth it to continue if this fails
+                    if (!result.ExecutionStatus)
+                    {
+                        s_logger.Error(result.Exception, "Could not download queue data");
+                        // just throw the exception here
+                        throw result.Exception;
+                    }
+                    return result.Result.Queues;
+                }
+            );
+            // this is the one that builds machine maps
+            var createMachineMapBlock = new ActionBlock<KustoQueueData>(
+                i =>
+                {
+                    var action = new BuildQueueToMachineMap(arguments.AppConfig);
+                    var result = action.PerformAction(new BuildQueueToMachineMapInput(arguments.Year, arguments.Month, arguments.OutputDirectory, i.QueueName));
+                    // its not worth it to continue if this fails
+                    if (!result.ExecutionStatus)
+                    {
+                        s_logger.Error(result.Exception, $"Could not create machine map for queue {i.QueueName}");
+                    }
+                },
+                 new ExecutionDataflowBlockOptions()
+                 {
+                     MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxMachineMapTasks
+                 }
+            );
+            // link
+            downloadQueueDataBlock.LinkTo(createMachineMapBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            // create the input
+            var input = new DownloadMonthlyQueueDataInput(arguments.Year, arguments.Month, arguments.OutputDirectory);
+            // post
+            downloadQueueDataBlock.Post(input);
+            // complete
+            downloadQueueDataBlock.Complete();
+            // and wait
+            if (!arguments.IncludeMachineMap)
+            {
+                downloadQueueDataBlock.Completion.Wait();
+            }
+            else
+            {
+                createMachineMapBlock.Completion.Wait();
+            }
+            // done
+        }
+
+        private static void DownloadBuilds(Args arguments)
+        {
+            s_logger.Info("Downloading Builds...");
+            // a couple of checks here
+            Contract.Requires(arguments.NumBuilds > 0, "You must specify a number of builds");
+            Contract.Requires(arguments.Year > 0, "You must specify a year");
+            Contract.Requires(arguments.Month > 0, "You must specify a month");
+            Contract.Requires(arguments.Day > 0, "You must specify a day");
+            Contract.Requires(arguments.AppConfig != null, "You must specify a configuration file");
+            Contract.Requires(arguments.OutputDirectory != null, "You must specify an output directory");
+            Contract.Requires(File.Exists(arguments.AppConfig.AnalyzerConfig.Exe), "The analyzer executable file must exist");
+            Contract.Requires(Directory.Exists(arguments.OutputDirectory), "The output directory must exist");
+            // so in here we will create a new network.
+            var buildInfoBlock = new TransformManyBlock<GetKustoBuildInput, List<KustoBuild>>(i =>
+            {
+                var action = new GetKustoBuild(arguments.AppConfig);
+                var result = action.PerformAction(i);
+                // its not worth it to continue if this fails
+                if (!result.ExecutionStatus)
+                {
+                    s_logger.Error(result.Exception, "Could not download builds");
+                    throw result.Exception;
+                }
+                return result.Result.KustoBuildData;
+            });
+            var downloadBlock = new TransformBlock<List<KustoBuild>, TimedActionResult<DecompressionOutput>>(i =>
+            {
+                var action = new BuildDownload(arguments.AppConfig, arguments.OutputDirectory);
+                return action.PerformAction(i);
+            },
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxDownloadTasks
+                }
+            );
+            var analysisBlock = new ActionBlock<TimedActionResult<DecompressionOutput>>(i =>
+            {
+                // check
+                if (i.ExecutionStatus)
+                {
+                    // analyze if decompression succeded
+                    var action = new BuildAnalisys(arguments.AppConfig);
+                    action.PerformAction(i.Result);
+                }
+            },
+                new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = arguments.AppConfig.ConcurrencyConfig.MaxAnalysisTasks
+                }
+            );
+            // link them
+            buildInfoBlock.LinkTo(downloadBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            downloadBlock.LinkTo(analysisBlock, new DataflowLinkOptions { PropagateCompletion = true });
+            var input = new GetKustoBuildInput(arguments.NumBuilds, arguments.Year, arguments.Month, arguments.Day);
+            // post the task...
+            buildInfoBlock.Post(input);
+            // and complete
+            buildInfoBlock.Complete();
+            // wait for the last...
+            analysisBlock.Completion.Wait();
         }
     }
 
@@ -149,12 +237,17 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         /// Maximum number of concurrent analysis tasks
         /// </summary>
         public int MaxAnalysisTasks { get; set; }
+        /// <summary>
+        /// Maximum number of concurrent machine map creation tasks
+        /// </summary>
+        public int MaxMachineMapTasks { get; set; }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return new StringBuilder()
                 .Append("MaxDownloadTasks=").Append(MaxDownloadTasks).Append(", ")
+                .Append("MaxMachineMapTasks=").Append(MaxMachineMapTasks).Append(", ")
                 .Append("MaxAnalysisTasks=").Append(MaxAnalysisTasks)
                 .ToString();
         }
@@ -187,6 +280,14 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         /// The output directory for downloading builds and saving results
         /// </summary>
         public string OutputDirectory { get; } = null;
+        /// <summary>
+        /// True if we want to download queue data
+        /// </summary>
+        public bool QueueDataOnly { get; } = false;
+        /// <summary>
+        /// True if we want to build a machine map
+        /// </summary>
+        public bool IncludeMachineMap { get; } = false;
         /// <summary>
         /// True if help was requested
         /// </summary>
@@ -228,17 +329,16 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                 {
                     OutputDirectory = ParseStringOption(opt);
                 }
+                else if (opt.Name.Equals("queueDataOnly", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("qdo", StringComparison.OrdinalIgnoreCase))
+                {
+                    QueueDataOnly = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("includeMachineMap", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("imm", StringComparison.OrdinalIgnoreCase))
+                {
+                    IncludeMachineMap = ParseBooleanOption(opt);
+                }
 
-            }
-            // and a couple of checks here
-            Contract.Requires(NumBuilds > 0, "You must specify a number of builds");
-            Contract.Requires(Year > 0, "You must specify a year");
-            Contract.Requires(Month > 0, "You must specify a month");
-            Contract.Requires(Day > 0, "You must specify a day");
-            Contract.Requires(AppConfig != null, "You must specify a configuration file");
-            Contract.Requires(OutputDirectory != null, "You must specify an output directory");
-            Contract.Requires(File.Exists(AppConfig.AnalyzerConfig.Exe), "The analyzer executable file must exist");
-            Contract.Requires(Directory.Exists(OutputDirectory), "The output directory must exist");
+            }            
         }
 
         private static void WriteHelp()
@@ -252,6 +352,8 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
             writer.WriteOption("day", "Required. Day from when the builds will be taken from", shortName: "d");
             writer.WriteOption("numBuilds", "Required. The number of builds (from different queues) that will be sampled", shortName: "nb");
             writer.WriteOption("outputDirectory", "Required. The directory where the outputs will be stored", shortName: "od");
+            writer.WriteOption("queueDataOnly", "Optional. If set, the queue data will be downloaded (no builds will be downloaded)", shortName: "qdo");
+            writer.WriteOption("includeMachineMap", "Optional. Used in conjunction with queueDataOnly. If set, the queue/machine map will be created for that specific list of queues", shortName: "imm");
         }
     }
 

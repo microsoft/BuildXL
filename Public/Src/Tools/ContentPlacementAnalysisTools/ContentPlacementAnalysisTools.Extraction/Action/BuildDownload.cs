@@ -44,6 +44,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
             {
                 foreach (var input in inputs)
                 {
+                    s_logger.Debug($"Trying out build={input.BuildId}");
                     // do some checks in here
                     var bxlPath = Path.Combine(m_outputDirectory, $"{input.BuildId}-{input.BuildControllerMachineName}");
                     var dominoPath = Path.Combine(bxlPath, "Domino");
@@ -88,10 +89,12 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                     {
                         s_logger.Error(e, $"Build download for [{input.BuildId}] failed, retrying with another...");
                         // delete dirs
-                        Directory.Delete(bxlPath, true);
+                        if (Directory.Exists(bxlPath))
+                        {
+                            Directory.Delete(bxlPath, true);
+                        }
                         // continue here
                         continue;
-                        
                     }
                 }
                 // everything failed...

@@ -10,7 +10,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Pips.Operations
 {
@@ -70,9 +69,8 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Deserializes a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized.
         /// </summary>
-        public async Task<bool> DeserializeAsync(
+        public bool Deserialize(
             AbsolutePath filePath,
-            TaskFactory taskFactory,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null)
         {
@@ -86,16 +84,15 @@ namespace BuildXL.Pips.Operations
 
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                return await DeserializeAsync(stream, taskFactory, handleDeserializedPip, fragmentDescriptionOverride, filePath);
+                return Deserialize(stream, handleDeserializedPip, fragmentDescriptionOverride, filePath);
             }
         }
 
         /// <summary>
         /// Deserializes a pip graph fragment from stream.
         /// </summary>
-        public async Task<bool> DeserializeAsync(
+        public bool Deserialize(
             Stream stream,
-            TaskFactory taskFactory,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null,
             AbsolutePath filePathOrigin = default)
@@ -109,7 +106,7 @@ namespace BuildXL.Pips.Operations
                 Func<PipId, Pip, bool> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
                 if (serializedUsingTopSort)
                 {
-                    return await DeserializeTopSortAsync(handleDeserializedPipInFragment, reader, taskFactory);
+                    return DeserializeTopSort(handleDeserializedPipInFragment, reader);
                 }
                 else
                 {
@@ -137,7 +134,7 @@ namespace BuildXL.Pips.Operations
             return successful;
         }
 
-        private async Task<bool> DeserializeTopSortAsync(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader, TaskFactory taskFactory)
+        private bool DeserializeTopSort(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader)
         {
             bool successful = true;
             m_totalPipsToDeserialize = reader.ReadInt32();
@@ -158,23 +155,16 @@ namespace BuildXL.Pips.Operations
                     return (pip, pipId);
                 });
                 totalPipsRead += deserializedPips.Count;
-                Task[] tasks = new Task[deserializedPips.Count];
-                int i = 0;
-                foreach (var deserializedPip in deserializedPips)
-                {
-                    // Run the pip on the custom dedicated thread task scheduler
-                    tasks[i] = taskFactory.StartNew(() =>
-                    {
-                        Stats.Increment(deserializedPip.Item1, serialize: false);
-                        if (!(handleDeserializedPip?.Invoke(deserializedPip.Item2, deserializedPip.Item1)).Value)
-                        {
-                            successful = false;
-                        }
-                    });
-                    i++;
-                }
 
-                await Task.WhenAll(tasks);
+                Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
+                {
+                    if (!(handleDeserializedPip?.Invoke(deserializedPip.Item2, deserializedPip.Item1)).Value)
+                    {
+                        successful = false;
+                    }
+
+                    Stats.Increment(deserializedPip.Item1, serialize: false);
+                });
             }
 
             return successful;

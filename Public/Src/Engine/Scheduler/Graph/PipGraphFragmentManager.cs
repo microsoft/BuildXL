@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -69,13 +70,25 @@ namespace BuildXL.Scheduler.Graph
 
                 try
                 {
-                    var result = await deserializer.DeserializeAsync(
+                    var pipAddTasks = new List<Task<bool>>();
+
+                    var result = deserializer.Deserialize(
                         filePath,
-                        m_taskFactory,
-                        (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
+                        (fragmentContext, provenance, pipId, pip) =>
+                        {
+                            pipAddTasks.Add(m_taskFactory.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip)));
+                            return true;
+                        },
                         description);
-                    // Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
-                    // m_taskMap.TryRemove(filePath, out var _);
+
+                    if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+                    {
+                        Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+                    }
+
+                    var pipAddResults = await Task.WhenAll(pipAddTasks);
+                    result &= pipAddResults.All(b => b);
+
                     return result;
                 }
                 catch (Exception e) when (e is BuildXLException || e is IOException)
@@ -97,19 +110,20 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <summary>
-        /// Adds a single pip graph fragment to the graph.
+        /// Adds a single pip graph fragment to the graph. FOR TESTING PURPOSES ONLY.
         /// </summary>
         public bool AddFragmentFileToGraph(Stream stream, string description)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             try
             {
-                var result = deserializer.DeserializeAsync(
+                var result = deserializer.Deserialize(
                     stream,
-                    m_taskFactory,
                     (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
-                    description).Result;
-                // Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+                    description);
+
+                // Always log for tests
+                Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
 
                 return result;
             }

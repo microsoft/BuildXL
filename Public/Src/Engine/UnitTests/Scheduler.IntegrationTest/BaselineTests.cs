@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using BuildXL.Pips.Builders;
@@ -9,6 +10,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -1097,6 +1099,32 @@ namespace IntegrationTest.BuildXL.Scheduler
             SetExpectedFailures(2, 0);
         }
 
+        /// <summary>
+        /// Test to validate that global passthrough environment variables are visible to processes
+        /// </summary>
+        [Fact]
+        public void GlobalPassthroughEnvironmentVariables()
+        {
+            string testEnvironmentVariable = "ENV" + Guid.NewGuid().ToString().Replace("-", string.Empty);
+            string originalValue = "TestValue";
+            Environment.SetEnvironmentVariable(testEnvironmentVariable, originalValue);
+            Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables = new List<string>() { testEnvironmentVariable };
+            Configuration.Sandbox.OutputReportingMode = global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputAlways;
+
+            var ops = new Operation[]
+            {
+                Operation.ReadEnvVar(testEnvironmentVariable),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            };
+
+            var result = CreateAndSchedulePipBuilder(ops);
+            RunScheduler().AssertSuccess();
+            XAssert.IsTrue(EventListener.GetLog().Contains(originalValue));
+
+            // We should get a cache hit even if the value changes.
+            Environment.SetEnvironmentVariable(testEnvironmentVariable, "SomeOtherValue");
+            RunScheduler().AssertCacheHit(result.Process.PipId);
+        }
 
         /// <summary>
         /// Validates behavior with a process being retried

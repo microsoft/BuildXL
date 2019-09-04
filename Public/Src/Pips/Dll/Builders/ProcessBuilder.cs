@@ -469,19 +469,7 @@ namespace BuildXL.Pips.Builders
             Contract.Requires(key.IsValid);
 
             m_environmentVariables[key] = PipData.Invalid;
-        }
-
-        /// <summary>
-        /// Set GlobalUnsafePassthroughEnvironmentVariables for each pip.
-        /// The passthrough environment varibles will not be computed in pip fingerprint.
-        /// </summary>
-        public void SetGlobalPassthroughEnvironmentVariable(IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables, StringTable stringTable)
-        {
-            foreach (var passThroughEnvironmentVariable in globalUnsafePassthroughEnvironmentVariables)
-            {
-                SetPassthroughEnvironmentVariable(StringId.Create(stringTable, passThroughEnvironmentVariable));
-            }
-        }                    
+        }                 
 
         private ReadOnlyArray<EnvironmentVariable> FinishEnvironmentVariables()
         {

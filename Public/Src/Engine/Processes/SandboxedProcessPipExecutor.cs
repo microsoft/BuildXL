@@ -625,7 +625,7 @@ namespace BuildXL.Processes
             try
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
-                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer);
+                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables);
 
                 if (!PrepareWorkingDirectory())
                 {

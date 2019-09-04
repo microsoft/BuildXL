@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -16,7 +17,16 @@ using Newtonsoft.Json;
 namespace ContentPlacementAnalysisTools.ML.Main
 {
     /// <summary>
-    /// TODO
+    /// The goal of this entry point is to create a usable random forest by sampling the collected data from
+    /// some builds. To do this, the steps are:
+    /// a) Creating a database, this is, reading all the per-build json files and group the artifacts
+    /// by hash. The output of this process is a large set of directories (one per hash).
+    /// b) Linearizing (this is, one row per hash) each hash into a global database (a csv file) and a set
+    /// of samples (see /help). These samples should have a size thats 5-10% of the universe.
+    /// c) build (train) random forests using this samples (and the samples only). The output
+    /// here is a text file (wtree) that represents a ransom forest.
+    /// d) evaluate this trees (compare their performance against UNSEEN samples).
+    /// Notive that d) is optional, since after c) the forests are built and ready to be loaded.
     /// </summary>
     public class DataConsolidator
     {
@@ -34,7 +44,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             try
             {
                 s_logger.Info($"Using configuration [{arguments.AppConfig}]");
-                if (!(arguments.BuildRandomForestOnly || arguments.LinearizeOnly || arguments.EvaluateRandomForestOnly))
+                if (!(arguments.BuildRandomForestOnly || arguments.LinearizeOnly || arguments.EvaluateRandomForestOnly || arguments.EvaluateContentPlacementClassifierOnly))
                 {
                     CreateDatabase(arguments);
                 }
@@ -50,6 +60,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 {
                     EvaluateForests(arguments);
                 }
+                if (arguments.EvaluateContentPlacementClassifierOnly)
+                {
+                    EvaluateContentPlacementClassifier(arguments);
+                }
             }
             finally
             {
@@ -57,19 +71,117 @@ namespace ContentPlacementAnalysisTools.ML.Main
             }
         }
 
+        private static void EvaluateContentPlacementClassifier(Args arguments)
+        {
+            Contract.Requires(arguments.InputDirectory != null, "You must specify an input directory");
+            Contract.Requires(Directory.Exists(arguments.InputDirectory), "The input directory must exist");
+            var configurationFile = $"{Path.Combine(arguments.InputDirectory, "classifier.json")}";
+            s_logger.Info($"Evaluating classifier from [{configurationFile}]");
+            // approx memory consumption and check load time
+            var initialMemory = GC.GetTotalMemory(true);
+            var load = Stopwatch.StartNew();
+            var classifier = new ContentPlacementClassifier(configurationFile);
+            load.Stop();
+            var consumedMemory = GC.GetTotalMemory(false) - initialMemory;
+            s_logger.Info($"Classifier loaded in {load.ElapsedMilliseconds}ms, approxBytes={consumedMemory}");
+            var numInstances = 0;
+            var random = new Random(Environment.TickCount);
+            // read some queue names
+            var qNames = new List<string>();
+            var instances = new List<ContentPlacementInstance>();
+            var uniqueMachines = new HashSet<string>();
+            foreach (var qq in Directory.EnumerateFiles(Path.Combine(arguments.InputDirectory, "QueueMap")))
+            {
+                qNames.Add(Path.GetFileNameWithoutExtension(qq));
+                ++numInstances;
+            }
+            // now test for some instances. Just some random instances, one per queue
+            var ns = 0;
+            var na = 0;
+            var classify = Stopwatch.StartNew();
+            for (var i = 0; i < numInstances; ++i)
+            {
+                var instance = new ContentPlacementInstance()
+                {
+                    QueueName = qNames[i],
+                    Artifact = new RandomForestInstance()
+                    {
+                        Attributes = new Dictionary<string, double>()
+                        {
+                            ["SizeBytes"] = random.Next(0, 1000000000),
+                            ["AvgInputPips"] = random.Next(0, 100000),
+                            ["AvgOutputPips"] = random.Next(0, 100000),
+                            ["AvgPositionForInputPips"] = random.NextDouble(),
+                            ["AvgPositionForOutputPips"] = random.NextDouble(),
+                            ["AvgDepsForInputPips"] = random.Next(0, 10000),
+                            ["AvgDepsForOutputPips"] = random.Next(0, 10000),
+                            ["AvgInputsForInputPips"] = random.Next(0, 100000),
+                            ["AvgInputsForOutputPips"] = random.Next(0, 100000),
+                            ["AvgOutputsForInputPips"] = random.Next(0, 100000),
+                            ["AvgOutputsForOutputPips"] = random.Next(0, 100000),
+                            ["AvgPriorityForInputPips"] = random.Next(0, 100),
+                            ["AvgPriorityForOutputPips"] = random.Next(0, 100),
+                            ["AvgWeightForInputPips"] = random.Next(0, 100),
+                            ["AvgWeightForOutputPips"] = random.Next(0, 100),
+                            ["AvgTagCountForInputPips"] = random.Next(0, 100),
+                            ["AvgTagCountForOutputPips"] = random.Next(0, 100),
+                            ["AvgSemaphoreCountForInputPips"] = random.Next(0, 100),
+                            ["AvgSemaphoreCountForOutputPips"] = random.Next(0, 100)
+                        }
+                    }
+                };
+                try
+                {
+                    classifier.Classify(instance);
+                    instances.Add(instance);
+                }
+                catch(ArtifactNotSharedException)
+                {
+                    ++ns;
+                }
+                catch (NoAlternativesForQueueException)
+                {
+                    ++na;
+                }
+            }
+            classify.Stop();
+            s_logger.Info($"Classifier ({numInstances} instances, {ns} not shared, {na} without alternatives) done in {classify.ElapsedMilliseconds}ms (perInstanceAvg={(1.0 * classify.ElapsedMilliseconds) / (1.0 * numInstances)}ms)");
+            foreach(var instance in instances)
+            {
+                var unique = new HashSet<string>(instance.PredictedClasses).Count;
+                var real = instance.PredictedClasses.Count;
+                if(unique != real)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                }
+                s_logger.Info($"queue={instance.QueueName}, count={real}, uniqueCount={unique}, alternatives=[{string.Join(",", instance.PredictedClasses)}]");
+                Console.ResetColor();
+                uniqueMachines.AddRange(instance.PredictedClasses);
+            }
+            foreach(var qq in classifier.AlternativesPerQueue())
+            {
+                uniqueMachines.AddRange(qq.Value);
+            }
+            s_logger.Info($"totalMachinesAvailable={uniqueMachines.Count}, avg={(1.0 * uniqueMachines.Count) /(1.0 * classifier.AlternativesPerQueue().Count)} per queue");
+
+        }
+
         private static void EvaluateForests(Args arguments)
         {
+            Contract.Requires(arguments.InputDirectory != null, "You must specify an input directory");
+            Contract.Requires(Directory.Exists(arguments.InputDirectory), "The input directory must exist");
             // we have a bunch of forests and we will compare them by classifying against
             // unknown samples. The forests are in weka format (wtree)
             s_logger.Info("Evaluating random forests...");
             // create the tree from the sample csvs...
             var treeEvaluationBlock = new ActionBlock<string>(i =>
             {
-                var classifier = RandomForest.FromWekaFile(i, arguments.AppConfig.WekaConfig.RandomTreeConfig.ClassificationClasses());
+                var classifier = RandomForest.FromWekaFile(i);
+                s_logger.Info($"Evaluating forest from [{i}] against universe");
                 // and now evaluate
-                foreach(var evaluationFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
+                foreach(var evaluationFile in Directory.EnumerateFiles(arguments.InputDirectory, "*.csv"))
                 {
-                    if (evaluationFile.Contains("-sample"))
+                    if (!evaluationFile.Contains("-sample"))
                     {
                         classifier.EvaluateOnTrainingSet(evaluationFile, true, false, 0);
                     }
@@ -81,7 +193,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 }
             );
             // post each action
-            foreach (var treeFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.wtree"))
+            foreach (var treeFile in Directory.EnumerateFiles(arguments.InputDirectory, "*.wtree"))
             {
                 treeEvaluationBlock.Post(treeFile);
             }
@@ -94,7 +206,8 @@ namespace ContentPlacementAnalysisTools.ML.Main
 
         private static void BuildRandomForest(Args arguments)
         {
-
+            Contract.Requires(arguments.InputDirectory != null, "You must specify an input directory");
+            Contract.Requires(Directory.Exists(arguments.InputDirectory), "The input directory must exist");
             s_logger.Info("Building random forests...");
             // create the tree from the sample csvs...
             var treeCreationBlock = new ActionBlock<RandomForestFromWekaInput>(i =>
@@ -108,11 +221,11 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 }
             );
             // post each action
-            foreach (var trainingFile in Directory.EnumerateFiles(arguments.OutputDirectory, "*.csv"))
+            foreach (var trainingFile in Directory.EnumerateFiles(arguments.InputDirectory, "*.csv"))
             {
                 if (trainingFile.Contains("-sample"))
                 {
-                    var input = new RandomForestFromWekaInput(trainingFile, arguments.AppConfig.WekaConfig.RandomTreeConfig.ClassificationClasses());
+                    var input = new RandomForestFromWekaInput(trainingFile);
                     treeCreationBlock.Post(input);
                 }
             }
@@ -125,9 +238,12 @@ namespace ContentPlacementAnalysisTools.ML.Main
 
         private static void LinearizeDatabase(Args arguments)
         {
+            // and a couple of checks here
+            Contract.Requires(arguments.InputDirectory != null, "You must specify an input directory");
+            Contract.Requires(Directory.Exists(arguments.InputDirectory), "The input directory must exist");
             var collectedArtifacts = new MultiValueDictionary<int, MLArtifact>();
             var currentTicks = Environment.TickCount;
-            var linearFile = $"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}.csv")}";
+            var linearFile = $"{Path.Combine(arguments.InputDirectory, $"{Convert.ToString(currentTicks)}.csv")}";
             var linearOutput = TextWriter.Synchronized(new StreamWriter(linearFile));
             s_logger.Info($"Linearizing to [{linearFile}]");
             // write the headers
@@ -162,7 +278,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             linearizeBlock.LinkTo(collectLinearResultsBlock, new DataflowLinkOptions { PropagateCompletion = true });
             // and post the tasks
             var posted = 0;
-            foreach (var hashDir in Directory.EnumerateDirectories(arguments.OutputDirectory))
+            foreach (var hashDir in Directory.EnumerateDirectories(arguments.InputDirectory))
             {
                 linearizeBlock.Post(new LinearizeArtifactsInput(hashDir));
                 ++posted;
@@ -199,7 +315,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             // post some tasks in here
             for (var i = 0; i < arguments.NumSamples; ++i)
             {
-                createSampleBlocks.Post(new SampleArtifactsInput($"{Path.Combine(arguments.OutputDirectory, $"{Convert.ToString(currentTicks)}-sample{i}.csv")}", scale, collectedArtifacts));
+                createSampleBlocks.Post(new SampleArtifactsInput($"{Path.Combine(arguments.InputDirectory, $"{Convert.ToString(currentTicks)}-sample{i}.csv")}", scale, collectedArtifacts));
             }
             // and wait...
             createSampleBlocks.Complete();
@@ -209,6 +325,11 @@ namespace ContentPlacementAnalysisTools.ML.Main
 
         private static void CreateDatabase(Args arguments)
         {
+            // and a couple of checks here
+            Contract.Requires(arguments.OutputDirectory != null, "You must specify an output directory");
+            Contract.Requires(arguments.InputDirectory != null, "You must specify an input directory");
+            Contract.Requires(Directory.Exists(arguments.OutputDirectory), "The output directory must exist");
+            Contract.Requires(Directory.Exists(arguments.InputDirectory), "The input directory must exist");
             // create the pipeline. The first step here is to parse the input files, and we can do this in parallel
             var buildArtifactParsingBlock = new TransformBlock<ParseBuildArtifactsInput, TimedActionResult<ParseBuildArtifactsOutput>>(i =>
             {
@@ -392,6 +513,10 @@ namespace ContentPlacementAnalysisTools.ML.Main
             /// </summary>
             public bool EvaluateRandomForestOnly { get; } = false;
             /// <summary>
+            /// Flag to evaluate the content placement classifier
+            /// </summary>
+            public bool EvaluateContentPlacementClassifierOnly { get; } = false;
+            /// <summary>
             /// True if help was requested
             /// </summary>
             public bool Help { get; } = false;
@@ -436,22 +561,16 @@ namespace ContentPlacementAnalysisTools.ML.Main
                     {
                         BuildRandomForestOnly = ParseBooleanOption(opt);
                     }
-
                     else if (opt.Name.Equals("evalRF", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("erfo", StringComparison.OrdinalIgnoreCase))
                     {
                         EvaluateRandomForestOnly = ParseBooleanOption(opt);
                     }
-                    
-
+                    else if (opt.Name.Equals("evalCPC", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("ecpco", StringComparison.OrdinalIgnoreCase))
+                    {
+                        EvaluateContentPlacementClassifierOnly = ParseBooleanOption(opt);
+                    }
                 }
-                // and a couple of checks here
                 Contract.Requires(AppConfig != null, "You must specify a configuration file");
-                Contract.Requires(OutputDirectory != null, "You must specify an output directory");
-                Contract.Requires(InputDirectory != null, "You must specify an input directory");
-                Contract.Requires(NumSamples >= 1, "You must specify at least one sample");
-                Contract.Requires(SampleSize > 0, "The sample size must be positive");
-                Contract.Requires(Directory.Exists(OutputDirectory), "The output directory must exist");
-                Contract.Requires(Directory.Exists(InputDirectory), "The input directory must exist");
             }
 
             private static void WriteHelp()
@@ -467,6 +586,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
                 writer.WriteOption("sampleSize", "Optional. The size of each sample. Defaults to 10000", shortName: "ss");
                 writer.WriteOption("buildRF", "Optional. If the samples are already created, this will only run the random forest generator", shortName: "brfo");
                 writer.WriteOption("evalRF", "Optional. If the forests are already created, this will only run the evaluation phase", shortName: "erfo");
+                writer.WriteOption("evalCPC", "Optional. Evaluates the whole content placement classifier using a random forest and queue/machine maps", shortName: "ecpco");
             }
         }
     }

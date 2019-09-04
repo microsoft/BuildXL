@@ -67,7 +67,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
 
                 }
                 // and now load the forest
-                forest = RandomForest.FromWekaFile(outputTreeFile, input.Classes);
+                forest = RandomForest.FromWekaFile(outputTreeFile);
                 // done
                 return new RandomForestFromWekaOutput(forest, input.TrainingSetCsv, outputTreeFile);
             }
@@ -158,20 +158,15 @@ namespace ContentPlacementAnalysisTools.ML.Action
     public class RandomForestFromWekaInput
     {
         /// <summary>
-        /// The classes the classifier will use
-        /// </summary>
-        public HashSet<string> Classes { get; set; }
-        /// <summary>
         /// A training set for the classifier
         /// </summary>
         public string TrainingSetCsv { get; set; }
         /// <summary>
         /// Constructor
         /// </summary>
-        public RandomForestFromWekaInput(string ts, HashSet<string> cl)
+        public RandomForestFromWekaInput(string ts)
         {
             TrainingSetCsv = ts;
-            Classes = cl;
         }
     }
     /// <summary>

@@ -23,17 +23,30 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     }
 
     /// <summary>
-    ///  An instance to be classified
+    ///  Base class for all instances
     /// </summary>
-    public abstract class MLInstance
+    public abstract class MLInstance {}
+
+    /// <summary>
+    ///  An instance to be classified in a binary fashion
+    /// </summary>
+    public abstract class BinaryMLInstance : MLInstance
     {
         /// <summary>
         ///  The class set after the prediction is done
         /// </summary>
         public string PredictedClass { get; set; } = null;
+        
+    }
+
+    /// <summary>
+    ///  An instance to be classified in a multiclass fashion
+    /// </summary>
+    public abstract class MultiClassMLInstance : MLInstance
+    {
         /// <summary>
-        ///  The attributes to be used for prediction
+        ///  The class set after the prediction is done
         /// </summary>
-        public Dictionary<string, double> Attributes { get; set; } = new Dictionary<string, double>();
+        public List<string> PredictedClasses { get; set; } = null;
     }
 }

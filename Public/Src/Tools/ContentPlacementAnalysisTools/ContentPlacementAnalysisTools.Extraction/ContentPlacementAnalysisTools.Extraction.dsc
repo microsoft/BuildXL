@@ -10,7 +10,9 @@ namespace ContentPlacement.Extraction {
     const staticResources = {
         subfolder: "CPResources", contents : [{ 
             subfolder : "Query", contents : [
-                f`CPResources\Query\get_build_data.kql`
+                f`CPResources\Query\get_build_data.kql`,
+                f`CPResources\Query\get_monthly_queue_data.kql`,
+                f`CPResources\Query\get_queue_machine_map.kql`,
             ]}
         ]};
 

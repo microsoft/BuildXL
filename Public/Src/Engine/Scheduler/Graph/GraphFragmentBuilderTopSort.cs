@@ -38,23 +38,26 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilderTopSort(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration) : base(loggingContext, pipExecutionContext, configuration)
+        public GraphFragmentBuilderTopSort(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration, PathExpander pathExpander) : base(loggingContext, pipExecutionContext, configuration)
         {
-            var extraFingerprintSalts = new ExtraFingerprintSalts(
-                configuration,
-                PipFingerprintingVersion.TwoPhaseV2,
-                configuration.Cache.CacheSalt,
-                new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
-
-            m_pipStaticFingerprinter = new PipStaticFingerprinter(
-                pipExecutionContext.PathTable,
-                GetSealDirectoryFingerprint,
-                GetDirectoryProducerFingerprint,
-                extraFingerprintSalts,
-                PathExpander.Default)
+            if (configuration.Schedule.ComputePipStaticFingerprints)
             {
-                FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
-            };
+                var extraFingerprintSalts = new ExtraFingerprintSalts(
+                    configuration,
+                    PipFingerprintingVersion.TwoPhaseV2,
+                    configuration.Cache.CacheSalt,
+                    new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
+
+                m_pipStaticFingerprinter = new PipStaticFingerprinter(
+                    pipExecutionContext.PathTable,
+                    GetSealDirectoryFingerprint,
+                    GetDirectoryProducerFingerprint,
+                    extraFingerprintSalts,
+                    pathExpander)
+                {
+                    FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
+                };
+            }
         }
 
         private ContentFingerprint GetSealDirectoryFingerprint(DirectoryArtifact directory)
@@ -82,7 +85,7 @@ namespace BuildXL.Scheduler.Graph
             var result = base.AddCopyFile(copyFile, valuePip);
             AddFileDependent(copyFile.Source, copyFile);
             m_fileProducers[copyFile.Destination] = copyFile.PipId;
-            copyFile.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(copyFile).Hash;
+            ComputeStaticFingerprint(copyFile);
             return result;
         }
 
@@ -104,8 +107,7 @@ namespace BuildXL.Scheduler.Graph
                 m_opaqueDirectoryProducers[directoryOutput] = process.PipId;
             }
 
-            process.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(process).Hash;
-            m_pipStaticFingerprints.AddFingerprint(process, new ContentFingerprint(process.StaticFingerprint));
+            ComputeStaticFingerprint(process);
             return result;
         }
 
@@ -115,8 +117,7 @@ namespace BuildXL.Scheduler.Graph
             base.AddSealDirectory(sealDirectory, valuePip);
             AddFileDependents(sealDirectory.Contents, sealDirectory);
             AddDirectoryDependents(sealDirectory.ComposedDirectories, sealDirectory);
-            sealDirectory.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(sealDirectory).Hash;
-            m_pipStaticFingerprints.AddFingerprint(sealDirectory, new ContentFingerprint(sealDirectory.StaticFingerprint));
+            ComputeStaticFingerprint(sealDirectory);
             return sealDirectory.Directory;
         }
 
@@ -125,8 +126,18 @@ namespace BuildXL.Scheduler.Graph
         {
             var result = base.AddWriteFile(writeFile, valuePip);
             m_fileProducers[writeFile.Destination] = writeFile.PipId;
-            writeFile.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(writeFile).Hash;
+            ComputeStaticFingerprint(writeFile);
             return result;
+        }
+
+        /// <inheritdoc />
+        private void ComputeStaticFingerprint(Pip pip)
+        {
+            if (Configuration.Schedule.ComputePipStaticFingerprints)
+            {
+                pip.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
+                m_pipStaticFingerprints.AddFingerprint(pip, new ContentFingerprint(pip.StaticFingerprint));
+            }
         }
 
         /// <inheritdoc />

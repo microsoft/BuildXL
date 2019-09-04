@@ -228,28 +228,26 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// Calculates a hash of the contents of the BuildXL binaries from the server deployment directory.
-        /// </summary>
-        public static string GetDeploymentCacheHash(string deploymentDir)
-        {
-            try {
-                AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
-                return serverDeployment.TimestampBasedHash.ToHex();
-            }
-            catch (FileNotFoundException)
-            {
-                return null;
-            }
-
-        }
-
-        /// <summary>
         /// Checks if the deployed server bits are still up-to-date.
         /// </summary>
         public static bool IsServerDeploymentOutOfSync(string serverDeploymentRoot, AppDeployment clientApp, out string deploymentDir)
         {
             deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
-            return !Directory.Exists(deploymentDir) || clientApp.TimestampBasedHash.ToHex() != GetDeploymentCacheHash(deploymentDir);
+            if (!Directory.Exists(deploymentDir))
+            {
+                try
+                {
+                    // Calculates a hash of the contents of the BuildXL binaries from the server deployment directory.
+                    AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
+                    return clientApp.TimestampBasedHash.ToHex() != serverDeployment.TimestampBasedHash.ToHex();
+                }
+                catch (FileNotFoundException)
+                {
+                    return false;
+                }
+            }
+
+            return false;
         }
     }
 }

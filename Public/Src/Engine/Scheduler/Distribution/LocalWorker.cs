@@ -32,6 +32,7 @@ namespace BuildXL.Scheduler.Distribution
             Start();
         }
 
+
         /// <inheritdoc />
         public override async Task<PipResultStatus> MaterializeInputsAsync(RunnablePip runnablePip)
         {

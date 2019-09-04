@@ -39,7 +39,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
         private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
 
-        private readonly TaskFactory m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(Environment.ProcessorCount, "PipGraphFragmentManager"));
+        private readonly TaskFactory m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(Environment.ProcessorCount * 2, "PipGraphFragmentManager"));
 
         private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
 
@@ -59,7 +59,7 @@ namespace BuildXL.Scheduler.Graph
         public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
-            m_taskMap[filePath] = (deserializer, Task.Run(async () =>
+            m_taskMap[filePath] = (deserializer, m_taskFactory.StartNew(async () =>
             {
                 var results = await Task.WhenAll(dependencies.Select(dependency => m_taskMap[dependency].Item2));
                 if (results.Any(success => !success))
@@ -83,7 +83,7 @@ namespace BuildXL.Scheduler.Graph
                     Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
                     return false;
                 }
-            }));
+            }).Unwrap());
 
             return true;
         }

@@ -101,7 +101,7 @@ namespace BuildXL.Execution.Analyzer
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>(Environment.ProcessorCount, action => action());
+            m_actionBlock = new ActionBlockSlim<Action>((int)(Environment.ProcessorCount*0.75), action => action());
         }
 
         /// <inheritdoc/>
@@ -124,6 +124,7 @@ namespace BuildXL.Execution.Analyzer
         public override void Prepare()
         {
             m_inner.Prepare();
+            m_inner.Analyze();
         }
 
         /// <inheritdoc/>
@@ -519,7 +520,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var totalNumberOfPips = CachedGraph.PipTable.StableKeys.Count;
             var pipIds = CachedGraph.PipTable.StableKeys;
-            var concurrency = Environment.ProcessorCount / 2;
+            var concurrency = (int)(Environment.ProcessorCount * 1.25);
             var partitionSize = totalNumberOfPips / concurrency;
             Console.WriteLine("Ingesting pips now ...");
 
@@ -549,7 +550,7 @@ namespace BuildXL.Execution.Analyzer
                             pipIdMap.Clear();
                         }
 
-                        var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, Pips.PipQueryContext.PipGraphRetrieveAllPips);
+                        var hydratedPip = CachedGraph.PipTable.HydratePip(pipId, BuildXL.Pips.PipQueryContext.PipGraphRetrieveAllPips);
                         var pipType = hydratedPip.PipType;
 
                         if (pipType == PipType.Value || pipType == PipType.HashSourceFile || pipType == PipType.SpecFile || pipType == PipType.Module)
@@ -597,7 +598,7 @@ namespace BuildXL.Execution.Analyzer
 
                                     if (CachedGraph.PipTable.IsSealDirectoryComposite(nestedPipId))
                                     {
-                                        var nestedPip = (Pips.Operations.SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(nestedDirectory, Pips.PipQueryContext.SchedulerExecuteSealDirectoryPip);
+                                        var nestedPip = (Pips.Operations.SealDirectory)CachedGraph.PipGraph.GetSealedDirectoryPip(nestedDirectory, BuildXL.Pips.PipQueryContext.SchedulerExecuteSealDirectoryPip);
                                         foreach (var pendingDirectory in nestedPip.ComposedDirectories)
                                         {
                                             directoryQueue.Enqueue(pendingDirectory);
@@ -694,7 +695,7 @@ namespace BuildXL.Execution.Analyzer
         private void IngestProducerConsumerInformation()
         {
             var parallelOptions = new ParallelOptions();
-            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
+            parallelOptions.MaxDegreeOfParallelism = (int)(Environment.ProcessorCount*1.25);
 
             Parallel.ForEach(m_fileConsumerMap, parallelOptions, kvp =>
             {

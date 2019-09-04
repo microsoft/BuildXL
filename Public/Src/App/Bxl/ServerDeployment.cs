@@ -233,7 +233,7 @@ namespace BuildXL
         public static bool IsServerDeploymentOutOfSync(string serverDeploymentRoot, AppDeployment clientApp, out string deploymentDir)
         {
             deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
-            if (!Directory.Exists(deploymentDir))
+            if (Directory.Exists(deploymentDir))
             {
                 try
                 {
@@ -247,7 +247,7 @@ namespace BuildXL
                 }
             }
 
-            return false;
+            return true;
         }
     }
 }

@@ -264,7 +264,7 @@ namespace BuildXL.Pips.Operations
         ///   NOTE: because this scanning is done against chunks of text (instead of the entire process output),
         ///         false negatives are possible if an error message spans across multiple chunks.  The scanning
         ///         is done in chunks because attempting to construct a single string from the entire process
-        ///         output can easily lead to OutOfMemory exception.
+        ///         output can easily lead to an "out of memory" exception.
         /// </summary>
         /// <remarks>
         /// Regarding fingerprinting: <see cref="ErrorRegex"/> is currently a part of the process fingerprint, 

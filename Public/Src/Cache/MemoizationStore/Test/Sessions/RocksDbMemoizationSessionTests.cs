@@ -23,7 +23,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using FluentAssertions;
-using System.Diagnostics;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {

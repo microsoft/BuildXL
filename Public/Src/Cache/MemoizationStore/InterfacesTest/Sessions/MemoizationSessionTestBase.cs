@@ -17,7 +17,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using Xunit;
-using System.Diagnostics;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {

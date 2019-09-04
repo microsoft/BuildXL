@@ -3,7 +3,10 @@
 
 syntax = "proto3";
 
-import "EnumsAndHelperStructs.proto";
+import "HelperStructs.proto";
+
+// Import Enums
+import "Enums/PipType.proto";
 
 package BuildXL.Xldb.Proto;
 

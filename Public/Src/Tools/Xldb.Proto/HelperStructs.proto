@@ -1,0 +1,556 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+import "tools/google/protobuf/timestamp.proto";
+import "tools/google/protobuf/duration.proto";
+
+// Import Enums
+import "Enums/CreationDisposition.proto";
+import "Enums/DesiredAccess.proto";
+import "Enums/DoubleWritePolicy.proto";
+import "Enums/FileAccessStatus.proto";
+import "Enums/FlagsAndAttributes.proto";
+import "Enums/FileAccessStatusMethod.proto";
+import "Enums/FileExistence.proto";
+import "Enums/ObservedInputType.proto";
+import "Enums/Options.proto";
+import "Enums/PreserveOutputsMode.proto";
+import "Enums/ReportedFileOperation.proto";
+import "Enums/RequestedAccess.proto";
+import "Enums/SandboxKind.proto";
+import "Enums/SealDirectoryKind.proto";
+import "Enums/ServicePipKind.proto";
+import "Enums/ShareMode.proto";
+import "Enums/WriteFileEncoding.proto";
+
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+//
+// Helper Structs
+//
+
+message AbsolutePath{
+    string Value = 1;
+}
+
+message ContentHash{
+    string Value = 1;
+}
+
+message FileArtifact{
+    AbsolutePath path = 1;
+
+    int32 RewriteCount = 2;
+}
+
+message FileContentInfo{
+    // [IsKnownExistenceFlag | Existence | IsKnownLengthFlag | Length];
+    int64 LengthAndExistence = 1;
+
+    ContentHash Hash = 2;
+}
+
+message PipExecutionPerformance{
+    int32 PipExecutionLevel = 1;
+
+    google.protobuf.Timestamp ExecutionStart = 2;
+
+    google.protobuf.Timestamp ExecutionStop = 3;
+}
+
+message ProcessPipExecutionPerformance{
+    google.protobuf.Duration ProcessExecutionTime = 1;
+
+    IOTypeCounters ReadCounters = 2;
+
+    IOTypeCounters WriteCounters = 3;
+
+    IOTypeCounters OtherCounters = 4;
+
+    google.protobuf.Duration UserTime = 5;
+
+    google.protobuf.Duration KernelTime = 6;
+
+    uint64 PeakMemoryUsage = 7;
+
+    int32 PeakMemoryUsageMb = 8;
+
+    uint32 NumberOfProcesses = 9;
+
+    FileMonitoringViolationCounters FileMonitoringViolationCounters = 10;
+
+    Fingerprint Fingerprint = 11;
+
+    uint64 CacheDescriptorId = 12;
+}
+
+message FileMonitoringViolationCounters{
+    int32 NumFileAccessesWhitelistedButNotCacheable = 1;
+
+    int32 NumFileAccessesWhitelistedAndCacheable = 2;
+
+    int32 NumFileAccessViolationsNotWhitelisted = 3;
+}
+
+message Fingerprint{
+    int32 Length = 1;
+
+    bytes Bytes = 2;
+}
+
+message IOTypeCounters{
+    uint64 OperationCount = 1;
+
+    uint64 TransferCOunt = 2;
+}
+
+message ReportedProcess{
+    string Path = 1;
+
+    uint32 ProcessId = 2;
+
+    string ProcessArgs = 3;
+
+    IOTypeCounters ReadCounters = 4;
+
+    IOTypeCounters WriteCounters = 5;
+
+    IOTypeCounters OtherCounters = 6;
+
+    google.protobuf.Timestamp CreationTime = 7;
+
+    google.protobuf.Timestamp ExitTime = 8;
+
+    google.protobuf.Duration KernelTime = 9;
+
+    google.protobuf.Duration UserTime = 10;
+
+    uint32 ExitCode = 11;
+
+    uint32 ParentProcessId = 12;
+}
+
+message ReportedFileAccess{
+    CreationDisposition CreationDisposition = 1;
+
+    DesiredAccess DesiredAccess = 2;
+
+    uint32 Error = 3;
+
+    uint64 Usn = 4;
+
+    FlagsAndAttributes FlagsAndAttributes = 5;
+
+    string Path = 6;
+
+    string ManifestPath = 7;
+
+    ReportedProcess Process = 8;
+
+    ShareMode ShareMode = 9;
+
+    FileAccessStatus Status = 10;
+
+    FileAccessStatusMethod Method = 11;
+
+    RequestedAccess RequestedAccess = 12;
+
+    ReportedFileOperation Operation = 13;
+
+    bool ExplicitlyReported = 14;
+
+    string EnumeratePattern = 15;
+}
+
+message ProcessDetouringStatusData{
+    uint64 ProcessID = 1;
+
+    uint32 ReportStatus = 2;
+
+    string ProcessName = 3;
+
+    string StartApplicationName = 4;
+
+    string StartCommandLine = 5;
+
+    bool NeedsInjection = 6;
+
+    uint64 Job = 7;
+
+    bool DisableDetours = 8;
+
+    uint32 CreationFlags = 9;
+
+    bool Detoured = 10;
+
+    uint32 Error = 11;
+}
+
+message WeakContentFingerPrint{
+    Fingerprint Hash = 1;
+}
+
+message StrongContentFingerPrint{
+    Fingerprint Hash = 1;
+}
+
+message ObservedPathEntry{
+    AbsolutePath Path = 1;
+
+    string EnumeratePatternRegex = 2;
+}
+
+message UnsafeSandboxConfiguration{
+    PreserveOutputsMode PreserveOutputs = 1;
+
+    bool MonitorFileAccesses = 2;
+
+    bool IgnoreZwRenameFileInformation = 3;
+
+    bool IgnoreZwOtherFileInformation = 4;
+
+    bool IgnoreNonCreateFileReparsePoints = 5;
+
+    bool IgnoreSetFileInformationByHandle = 6;
+
+    bool IgnoreReparsePoints = 7;
+
+    bool IgnorePreloadedDlls = 8;
+
+    bool ExistingDirectoryProbesAsEnumerations = 9;
+
+    bool MonitorNtCreateFile = 10;
+
+    bool MonitorZwCreateOpenQueryFile = 11;
+
+    SandboxKind SandboxKind = 12;
+
+    bool UnexpectedFileAccessesAreErrors = 13;
+
+    bool IgnoreGetFinalPathNameByHandle = 14;
+
+    bool IgnoreDynamicWritesOnAbsentProbes = 15;
+
+    DoubleWritePolicy DoubleWritePolicy = 16;
+
+    bool IgnoreUndeclaredAccessesUnderSharedOpaques = 17;
+}
+
+message UnsafeOptions{
+    ContentHash PreserveOutputsSalt = 1;
+
+    UnsafeSandboxConfiguration UnsafeConfiguration = 2;
+}
+
+message ObservedInput{
+    ObservedInputType Type = 1;
+
+    ContentHash Hash = 2;
+
+    ObservedPathEntry PathEntry = 3;
+
+    AbsolutePath Path = 4;
+
+    bool IsSearchPath = 5;
+
+    bool IsDirectoryPath = 6;
+
+    bool DirectoryEnumeration = 7;
+}
+
+message ObservedPathSet{
+    repeated ObservedPathEntry Paths = 1;
+
+    repeated string ObservedAccessedFileNames = 2;
+
+    UnsafeOptions UnsafeOptions = 3;
+}
+
+message ProcessStrongFingerprintComputationData{
+    ObservedPathSet PathSet = 1;
+
+    ContentHash PathSetHash = 2;
+
+    repeated ObservedPathEntry PathEntries = 3;
+
+    UnsafeOptions UnsafeOptions = 4;
+
+    repeated string ObservedAccessedFileNames = 5;
+
+    repeated StrongContentFingerPrint PriorStrongFingerprints = 6;
+
+    bool Succeeded = 7;
+
+    bool IsStrongFingerprintHit = 8;
+
+    StrongContentFingerPrint ComputedStrongFingerprint = 9;
+
+    repeated ObservedInput ObservedInputs = 10;
+}
+
+message DirectoryFingerprint{
+    ContentHash Hash = 1;
+}
+
+message DirectoryArtifact{
+    AbsolutePath Path = 1;
+
+    uint32 PartialSealID = 2;
+
+    bool IsSharedOpaque = 3;
+}
+
+message FileOrDirectoryArtifact{
+    FileArtifact FileArtifact = 1;
+
+    DirectoryArtifact DirectoryArtifact = 2;
+
+    bool IsFile = 3;
+
+    bool IsDirectory = 4;
+}
+
+message Pip{
+    int64 SemiStableHash = 1;
+
+    uint32 PipId = 2;
+
+    NodeId NodeId = 3;
+
+    repeated Edge IncomingEdges = 4;
+
+    repeated Edge OutgoingEdges = 5;
+}
+
+message PipProvenance{
+    string Usage = 1;
+
+    string ModuleId = 2;
+
+    string ModuleName = 3;
+
+    int64 SemiStableHash = 4;
+}
+
+message ProcessPip{
+    Pip GraphInfo = 1;
+
+    Options ProcessOptions = 2;
+
+    FileArtifact StandardInputFile = 3;
+
+    string StandardInputData = 4;
+
+    StandardInput StandardInput = 5;
+
+    FileArtifact ResponseFile = 6;
+
+    string ResponseFileData = 7;
+
+    FileArtifact Executable = 8;
+
+    string ToolDescription = 9;
+
+    AbsolutePath WorkingDirectory = 10;
+
+    string Arguments = 11;
+
+    repeated EnvironmentVariable EnvironmentVariable = 12;
+
+    repeated FileArtifact Dependencies = 13;
+
+    repeated DirectoryArtifact DirectoryDependencies = 14;
+
+    repeated AbsolutePath UntrackedPaths = 15;
+
+    repeated AbsolutePath UntrackedScopes = 16;
+
+    repeated FileArtifactWithAttributes FileOutputs = 17;
+
+    repeated DirectoryArtifact DirectoryOutputs = 18;
+
+    AbsolutePath TempDirectory = 19;
+
+    repeated AbsolutePath AdditionalTempDirectories = 20;
+
+    ServiceInfo ServiceInfo = 21;
+
+    repeated AbsolutePath PreserveOutputWhitelist = 22;
+
+    // Overridden Member Variables
+    repeated string Tags = 23;
+
+    PipProvenance Provenance = 24;
+}
+
+message WriteFile{
+    Pip GraphInfo = 1;
+
+    FileArtifact Destination = 2;
+
+    string Contents = 3;
+
+    WriteFileEncoding Encoding = 4;
+
+    // Overridden Member Variables
+    repeated string Tags = 5;
+
+    PipProvenance Provenance = 6;
+}
+
+message CopyFile{
+    Pip GraphInfo = 1;
+
+    FileArtifact Source = 2;
+
+    FileArtifact Destination = 3;
+
+    bool OutputsMustRemainWritable = 4;
+
+    // Overridden Member Variables
+    repeated string Tags = 5;
+
+    PipProvenance Provenance = 6;
+}
+
+message SealDirectory{
+    Pip GraphInfo = 1;
+
+    SealDirectoryKind Kind = 2;
+
+    repeated string Patterns = 3;
+
+    repeated FileArtifact Contents = 4;
+
+    repeated DirectoryArtifact ComposedDirectories = 5;
+
+    bool IsComposite = 6;
+
+    bool Scrub = 7;
+
+    DirectoryArtifact Directory = 8;
+
+    bool IsSealSourceDirectory = 9;
+
+    // Overridden Member Variables
+    repeated string Tags = 10;
+
+    PipProvenance Provenance = 11;
+}
+
+message IpcPip{
+    Pip GraphInfo = 1;
+
+    IpcClientInfo IpcInfo = 2;
+
+    string MessageBody = 3;
+
+    repeated uint32 ServicePipDependencies = 4;
+
+    repeated FileArtifact FileDependencies = 5;
+
+    repeated DirectoryArtifact DirectoryDependencies = 6;
+
+    repeated FileOrDirectoryArtifact LazilyMaterializedDependencies = 7;
+
+    bool IsServiceFinalization = 8;
+
+    // Overridden Member Variables
+    repeated string Tags = 9;
+
+    PipProvenance Provenance = 10;
+}
+
+message StandardInput{
+    FileArtifact File = 1;
+
+    string Data = 2;
+}
+
+message EnvironmentVariable{
+    string Name = 1;
+
+    string Value = 2;
+
+    bool IsPassThrough = 3;
+}
+
+message FileArtifactWithAttributes{
+    AbsolutePath Path = 1;
+
+    int32 RewriteCount = 2;
+
+    FileExistence FileExistence = 3;
+}
+
+message ServiceInfo{
+    ServicePipKind Kind = 1;
+
+    repeated uint32 ServicePipDependencies = 2;
+
+    uint32 ShutdownPipId = 3;
+
+    repeated uint32 FinalizationPipIds = 4;
+
+    bool IsStartOrShutdownKind = 5;
+}
+
+message LocationData{
+    int32 Line = 1;
+
+    AbsolutePath Path = 2;
+
+    int32 Position = 3;
+}
+
+message IpcClientInfo{
+    string IpcMonikerId = 1;
+}
+
+// This is a PipGraph Node (name is kept the same as in internal code)
+message NodeId{
+    uint32 Value = 1;
+}
+
+// This is a PipGraph edge (name is kept the same as in internal code)
+message Edge{
+    // Source or target node represented by edge
+    NodeId OtherNode = 1;
+
+    bool IsLight = 2;
+
+    uint32 Value = 3;
+}
+
+message Graph{
+    int32 NodeCount = 1;
+
+    NodeRange NodeRange = 2;
+
+    int32 EdgeCount = 3;
+}
+
+message NodeEdgeListHeader{
+    int32 FirstIndex = 1;
+
+    int32 Count = 2;
+}
+
+message NodeRange{
+    bool IsEmpty = 1;
+
+    int32 Size = 2;
+
+    NodeId FromInclusive = 3;
+
+    NodeId ToInclusive = 4;
+}
+
+message ContentFingerprint{
+    Fingerprint Hash = 1;
+}

@@ -1,0 +1,27 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
+enum FileMonitoringViolationAnalyzer_DependencyViolationType{
+    FileMonitoringViolationAnalyzer_DependencyViolationType_Uninitialized = 0;
+
+    DoubleWrite = 1;
+    ReadRace = 2;
+    UndeclaredOrderedRead = 3;
+    MissingSourceDependency = 4;
+    UndeclaredReadCycle = 5;
+    UndeclaredOutput = 6;
+    ReadUndeclaredOutput = 7;
+    WriteInSourceSealDirectory = 8;
+    WriteInUndeclaredSourceRead = 9;
+    WriteInExistingFile = 10;
+    WriteOnAbsentPathProbe = 11;
+    AbsentPathProbeUnderUndeclaredOpaque = 12;
+    WriteToTempPathInsideSharedOpaque = 13;
+}

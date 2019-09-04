@@ -1,0 +1,22 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
+enum ExecutionSampler_LimitingResource{
+    ExecutionSampler_LimitingResource_Uninitialized = 0;
+
+    GraphShape = 1;
+    ExecutionSampler_LimitingResource_CPU = 2;
+    Disk = 3;
+    Memory = 4;
+    ConcurrencyLimit = 5;
+    ProjectedMemory = 6;
+    Semaphore = 7;
+    Other = 8;
+}

@@ -5,7 +5,19 @@ syntax = "proto3";
 
 import "tools/google/protobuf/timestamp.proto";
 import "tools/google/protobuf/duration.proto";
-import "EnumsAndHelperStructs.proto";
+import "HelperStructs.proto";
+
+// Import Enums
+import "Enums/ExecutionEventId.proto";
+import "Enums/ExecutionSampler_LimitingResource.proto";
+import "Enums/FileMonitoringViolationAnalyzer_DependencyViolationType.proto";
+import "Enums/FileMonitoringViolationAnalyzer_AccessLevel.proto";
+import "Enums/FingerprintComputationKind.proto";
+import "Enums/PipCacheMissType.proto";
+import "Enums/PipExecutionStep.proto";
+import "Enums/PipOutputOrigin.proto";
+import "Enums/WorkDispatcher_DispatcherKind.proto";
+
 
 package BuildXL.Xldb.Proto;
 

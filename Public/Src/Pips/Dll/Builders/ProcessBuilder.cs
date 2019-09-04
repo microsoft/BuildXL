@@ -121,6 +121,9 @@ namespace BuildXL.Pips.Builders
         public RegexDescriptor? ErrorRegex { get; set; }
 
         /// <nodoc />
+        public bool EnableMultiLineErrorScanning { get; set; }
+
+        /// <nodoc />
         public Options Options { get; set; }
 
         /// <nodoc />
@@ -670,6 +673,7 @@ namespace BuildXL.Pips.Builders
                 timeout: Timeout,
                 warningRegex: WarningRegex ?? RegexDescriptor.CreateDefaultForWarnings(m_pathTable.StringTable),
                 errorRegex: ErrorRegex ?? RegexDescriptor.CreateDefaultForErrors(m_pathTable.StringTable),
+                enableMultiLineErrorScanning: EnableMultiLineErrorScanning,
 
                 uniqueOutputDirectory: defaultDirectory,
                 uniqueRedirectedDirectoryRoot: redirectedDirectoryRoot,

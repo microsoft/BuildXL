@@ -22,15 +22,15 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 // Also note that to avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an invalid value for each enum.
 
 enum ExecutionEventId{
-    ExecutionEventId_Invalid = 0;
+    ExecutionEventId_Uninitialized = 0;
 
     FileArtifactContentDecided = 1;
     WorkerList = 2;
     ExecutionEventId_PipExecutionPerformance = 3;
     DirectoryMembershipHashed = 4;
 
-    // Deprecated in favor of ProcessFingerprintComputation (enum 10)
-    ObservedInputs = 5;
+    // Deprecated in favor of ProcessFingerprintComputation (enum 11)
+    // ObservedInputs = 5;
 
     ProcessExecutionMonitoringReported = 6;
     ExecutionEventId_ExtraEventDataReported = 7;
@@ -44,7 +44,7 @@ enum ExecutionEventId{
 }
 
 enum PipOutputOrigin{
-    PipOutputOrigin_Invalid = 0;
+    PipOutputOrigin_Uninitialized = 0;
 
     Produced = 1;
     UpToDate = 2;
@@ -53,7 +53,7 @@ enum PipOutputOrigin{
 }
 
 enum PipExecutionStep{
-    PipExecutionStep_Invalid = 0;
+    PipExecutionStep_Uninitialized = 0;
     
     PipExecutionStep_None = 1;
     Start = 2;
@@ -74,7 +74,7 @@ enum PipExecutionStep{
 }
 
 enum WorkDispatcher_DispatcherKind{
-    WorkDispatcher_DispatcherKind_Invalid = 0;
+    WorkDispatcher_DispatcherKind_Uninitialized = 0;
 
     WorkDispatcherKind_None = 1;
     IO = 2;
@@ -87,7 +87,7 @@ enum WorkDispatcher_DispatcherKind{
 }
 
 enum FileMonitoringViolationAnalyzer_DependencyViolationType{
-    FileMonitoringViolationAnalyzer_DependencyViolationType_Invalid = 0;
+    FileMonitoringViolationAnalyzer_DependencyViolationType_Uninitialized = 0;
 
     DoubleWrite = 1;
     ReadRace = 2;
@@ -105,14 +105,14 @@ enum FileMonitoringViolationAnalyzer_DependencyViolationType{
 }
 
 enum FileMonitoringViolationAnalyzer_AccessLevel{
-    FileMonitoringViolationAnalyzer_AccessLevel_Invalid = 0;
+    FileMonitoringViolationAnalyzer_AccessLevel_Uninitialized = 0;
 
     FileMonitoringViolationAnalyzer_AccessLevel_Read = 1;
     FileMonitoringViolationAnalyzer_AccessLevel_Write = 2;
 }
 
 enum PipCacheMissType{
-    PipCacheMissType_Invalid = 0;
+    PipCacheMissType_Uninitialized = 0;
 
     Hit = 51;
     MissForDescriptorsDueToStrongFingerprints = 53;
@@ -127,7 +127,7 @@ enum PipCacheMissType{
 }
 
 enum ExecutionSampler_LimitingResource{
-    ExecutionSampler_LimitingResource_Invalid = 0;
+    ExecutionSampler_LimitingResource_Uninitialized = 0;
 
     GraphShape = 1;
     ExecutionSampler_LimitingResource_CPU = 2;
@@ -140,7 +140,7 @@ enum ExecutionSampler_LimitingResource{
 }
 
 enum CreationDisposition{
-    CreationDisposition_Invalid = 0;
+    CreationDisposition_Uninitialized = 0;
 
     CREATE_NEW = 1;
     CREATE_ALWAYS = 2;
@@ -150,7 +150,7 @@ enum CreationDisposition{
 }
 
 enum DesiredAccess{
-    DesiredAccess_Invalid = 0;
+    DesiredAccess_Uninitialized = 0;
 
     DELETE = 0x00010000;
     SYNCHRONIZE = 0x00100000;
@@ -165,7 +165,7 @@ enum DesiredAccess{
 }
 
 enum FlagsAndAttributes{
-    FlagsAndAttributes_Invalid = 0;
+    FlagsAndAttributes_Uninitialized = 0;
 
     FILE_ATTRIBUTE_READONLY = 0x00000001;
     FILE_ATTRIBUTE_HIDDEN = 0x00000002;
@@ -189,7 +189,7 @@ enum FlagsAndAttributes{
 }
 
 enum ShareMode{
-    ShareMode_Invalid = 0;
+    ShareMode_Uninitialized = 0;
 
     FILE_SHARE_NONE = 0x1;
     FILE_SHARE_READ = 0x2;
@@ -198,7 +198,7 @@ enum ShareMode{
 }
 
 enum FileAccessStatus{
-    FileAccessStatus_Invalid = 0;
+    FileAccessStatus_Uninitialized = 0;
 
     FileAccessStatus_None = 1;
     Allowed = 2;
@@ -207,14 +207,14 @@ enum FileAccessStatus{
 }
 
 enum FileAccessStatusMethod{
-    FileAccessStatusMethod_Invalid = 0;
+    FileAccessStatusMethod_Uninitialized = 0;
 
     PolicyBased = 1;
     FileExistenceBased = 2;
 }
 
 enum RequestedAccess{
-    RequestedAccess_Invalid = 0;
+    RequestedAccess_Uninitialized = 0;
 
     RequestedAccess_None = 1;
     RequestedAccess_Read = 2;
@@ -229,7 +229,7 @@ enum RequestedAccess{
 }
 
 enum ReportedFileOperation{
-    ReportedFileOperation_Invalid = 0;
+    ReportedFileOperation_Uninitialized = 0;
     Unknown = 1;
     CreateFile = 2;
     GetFileAttributes = 3;
@@ -293,14 +293,14 @@ enum ReportedFileOperation{
 }
 
 enum FingerprintComputationKind{
-    FingerprintComputationKind_Invalid = 0;
+    FingerprintComputationKind_Uninitialized = 0;
 
     Execution = 1;
     CacheCheck = 2;
 }
 
 enum ObservedInputType{
-    ObservedInputType_Invalid = 0;
+    ObservedInputType_Uninitialized = 0;
 
     AbsentPathProbe = 1;
     FileContentRead = 2;
@@ -310,7 +310,7 @@ enum ObservedInputType{
 }
 
 enum PreserveOutputsMode{
-    PreserveOutputsMode_Invalid = 0;
+    PreserveOutputsMode_Uninitialized = 0;
 
     Disabled = 1;
     Enabled = 2;
@@ -318,7 +318,7 @@ enum PreserveOutputsMode{
 }
 
 enum SandboxKind{
-    SandboxKind_Invalid = 0;
+    SandboxKind_Uninitialized = 0;
 
     SandboxKind_None = 1;
     Default = 2;
@@ -329,7 +329,7 @@ enum SandboxKind{
 }
 
 enum DoubleWritePolicy{
-    DoubleWritePolicy_Invalid = 0;
+    DoubleWritePolicy_Uninitialized = 0;
 
     DoubleWritesAreErrors = 1;
     AllowSameContentDoubleWrites = 2;
@@ -337,7 +337,7 @@ enum DoubleWritePolicy{
 }
 
 enum PipType{
-    PipType_Invalid = 0;
+    PipType_Uninitialized = 0;
 
     PipType_WriteFile = 1;
     PipType_CopyFile = 2;
@@ -351,7 +351,7 @@ enum PipType{
 }
 
 enum Options{
-    Options_Invalid = 0;
+    Options_Uninitialized = 0;
 
     None = 1;
     HasUntrackedChildProcesses = 2;
@@ -367,10 +367,11 @@ enum Options{
     DependsOnWindowsProgramData = 2048;
     RequiresAdmin = 4096;
     HasPreserveOutputWhitelist = 8192;
+    IncrementalTool = 16384;
 }
 
 enum FileExistence{
-    FileExistence_Invalid = 0;
+    FileExistence_Uninitialized = 0;
 
     Required = 1;
     Temporary = 2;
@@ -378,14 +379,14 @@ enum FileExistence{
 }
 
 enum WriteFileEncoding{
-    WriteFileEncoding_Invalid = 0;
+    WriteFileEncoding_Uninitialized = 0;
 
     Utf8 = 1;
     Ascii = 2;
 }
 
 enum SealDirectoryKind{
-    SealDirectoryKind_Invalid = 0;
+    SealDirectoryKind_Uninitialized = 0;
 
     Full = 1;
     Partial = 2;
@@ -396,7 +397,7 @@ enum SealDirectoryKind{
 }
 
 enum ServicePipKind{
-    ServicePipKind_Invalid = 0;
+    ServicePipKind_Uninitialized = 0;
     ServicePipKind_None = 1;
     Service = 2;
     ServiceClient = 3;

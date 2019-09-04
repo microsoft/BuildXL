@@ -19,8 +19,9 @@ namespace Xldb.Analyzer
     /// </summary>
     public class Program
     {
-        private const string s_eventStatsAnalyzer = "eventstats";
+        private const string s_eventStatsAnalyzer = "dbstats";
         private const string s_dumpPipAnalyzer = "dumppip";
+        private const double m_divisor = 1000.0; // Bytes to Kilobytes 
 
         private Dictionary<string, string> m_commandLineOptions = new Dictionary<string, string>();
 
@@ -103,8 +104,8 @@ namespace Xldb.Analyzer
         {
             if (m_commandLineOptions.ContainsKey("/h"))
             {
-                Console.WriteLine("\nEvent Stats Analyzer");
-                Console.WriteLine("Generates stats on the aggregate size and count of execution log events, but uses the RocksDB database as the source of truth");
+                Console.WriteLine("\nDB Stats Analyzer");
+                Console.WriteLine("Generates stats on the aggregate size and count of different items stored in the DB, but uses the RocksDB database as the source of truth");
                 Console.WriteLine("/i: \t Required \t The directory to read the RocksDB database from");
                 Console.WriteLine("/o: \t Required \t The file where to write the results");
                 return 1;
@@ -122,41 +123,40 @@ namespace Xldb.Analyzer
             using (var outputStream = File.OpenWrite(outputFilePath))
             using (var writer = new StreamWriter(outputStream))
             {
-                var workerToEventDict = new Dictionary<uint, Dictionary<ExecutionEventId, int>>();
-                foreach (ExecutionEventId eventId in Enum.GetValues(typeof(ExecutionEventId)))
-                {
-                    var eventCount = dataStore.GetCountByEvent(eventId);
+                var maxLength = Enum.GetValues(typeof(DBStoredTypes)).Cast<DBStoredTypes>().Select(e => e.ToString().Length).Max();
+                var listOfStorageStats = new List<DBStorageStatsValue>();
+                ulong totalCount = 0;
+                ulong totalPayload = 0;
 
-                    if (eventCount != null)
+                writer.WriteLine("Storage stats (uncompressed) of the DB.\n\n");
+
+                foreach (DBStoredTypes storageType in Enum.GetValues(typeof(DBStoredTypes)))
+                {
+                    var dbStorageStatValue = dataStore.GetCountByEvent(storageType);
+
+                    if (dbStorageStatValue != null)
                     {
-                        foreach (var workerCount in eventCount.WorkerToCountMap)
-                        {
-                            if (workerToEventDict.TryGetValue(workerCount.Key, out var eventDict))
-                            {
-                                eventDict[eventId] = workerCount.Value;
-                            }
-                            else
-                            {
-                                var dict = new Dictionary<ExecutionEventId, int>();
-                                dict.Add(eventId, workerCount.Value);
-                                workerToEventDict.Add(workerCount.Key, dict);
-                            }
-                        }
+                        totalCount += dbStorageStatValue.Count;
+                        totalPayload += dbStorageStatValue.Size;
+                        listOfStorageStats.Add(dbStorageStatValue);
+                    }
+                    else
+                    {
+                        listOfStorageStats.Add(new DBStorageStatsValue());
                     }
                 }
 
-                foreach (var workerDict in workerToEventDict)
+                for (var i = 0; i < listOfStorageStats.Count(); i++)
                 {
-                    writer.WriteLine("Worker {0}", workerDict.Key);
-                    var maxLength = Enum.GetValues(typeof(ExecutionEventId)).Cast<ExecutionEventId>().Select(e => e.ToString().Length).Max();
-                    foreach (var eventStats in workerDict.Value)
-                    {
-                        writer.WriteLine(
-                        "{0}: Count = {1}",
-                        eventStats.Key.ToString().PadRight(maxLength, ' '),
-                        eventStats.Value.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '));
-                    }
-                    writer.WriteLine();
+                    var currDbStorageStatValue = listOfStorageStats.ElementAt(i);
+
+                    writer.WriteLine(
+                    "{0}: Count = {1} ({2} %),   Payload = {3} ({4} %)",
+                    ((DBStoredTypes)i).ToString().PadRight(maxLength, ' '),
+                    currDbStorageStatValue.Count.ToString(CultureInfo.InvariantCulture).PadLeft(15, ' '),
+                    (currDbStorageStatValue.Count / (double)totalCount * 100).ToString("#.###").PadLeft(8, ' '),
+                    (currDbStorageStatValue.Size / m_divisor).ToString(CultureInfo.InvariantCulture).PadLeft(15, ' '),
+                    (currDbStorageStatValue.Size / (double)totalPayload * 100).ToString("#.###").PadLeft(8, ' '));
                 }
             }
 
@@ -250,19 +250,19 @@ namespace Xldb.Analyzer
                 }
 
                 writer.WriteLine("Process Execution Monitoring Information:\n");
-                foreach(var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
+                foreach (var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
                 {
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
                 writer.WriteLine("Process Fingerprint Computation Information:\n");
-                foreach(var i in dataStore.GetProcessFingerprintComputationEventByKey(pipId))
+                foreach (var i in dataStore.GetProcessFingerprintComputationEventByKey(pipId))
                 {
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
                 writer.WriteLine("Directory Membership Hashted Information:\n");
-                foreach(var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
+                foreach (var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
                 {
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
@@ -292,7 +292,7 @@ namespace Xldb.Analyzer
                     var pipGraph = dataStore.GetPipGraphMetaData();
                     var sealDirectoryAndProducersDict = new Dictionary<DirectoryArtifact, uint>();
 
-                    foreach(var kvp in pipGraph.AllSealDirectoriesAndProducers)
+                    foreach (var kvp in pipGraph.AllSealDirectoriesAndProducers)
                     {
                         sealDirectoryAndProducersDict.Add(kvp.Artifact, kvp.PipId);
                     }

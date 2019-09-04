@@ -640,6 +640,10 @@ namespace Test.BuildXL.Scheduler
             {
                 private readonly Harness m_harness;
 
+                public CacheConfiguration Configuration { get; } = new CacheConfiguration();
+
+                ICacheConfiguration IObservedInputProcessingEnvironment.Configuration => Configuration;
+
                 public Environment(Harness harness)
                 {
                     m_harness = harness;

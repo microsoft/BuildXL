@@ -279,7 +279,6 @@ namespace BuildXL.Utilities
             /// </summary>
             /// <param name="expansionCacheSize">the size of the expansion cache</param>
             public NameExpander(int expansionCacheSize = 7013)
-            //public NameExpander(int expansionCacheSize = 1395263)
             {
                 ExpansionCache = expansionCacheSize <= 0 ? null : new ObjectCache<HierarchicalNameId, string>(expansionCacheSize);
                 ExpansionCacheChar = PathFormatter.GetPathSeparator(PathFormat.HostOs);

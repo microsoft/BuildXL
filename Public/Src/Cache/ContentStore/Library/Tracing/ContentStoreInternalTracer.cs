@@ -212,14 +212,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.OpenStreamStart(context, contentHash);
         }
 
-        public override void OpenStreamStop(Context context, OpenStreamResult result)
+        public override void OpenStreamStop(Context context, ContentHash contentHash, OpenStreamResult result)
         {
             if (_eventSource.IsEnabled())
             {
                 _eventSource.OpenStreamStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
-            base.OpenStreamStop(context, result);
+            base.OpenStreamStop(context, contentHash, result);
         }
 
         public void PinStart(Context context, ContentHash contentHash)
@@ -259,14 +259,14 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PlaceFileStart(context, contentHash, path, accessMode, replacementMode, realizationMode);
         }
 
-        public override void PlaceFileStop(Context context, ContentHash input, PlaceFileResult result)
+        public override void PlaceFileStop(Context context, ContentHash contentHash, PlaceFileResult result, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode)
         {
             if (_eventSource.IsEnabled())
             {
                 _eventSource.PlaceFileStop(context.Id.ToString(), (int)result.Code, result.ErrorMessage);
             }
 
-            base.PlaceFileStop(context, input, result);
+            base.PlaceFileStop(context, contentHash, result, path, accessMode, replacementMode, realizationMode);
         }
 
         public override void PutFileStart(Context context, AbsolutePath path, FileRealizationMode mode, HashType hashType, bool trusted)
@@ -289,7 +289,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             base.PutFileStart(context, path, mode, contentHash, trusted);
         }
 
-        public override void PutFileStop(Context context, PutResult result, bool trusted)
+        public override void PutFileStop(Context context, PutResult result, bool trusted, AbsolutePath path, FileRealizationMode mode)
         {
             if (_eventSource.IsEnabled())
             {
@@ -297,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                     context.Id.ToString(), result.Succeeded, result.ErrorMessage, result.ContentHash.ToString());
             }
 
-            base.PutFileStop(context, result, trusted);
+            base.PutFileStop(context, result, trusted, path, mode);
         }
 
         public override void PutStreamStart(Context context, HashType hashType)

@@ -361,6 +361,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool? UseIncrementalCheckpointing { get; set; }
 
         [DataMember]
+        public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
+
+        [DataMember]
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
 
         [DataMember]

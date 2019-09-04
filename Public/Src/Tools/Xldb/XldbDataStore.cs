@@ -21,7 +21,6 @@ namespace BuildXL.Xldb
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
         private Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
 
-        public const string EventCountKey = "EventCount";
         public const string EventColumnFamilyName = "Event";
         public const string PipColumnFamilyName = "Pip";
         public const string StaticGraphColumnFamilyName = "StaticGraph";
@@ -264,46 +263,25 @@ namespace BuildXL.Xldb
         }
 
         /// <summary>
-        /// Returns the count and payload of events by the event type
+        /// Returns the count and payload of items stored in the DB
         /// </summary>
-        /// <returns>EventCountsByTypeValue if exists, null otherwise</returns>
-        public EventCountByTypeValue GetCountByEvent(ExecutionEventId eventTypeID)
+        /// <returns>DBStorageStatsValue if exists, null otherwise</returns>
+        public DBStorageStatsValue GetCountByEvent(DBStoredTypes storageType)
         {
             Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
 
-            var eventCountKey = new EventCountByTypeKey
+            var storageStatsKey = new DBStorageStatsKey
             {
-                EventTypeID = eventTypeID,
+                StorageType = storageType,
             };
 
             var maybeFound = Accessor.Use(database =>
             {
-                if (database.TryGetValue(eventCountKey.ToByteArray(), out var eventCountObj))
+                if (database.TryGetValue(storageStatsKey.ToByteArray(), out var storageStatValue))
                 {
-                    return EventCountByTypeValue.Parser.ParseFrom(eventCountObj);
+                    return DBStorageStatsValue.Parser.ParseFrom(storageStatValue);
                 }
                 return null;
-            });
-
-            if (!maybeFound.Succeeded)
-            {
-                maybeFound.Failure.Throw();
-            }
-
-            return maybeFound.Result;
-        }
-
-        /// <summary>
-        /// Gets the total number of stored xlg events in the database, 0 if the accessor was unsuccesful.
-        /// </summary>
-        public uint GetTotalEventCount()
-        {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
-
-            var maybeFound = Accessor.Use(database =>
-            {
-                database.TryGetValue(Encoding.ASCII.GetBytes(EventCountKey), out var eventCountObj);
-                return EventCount.Parser.ParseFrom(eventCountObj).Value;
             });
 
             if (!maybeFound.Succeeded)

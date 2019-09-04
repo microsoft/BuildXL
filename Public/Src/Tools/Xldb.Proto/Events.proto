@@ -15,17 +15,14 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 //  Generic Event Info (key, count, etc)
 //
 
-// Message that keeps track of total number of events processed
-message EventCount{
-    uint32 Value = 1;
+message DBStorageStatsKey{
+    DBStoredTypes StorageType = 1;
 }
 
-message EventCountByTypeKey{
-    ExecutionEventId EventTypeID = 1;
-}
+message DBStorageStatsValue{
+    uint64 Count = 1;
 
-message EventCountByTypeValue{
-    map<uint32, int32> WorkerToCountMap = 1;
+    uint64 Size = 2;
 }
 
 // Event query should be of this format. It also serves as the key to the DB

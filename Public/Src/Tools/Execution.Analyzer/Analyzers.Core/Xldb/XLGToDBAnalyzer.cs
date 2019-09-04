@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache.KeyValueStores;
@@ -21,6 +21,7 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Xldb;
 using BuildXL.Xldb.Proto;
 using Google.Protobuf;
+using static BuildXL.Utilities.HierarchicalNameTable;
 using PipType = BuildXL.Pips.Operations.PipType;
 
 namespace BuildXL.Execution.Analyzer
@@ -101,7 +102,7 @@ namespace BuildXL.Execution.Analyzer
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>((int)(Environment.ProcessorCount*0.75), action => action());
+            m_actionBlock = new ActionBlockSlim<Action>((int)(Environment.ProcessorCount * 0.75), action => action());
         }
 
         /// <inheritdoc/>
@@ -124,7 +125,7 @@ namespace BuildXL.Execution.Analyzer
         public override void Prepare()
         {
             m_inner.Prepare();
-            m_inner.Analyze();
+            //m_inner.Analyze();
         }
 
         /// <inheritdoc/>
@@ -164,14 +165,16 @@ namespace BuildXL.Execution.Analyzer
         private bool m_accessorSucceeded;
         private KeyValueStoreAccessor m_accessor;
         private Stopwatch m_stopWatch;
-        private int m_eventCount;
         private int m_eventSequenceNumber;
-        private Dictionary<Scheduler.Tracing.ExecutionEventId, EventCountByTypeValue> m_eventCountByType = new Dictionary<Scheduler.Tracing.ExecutionEventId, EventCountByTypeValue>();
+        private int m_eventCount;
+        private ConcurrentDictionary<DBStoredTypes, DBStorageStatsValue> m_dBStorageStats = new ConcurrentDictionary<DBStoredTypes, DBStorageStatsValue>();
         private string[] m_additionalColumns = { XldbDataStore.EventColumnFamilyName, XldbDataStore.PipColumnFamilyName, XldbDataStore.StaticGraphColumnFamilyName };
 
         private ConcurrentBigMap<Utilities.FileArtifact, HashSet<uint>> m_fileConsumerMap = new ConcurrentBigMap<Utilities.FileArtifact, HashSet<uint>>();
         private ConcurrentBigMap<Utilities.FileArtifact, uint> m_dynamicFileProducerMap = new ConcurrentBigMap<Utilities.FileArtifact, uint>();
         private ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>> m_directoryConsumerMap = new ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>>();
+
+        private NameExpander m_nameExpander = new NameExpander(108631);
 
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
         {
@@ -207,8 +210,8 @@ namespace BuildXL.Execution.Analyzer
                 Console.Error.WriteLine("Could not access RocksDB datastore. Exiting analyzer.");
             }
 
-            m_eventCount = 0;
             m_eventSequenceNumber = 1;
+            m_eventCount = 0;
         }
 
         /// <inheritdoc/>
@@ -216,32 +219,6 @@ namespace BuildXL.Execution.Analyzer
         {
             Console.WriteLine($"Total number of events ingested = {m_eventCount}");
             Console.WriteLine($"Total time for event ingestion: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
-            var ec = new EventCount
-            {
-                Value = (uint)m_eventCount
-            };
-
-            // Hold only one lock while inserting all of these keys into the DB
-            var maybeInserted = m_accessor.Use(database =>
-                {
-                    foreach (var kvp in m_eventCountByType)
-                    {
-                        var eventCountByTypeQuery = new EventCountByTypeKey
-                        {
-                            EventTypeID = (Xldb.Proto.ExecutionEventId)(kvp.Key + 1)
-                        };
-
-                        database.Put(eventCountByTypeQuery.ToByteArray(), kvp.Value.ToByteArray());
-                    }
-                });
-
-            if (!maybeInserted.Succeeded)
-            {
-                Console.WriteLine("Failed to insert event metadata into RocksDb. Exiting analyzer now ...");
-                maybeInserted.Failure.Throw();
-            }
-
-            WriteToDb(Encoding.ASCII.GetBytes(XldbDataStore.EventCountKey), ec.ToByteArray());
 
             Console.WriteLine("\nEvent data ingested into RocksDB. Starting to ingest static graph data ...\n");
 
@@ -249,7 +226,7 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"\nAll pips ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
             Console.WriteLine("\nStarting to ingest PipGraph metadata");
-            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable);
+            var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable, m_nameExpander);
 
             var cachedGraphKey = new CachedGraphKey
             {
@@ -263,6 +240,16 @@ namespace BuildXL.Execution.Analyzer
 
             IngestProducerConsumerInformation();
             Console.WriteLine($"\nConsumer/producer information ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
+
+            foreach (var kvp in m_dBStorageStats)
+            {
+                var dBStorageStatsKey = new DBStorageStatsKey
+                {
+                    StorageType = kvp.Key
+                };
+
+                WriteToDb(dBStorageStatsKey.ToByteArray(), kvp.Value.ToByteArray());
+            }
 
             return 0;
         }
@@ -278,22 +265,9 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override bool CanHandleEvent(Scheduler.Tracing.ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
-            if (m_eventCountByType.TryGetValue(eventId, out var eventCountVal))
-            {
-                eventCountVal.WorkerToCountMap.TryGetValue(workerId, out var count);
-                count++;
-
-                eventCountVal.WorkerToCountMap[workerId] = count;
-            }
-            else
-            {
-                eventCountVal = new EventCountByTypeValue();
-                eventCountVal.WorkerToCountMap.Add(workerId, 1);
-                m_eventCountByType.Add(eventId, eventCountVal);
-            }
-
-            // Excluding Observed Inputs because we capture the same information instead in ProcessFingerprintComputation Event
-            return (m_accessorSucceeded && eventId != Scheduler.Tracing.ExecutionEventId.ObservedInputs);
+            // Excluding Observed Inputs Event because we capture the same information instead in ProcessFingerprintComputation Event
+            // Excluding ProcessFingerprintComputation Event since currently that same information can be gotten through the Legacy Cache Miss Analyzer
+            return (m_accessorSucceeded && eventId != Scheduler.Tracing.ExecutionEventId.ObservedInputs && eventId != Scheduler.Tracing.ExecutionEventId.ProcessFingerprintComputation);
         }
 
         /// <summary>
@@ -301,7 +275,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void FileArtifactContentDecided(FileArtifactContentDecidedEventData data)
         {
-            var value = data.ToFileArtifactContentDecidedEvent(WorkerID.Value, PathTable);
+            var value = data.ToFileArtifactContentDecidedEvent(WorkerID.Value, PathTable, m_nameExpander);
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.FileArtifactContentDecided,
@@ -309,7 +283,9 @@ namespace BuildXL.Execution.Analyzer
                 FileRewriteCount = data.FileArtifact.RewriteCount
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.FileArtifactContentDecided, valueArr.Length);
         }
 
         /// <summary>
@@ -323,7 +299,9 @@ namespace BuildXL.Execution.Analyzer
                 EventTypeID = Xldb.Proto.ExecutionEventId.WorkerList,
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.WorkerList, valueArr.Length);
         }
 
         /// <summary>
@@ -338,7 +316,9 @@ namespace BuildXL.Execution.Analyzer
                 PipId = data.PipId.Value
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.PipExecutionPerformance, valueArr.Length);
         }
 
         /// <summary>
@@ -346,7 +326,7 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
         {
-            var value = data.ToDirectoryMembershipHashedEvent(WorkerID.Value, PathTable);
+            var value = data.ToDirectoryMembershipHashedEvent(WorkerID.Value, PathTable, m_nameExpander);
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.DirectoryMembershipHashed,
@@ -355,7 +335,9 @@ namespace BuildXL.Execution.Analyzer
                 EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.DirectoryMembershipHashed, valueArr.Length);
         }
 
         /// <summary>
@@ -363,14 +345,16 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
         {
-            var value = data.ToProcessExecutionMonitoringReportedEvent(WorkerID.Value, PathTable);
+            var value = data.ToProcessExecutionMonitoringReportedEvent(WorkerID.Value, PathTable, m_nameExpander);
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.ProcessExecutionMonitoringReported,
                 PipId = data.PipId.Value
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.ProcessExecutionMonitoringReported, valueArr.Length);
         }
 
         /// <summary>
@@ -378,15 +362,20 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
-            var value = data.ToProcessFingerprintComputationEvent(WorkerID.Value, PathTable);
-            var key = new EventKey
-            {
-                EventTypeID = Xldb.Proto.ExecutionEventId.ProcessFingerprintComputation,
-                PipId = data.PipId.Value,
-                ProcessFingerprintComputationKey = value.Kind,
-            };
+            // As per discussion with Mike and Oleksii, we have decided to not store this information in the DB for now since any 
+            // relevant information can instead be generated using the Legacy Cache Miss Analyzer.
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            //var value = data.ToProcessFingerprintComputationEvent(WorkerID.Value, PathTable, m_nameExpander);
+            //var key = new EventKey
+            //{
+            //    EventTypeID = Xldb.Proto.ExecutionEventId.ProcessFingerprintComputation,
+            //    PipId = data.PipId.Value,
+            //    ProcessFingerprintComputationKey = value.Kind,
+            //};
+
+            //var valueArr = value.ToByteArray();
+            //WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            //AddToDbStorageDictionary(DBStoredTypes.ProcessFingerprintComputation, valueArr.Length);
         }
 
         /// <summary>
@@ -401,7 +390,9 @@ namespace BuildXL.Execution.Analyzer
                 EventTypeID = Xldb.Proto.ExecutionEventId.ExtraEventDataReported,
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.ExtraEventDataReported, valueArr.Length);
         }
 
         /// <summary>
@@ -409,14 +400,16 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DependencyViolationReported(DependencyViolationEventData data)
         {
-            var value = data.ToDependencyViolationReportedEvent(WorkerID.Value, PathTable);
+            var value = data.ToDependencyViolationReportedEvent(WorkerID.Value, PathTable, m_nameExpander);
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.DependencyViolationReported,
                 ViolatorPipID = data.ViolatorPipId.Value
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.DependencyViolationReported, valueArr.Length);
         }
 
         /// <summary>
@@ -433,7 +426,9 @@ namespace BuildXL.Execution.Analyzer
                 EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.PipExecutionStepPerformanceReported, valueArr.Length);
         }
 
         /// <summary>
@@ -448,7 +443,9 @@ namespace BuildXL.Execution.Analyzer
                 PipId = data.PipId.Value
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.PipCacheMiss, valueArr.Length);
         }
 
         /// <summary>
@@ -463,7 +460,9 @@ namespace BuildXL.Execution.Analyzer
                 EventSequenceNumber = Interlocked.Increment(ref m_eventSequenceNumber)
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.ResourceUsageReported, valueArr.Length);
         }
 
         /// <summary>
@@ -471,13 +470,15 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void DominoInvocation(DominoInvocationEventData data)
         {
-            var value = data.ToBXLInvocationEvent(WorkerID.Value, PathTable);
+            var value = data.ToBXLInvocationEvent(WorkerID.Value, PathTable, m_nameExpander);
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.BxlInvocation,
             };
 
-            WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.BxlInvocation, valueArr.Length);
         }
 
         /// <summary>
@@ -487,15 +488,20 @@ namespace BuildXL.Execution.Analyzer
         {
             foreach (var (directoryArtifact, fileArtifactArray) in data.DirectoryOutputs)
             {
+                foreach (var file in fileArtifactArray)
+                {
+                    m_dynamicFileProducerMap.Add(file, data.PipId.Value);
+                }
+
                 var value = new PipExecutionDirectoryOutputsEvent
                 {
                     WorkerID = WorkerID.Value,
                     PipID = data.PipId.Value,
-                    DirectoryArtifact = directoryArtifact.ToDirectoryArtifact(PathTable),
+                    DirectoryArtifact = directoryArtifact.ToDirectoryArtifact(PathTable, m_nameExpander),
                 };
 
                 value.FileArtifactArray.AddRange(fileArtifactArray.Select(
-                        file => file.ToFileArtifact(PathTable)));
+                        file => file.ToFileArtifact(PathTable, m_nameExpander)));
 
                 var key = new EventKey
                 {
@@ -504,12 +510,9 @@ namespace BuildXL.Execution.Analyzer
                     PipExecutionDirectoryOutputKey = AbsolutePathToXldbString(directoryArtifact.Path)
                 };
 
-                foreach (var file in fileArtifactArray)
-                {
-                    m_dynamicFileProducerMap.Add(file, data.PipId.Value);
-                }
-
-                WriteToDb(key.ToByteArray(), value.ToByteArray(), XldbDataStore.EventColumnFamilyName);
+                var valueArr = value.ToByteArray();
+                WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+                AddToDbStorageDictionary(DBStoredTypes.PipExecutionDirectoryOutputs, valueArr.Length);
             }
         }
 
@@ -564,7 +567,7 @@ namespace BuildXL.Execution.Analyzer
                         if (pipType == PipType.Ipc)
                         {
                             var ipcPip = (Pips.Operations.IpcPip)hydratedPip;
-                            xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip);
+                            xldbSpecificPip = ipcPip.ToIpcPip(PathTable, xldbPip, m_nameExpander);
 
                             foreach (var fileArtifact in ipcPip.FileDependencies)
                             {
@@ -575,11 +578,13 @@ namespace BuildXL.Execution.Analyzer
                             {
                                 AddToDirectoryConsumerMap(directoryArtifact, pipId);
                             }
+
+                            AddToDbStorageDictionary(DBStoredTypes.IpcPip, xldbSpecificPip.ToByteArray().Length);
                         }
                         else if (pipType == PipType.SealDirectory)
                         {
                             var sealDirectoryPip = (Pips.Operations.SealDirectory)hydratedPip;
-                            xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip);
+                            xldbSpecificPip = sealDirectoryPip.ToSealDirectory(PathTable, xldbPip, m_nameExpander);
 
                             // If it is a shared opaque, then flatten the list of composted directories
                             if (sealDirectoryPip.Kind == Pips.Operations.SealDirectoryKind.SharedOpaque)
@@ -616,22 +621,26 @@ namespace BuildXL.Execution.Analyzer
                             {
                                 AddToFileConsumerMap(fileArtifact, pipId);
                             }
+
+                            AddToDbStorageDictionary(DBStoredTypes.SealDirectoryPip, xldbSpecificPip.ToByteArray().Length);
                         }
                         else if (pipType == PipType.CopyFile)
                         {
                             var copyFilePip = (Pips.Operations.CopyFile)hydratedPip;
-                            xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip);
+                            xldbSpecificPip = copyFilePip.ToCopyFile(PathTable, xldbPip, m_nameExpander);
                             AddToFileConsumerMap(copyFilePip.Source, pipId);
+                            AddToDbStorageDictionary(DBStoredTypes.CopyFilePip, xldbSpecificPip.ToByteArray().Length);
                         }
                         else if (pipType == PipType.WriteFile)
                         {
                             var writeFilePip = (Pips.Operations.WriteFile)hydratedPip;
-                            xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip);
+                            xldbSpecificPip = writeFilePip.ToWriteFile(PathTable, xldbPip, m_nameExpander);
+                            AddToDbStorageDictionary(DBStoredTypes.WriteFilePip, xldbSpecificPip.ToByteArray().Length);
                         }
                         else if (pipType == PipType.Process)
                         {
                             var processPip = (Pips.Operations.Process)hydratedPip;
-                            xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip);
+                            xldbSpecificPip = processPip.ToProcessPip(PathTable, xldbPip, m_nameExpander);
 
                             AddToFileConsumerMap(processPip.StandardInputFile, pipId);
                             AddToFileConsumerMap(processPip.Executable, pipId);
@@ -645,6 +654,8 @@ namespace BuildXL.Execution.Analyzer
                             {
                                 AddToDirectoryConsumerMap(directoryArtifact, pipId);
                             }
+
+                            AddToDbStorageDictionary(DBStoredTypes.ProcessPip, xldbSpecificPip.ToByteArray().Length);
                         }
                         else
                         {
@@ -695,7 +706,7 @@ namespace BuildXL.Execution.Analyzer
         private void IngestProducerConsumerInformation()
         {
             var parallelOptions = new ParallelOptions();
-            parallelOptions.MaxDegreeOfParallelism = (int)(Environment.ProcessorCount*1.25);
+            parallelOptions.MaxDegreeOfParallelism = (int)(Environment.ProcessorCount * 1.25);
 
             Parallel.ForEach(m_fileConsumerMap, parallelOptions, kvp =>
             {
@@ -709,7 +720,11 @@ namespace BuildXL.Execution.Analyzer
                 var fileConsumerValue = new FileConsumerValue();
                 fileConsumerValue.PipIds.AddRange(kvp.Value);
 
-                WriteToDb(fileConsumerKey.ToByteArray(), fileConsumerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+                var key = fileConsumerKey.ToByteArray();
+                var value = fileConsumerValue.ToByteArray();
+                WriteToDb(key, value, XldbDataStore.StaticGraphColumnFamilyName);
+
+                AddToDbStorageDictionary(DBStoredTypes.FileConsumer, key.Length + value.Length);
             });
 
             Parallel.ForEach(m_directoryConsumerMap, parallelOptions, kvp =>
@@ -723,7 +738,11 @@ namespace BuildXL.Execution.Analyzer
                 var directoryConsumerValue = new DirectoryConsumerValue();
                 directoryConsumerValue.PipIds.AddRange(kvp.Value);
 
-                WriteToDb(directoryConsumerKey.ToByteArray(), directoryConsumerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+                var key = directoryConsumerKey.ToByteArray();
+                var value = directoryConsumerValue.ToByteArray();
+                WriteToDb(key, value, XldbDataStore.StaticGraphColumnFamilyName);
+
+                AddToDbStorageDictionary(DBStoredTypes.DirectoryConsumer, key.Length + value.Length);
             });
 
             Parallel.ForEach(CachedGraph.PipGraph.AllFilesAndProducers, parallelOptions, kvp =>
@@ -740,7 +759,11 @@ namespace BuildXL.Execution.Analyzer
                     PipId = kvp.Value.Value
                 };
 
-                WriteToDb(fileProducerKey.ToByteArray(), fileProducerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+                var key = fileProducerKey.ToByteArray();
+                var value = fileProducerValue.ToByteArray();
+                WriteToDb(key, value, XldbDataStore.StaticGraphColumnFamilyName);
+
+                AddToDbStorageDictionary(DBStoredTypes.FileProducer, key.Length + value.Length);
             });
 
             Parallel.ForEach(CachedGraph.PipGraph.AllOutputDirectoriesAndProducers, parallelOptions, kvp =>
@@ -756,7 +779,11 @@ namespace BuildXL.Execution.Analyzer
                     PipId = kvp.Value.Value
                 };
 
-                WriteToDb(directoryProducerKey.ToByteArray(), directoryProducerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+                var key = directoryProducerKey.ToByteArray();
+                var value = directoryProducerValue.ToByteArray();
+                WriteToDb(key, value, XldbDataStore.StaticGraphColumnFamilyName);
+
+                AddToDbStorageDictionary(DBStoredTypes.DirectoryProducer, key.Length + value.Length);
             });
 
             Parallel.ForEach(m_dynamicFileProducerMap, parallelOptions, kvp =>
@@ -773,7 +800,11 @@ namespace BuildXL.Execution.Analyzer
                     PipId = kvp.Value
                 };
 
-                WriteToDb(fileProducerKey.ToByteArray(), fileProducerValue.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+                var key = fileProducerKey.ToByteArray();
+                var value = fileProducerValue.ToByteArray();
+                WriteToDb(key, value, XldbDataStore.StaticGraphColumnFamilyName);
+
+                AddToDbStorageDictionary(DBStoredTypes.FileProducer, key.Length + value.Length);
             });
         }
 
@@ -823,7 +854,29 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         private string AbsolutePathToXldbString(Utilities.AbsolutePath path)
         {
-            return path.ToString(PathTable, PathFormat.Windows);
+            return path.ToString(PathTable, PathFormat.Windows, m_nameExpander);
+        }
+
+        /// <summary>
+        /// Adds storage event information to db storage dictionary
+        /// </summary>
+        private void AddToDbStorageDictionary(DBStoredTypes type, int payloadSize)
+        {
+            if (m_dBStorageStats.TryGetValue(type, out var dBStorageStatsValue))
+            {
+                dBStorageStatsValue.Count++;
+                dBStorageStatsValue.Size += (ulong)payloadSize;
+            }
+            else
+            {
+                dBStorageStatsValue = new DBStorageStatsValue()
+                {
+                    Count = 1,
+                    Size = (ulong)payloadSize
+                };
+
+                m_dBStorageStats[type] = dBStorageStatsValue;
+            }
         }
     }
 }

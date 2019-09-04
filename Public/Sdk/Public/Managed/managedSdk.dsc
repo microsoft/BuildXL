@@ -190,7 +190,9 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
             ...(args.defineConstants || []),
             // Defining a special symbol that can be used in C# code for using new API available in .NET 4.6.1+
             ...(qualifier.targetFramework !== "net451" ? ["NET461Plus"] : []),
-        ]
+        ],
+        nullable: args.nullable,
+        nullabilityContext: args.nullabilityContext,
     };
 
     const references = [
@@ -329,6 +331,12 @@ export interface Arguments {
     /** Platform to build. */
     platform?: Csc.Platform;
 
+    /** Specify nullable context option enable|disable. */
+    nullable?: boolean;
+    
+    /** Specify nullable context option enable|disable|safeonly|warnings|safeonlywarnings.*/
+    nullabilityContext?: Csc.NullabilityContext;
+    
     noConfig?: boolean;
 
     /** Extra content/files to be deployed with the assembly when running. i.e. native dlls that are p-invoked, config files etc. */

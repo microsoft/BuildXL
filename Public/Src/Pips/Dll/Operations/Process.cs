@@ -261,10 +261,9 @@ namespace BuildXL.Pips.Operations
         ///         output can easily lead to OutOfMemory exception.
         /// </summary>
         /// <remarks>
-        /// Regarding fingerprinting: <see cref="ErrorRegex"/> and <see cref="WarningRegex"/> are
-        /// currently part of the process fingerprint, even though those two properties cannot affect
-        /// the outcome (success vs failure) of the process.  This is kind of strange and should probably
-        /// be changed at some point in the future.  In that vain, <see cref="EnableMultiLineErrorScanning"/>
+        /// Regarding fingerprinting: <see cref="ErrorRegex"/> is currently a part of the process fingerprint, 
+        /// even though it cannot affect the outcome (success vs failure) of the process.  This is kind of
+        /// strange and should probably be changed in the future.  In that vain, <see cref="EnableMultiLineErrorScanning"/>
         /// is decided to not be included in the process fingerprint.
         /// </remarks>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]

@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using ContentPlacementAnalysisTools.Core.Kusto;
 using ContentPlacementAnalysisTools.Core.Utils;
+using ContentPlacementAnalysisTools.Extraction.CPResources;
 using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;
@@ -72,7 +73,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                                 BuildQueue = reader.GetString(5)
                             }
                         );
-                        if(pack.Count == s_maxRetryBuilds)
+                        if (pack.Count == s_maxRetryBuilds)
                         {
                             var values = new KustoBuild[pack.Count];
                             pack.CopyTo(values);

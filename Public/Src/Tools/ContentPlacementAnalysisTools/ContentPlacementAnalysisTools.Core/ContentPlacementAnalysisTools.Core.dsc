@@ -12,6 +12,7 @@ namespace ContentPlacement.Core {
         references: [
             importFrom("Newtonsoft.Json").pkg,
             importFrom("NLog").pkg,
+            importFrom("RuntimeContracts").pkg,
         ],
         internalsVisibleTo: [
             "bxlanalyzer",

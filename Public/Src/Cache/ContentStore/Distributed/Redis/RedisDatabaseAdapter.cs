@@ -236,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return result;
         }
 
-        public List<(IServer server, string serverId)> GetServers(string serverId = null)
+        private List<(IServer server, string serverId)> GetServers(string serverId = null)
         {
             return _databaseFactory.GetEndPoints()
                 .Select(ep => _databaseFactory.GetServer(ep))

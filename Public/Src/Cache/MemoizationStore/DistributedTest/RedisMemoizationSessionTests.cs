@@ -14,9 +14,11 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using Xunit;
+using System.Threading.Tasks;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
+    [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
     public class RedisMemoizationSessionTests : MemoizationSessionTests
     {
@@ -43,6 +45,17 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             var memoizationDb = new RedisMemoizationDatabase(redisAdapter, _clock);
             return new RedisMemoizationStore(_logger, memoizationDb);
+        }
+
+        public override Task EnumerateStrongFingerprints(int strongFingerprintCount)
+        {
+            // Do nothing, since operation isn't supported in Redis.
+            return Task.FromResult(0);
+        }
+        public override Task EnumerateStrongFingerprintsEmpty()
+        {
+            // Do nothing, since operation isn't supported in Redis.
+            return Task.FromResult(0);
         }
     }
 

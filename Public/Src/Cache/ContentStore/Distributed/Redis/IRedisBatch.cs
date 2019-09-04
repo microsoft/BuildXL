@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <summary>
         /// Compare exchange for metadata.
         /// </summary>
-        Task<bool> CompareExchangeAsync(string weakFingerprintKey, byte[] selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList, string newReplacementToken);
+        Task<bool> CompareExchangeAsync(string weakFingerprintKey, RedisValue selectorFieldName, RedisValue tokenFieldName, string expectedToken, RedisValue contentHashList, string newReplacementToken);
 
         /// <summary>
         /// Unset the machineId bit if local and remote last-access times are in sync.

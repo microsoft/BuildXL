@@ -143,9 +143,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                        // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
                        var oldContentHashListWithDeterminism = await _database.GetContentHashListAsync(ctx, strongFingerprint);
 
-                       var (oldContentHashList, oldDeterminism) = oldContentHashListWithDeterminism.Succeeded
-                        ? (oldContentHashListWithDeterminism.Value.contentHashListInfo.ContentHashList, oldContentHashListWithDeterminism.Value.contentHashListInfo.Determinism)
-                        : ((ContentHashList)null, default(CacheDeterminism));
+                       var (oldContentHashListInfo, replacementToken) = oldContentHashListWithDeterminism.Succeeded
+                        ? (oldContentHashListWithDeterminism.Value.contentHashListInfo, oldContentHashListWithDeterminism.Value.replacementToken)
+                        : (default(ContentHashListWithDeterminism), string.Empty);
+
+                       var oldContentHashList = oldContentHashListInfo.ContentHashList;
+                       var oldDeterminism = oldContentHashListInfo.Determinism;
 
                        // Make sure we're not mixing SinglePhaseNonDeterminism records
                        if (!(oldContentHashList is null) &&
@@ -163,8 +166,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                            var exchanged = await _database.CompareExchange(
                               ctx,
                               strongFingerprint,
-                              oldContentHashListWithDeterminism.Value.replacementToken,
-                              oldContentHashListWithDeterminism.Value.contentHashListInfo,
+                              replacementToken,
+                              oldContentHashListInfo,
                               contentHashListWithDeterminism).ThrowIfFailureAsync();
                            if (!exchanged)
                            {

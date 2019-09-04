@@ -349,7 +349,7 @@ return { requestedIncrement, currentValue }";
 
         /// -- bool CompareExchange(string: weakFingerprintKey, byte[]: selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList)
         /// <inheritdoc />
-        public async Task<bool> CompareExchangeAsync(string weakFingerprintKey, byte[] selectorFieldName, byte[] tokenFieldName, string expectedToken, byte[] contentHashList, string newReplacementToken)
+        public async Task<bool> CompareExchangeAsync(string weakFingerprintKey, RedisValue selectorFieldName, RedisValue tokenFieldName, string expectedToken, RedisValue contentHashList, string newReplacementToken)
         {
             var redisOperation =
                 new RedisOperationAndResult<RedisResult>(

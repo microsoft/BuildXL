@@ -56,8 +56,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             var contentHashListResult = Database.GetContentHashList(context, strongFingerprint);
             return contentHashListResult.Succeeded
-                ? Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>(contentHashListResult))
-                : Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>((contentHashListResult.ContentHashListWithDeterminism, string.Empty)));
+                ? Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>((contentHashListResult.ContentHashListWithDeterminism, string.Empty)))
+                : Task.FromResult(new Result<(ContentHashListWithDeterminism, string)>(contentHashListResult));
         }
 
         /// <inheritdoc />

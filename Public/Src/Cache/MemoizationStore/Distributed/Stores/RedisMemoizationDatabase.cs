@@ -52,6 +52,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <inheritdoc />
         public override Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement)
         {
+            var newReplacementToken = Guid.NewGuid().ToString();
+            return CompareExchange(context, strongFingerprint, expectedReplacementToken, expected, replacement, newReplacementToken);
+        }
+
+        private Task<Result<bool>> CompareExchange(OperationContext context, StrongFingerprint strongFingerprint, string expectedReplacementToken, ContentHashListWithDeterminism expected, ContentHashListWithDeterminism replacement, string newReplacementToken)
+        {
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
@@ -63,7 +69,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isHash: false);
                     byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isHash: true);
 
-                    var newReplacementToken = Guid.NewGuid().ToString();
 
                     var result = await _redis.ExecuteBatchAsync(context, batch => batch.CompareExchangeAsync(key, selectorBytes, tokenFieldNameBytes, expectedReplacementToken, replacementBytes, newReplacementToken), RedisOperation.CompareExchange);
                     return new Result<bool>(result);
@@ -96,7 +101,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
             if (metadataBytes == null)
             {
-                return new Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>("Strong fingerprint was not found.");
+                return new Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>((default, string.Empty));
             }
 
             var metadata = DeserializeMetadataEntry(metadataBytes);
@@ -104,7 +109,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             // Update the time, only if no one else has changed it in the mean time. We don't
             // really care if this succeeds or not, because if it doesn't it only means someone
             // else changed the stored value before this operation but after it was read.
-            CompareExchange(context, strongFingerprint, replacementToken, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism).FireAndForget(context);
+            CompareExchange(context, strongFingerprint, replacementToken, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism, replacementToken).FireAndForget(context);
 
             return new Result<(ContentHashListWithDeterminism, string)>((metadata.ContentHashListWithDeterminism, replacementToken));
         }

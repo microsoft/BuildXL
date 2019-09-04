@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Hashing;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities;
 
@@ -11,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
 
     /// <summary>
-    /// Metadata that is stored inside the <see cref="Columns.Metadata"/> column family.
+    /// Metadata entry for memoization stores.
     /// </summary>
     public readonly struct MetadataEntry
     {

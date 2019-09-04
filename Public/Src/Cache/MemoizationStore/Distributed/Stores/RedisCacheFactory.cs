@@ -10,8 +10,10 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
+    /// <nodoc />
     public class RedisCacheFactory : RedisContentLocationStoreFactory
     {
+        /// <nodoc />
         public RedisCacheFactory(
             IConnectionStringProvider contentConnectionStringProvider,
             IConnectionStringProvider machineLocationConnectionStringProvider,
@@ -24,17 +26,18 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         {
         }
 
+        /// <nodoc />
         public IMemoizationStore CreateMemoizationStore(ILogger logger)
         {
             var redisDatabaseFactory = Configuration.HasReadMode(ContentLocationMode.LocalLocationStore)
-                ? _redisDatabaseFactoryForRedisGlobalStore
-                : _redisDatabaseFactoryForContent;
+                ? RedisDatabaseFactoryForRedisGlobalStore
+                : RedisDatabaseFactoryForContent;
 
             Contract.Assert(redisDatabaseFactory != null);
 
             var redisDatabaseAdapter = CreateDatabase(redisDatabaseFactory);
 
-            var memoizationDb = new RedisMemoizationDatabase(redisDatabaseAdapter, _clock);
+            var memoizationDb = new RedisMemoizationDatabase(redisDatabaseAdapter, Clock);
             return new RedisMemoizationStore(logger, memoizationDb);
         }
 

@@ -91,7 +91,7 @@ namespace Transformer {
          * When false (or not set): process output is scanned for error messages line by line;
          * 'errorRegex' is applied to each line and if ANY match is found the ENTIRE line is reported.
          *
-         * When true: process output is scanned in chunks of up to 1000 lines; 'errorRegex' is applied to
+         * When true: process output is scanned in chunks of up to 10000 lines; 'errorRegex' is applied to
          * each chunk and only the matches are reported.  Furthermore, if 'errorRegex' contains a capture 
          * group named "ErrorMessage", the value of that group is reported; otherwise, the value of the
          * entire match is reported.

@@ -47,7 +47,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessOutput = 66,
 
         PipProcessResponseFileCreationFailed = 74,
-        
+
         PipProcessStartExternalTool = 78,
         PipProcessFinishedExternalTool = 79,
         PipProcessStartExternalVm = 80,
@@ -59,7 +59,8 @@ namespace BuildXL.Processes.Tracing
         PipProcessStandardInputException = 86,
 
         PipProcessInvalidErrorRegex = 89,
-        //// Reserved  = 90,
+        PipProcessChangeAffectedInputsWrittenFileCreationFailed = 90,
+
         TranslatePathInGlobalUnsafeUntrackedScopes = 91,
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
 

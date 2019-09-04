@@ -110,6 +110,12 @@ namespace BuildXL.Pips.Operations
         public AbsolutePath UniqueRedirectedDirectoryRoot { get; }
 
         /// <summary>
+        /// File path of which the source shange affected inputs are written into.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public FileArtifact ChangeAffectedInputListWrittenFilePath { get; }
+
+        /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
@@ -400,7 +406,8 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            FileArtifact changeAffectedInputListWrittenFilePath = default)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -502,6 +509,8 @@ namespace BuildXL.Pips.Operations
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
+            ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
+
             if (PreserveOutputWhitelist.Length != 0)
             {
                 options |= Options.HasPreserveOutputWhitelist;
@@ -541,6 +550,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath>? additionalTempDirectories = null,
             RegexDescriptor? warningRegex = null,
             RegexDescriptor? errorRegex = null,
+            bool? enableMultiLineErrorScanning = null,
             AbsolutePath? uniqueOutputDirectory = null,
             AbsolutePath? redirectedDirectoryRoot = null,
             AbsolutePath? tempDirectory = null,
@@ -556,7 +566,7 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            bool? enableMultiLineErrorScanning = null)
+            FileArtifact? changeAffectedInputListWrittenFilePath = default)
         {
             return new Process(
                 executable ?? Executable,
@@ -601,7 +611,8 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel,
                 weight,
                 priority,
-                preserveOutputWhitelist ?? PreserveOutputWhitelist);
+                preserveOutputWhitelist ?? PreserveOutputWhitelist,
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath);
         }
 
         /// <inheritdoc />
@@ -791,7 +802,7 @@ namespace BuildXL.Pips.Operations
             m_cachedUniqueOutputHash = pipUniqueOutputHash;
             return true;
         }
-
+       
         #endregion PipUniqueOutputHash
 
         #region Serialization
@@ -839,7 +850,8 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
-                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath())
+                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
+                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact()
                 );
         }
 
@@ -888,6 +900,7 @@ namespace BuildXL.Pips.Operations
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
+            writer.Write(ChangeAffectedInputListWrittenFilePath);
         }
         #endregion
     }

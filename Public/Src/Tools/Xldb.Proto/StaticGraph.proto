@@ -40,7 +40,7 @@ message PipIdKey{
 
 enum ProducerConsumerType{
     /// Since this is used in a key, we need an invalid enum for 0
-    ProducerConsumerType_Invalid = 0;
+    ProducerConsumerType_Uninitialized = 0;
     ProducerConsumerType_Producer = 1;
     ProducerConsumerType_Consumer = 2;
 }

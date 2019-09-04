@@ -26,24 +26,42 @@ message EventCountByTypeKey{
 
 message EventCountByTypeValue{
     map<uint32, int32> WorkerToCountMap = 1;
-
-    map<uint32, int32> WorkerToPayloadMap = 2;
 }
 
 // Event query should be of this format. It also serves as the key to the DB
-message EventTypeQuery{
+message EventKey{
     // ID of the Event - required
     ExecutionEventId EventTypeID = 1; 
 
-    uint32 PipId = 2;
-    
-    // Other ideas to keep in EventTypeQuery were as follows:
-    // string (or int64) Path (or hash of path) = 2;
-    // string RewriteContent = 3;
-    // int32 WorkerID = 4;
-    
-    // UUID to make the key unique. TODO: remove once a minimal key is formulated and decided upon
-    string UUID = 99;   
+    // Worker ID, 0 (master) by default
+    uint32 WorkerID = 2;
+
+    // Used for PipExecPerf, ProcExecMonitoring, PipCacheMiss, PipExecStepPerf, ProcessFingerpintComp, DirMembHashed, PipExecDirOut
+    uint32 PipId = 3;
+
+    // PipExecutionStepPerformanceKey
+    PipExecutionStep PipExecutionStepPerformanceKey = 4;
+
+    // ProcessFingerprintComputationKey
+    FingerprintComputationKind ProcessFingerprintComputationKey = 5;
+
+    // DirectoryMembershipHashedKey
+    string DirectoryMembershipHashedKey = 6;
+
+    // PipExecutionDirectoryOutputKey
+    string PipExecutionDirectoryOutputKey = 7;
+
+    // FileArtifactContentDecidedKey
+    string FileArtifactContentDecidedKey = 8;
+
+    // File rewrite count for FileArtifactContentDecided Event
+    int32 FileRewriteCount = 9;
+
+    // Used for DependencyViolatedEvent
+    uint32 ViolatorPipID = 10; 
+
+    // Used for Events that don't have unique key like StatusReported or for events like PipExecutionStepPerformance that can have multiple keys for the same PipId
+    int32 EventSequenceNumber = 11;    
 }
 
 //
@@ -83,6 +101,8 @@ message PipExecutionPerformanceEvent{
 message DirectoryMembershipHashedEvent{
     uint32 WorkerID = 1;
 
+    uint32 PipID = 2;
+
     DirectoryFingerprint DirectoryFingerprint = 3;
 
     AbsolutePath Directory = 4;
@@ -91,11 +111,9 @@ message DirectoryMembershipHashedEvent{
 
     bool IsSearchPath = 6;
 
-    uint32 PipID = 7;
+    repeated AbsolutePath Members = 7;
 
-    repeated AbsolutePath Members = 8;
-
-    string EnumeratePatternRegex = 9;
+    string EnumeratePatternRegex = 8;
 }
 
 // The ProcessExecutionMonitoringReported Event message
@@ -267,7 +285,11 @@ message PipCacheMissEvent{
 message PipExecutionDirectoryOutputsEvent{
     uint32 WorkerID = 1;
 
-    repeated DirectoryOutput DirectoryOutput = 2;
+    uint32 PipID = 2;
+
+    DirectoryArtifact DirectoryArtifact = 3;
+
+    repeated FileArtifact FileArtifactArray = 4;
 }
 
 // The BXLInvocation Event message

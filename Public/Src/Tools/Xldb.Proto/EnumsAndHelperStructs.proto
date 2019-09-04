@@ -19,19 +19,18 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 // just within a particular enum. If there are conflicting enum values, append the name of the enum in front.
 // ie: ChooseWorkerCpu ---> PipExecutionStep_ChooseWorkerCpu
 
+// Also note that to avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an invalid value for each enum.
+
 enum ExecutionEventId{
-    // Since we are using ExecutionEventId as in the key and protobuf
-    // does not serialize default values, the pattern matching was bugging out.
-    // A solution is to have an "invalid" enum constant take position 0.
-    ExecutionEventId_Invalid = 0;
+    ExecutionEventId_Uninitialized = 0;
 
     FileArtifactContentDecided = 1;
     WorkerList = 2;
     ExecutionEventId_PipExecutionPerformance = 3;
     DirectoryMembershipHashed = 4;
 
-    // Deprecated in favor of ProcessFingerprintComputation (enum 10)
-    ObservedInputs = 5;
+    // Deprecated in favor of ProcessFingerprintComputation (enum 11)
+    // ObservedInputs = 5;
 
     ProcessExecutionMonitoringReported = 6;
     ExecutionEventId_ExtraEventDataReported = 7;
@@ -45,65 +44,77 @@ enum ExecutionEventId{
 }
 
 enum PipOutputOrigin{
-    Produced = 0;
-    UpToDate = 1;
-    DeployedFromCache = 2;
-    NotMaterialized = 3;
+    PipOutputOrigin_Uninitialized = 0;
+
+    Produced = 1;
+    UpToDate = 2;
+    DeployedFromCache = 3;
+    NotMaterialized = 4;
 }
 
 enum PipExecutionStep{
-    PipExecutionStep_None = 0;
-    Start = 1;
-    Cancel = 2;
-    SkipDueToFailedDependencies = 3;
-    CheckIncrementalSkip = 4;
-    MaterializeInputs = 5;
-    MaterializeOutputs = 6;
-    ExecuteNonProcessPip = 7;
-    PipExecutionStep_CacheLookup = 8;
-    RunFromCache = 9;
-    ExecuteProcess = 10;
-    PostProcess = 11;
-    HandleResult = 12;
-    PipExecutionStep_ChooseWorkerCpu = 13;
-    PipExecutionStep_ChooseWorkerCacheLookup = 14;
-    Done = 15;
+    PipExecutionStep_Uninitialized = 0;
+    
+    PipExecutionStep_None = 1;
+    Start = 2;
+    Cancel = 3;
+    SkipDueToFailedDependencies = 4;
+    CheckIncrementalSkip = 5;
+    MaterializeInputs = 6;
+    MaterializeOutputs = 7;
+    ExecuteNonProcessPip = 8;
+    PipExecutionStep_CacheLookup = 9;
+    RunFromCache = 10;
+    ExecuteProcess = 11;
+    PostProcess = 12;
+    HandleResult = 13;
+    PipExecutionStep_ChooseWorkerCpu = 14;
+    PipExecutionStep_ChooseWorkerCacheLookup = 15;
+    Done = 16;
 }
 
 enum WorkDispatcher_DispatcherKind{
-    WorkDispatcherKind_None = 0;
-    IO = 1;
-    WorkDispatcher_DispatcherKind_CPU = 2;
-    Light = 3;
-    WorkDispatcher_DispatcherKind_CacheLookup = 4;
-    WorkDispatcher_DispatcherKind_ChooseWorkerCpu = 5;
-    WorkDispatcher_DispatcherKind_ChooseWorkerCacheLookup = 6;
-    Materialize = 7;
+    WorkDispatcher_DispatcherKind_Uninitialized = 0;
+
+    WorkDispatcherKind_None = 1;
+    IO = 2;
+    WorkDispatcher_DispatcherKind_CPU = 3;
+    Light = 4;
+    WorkDispatcher_DispatcherKind_CacheLookup = 5;
+    WorkDispatcher_DispatcherKind_ChooseWorkerCpu = 6;
+    WorkDispatcher_DispatcherKind_ChooseWorkerCacheLookup = 7;
+    Materialize = 8;
 }
 
 enum FileMonitoringViolationAnalyzer_DependencyViolationType{
-    DoubleWrite = 0;
-    ReadRace = 1;
-    UndeclaredOrderedRead = 2;
-    MissingSourceDependency = 3;
-    UndeclaredReadCycle = 4;
-    UndeclaredOutput = 5;
-    ReadUndeclaredOutput = 6;
-    WriteInSourceSealDirectory = 7;
-    WriteInUndeclaredSourceRead = 8;
-    WriteInExistingFile = 9;
-    WriteOnAbsentPathProbe = 10;
-    AbsentPathProbeUnderUndeclaredOpaque = 11;
-    WriteToTempPathInsideSharedOpaque = 12;
+    FileMonitoringViolationAnalyzer_DependencyViolationType_Uninitialized = 0;
+
+    DoubleWrite = 1;
+    ReadRace = 2;
+    UndeclaredOrderedRead = 3;
+    MissingSourceDependency = 4;
+    UndeclaredReadCycle = 5;
+    UndeclaredOutput = 6;
+    ReadUndeclaredOutput = 7;
+    WriteInSourceSealDirectory = 8;
+    WriteInUndeclaredSourceRead = 9;
+    WriteInExistingFile = 10;
+    WriteOnAbsentPathProbe = 11;
+    AbsentPathProbeUnderUndeclaredOpaque = 12;
+    WriteToTempPathInsideSharedOpaque = 13;
 }
 
 enum FileMonitoringViolationAnalyzer_AccessLevel{
-    FileMonitoringViolationAnalyzer_AccessLevel_Read = 0;
-    FileMonitoringViolationAnalyzer_AccessLevel_Write = 1;
+    FileMonitoringViolationAnalyzer_AccessLevel_Uninitialized = 0;
+
+    FileMonitoringViolationAnalyzer_AccessLevel_Read = 1;
+    FileMonitoringViolationAnalyzer_AccessLevel_Write = 2;
 }
 
 enum PipCacheMissType{
-    Invalid = 0;
+    PipCacheMissType_Uninitialized = 0;
+
+    Hit = 51;
     MissForDescriptorsDueToStrongFingerprints = 53;
     MissForDescriptorsDueToWeakFingerprints = 54;
     MissForDescriptorsDueToArtificialMissOptions = 55;
@@ -112,24 +123,25 @@ enum PipCacheMissType{
     MissForProcessMetadata = 58;
     MissForProcessMetadataFromHistoricMetadata = 59;
     MissForProcessOutputContent = 60;
-    Hit = 51;
     MissForProcessConfiguredUncacheable = 61;
 }
 
 enum ExecutionSampler_LimitingResource{
-    GraphShape = 0;
-    ExecutionSampler_LimitingResource_CPU = 1;
-    Disk = 2;
-    Memory = 3;
-    ConcurrencyLimit = 4;
-    ProjectedMemory = 5;
-    Semaphore = 6;
-    Other = 7;
+    ExecutionSampler_LimitingResource_Uninitialized = 0;
+
+    GraphShape = 1;
+    ExecutionSampler_LimitingResource_CPU = 2;
+    Disk = 3;
+    Memory = 4;
+    ConcurrencyLimit = 5;
+    ProjectedMemory = 6;
+    Semaphore = 7;
+    Other = 8;
 }
 
 enum CreationDisposition{
-    // First enum value in proto must be 0
-    CreationDisposition_DEFAULT_ZERO = 0;
+    CreationDisposition_Uninitialized = 0;
+
     CREATE_NEW = 1;
     CREATE_ALWAYS = 2;
     OPEN_EXISTING = 3;
@@ -138,8 +150,8 @@ enum CreationDisposition{
 }
 
 enum DesiredAccess{
-    // First enum value in proto must be 0
-    DesiredAccess_DEFAULT_ZERO = 0;
+    DesiredAccess_Uninitialized = 0;
+
     DELETE = 0x00010000;
     SYNCHRONIZE = 0x00100000;
     FILE_APPEND_DATA = 0x00000004;
@@ -153,8 +165,8 @@ enum DesiredAccess{
 }
 
 enum FlagsAndAttributes{
-    // First enum value in proto must be 0
-    FlagsAndAttributes_DEFAULT_ZERO = 0;
+    FlagsAndAttributes_Uninitialized = 0;
+
     FILE_ATTRIBUTE_READONLY = 0x00000001;
     FILE_ATTRIBUTE_HIDDEN = 0x00000002;
     FILE_ATTRIBUTE_SYSTEM = 0x00000004;
@@ -177,331 +189,220 @@ enum FlagsAndAttributes{
 }
 
 enum ShareMode{
-    FILE_SHARE_NONE = 0x0;
-    FILE_SHARE_READ = 0x1;
-    FILE_SHARE_WRITE = 0x2;
-    FILE_SHARE_DELETE = 0x4;
+    ShareMode_Uninitialized = 0;
+
+    FILE_SHARE_NONE = 0x1;
+    FILE_SHARE_READ = 0x2;
+    FILE_SHARE_WRITE = 0x4;
+    FILE_SHARE_DELETE = 0x8;
 }
 
 enum FileAccessStatus{
-    FileAccessStatus_None = 0;
-    Allowed = 1;
-    Denied = 2;
-    CannotDetermineByPolicy = 3;
+    FileAccessStatus_Uninitialized = 0;
+
+    FileAccessStatus_None = 1;
+    Allowed = 2;
+    Denied = 3;
+    CannotDetermineByPolicy = 4;
 }
 
 enum FileAccessStatusMethod{
-    PolicyBased = 0;
-    FileExistenceBased = 1;
+    FileAccessStatusMethod_Uninitialized = 0;
+
+    PolicyBased = 1;
+    FileExistenceBased = 2;
 }
 
 enum RequestedAccess{
-    RequestedAccess_None = 0;
-    RequestedAccess_Read = 1;
-    RequestedAccess_Write = 2;
-    Probe = 4;
-    Enumerate = 8;
-    EnumerationProbe = 16;
-    // Read | Write = 1 | 2 = 3
-    ReadWrite = 3;
-    // Read | Write | Probe | Enumerate | EnumerationProbe
-    All = 31;
+    RequestedAccess_Uninitialized = 0;
+
+    RequestedAccess_None = 1;
+    RequestedAccess_Read = 2;
+    RequestedAccess_Write = 4;
+    Probe = 8;
+    Enumerate = 16;
+    EnumerationProbe = 32;
+    // Read | Write => 2 | 4 = 6
+    ReadWrite = 6;
+    // Read | Write | Probe | Enumerate | EnumerationProbe =>  2 | 4 | 8 | 16 | 31 = 62
+    All = 62;
 }
 
 enum ReportedFileOperation{
-    Unknown = 0;
-    CreateFile = 1;
-    GetFileAttributes = 2;
-    GetFileAttributesEx = 3;
-    ReportedFileOperation_Process = 4;
-    FindFirstFileEx = 5;
-    FindNextFile = 6;
-    CreateDirectory = 7;
-    DeleteFile = 8;
-    MoveFileSource = 9;
-    MoveFileDestination = 10;
-    SetFileInformationByHandleSource = 11;
-    SetFileInformationByHandleDest = 12;
-    ZwSetRenameInformationFileSource = 13;
-    ZwSetRenameInformationFileDest = 14;
-    ZwSetLinkInformationFile = 15;
-    ZwSetDispositionInformationFile = 16;
-    ZwSetModeInformationFile = 17;
-    ZwSetFileNameInformationFileSource = 18;
-    ZwSetFileNameInformationFileDest = 19;
-    CopyFileSource = 20;
-    CopyFileDestination = 21;
-    CreateHardLinkSource = 22;
-    CreateHardLinkDestination = 23;
-    RemoveDirectory = 24;
-    NtQueryDirectoryFile = 25;
-    ZwQueryDirectoryFile = 26;
-    NtCreateFile = 27;
-    ZwCreateFile = 28;
-    ZwOpenFile = 29;
-    ChangedReadWriteToReadAccess = 30;
-    FirstAllowWriteCheckInProcess = 31;
-    ReparsePointTarget = 32;
-    CreateSymbolicLinkSource = 33;
-    MoveFileWithProgressSource = 34;
-    MoveFileWithProgressDest = 35;
-    MultipleOperations = 36;
-    ProcessExit = 37;
-    MacLookup = 38;
-    MacReadlink = 39;
-    MacVNodeCreate = 40;
-    KAuthMoveSource = 41;
-    KAuthMoveDest = 42;
-    KAuthCreateHardlinkSource = 43;
-    KAuthCreateHardlinkDest = 44;
-    KAuthCopySource = 45;
-    KAuthCopyDest = 46;
-    KAuthDeleteDir = 47;
-    KAuthDeleteFile = 48;
-    KAuthOpenDir = 49;
-    KAuthReadFile = 50;
-    KAuthCreateDir = 51;
-    KAuthWriteFile = 52;
-    KAuthClose = 53;
-    KAuthCloseModified = 54;
-    KAuthGetAttributes = 55;
-    KAuthVNodeExecute = 56;
-    KAuthVNodeWrite = 57;
-    KAuthVNodeRead = 58;
-    KAuthVNodeProb = 59;
+    ReportedFileOperation_Uninitialized = 0;
+    Unknown = 1;
+    CreateFile = 2;
+    GetFileAttributes = 3;
+    GetFileAttributesEx = 4;
+    ReportedFileOperation_Process = 5;
+    FindFirstFileEx = 6;
+    FindNextFile = 7;
+    CreateDirectory = 8;
+    DeleteFile = 9;
+    MoveFileSource = 10;
+    MoveFileDestination = 11;
+    SetFileInformationByHandleSource = 12;
+    SetFileInformationByHandleDest = 13;
+    ZwSetRenameInformationFileSource = 14;
+    ZwSetRenameInformationFileDest = 15;
+    ZwSetLinkInformationFile = 16;
+    ZwSetDispositionInformationFile = 17;
+    ZwSetModeInformationFile = 18;
+    ZwSetFileNameInformationFileSource = 19;
+    ZwSetFileNameInformationFileDest = 20;
+    CopyFileSource = 21;
+    CopyFileDestination = 22;
+    CreateHardLinkSource = 23;
+    CreateHardLinkDestination = 24;
+    RemoveDirectory = 25;
+    NtQueryDirectoryFile = 26;
+    ZwQueryDirectoryFile = 27;
+    NtCreateFile = 28;
+    ZwCreateFile = 29;
+    ZwOpenFile = 30;
+    ChangedReadWriteToReadAccess = 31;
+    FirstAllowWriteCheckInProcess = 32;
+    ReparsePointTarget = 33;
+    CreateSymbolicLinkSource = 34;
+    MoveFileWithProgressSource = 35;
+    MoveFileWithProgressDest = 36;
+    MultipleOperations = 37;
+    ProcessExit = 38;
+    MacLookup = 39;
+    MacReadlink = 40;
+    MacVNodeCreate = 41;
+    KAuthMoveSource = 42;
+    KAuthMoveDest = 43;
+    KAuthCreateHardlinkSource = 44;
+    KAuthCreateHardlinkDest = 45;
+    KAuthCopySource = 46;
+    KAuthCopyDest = 47;
+    KAuthDeleteDir = 48;
+    KAuthDeleteFile = 49;
+    KAuthOpenDir = 50;
+    KAuthReadFile = 51;
+    KAuthCreateDir = 52;
+    KAuthWriteFile = 53;
+    KAuthClose = 54;
+    KAuthCloseModified = 55;
+    KAuthGetAttributes = 56;
+    KAuthVNodeExecute = 57;
+    KAuthVNodeWrite = 58;
+    KAuthVNodeRead = 59;
+    KAuthVNodeProb = 60;
 }
 
 enum FingerprintComputationKind{
-    Execution = 0;
-    CacheCheck = 1;
+    FingerprintComputationKind_Uninitialized = 0;
+
+    Execution = 1;
+    CacheCheck = 2;
 }
 
 enum ObservedInputType{
-    AbsentPathProbe = 0;
-    FileContentRead = 1;
-    DirectoryEnumeration = 2;
-    ExistingDirectoryProbe = 3;
-    ExistingFileProbe = 4;
+    ObservedInputType_Uninitialized = 0;
+
+    AbsentPathProbe = 1;
+    FileContentRead = 2;
+    DirectoryEnumeration = 3;
+    ExistingDirectoryProbe = 4;
+    ExistingFileProbe = 5;
 }
 
 enum PreserveOutputsMode{
-    Disabled = 0;
-    Enabled = 1;
-    Reset = 2;
+    PreserveOutputsMode_Uninitialized = 0;
+
+    Disabled = 1;
+    Enabled = 2;
+    Reset = 3;
 }
 
 enum SandboxKind{
-    SandboxKind_None = 0;
-    Default = 1;
-    WinDetours = 2;
-    MaxOsKext = 3;
-    MacOsKextIgnoreFileAccesses = 4;
-    MacOsEndpointSecurity = 5;
+    SandboxKind_Uninitialized = 0;
+
+    SandboxKind_None = 1;
+    Default = 2;
+    WinDetours = 3;
+    MaxOsKext = 4;
+    MacOsKextIgnoreFileAccesses = 5;
+    MacOsEndpointSecurity = 6;
 }
 
 enum DoubleWritePolicy{
-    DoubleWritesAreErrors = 0;
-    AllowSameContentDoubleWrites = 1;
-    UnsafeFirstDoubleWriteWins = 2;
-}
+    DoubleWritePolicy_Uninitialized = 0;
 
-enum GraphCacheFile{
-    PreviousInputs = 0;
-    GraphCacheFile_PipTable = 1;
-    GraphCacheFile_PathTable = 2;
-    StringTable = 3;
-    SymbolTable = 4;
-    QualifierTable = 5;
-    GraphCacheFile_MountPathExpander = 6;
-    ConfigState = 7;
-    GraphCacheFile_DirectedGraph = 8;
-    GraphCacheFile_PipGraph = 9;
-    PipGraphId = 10;
-    HistoricTableSizes = 11;
+    DoubleWritesAreErrors = 1;
+    AllowSameContentDoubleWrites = 2;
+    UnsafeFirstDoubleWriteWins = 3;
 }
 
 enum PipType{
-    PipType_WriteFile = 0;
-    PipType_CopyFile = 1;
-    PipType_Process = 2;
-    PipType_Ipc = 3;
-    PipType_Value = 4;
-    PipType_SpecFile = 5;
-    PipType_Module = 6;
-    PipType_HashSourceFile = 7;
-    PipType_SealDirectory = 8;
-}
+    PipType_Uninitialized = 0;
 
-enum SealDirectoryType{
-    SealDirectoryType_SealDirectory = 0;
-    CompositeSharedOpaqueDirectory = 1;
-}
-
-enum PipQueryContext {
-    PipGraphRetrieveAllPips = 0;
-    PipGraphRetrievePipsOfType = 1;
-    PipGraphRetrieveScheduledPips = 2;
-    PipGraphRetrievePipsByStateOfType = 3;
-    PipGraphGetPipFromUInt32 = 4;
-    PipGraphGetPipForWorkerService = 5;
-    PipGraphGetPipForDistributingPipExecutor = 6;
-    PipGraphGetPipDependenciesOfNode = 7;
-    PipGraphGetPipsDependentUponNode = 8;
-    PipGraphGetProducingPips = 9;
-    PipGraphGetConsumingPips = 10;
-    PipGraphGetPipsPerSpecFile = 11;
-    PipGraphTryFindProducer = 12;
-    PipGraphAddPipToPipDependency = 13;
-    PipGraphAddServicePipDependency = 14;
-    PipGraphQueryFileArtifactPipDataWriteFile = 15;
-    PipGraphQueryFileArtifactPipDataCopyFile = 16;
-    PipGraphGetProducingPip = 17;
-    PipGraphListSealedDirectoryContents = 18;
-    PipGraphIsValidInputFileArtifact1 = 19;
-    PipGraphIsValidInputFileArtifact2 = 20;
-    PipGraphIsValidInputFileArtifact3 = 21;
-    PipGraphIsValidOutputFileArtifactSealing1 = 22;
-    PipGraphIsValidOutputFileArtifactSealing2 = 23;
-    PipGraphIsValidOutputFileArtifactRewrite1 = 24;
-    PipGraphIsValidOutputFileArtifactRewrite2 = 25;
-    PipGraphIsValidOutputFileArtifactRewrite3 = 26;
-    PipGraphIsValidOutputDirectory1 = 27;
-    PipGraphFilterNodes = 28;
-    SchedulerOnPipCompleted = 29;
-    SchedulerSchedulePipIfReady = 30;
-    SchedulerReportSkippedPip = 31;
-    SchedulerTryMaterializePipDependenciesAsyncCopyFile = 32;
-    SchedulerTryMaterializePipDependenciesAsyncIpcPip = 33;
-    SchedulerInternalTryMaterializePipOutputsAsync = 34;
-    SchedulerGetAndRecordFileContentHashAsync = 35;
-    SchedulerInternalTryComputePipFingerprintAsync1 = 36;
-    SchedulerInternalTryComputePipFingerprintAsync2 = 37;
-    SchedulerInternalTryComputePipFingerprintAsync3 = 38;
-    SchedulerInternalTryComputePipFingerprintAsync4 = 39;
-    SchedulerOnEstablishingPipFingerprintCompleted = 40;
-    SchedulerInternalTryMaterializePipOutputsTopDownAsync = 41;
-    SchedulerOnMaterializingPipOutputs1 = 42;
-    SchedulerOnMaterializingPipOutputs2 = 43;
-    SchedulerOnMaterializingPipOutputs3 = 44;
-    SchedulerInvalidateMaterializedPipOutputs1 = 45;
-    SchedulerInvalidateMaterializedPipOutputs2 = 46;
-    SchedulerInvalidateMaterializedPipOutputs3 = 47;
-    SchedulerFileContentManagerHostMaterializeFile = 48;
-    SchedulerMaterializePipOutputs2 = 49;
-    SchedulerMaterializePipOutputs3 = 50;
-    SchedulerExecutePips = 51;
-    SchedulerReplayProcessWithWarnings = 52;
-    SchedulerOnPipSemaphoreQueued = 53;
-    SchedulerOnPipSemaphoreDequeued = 54;
-    SchedulerInternalTryComputePipFingerprintAsync = 55;
-    SchedulerAreInputsPresentForSkipDependencyBuild = 56;
-    SchedulerPartialGraphReload = 57;
-    SchedulerExecuteSealDirectoryPip = 58;
-    SealedDirectoryTableTryFindDirectoryArtifactContainingFileArtifact = 59;
-    PipViewerRequest = 60;
-    ViewerAnalyzer = 61;
-    LoggingUncacheableProcessImpact = 62;
-    LoggingPipFailedOnWorker = 63;
-    Test = 64;
-    PipQueueGetCpuQueueProcessResources = 65;
-    FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations = 66;
-    SchedulerCloudBuildLogging = 67;
-    IdeGenerator = 68;
-    RunnablePip = 69;
-    CollectPipInputsToMaterializeForIPC = 70;
-    PipGraphPostValidation = 71;
-    FingerprintStore = 72;
-    PipGraphGetSealDirectoryByKind = 73;
-    GetSealDirectoryFingerprint = 74;
-    Explorer = 75;
-    PreserveOutput = 76;
-    End = 77;
+    PipType_WriteFile = 1;
+    PipType_CopyFile = 2;
+    PipType_Process = 3;
+    PipType_Ipc = 4;
+    PipType_Value = 5;
+    PipType_SpecFile = 6;
+    PipType_Module = 7;
+    PipType_HashSourceFile = 8;
+    PipType_SealDirectory = 9;
 }
 
 enum Options{
-    None = 0;
-    HasUntrackedChildProcesses = 1;
-    ProducesPathIndependentOutputs = 2;
-    OutputsMustRemainWritable = 4;
-    AllowPreserveOutputs = 8;
-    IsLight = 16;
-    NeedsToRunInContainer = 32;
-    AllowUndeclaredSourceReads = 64;
-    DisableCacheLookup = 128;
-    DependsOnCurrentOs = 256;
-    DependsOnWindowsAppData = 512;
-    DependsOnWindowsProgramData = 1024;
-    RequiresAdmin = 2048;
-    HasPreserveOutputWhitelist = 4096;
-}
+    Options_Uninitialized = 0;
 
-enum PipDataFragmentEscaping{
-    PipDataFragmentEscaping_Invalid = 0;
-    NoEscaping = 1;
-    CRuntimeArgumentRules = 2;
+    None = 1;
+    HasUntrackedChildProcesses = 2;
+    ProducesPathIndependentOutputs = 4;
+    OutputsMustRemainWritable = 8;
+    AllowPreserveOutputs = 16;
+    IsLight = 32;
+    NeedsToRunInContainer = 64;
+    AllowUndeclaredSourceReads = 128;
+    DisableCacheLookup = 256;
+    DependsOnCurrentOs = 512;
+    DependsOnWindowsAppData = 1024;
+    DependsOnWindowsProgramData = 2048;
+    RequiresAdmin = 4096;
+    HasPreserveOutputWhitelist = 8192;
+    IncrementalTool = 16384;
 }
 
 enum FileExistence{
-    Required = 0;
-    Temporary = 1;
-    Optional = 2;
+    FileExistence_Uninitialized = 0;
+
+    Required = 1;
+    Temporary = 2;
+    Optional = 3;
 }
 
-enum WriteFileEncoding
-{
-    Utf8 = 0;
-    Ascii = 1;
+enum WriteFileEncoding{
+    WriteFileEncoding_Uninitialized = 0;
+
+    Utf8 = 1;
+    Ascii = 2;
 }
 
-enum SealDirectoryKind
-{
-    Full = 0;
-    Partial = 1;
-    SourceAllDirectories = 2;
-    SourceTopDirectoryOnly = 3;
-    Opaque = 4;
-    SharedOpaque = 5;
+enum SealDirectoryKind{
+    SealDirectoryKind_Uninitialized = 0;
+
+    Full = 1;
+    Partial = 2;
+    SourceAllDirectories = 3;
+    SourceTopDirectoryOnly = 4;
+    Opaque = 5;
+    SharedOpaque = 6;
 }
 
-enum ServicePipKind
-{
-    ServicePipKind_None = 0;
-    Service = 1;
-    ServiceClient = 2;
-    ServiceShutdown = 3;
-    ServiceFinalization = 4;
-}
-
-enum ContainerIsolationLevel{
-    ContainerIsolationLevel_None = 0;
-    IsolateOutputFiles = 1;
-    IsolateSharedOpaqueOutputDirectories = 2;
-    IsolateExclusiveOpaqueOutputDirectories = 4;
-    IsolateOutputDirectories = 6;
-    IsolateAllOutputs = 7;
-    IsolateInputs = 8;
-    IsolateAll = 15;
-}
-
-enum PipDataEntryType{
-    PipDataEntryType_Invalid = 0;
-    PipDataEntryType_StringLiteral = 1;
-    PipDataEntryType_AbsolutePath = 2;
-    VsoHashEntry1Path = 3;
-    VsoHashEntry2RewriteCount = 4;
-    PipDataEntryType_IpcMoniker = 5;
-    PipDataEntryType_NestedDataHeader = 6;
-    NestedDataStart = 7;
-    NestedDataEnd = 8;
-}
-
-enum PipFragmentType{
-    PipFragmentType_Invalid = 0;
-    PipFragmentType_StringLiteral = 1;
-    PipFragmentType_AbsolutePath = 2;
-    VsoHash = 3;
-    PipFragmentType_NestedFragment = 4;
-    PipFragmentType_IpcMoniker = 5;
+enum ServicePipKind{
+    ServicePipKind_Uninitialized = 0;
+    ServicePipKind_None = 1;
+    Service = 2;
+    ServiceClient = 3;
+    ServiceShutdown = 4;
+    ServiceFinalization = 5;
 }
 
 //
@@ -771,12 +672,6 @@ message DirectoryFingerprint{
     ContentHash Hash = 1;
 }
 
-message DirectoryOutput{
-    DirectoryArtifact DirectoryArtifact = 1;
-
-    repeated FileArtifact fileArtifactArray = 2;
-}
-
 message DirectoryArtifact{
     AbsolutePath Path = 1;
 
@@ -808,7 +703,7 @@ message Pip{
 }
 
 message PipProvenance{
-    PipData Usage = 1;
+    string Usage = 1;
 
     string ModuleId = 2;
 
@@ -824,13 +719,13 @@ message ProcessPip{
 
     FileArtifact StandardInputFile = 3;
 
-    PipData StandardInputData = 4;
+    string StandardInputData = 4;
 
     StandardInput StandardInput = 5;
 
     FileArtifact ResponseFile = 6;
 
-    PipData ResponseFileData = 7;
+    string ResponseFileData = 7;
 
     FileArtifact Executable = 8;
 
@@ -838,7 +733,7 @@ message ProcessPip{
 
     AbsolutePath WorkingDirectory = 10;
 
-    PipData Arguments = 11;
+    string Arguments = 11;
 
     repeated EnvironmentVariable EnvironmentVariable = 12;
 
@@ -873,7 +768,7 @@ message WriteFile{
 
     FileArtifact Destination = 2;
 
-    PipData Contents = 3;
+    string Contents = 3;
 
     WriteFileEncoding Encoding = 4;
 
@@ -905,24 +800,22 @@ message SealDirectory{
 
     repeated string Patterns = 3;
 
-    AbsolutePath DirectoryRoot = 4;
+    repeated FileArtifact Contents = 4;
 
-    repeated FileArtifact Contents = 5;
+    repeated DirectoryArtifact ComposedDirectories = 5;
 
-    repeated DirectoryArtifact ComposedDirectories = 6;
+    bool IsComposite = 6;
 
-    bool IsComposite = 7;
+    bool Scrub = 7;
 
-    bool Scrub = 8;
+    DirectoryArtifact Directory = 8;
 
-    DirectoryArtifact Directory = 9;
-
-    bool IsSealSourceDirectory = 10;
+    bool IsSealSourceDirectory = 9;
 
     // Overridden Member Variables
-    repeated string Tags = 11;
+    repeated string Tags = 10;
 
-    PipProvenance Provenance = 12;
+    PipProvenance Provenance = 11;
 }
 
 message IpcPip{
@@ -930,7 +823,7 @@ message IpcPip{
 
     IpcClientInfo IpcInfo = 2;
 
-    PipData MessageBody = 3;
+    string MessageBody = 3;
 
     repeated uint32 ServicePipDependencies = 4;
 
@@ -948,28 +841,16 @@ message IpcPip{
     PipProvenance Provenance = 10;
 }
 
-message PipData{
-    string FragmentSeparator = 1;
-
-    int32 FragmentCount = 2;
-
-    PipDataFragmentEscaping FragmentEscaping = 3;
-
-    PipDataEntry HeaderEntry = 4;
-
-    repeated PipDataEntry Entries = 5;
-}
-
 message StandardInput{
     FileArtifact File = 1;
 
-    PipData Data = 2;
+    string Data = 2;
 }
 
 message EnvironmentVariable{
     string Name = 1;
 
-    PipData Value = 2;
+    string Value = 2;
 
     bool IsPassThrough = 3;
 }
@@ -1000,14 +881,6 @@ message LocationData{
     AbsolutePath Path = 2;
 
     int32 Position = 3;
-}
-
-message PipDataEntry{
-    PipDataEntryType EntryType = 1;
-
-    PipDataFragmentEscaping Escaping = 2;
-
-    PipFragmentType FragmentType = 3;
 }
 
 message IpcClientInfo{

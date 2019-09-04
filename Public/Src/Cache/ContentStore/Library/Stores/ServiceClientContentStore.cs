@@ -38,12 +38,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Execution tracer.
         /// </summary>
-        protected readonly ContentStoreTracer ExecutionTracer = new ContentStoreTracer(nameof(ServiceClientContentStore));
+        protected virtual ContentStoreTracer ExecutionTracer { get; } = new ContentStoreTracer(nameof(ServiceClientContentStore));
 
         /// <summary>
         /// Execution tracer for the session.
         /// </summary>
-        protected readonly ServiceClientContentSessionTracer SessionTracer = new ServiceClientContentSessionTracer(nameof(ServiceClientContentSession));
+        protected virtual ServiceClientContentSessionTracer SessionTracer { get; } = new ServiceClientContentSessionTracer(nameof(ServiceClientContentSession));
 
         /// <summary>
         ///     The filesystem to use for temporary files.

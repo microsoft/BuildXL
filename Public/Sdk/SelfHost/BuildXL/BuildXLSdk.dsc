@@ -566,8 +566,10 @@ const testFrameworkOverrideAttribute = Transformer.writeAllLines({
 function processTestArguments(args: Managed.TestArguments) : Managed.TestArguments {
     args = processArguments(args, "library");
 
-    let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount") ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount") : 8;
-    let useQTest = Flags.isQTestEnabled && qualifier.targetFramework !== "netcoreapp3.0";
+    let xunitSemaphoreLimit = Environment.hasVariable(envVarNamePrefix + "xunitSemaphoreCount") ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount") : 8; 
+    let useQTest = Flags.isQTestEnabled 
+        && qualifier.targetFramework !== "netcoreapp3.0" // QTest is not support for .net core apps
+        && !(args.runTestArgs && args.runTestArgs.parallelBucketCount); // QTest does not support passing environment variables to the underlying process
     let testFramework = args.testFramework || (useQTest ? QTest.getFramework(XUnit.framework) : XUnit.framework);
 
     args = Object.merge<Managed.TestArguments>({

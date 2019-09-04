@@ -108,13 +108,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override async Task<BoolResult> TouchBlobCoreAsync(OperationContext context, AbsolutePath file, string storageId, bool isUploader)
         {
-            (var hash, var fallbackStorageId) = ParseCompositeStorageId(storageId);
+            var (hash, fallbackStorageId) = ParseCompositeStorageId(storageId);
 
             // Need to touch in fallback storage as well so it knows the content is still in use
-            await _fallbackStorage.TouchBlobAsync(context, file, fallbackStorageId, isUploader).ThrowIfFailure();
+            var touchTask = _fallbackStorage.TouchBlobAsync(context, file, fallbackStorageId, isUploader).ThrowIfFailure();
 
             // Ensure content is present in private CAS and registered
-            await PutAndRegisterFileAsync(context, file, hash);
+            var registerTask = PutAndRegisterFileAsync(context, file, hash);
+
+            await Task.WhenAll(touchTask, registerTask);
 
             return BoolResult.Success;
         }
@@ -135,17 +137,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override async Task<Result<string>> UploadFileCoreAsync(OperationContext context, AbsolutePath file, string blobName, bool garbageCollect = false)
         {
             // Add the file to CAS and register with global content location store
-            var hash = await PutAndRegisterFileAsync(context, file, hash: null);
+            var hashTask = PutAndRegisterFileAsync(context, file, hash: null);
 
             // Upload to fallback storage so file is available if needed from there
-            var innerStorageId = await _fallbackStorage.UploadFileAsync(context, file, blobName, garbageCollect).ThrowIfFailureAsync();
+            var innerStorageIdTask = _fallbackStorage.UploadFileAsync(context, file, blobName, garbageCollect).ThrowIfFailureAsync();
+
+            await Task.WhenAll(hashTask, innerStorageIdTask);
+
+            var hash = await hashTask;
+            var innerStorageId = await innerStorageIdTask;
 
             return CreateCompositeStorageId(hash, innerStorageId);
         }
 
         private async Task<Result<ContentHashWithSize>> TryGetAndPutFileAsync(OperationContext context, string storageId, AbsolutePath targetFilePath)
         {
-            (var hash, var fallbackStorageId) = ParseCompositeStorageId(storageId);
+            var (hash, fallbackStorageId) = ParseCompositeStorageId(storageId);
             if (hash != null)
             {
                 // First attempt to place file from content store

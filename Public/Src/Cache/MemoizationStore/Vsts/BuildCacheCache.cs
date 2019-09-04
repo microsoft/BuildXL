@@ -402,7 +402,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 }
                 if (_backingContentStore != null)
                 {
-                    var backingContentStoreStats = await _writeThroughContentStore.GetStatsAsync(context);
+                    var backingContentStoreStats = await _backingContentStore.GetStatsAsync(context);
                     if (backingContentStoreStats.Succeeded)
                     {
                         aggregateStats.Merge(backingContentStoreStats.CounterSet, "BackingContentStore.");

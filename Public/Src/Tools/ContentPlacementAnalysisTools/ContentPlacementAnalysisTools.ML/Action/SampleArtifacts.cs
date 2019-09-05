@@ -143,7 +143,9 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// The full path of the sample file name
         /// </summary>
         public string SampleFileName { get; set; }
-
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public SampleArtifactsOutput(List<MLArtifact> arts, int numSamples, string file)
         {
             Sample = arts;

@@ -6,6 +6,10 @@ using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 {
+    /// <summary>
+    ///  The content placement classifier, which given an artifact and a queue can choose a set of machines
+    ///  as targets for its replication
+    /// </summary>
     public class ContentPlacementClassifier : MLClassifier
     {
         private static readonly string s_sharedClassLabel = MLArtifact.SharingClassLabels[0];
@@ -25,7 +29,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         private readonly Dictionary<string, List<string>> m_alternativesPerQueue = new Dictionary<string, List<string>>();
 
         /// <summary>
-        ///  The argument is the path to a valid configutation file
+        ///  The argument is the path to a valid configutation file which follows the template of ContentPlacementClassifierConfiguration
         /// </summary>
         public ContentPlacementClassifier(string config)
         {
@@ -262,6 +266,27 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         ///  The attributes we will use here is the queue name
         /// </summary>
         public string QueueName { get; set; }
+
+        /// <summary>
+        ///  Constructor
+        /// </summary>
+        public ContentPlacementInstance() { }
+        /// <summary>
+        ///  Constructor with attributes for the artifact and the queue name
+        /// </summary>
+        public ContentPlacementInstance(string queue, double sizeInBytes, double inputPipCount, double outputPipCount,
+            double avgPositionInputPips, double avgPositionOutputPips, double avgDepsInputPips, double avgDepsOutputPips,
+            double avgInputsInputPips, double avgInputsOutputPips, double avgOutputsInputPips, double avgOutputsOutputPips,
+            double avgPriorityInputPips, double avgPriorityOutputPips, double avgWeightInputPips, double avgWeightOutputPips,
+            double avgTagCountInputPips, double avgTagCountOutputPips, double avgSemaphoreCountInputPips, double avgSemaphoreCountOutputPips) : this()
+        {
+            QueueName = queue;
+            Artifact = new RandomForestInstance(sizeInBytes, inputPipCount, outputPipCount, avgPositionInputPips,
+                avgPositionOutputPips, avgDepsInputPips, avgDepsOutputPips, avgInputsInputPips, avgInputsOutputPips,
+                avgOutputsInputPips, avgOutputsOutputPips, avgPriorityInputPips, avgPriorityOutputPips, avgWeightInputPips,
+                avgWeightOutputPips, avgTagCountInputPips, avgTagCountOutputPips, avgSemaphoreCountInputPips, avgSemaphoreCountOutputPips);
+        }
+
     }
     /// <summary>
     ///  Represents the configuration for this type of classifier

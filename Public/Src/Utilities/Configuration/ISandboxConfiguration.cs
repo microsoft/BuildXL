@@ -269,7 +269,7 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// This is an unsafe configuration.
         /// This global configuration from cammand line will bypass cache,
-        /// which means pips and graph will be cached ignoring environment variables specified in this configuration. 
+        /// which means pips and graph will be cached ignoring environment variables specified in this configuration.  
         /// </remarks>
         IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
     }

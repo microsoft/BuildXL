@@ -18,7 +18,7 @@ let buildsWithQueues = (start:datetime, end:datetime){
     database('CloudBuildProd').BuildInfo
     | where StartTime >= start and EndTime < end
 	| where ReturnCode == "Success" and ReturnType == "Success"
-    | where BuildQueue has "OfficeTenant"
+    | where BuildQueue contains "Office"
     | distinct BuildId, LogDirectory, StartTime, BuildDurationMs, BuildControllerMachineName, BuildQueue;
 };
 

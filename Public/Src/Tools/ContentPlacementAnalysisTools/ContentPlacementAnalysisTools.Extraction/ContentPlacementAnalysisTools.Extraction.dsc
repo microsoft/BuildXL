@@ -13,8 +13,16 @@ namespace ContentPlacement.Extraction {
                 f`CPResources\Query\get_build_data.kql`,
                 f`CPResources\Query\get_monthly_queue_data.kql`,
                 f`CPResources\Query\get_queue_machine_map.kql`,
-            ]}
-        ]};
+            ]
+        }]
+    };
+
+     const scripts = {
+        subfolder: "CPScripts", contents : [ 
+            f`CPScripts\queueData.cmd`,
+             f`CPScripts\weeklySampleDownload.cmd`,
+        ]
+    };
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -25,6 +33,7 @@ namespace ContentPlacement.Extraction {
         embeddedResources: [{resX: f`CPResources\constants.resx`}],
         runtimeContent: [
             staticResources,
+            scripts,
             buildDownloaderLogFile
         ],
         references: [

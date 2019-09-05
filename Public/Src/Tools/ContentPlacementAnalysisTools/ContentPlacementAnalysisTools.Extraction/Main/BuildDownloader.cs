@@ -168,9 +168,18 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
             // link them
             buildInfoBlock.LinkTo(downloadBlock, new DataflowLinkOptions { PropagateCompletion = true });
             downloadBlock.LinkTo(analysisBlock, new DataflowLinkOptions { PropagateCompletion = true });
-            var input = new GetKustoBuildInput(arguments.NumBuilds, arguments.Year, arguments.Month, arguments.Day);
-            // post the task...
-            buildInfoBlock.Post(input);
+            // in here, we need to set up the days for which the downloads will be taken
+            var date = new DateTime(arguments.Year, arguments.Month, arguments.Day);
+            for(var i = 0; i < arguments.Span; ++i)
+            {
+                s_logger.Info($"Downloading builds from year={date.Year}, month={date.Month}, day={date.Day}");
+                // create the inout for this task
+                var input = new GetKustoBuildInput(arguments.NumBuilds, date.Year, date.Month, date.Day);
+                // post the task...
+                buildInfoBlock.Post(input);
+                // and add one more day
+                date = date.AddDays(1);
+            }
             // and complete
             buildInfoBlock.Complete();
             // wait for the last...
@@ -277,6 +286,10 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         /// </summary>
         public int Day { get; } = -1;
         /// <summary>
+        /// How many days since the start day will be downloaded. Defaults to 7, for a week
+        /// </summary>
+        public int Span { get; } = 7;
+        /// <summary>
         /// The output directory for downloading builds and saving results
         /// </summary>
         public string OutputDirectory { get; } = null;
@@ -321,6 +334,10 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
                 {
                     Day = ParseInt32Option(opt, 1, 31);
                 }
+                else if (opt.Name.Equals("span", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("sp", StringComparison.OrdinalIgnoreCase))
+                {
+                    Span = ParseInt32Option(opt, 1, 31);
+                }
                 else if (opt.Name.Equals("numBuilds", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("nb", StringComparison.OrdinalIgnoreCase))
                 {
                     NumBuilds = ParseInt32Option(opt, 1, int.MaxValue);
@@ -352,6 +369,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
             writer.WriteOption("day", "Required. Day from when the builds will be taken from", shortName: "d");
             writer.WriteOption("numBuilds", "Required. The number of builds (from different queues) that will be sampled", shortName: "nb");
             writer.WriteOption("outputDirectory", "Required. The directory where the outputs will be stored", shortName: "od");
+            writer.WriteOption("span", "Optional. Day span for build download. Starting from <day, d>, <span, sp> days will be downloaded (<numBuilds, nb> builds per day)", shortName: "sp");
             writer.WriteOption("queueDataOnly", "Optional. If set, the queue data will be downloaded (no builds will be downloaded)", shortName: "qdo");
             writer.WriteOption("includeMachineMap", "Optional. Used in conjunction with queueDataOnly. If set, the queue/machine map will be created for that specific list of queues", shortName: "imm");
         }

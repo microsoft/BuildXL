@@ -232,6 +232,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
         {
+            context.TraceDebug("Waiting on IOGate for RequestCopyFileAsync: " +
+                            $"ContentHash={hash.ToShortString()} " +
+                            $"TargetLocation=[{targetLocation}] " +
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} ");
+
             return _ioGate.GatedOperationAsync(ts =>
                 {
                     return context.PerformOperationAsync(

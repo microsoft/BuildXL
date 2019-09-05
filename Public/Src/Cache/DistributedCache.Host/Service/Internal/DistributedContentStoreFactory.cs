@@ -118,6 +118,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
+            var memoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.MemoizationExpiryTimeMinutes);
 
             // RedisContentSecretName and RedisMachineLocationsSecretName can be null. HostConnectionStringProvider won't fail in this case.
             IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
@@ -130,6 +131,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 machineLocationsConnectionStringProvider,
                 SystemClock.Instance,
                 contentHashBumpTime,
+                memoizationExpiryTime,
                 _keySpace,
                 configuration: redisContentLocationStoreConfiguration
                 );

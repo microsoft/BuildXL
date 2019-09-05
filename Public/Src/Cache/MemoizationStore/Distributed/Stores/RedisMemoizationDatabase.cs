@@ -3,9 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -17,14 +15,15 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities;
-using StackExchange.Redis;
-using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
-using System.Security.Cryptography;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
     /// <summary>
     /// Implements a memoization database through Redis.
+    /// You can imagine the schema in Redis to be:
+    ///     WeakFingerprint -> Dictionary(Selector, (ContentHashList:byte[], replacementToken:string))
+    /// The difference is that, since Redis does not have the concept of value tuple, we duplicate each Selector, prefixed with either a 1 or a 0, depending if we're storing the ContentHasList or the token.
+    /// The motivation behind using the token (which is just a GUID created on adds) is to avoid comparing the two byte arrays.
     /// </summary>
     internal class RedisMemoizationDatabase : MemoizationDatabase
     {
@@ -34,6 +33,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         private readonly ObjectPool<StreamBinaryWriter> _writerPool = new ObjectPool<StreamBinaryWriter>(() => new StreamBinaryWriter(), w => w.ResetPosition());
         private readonly ObjectPool<StreamBinaryReader> _readerPool = new ObjectPool<StreamBinaryReader>(() => new StreamBinaryReader(), r => { });
 
+        private readonly TimeSpan _metadataExpiryTime;
+
         /// <inheritdoc />
         protected override Tracer Tracer => new Tracer(nameof(RedisMemoizationDatabase));
 
@@ -42,11 +43,13 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <nodoc />
         public RedisMemoizationDatabase(
             RedisDatabaseAdapter redis,
-            IClock clock
+            IClock clock,
+            TimeSpan metadataExpiryTime
             )
         {
             _redis = redis;
             _clock = clock;
+            _metadataExpiryTime = metadataExpiryTime;
         }
 
         /// <inheritdoc />
@@ -70,7 +73,12 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isHash: true);
 
 
-                    var result = await _redis.ExecuteBatchAsync(context, batch => batch.CompareExchangeAsync(key, selectorBytes, tokenFieldNameBytes, expectedReplacementToken, replacementBytes, newReplacementToken), RedisOperation.CompareExchange);
+                    var result = await _redis.ExecuteBatchAsync(context, batch =>
+                    {
+                        var task = batch.CompareExchangeAsync(key, selectorBytes, tokenFieldNameBytes, expectedReplacementToken, replacementBytes, newReplacementToken);
+                        batch.KeyExpireAsync(key, _metadataExpiryTime).FireAndForget(context);
+                        return task;
+                    }, RedisOperation.CompareExchange);
                     return new Result<bool>(result);
                 });
         }

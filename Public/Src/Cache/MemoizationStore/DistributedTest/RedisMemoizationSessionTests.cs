@@ -25,6 +25,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         private readonly MemoryClock _clock = new MemoryClock();
         private readonly LocalRedisFixture _redis;
         private readonly ILogger _logger;
+        private readonly TimeSpan _memoizationExpiryTime = TimeSpan.FromDays(1);
 
         public RedisMemoizationSessionTests(LocalRedisFixture redis)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
@@ -43,7 +44,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var redisFactory = RedisDatabaseFactory.CreateAsync(context, connectionStringProvider).GetAwaiter().GetResult();
             var redisAdapter = new RedisDatabaseAdapter(redisFactory, keySpace: Guid.NewGuid().ToString());
 
-            var memoizationDb = new RedisMemoizationDatabase(redisAdapter, _clock);
+            var memoizationDb = new RedisMemoizationDatabase(redisAdapter, _clock, _memoizationExpiryTime);
             return new RedisMemoizationStore(_logger, memoizationDb);
         }
 

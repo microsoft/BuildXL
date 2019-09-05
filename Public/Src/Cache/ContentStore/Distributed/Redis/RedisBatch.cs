@@ -476,6 +476,14 @@ return { requestedIncrement, currentValue }";
         }
 
         /// <inheritdoc />
+        public Task<bool> KeyExpireAsync(string key, TimeSpan timeToLive)
+        {
+            var redisOperation = new RedisOperationAndResult<bool>(batch => batch.KeyExpireAsync(key, timeToLive));
+            _redisOperations.Add(redisOperation);
+            return redisOperation.FinalTaskResult.Task;
+        }
+
+        /// <inheritdoc />
         public Task<RedisValue> StringGetAsync(string key, CommandFlags commandFlags = CommandFlags.None)
         {
             var redisOperation = new RedisOperationAndResult<RedisValue>(batch => batch.StringGetAsync(key, commandFlags));

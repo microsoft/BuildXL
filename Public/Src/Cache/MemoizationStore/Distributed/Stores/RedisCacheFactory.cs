@@ -16,17 +16,21 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     /// <nodoc />
     public class RedisCacheFactory : RedisContentLocationStoreFactory
     {
+        private readonly TimeSpan _memoizationExpiryTime;
+
         /// <nodoc />
         public RedisCacheFactory(
             IConnectionStringProvider contentConnectionStringProvider,
             IConnectionStringProvider machineLocationConnectionStringProvider,
             IClock clock,
             TimeSpan contentHashBumpTime,
+            TimeSpan memoizationExpiryTime,
             string keySpace,
             IAbsFileSystem fileSystem = null,
             RedisContentLocationStoreConfiguration configuration = null)
             : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, fileSystem, configuration)
         {
+            _memoizationExpiryTime = memoizationExpiryTime;
         }
 
         /// <nodoc />
@@ -40,7 +44,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 
             var redisDatabaseAdapter = CreateDatabase(redisDatabaseFactory);
 
-            var memoizationDb = new RedisMemoizationDatabase(redisDatabaseAdapter, Clock);
+            var memoizationDb = new RedisMemoizationDatabase(redisDatabaseAdapter, Clock, _memoizationExpiryTime);
             return new RedisMemoizationStore(logger, memoizationDb);
         }
 

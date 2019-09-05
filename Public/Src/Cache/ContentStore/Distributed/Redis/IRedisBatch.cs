@@ -142,6 +142,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         Task<bool> KeyExpireAsync(string key, DateTime newExpiryTimeUtc);
 
         /// <summary>
+        /// Updates the time to live for a particular key in Redis.
+        /// </summary>
+        Task<bool> KeyExpireAsync(string key, TimeSpan timeToLive);
+
+        /// <summary>
         /// Gets a string value at a specified key.
         /// </summary>
         Task<RedisValue> StringGetAsync(string key, CommandFlags commandFlags = CommandFlags.None);

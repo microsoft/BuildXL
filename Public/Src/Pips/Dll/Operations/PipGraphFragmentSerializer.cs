@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -69,9 +69,9 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Deserializes a pip graph fragment and call the given handleDeserializedPip function on each pip deserialized.
         /// </summary>
-        public bool Deserialize(
+        public async Task<bool> DeserializeAsync(
             AbsolutePath filePath,
-            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, Task<bool>> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null)
         {
             Contract.Requires(filePath.IsValid);
@@ -84,16 +84,16 @@ namespace BuildXL.Pips.Operations
 
             using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                return Deserialize(stream, handleDeserializedPip, fragmentDescriptionOverride, filePath);
+                return await DeserializeAsync(stream, handleDeserializedPip, fragmentDescriptionOverride, filePath);
             }
         }
 
         /// <summary>
         /// Deserializes a pip graph fragment from stream.
         /// </summary>
-        public bool Deserialize(
+        public async Task<bool> DeserializeAsync(
             Stream stream,
-            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, bool> handleDeserializedPip = null,
+            Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, Task<bool>> handleDeserializedPip = null,
             string fragmentDescriptionOverride = null,
             AbsolutePath filePathOrigin = default)
         {
@@ -103,19 +103,19 @@ namespace BuildXL.Pips.Operations
                 FragmentDescription = fragmentDescriptionOverride ?? serializedDescription;
                 var provenance = new PipGraphFragmentProvenance(filePathOrigin, FragmentDescription);
                 bool serializedUsingTopSort = reader.ReadBoolean();
-                Func<PipId, Pip, bool> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
+                Func<PipId, Pip, Task<bool>> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
                 if (serializedUsingTopSort)
                 {
-                    return DeserializeTopSort(handleDeserializedPipInFragment, reader);
+                    return await DeserializeTopSort(handleDeserializedPipInFragment, reader);
                 }
                 else
                 {
-                    return DeserializeSerially(handleDeserializedPipInFragment, reader);
+                    return await DeserializeSerially(handleDeserializedPipInFragment, reader);
                 }
             }
         }
 
-        private bool DeserializeSerially(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader)
+        private async Task<bool> DeserializeSerially(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipRemapReader reader)
         {
             bool successful = true;
             m_totalPipsToDeserialize = reader.ReadInt32();
@@ -123,7 +123,7 @@ namespace BuildXL.Pips.Operations
             {
                 var pip = Pip.Deserialize(reader);
                 var pipId = new PipId(reader.ReadUInt32());
-                if (!(handleDeserializedPip?.Invoke(pipId, pip)).Value)
+                if (!await (handleDeserializedPip?.Invoke(pipId, pip)))
                 {
                     successful = false;
                 }
@@ -134,14 +134,14 @@ namespace BuildXL.Pips.Operations
             return successful;
         }
 
-        private bool DeserializeTopSort(Func<PipId, Pip, bool> handleDeserializedPip, PipRemapReader reader)
+        private async Task<bool> DeserializeTopSort(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipRemapReader reader)
         {
             bool successful = true;
             m_totalPipsToDeserialize = reader.ReadInt32();
             int totalPipsRead = 0;
             while (totalPipsRead < m_totalPipsToDeserialize)
             {
-                var deserializedPips = reader.ReadReadOnlyList<(Pip, PipId)>((deserializer) =>
+                var deserializedPips = reader.ReadReadOnlyList<(Pip pip, PipId pipId)>((deserializer) =>
                 {
                     var pip = Pip.Deserialize(reader);
 
@@ -154,20 +154,30 @@ namespace BuildXL.Pips.Operations
                     var pipId = new PipId(reader.ReadUInt32());
                     return (pip, pipId);
                 });
+
                 totalPipsRead += deserializedPips.Count;
+                Task[] tasks = new Task[deserializedPips.Count];
 
-                Parallel.ForEach(deserializedPips, new ParallelOptions(), deserializedPip =>
+                for (int i = 0; i < deserializedPips.Count; i++)
                 {
-                    if (!(handleDeserializedPip?.Invoke(deserializedPip.Item2, deserializedPip.Item1)).Value)
-                    {
-                        successful = false;
-                    }
+                    var deserializedPip = deserializedPips[i];
+                    tasks[i] = handleAndReportDeserializedPip(deserializedPip.pipId, deserializedPip.pip);
+                }
 
-                    Stats.Increment(deserializedPip.Item1, serialize: false);
-                });
+                await Task.WhenAll(tasks);
             }
 
             return successful;
+
+            async Task handleAndReportDeserializedPip(PipId pipId, Pip pip)
+            {
+                if (!await handleDeserializedPip(pipId, pip))
+                {
+                    successful = false;
+                }
+
+                Stats.Increment(pip, serialize: false);
+            }
         }
 
         /// <summary>

@@ -72,12 +72,11 @@ namespace BuildXL.Scheduler.Graph
                 {
                     var pipAddTasks = new List<Task<bool>>();
 
-                    var result = deserializer.Deserialize(
+                    var result = await deserializer.DeserializeAsync(
                         filePath,
                         (fragmentContext, provenance, pipId, pip) =>
                         {
-                            pipAddTasks.Add(m_taskFactory.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip)));
-                            return true;
+                            return m_taskFactory.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip));
                         },
                         description);
 
@@ -117,10 +116,10 @@ namespace BuildXL.Scheduler.Graph
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             try
             {
-                var result = deserializer.Deserialize(
+                var result = deserializer.DeserializeAsync(
                     stream,
-                    (fragmentContext, provenance, pipId, pip) => AddPipToGraph(fragmentContext, provenance, pipId, pip),
-                    description);
+                    (fragmentContext, provenance, pipId, pip) => Task.FromResult(AddPipToGraph(fragmentContext, provenance, pipId, pip)),
+                    description).GetAwaiter().GetResult();
 
                 // Always log for tests
                 Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());

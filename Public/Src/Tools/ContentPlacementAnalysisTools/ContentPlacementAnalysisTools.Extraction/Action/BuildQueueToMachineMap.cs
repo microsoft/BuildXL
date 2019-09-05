@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using ContentPlacementAnalysisTools.Core.Kusto;
 using ContentPlacementAnalysisTools.Core.Utils;
-using ContentPlacementAnalysisTools.Extraction.CPResources;
 using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;

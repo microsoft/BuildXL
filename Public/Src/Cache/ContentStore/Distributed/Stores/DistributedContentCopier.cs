@@ -232,13 +232,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
         {
-            return context.PerformOperationAsync(
-                Tracer,
-                traceOperationStarted: false,
-                operation: () =>
+            return _ioGate.GatedOperationAsync(ts =>
                 {
-                    return _ioGate.GatedOperationAsync(ts => _copyRequester.RequestCopyFileAsync(context, hash, targetLocation), context.Token);
-                });
+                    return context.PerformOperationAsync(
+                        Tracer,
+                        traceOperationStarted: false,
+                        operation: () =>
+                        {
+                            return _copyRequester.RequestCopyFileAsync(context, hash, targetLocation);
+                        });
+                },
+                context.Token);
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();

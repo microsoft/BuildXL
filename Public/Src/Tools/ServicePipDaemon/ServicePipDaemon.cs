@@ -89,7 +89,7 @@ namespace Tool.ServicePipDaemon
 
         internal static readonly StrOption ConfigFile = RegisterDaemonConfigOption(new StrOption("configFile")
         {
-            ShortName = "c",
+            ShortName = "cf",
             HelpText = "Configuration file",
             DefaultValue = null,
             Expander = (fileName) =>

@@ -29,6 +29,10 @@ namespace BuildXL.Scheduler.Graph
         /// Seal directory table
         /// </summary>
         protected readonly SealedDirectoryTable SealDirectoryTable;
+
+        /// <summary>
+        /// Configuration
+        /// </summary>
         protected readonly IConfiguration Configuration;
         private readonly LoggingContext m_loggingContext;
         private readonly PipExecutionContext m_pipExecutionContext;

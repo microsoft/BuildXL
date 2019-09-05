@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using ContentPlacementAnalysisTools.Core.Kusto;
 using ContentPlacementAnalysisTools.Core.Utils;
-using ContentPlacementAnalysisTools.Extraction.CPResources;
 using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;

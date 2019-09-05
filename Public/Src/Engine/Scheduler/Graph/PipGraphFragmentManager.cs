@@ -64,7 +64,19 @@ namespace BuildXL.Scheduler.Graph
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             m_taskMap[filePath] = (deserializer, m_taskFactory.StartNew(async () =>
             {
-                var results = await Task.WhenAll(dependencies.Select(dependency => m_taskMap[dependency].Item2));
+                IEnumerable<Task<bool>> dependencyTasks = dependencies.Select(dependency =>
+                {
+                    var result = m_taskMap.TryGetValue(dependency, out var dependencyTask);
+                    if (!result)
+                    {
+                        Contract.Assert(result, $"Can't find task for {dependency.ToString(m_context.PathTable)} which {filePath.ToString(m_context.PathTable)} needs.");
+                    }
+
+                    return dependencyTask.Item2;
+                });
+
+
+                var results = await Task.WhenAll(dependencyTasks);
                 if (results.Any(success => !success))
                 {
                     return false;

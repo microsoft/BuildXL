@@ -288,8 +288,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             EnumerationFilter filter = null)
         {
-            Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
-            ForceCacheFlush(context);
+            if (IsInMemoryCacheEnabled)
+            {
+                // If we don't check, then GC will happen anyways and we will -incorrectly- increment the counter
+                Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
+                ForceCacheFlush(context);
+            }
+
             return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
         }
 

@@ -236,11 +236,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     return context.PerformOperationAsync(
                         Tracer,
-                        traceOperationStarted: false,
                         operation: () =>
                         {
                             return _copyRequester.RequestCopyFileAsync(context, hash, targetLocation);
-                        });
+                        },
+                        traceOperationStarted: false,
+                        extraEndMessage: result =>
+                            $"ContentHash={hash.ToShortString()} " +
+                            $"TargetLocation=[{targetLocation}] " +
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
+                            $"IOGate.Wait={ts.TotalMilliseconds}ms."
+                        );
                 },
                 context.Token);
         }

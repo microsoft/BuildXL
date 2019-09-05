@@ -360,11 +360,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        public async Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash)
         {
             if (ContentStore is ICopyRequestHandler innerCopyStore)
             {
-                return await innerCopyStore.RequestCopyFileAsync(context, hash);
+                return await innerCopyStore.HandleCopyFileRequestAsync(context, hash);
             }
 
             return new BoolResult($"{ContentStore} does not implement {nameof(ICopyRequestHandler)} in {nameof(OneLevelCache)}.");

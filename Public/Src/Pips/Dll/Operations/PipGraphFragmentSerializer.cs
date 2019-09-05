@@ -106,16 +106,16 @@ namespace BuildXL.Pips.Operations
                 Func<PipId, Pip, Task<bool>> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
                 if (serializedUsingTopSort)
                 {
-                    return await DeserializeTopSort(handleDeserializedPipInFragment, reader);
+                    return await DeserializeTopSortAsync(handleDeserializedPipInFragment, reader);
                 }
                 else
                 {
-                    return await DeserializeSerially(handleDeserializedPipInFragment, reader);
+                    return await DeserializeSeriallyAsync(handleDeserializedPipInFragment, reader);
                 }
             }
         }
 
-        private async Task<bool> DeserializeSerially(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipRemapReader reader)
+        private async Task<bool> DeserializeSeriallyAsync(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipRemapReader reader)
         {
             bool successful = true;
             m_totalPipsToDeserialize = reader.ReadInt32();
@@ -134,7 +134,7 @@ namespace BuildXL.Pips.Operations
             return successful;
         }
 
-        private async Task<bool> DeserializeTopSort(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipRemapReader reader)
+        private async Task<bool> DeserializeTopSortAsync(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipRemapReader reader)
         {
             bool successful = true;
             m_totalPipsToDeserialize = reader.ReadInt32();
@@ -156,28 +156,25 @@ namespace BuildXL.Pips.Operations
                 });
 
                 totalPipsRead += deserializedPips.Count;
-                Task[] tasks = new Task[deserializedPips.Count];
+                Task<bool>[] tasks = new Task<bool>[deserializedPips.Count];
 
                 for (int i = 0; i < deserializedPips.Count; i++)
                 {
                     var deserializedPip = deserializedPips[i];
-                    tasks[i] = handleAndReportDeserializedPip(deserializedPip.pipId, deserializedPip.pip);
+                    tasks[i] = HandleAndReportDeserializedPipAsync(handleDeserializedPip, deserializedPip.pipId, deserializedPip.pip);
                 }
 
-                await Task.WhenAll(tasks);
+                successful &= (await Task.WhenAll(tasks)).All(x => x);
             }
 
             return successful;
+        }
 
-            async Task handleAndReportDeserializedPip(PipId pipId, Pip pip)
-            {
-                if (!await handleDeserializedPip(pipId, pip))
-                {
-                    successful = false;
-                }
-
-                Stats.Increment(pip, serialize: false);
-            }
+        private async Task<bool> HandleAndReportDeserializedPipAsync(Func<PipId, Pip, Task<bool>> handleDeserializedPip, PipId pipId, Pip pip)
+        {
+            var result = await handleDeserializedPip(pipId, pip);
+            Stats.Increment(pip, serialize: false);
+            return result;
         }
 
         /// <summary>

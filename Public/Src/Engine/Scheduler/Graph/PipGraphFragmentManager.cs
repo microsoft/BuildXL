@@ -40,24 +40,26 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
         private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
 
-        private readonly TaskFactory m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(Environment.ProcessorCount * 2, "PipGraphFragmentManager"));
+        private readonly TaskFactory m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(Environment.ProcessorCount, "Add Pip to Graph"));
 
         private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
 
         /// <summary>
         /// PipGraphFragmentManager
         /// </summary>
-        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IPipGraph pipGraph)
+        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IPipGraph pipGraph, int? maxParallelism)
         {
             m_loggingContext = loggingContext;
             m_context = context;
             m_pipGraph = pipGraph;
-        }
+            maxParallelism = maxParallelism ?? Environment.ProcessorCount;
+            m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(maxParallelism.Value, "PipGraphFragmentManager"));
+    }
 
-        /// <summary>
-        /// Adds a single pip graph fragment to the graph.
-        /// </summary>
-        public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
+    /// <summary>
+    /// Adds a single pip graph fragment to the graph.
+    /// </summary>
+    public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             m_taskMap[filePath] = (deserializer, m_taskFactory.StartNew(async () =>
@@ -70,8 +72,6 @@ namespace BuildXL.Scheduler.Graph
 
                 try
                 {
-                    var pipAddTasks = new List<Task<bool>>();
-
                     var result = await deserializer.DeserializeAsync(
                         filePath,
                         (fragmentContext, provenance, pipId, pip) =>
@@ -84,9 +84,6 @@ namespace BuildXL.Scheduler.Graph
                     {
                         Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
                     }
-
-                    var pipAddResults = await Task.WhenAll(pipAddTasks);
-                    result &= pipAddResults.All(b => b);
 
                     return result;
                 }

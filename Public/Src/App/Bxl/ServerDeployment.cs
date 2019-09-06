@@ -221,7 +221,7 @@ namespace BuildXL
                     || e is SystemException)
                 {
                     return new Failure<string>(I($"Failed to kill process with name '{processName}' (process id: {processToKill.Id}) and path '{assemblyFullPath}'"), new Failure<Exception>(e));
-                }
+                } 
             }
 
             return Unit.Void;
@@ -241,9 +241,9 @@ namespace BuildXL
                     AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
                     return clientApp.TimestampBasedHash.ToHex() != serverDeployment.TimestampBasedHash.ToHex();
                 }
-                catch (FileNotFoundException)
+                catch (BuildXLException)
                 {
-                    return false;
+                    return true;
                 }
             }
 

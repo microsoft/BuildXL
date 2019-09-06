@@ -69,8 +69,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                     var replacementMetadata = new MetadataEntry(replacement, _clock.UtcNow.ToFileTimeUtc());
                     var replacementBytes = SerializeMetadataEntry(replacementMetadata);
 
-                    byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isHash: false);
-                    byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isHash: true);
+                    byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
+                    byte[] tokenFieldNameBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
 
 
                     var result = await _redis.ExecuteBatchAsync(context, batch =>
@@ -97,10 +97,10 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             (byte[] metadataBytes, string replacementToken) = await _redis.ExecuteBatchAsync(context,
                 async batch =>
                 {
-                    byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isHash: false);
+                    byte[] selectorBytes = SerializeSelector(strongFingerprint.Selector, isReplacementToken: false);
                     var metadataBytesTask = batch.AddOperation(key, b => b.HashGetAsync(key, selectorBytes));
 
-                    byte[] replacementTokenFieldName = SerializeSelector(strongFingerprint.Selector, isHash: true);
+                    byte[] replacementTokenFieldName = SerializeSelector(strongFingerprint.Selector, isReplacementToken: true);
                     var replacementTokenTask = batch.AddOperation(key, b => b.HashGetAsync(key, replacementTokenFieldName));
 
                     return ((byte[])await metadataBytesTask, (string)await replacementTokenTask);
@@ -117,7 +117,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             // Update the time, only if no one else has changed it in the mean time. We don't
             // really care if this succeeds or not, because if it doesn't it only means someone
             // else changed the stored value before this operation but after it was read.
-            CompareExchange(context, strongFingerprint, replacementToken, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism, replacementToken).FireAndForget(context);
+            await CompareExchange(context, strongFingerprint, replacementToken, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism, replacementToken).ThrowIfFailure();
 
             return new Result<(ContentHashListWithDeterminism, string)>((metadata.ContentHashListWithDeterminism, replacementToken));
         }
@@ -133,9 +133,9 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             for (var i = 0; i < redisValues.Length; i++)
             {
                 byte[] selectorBytes = redisValues[i];
-                var (selector, isHash) = DeserializeSelector(selectorBytes);
+                var (selector, isReplacementToken) = DeserializeSelector(selectorBytes);
 
-                if (!isHash)
+                if (!isReplacementToken)
                 {
                     result.Add(selector);
                 }
@@ -153,26 +153,26 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             return default;
         }
 
-        private (Selector, bool isHash) DeserializeSelector(byte[] selectorBytes)
+        private (Selector, bool isReplacementToken) DeserializeSelector(byte[] selectorBytes)
         {
             using (var pooledReader = _readerPool.GetInstance())
             {
                 var reader = pooledReader.Instance;
                 return reader.Deserialize(new ArraySegment<byte>(selectorBytes), reader =>
                 {
-                    var isHash = reader.ReadBoolean();
+                    var isReplacementToken = reader.ReadBoolean();
                     var selector = Selector.Deserialize(reader);
-                    return (selector, isHash);
+                    return (selector, isReplacementToken);
                 });
             }
         }
 
-        private byte[] SerializeSelector(Selector selector, bool isHash)
+        private byte[] SerializeSelector(Selector selector, bool isReplacementToken)
         {
             using (var pooledWriter = _writerPool.GetInstance())
             {
                 var writer = pooledWriter.Instance.Writer;
-                writer.Write(isHash);
+                writer.Write(isReplacementToken);
                 selector.Serialize(writer);
                 return pooledWriter.Instance.Buffer.ToArray();
             }

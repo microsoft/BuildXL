@@ -374,7 +374,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             return RunTestAsync(context, async session =>
             {
                 var addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token);
+                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token).ShouldBeSuccess();
                 Assert.Equal(Determinism[fromDeterminism].EffectiveGuid, addResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
 
                 // What we will do here is AddOrGet() a record that we already know is

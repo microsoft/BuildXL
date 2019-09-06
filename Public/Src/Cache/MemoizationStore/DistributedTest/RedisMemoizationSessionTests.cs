@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using Xunit;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
@@ -26,6 +27,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         private readonly LocalRedisFixture _redis;
         private readonly ILogger _logger;
         private readonly TimeSpan _memoizationExpiryTime = TimeSpan.FromDays(1);
+
+        private readonly List<LocalRedisProcessDatabase> _databasesToDispose = new List<LocalRedisProcessDatabase>();
 
         public RedisMemoizationSessionTests(LocalRedisFixture redis)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
@@ -39,6 +42,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var context = new Context(_logger);
             var localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, _logger, _clock);
             var connectionString = localDatabase.ConnectionString;
+
+            _databasesToDispose.Add(localDatabase);
 
             var connectionStringProvider = new LiteralConnectionStringProvider(connectionString);
             var redisFactory = RedisDatabaseFactory.CreateAsync(context, connectionStringProvider).GetAwaiter().GetResult();
@@ -57,6 +62,19 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         {
             // Do nothing, since operation isn't supported in Redis.
             return Task.FromResult(0);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+
+            if (disposing)
+            {
+                foreach (var database in _databasesToDispose)
+                {
+                    database.Dispose();
+                }
+            }
         }
     }
 

@@ -66,7 +66,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             _disposed = true;
         }
 
-        private void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {

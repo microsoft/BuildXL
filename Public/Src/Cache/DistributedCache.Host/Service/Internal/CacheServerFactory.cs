@@ -62,11 +62,11 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
+        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
 
-            if (distributedSettings.EnableMetadataStore)
+            if (distributedSettings?.EnableMetadataStore == true)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {

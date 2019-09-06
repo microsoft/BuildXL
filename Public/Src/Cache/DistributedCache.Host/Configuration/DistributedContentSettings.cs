@@ -40,11 +40,6 @@ namespace BuildXL.Cache.Host.Configuration
         [JsonConstructor]
         private DistributedContentSettings()
         {
-            if (MemoizationExpiryTimeMinutes == 0)
-            {
-                // Sync memoization with content unless specified.
-                MemoizationExpiryTimeMinutes = ContentHashBumpTimeMinutes;
-            }
         }
 
         public static DistributedContentSettings CreateDisabled()
@@ -99,11 +94,16 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int ContentHashBumpTimeMinutes { get; set; } = 2880;
 
+        private int _redisMemoizationExpiryTimeMinutes;
+
         /// <summary>
         /// TTL to be set in Redis for memoization entries.
         /// </summary>
         [DataMember]
-        public int MemoizationExpiryTimeMinutes { get; set; }
+        public int RedisMemoizationExpiryTimeMinutes {
+            get => _redisMemoizationExpiryTimeMinutes == 0 ? ContentHashBumpTimeMinutes : _redisMemoizationExpiryTimeMinutes;
+            set => _redisMemoizationExpiryTimeMinutes = value;
+        }
 
         /// <summary>
         /// The map of environment to connection secrets

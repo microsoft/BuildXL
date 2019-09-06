@@ -69,7 +69,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 if (state == ChannelState.Idle)
                 {
-                    bool isReconnected = await TryReconnect();
+                    bool isReconnected = await TryReconnectAsync();
                     if (!isReconnected)
                     {
                         OnConnectionTimeOutAsync?.Invoke(this, EventArgs.Empty);
@@ -79,7 +79,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
         }
 
-        private async Task<bool> TryReconnect()
+        private async Task<bool> TryReconnectAsync()
         {
             int numRetries = 0;
             bool connectionSucceeded = false;
@@ -88,14 +88,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 numRetries++;
 
-                // Try connecting with timeout (default 5min) 
-                connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, nameof(MonitorConnectionAsync));
+                // Try connecting with timeout
+                connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, nameof(TryReconnectAsync));
                 if (connectionSucceeded)
                 {
                     return true;
                 }
-
-                if (!connectionSucceeded && IsNonRecoverableState(Channel.State))
+                else if (IsNonRecoverableState(Channel.State))
                 {
                     // If the end state is a non-recovarable state, there is no hope for the reconnection.
                     return false;

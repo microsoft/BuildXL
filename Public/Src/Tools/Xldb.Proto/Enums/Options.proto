@@ -7,9 +7,8 @@ package BuildXL.Xldb.Proto;
 
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
-// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
 enum Options{
-    Options_Uninitialized = 0;
+    Options_UNSPECIFIED = 0;
 
     None = 1;
     HasUntrackedChildProcesses = 2;
@@ -25,5 +24,7 @@ enum Options{
     DependsOnWindowsProgramData = 2048;
     RequiresAdmin = 4096;
     HasPreserveOutputWhitelist = 8192;
-    IncrementalTool = 16384;
+
+    // (1 << 14) | AllowPreserveOutputs
+    IncrementalTool = 16400;
 }

@@ -7,9 +7,8 @@ package BuildXL.Xldb.Proto;
 
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
-// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
 enum PipType{
-    PipType_Uninitialized = 0;
+    PipType_UNSPECIFIED = 0;
 
     PipType_WriteFile = 1;
     PipType_CopyFile = 2;
@@ -20,4 +19,7 @@ enum PipType{
     PipType_Module = 7;
     PipType_HashSourceFile = 8;
     PipType_SealDirectory = 9;
+
+    /// This is a non-value, but places an upper-bound on the range of the enum
+    PipType_Max = 10;
 }

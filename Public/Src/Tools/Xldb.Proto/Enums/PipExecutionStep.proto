@@ -7,9 +7,8 @@ package BuildXL.Xldb.Proto;
 
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
-// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
 enum PipExecutionStep{
-    PipExecutionStep_Uninitialized = 0;
+    PipExecutionStep_UNSPECIFIED = 0;
     
     PipExecutionStep_None = 1;
     Start = 2;

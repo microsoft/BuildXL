@@ -7,9 +7,8 @@ package BuildXL.Xldb.Proto;
 
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
-// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
 enum ExecutionSampler_LimitingResource{
-    ExecutionSampler_LimitingResource_Uninitialized = 0;
+    ExecutionSampler_LimitingResource_UNSPECIFIED = 0;
 
     GraphShape = 1;
     ExecutionSampler_LimitingResource_CPU = 2;

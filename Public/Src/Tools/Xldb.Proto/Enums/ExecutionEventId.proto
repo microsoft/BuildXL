@@ -6,9 +6,9 @@ package BuildXL.Xldb.Proto;
 
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
-// To avoid protobuf's design to not serialize enum values that are equal to 0, we add "0" as an unitialized(invalid or default) value for each enum.
 enum ExecutionEventId{
-    ExecutionEventId_Uninitialized = 0;
+    option allow_alias = true;
+    ExecutionEventId_UNSPECIFIED = 0;
 
     FileArtifactContentDecided = 1;
     WorkerList = 2;
@@ -16,7 +16,7 @@ enum ExecutionEventId{
     DirectoryMembershipHashed = 4;
 
     // Deprecated in favor of ProcessFingerprintComputation (enum 11)
-    // ObservedInputs = 5;
+    ObservedInputs = 5;
 
     ProcessExecutionMonitoringReported = 6;
     ExecutionEventId_ExtraEventDataReported = 7;
@@ -27,4 +27,7 @@ enum ExecutionEventId{
     PipCacheMiss = 12;
     PipExecutionDirectoryOutputs = 13;
     BxlInvocation = 14;
+
+    // Alias to BxlInvocation. Used for unit tests internally
+    DominoInvocation = 14;
 }

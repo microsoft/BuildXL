@@ -2,14 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 syntax = "proto3";
-
 package BuildXL.Xldb.Proto;
 
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
-enum FingerprintComputationKind{
-    FingerprintComputationKind_UNSPECIFIED = 0;
-
-    Execution = 1;
-    CacheCheck = 2;
+enum ProducerConsumerType{
+    ProducerConsumerType_UNSPECIFIED = 0;
+    
+    ProducerConsumerType_Producer = 1;
+    ProducerConsumerType_Consumer = 2;
 }

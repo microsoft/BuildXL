@@ -1,0 +1,14 @@
+{
+    "Version": 1,
+    "Registrations": [ 
+        {
+            "Component": {
+                "Type": "NuGet",
+                "NuGet": {
+                    "Name": "Newtonsoft.Json",
+                    "Version": "1.10.2"
+                }
+            }
+        }
+    ]
+}

@@ -193,7 +193,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                         if (topSort)
                         {
-                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config);
+                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config, mountsTable.MountPathExpander);
                         }
                         else
                         {

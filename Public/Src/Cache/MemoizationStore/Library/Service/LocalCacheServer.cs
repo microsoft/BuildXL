@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -41,13 +41,10 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Capabilities capabilities = Capabilities.All)
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
-            var storesByName = new Dictionary<string, IContentStore>();
-            foreach (var kvp in StoresByName)
-            {
-                storesByName.Add(kvp.Key, (IContentStore)kvp.Value);
-            }
-
-            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByName);
+            // This must agree with the base class' StoresByName to avoid "missing content store" errors from GRpc, and
+            // to make sure everything is initialized properly when we expect it to.
+            var storesByNameAsContentStore = StoresByName.ToDictionary(kvp => kvp.Key, kvp => (IContentStore)kvp.Value);
+            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByNameAsContentStore);
             _grpcCacheServer = new GrpcCacheServer(logger, this);
         }
 

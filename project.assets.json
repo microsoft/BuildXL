@@ -2,9 +2,22 @@
   "version": 3,
   "libraries": 
   {
-    "Microsoft.Azure.KeyVault/3.0.1": 
-    {
-      "type": "package"
+    "Microsoft.Azure.KeyVault/3.0.1": {
+      "sha512": "9//DmsIsjbKQG4USO8UnjQZOmbjyxNtESGh5xI/cm3Dq10rqf3Zik+G+GFaFyk0RALUvCRZVGoQIazCUw9SvEA==",
+      "type": "package",
+      "path": "microsoft.azure.keyvault/3.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net452/Microsoft.Azure.KeyVault.dll",
+        "lib/net452/Microsoft.Azure.KeyVault.runtimeconfig.json",
+        "lib/net452/Microsoft.Azure.KeyVault.xml",
+        "lib/netstandard1.4/Microsoft.Azure.KeyVault.dll",
+        "lib/netstandard1.4/Microsoft.Azure.KeyVault.runtimeconfig.json",
+        "lib/netstandard1.4/Microsoft.Azure.KeyVault.xml",
+        "microsoft.azure.keyvault.3.0.1.nupkg.sha512",
+        "microsoft.azure.keyvault.nuspec"
+      ]
     }
   }
 }

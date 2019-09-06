@@ -1105,24 +1105,32 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void GlobalPassthroughEnvironmentVariables()
         {
-            string testEnvironmentVariable = "ENV" + Guid.NewGuid().ToString().Replace("-", string.Empty);
-            string originalValue = "TestValue";
-            Environment.SetEnvironmentVariable(testEnvironmentVariable, originalValue);
-            Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables = new List<string>() { testEnvironmentVariable };
+            string passedEnvironmentVariable = "ENV" + Guid.NewGuid().ToString().Replace("-", string.Empty);
+            string passedOriginalValue = "TestValue";
+            string passedUpdatedValue = "SomeOtherValue";
+            string unpassedEnvironmentVariable = "ENV" + Guid.NewGuid().ToString().Replace("-", string.Empty);
+            string unpassedValue = "UnpassedValue";
+
+            Environment.SetEnvironmentVariable(passedEnvironmentVariable, passedOriginalValue);
+            Environment.SetEnvironmentVariable(unpassedEnvironmentVariable, unpassedValue);
+            Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables = new List<string>() { passedEnvironmentVariable };
             Configuration.Sandbox.OutputReportingMode = global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputAlways;
 
             var ops = new Operation[]
             {
-                Operation.ReadEnvVar(testEnvironmentVariable),
+                Operation.ReadEnvVar(passedEnvironmentVariable),
+                Operation.ReadEnvVar(unpassedEnvironmentVariable),
                 Operation.WriteFile(CreateOutputFileArtifact()),
             };
 
             var result = CreateAndSchedulePipBuilder(ops);
             RunScheduler().AssertSuccess();
-            XAssert.IsTrue(EventListener.GetLog().Contains(originalValue));
+            string log = EventListener.GetLog();
+            XAssert.IsTrue(log.Contains(passedOriginalValue));
+            XAssert.IsFalse(log.Contains(unpassedValue));
 
             // We should get a cache hit even if the value changes.
-            Environment.SetEnvironmentVariable(testEnvironmentVariable, "SomeOtherValue");
+            Environment.SetEnvironmentVariable(passedEnvironmentVariable, passedUpdatedValue);
             RunScheduler().AssertCacheHit(result.Process.PipId);
         }
 

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "libraries": 
+  {
+    "Microsoft.Azure.KeyVault/3.0.1": 
+    {
+      "type": "package"
+    }
+  }
+}

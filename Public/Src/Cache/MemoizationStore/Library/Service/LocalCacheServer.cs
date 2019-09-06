@@ -42,15 +42,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
             var storesByName = new Dictionary<string, IContentStore>();
-            foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
+            foreach (var kvp in StoresByName)
             {
-                AbsolutePath cacheRootPath = kvp.Value;
-                fileSystem.CreateDirectory(cacheRootPath);
-
-                var cache = cacheFactory(cacheRootPath);
-                Contract.Assert(cache is IContentStore, $"Attempted to setup a cache named '{kvp.Key}' that is not an {nameof(IContentStore)} at path {cacheRootPath}, type used is {cache.GetType().Name}");
-
-                storesByName.Add(kvp.Key, (IContentStore)cache);
+                storesByName.Add(kvp.Key, (IContentStore)kvp.Value);
             }
 
             _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByName);

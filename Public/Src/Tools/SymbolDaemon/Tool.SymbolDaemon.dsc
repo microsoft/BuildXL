@@ -49,6 +49,10 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
 });
 
 function getSymstoreX64Libs() : File[] {
+    if (!BuildXLSdk.isSymbolToolingEnabled) {
+        return undefined;
+    }
+    
     switch (qualifier.targetFramework)
     {       
         case "net472":

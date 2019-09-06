@@ -18,8 +18,8 @@ We store serialized ProtoBuf objects as the keys and values in RocksDB, and due 
 
 A key thing to keep in mind when changing any proto file is that the order of messages matters heavily to keep things forward and backwards compatible. Be careful when adding new fields and deprecating old ones! Furthermore default values (int = 0, bool = false, string = "", message=null, etc) are not serialized on the wire to save space, and the string representation of these Protobuf objects will not deserialize the default values either (though the instantiated class WILL have the values). 
 
-- Do not be alarmed if the value is missing, it means its either unassigned or it is the default value.
-- To force these values to be printed out in C#, you can `JToken.Parse(JsonConvert.SerializeObject(proto_obj, Formatting.Indented))`
+* Do not be alarmed if the value is missing, it means its either unassigned or it is the default value.
+* To force these values to be printed out in C#, you can `JToken.Parse(JsonConvert.SerializeObject(proto_obj, Formatting.Indented))`
 
 <br>
 <br>

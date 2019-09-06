@@ -42,6 +42,10 @@ namespace BuildXL.Pips.Operations
     /// FileId2RewriteCount       | <see cref="FileArtifact.RewriteCount"/>      | Second entry of a <see cref="PipFragmentType.FileId"/> fragment.
     ///                           |                                              | Its data holds the <see cref="FileArtifact.RewriteCount"/> property.
     /// --------------------------|----------------------------------------------|----------------------------------------------
+    /// DirectoryIdHeaderSealId   | <see cref="DirectoryArtifact.PartialSealId"/>| First entry of a <see cref="PipFragmentType.DirectoryId"/> fragment.
+    ///                           |                                              | Its data corresponds to the <see cref="DirectoryArtifact.PartialSealId"/> property and is
+    ///                           |                                              | followed by a <see cref="PipDataEntryType.AbsolutePath"/> entry representing <see cref="DirectoryArtifact.Path"/>
+    /// --------------------------|----------------------------------------------|----------------------------------------------
     /// NestedDataHeader          | <see cref="StringId.Value"/>                 | Represents the start of a nested pip data.
     ///                           |                                              | Data represents separator between fragments of
     ///                           |                                              | nested pip data. The next entry should be a
@@ -266,6 +270,21 @@ namespace BuildXL.Pips.Operations
             PipDataEntry entry1;
             PipDataEntry entry2;
             PipDataEntry.CreateFileIdEntry(file, out entry1, out entry2);
+            m_entries.Add(entry1);
+            m_entries.Add(entry2);
+        }
+
+        /// <summary>
+        /// Adds a file id of a file to the pip data.
+        /// </summary>
+        public void AddDirectoryId(DirectoryArtifact directory)
+        {
+            Contract.Requires(directory.IsValid);
+
+            m_currentPipDataCountInfo.FragmentCount++;
+            PipDataEntry entry1;
+            PipDataEntry entry2;
+            PipDataEntry.CreateDirectoryIdEntries(directory, out entry1, out entry2);
             m_entries.Add(entry1);
             m_entries.Add(entry2);
         }

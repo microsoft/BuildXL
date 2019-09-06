@@ -32,7 +32,7 @@ namespace BuildXL.Pips.Operations
             m_pipExecutionContext = pipExecutionContext;
             m_pipGraphFragmentContext = pipGraphFragmentContext;
             m_inliningReader = new InliningReader(stream, pipExecutionContext.PathTable, debug, leaveOpen);
-            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(m_inliningReader, stream, pipExecutionContext.PathTable, debug, leaveOpen);
+            m_pipDataEntriesPointerInlineReader = new PipDataEntriesPointerInlineReader(this, stream, pipExecutionContext.PathTable, debug, leaveOpen);
         }
 
         /// <inheritdoc />
@@ -62,9 +62,9 @@ namespace BuildXL.Pips.Operations
         private class PipDataEntriesPointerInlineReader : InliningReader
         {
             private byte[] m_pipDatabuffer = new byte[1024];
-            private readonly InliningReader m_baseInliningReader;
+            private readonly PipRemapReader m_baseInliningReader;
 
-            public PipDataEntriesPointerInlineReader(InliningReader baseInliningReader, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
+            public PipDataEntriesPointerInlineReader(PipRemapReader baseInliningReader, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
                 : base(stream, pathTable, debug, leaveOpen)
             {
                 m_baseInliningReader = baseInliningReader;
@@ -72,17 +72,9 @@ namespace BuildXL.Pips.Operations
 
             protected override BinaryStringSegment ReadBinaryStringSegment(ref byte[] buffer)
             {
-                int count = ReadInt32Compact();
+                var (count, entries) = PipDataEntryList.Deserialize(m_baseInliningReader);
 
-                return PipDataBuilder.WriteEntries(GetEntries(), count, ref m_pipDatabuffer);
-
-                IEnumerable<PipDataEntry> GetEntries()
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        yield return PipDataEntry.Deserialize(m_baseInliningReader);
-                    }
-                }
+                return PipDataBuilder.WriteEntries(entries, count, ref m_pipDatabuffer);
             }
         }
     }

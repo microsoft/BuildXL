@@ -13,12 +13,15 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Practices.TransientFaultHandling;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
 using RetryPolicy = Microsoft.Practices.TransientFaultHandling.RetryPolicy;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -39,10 +42,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private readonly IEventHubClient _eventHubClient;
         private readonly RetryPolicy _extraEventHubClientRetryPolicy;
 
-        private Processor _currentEventProcessor;
-        private readonly ActionBlock<ProcessEventsInput>[] _eventProcessingBlocks;
+        private Processor? _currentEventProcessor;
+        private readonly ActionBlock<ProcessEventsInput>[]? _eventProcessingBlocks;
 
-        private EventSequencePoint _lastProcessedSequencePoint;
+        private EventSequencePoint? _lastProcessedSequencePoint;
 
         private int _updatingPendingEventProcessingStates = 0;
 
@@ -66,6 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             : base(configuration, nameof(EventHubContentLocationEventStore), eventHandler, centralStorage, workingDirectory)
         {
             Contract.Requires(configuration.MaxEventProcessingConcurrency >= 1);
+
             _configuration = configuration;
             _localMachineName = localMachineName;
             _eventHubClient = CreateEventHubClient(configuration);
@@ -105,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 case MemoryContentLocationEventStoreConfiguration memoryConfig:
                     return new MemoryEventHubClient(memoryConfig);
                 default:
-                    throw new InvalidOperationException($"Unknown EventStore type '{configuration.GetType()}'.");
+                    throw new InvalidOperationException($"Unknown EventStore type '{configuration!.GetType()}'.");
             }
         }
 
@@ -232,29 +236,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             if (_eventProcessingBlocks != null)
             {
-                // Creating nested context to correlate all the processing operations.
-                context = context.CreateNested();
                 await context.PerformOperationAsync(
                     Tracer,
-                    () => sendToActionBlockAsync(),
+                    async () =>
+                    {
+                        // Augment the result with the information whether the operation was completed synchronously (i.e. the queues were never full)
+                        // or not.
+                        var task = sendToActionBlockAsync();
+                        bool completedSynchronously = task.Status == TaskStatus.RanToCompletion;
+
+                        var result = await task;
+                        result.CompletedSynchronously = completedSynchronously;
+                        return result;
+                    },
                     traceOperationStarted: false,
-                    extraEndMessage: _ => extraEndMessageForSendToActionBlock(),
+                    extraEndMessage: r => extraEndMessageForSendToActionBlock(r),
                     caller: "SendToActionBlockAsync").TraceIfFailure(context);
             }
             else
             {
-                await ProcessEventsCoreAsync(new ProcessEventsInput(state, messages), EventDataSerializer);
+                await ProcessEventsCoreAsync(new ProcessEventsInput(state, messages, actionBlockIndex: 0, eventProcessingBlock: null), EventDataSerializer);
             }
 
-            async Task<BoolResult> sendToActionBlockAsync()
+            async Task<SendToActionBlockResult> sendToActionBlockAsync()
             {
+                var tracingInfo = new Dictionary<int, (int maxQueueSize, int numberOfItemsQueued)>();
                 // This local function "sends" a message into an action block based on the sender's hash code to process events in parallel from different machines.
                 // (keep in mind, that the data from the same machine should be processed sequentially, because events order matters).
                 // Then, it creates a local counter for each processing operation to track the results for the entire batch.
                 foreach (var messageGroup in messages.GroupBy(GetProcessingIndex))
                 {
-                    var eventProcessingBlock = _eventProcessingBlocks[messageGroup.Key];
-                    var input = new ProcessEventsInput(state, messageGroup);
+                    int actionBlockIndex = messageGroup.Key;
+                    var eventProcessingBlock = _eventProcessingBlocks![actionBlockIndex];
+                    var input = new ProcessEventsInput(state, messageGroup, actionBlockIndex, eventProcessingBlock);
+
+                    // Tracking the number of items added to an action block with 'actionBlockIndex'
+                    // and the max number of items in this action block.
+                    var info = tracingInfo.GetOrAdd(actionBlockIndex, _ => (maxQueueSize: 0, numberOfItemsQueued: 0));
+                    tracingInfo[actionBlockIndex] = (maxQueueSize: Math.Max(info.maxQueueSize, eventProcessingBlock.InputCount), numberOfItemsQueued: info.numberOfItemsQueued + 1);
+
                     bool success = await eventProcessingBlock.SendAsync(input);
                     
                     if (!success)
@@ -262,34 +282,42 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         // NOTE: This case should not actually occur.
                         // Complete the operation in case we couldn't send to the action block to prevent pending event queue from getting backlogged.
                         input.Complete();
-                        return new BoolResult("Failed to add message to an action block.");
+                        return new SendToActionBlockResult("Failed to add message to an action block.");
                     }
                 }
 
-                return BoolResult.Success;
+                return new SendToActionBlockResult(tracingInfo);
             }
 
-            string extraEndMessageForSendToActionBlock()
+            string extraEndMessageForSendToActionBlock(SendToActionBlockResult result)
             {
-                int messageCount = 0;
-                int fullQueueCount = 0;
-                int emptyQueueCount = 0;
-                foreach (var ab in _eventProcessingBlocks)
+                if (!result.Succeeded)
                 {
-                    var count = ab.InputCount;
-                    messageCount += count;
-                    if (count == _configuration.EventProcessingMaxQueueSize)
-                    {
-                        fullQueueCount++;
-                    }
-                    else if (count == 0)
-                    {
-                        emptyQueueCount++;
-                    }
+                    return string.Empty;
                 }
 
-                return $"OverallQueueSize={messageCount}, FullQueues={fullQueueCount}, EmptyQueues={emptyQueueCount}";
+                var data = string.Join(
+                    ", ",
+                    result.Info.Select(
+                        kvp => $"[{kvp.Key.ToString()}, {kvp.Value.numberOfItemsQueued.ToString()}, {kvp.Value.maxQueueSize.ToString()}]"));
+                return $"CompletedSynchronously={result.CompletedSynchronously}, [QueueIdx, #ItemsAdded, MaxQueueSize] {data}.";
             }
+        }
+
+        private class SendToActionBlockResult : BoolResult
+        {
+            public Dictionary<int /*actionBlockIndex*/, (int maxQueueSize, int numberOfItemsQueued)>? Info { get; }
+
+            public bool CompletedSynchronously { get; set; }
+
+            public SendToActionBlockResult(Dictionary<int, (int maxActionBlockSize, int numberOfItemsQueued)> info)
+            {
+                Info = info;
+            }
+
+            public SendToActionBlockResult(string error)
+                : base(error)
+            { }
         }
 
         private int GetProcessingIndex(EventData message)
@@ -300,12 +328,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 Counters[MessagesWithoutSenderMachine].Increment();
             }
 
-            sender = sender ?? string.Empty;
+            sender ??= string.Empty;
 
-            return Math.Abs(sender.GetHashCode()) % _eventProcessingBlocks.Length;
+            return Math.Abs(sender.GetHashCode()) % _eventProcessingBlocks!.Length;
         }
 
-        private string TryGetMessageSender(EventData message)
+        private string? TryGetMessageSender(EventData message)
         {
             message.Properties.TryGetValue(SenderMachineKey, out var sender);
             return sender?.ToString();
@@ -373,7 +401,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                         return BoolResult.Success;
                     },
-                    counters[ProcessEvents]).IgnoreFailure(); // The error is logged
+                    counters[ProcessEvents],
+                    extraStartMessage: $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}",
+                    extraEndMessage: _ => $"QueueIdx={input.ActionBlockIndex}, QueueSize={input.EventProcessingBlock?.InputCount}, LocalDelay={DateTime.UtcNow - input.LocalEnqueueTime}"
+                    ).IgnoreFailure(); // The error is logged
             }
             finally
             {
@@ -382,7 +413,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private static OperationContext CreateNestedContext(OperationContext context, string operationId)
+        private static OperationContext CreateNestedContext(OperationContext context, string? operationId)
         {
             if (!Guid.TryParse(operationId, out var guid))
             {
@@ -393,7 +424,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <inheritdoc />
-        public override EventSequencePoint GetLastProcessedSequencePoint()
+        public override EventSequencePoint? GetLastProcessedSequencePoint()
         {
             UpdatingPendingEventProcessingStates();
             return _lastProcessedSequencePoint;
@@ -488,13 +519,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private class SharedEventProcessingState
         {
             private int _remainingMessageCount;
+            private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+
             public long SequenceNumber { get; }
             public OperationContext Context { get; }
             public EventHubContentLocationEventStore Store { get; }
             public CounterCollection<ContentLocationEventStoreCounters> EventStoreCounters { get; } = new CounterCollection<ContentLocationEventStoreCounters>();
-
-
-            private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
             public bool IsComplete => _remainingMessageCount == 0;
 
@@ -525,17 +555,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         private class ProcessEventsInput
         {
+            public DateTime LocalEnqueueTime { get; } = DateTime.UtcNow;
+
             public SharedEventProcessingState State { get; }
 
             public IEnumerable<EventData> Messages { get; }
 
+            public int ActionBlockIndex { get; }
+
+            public ActionBlock<ProcessEventsInput>? EventProcessingBlock { get; }
+
             /// <nodoc />
             public ProcessEventsInput(
                 SharedEventProcessingState state,
-                IEnumerable<EventData> messages)
+                IEnumerable<EventData> messages,
+                int actionBlockIndex,
+                ActionBlock<ProcessEventsInput>? eventProcessingBlock)
             {
                 State = state;
                 Messages = messages;
+                ActionBlockIndex = actionBlockIndex;
+                EventProcessingBlock = eventProcessingBlock;
             }
 
             public void Complete()

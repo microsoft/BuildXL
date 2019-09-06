@@ -255,12 +255,6 @@ namespace Xldb.Analyzer
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
-                writer.WriteLine("Process Fingerprint Computation Information:\n");
-                foreach (var i in dataStore.GetProcessFingerprintComputationEventByKey(pipId))
-                {
-                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
-                }
-
                 writer.WriteLine("Directory Membership Hashted Information:\n");
                 foreach (var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
                 {

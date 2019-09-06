@@ -159,22 +159,23 @@ namespace BuildXL.Xldb
         }
 
         /// <summary>
-        /// Gets process fingerprint computation events by key
+        /// Gets process fingerprint computation events by key. Commented out due to information being present
+        /// in Legacy Cache Miss Analyzer and not needed currently in DB
         /// </summary>
-        public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint workerID = 0)
-        {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+        //public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint workerID = 0)
+        //{
+        //    Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
 
-            var eventKey = new EventKey
-            {
-                EventTypeID = ExecutionEventId.ProcessFingerprintComputation,
-                WorkerID = workerID,
-                PipId = pipID,
-                ProcessFingerprintComputationKey = computationKind
-            };
+        //    var eventKey = new EventKey
+        //    {
+        //        EventTypeID = ExecutionEventId.ProcessFingerprintComputation,
+        //        WorkerID = workerID,
+        //        PipId = pipID,
+        //        ProcessFingerprintComputationKey = computationKind
+        //    };
 
-            return GetEventsByKey(eventKey).Cast<ProcessFingerprintComputationEvent>();
-        }
+        //    return GetEventsByKey(eventKey).Cast<ProcessFingerprintComputationEvent>();
+        //}
 
         /// <summary>
         /// Gets directory membership hashed event by key
@@ -318,9 +319,10 @@ namespace BuildXL.Xldb
         public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEvents() => GetEventsByType(ExecutionEventId.ProcessExecutionMonitoringReported).Cast<ProcessExecutionMonitoringReportedEvent>();
 
         /// <summary>
-        /// Gets all the Process Execution Monitoring Reported Events
+        /// Gets all the Process Execution Monitoring Reported Events -> Commented out for now since we do not include this information in the 
+        /// DB as it can be gotten from the Legacy Cache Miss Analyzer Instead
         /// </summary>
-        public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEvents() => GetEventsByType(ExecutionEventId.ProcessFingerprintComputation).Cast<ProcessFingerprintComputationEvent>();
+        //public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEvents() => GetEventsByType(ExecutionEventId.ProcessFingerprintComputation).Cast<ProcessFingerprintComputationEvent>();
 
         /// <summary>
         /// Gets all the Extra Event Data Reported Events

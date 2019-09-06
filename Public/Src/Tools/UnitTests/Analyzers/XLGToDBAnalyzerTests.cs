@@ -126,7 +126,6 @@ namespace Test.Tool.Analyzers
             XAssert.AreNotEqual(0, dataStore.GetPipExecutionPerformanceEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetDirectoryMembershipHashedEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetProcessExecutionMonitoringReportedEvents().Count());
-            XAssert.AreNotEqual(0, dataStore.GetProcessFingerprintComputationEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetExtraEventDataReportedEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetPipExecutionStepPerformanceReportedEvents().Count());
             XAssert.AreNotEqual(0, dataStore.GetPipCacheMissEvents().Count());

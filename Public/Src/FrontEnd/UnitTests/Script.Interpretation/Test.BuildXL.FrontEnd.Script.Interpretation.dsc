@@ -25,8 +25,10 @@ namespace Script.Interpretation {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
         ],
         //increase weight for frequent timeout pip
-        runTestArgs: { 
-            weight: 8,
+				runTestArgs: {
+        	// Need to untrack the test output directory, because redis server tries to write some pdbs.
+          untrackTestDirectory: true,
+          parallelBucketCount: 8,
         },
     });
 }

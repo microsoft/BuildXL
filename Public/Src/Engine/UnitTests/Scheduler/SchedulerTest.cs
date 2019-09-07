@@ -20,17 +20,17 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Filter;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Xldb.Proto;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
@@ -38,45 +38,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
-
-using AbsolutePath = BuildXL.Utilities.AbsolutePath;
-using CopyFile = BuildXL.Pips.Operations.CopyFile;
-using CreationDisposition = BuildXL.Processes.CreationDisposition;
-using DesiredAccess = BuildXL.Processes.DesiredAccess;
-using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;
-using DoubleWritePolicy = BuildXL.Utilities.Configuration.DoubleWritePolicy;
-using EnvironmentVariable = BuildXL.Pips.Operations.EnvironmentVariable;
-using ExecutionEventId = BuildXL.Scheduler.Tracing.ExecutionEventId;
-using FileAccessStatus = BuildXL.Processes.FileAccessStatus;
-using FileAccessStatusMethod = BuildXL.Processes.FileAccessStatusMethod;
-using FileArtifact = BuildXL.Utilities.FileArtifact;
-using FileArtifactWithAttributes = BuildXL.Utilities.FileArtifactWithAttributes;
-using FileExistence = BuildXL.Utilities.FileExistence;
-using FingerprintComputationKind = BuildXL.Scheduler.Tracing.FingerprintComputationKind;
-using FlagsAndAttributes = BuildXL.Processes.FlagsAndAttributes;
-using IpcClientInfo = BuildXL.Pips.Operations.IpcClientInfo;
-using IpcPip = BuildXL.Pips.Operations.IpcPip;
-using NodeId = BuildXL.Scheduler.Graph.NodeId;
-using ObservedInputType = BuildXL.Scheduler.Fingerprints.ObservedInputType;
-using Pip = BuildXL.Pips.Operations.Pip;
-using PipCacheMissType = BuildXL.Scheduler.PipCacheMissType;
-using PipExecutionStep = BuildXL.Scheduler.PipExecutionStep;
-using PipGraph = BuildXL.Scheduler.Graph.PipGraph;
-using PipOutputOrigin = BuildXL.Scheduler.PipOutputOrigin;
-using PipProvenance = BuildXL.Pips.Operations.PipProvenance;
-using PipType = BuildXL.Pips.Operations.PipType;
-using PreserveOutputsMode = BuildXL.Utilities.Configuration.PreserveOutputsMode;
-using ProcessBuilder = BuildXL.Pips.Builders.ProcessBuilder;
-using ReportedFileOperation = BuildXL.Processes.ReportedFileOperation;
-using RequestedAccess = BuildXL.Processes.RequestedAccess;
-using SandboxKind = BuildXL.Utilities.Configuration.SandboxKind;
-using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
-using SealDirectoryKind = BuildXL.Pips.Operations.SealDirectoryKind;
-using ServiceInfo = BuildXL.Pips.Operations.ServiceInfo;
-using ServicePipKind = BuildXL.Pips.Operations.ServicePipKind;
-using ShareMode = BuildXL.Processes.ShareMode;
-using WriteFile = BuildXL.Pips.Operations.WriteFile;
-using WriteFileEncoding = BuildXL.Pips.Operations.WriteFileEncoding;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -447,7 +408,7 @@ namespace Test.BuildXL.Scheduler
             var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(env.PathTable, CmdHelper.OsShellExe));
             var outputArtifact = env.ObjectRoot.Combine(env.PathTable, outputFileName);
 
-            var builder = ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance());
+            var builder = global::BuildXL.Pips.Builders.ProcessBuilder.Create(env.PathTable, env.PipDataBuilderPool.GetInstance());
             builder.Executable = exe;
             builder.AddInputFile(exe);
             foreach (var scope in CmdHelper.GetCmdDependencyScopes(env.PathTable))
@@ -2619,14 +2580,12 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Tests that the enums found in BXL code match those in ProtoBuf code in name and value (+1 or <<1 in some cases), so
         /// that if someone introduces new enums in either code, this test will fail and notify the developer to check the enums.
+        /// Remark: The Enums are in alphabetical order here, ordered by the Protobuf enum names
         /// </summary>
         [Fact]
         public void TestBXLEnumsMatchProfobufEnums()
         {
-            foreach (var enumVal in Enum.GetValues(typeof(CreationDisposition)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.CreationDisposition), Convert.ToInt32(enumVal)).ToLowerInvariant().Replace("_", ""));
-            }
+            VerifyNonShiftedEnumsAreEqual(typeof(CreationDisposition), typeof(global::BuildXL.Xldb.Proto.CreationDisposition));
 
             foreach (var enumVal in Enum.GetValues(typeof(DesiredAccess)))
             {
@@ -2640,50 +2599,15 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            foreach (var enumVal in Enum.GetValues(typeof(DoubleWritePolicy)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.DoubleWritePolicy), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(ExecutionEventId)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ExecutionEventId), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(ExecutionSampler.LimitingResource)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ExecutionSampler_LimitingResource), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(FileAccessStatus)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FileAccessStatus), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(FileAccessStatusMethod)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FileAccessStatusMethod), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(FileExistence)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FileExistence), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(FileMonitoringViolationAnalyzer.AccessLevel)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FileMonitoringViolationAnalyzer_AccessLevel), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(FileMonitoringViolationAnalyzer.DependencyViolationType)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FileMonitoringViolationAnalyzer_DependencyViolationType), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(FingerprintComputationKind)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.FingerprintComputationKind), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
+            VerifyIncrementedOnceEnumsAreEqual(typeof(DoubleWritePolicy), typeof(global::BuildXL.Xldb.Proto.DoubleWritePolicy));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(ExecutionEventId), typeof(global::BuildXL.Xldb.Proto.ExecutionEventId));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(ExecutionSampler.LimitingResource), typeof(global::BuildXL.Xldb.Proto.ExecutionSampler_LimitingResource));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(FileAccessStatus), typeof(global::BuildXL.Xldb.Proto.FileAccessStatus));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(FileAccessStatusMethod), typeof(global::BuildXL.Xldb.Proto.FileAccessStatusMethod));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(FileExistence), typeof(global::BuildXL.Xldb.Proto.FileExistence));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(FileMonitoringViolationAnalyzer.AccessLevel), typeof(global::BuildXL.Xldb.Proto.FileMonitoringViolationAnalyzer_AccessLevel));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(FileMonitoringViolationAnalyzer.DependencyViolationType), typeof(global::BuildXL.Xldb.Proto.FileMonitoringViolationAnalyzer_DependencyViolationType));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(FingerprintComputationKind), typeof(global::BuildXL.Xldb.Proto.FingerprintComputationKind));
 
             foreach (var enumVal in Enum.GetValues(typeof(FlagsAndAttributes)))
             {
@@ -2697,10 +2621,7 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            foreach (var enumVal in Enum.GetValues(typeof(ObservedInputType)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ObservedInputType), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
+            VerifyIncrementedOnceEnumsAreEqual(typeof(ObservedInputType), typeof(global::BuildXL.Xldb.Proto.ObservedInputType));
 
             foreach (var enumVal in Enum.GetValues(typeof(Process.Options)))
             {
@@ -2714,35 +2635,12 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            foreach (var enumVal in Enum.GetValues(typeof(PipCacheMissType)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.PipCacheMissType), Convert.ToInt32(enumVal)).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(PipExecutionStep)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.PipExecutionStep), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(PipOutputOrigin)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.PipOutputOrigin), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(PipType)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.PipType), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(PreserveOutputsMode)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.PreserveOutputsMode), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(ReportedFileOperation)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ReportedFileOperation), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
+            VerifyNonShiftedEnumsAreEqual(typeof(PipCacheMissType), typeof(global::BuildXL.Xldb.Proto.PipCacheMissType));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(PipExecutionStep), typeof(global::BuildXL.Xldb.Proto.PipExecutionStep));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(PipOutputOrigin), typeof(global::BuildXL.Xldb.Proto.PipOutputOrigin));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(PipType), typeof(global::BuildXL.Xldb.Proto.PipType));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(PreserveOutputsMode), typeof(global::BuildXL.Xldb.Proto.PreserveOutputsMode));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(ReportedFileOperation), typeof(global::BuildXL.Xldb.Proto.ReportedFileOperation));
 
             foreach (var enumVal in Enum.GetValues(typeof(RequestedAccess)))
             {
@@ -2756,20 +2654,9 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            foreach (var enumVal in Enum.GetValues(typeof(SandboxKind)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SandboxKind), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(SealDirectoryKind)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SealDirectoryKind), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
-
-            foreach (var enumVal in Enum.GetValues(typeof(ServicePipKind)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.ServicePipKind), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
+            VerifyIncrementedOnceEnumsAreEqual(typeof(SandboxKind), typeof(global::BuildXL.Xldb.Proto.SandboxKind));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(SealDirectoryKind), typeof(global::BuildXL.Xldb.Proto.SealDirectoryKind));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(ServicePipKind), typeof(global::BuildXL.Xldb.Proto.ServicePipKind));
 
             foreach (var enumVal in Enum.GetValues(typeof(ShareMode)))
             {
@@ -2783,17 +2670,31 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
-            foreach (var enumVal in Enum.GetValues(typeof(DispatcherKind)))
-            {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.WorkDispatcher_DispatcherKind), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
-            }
+            VerifyIncrementedOnceEnumsAreEqual(typeof(DispatcherKind), typeof(global::BuildXL.Xldb.Proto.WorkDispatcher_DispatcherKind));
+            VerifyIncrementedOnceEnumsAreEqual(typeof(WriteFileEncoding), typeof(global::BuildXL.Xldb.Proto.WriteFileEncoding));
+        }
 
-            foreach (var enumVal in Enum.GetValues(typeof(WriteFileEncoding)))
+        /// <summary>
+        /// Helper method to check that a BXL enum matches its corresponding ProtoBuf Enum, and the two enums are not shifted
+        /// </summary>
+        private void VerifyNonShiftedEnumsAreEqual(Type bxlEnum, Type protobufEnum)
+        {
+            foreach (var enumVal in Enum.GetValues(bxlEnum))
             {
-                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.WriteFileEncoding), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(protobufEnum, Convert.ToInt32(enumVal)).ToLowerInvariant().Replace("_", ""));
             }
         }
 
+        /// <summary>
+        /// Helper method to check that a BXL enum matches its corresponding ProtoBuf Enum, and the ProtoBuf enums are BXLEnum + 1
+        /// </summary>
+        private void VerifyIncrementedOnceEnumsAreEqual(Type bxlEnum, Type protobufEnum)
+        {
+            foreach (var enumVal in Enum.GetValues(bxlEnum))
+            {
+                XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(protobufEnum, Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+            }
+        }
         #endregion
 
         private async Task<ConcurrentDictionary<PipId, PipResultStatus>> DeserializeScheduleAndRun(Stream stream, EngineCache cache, RootFilter filter, bool disableLazyOutputMaterialization = false)

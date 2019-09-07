@@ -1008,6 +1008,10 @@ namespace BuildXL
 
             #endregion
 
+            #region Component Governance Manifest Generation
+            // TODO(rijul) add help text here for /generateCgManifestForNugets and /validateCgManifestForNugets
+            #endregion
+
             hw.WriteBanner(Strings.HelpText_DisplayHelp_MsBuildBanner);
 
             #region MSBuild

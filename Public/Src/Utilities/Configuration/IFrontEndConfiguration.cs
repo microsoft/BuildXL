@@ -307,5 +307,15 @@ namespace BuildXL.Utilities.Configuration
         /// Whether or not the frontend is allowed to evaluate methods in the unsafe ambient.
         /// </summary>
         bool AllowUnsafeAmbient { get; }
+
+        /// <summary>
+        /// TODO(rijul)
+        /// </summary>
+        AbsolutePath GenerateCgManifestForNugets { get; }
+
+        /// <summary>
+        /// TODO(rijul)
+        /// </summary>
+        AbsolutePath ValidateCgManifestForNugets { get; }
     }
 }

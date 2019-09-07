@@ -141,6 +141,7 @@ $NormalizationDriveLetter = "B";
 $NormalizationLockRelativePath = "Out\.NormalizationLock"
 
 # These are the options added unless -Vanilla is specified.
+# TODO(rijul) add /generateCgManifestForNugest:B:\cg\nuget\cgmanifest.json once this change makes it to LKG
 $NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+ /cachemiss");
 # Add the new-cache options including a unique build session name
 $NonVanillaOptions += @(

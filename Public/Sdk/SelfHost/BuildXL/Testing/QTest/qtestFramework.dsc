@@ -130,7 +130,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestAttemptCount: 1,
         qTestIgnoreQTestSkip: true,
         qTestAdditionalOptions: additionalOptions,
-        qTestTimeoutSec: 1080,
+        qTestTimeoutSec: 540,
         useVsTest150:true,
         vstestSettingsFile: f`test.runsettings`,
         qTestTool: Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? undefined : qTestTool,

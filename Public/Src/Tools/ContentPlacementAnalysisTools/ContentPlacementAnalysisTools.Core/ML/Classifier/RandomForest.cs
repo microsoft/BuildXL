@@ -23,7 +23,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         private static readonly string[] s_classLabels = MLArtifact.SharingClassLabels;
         private static readonly Dictionary<string, object> s_classLocks = new Dictionary<string, object>();
 
-        internal static readonly int s_defaultPrecision = 10;
+        internal static readonly int DefaultPrecision = 10;
         /// <summary>
         /// The trees that comprise the forest
         /// </summary>
@@ -104,7 +104,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                     hasHeaders = false;
                     continue;
                 }
-                instances.Add(MLArtifact.FromCsvString(line, s_defaultPrecision));
+                instances.Add(MLArtifact.FromCsvString(line, DefaultPrecision));
             }
             // now start evaluating them
             s_logger.Info($"Evaluation starting...");
@@ -205,7 +205,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                         continue;
                     }
                     // now, we can start reading the tree
-                    output.Trees.Add(RandomTree.FromStream(reader, firstLine, s_defaultPrecision, id));
+                    output.Trees.Add(RandomTree.FromStream(reader, firstLine, DefaultPrecision, id));
                 }
             }
             reader.Close();
@@ -518,24 +518,24 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             double avgTagCountInputPips, double avgTagCountOutputPips, double avgSemaphoreCountInputPips, double avgSemaphoreCountOutputPips) : this()
         {
             Attributes["SizeBytes"] = sizeInBytes;
-            Attributes["AvgInputPips"] = Math.Round(inputPipCount, RandomForest.s_defaultPrecision);
-            Attributes["AvgOutputPips"] = Math.Round(outputPipCount, RandomForest.s_defaultPrecision);
-            Attributes["AvgPositionForInputPips"] = Math.Round(avgPositionInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgPositionForOutputPips"] = Math.Round(avgPositionOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgDepsForInputPips"] = Math.Round(avgDepsInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgDepsForOutputPips"] = Math.Round(avgDepsOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgInputsForInputPips"] = Math.Round(avgInputsInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgInputsForOutputPips"] = Math.Round(avgInputsOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgOutputsForInputPips"] = Math.Round(avgOutputsInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgOutputsForOutputPips"] = Math.Round(avgOutputsOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgPriorityForInputPips"] = Math.Round(avgPriorityInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgPriorityForOutputPips"] = Math.Round(avgPriorityOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgWeightForInputPips"] = Math.Round(avgWeightInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgWeightForOutputPips"] = Math.Round(avgWeightOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgTagCountForInputPips"] = Math.Round(avgTagCountInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgTagCountForOutputPips"] = Math.Round(avgTagCountOutputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgSemaphoreCountForInputPips"] = Math.Round(avgSemaphoreCountInputPips, RandomForest.s_defaultPrecision);
-            Attributes["AvgSemaphoreCountForOutputPips"] = Math.Round(avgSemaphoreCountOutputPips, RandomForest.s_defaultPrecision);
+            Attributes["AvgInputPips"] = Math.Round(inputPipCount, RandomForest.DefaultPrecision);
+            Attributes["AvgOutputPips"] = Math.Round(outputPipCount, RandomForest.DefaultPrecision);
+            Attributes["AvgPositionForInputPips"] = Math.Round(avgPositionInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgPositionForOutputPips"] = Math.Round(avgPositionOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgDepsForInputPips"] = Math.Round(avgDepsInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgDepsForOutputPips"] = Math.Round(avgDepsOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgInputsForInputPips"] = Math.Round(avgInputsInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgInputsForOutputPips"] = Math.Round(avgInputsOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgOutputsForInputPips"] = Math.Round(avgOutputsInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgOutputsForOutputPips"] = Math.Round(avgOutputsOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgPriorityForInputPips"] = Math.Round(avgPriorityInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgPriorityForOutputPips"] = Math.Round(avgPriorityOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgWeightForInputPips"] = Math.Round(avgWeightInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgWeightForOutputPips"] = Math.Round(avgWeightOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgTagCountForInputPips"] = Math.Round(avgTagCountInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgTagCountForOutputPips"] = Math.Round(avgTagCountOutputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgSemaphoreCountForInputPips"] = Math.Round(avgSemaphoreCountInputPips, RandomForest.DefaultPrecision);
+            Attributes["AvgSemaphoreCountForOutputPips"] = Math.Round(avgSemaphoreCountOutputPips, RandomForest.DefaultPrecision);
     }
         /// /// <summary>
         ///  Constructor

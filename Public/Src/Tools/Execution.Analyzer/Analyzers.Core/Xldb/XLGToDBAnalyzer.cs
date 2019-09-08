@@ -32,6 +32,7 @@ namespace BuildXL.Execution.Analyzer
         {
             string outputDirPath = null;
             bool removeDirPath = false;
+            bool includeProcessFingerprintComputationEvent = false;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
@@ -43,6 +44,11 @@ namespace BuildXL.Execution.Analyzer
                    opt.Name.Equals("r", StringComparison.OrdinalIgnoreCase))
                 {
                     removeDirPath = true;
+                }
+                else if (opt.Name.Equals("includeProcessFingerprintComputationEvent", StringComparison.OrdinalIgnoreCase) ||
+                   opt.Name.Equals("ipfce", StringComparison.OrdinalIgnoreCase))
+                {
+                    includeProcessFingerprintComputationEvent = true;
                 }
                 else
                 {
@@ -68,9 +74,15 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
+            if (includeProcessFingerprintComputationEvent)
+            {
+                Console.WriteLine("Including ProcessFingerprintComputatingEvent data in the DB");
+            }
+
             return new XLGToDBAnalyzer(GetAnalysisInput())
             {
                 OutputDirPath = outputDirPath,
+                IncludeProcessFingerprintComputationEvent = includeProcessFingerprintComputationEvent
             };
         }
 
@@ -83,6 +95,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteModeOption(nameof(AnalysisMode.XlgToDb), "Dumps event data from the xlg into a database.");
             writer.WriteOption("outputDir", "Required. The new directory to write out the RocksDB database", shortName: "o");
             writer.WriteOption("removeDir", "Optional. Boolean if you wish to delete the 'output' directory if it already exists. Defaults to false if left unset", shortName: "r");
+            writer.WriteOption("includeProcessFingerprintComputationEvent", "Optional. Boolean if you wish to include ProcessFingerprintComputationEvent data in the DB. Defaults to false if left unset", shortName: "ipfce");
         }
     }
 
@@ -91,18 +104,25 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     internal sealed class XLGToDBAnalyzer : Analyzer
     {
+        private const double s_concurrencyMultiplier = 0.75;
+
         private XLGToDBAnalyzerInner m_inner;
         private ActionBlockSlim<Action> m_actionBlock;
+
         public string OutputDirPath
         {
             set => m_inner.OutputDirPath = value;
+        }
+        public bool IncludeProcessFingerprintComputationEvent
+        {
+            set => m_inner.IncludeProcessFingerprintComputationEvent = value;
         }
 
         public XLGToDBAnalyzer(AnalysisInput input)
             : base(input)
         {
             m_inner = new XLGToDBAnalyzerInner(input);
-            m_actionBlock = new ActionBlockSlim<Action>((int)(Environment.ProcessorCount * 0.75), action => action());
+            m_actionBlock = new ActionBlockSlim<Action>((int)(Environment.ProcessorCount * s_concurrencyMultiplier), action => action());
         }
 
         /// <inheritdoc/>
@@ -125,7 +145,6 @@ namespace BuildXL.Execution.Analyzer
         public override void Prepare()
         {
             m_inner.Prepare();
-            //m_inner.Analyze();
         }
 
         /// <inheritdoc/>
@@ -151,11 +170,24 @@ namespace BuildXL.Execution.Analyzer
     {
         private const int s_eventOutputBatchLogSize = 100000;
         private const int s_pipOutputBatchLogSize = 10000;
+        private const double s_innerConcurrencyMultiplier = 1.25;
+
+        /// <summary>
+        /// A larger size for the name expander for paths than the defauly size of 7013. This value was selected by 
+        /// testing various larger prime numbers from HashCodeHelper.cs until one was found that resulted in good speedup without
+        /// using an excessive amount of RAM.
+        /// </summary>
+        private const int s_nameExpanderSize = 108361;
 
         /// <summary>
         /// Output directory path
         /// </summary>
         public string OutputDirPath;
+
+        /// <summary>
+        /// Include the ProcessFingerprintComputationEvent data in the DB
+        /// </summary>
+        public bool IncludeProcessFingerprintComputationEvent;
 
         /// <summary>
         /// Store WorkerID.Value to pass into protobuf object to identify this event
@@ -174,7 +206,7 @@ namespace BuildXL.Execution.Analyzer
         private ConcurrentBigMap<Utilities.FileArtifact, uint> m_dynamicFileProducerMap = new ConcurrentBigMap<Utilities.FileArtifact, uint>();
         private ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>> m_directoryConsumerMap = new ConcurrentBigMap<Utilities.DirectoryArtifact, HashSet<uint>>();
 
-        private NameExpander m_nameExpander = new NameExpander(108631);
+        private NameExpander m_nameExpander = new NameExpander(s_nameExpanderSize);
 
         public XLGToDBAnalyzerInner(AnalysisInput input) : base(input)
         {
@@ -265,9 +297,9 @@ namespace BuildXL.Execution.Analyzer
         /// <inheritdoc/>
         public override bool CanHandleEvent(Scheduler.Tracing.ExecutionEventId eventId, uint workerId, long timestamp, int eventPayloadSize)
         {
-            // Excluding Observed Inputs Event because we capture the same information instead in ProcessFingerprintComputation Event
-            // Excluding ProcessFingerprintComputation Event since currently that same information can be gotten through the Legacy Cache Miss Analyzer
-            return (m_accessorSucceeded && eventId != Scheduler.Tracing.ExecutionEventId.ObservedInputs && eventId != Scheduler.Tracing.ExecutionEventId.ProcessFingerprintComputation);
+            // Excluding Observed Inputs Event because we capture the same information instead in ProcessFingerprintComputation Event  
+            // Only include ProcessFingerprintComputation if the IncludeProcessFingerprintComputationEvent flag is passed in, but let all non ProcessFingerprintComputation events get handled
+            return (m_accessorSucceeded && eventId != Scheduler.Tracing.ExecutionEventId.ObservedInputs && (eventId != Scheduler.Tracing.ExecutionEventId.ProcessFingerprintComputation || IncludeProcessFingerprintComputationEvent));
         }
 
         /// <summary>
@@ -283,6 +315,7 @@ namespace BuildXL.Execution.Analyzer
                 FileRewriteCount = data.FileArtifact.RewriteCount
             };
 
+            var keyArr = key.ToByteArray();
             var valueArr = value.ToByteArray();
             WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
             AddToDbStorageDictionary(DBStoredTypes.FileArtifactContentDecided, valueArr.Length);
@@ -362,20 +395,17 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public override void ProcessFingerprintComputed(ProcessFingerprintComputationEventData data)
         {
-            // As per discussion with Mike and Oleksii, we have decided to not store this information in the DB for now since any 
-            // relevant information can instead be generated using the Legacy Cache Miss Analyzer.
+            var value = data.ToProcessFingerprintComputationEvent(WorkerID.Value, PathTable, m_nameExpander);
+            var key = new EventKey
+            {
+                EventTypeID = Xldb.Proto.ExecutionEventId.ProcessFingerprintComputation,
+                PipId = data.PipId.Value,
+                ProcessFingerprintComputationKey = value.Kind,
+            };
 
-            //var value = data.ToProcessFingerprintComputationEvent(WorkerID.Value, PathTable, m_nameExpander);
-            //var key = new EventKey
-            //{
-            //    EventTypeID = Xldb.Proto.ExecutionEventId.ProcessFingerprintComputation,
-            //    PipId = data.PipId.Value,
-            //    ProcessFingerprintComputationKey = value.Kind,
-            //};
-
-            //var valueArr = value.ToByteArray();
-            //WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
-            //AddToDbStorageDictionary(DBStoredTypes.ProcessFingerprintComputation, valueArr.Length);
+            var valueArr = value.ToByteArray();
+            WriteToDb(key.ToByteArray(), valueArr, XldbDataStore.EventColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.ProcessFingerprintComputation, valueArr.Length);
         }
 
         /// <summary>
@@ -523,7 +553,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var totalNumberOfPips = CachedGraph.PipTable.StableKeys.Count;
             var pipIds = CachedGraph.PipTable.StableKeys;
-            var concurrency = (int)(Environment.ProcessorCount * 1.25);
+            var concurrency = (int)(Environment.ProcessorCount * s_innerConcurrencyMultiplier);
             var partitionSize = totalNumberOfPips / concurrency;
             Console.WriteLine("Ingesting pips now ...");
 
@@ -706,7 +736,7 @@ namespace BuildXL.Execution.Analyzer
         private void IngestProducerConsumerInformation()
         {
             var parallelOptions = new ParallelOptions();
-            parallelOptions.MaxDegreeOfParallelism = (int)(Environment.ProcessorCount * 1.25);
+            parallelOptions.MaxDegreeOfParallelism = (int)(Environment.ProcessorCount * s_innerConcurrencyMultiplier);
 
             Parallel.ForEach(m_fileConsumerMap, parallelOptions, kvp =>
             {
@@ -862,21 +892,17 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         private void AddToDbStorageDictionary(DBStoredTypes type, int payloadSize)
         {
-            if (m_dBStorageStats.TryGetValue(type, out var dBStorageStatsValue))
+            m_dBStorageStats.AddOrUpdate(type, new DBStorageStatsValue()
+            {
+                Count = 1,
+                Size = (ulong)payloadSize,
+            }, (key, dBStorageStatsValue) =>
             {
                 dBStorageStatsValue.Count++;
                 dBStorageStatsValue.Size += (ulong)payloadSize;
-            }
-            else
-            {
-                dBStorageStatsValue = new DBStorageStatsValue()
-                {
-                    Count = 1,
-                    Size = (ulong)payloadSize
-                };
 
-                m_dBStorageStats[type] = dBStorageStatsValue;
-            }
+                return dBStorageStatsValue;
+            });
         }
     }
 }

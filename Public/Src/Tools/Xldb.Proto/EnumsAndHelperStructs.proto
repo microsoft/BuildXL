@@ -43,7 +43,7 @@ enum ExecutionEventId{
     BxlInvocation = 14;
 }
 
-// This enum keeps track of the different kinds of items we are storing into the DB
+// This enum keeps track of the different kinds of items we are storing into the DB,
 // so we can keep track of their counts and sizes.
 enum DBStoredTypes{
     DBStoredTypes_Uninitialized = 0;

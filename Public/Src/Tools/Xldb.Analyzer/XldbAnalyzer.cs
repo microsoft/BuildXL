@@ -15,13 +15,13 @@ using Newtonsoft.Json.Linq;
 namespace Xldb.Analyzer
 {
     /// <summary>
-    /// Xldb Analyzers that use the rocksDb instanceand the Xldb API to analyze BXL logs
+    /// Xldb Analyzers that use the rocksDb instance and the Xldb API to analyze BXL logs
     /// </summary>
     public class Program
     {
         private const string s_eventStatsAnalyzer = "dbstats";
         private const string s_dumpPipAnalyzer = "dumppip";
-        private const double m_divisor = 1000.0; // Bytes to Kilobytes 
+        private const double m_thousandDivisor = 1000.0; // Bytes to Kilobytes
 
         private Dictionary<string, string> m_commandLineOptions = new Dictionary<string, string>();
 
@@ -40,7 +40,7 @@ namespace Xldb.Analyzer
                 switch (mode)
                 {
                     case s_eventStatsAnalyzer:
-                        return p.AnalyzeEventStats();
+                        return p.AnalyzeDbStats();
                     case s_dumpPipAnalyzer:
                         return p.AnalyzeDumpPip();
                     default:
@@ -93,19 +93,26 @@ namespace Xldb.Analyzer
         /// </summary>
         public bool ParseSemistableHash(string pipHash, out long parsedHash)
         {
-            var hexedHash = pipHash.ToUpper().Replace("PIP", "");
+            // Check that the pipHash string starts with PIP
+            if (!pipHash.ToUpperInvariant().StartsWith("PIP"))
+            {
+                parsedHash = -1;
+                return false;
+            }
+
+            var hexedHash = pipHash.ToUpperInvariant().Substring(3);
             return long.TryParse(hexedHash, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedHash);
         }
 
         /// <summary>
         /// Analyzes the event stats from the Xldb instance
         /// </summary>
-        public int AnalyzeEventStats()
+        public int AnalyzeDbStats()
         {
             if (m_commandLineOptions.ContainsKey("/h"))
             {
                 Console.WriteLine("\nDB Stats Analyzer");
-                Console.WriteLine("Generates stats on the aggregate size and count of different items stored in the DB, but uses the RocksDB database as the source of truth");
+                Console.WriteLine("Dumps stats on the aggregate size and count of different items stored in the Xldb instance.");
                 Console.WriteLine("/i: \t Required \t The directory to read the RocksDB database from");
                 Console.WriteLine("/o: \t Required \t The file where to write the results");
                 return 1;
@@ -113,7 +120,7 @@ namespace Xldb.Analyzer
 
             if (!m_commandLineOptions.TryGetValue("/o", out var outputFilePath))
             {
-                Console.WriteLine("Output directory required. Exiting analyzer ...");
+                Console.WriteLine("Output file required. Exiting analyzer ...");
                 return 1;
             }
 
@@ -124,7 +131,7 @@ namespace Xldb.Analyzer
             using (var writer = new StreamWriter(outputStream))
             {
                 var maxLength = Enum.GetValues(typeof(DBStoredTypes)).Cast<DBStoredTypes>().Select(e => e.ToString().Length).Max();
-                var listOfStorageStats = new List<DBStorageStatsValue>();
+                var storageMetadata = new List<DBStorageStatsValue>();
                 ulong totalCount = 0;
                 ulong totalPayload = 0;
 
@@ -138,25 +145,30 @@ namespace Xldb.Analyzer
                     {
                         totalCount += dbStorageStatValue.Count;
                         totalPayload += dbStorageStatValue.Size;
-                        listOfStorageStats.Add(dbStorageStatValue);
+                        storageMetadata.Add(dbStorageStatValue);
                     }
                     else
                     {
-                        listOfStorageStats.Add(new DBStorageStatsValue());
+                        storageMetadata.Add(new DBStorageStatsValue());
                     }
                 }
 
-                for (var i = 0; i < listOfStorageStats.Count(); i++)
+                // 12 digits of padding for count/payload
+                var countPadding = 12; 
+                // 8 digits of percentage paddin
+                var percentagePadding = 8;
+
+                for (var i = 0; i < storageMetadata.Count; i++)
                 {
-                    var currDbStorageStatValue = listOfStorageStats.ElementAt(i);
+                    var currDbStorageStatValue = storageMetadata[i];
 
                     writer.WriteLine(
-                    "{0}: Count = {1} ({2} %),   Payload = {3} ({4} %)",
+                    "{0}: Count = {1} K ( {2} %),   Payload = {3} KB ( {4} %)",
                     ((DBStoredTypes)i).ToString().PadRight(maxLength, ' '),
-                    currDbStorageStatValue.Count.ToString(CultureInfo.InvariantCulture).PadLeft(15, ' '),
-                    (currDbStorageStatValue.Count / (double)totalCount * 100).ToString("#.###").PadLeft(8, ' '),
-                    (currDbStorageStatValue.Size / m_divisor).ToString(CultureInfo.InvariantCulture).PadLeft(15, ' '),
-                    (currDbStorageStatValue.Size / (double)totalPayload * 100).ToString("#.###").PadLeft(8, ' '));
+                    (currDbStorageStatValue.Count/ m_thousandDivisor).ToString("#.####").PadLeft(countPadding, ' '),
+                    (currDbStorageStatValue.Count / (double)totalCount * 100).ToString("#.####").PadLeft(percentagePadding, ' '),
+                    (currDbStorageStatValue.Size / m_thousandDivisor).ToString("#.####").PadLeft(countPadding, ' '),
+                    (currDbStorageStatValue.Size / (double)totalPayload * 100).ToString("#.####").PadLeft(percentagePadding, ' '));
                 }
             }
 
@@ -186,13 +198,13 @@ namespace Xldb.Analyzer
 
             if (!ParseSemistableHash(pipHash, out var parsedSemiStableHash))
             {
-                Console.WriteLine($"Invalid pip: {pipHash}. Id must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69. Exiting analyzer ...");
+                Console.WriteLine($"Invalid PipId: {pipHash}. PipId must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69. Exiting analyzer ...");
                 return 1;
             }
 
             if (!m_commandLineOptions.TryGetValue("/o", out var outputFilePath))
             {
-                Console.WriteLine("Output directory required. Exiting analyzer ...");
+                Console.WriteLine("Output file required. Exiting analyzer ...");
                 return 1;
             }
 

@@ -75,45 +75,20 @@ namespace BuildXL.FrontEnd.Script
             if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid ||
                 Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
             {
-                var components = maybePackages.Result
-                    .OrderBy(p => p.Id.Name.ToString(Context.StringTable))
-                    .Select(p => ToNugetComponent(p.Id.Name.ToString(Context.StringTable), ExtractNugetVersion(p)))
-                    .ToArray();
-                var cgmanifest = new
-                {
-                    Version = 1,
-                    Registrations = components
-                };
-
-                var manifestContent = JsonConvert.SerializeObject(cgmanifest, Formatting.Indented);
+                var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
+                var cgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
                 // TODO(rijul): based on {Generate|Validate}CgManifestForNugets, decide whether 
-                //              to save manifestContent to disk or compare it against an existing file
+                //              to save manifestContent to disk or compare it against an existing file.
+                //
+                // IMPORTANT: do not use System.IO.File to read/write files; instead:
+                //   (1) to read a file, use FrontEndHost.Engine.GetFileContentAsync() 
+                //   (2) to write a file, use File.WriteAllText(), and then call FrontEndHost.Engine.RecordFrontEndFile()
+                //       (see WorkspaceNugetModuleResolver.TryWriteSourceFile)
             }
 
             m_resolverState = State.ResolverInitialized;
 
             return true;
-        }
-
-        private string ExtractNugetVersion(Package p)
-        {
-            return p.Path.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable);
-        }
-
-        private object ToNugetComponent(string name, string version)
-        {
-            return new
-            {
-                Component = new 
-                {
-                    Type = "NuGet",
-                    NuGet = new
-                    {
-                        Name = name,
-                        Version = version
-                    }
-                }
-            };
         }
     }
 }

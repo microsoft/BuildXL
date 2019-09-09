@@ -62,7 +62,7 @@ namespace BuildXL.Scheduler.Graph
         public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
-            m_taskMap[filePath] = (deserializer, m_taskFactory.StartNew(async () =>
+            m_taskMap[filePath] = (deserializer, m_taskFactory.Value.StartNew(async () =>
             {
                 IEnumerable<Task<bool>> dependencyTasks = dependencies.Select(dependency =>
                 {

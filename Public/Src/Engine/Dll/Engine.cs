@@ -1809,12 +1809,24 @@ namespace BuildXL.Engine
                                 {
                                     Contract.Assert(engineSchedule != null);
 
-                                    IdeGenerator.Generate(
-                                        engineSchedule.Context,
-                                        engineSchedule.Scheduler.PipGraph,
-                                        engineSchedule.Scheduler.ScheduledGraph,
-                                        m_initialCommandLineConfiguration.Startup.ConfigFile,
-                                        Configuration.Ide);
+                                    if (Configuration.Ide.IsNewEnabled)
+                                    {
+                                        IdeGenerator.Generate(
+                                            engineSchedule.Context,
+                                            engineSchedule.Scheduler.PipGraph,
+                                            engineSchedule.Scheduler.ScheduledGraph,
+                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                            Configuration.Ide);
+                                    }
+                                    else
+                                    {
+                                        BuildXL.Ide.Generator.Old.IdeGenerator.Generate(
+                                            engineSchedule.Context,
+                                            engineSchedule.Scheduler.PipGraph,
+                                            engineSchedule.Scheduler.ScheduledGraph,
+                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                            Configuration.Ide);
+                                    }
                                 }
 
                                 // Front end is no longer needed and can be clean-up before moving to a next phase.

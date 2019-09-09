@@ -5,4 +5,5 @@
   </PropertyGroup>
 
   <Import Project="Common.props" />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" />
 </Project>

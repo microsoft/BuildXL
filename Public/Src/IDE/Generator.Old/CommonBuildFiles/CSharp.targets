@@ -7,5 +7,6 @@
     <LangVersion Condition="'$(LangVersion)' == 'preview' AND '$(VisualStudioVersion)' == '15.0'">latest</LangVersion>
   </PropertyGroup>
 
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="Common.targets" />
 </Project>

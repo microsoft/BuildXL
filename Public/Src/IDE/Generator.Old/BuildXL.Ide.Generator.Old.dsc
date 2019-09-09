@@ -2,10 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
-namespace Generator {
+namespace Generator.Old {
     @@public
     export const dll = BuildXLSdk.library({
-        assemblyName: "BuildXL.Ide.Generator",
+        assemblyName: "BuildXL.Ide.Generator.Old",
         sources: globR(d`.`, "*.cs"),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
@@ -28,7 +28,6 @@ namespace Generator {
                     f`CommonBuildFiles/CSharp.props`,
                     f`CommonBuildFiles/Common.targets`,
                     f`CommonBuildFiles/CSharp.targets`,
-                    f`CommonBuildFiles/Directory.Build.props`,
                     f`CommonBuildFiles/NuGet.config`,
                     f`CommonBuildFiles/packages.config`,
                 ],

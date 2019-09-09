@@ -10,7 +10,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Qualifier;
 
-namespace BuildXL.Ide.Generator
+namespace BuildXL.Ide.Generator.Old
 {
     internal sealed class Context
     {
@@ -104,7 +104,7 @@ namespace BuildXL.Ide.Generator
             Contract.Requires(ideConfig.SolutionRoot.IsValid);
             Contract.Requires(ideConfig.SolutionName.IsValid);
             Contract.Requires(ideConfig.IsEnabled);
-            Contract.Requires(ideConfig.IsNewEnabled);
+            Contract.Requires(!ideConfig.IsNewEnabled);
 
             PipGraph = pipGraph;
             ScheduledGraph = scheduledGraph;

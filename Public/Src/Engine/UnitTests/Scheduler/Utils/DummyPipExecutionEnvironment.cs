@@ -673,6 +673,11 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         public bool ShouldCreateHandleWithSequentialScan(FileArtifact file) => false;
+
+        public string GetProducerExecutionInfo(in FileOrDirectoryArtifact artifact)
+        {
+            return string.Empty;
+        }
     }
 
     internal sealed class DummyServiceManager : ServiceManager

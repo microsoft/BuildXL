@@ -3,6 +3,7 @@
 
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Processes;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
@@ -170,7 +171,7 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var processDetouringStatus in data.ProcessDetouringStatuses)
             {
-                processExecutionMonitoringReportedEvent.ProcessDetouringStatuses.Add(new ProcessDetouringStatusData()
+                processExecutionMonitoringReportedEvent.ProcessDetouringStatuses.Add(new Xldb.Proto.ProcessDetouringStatusData()
                 {
                     ProcessID = processDetouringStatus.ProcessId,
                     ReportStatus = processDetouringStatus.ReportStatus,
@@ -377,50 +378,29 @@ namespace BuildXL.Execution.Analyzer
             return bxlInvEvent;
         }
 
-        /// <summary>
-        /// Convert BXL RequestedAccess enum to the protobuf version and take into account hexadecimal values and ORing enum values
-        /// </summary>
-        public static RequestedAccess ToRequestedAccess(this Processes.RequestedAccess requestedAccess)
-        {
-            if (requestedAccess == Processes.RequestedAccess.None)
-            {
-                return RequestedAccess.None;
-            }
-            else if (requestedAccess == Processes.RequestedAccess.ReadWrite)
-            {
-                return RequestedAccess.ReadWrite;
-            }
-            else if (requestedAccess == Processes.RequestedAccess.All)
-            {
-                return RequestedAccess.All;
-            }
-            else
-            {
-                return (RequestedAccess)((int)requestedAccess << 1);
-            }
-        }
-
         /// <nodoc />
         public static Xldb.Proto.ReportedFileAccess ToReportedFileAccess(this ReportedFileAccess reportedFileAccess, PathTable pathTable)
         {
             return new Xldb.Proto.ReportedFileAccess()
             {
-                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Invalid=0 did not change the bxl->protobuf enum mapping
-                CreationDisposition = (CreationDisposition)reportedFileAccess.CreationDisposition,
-                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Invalid=0 did not change the bxl->protobuf enum mapping
-                DesiredAccess = (DesiredAccess)reportedFileAccess.DesiredAccess,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Unspecified=0 did not change the bxl->protobuf enum mapping
+                CreationDisposition = (Xldb.Proto.CreationDisposition)reportedFileAccess.CreationDisposition,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Unspecified=0 did not change the bxl->protobuf enum mapping
+                // However, GENERIC_READ is of value 2^31 in bxl code, but -2^31 in protobuf enum due to 2^31 - 1 being the maximum value of an enum in protobuf. Thus special ternary assignment here.
+                DesiredAccess = reportedFileAccess.DesiredAccess == Processes.DesiredAccess.GENERIC_READ ? Xldb.Proto.DesiredAccess.GenericRead : (Xldb.Proto.DesiredAccess)reportedFileAccess.DesiredAccess,
                 Error = reportedFileAccess.Error,
                 Usn = reportedFileAccess.Usn.Value,
-                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Invalid=0 did not change the bxl->protobuf enum mapping
-                FlagsAndAttributes = (FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Unspecified=0 did not change the bxl->protobuf enum mapping
+                // However, WRITE_THROUGH is of value 2^31 in bxl code, but -2^31 in protobuf enum due to 2^31 - 1 being the maximum value of an enum in protobuf. Thus special ternary assignment here.
+                FlagsAndAttributes = reportedFileAccess.FlagsAndAttributes == Processes.FlagsAndAttributes.FILE_FLAG_WRITE_THROUGH ? Xldb.Proto.FlagsAndAttributes.FileFlagWriteThrough : (Xldb.Proto.FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
                 Path = reportedFileAccess.Path,
                 ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.Windows),
                 Process = reportedFileAccess.Process.ToReportedProcess(),
-                ShareMode = reportedFileAccess.ShareMode == Processes.ShareMode.FILE_SHARE_NONE ? ShareMode.FileShareNone : (ShareMode)((int)reportedFileAccess.ShareMode << 1),
-                Status = (FileAccessStatus)(reportedFileAccess.Status + 1),
-                Method = (FileAccessStatusMethod)(reportedFileAccess.Method + 1),
-                RequestedAccess = reportedFileAccess.RequestedAccess.ToRequestedAccess(),
-                Operation = (ReportedFileOperation)(reportedFileAccess.Operation + 1),
+                ShareMode = reportedFileAccess.ShareMode == Processes.ShareMode.FILE_SHARE_NONE ? Xldb.Proto.ShareMode.FileShareNone : (Xldb.Proto.ShareMode)((int)reportedFileAccess.ShareMode << 1),
+                Status = (Xldb.Proto.FileAccessStatus)(reportedFileAccess.Status + 1),
+                Method = (Xldb.Proto.FileAccessStatusMethod)(reportedFileAccess.Method + 1),
+                RequestedAccess = reportedFileAccess.RequestedAccess == Processes.RequestedAccess.None ? Xldb.Proto.RequestedAccess.None : (Xldb.Proto.RequestedAccess)((int)reportedFileAccess.RequestedAccess << 1),
+                Operation = (Xldb.Proto.ReportedFileOperation)(reportedFileAccess.Operation + 1),
                 ExplicitlyReported = reportedFileAccess.ExplicitlyReported,
                 EnumeratePattern = reportedFileAccess.EnumeratePattern
             };
@@ -703,7 +683,7 @@ namespace BuildXL.Execution.Analyzer
             var xldbProcessPip = new ProcessPip
             {
                 GraphInfo = parentPip,
-                ProcessOptions = pip.ProcessOptions == Process.Options.None ? Options.None : (Options) ((int)pip.ProcessOptions << 1),
+                ProcessOptions = pip.ProcessOptions == Process.Options.None ? Options.None : (Options)((int)pip.ProcessOptions << 1),
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
                 StandardInputData = pip.StandardInputData.IsValid ? pip.StandardInputData.ToString(pathTable) : "",
                 StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()

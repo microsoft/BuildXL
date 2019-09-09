@@ -263,7 +263,8 @@ namespace BuildXL.FrontEnd.Core
             }
 
             var frontEndConcurrency = resultingConfiguration.FrontEnd.MaxFrontEndConcurrency();
-            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, FrontEndContext.CancellationToken);
+            var enableEvaluationThrottling = resultingConfiguration.FrontEnd.EnableEvaluationThrottling();
+            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, enableEvaluationThrottling, FrontEndContext.CancellationToken);
 
             HostState = State.ConfigInterpreted;
 
@@ -1070,7 +1071,7 @@ namespace BuildXL.FrontEnd.Core
             var frontEndHost = new FrontEndHostController(
                 frontEndFactory,
                 new DScriptWorkspaceResolverFactory(),
-                new EvaluationScheduler(degreeOfParallelism: 1, cancellationToken: frontEndContext.CancellationToken),
+                new EvaluationScheduler(degreeOfParallelism: 1, false, cancellationToken: frontEndContext.CancellationToken),
                 moduleRegistry,
                 new FrontEndStatistics(),
                 logger ?? Logger.CreateLogger(),

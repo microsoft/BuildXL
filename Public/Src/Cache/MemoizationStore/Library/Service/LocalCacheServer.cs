@@ -3,7 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -41,19 +41,10 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Capabilities capabilities = Capabilities.All)
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
-            var storesByName = new Dictionary<string, IContentStore>();
-            foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
-            {
-                AbsolutePath cacheRootPath = kvp.Value;
-                fileSystem.CreateDirectory(cacheRootPath);
-
-                var cache = cacheFactory(cacheRootPath);
-                Contract.Assert(cache is IContentStore, $"Attempted to setup a cache named '{kvp.Key}' that is not an {nameof(IContentStore)} at path {cacheRootPath}, type used is {cache.GetType().Name}");
-
-                storesByName.Add(kvp.Key, (IContentStore)cache);
-            }
-
-            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByName);
+            // This must agree with the base class' StoresByName to avoid "missing content store" errors from GRpc, and
+            // to make sure everything is initialized properly when we expect it to.
+            var storesByNameAsContentStore = StoresByName.ToDictionary(kvp => kvp.Key, kvp => (IContentStore)kvp.Value);
+            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByNameAsContentStore);
             _grpcCacheServer = new GrpcCacheServer(logger, this);
         }
 

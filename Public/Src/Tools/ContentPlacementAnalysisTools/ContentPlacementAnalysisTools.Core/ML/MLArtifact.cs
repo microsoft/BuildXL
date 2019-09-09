@@ -185,7 +185,6 @@ namespace ContentPlacementAnalysisTools.Core.ML
         {
             var instance = new RandomForestInstance()
             {
-                PredictedClass = Queues.Count > 1? SharingClassLabels[0] : SharingClassLabels[1],
                 Attributes = new Dictionary<string, double>()
                 {
                     ["SizeBytes"] = SizeBytes,
@@ -220,7 +219,6 @@ namespace ContentPlacementAnalysisTools.Core.ML
             var values = input.Split(',');
             return new RandomForestInstance()
             {
-                PredictedClass = null,
                 Attributes = new Dictionary<string, double>()
                 {
                     ["Class"] = s_sharingClassIds[values[0]],
@@ -252,7 +250,7 @@ namespace ContentPlacementAnalysisTools.Core.ML
         /// <summary>
         /// For testing purposes, compares the real class with the prediced class
         /// </summary>
-        public static bool Evaluate(RandomForestInstance instance) => instance.PredictedClass == SharingClassLabels[(int)instance.Attributes["Class"]];
+        public static bool Evaluate(RandomForestInstance instance, string predictedClass) => predictedClass == SharingClassLabels[(int)instance.Attributes["Class"]];
     }
 
 }

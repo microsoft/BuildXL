@@ -13,6 +13,8 @@ namespace ContentPlacement.Core {
             importFrom("Newtonsoft.Json").pkg,
             importFrom("NLog").pkg,
             importFrom("RuntimeContracts").pkg,
+
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
         ],
         internalsVisibleTo: [
             "bxlanalyzer",

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Newtonsoft.Json;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier
@@ -10,15 +12,18 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     ///  The content placement classifier, which given an artifact and a queue can choose a set of machines
     ///  as targets for its replication
     /// </summary>
-    public class ContentPlacementClassifier : MLClassifier
+    public class ContentPlacementClassifier : IMLClassifier<ContentPlacementInstance, ContentPlacementClassifierResult>
     {
         private static readonly string s_sharedClassLabel = MLArtifact.SharingClassLabels[0];
 
-        private static readonly HashSet<string> s_loadModes = new HashSet<string>(
-            new string[] {  "MachinesFromClosestQueue",
-                            "NMachinesPerClosestQueues"
-            }
-        );
+        public enum LoadMode
+        {
+            MachinesFromClosestQueue,
+            NMachinesPerClosestQueues
+        }
+
+        private readonly string m_configPath;
+
         /// <summary>
         ///  The random forest to decide on artifact inputs
         /// </summary>
@@ -33,9 +38,22 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// </summary>
         public ContentPlacementClassifier(string config)
         {
-            Contract.Requires(File.Exists(config), $"Config file [{config}] does not exists");
-            var configuration = ContentPlacementClassifierConfiguration.FromJson(config);
-            LoadClassifier(configuration);
+            Contract.Requires(config != null, "Config file path cannot be null");
+            m_configPath = config;
+        }
+
+        public Task<Result<bool>> StartupAsync()
+        {
+            try
+            {
+                var configuration = ContentPlacementClassifierConfiguration.FromJson(m_configPath);
+                LoadClassifier(configuration);
+                return Task.FromResult(new Result<bool>(true));
+            }
+            catch (Exception e)
+            {
+                return Task.FromResult(new Result<bool>(e));
+            }
         }
 
         /// <summary>
@@ -51,7 +69,6 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             Contract.Requires(Directory.Exists(config.QueueToMachineMapDirectory), $"QueToMachineMapDirectory directory [{config.QueueToMachineMapDirectory}] does not exists");
             Contract.Requires(Directory.Exists(config.QueueDistanceMapDirectory), $"QueueDistanceMapDirectory directory [{config.QueueDistanceMapDirectory}] does not exists");
             Contract.Requires(File.Exists(config.RandomForestFile), $"RandomForestFile [{config.RandomForestFile}] does not exists");
-            Contract.Requires(s_loadModes.Contains(config.LoadMode), $"LoadMode [{config.LoadMode}] does not found");
             // load the forest
             m_forest = RandomForest.FromWekaFile(config.RandomForestFile);
             // now load the alternatives per queue
@@ -69,7 +86,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 m_alternativesPerQueue[queueName] = new List<string>();
                 try
                 {
-                    if (config.LoadMode.ToLower() == "MachinesFromClosestQueue".ToLower())
+                    if (config.LoadMode == LoadMode.MachinesFromClosestQueue)
                     {
                         // take the first line of this file
                         string closestQueue;
@@ -95,7 +112,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                         // done
                         machineFileReader.Close();
                     }
-                    else if (config.LoadMode.ToLower() == "NMachinesPerClosestQueues".ToLower())
+                    else if (config.LoadMode == LoadMode.NMachinesPerClosestQueues)
                     {
                         // validate this here
                         Contract.Requires(config.QueueInstanceCount > 0, $"QueueInstanceCount has to be positive");
@@ -149,128 +166,78 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// <summary>
         ///  Classifies an instance given a RandomForestInstance and a queue name
         /// </summary>
-        public override void Classify(MLInstance instance)
+        public ContentPlacementClassifierResult Classify(ContentPlacementInstance instance)
         {
-            var cpInstance = instance as ContentPlacementInstance;
-            // now, try to see if this is shred or not
-            m_forest.Classify(cpInstance.Artifact);
-            if (cpInstance.Artifact.PredictedClass == s_sharedClassLabel)
+            var forestClassifyResult = m_forest.Classify(instance.Artifact);
+
+            if (!forestClassifyResult.Succeeded)
             {
-                // its shared, so we need to get some alternatives
-                if (!m_alternativesPerQueue.ContainsKey(cpInstance.QueueName))
-                {
-                    throw new NoSuchQueueException(cpInstance.QueueName);
-                }
-                else
-                {
-                    if (m_alternativesPerQueue[cpInstance.QueueName].Count > 0)
-                    {
-                        cpInstance.PredictedClasses = m_alternativesPerQueue[cpInstance.QueueName];
-                    }
-                    else
-                    {
-                        throw new NoAlternativesForQueueException();
-                    }
-                }
+                return new ContentPlacementClassifierResult(forestClassifyResult);
             }
-            else
-            {
-                // done here, do not replicate
-                throw new ArtifactNotSharedException();
-            }
+
+            return InterpretResult(instance, forestClassifyResult.Value);
         }
+
         /// <summary>
         ///  Classifies an instance given a RandomForestInstance and a queue name. It uses maxParalellism threads to look up in the random forest
         /// </summary>
-        public override void Classify(MLInstance instance, int maxParalellism)
+        public ContentPlacementClassifierResult Classify(ContentPlacementInstance instance, int maxParalellism)
         {
-            var cpInstance = instance as ContentPlacementInstance;
-            // now, try to see if this is shred or not
-            m_forest.Classify(cpInstance.Artifact, maxParalellism);
-            if (cpInstance.Artifact.PredictedClass == s_sharedClassLabel)
+            var forestClassifyResult = m_forest.Classify(instance.Artifact, maxParalellism);
+
+            if (!forestClassifyResult.Succeeded)
+            {
+                return new ContentPlacementClassifierResult(forestClassifyResult);
+            }
+
+            return InterpretResult(instance, forestClassifyResult.Value);
+        }
+
+        private ContentPlacementClassifierResult InterpretResult(ContentPlacementInstance instance, string predictedClass)
+        {
+            if (predictedClass == s_sharedClassLabel)
             {
                 // its shared, so we need to get some alternatives
-                if (!m_alternativesPerQueue.ContainsKey(cpInstance.QueueName))
+                if (!m_alternativesPerQueue.ContainsKey(instance.QueueName))
                 {
-                    throw new NoSuchQueueException(cpInstance.QueueName);
+                    return new ContentPlacementClassifierResult(ContentPlacementClassifierResult.ResultCode.QueueNotFound, $"Could not find queue {instance.QueueName}.");
                 }
                 else
                 {
-                    if (m_alternativesPerQueue[cpInstance.QueueName].Count > 0)
+                    if (m_alternativesPerQueue[instance.QueueName].Count > 0)
                     {
-                        cpInstance.PredictedClasses = m_alternativesPerQueue[cpInstance.QueueName];
+                        return new ContentPlacementClassifierResult(m_alternativesPerQueue[instance.QueueName]);
                     }
                     else
                     {
-                        throw new NoAlternativesForQueueException();
+                        return new ContentPlacementClassifierResult(ContentPlacementClassifierResult.ResultCode.ArtifactNotShared, $"Queue {instance.QueueName} has no associated machines.");
                     }
-
                 }
             }
             else
             {
                 // done here, do not replicate
-                throw new ArtifactNotSharedException();
+                return new ContentPlacementClassifierResult(ContentPlacementClassifierResult.ResultCode.ArtifactNotShared, $"The artifact is not being shared.");
             }
         }
     }
 
-    /// <summary>
-    ///  The requested queue was not found
-    /// </summary>
-    public class NoSuchQueueException : Exception
-    {
-        /// <summary>
-        ///  The queue that was not found
-        /// </summary>
-        public string Queue { get; set; }
-        /// <summary>
-        ///  Constructor
-        /// </summary>
-        public NoSuchQueueException(string q) => Queue = q;
-    }
-
-    /// <summary>
-    ///  Not shared
-    /// </summary>
-    public class ArtifactNotSharedException : Exception
-    {
-        /// <summary>
-        ///  Constructor
-        /// </summary>
-        public ArtifactNotSharedException() : base() { }
-    }
-
-    /// <summary>
-    ///  No alternatives for queue
-    /// </summary>
-    public class NoAlternativesForQueueException : Exception
-    {
-        /// <summary>
-        ///  Constructor
-        /// </summary>
-        public NoAlternativesForQueueException() : base() { }
-    }
-
-    /// <summary>
-    ///  The instance used for prediction
-    /// </summary>
-
-    public class ContentPlacementInstance : MultiClassMLInstance
+    /// <nodoc />
+    public class ContentPlacementInstance
     {
         /// <summary>
         ///  The artifact data used for prediction
         /// </summary>
         public RandomForestInstance Artifact { get; set; }
+
         /// <summary>
         ///  The attributes we will use here is the queue name
         /// </summary>
         public string QueueName { get; set; }
 
-        /// <summary>
-        ///  Constructor
-        /// </summary>
+        /// <nodoc />
         public ContentPlacementInstance() { }
+
         /// <summary>
         ///  Constructor with attributes for the artifact and the queue name
         /// </summary>
@@ -286,8 +253,8 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 avgOutputsInputPips, avgOutputsOutputPips, avgPriorityInputPips, avgPriorityOutputPips, avgWeightInputPips,
                 avgWeightOutputPips, avgTagCountInputPips, avgTagCountOutputPips, avgSemaphoreCountInputPips, avgSemaphoreCountOutputPips);
         }
-
     }
+
     /// <summary>
     ///  Represents the configuration for this type of classifier
     /// </summary>
@@ -320,7 +287,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// <summary>
         ///  Load mode
         /// </summary>
-        public string LoadMode { get; set; }
+        public ContentPlacementClassifier.LoadMode LoadMode { get; set; }
         /// <summary>
         ///  Utility to load configuration from a valid json file
         /// </summary>
@@ -328,4 +295,44 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 
     }
 
+    public class ContentPlacementClassifierResult : Result<List<string>>
+    {
+        /// <nodoc />
+        public ResultCode ReturnCode { get; set; }
+
+        /// <nodoc />
+        public enum ResultCode
+        {
+            ArtifactNotShared,
+            NoAlternativesForQueue,
+            QueueNotFound
+        }
+
+        /// <nodoc />
+        public ContentPlacementClassifierResult(ResultCode code, string errorMessage)
+            : base(errorMessage)
+        {
+            ReturnCode = code;
+        }
+
+        public ContentPlacementClassifierResult(List<string> result) : base(result)
+        {
+        }
+
+        public ContentPlacementClassifierResult(List<string> result, bool isNullAllowed) : base(result, isNullAllowed)
+        {
+        }
+
+        public ContentPlacementClassifierResult(string errorMessage, string diagnostics = null) : base(errorMessage, diagnostics)
+        {
+        }
+
+        public ContentPlacementClassifierResult(Exception exception, string message = null) : base(exception, message)
+        {
+        }
+
+        public ContentPlacementClassifierResult(ResultBase other, string message = null) : base(other, message)
+        {
+        }
+    }
 }

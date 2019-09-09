@@ -27,11 +27,12 @@ namespace ContentPlacement.ML {
                     NetFx.System.Data.dll,
                 ]),
             ContentPlacement.Core.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("NLog").pkg,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("RuntimeContracts").pkg,
-            importFrom("BuildXL.Utilities").Collections.dll,
         ],
     });
 }

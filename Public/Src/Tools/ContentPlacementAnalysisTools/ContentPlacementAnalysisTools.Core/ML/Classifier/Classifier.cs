@@ -1,52 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+﻿using System.Collections.Generic;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 {
     /// <summary>
     ///  Base class for classifiers
     /// </summary>
-    public abstract class MLClassifier
+    public interface IMLClassifier<TInstance, TResult>
     {
-
         /// <summary>
         ///  Classify a single instance
         /// </summary>
-        public abstract void Classify(MLInstance instance);
+        TResult Classify(TInstance instance);
+
         /// <summary>
         ///  Classify a single instance using many threads
         /// </summary>
-        public abstract void Classify(MLInstance instance, int maxParalellism);
-
+        TResult Classify(TInstance instance, int maxParalellism);
     }
 
-    /// <summary>
-    ///  Base class for all instances
-    /// </summary>
-    public abstract class MLInstance {}
-
-    /// <summary>
-    ///  An instance to be classified in a binary fashion
-    /// </summary>
-    public abstract class BinaryMLInstance : MLInstance
+    public interface IMultiClassMLClassifier<TInstance> : IMLClassifier<TInstance, Result<List<string>>>
     {
-        /// <summary>
-        ///  The class set after the prediction is done
-        /// </summary>
-        public string PredictedClass { get; set; } = null;
-        
     }
 
-    /// <summary>
-    ///  An instance to be classified in a multiclass fashion
-    /// </summary>
-    public abstract class MultiClassMLInstance : MLInstance
+    public interface IBinaryMLClassifier<TInstance> : IMLClassifier<TInstance, Result<string>>
     {
-        /// <summary>
-        ///  The class set after the prediction is done
-        /// </summary>
-        public List<string> PredictedClasses { get; set; } = null;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -88,7 +89,7 @@ namespace ContentPlacementAnalysisTools.ML.Main
             var random = new Random(Environment.TickCount);
             // read some queue names
             var qNames = new List<string>();
-            var instances = new List<ContentPlacementInstance>();
+            var instances = new Dictionary<ContentPlacementInstance, List<string>>();
             var uniqueMachines = new HashSet<string>();
             foreach (var qq in Directory.EnumerateFiles(Path.Combine(arguments.InputDirectory, "QueueMap")))
             {
@@ -99,11 +100,11 @@ namespace ContentPlacementAnalysisTools.ML.Main
             var ns = 0;
             var na = 0;
             var classify = Stopwatch.StartNew();
-            for (var i = 0; i < numInstances; ++i)
+            foreach (var queueName in qNames)
             {
                 var instance = new ContentPlacementInstance()
                 {
-                    QueueName = qNames[i],
+                    QueueName = queueName,
                     Artifact = new RandomForestInstance()
                     {
                         Attributes = new Dictionary<string, double>()
@@ -130,33 +131,41 @@ namespace ContentPlacementAnalysisTools.ML.Main
                         }
                     }
                 };
-                try
+
+                var result = classifier.Classify(instance);
+
+                if (result.Succeeded)
                 {
-                    classifier.Classify(instance);
-                    instances.Add(instance);
+                    instances.Add(instance, result.Value);
                 }
-                catch(ArtifactNotSharedException)
+
+                switch (result.ReturnCode)
                 {
-                    ++ns;
-                }
-                catch (NoAlternativesForQueueException)
-                {
-                    ++na;
+                    case ContentPlacementClassifierResult.ResultCode.ArtifactNotShared:
+                        ns++;
+                        break;
+                    case ContentPlacementClassifierResult.ResultCode.NoAlternativesForQueue:
+                        na++;
+                        break;
+                    default:
+                        break;
                 }
             }
             classify.Stop();
             s_logger.Info($"Classifier ({numInstances} instances, {ns} not shared, {na} without alternatives) done in {classify.ElapsedMilliseconds}ms (perInstanceAvg={(1.0 * classify.ElapsedMilliseconds) / (1.0 * numInstances)}ms)");
-            foreach(var instance in instances)
+            foreach(var kvp in instances)
             {
-                var unique = new HashSet<string>(instance.PredictedClasses).Count;
-                var real = instance.PredictedClasses.Count;
+                var instance = kvp.Key;
+                var predictedClasses = kvp.Value;
+                var unique = new HashSet<string>(predictedClasses).Count;
+                var real = predictedClasses.Count;
                 if(unique != real)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
                 }
-                s_logger.Info($"queue={instance.QueueName}, count={real}, uniqueCount={unique}, alternatives=[{string.Join(",", instance.PredictedClasses)}]");
+                s_logger.Info($"queue={instance.QueueName}, count={real}, uniqueCount={unique}, alternatives=[{string.Join(",", predictedClasses)}]");
                 Console.ResetColor();
-                uniqueMachines.AddRange(instance.PredictedClasses);
+                uniqueMachines.AddRange(predictedClasses);
             }
             foreach(var qq in classifier.AlternativesPerQueue())
             {

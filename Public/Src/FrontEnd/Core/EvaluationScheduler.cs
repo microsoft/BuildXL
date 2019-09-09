@@ -59,10 +59,10 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <summary>
-        /// Creates a scheduler without cancellation support (<seealso cref="EvaluationScheduler(int, CancellationToken)"/>)
+        /// Creates a scheduler without cancellation support (<seealso cref="EvaluationScheduler(int, bool, CancellationToken)"/>)
         /// </summary>
         public EvaluationScheduler(int degreeOfParallelism)
-            : this(degreeOfParallelism, false, CancellationToken.None) { }
+            : this(degreeOfParallelism, true, CancellationToken.None) { }
 
         /// <summary>
         /// Creates a scheduler.

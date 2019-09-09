@@ -162,6 +162,7 @@ namespace BuildXL.Utilities.Configuration
         public static int MaxFrontEndConcurrency(this IFrontEndConfiguration configuration) => 
             configuration.MaxFrontEndConcurrency ?? DefaultMaxFrontEndConcurrency;
 
+        /// <nodoc/>
         public static bool EnableEvaluationThrottling(this IFrontEndConfiguration configuration) =>
             configuration.EnableEvaluationThrottling ?? DefaultEnableEvaluationThrottling;
 

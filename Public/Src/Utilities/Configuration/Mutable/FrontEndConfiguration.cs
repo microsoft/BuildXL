@@ -94,6 +94,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public int? MaxFrontEndConcurrency { get; set; }
 
+        /// <inheritdoc />
         public bool? EnableEvaluationThrottling { get; set; }
 
         /// <inheritdoc />

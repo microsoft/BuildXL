@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using BuildXL.Ipc.ExternalApi;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
@@ -143,9 +142,7 @@ namespace BuildXL.Pips.Operations
                     var file = fragment.GetFileValue();
                     return file.Path.RawValue.ToString() + ":" + file.RewriteCount.ToString();
                 }
-                case PipFragmentType.DirectoryId:
-                    var directory = fragment.GetDirectoryValue();
-                    return DirectoryId.ToString(directory);
+
                 case PipFragmentType.IpcMoniker:
                     string monikerId = fragment.GetIpcMonikerValue().ToString(StringTable);
                     var result = IpcMonikerRenderer != null

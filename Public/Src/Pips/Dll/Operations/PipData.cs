@@ -441,12 +441,6 @@ namespace BuildXL.Pips.Operations
                                 m_currentIndex += 2;
                                 canContinue = true;
                                 break;
-                            case PipDataEntryType.DirectoryIdHeaderSealId:
-                                Contract.Assert(m_currentIndex + 1 < m_pipData.Entries.Count);
-                                Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.AbsolutePath);
-                                m_currentIndex += 2;
-                                canContinue = true;
-                                break;
                             case PipDataEntryType.VsoHashEntry2RewriteCount:
                             case PipDataEntryType.FileId2RewriteCount:
                                 Contract.Assume(false, "should never encounter part 2 of VsoHash or FileId fragment");

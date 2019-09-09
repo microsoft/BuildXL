@@ -4,7 +4,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -92,52 +91,6 @@ namespace BuildXL.Pips.Operations
             }
 
             return new PipDataEntryList(bytes);
-        }
-
-        public void Serialize(BuildXLWriter writer)
-        {
-            var count = Count;
-            writer.WriteCompact(count);
-            for (int i = 0; i < count; i++)
-            {
-                var entry = this[i];
-                entry.Serialize(writer);
-                if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId)
-                {
-                    // Get next entry and write out the full directory artifact rather than serializing an entry path
-                    i++;
-                    var nextEntry = this[i];
-                    Contract.Assert(nextEntry.EntryType == PipDataEntryType.AbsolutePath);
-                    writer.Write(new DirectoryArtifact(nextEntry.GetPathValue(), unchecked((uint)entry.GetIntegralValue())));
-                }
-            }
-        }
-
-        public static (int count, IEnumerable<PipDataEntry> entries) Deserialize(BuildXLReader reader)
-        {
-            var count = reader.ReadInt32Compact();
-
-            return (count, getEntries());
-
-            IEnumerable<PipDataEntry> getEntries()
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    var entry = PipDataEntry.Deserialize(reader);
-                    if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId)
-                    {
-                        var directory = reader.ReadDirectoryArtifact();
-                        PipDataEntry.CreateDirectoryIdEntries(directory, out var entry1SealId, out var entry2Path);
-                        yield return entry1SealId;
-                        yield return entry2Path;
-                        i++; // Skip next entry since the directory artifact encapsulates both
-                    }
-                    else
-                    {
-                        yield return entry;
-                    }
-                }
-            }
         }
 
         /// <nodoc />

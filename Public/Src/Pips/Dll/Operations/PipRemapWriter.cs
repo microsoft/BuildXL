@@ -32,7 +32,7 @@ namespace BuildXL.Pips.Operations
             m_pipExecutionContext = pipExecutionContext;
             m_pipGraphFragmentContext = pipGraphFragmentContext;
             m_inliningWriter = new InliningWriter(stream, pipExecutionContext.PathTable, debug, leaveOpen, logStats);
-            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(this, stream, pipExecutionContext.PathTable, debug, leaveOpen, logStats);
+            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(m_inliningWriter, stream, pipExecutionContext.PathTable, debug, leaveOpen, logStats);
         }
 
         /// <inheritdoc />
@@ -52,9 +52,9 @@ namespace BuildXL.Pips.Operations
 
         private class PipDataEntriesPointerInlineWriter : InliningWriter
         {
-            private readonly PipRemapWriter m_baseInliningWriter;
+            private readonly InliningWriter m_baseInliningWriter;
 
-            public PipDataEntriesPointerInlineWriter(PipRemapWriter baseInliningWriter, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
+            public PipDataEntriesPointerInlineWriter(InliningWriter baseInliningWriter, Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
                 : base(stream, pathTable, debug, leaveOpen, logStats)
             {
                 m_baseInliningWriter = baseInliningWriter;
@@ -64,10 +64,13 @@ namespace BuildXL.Pips.Operations
             {
                 var binaryString = PathTable.StringTable.GetBinaryString(stringId);
                 var entries = new PipDataEntryList(binaryString.UnderlyingBytes);
-
-                // Use base inlining writer for serializing the entries because
-                // this writer is only for serializing pip data entries pointer.
-                entries.Serialize(m_baseInliningWriter);
+                WriteCompact(entries.Count);
+                foreach (var e in entries)
+                {
+                    // Use base inlining writer for serializing the entries because
+                    // this writer is only for serializing pip data entries pointer.
+                    e.Serialize(m_baseInliningWriter);
+                }
             }
         }
     }

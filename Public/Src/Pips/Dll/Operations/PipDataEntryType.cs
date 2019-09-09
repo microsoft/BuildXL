@@ -34,11 +34,6 @@ namespace BuildXL.Pips.Operations
         AbsolutePath,
 
         /// <summary>
-        /// The partial seal id portion of a directory artifact
-        /// </summary>
-        DirectoryIdHeaderSealId,
-
-        /// <summary>
         /// First entry of a <see cref="PipFragmentType.VsoHash"/> fragment which holds the
         /// <see cref="BuildXL.Utilities.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
         /// be followed by an entry of type <see cref="PipDataEntryType.VsoHashEntry2RewriteCount"/>.

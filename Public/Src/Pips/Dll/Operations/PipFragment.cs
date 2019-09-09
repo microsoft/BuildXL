@@ -101,16 +101,6 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Factory to create a PipFragment containing a VsoHash.
-        /// FOR TESTING PURPOSES ONLY.
-        /// </summary>
-        internal static PipFragment DirectoryIdForTesting(DirectoryArtifact directory)
-        {
-            PipDataEntry.CreateDirectoryIdEntries(directory, out var entry1, out var entry2);
-            return new PipFragment(new[] { entry1, entry2 }, 0);
-        }
-
-        /// <summary>
         /// Factory to create a PipFragment containing an IpcMoniker.
         /// FOR TESTING PURPOSES ONLY.
         /// </summary>
@@ -160,24 +150,6 @@ namespace BuildXL.Pips.Operations
             var entry2 = m_entries[1];
             Contract.Assert(entry2.EntryType == PipDataEntryType.VsoHashEntry2RewriteCount || entry2.EntryType == PipDataEntryType.FileId2RewriteCount);
             return new FileArtifact(entry1.GetPathValue(), entry2.GetIntegralValue());
-        }
-
-        /// <summary>
-        /// Returns the current value as a FileArtifact.
-        /// </summary>
-        /// <remarks>
-        /// You can only call this function for instances where Type is equal to <see cref="PipFragmentType.VsoHash"/> or <see cref="PipFragmentType.FileId"/>.
-        /// </remarks>
-        public DirectoryArtifact GetDirectoryValue()
-        {
-            Contract.Requires(FragmentType == PipFragmentType.DirectoryId);
-
-            Contract.Assert(m_entries.Count >= 2);
-            var entry1 = m_entries[0];
-            Contract.Assert(entry1.EntryType == PipDataEntryType.DirectoryIdHeaderSealId);
-            var entry2 = m_entries[1];
-            Contract.Assert(entry2.EntryType == PipDataEntryType.AbsolutePath);
-            return new DirectoryArtifact(entry2.GetPathValue(), entry1.GetUInt32Value());
         }
 
         /// <summary>

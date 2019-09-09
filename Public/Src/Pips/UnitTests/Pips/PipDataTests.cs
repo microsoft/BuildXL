@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -227,66 +225,60 @@ namespace Test.BuildXL.Pips
 
         private FileArtifact RewrittenFile2 => RewrittenFile.CreateNextWrittenVersion();
 
-        private int NumStandardBlockFragments => Descriptors.Count;
-
-        // Add new fragments to verify to this list
-        private List<(Action<PipDataBuilder> add, PipFragmentType expectedFragmentType, Action<PipFragment> verify, int line)> Descriptors =>
-            new List<(Action<PipDataBuilder>, PipFragmentType, Action<PipFragment>, int)>
-            {
-                CreateDescriptor(Path1, PipFragmentType.AbsolutePath, f => f.GetPathValue(), (v, p) => p.Add(v)),
-                CreateDescriptor(Path2, PipFragmentType.AbsolutePath, f => f.GetPathValue(), (v, p) => p.Add(v)),
-                CreateDescriptor(CaseVaryingString, PipFragmentType.StringLiteral, f => m_pathTable.StringTable.GetString(f.GetStringIdValue()), (v, p) => p.Add(v)),
-                CreateDescriptor(m_expectedStringId0, PipFragmentType.StringLiteral, f => f.GetStringIdValue(), (v, p) => p.Add(v)),
-                CreateDescriptor(SourceFile, PipFragmentType.VsoHash, f => f.GetFileValue(), (v, p) => p.AddVsoHash(v)),
-                CreateDescriptor(OutputFile, PipFragmentType.VsoHash, f => f.GetFileValue(), (v, p) => p.AddVsoHash(v)),
-                CreateDescriptor(RewrittenFile, PipFragmentType.VsoHash, f => f.GetFileValue(), (v, p) => p.AddVsoHash(v)),
-                CreateDescriptor(RewrittenFile2, PipFragmentType.VsoHash, f => f.GetFileValue(), (v, p) => p.AddVsoHash(v)),
-                CreateDescriptor(new DirectoryArtifact(Path1, 1, isSharedOpaque: true), PipFragmentType.DirectoryId, f => f.GetDirectoryValue(), (v, p) => p.AddDirectoryId(v)),
-            };
-
-        private (Action<PipDataBuilder> add, PipFragmentType expectedFragmentType, Action<PipFragment> verify, int line) CreateDescriptor<T>(
-            T value,
-            PipFragmentType expectedFragmentType,
-            Func<PipFragment, T> getFragmentValue,
-            Action<T, PipDataBuilder> add,
-            [CallerLineNumber] int line = 0)
-        {
-            return
-            (
-                b => add(value, b),
-                expectedFragmentType,
-               f => XAssert.AreEqual(value, getFragmentValue(f), $"Defined at line {line}."),
-               line
-            );
-        }
+        private const int NumStandardBlockFragments = 8; // this number must match the number of fragments added in AddStandardBlock
 
         private void AddStandardBlock(PipDataBuilder pipDataBuilder)
         {
-            foreach (var descriptor in Descriptors)
-            {
-                descriptor.add(pipDataBuilder);
-            }
+            pipDataBuilder.Add(Path1);
+            pipDataBuilder.Add(Path2);
+            pipDataBuilder.Add(CaseVaryingString);
+            pipDataBuilder.Add(m_expectedStringId0);
+            pipDataBuilder.AddVsoHash(SourceFile);
+            pipDataBuilder.AddVsoHash(OutputFile);
+            pipDataBuilder.AddVsoHash(RewrittenFile);
+            pipDataBuilder.AddVsoHash(RewrittenFile2);
+
+            // if you add more fragments here, update
+            //   (1) NumStandardBlockFragments constant above
+            //   (2) VerifyStandardBlock method below
         }
 
         private void VerifyStandardBlock(ref PipData.FragmentEnumerator enumerator)
         {
-            foreach (var descriptor in Descriptors)
-            {
-                PipFragment fragment;
-                AssertMoveNext(ref enumerator, out fragment, descriptor.expectedFragmentType, descriptor.line);
-                descriptor.verify(fragment);
-            }
+            PipFragment fragment;
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.AbsolutePath);
+            XAssert.AreEqual(Path1, fragment.GetPathValue());
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.AbsolutePath);
+            XAssert.AreEqual(Path2, fragment.GetPathValue());
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.StringLiteral);
+            XAssert.AreEqual(CaseVaryingString, m_pathTable.StringTable.GetString(fragment.GetStringIdValue()));
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.StringLiteral);
+            XAssert.AreEqual(m_expectedStringId0, fragment.GetStringIdValue());
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.VsoHash);
+            XAssert.AreEqual(SourceFile, fragment.GetFileValue());
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.VsoHash);
+            XAssert.AreEqual(OutputFile, fragment.GetFileValue());
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.VsoHash);
+            XAssert.AreEqual(RewrittenFile, fragment.GetFileValue());
+
+            AssertMoveNext(ref enumerator, out fragment, PipFragmentType.VsoHash);
+            XAssert.AreEqual(RewrittenFile2, fragment.GetFileValue());
         }
 
-        private static void AssertMoveNext(ref PipData.FragmentEnumerator enumerator, out PipFragment fragment, PipFragmentType? expectedFragmentType = null, [CallerLineNumber] int line = 0)
+        private static void AssertMoveNext(ref PipData.FragmentEnumerator enumerator, out PipFragment fragment, PipFragmentType? expectedFragmentType = null)
         {
-            var message = $"Defined at line {line}.";
-            XAssert.IsTrue(enumerator.MoveNext(), message);
+            XAssert.IsTrue(enumerator.MoveNext());
             fragment = enumerator.Current;
-            XAssert.IsTrue(fragment.IsValid, message);
+            XAssert.IsTrue(fragment.IsValid);
             if (expectedFragmentType.HasValue)
             {
-                XAssert.AreEqual(expectedFragmentType.Value, fragment.FragmentType, message);
+                XAssert.AreEqual(expectedFragmentType.Value, fragment.FragmentType);
             }
         }
     }

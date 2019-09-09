@@ -27,12 +27,6 @@ namespace BuildXL.Pips.Operations
         private readonly PipDataFragmentEscaping m_escaping;
         private readonly int m_data;
 
-        /// <nodoc />
-        public PipDataEntry(PipDataFragmentEscaping escaping, PipDataEntryType entryType, uint data)
-            : this(escaping, entryType, unchecked((int)data))
-        {
-        }
-
         /// <summary>
         /// Class constructor
         /// </summary>
@@ -76,8 +70,6 @@ namespace BuildXL.Pips.Operations
                         return PipFragmentType.VsoHash;
                     case PipDataEntryType.FileId1Path:
                         return PipFragmentType.FileId;
-                    case PipDataEntryType.DirectoryIdHeaderSealId:
-                        return PipFragmentType.DirectoryId;
                     case PipDataEntryType.IpcMoniker:
                         return PipFragmentType.IpcMoniker;
                     case PipDataEntryType.NestedDataHeader:
@@ -121,20 +113,6 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Returns the current value as an unsigned integer.
-        /// </summary>
-        /// <remarks>
-        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.DirectoryIdHeaderSealId" />.
-        /// </remarks>
-        /// <returns>Value as an unsigned integer.</returns>
-        public uint GetUInt32Value()
-        {
-            Contract.Requires(
-                EntryType == PipDataEntryType.DirectoryIdHeaderSealId);
-            return unchecked((uint)m_data);
-        }
-
-        /// <summary>
         /// Returns the current value as a string id.
         /// </summary>
         /// <remarks>
@@ -172,16 +150,6 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(file.IsValid);
             entry1Path = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.FileId1Path, file.Path.RawValue);
             entry2RewriteCount = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.FileId2RewriteCount, file.RewriteCount);
-        }
-
-        /// <summary>
-        /// Creates entries that constitute a directory id pip data fragment.
-        /// </summary>
-        public static void CreateDirectoryIdEntries(DirectoryArtifact directory, out PipDataEntry entry1SealId, out PipDataEntry entry2Path)
-        {
-            Contract.Requires(directory.IsValid);
-            entry1SealId = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.DirectoryIdHeaderSealId, unchecked((int)(directory.IsSharedOpaquePlusPartialSealId)));
-            entry2Path = directory.Path;
         }
 
         /// <summary>
@@ -277,7 +245,6 @@ namespace BuildXL.Pips.Operations
                 case PipDataEntryType.NestedDataEnd:
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
                 case PipDataEntryType.FileId2RewriteCount:
-                case PipDataEntryType.DirectoryIdHeaderSealId:
                     writer.WriteCompact(m_data);
                     break;
                 case PipDataEntryType.AbsolutePath:
@@ -311,7 +278,6 @@ namespace BuildXL.Pips.Operations
                 case PipDataEntryType.NestedDataEnd:
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
                 case PipDataEntryType.FileId2RewriteCount:
-                case PipDataEntryType.DirectoryIdHeaderSealId:
                     data = reader.ReadInt32Compact();
                     break;
                 case PipDataEntryType.AbsolutePath:

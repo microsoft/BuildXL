@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 {
@@ -16,7 +13,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     /// <summary>
     /// A random forest, which is a collection of decision trees
     /// </summary>
-    public class RandomForest : MLClassifier
+    public class RandomForest : IBinaryMLClassifier<RandomForestInstance>
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
 
@@ -54,7 +51,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// <summary>
         /// Returns the class with most votes among all the trees
         /// </summary>
-        public override void Classify(MLInstance instance)
+        public Result<string> Classify(RandomForestInstance instance)
         {
             var rfInstance = instance as RandomForestInstance;
             var votes = VoteCounter();
@@ -63,13 +60,14 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 votes[tree.Evaluate(rfInstance)] += 1;
             }
             votes[RandomTreeNode.NoClass] = 0;
-            rfInstance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+            var predictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+            return new Result<string>(predictedClass);
         }
 
         /// <summary>
         /// Returns the class with most votes among all the trees. It uses multiple threads to evaluate 
         /// </summary>
-        public override void Classify(MLInstance instance, int parallelism)
+        public Result<string> Classify(RandomForestInstance instance, int parallelism)
         {
             var rfInstance = instance as RandomForestInstance;
             var votes = VoteCounter();
@@ -83,7 +81,10 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 }
             });
             votes[RandomTreeNode.NoClass] = 0;
-            rfInstance.PredictedClass = votes.Count > 0 ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key : RandomTreeNode.NoClass;
+            var predictedClass = votes.Count > 0 
+                ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key 
+                : RandomTreeNode.NoClass;
+            return new Result<string>(predictedClass);
         }
 
         /// <summary>
@@ -118,22 +119,19 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             var instanceCounter = 0;
             foreach(var instance in instances)
             {
-                if (parallel)
-                {
-                    Classify(instance, maxParalellism);
-                }
-                else
-                {
-                    Classify(instance);
-                }
+                var result = parallel
+                    ? Classify(instance, maxParalellism)
+                    : Classify(instance);
 
-                if(MLArtifact.Evaluate(instance))
+                var prediction = result.Value;
+
+                if(MLArtifact.Evaluate(instance, prediction))
                 {
-                    confusion[$"{instance.PredictedClass}-true"] += 1;
+                    confusion[$"{prediction}-true"] += 1;
                 }
                 else
                 {
-                    confusion[$"{instance.PredictedClass}-false"] += 1;
+                    confusion[$"{prediction}-false"] += 1;
                 }
                 ++instanceCounter;
             }
@@ -501,7 +499,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     /// <summary>
     ///  A random forest should only classify this kind of instances. 
     /// </summary>
-    public class RandomForestInstance : BinaryMLInstance
+    public class RandomForestInstance
     {
         /// <summary>
         ///  The attributes used for classification

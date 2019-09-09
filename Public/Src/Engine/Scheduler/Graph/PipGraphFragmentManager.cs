@@ -40,7 +40,7 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
         private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
 
-        private readonly TaskFactory m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(Environment.ProcessorCount, "Add Pip to Graph"));
+        private readonly Lazy<TaskFactory> m_taskFactory;
 
         private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
 
@@ -53,13 +53,13 @@ namespace BuildXL.Scheduler.Graph
             m_context = context;
             m_pipGraph = pipGraph;
             maxParallelism = maxParallelism ?? Environment.ProcessorCount;
-            m_taskFactory = new TaskFactory(new DedicatedThreadsTaskScheduler(maxParallelism.Value, "PipGraphFragmentManager"));
-    }
+            m_taskFactory = new Lazy<TaskFactory>(() => new TaskFactory(new DedicatedThreadsTaskScheduler(maxParallelism.Value, "PipGraphFragmentManager")));
+        }
 
-    /// <summary>
-    /// Adds a single pip graph fragment to the graph.
-    /// </summary>
-    public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
+        /// <summary>
+        /// Adds a single pip graph fragment to the graph.
+        /// </summary>
+        public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
             m_taskMap[filePath] = (deserializer, m_taskFactory.StartNew(async () =>

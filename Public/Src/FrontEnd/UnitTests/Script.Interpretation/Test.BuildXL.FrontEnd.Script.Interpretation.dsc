@@ -26,10 +26,7 @@ namespace Script.Interpretation {
         ],
         //increase weight for frequent timeout pip
 				runTestArgs: {
-        	// Need to untrack the test output directory, because redis server tries to write some pdbs.
-          untrackTestDirectory: true,
-          parallelBucketCount: 16,
-					weight: 8
+            weight: 8,
         },
     });
 }

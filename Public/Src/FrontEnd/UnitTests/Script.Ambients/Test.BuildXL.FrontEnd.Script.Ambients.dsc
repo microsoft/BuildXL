@@ -18,11 +18,6 @@ namespace Script.Ambients {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
         ],
-				runTestArgs: {
-        	// Need to untrack the test output directory, because redis server tries to write some pdbs.
-          	untrackTestDirectory: true,
-            parallelBucketCount: 16,
-						weight: 8
-        },
+        runTestArgs: { weight: 2 },
     });
 }

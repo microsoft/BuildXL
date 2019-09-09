@@ -90,6 +90,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly int DefaultMaxFrontEndConcurrency = Math.Max(Environment.ProcessorCount, 256 / Environment.ProcessorCount); // the more cores, the lower the threshold.
 
         /// <nodoc/>
+        public static readonly bool DefaultEnableEvaluationThrottling =
+#if FEATURE_THROTTLE_EVAL_SCHEDULER
+            true;
+#else
+            false;
+#endif
+
+        /// <nodoc/>
         public static readonly int DefaultintThreadPoolMinThreadCountMultiplier = 3;
 
         /// <nodoc/>
@@ -154,8 +162,8 @@ namespace BuildXL.Utilities.Configuration
         public static int MaxFrontEndConcurrency(this IFrontEndConfiguration configuration) => 
             configuration.MaxFrontEndConcurrency ?? DefaultMaxFrontEndConcurrency;
 
-        public static bool UnlimitedFrontEndConcurrency(this IFrontEndConfiguration configuration) =>
-            configuration.UnlimitedFrontEndConcurrency ?? true;
+        public static bool EnableEvaluationThrottling(this IFrontEndConfiguration configuration) =>
+            configuration.EnableEvaluationThrottling ?? DefaultEnableEvaluationThrottling;
 
         /// <nodoc/>
         public static int MaxRestoreNugetConcurrency(this IFrontEndConfiguration configuration) => 

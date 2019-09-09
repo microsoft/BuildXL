@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.Core
     public sealed class EvaluationScheduler : IEvaluationScheduler
     {
         private readonly int m_degreeOfParallelism;
-        private bool m_unlimitedParallelism;
+        private bool m_enableEvaluationThrottling;
         private readonly CancellationTokenSource m_cancellationSource;
 
         private readonly ActionBlock<QueueItem> m_queue;
@@ -62,7 +62,7 @@ namespace BuildXL.FrontEnd.Core
         /// Creates a scheduler without cancellation support (<seealso cref="EvaluationScheduler(int, CancellationToken)"/>)
         /// </summary>
         public EvaluationScheduler(int degreeOfParallelism)
-            : this(degreeOfParallelism, true, CancellationToken.None) { }
+            : this(degreeOfParallelism, false, CancellationToken.None) { }
 
         /// <summary>
         /// Creates a scheduler.
@@ -71,15 +71,15 @@ namespace BuildXL.FrontEnd.Core
         /// If <paramref name="degreeOfParallelism"/> is greater than 1, then tasks provided to
         /// <see cref="EvaluateValue"/> methods are wrapped in <code>Task.Run</code>.
         /// </remarks>
-        public EvaluationScheduler(int degreeOfParallelism, bool unlimitedParalellism, CancellationToken cancellationToken)
+        public EvaluationScheduler(int degreeOfParallelism, bool enableEvaluationThrottling, CancellationToken cancellationToken)
         {
             Contract.Requires(degreeOfParallelism >= 1);
 
             m_degreeOfParallelism = degreeOfParallelism;
-            m_unlimitedParallelism = unlimitedParalellism;
+            m_enableEvaluationThrottling = enableEvaluationThrottling;
             m_cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            if (!m_unlimitedParallelism)
+            if (m_enableEvaluationThrottling)
             {
                 m_queue = new ActionBlock<QueueItem>(
                     item => item.Execute(),
@@ -101,13 +101,7 @@ namespace BuildXL.FrontEnd.Core
                 return await evaluateValueFunction();
             }
 
-            if (m_unlimitedParallelism)
-            {
-                return m_degreeOfParallelism > 1
-                    ? Task.Run(evaluateValueFunction)
-                    : evaluateValueFunction();
-            }
-            else
+            if (m_enableEvaluationThrottling)
             {
                 var queueItem = new QueueItem(evaluateValueFunction);
                 m_queue.Post(queueItem);
@@ -119,6 +113,12 @@ namespace BuildXL.FrontEnd.Core
                     ? await queueItem.Completion // evaluation task completed
                     : null;                      // cancelled
             }
+            else
+            {
+                return m_degreeOfParallelism > 1
+                    ? Task.Run(evaluateValueFunction)
+                    : evaluateValueFunction();
+            }
         }
 
         /// <inheritdoc/>
@@ -128,6 +128,6 @@ namespace BuildXL.FrontEnd.Core
         public void Cancel() => m_cancellationSource.Cancel();
 
         /// <nodoc />
-        public static EvaluationScheduler Default { get; } = new EvaluationScheduler(Environment.ProcessorCount, true, CancellationToken.None);
+        public static EvaluationScheduler Default { get; } = new EvaluationScheduler(Environment.ProcessorCount, false, CancellationToken.None);
     }
 }

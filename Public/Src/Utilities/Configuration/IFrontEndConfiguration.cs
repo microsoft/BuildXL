@@ -102,7 +102,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// If true, spawn unlimited tasks at once in the front end
         /// </summary>
-        bool? UnlimitedFrontEndConcurrency { get; }
+        bool? EnableEvaluationThrottling { get; }
 
         /// <summary>
         /// The max concurrency to use for restoring nuget packages.

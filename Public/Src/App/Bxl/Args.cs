@@ -619,8 +619,8 @@ namespace BuildXL
                             "mF",
                             opt => frontEndConfiguration.MaxFrontEndConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
-                            "unlimitedFrontEndConcurrency",
-                            opt => frontEndConfiguration.UnlimitedFrontEndConcurrency = CommandLineUtilities.ParseBooleanOption(opt)),
+                            "enableEvaluationThrottling",
+                            opt => frontEndConfiguration.EnableEvaluationThrottling = CommandLineUtilities.ParseBooleanOption(opt)),
                         OptionHandlerFactory.CreateOption(
                             "maxRestoreNugetConcurrency",
                             opt => frontEndConfiguration.MaxRestoreNugetConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),

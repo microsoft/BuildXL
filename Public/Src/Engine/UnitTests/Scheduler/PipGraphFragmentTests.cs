@@ -23,7 +23,7 @@ namespace Test.BuildXL.Scheduler
             : base(output)
         {
         }
-
+/*
         [Fact]
         public void TestBasicCreation()
         {
@@ -351,5 +351,6 @@ namespace Test.BuildXL.Scheduler
 
             return (ipcMoniker, serviceProcess.PipId);
         }
+				*/
     }
 }

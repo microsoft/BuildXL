@@ -351,6 +351,7 @@ namespace BuildXL.Execution.Analyzer
                     ConsoleListener.RegisterEventSource(ETWLogger.Log);
                     ConsoleListener.RegisterEventSource(FrontEnd.Script.Debugger.ETWLogger.Log);
                     m_analyzer = InitializeDebugLogsAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;

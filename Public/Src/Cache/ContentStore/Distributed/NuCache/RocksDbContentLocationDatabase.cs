@@ -195,7 +195,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) }, rotateLogs: true);
+                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                    rotateLogs: true,
+                    failureHandler: failure => {
+                        Tracer.Error(context, $"RocksDb critical error caused store deprecation: {failure.DescribeIncludingInnerFailures()}");
+                    });
+
                 if (possibleStore.Succeeded)
                 {
                     var oldKeyValueStore = _keyValueStore;

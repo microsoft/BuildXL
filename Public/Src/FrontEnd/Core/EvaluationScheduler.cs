@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Core
 {
@@ -62,7 +63,7 @@ namespace BuildXL.FrontEnd.Core
         /// Creates a scheduler without cancellation support (<seealso cref="EvaluationScheduler(int, bool, CancellationToken)"/>)
         /// </summary>
         public EvaluationScheduler(int degreeOfParallelism)
-            : this(degreeOfParallelism, true, CancellationToken.None) { }
+            : this(degreeOfParallelism, FrontEndConfigurationExtensions.DefaultEnableEvaluationThrottling, CancellationToken.None) { }
 
         /// <summary>
         /// Creates a scheduler.
@@ -126,6 +127,6 @@ namespace BuildXL.FrontEnd.Core
         public void Cancel() => m_cancellationSource.Cancel();
 
         /// <nodoc />
-        public static EvaluationScheduler Default { get; } = new EvaluationScheduler(Environment.ProcessorCount, false, CancellationToken.None);
+        public static EvaluationScheduler Default { get; } = new EvaluationScheduler(Environment.ProcessorCount, FrontEndConfigurationExtensions.DefaultEnableEvaluationThrottling, CancellationToken.None);
     }
 }

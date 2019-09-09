@@ -1,0 +1,18 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum ServicePipKind{
+    ServicePipKind_UNSPECIFIED = 0;
+    
+    ServicePipKind_None = 1;
+    Service = 2;
+    ServiceClient = 3;
+    ServiceShutdown = 4;
+    ServiceFinalization = 5;
+}

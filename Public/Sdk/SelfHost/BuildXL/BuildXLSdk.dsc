@@ -124,6 +124,12 @@ export const isDaemonToolingEnabled = Flags.isMicrosoftInternal && isFullFramewo
 @@public
 export const isDropToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosoftInternal && isFullFramework;
 
+/***
+* Whether symbol tooling is included with the BuildXL deployment
+*/
+@@public
+export const isSymbolToolingEnabled = isDaemonToolingEnabled && Flags.isMicrosoftInternal && isFullFramework;
+
 namespace Flags {
     export declare const qualifier: {};
 

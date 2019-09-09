@@ -75,6 +75,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 {
                     CommandLineConfig.InCloudBuild = ParseBooleanOption(opt);
                 }
+                else if (opt.Name.Equals("ComputeStaticFingerprints", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineConfig.Schedule.ComputePipStaticFingerprints = ParseBooleanOption(opt);
+                }
                 else if (opt.Name.Equals("objectDirectory", StringComparison.OrdinalIgnoreCase))
                 {
                     CommandLineConfig.Layout.ObjectDirectory = AbsolutePath.Create(m_pathTable, GetFullPath(opt.Value, opt));

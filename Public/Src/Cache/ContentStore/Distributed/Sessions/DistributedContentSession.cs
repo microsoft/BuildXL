@@ -295,7 +295,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             if (candidates.Length > 0)
                             {
                                 var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                                Tracer.Info(context, $"Copying {hash.ToShortString()} to machine '{candidate}' in build ring (of {candidates.Length} machines).");
+                                Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' in build ring (of {candidates.Length} machines).");
                                 copyToBuildRingMachineTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
                             }
                         }
@@ -309,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if (getLocationResult.Succeeded)
                         {
                             var candidate = getLocationResult.Value;
-                            Tracer.Info(context, $"Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
+                            Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
                             result &= await DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
                         }
 

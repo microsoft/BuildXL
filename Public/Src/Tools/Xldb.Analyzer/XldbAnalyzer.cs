@@ -145,10 +145,11 @@ namespace Xldb.Analyzer
                     }
                 }
 
+                var maxLength = Enum.GetValues(typeof(ExecutionEventId)).Cast<ExecutionEventId>().Select(e => e.ToString().Length).Max();
+
                 foreach (var workerDict in workerToEventDict)
                 {
                     writer.WriteLine("Worker {0}", workerDict.Key);
-                    var maxLength = Enum.GetValues(typeof(ExecutionEventId)).Cast<ExecutionEventId>().Select(e => e.ToString().Length).Max();
                     foreach (var eventStats in workerDict.Value)
                     {
                         writer.WriteLine(

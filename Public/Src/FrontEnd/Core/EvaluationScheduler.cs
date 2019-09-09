@@ -113,12 +113,10 @@ namespace BuildXL.FrontEnd.Core
                     ? await queueItem.Completion // evaluation task completed
                     : null;                      // cancelled
             }
-            else
-            {
-                return m_degreeOfParallelism > 1
-                    ? Task.Run(evaluateValueFunction)
-                    : evaluateValueFunction();
-            }
+
+            return m_degreeOfParallelism > 1
+                ? await Task.Run(evaluateValueFunction)
+                : evaluateValueFunction();
         }
 
         /// <inheritdoc/>

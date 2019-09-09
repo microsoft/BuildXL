@@ -53,7 +53,7 @@ namespace BuildXL.Scheduler.Graph
             m_context = context;
             m_pipGraph = pipGraph;
             maxParallelism = maxParallelism ?? Environment.ProcessorCount;
-            m_taskFactory = new Lazy<TaskFactory>(() => new TaskFactory(new DedicatedThreadsTaskScheduler(maxParallelism.Value, "PipGraphFragmentManager")));
+            m_taskFactory = new Lazy<TaskFactory>(() => new TaskFactory(new LimitedConcurrencyLevelTaskScheduler(maxParallelism.Value)));
         }
 
         /// <summary>

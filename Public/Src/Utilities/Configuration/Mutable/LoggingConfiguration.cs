@@ -125,6 +125,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 new List<string>(template.CacheMissAnalysisOption.Keys),
                 pathRemapper.Remap(template.CacheMissAnalysisOption.CustomPath));
             OptimizeConsoleOutputForAzureDevOps = template.OptimizeConsoleOutputForAzureDevOps;
+            OptimizeProgressUpdatingForAzureDevOps = template.OptimizeProgressUpdatingForAzureDevOps;
+            OptimizeVsoAnnotationsForAzureDevOps = template.OptimizeVsoAnnotationsForAzureDevOps;
+            OptimizeWarningOrErrorAnnotationsForAzureDevOps = template.OptimizeWarningOrErrorAnnotationsForAzureDevOps;
         }
 
         /// <inheritdoc />
@@ -313,5 +316,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool OptimizeConsoleOutputForAzureDevOps { get; set; }
+
+        /// <inheritdoc />
+        public bool OptimizeProgressUpdatingForAzureDevOps { get; set; }
+
+        /// <inheritdoc />
+        public bool OptimizeVsoAnnotationsForAzureDevOps { get; set; }
+
+        /// <inheritdoc />
+        public bool OptimizeWarningOrErrorAnnotationsForAzureDevOps { get; set; }
     }
 }

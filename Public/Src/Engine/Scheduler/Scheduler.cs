@@ -1185,19 +1185,18 @@ namespace BuildXL.Scheduler
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
 
-            if (m_fingerprintStoreTarget != null)
+            MasterSpecificExecutionLogTarget masterTarget = null;
+
+            if (!IsDistributedWorker)
             {
-                m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
-                    m_executionLogFileTarget,
-                    m_fingerprintStoreTarget,
-                    new ObservedInputAnomalyAnalyzer(graph));
+                masterTarget = new MasterSpecificExecutionLogTarget(loggingContext, this);
             }
-            else
-            {
-                m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
-                    m_executionLogFileTarget,
-                    new ObservedInputAnomalyAnalyzer(graph));
-            }
+
+            m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
+                m_executionLogFileTarget,
+                m_fingerprintStoreTarget,
+                new ObservedInputAnomalyAnalyzer(graph),
+                masterTarget);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
@@ -4178,6 +4177,31 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         public DirectoryTranslator DirectoryTranslator { get; }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        string IPipExecutionEnvironment.GetProducerExecutionInfo(in FileOrDirectoryArtifact artifact)
+        {
+            var producerId = PipGraph.GetProducer(artifact);
+            if (!producerId.IsValid)
+            {
+                return "N/A";
+            }
+
+            var producer = PipGraph.GetPipFromPipId(producerId);
+
+            RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[producerId];
+
+            PipExecutionStep step = PipExecutionStep.ExecuteProcess;
+            if (perfInfo.StepDurations[(int)step].TotalMilliseconds == 0)
+            {
+                step = PipExecutionStep.RunFromCache;
+            }
+
+            var workerId = perfInfo.Workers.Value[(int)step];
+            var worker = m_workers[(int)workerId];
+            bool isWorkerReleasedEarly = worker.WorkerEarlyReleasedTime != null;
+            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - IsReleasedEarly: {isWorkerReleasedEarly})";
+        }
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

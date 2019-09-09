@@ -331,6 +331,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)EventId.DetailedPipMaterializeDependenciesFromCacheFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed to materialize pip dependencies content from cache: {errorMessage}")]
+        internal abstract void DetailedPipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipFailedDueToDependenciesCannotBeHashed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

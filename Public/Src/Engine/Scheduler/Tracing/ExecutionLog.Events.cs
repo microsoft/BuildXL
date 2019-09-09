@@ -118,6 +118,11 @@ namespace BuildXL.Scheduler.Tracing
         /// Content of output directories is reported
         /// </summary>
         void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data);
+
+        /// <summary>
+        /// Cache materialization error is reported
+        /// </summary>
+        void CacheMaterializationError(CacheMaterializationErrorEventData data);
     }
 
     /// <summary>
@@ -194,6 +199,11 @@ namespace BuildXL.Scheduler.Tracing
         /// See <see cref="IExecutionLogTarget.DominoInvocation"/>
         /// </summary>
         DominoInvocation = 13,
+
+        /// <summary>
+        /// See <see cref="IExecutionLogTarget.CacheMaterializationError"/>
+        /// </summary>
+        CacheMaterializationError = 14,
     }
 
     /// <summary>
@@ -308,6 +318,14 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.PipExecutionDirectoryOutputs(data));
 
         /// <summary>
+        /// Event description for <see cref="IExecutionLogTarget.CacheMaterializationError"/>
+        /// </summary>
+        public static readonly ExecutionLogEventMetadata<CacheMaterializationErrorEventData> CacheMaterializationError =
+            new ExecutionLogEventMetadata<CacheMaterializationErrorEventData>(
+                ExecutionEventId.CacheMaterializationError,
+                (data, target) => target.CacheMaterializationError(data));
+
+        /// <summary>
         /// All execution log events.
         /// </summary>
         public static readonly IReadOnlyList<ExecutionLogEventMetadata> Events = new ExecutionLogEventMetadata[]
@@ -325,6 +343,7 @@ namespace BuildXL.Scheduler.Tracing
                                                                                      ProcessFingerprintComputation,
                                                                                      PipCacheMiss,
                                                                                      PipExecutionDirectoryOutputs,
+                                                                                     CacheMaterializationError
                                                                                  };
     }
 
@@ -1404,6 +1423,47 @@ namespace BuildXL.Scheduler.Tracing
         public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
         {
             Configuration.DeserializeAndUpdate(reader);
+        }
+    }
+
+    /// <summary>
+    /// Cache materialization error data
+    /// </summary>
+    [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
+    public struct CacheMaterializationErrorEventData : IExecutionLogEventData<CacheMaterializationErrorEventData>
+    {
+        /// <summary>
+        /// The pip ID
+        /// </summary>
+        public PipId PipId;
+
+        /// <summary>
+        /// Failed files to materialize
+        /// </summary>
+        public ReadOnlyArray<(FileArtifact, ContentHash)> FailedFiles;
+
+        /// <inheritdoc />
+        public ExecutionLogEventMetadata<CacheMaterializationErrorEventData> Metadata => ExecutionLogMetadata.CacheMaterializationError;
+
+        /// <inheritdoc />
+        public void Serialize(BinaryLogger.EventWriter writer)
+        {
+            PipId.Serialize(writer);
+            writer.WriteReadOnlyList(
+                FailedFiles,
+                (w, failedFile) =>
+                {
+                    w.Write(failedFile.Item1);
+                    failedFile.Item2.Serialize(writer);
+                });
+        }
+
+        /// <inheritdoc />
+        public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+        {
+            PipId = PipId.Deserialize(reader);
+            FailedFiles = reader.ReadReadOnlyArray(
+                r => (reader.ReadFileArtifact(), ContentHashingUtilities.CreateFrom(reader)));
         }
     }
 }

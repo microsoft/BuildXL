@@ -28,7 +28,6 @@ namespace Execution.Analyzer {
                     ContentPlacement.Core.dll
                 ]
             ),
-            Tools.ContentPlacement.Core.dll,
             VSCode.DebugAdapter.dll,
             VSCode.DebugProtocol.dll,
             importFrom("Antlr4.Runtime.Standard").pkg,

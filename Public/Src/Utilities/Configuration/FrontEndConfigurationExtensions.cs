@@ -154,6 +154,9 @@ namespace BuildXL.Utilities.Configuration
         public static int MaxFrontEndConcurrency(this IFrontEndConfiguration configuration) => 
             configuration.MaxFrontEndConcurrency ?? DefaultMaxFrontEndConcurrency;
 
+        public static bool UnlimitedFrontEndConcurrency(this IFrontEndConfiguration configuration) =>
+            configuration.UnlimitedFrontEndConcurrency ?? true;
+
         /// <nodoc/>
         public static int MaxRestoreNugetConcurrency(this IFrontEndConfiguration configuration) => 
             configuration.MaxRestoreNugetConcurrency ?? MaxFrontEndConcurrency(configuration);

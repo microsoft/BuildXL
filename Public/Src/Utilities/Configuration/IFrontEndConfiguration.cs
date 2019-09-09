@@ -100,6 +100,11 @@ namespace BuildXL.Utilities.Configuration
         int? MaxFrontEndConcurrency { get; }
 
         /// <summary>
+        /// If true, spawn unlimited tasks at once in the front end
+        /// </summary>
+        bool? UnlimitedFrontEndConcurrency { get; }
+
+        /// <summary>
         /// The max concurrency to use for restoring nuget packages.
         /// </summary>
         int? MaxRestoreNugetConcurrency { get; }

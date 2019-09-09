@@ -423,7 +423,6 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
             assemblyInfo: Object.merge(assemblyInfo, {title: title}, args.assemblyInfo),
             defineConstants: [
                 "DEFTEMP",
-                "FEATURE_THROTTLE_EVAL_SCHEDULER",
                 ...addIf(isDotNetCoreBuild,
                     "FEATURE_SAFE_PROCESS_HANDLE",
                     "DISABLE_FEATURE_VSEXTENSION_INSTALL_CHECK",

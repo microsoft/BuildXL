@@ -88,7 +88,7 @@ namespace BuildXL.Scheduler.Graph
                         filePath,
                         (fragmentContext, provenance, pipId, pip) =>
                         {
-                            return m_taskFactory.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip));
+                            return m_taskFactory.Value.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip));
                         },
                         description);
 

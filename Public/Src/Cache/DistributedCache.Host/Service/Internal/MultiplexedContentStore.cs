@@ -282,9 +282,9 @@ namespace BuildXL.Cache.Host.Service.Internal
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash)
         {
-            return PerformStoreOperationAsync<ICopyRequestHandler, BoolResult>(store => store.RequestCopyFileAsync(context, hash));
+            return PerformStoreOperationAsync<ICopyRequestHandler, BoolResult>(store => store.HandleCopyFileRequestAsync(context, hash));
         }
 
         private async Task<TResult> PerformStoreOperationAsync<TStore, TResult>(Func<TStore, Task<TResult>> executeAsync)

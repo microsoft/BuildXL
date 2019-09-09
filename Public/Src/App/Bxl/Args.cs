@@ -952,7 +952,7 @@ namespace BuildXL
                             isUnsafe: true),
                         OptionHandlerFactory.CreateOption(
                             "unsafe_GlobalPassthroughEnvVars",
-                            opt => frontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
+                            opt => sandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
                         OptionHandlerFactory.CreateOption(
                             "unsafe_GlobalUntrackedScopes",
                             opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),

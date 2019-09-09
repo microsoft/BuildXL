@@ -139,7 +139,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, MachineLocation targetMachine)
         {
-            return CopyHandlersByLocation[targetMachine].RequestCopyFileAsync(context, hash);
+            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
         }
     }
 }

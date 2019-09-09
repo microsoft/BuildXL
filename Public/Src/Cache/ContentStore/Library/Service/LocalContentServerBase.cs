@@ -76,7 +76,13 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        internal readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
+        /// <remarks>
+        /// This is only supposed to be used by this class and inheritors, do not make internal or public.
+        /// 
+        /// It is also expected to be immutable, because inheritors may copy it around. So do NOT add keys after
+        /// constructed.
+        /// </remarks>
+        protected readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
 
         /// <nodoc />
         protected LocalContentServerBase(

@@ -170,6 +170,8 @@ namespace Xldb.Analyzer
                     (currDbStorageStatValue.Size / m_thousandDivisor).ToString("#.####").PadLeft(countPadding, ' '),
                     (currDbStorageStatValue.Size / (double)totalPayload * 100).ToString("#.####").PadLeft(percentagePadding, ' '));
                 }
+
+                writer.WriteLine($"\n\nTotal uncompressed storage size is: {totalPayload/m_thousandDivisor} KB");
             }
 
             return 0;

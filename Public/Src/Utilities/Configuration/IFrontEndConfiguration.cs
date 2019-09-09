@@ -289,16 +289,6 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         bool ShowLargestFilesStatistics { get; }
 
-        /// <summary> 
-        /// Environment Variables which should be passed through for all processes 
-        /// </summary> 
-        /// <remarks>
-        /// This is an unsafe configuration.
-        /// This global configuration from cammand line will bypass cache,
-        /// which means pips and graph will be cached ignoring environment variables specified in this configure
-        /// </remarks>
-        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
-
         /// <summary>
         /// Wheather or not to release workspace before evaluation.
         /// </summary>

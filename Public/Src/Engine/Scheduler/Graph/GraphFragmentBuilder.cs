@@ -29,6 +29,11 @@ namespace BuildXL.Scheduler.Graph
         /// Seal directory table
         /// </summary>
         protected readonly SealedDirectoryTable SealDirectoryTable;
+
+        /// <summary>
+        /// Configuration
+        /// </summary>
+        protected readonly IConfiguration Configuration;
         private readonly LoggingContext m_loggingContext;
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
@@ -46,6 +51,7 @@ namespace BuildXL.Scheduler.Graph
             Contract.Requires(loggingContext != null);
             Contract.Requires(pipExecutionContext != null);
 
+            Configuration = configuration;
             m_loggingContext = loggingContext;
             m_pipExecutionContext = pipExecutionContext;
             m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker

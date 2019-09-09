@@ -6,7 +6,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Text;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -28,6 +30,11 @@ namespace BuildXL.Pips.Operations
         public const string SemiStableHashPrefix = "Pip";
 
         private PipId m_pipId;
+
+        /// <summary>
+        /// Static fingerprint
+        /// </summary>
+        public Fingerprint StaticFingerprint { get; set; }
 
         /// <summary>
         /// Tags used to enable pip-level filtering of the schedule.
@@ -184,6 +191,10 @@ namespace BuildXL.Pips.Operations
                     break;
             }
 
+            if (reader.ReadBoolean())
+            {
+                pip.StaticFingerprint = FingerprintUtilities.CreateFrom(reader);
+            }
             reader.End();
             Contract.Assume(pip != null);
             return pip;
@@ -195,6 +206,16 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)PipType);
             writer.Start(GetType());
             InternalSerialize(writer);
+            if (StaticFingerprint.Length >0)
+            {
+                writer.Write(true);
+                StaticFingerprint.WriteTo(writer);
+            }
+            else
+            {
+                writer.Write(false);
+            }
+
             writer.End();
         }
 

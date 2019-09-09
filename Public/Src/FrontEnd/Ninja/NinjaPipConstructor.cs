@@ -387,9 +387,6 @@ namespace BuildXL.FrontEnd.Ninja
                 processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, envVar));
             }
 
-            // GlobalUnsafePassthroughEnvironmentVariables
-            processBuilder.SetGlobalPassthroughEnvironmentVariable(m_frontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, m_context.StringTable);
-
             // We will specify a different MSPDBSRV endpoint for every pip.
             // This means every pip that needs to communicate to MSPDBSRV will
             // spawn a different child process.

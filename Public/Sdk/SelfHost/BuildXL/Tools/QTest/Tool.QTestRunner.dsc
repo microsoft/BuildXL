@@ -185,7 +185,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
-        Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile)       
+        Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
+        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile)
     ];          
 
     let unsafeOptions = {
@@ -357,6 +358,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestEnvironmentVariables?: Transformer.EnvironmentVariable[];
     /** Specify the path relative to enlistment root of the sources from which the test target is built */
     testSourceDir?: RelativePath;
+    /** Path to a file which contains a list of target file names excluded for code coverage processing*/
+    qTestExcludeCcTargetsFile?: Path;
 }
 /**
  * Test results from a vstest.console.exe run

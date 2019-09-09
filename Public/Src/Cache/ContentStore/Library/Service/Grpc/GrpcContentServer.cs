@@ -310,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             if (_contentStoreByCacheName.Values.OfType<ICopyRequestHandler>().FirstOrDefault() is ICopyRequestHandler handler)
             {
-                var result = await handler.RequestCopyFileAsync(cacheContext, hash);
+                var result = await handler.HandleCopyFileRequestAsync(cacheContext, hash);
                 if (result.Succeeded)
                 {
                     return new RequestCopyFileResponse { Header = ResponseHeader.Success(startTime) };

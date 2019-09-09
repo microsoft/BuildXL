@@ -1,0 +1,7 @@
+import {Transformer} from "Sdk.Transformers";
+
+@@public
+export const tool = toolTemplate.override<Transformer.ToolDefinition>({
+    exe: f`bin/SymbolDaemon.exe`, 
+    runtimeDependencies: globR(d`bin`, "*.*")
+});

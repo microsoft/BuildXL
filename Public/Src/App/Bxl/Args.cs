@@ -692,6 +692,9 @@ namespace BuildXL
                             "p",
                             opt => ParsePropertyOption(opt, startupConfiguration.Properties)),
                         OptionHandlerFactory.CreateOption(
+                            "pathSetThreshold",
+                            opt => CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
                             "phase",
                             opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),
                         OptionHandlerFactory.CreateBoolOption(

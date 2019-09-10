@@ -123,6 +123,12 @@ namespace BuildXL.Utilities.Configuration
         bool UseDedupStore { get; }
 
         /// <summary>
+        /// The maximum number of visited path sets allowed before switching to an 'augmented' weak fingerprint
+        /// computed from common dynamically accessed paths.
+        /// </summary>
+        int AugmentWeakFingerprintPathSetThreshold { get; }
+
+        /// <summary>
         /// When enabled, the cache will be responsible for replacing exisiting file during file materialization.
         /// </summary>
         bool ReplaceExistingFileOnMaterialization { get; }

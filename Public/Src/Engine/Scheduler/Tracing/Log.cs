@@ -304,6 +304,25 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessPipCacheHit(LoggingContext loggingContext, string pipDescription, string fingerprint, ulong uniqueId);
 
         [GeneratedEvent(
+            (ushort)LogEventId.AugmentedWeakFingerprint,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] Augmented weak fingerprint '{weakFingerprint}' -> '{augmentedWeakFingerprint}' using path set '{pathSetHash}' with {pathCount} paths Keep augmenting path set alive result={keepAliveResult}.")]
+        internal abstract void AugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string augmentedWeakFingerprint, string pathSetHash, int pathCount, string keepAliveResult);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.AddAugmentingPathSet,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] Adding augmenting path set '{pathSetHash}' with '{pathCount}' (from {pathSetCount} path sets with min {minPathCount} and max {maxPathCount} paths). Weak fingerprint={weakFingerprint}. Result={result}.")]
+        internal abstract void AddAugmentingPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, int pathCount, int pathSetCount, int minPathCount, int maxPathCount, string result);
+
+
+        [GeneratedEvent(
             (ushort)EventId.PipFailedDueToServicesFailedToRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

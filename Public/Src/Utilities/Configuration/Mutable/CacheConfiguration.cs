@@ -56,6 +56,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseDedupStore = template.UseDedupStore;
             ReplaceExistingFileOnMaterialization = template.ReplaceExistingFileOnMaterialization;
             VfsCasRoot = pathRemapper.Remap(template.VfsCasRoot);
+            AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
         }
 
         /// <nodoc />
@@ -141,5 +142,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath VfsCasRoot { get; set; }
+
+        /// <inheritdoc />
+        public int AugmentWeakFingerprintPathSetThreshold { get; set; }
     }
 }

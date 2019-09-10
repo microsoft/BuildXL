@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -62,7 +63,7 @@ namespace BuildXL.FrontEnd.Script
 
             m_owningModules = new Dictionary<ModuleId, Package>();
 
-            foreach (var package in maybePackages.Result)
+            foreach (var package in maybePackages.Result.Values.SelectMany(v => v))
             {
                 m_packages[package.Id] = package;
                 m_owningModules[package.ModuleId] = package;
@@ -71,6 +72,7 @@ namespace BuildXL.FrontEnd.Script
             if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid ||
                 Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
             {
+                System.Diagnostics.Debugger.Launch();
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 var cgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
                 // TODO(rijul): based on {Generate|Validate}CgManifestForNugets, decide whether 

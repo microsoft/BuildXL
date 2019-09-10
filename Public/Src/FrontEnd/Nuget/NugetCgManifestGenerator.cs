@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 
 namespace BuildXL.FrontEnd.Nuget
@@ -27,17 +28,25 @@ namespace BuildXL.FrontEnd.Nuget
         /// <summary>
         /// TODO(rijul)
         /// </summary>
-        public string GenerateCgManifestForPackages(IEnumerable<Package> packages)
+        public string GenerateCgManifestForPackages(MultiValueDictionary<string, Package> packages)
         {
-            var components = packages
-                .OrderBy(p => p.Id.Name.ToString(Context.StringTable))
-                .Select(p => ToNugetComponent(p.Id.Name.ToString(Context.StringTable), ExtractNugetVersion(p)))
-                .ToArray();
+            List<SimplePackage> components = new List<SimplePackage>();
+
+            foreach (string nugetName in packages.Keys)
+            {
+                IReadOnlyList<Package> multiPackages;
+                packages.TryGetValue(nugetName, out multiPackages);
+                foreach (Package package in multiPackages) {
+                    components.Add(new SimplePackage(nugetName, ExtractNugetVersion(package)));
+                }
+            }
+
+            components = components.OrderBy(c => c.Name).ThenBy(c => c.Version).ToList();
 
             var cgmanifest = new
             {
                 Version = 1,
-                Registrations = components
+                Registrations = ToNugetComponentArray(components)
             };
 
             return JsonConvert.SerializeObject(cgmanifest, Formatting.Indented);
@@ -62,20 +71,38 @@ namespace BuildXL.FrontEnd.Nuget
             return p.Path.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable);
         }
 
-        private object ToNugetComponent(string name, string version)
+        private object[] ToNugetComponentArray(List<SimplePackage> sortedComponents)
         {
-            return new
-            {
-                Component = new
-                {
-                    Type = "NuGet",
-                    NuGet = new
+            List<object> components = new List<object>();
+
+            foreach (SimplePackage package in sortedComponents) {
+                components.Add(
+                    new
                     {
-                        Name = name,
-                        Version = version
+                        Component = new
+                        {
+                            Type = "NuGet",
+                            NuGet = new
+                            {
+                                Name = package.Name,
+                                Version = package.Version
+                            }
+                        }
                     }
-                }
-            };
+                );
+            }
+
+            return components.ToArray();
+        }
+
+        private class SimplePackage {
+            public string Name { get; set; }
+            public string Version { get; set; }
+
+            public SimplePackage(string name, string version) {
+                Name = name;
+                Version = version;
+            }
         }
     }
 }

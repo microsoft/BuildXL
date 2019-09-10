@@ -359,6 +359,9 @@ namespace BuildXL
                             "dbw",
                             opt => ParseServiceLocation(opt, distributionConfiguration.BuildWorkers)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "elideMinimalGraphEnumerationAbsentPathProbes",
+                            sign => cacheConfiguration.ElideMinimalGraphEnumerationAbsentPathProbes = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
                         OptionHandlerFactory.CreateBoolOption(
@@ -616,6 +619,9 @@ namespace BuildXL
                             "mF",
                             opt => frontEndConfiguration.MaxFrontEndConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "enableEvaluationThrottling",
+                            opt => frontEndConfiguration.EnableEvaluationThrottling = CommandLineUtilities.ParseBooleanOption(opt)),
+                        OptionHandlerFactory.CreateOption(
                             "maxRestoreNugetConcurrency",
                             opt => frontEndConfiguration.MaxRestoreNugetConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
@@ -690,7 +696,7 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption2(
                             "parameter",
                             "p",
-                            opt => ParsePropertyOption(opt, startupConfiguration.Properties)),
+                            opt => CommandLineUtilities.ParsePropertyOption(opt, startupConfiguration.Properties)),
                         OptionHandlerFactory.CreateOption(
                             "phase",
                             opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),
@@ -734,7 +740,7 @@ namespace BuildXL
                             opt => frontEndConfiguration.ProfileScript = opt),
                         OptionHandlerFactory.CreateOption(
                             "property",
-                            opt => ParsePropertyOption(opt, startupConfiguration.Properties)),
+                            opt => CommandLineUtilities.ParsePropertyOption(opt, startupConfiguration.Properties)),
                         OptionHandlerFactory.CreateOption2(
                             "qualifier",
                             "q",
@@ -893,7 +899,7 @@ namespace BuildXL
                             sandboxConfiguration.PreserveOutputsForIncrementalTool = sign),
                         OptionHandlerFactory.CreateOption(
                             "traceInfo",
-                            opt => ParsePropertyOption(opt, loggingConfiguration.TraceInfo)),
+                            opt => CommandLineUtilities.ParsePropertyOption(opt, loggingConfiguration.TraceInfo)),
                         OptionHandlerFactory.CreateBoolOption(
                             "trackBuildsInUserFolder",
                             opt => engineConfiguration.TrackBuildsInUserFolder = opt),
@@ -949,7 +955,7 @@ namespace BuildXL
                             isUnsafe: true),
                         OptionHandlerFactory.CreateOption(
                             "unsafe_GlobalPassthroughEnvVars",
-                            opt => frontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
+                            opt => sandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v ))),
                         OptionHandlerFactory.CreateOption(
                             "unsafe_GlobalUntrackedScopes",
                             opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
@@ -1475,22 +1481,6 @@ namespace BuildXL
                 }
 
                 list.Add(parsed);
-            }
-        }
-
-        private static void ParsePropertyOption(CommandLineUtilities.Option opt, Dictionary<string, string> map)
-        {
-            Contract.Requires(map != null);
-
-            var keyValuePair = CommandLineUtilities.ParseKeyValuePair(opt);
-            if (!string.IsNullOrEmpty(keyValuePair.Value))
-            {
-                map[keyValuePair.Key] = keyValuePair.Value;
-            }
-            else
-            {
-                // a blank property specified after an existing one should blank it out
-                map.Remove(keyValuePair.Key);
             }
         }
 

@@ -94,6 +94,8 @@ export function compile(inputArgs: Arguments) : Result {
         Cmd.sign("/debug",                 args.emitDebugInformation),
         Cmd.sign("/highentropyva",         args.highEntropyVa),
         Cmd.option("/subsystemversion:",   args.subSystemVersion),
+        Cmd.sign("/nullable",              args.nullable),
+        Cmd.option("/nullable:",           args.nullabilityContext),
 
         Cmd.option("/checksumalgorithm:",  args.checksumAlgorithm ? args.checksumAlgorithm.toString() : undefined),
 
@@ -266,6 +268,11 @@ export interface Arguments extends Transformer.RunnerArguments{
     defines?: string[];
     /** This option instructs the compiler to only use ISO-1 C# language features, i.e which basically boils down to C# 1.0 language features. */
     languageVersion?: string;
+    
+    /** Specify nullable context option enable|disable. */
+    nullable?: boolean;
+    /** Specify nullable context option enable|disable|safeonly|warnings|safeonlywarnings.*/
+    nullabilityContext?: NullabilityContext;
 
     // security
     /** Allows you to build an assembly using delayed signing of the strong name. */
@@ -342,6 +349,10 @@ export interface Result {
     binary: Shared.Binary,
     reference?: Shared.Binary,
 }
+
+/** Defines nullable context options.*/
+@@public
+export type NullabilityContext = "enable" | "disable" | "safeonly" | "warnings" | "safeonlywarnings";
 
 @@public
 export type TargetType = "exe" | "winexe" | "library" | "module" | "appcontainerexe" | "winmdobj";

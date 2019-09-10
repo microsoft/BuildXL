@@ -11,6 +11,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Threading;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -87,14 +88,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task FlushAsync(OperationContext context)
+        public async Task<CounterCollection<FlushableCacheCounters>> FlushAsync(OperationContext context)
         {
             // This lock is required to ensure no flushes happen concurrently. We may loose updates if that happens.
             // AcquireAsync is used so as to avoid multiple concurrent tasks just waiting; this way we return the
             // task to the thread pool in between.
             using (await _flushMutex.AcquireAsync())
             {
-                PerformFlush(context);
+                return PerformFlush(context);
             }
         }
 
@@ -102,9 +103,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Needs to take the flushing lock. Called only from <see cref="FlushAsync(OperationContext)"/>. Refactored
         /// out for clarity.
         /// </summary>
-        private void PerformFlush(OperationContext context)
+        private CounterCollection<FlushableCacheCounters> PerformFlush(OperationContext context)
         {
             _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Increment();
+            var counters = new CounterCollection<FlushableCacheCounters>();
 
             using (_database.Counters[ContentLocationDatabaseCounters.CacheFlush].Start())
             {
@@ -114,51 +116,82 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     _cache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
                 }
 
-                if (_configuration.FlushSingleTransaction)
-                {
-                    _database.PersistBatch(context, _flushingCache);
-                }
-                else
-                {
-                    var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(_configuration.FlushDegreeOfParallelism, kv =>
+                using (counters[FlushableCacheCounters.FlushingTime].Start()) {
+                    if (_configuration.FlushSingleTransaction)
                     {
-                        // Do not lock on GetLock here, as it will cause a deadlock with
-                        // SetMachineExistenceAndUpdateDatabase. It is correct not do take any locks as well, because
-                        // no Store can happen while flush is running.
-                        _database.Persist(context, kv.Key, kv.Value);
-                    });
-
-                    foreach (var kv in _flushingCache)
-                    {
-                        actionBlock.Post(kv);
+                        _database.PersistBatch(context, _flushingCache);
                     }
+                    else
+                    {
+                        var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(_configuration.FlushDegreeOfParallelism, kv =>
+                        {
+                            // Do not lock on GetLock here, as it will cause a deadlock with
+                            // SetMachineExistenceAndUpdateDatabase. It is correct not do take any locks as well, because
+                            // no Store can happen while flush is running.
+                            _database.Persist(context, kv.Key, kv.Value);
+                        });
 
-                    actionBlock.Complete();
-                    actionBlock.CompletionAsync().Wait();
+                        foreach (var kv in _flushingCache)
+                        {
+                            actionBlock.Post(kv);
+                        }
+
+                        actionBlock.Complete();
+                        actionBlock.CompletionAsync().Wait();
+                    }
                 }
+
+                counters[FlushableCacheCounters.Persisted].Add(_flushingCache.Count);
 
                 _database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Add(_flushingCache.Count);
 
-                if (_configuration.FlushPreservePercentInMemory > 0)
+                using (counters[FlushableCacheCounters.CleanupTime].Start())
                 {
-                    int targetFlushingSize = (int)(_flushingCache.Count * _configuration.FlushPreservePercentInMemory);
-                    int removeAmount = _flushingCache.Count - targetFlushingSize;
-
-                    foreach (var key in _flushingCache.Keys.Take(removeAmount))
+                    if (_configuration.FlushPreservePercentInMemory > 0)
                     {
-                        _flushingCache.RemoveKey(key);
+                        int targetFlushingSize = (int)(_flushingCache.Count * _configuration.FlushPreservePercentInMemory);
+                        int removeAmount = _flushingCache.Count - targetFlushingSize;
+
+                        foreach (var key in _flushingCache.Keys.Take(removeAmount))
+                        {
+                            _flushingCache.RemoveKey(key);
+                        }
+                    }
+                    else
+                    {
+                        using (_exchangeLock.AcquireWriteLock())
+                        {
+                            _flushingCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
+                        }
                     }
                 }
-                else
-                {
-                    using (_exchangeLock.AcquireWriteLock())
-                    {
-                        _flushingCache = new ConcurrentBigMap<ShortHash, ContentLocationEntry>();
-                    }
-                }
 
+                counters[FlushableCacheCounters.Leftover].Add(_flushingCache.Count);
                 _database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCompletedCacheFlushes].Increment();
             }
+
+            counters[FlushableCacheCounters.Growth].Add(_cache.Count);
+            return counters;
+        }
+
+        public enum FlushableCacheCounters
+        {
+            /// <nodoc />
+            Persisted,
+
+            /// <nodoc />
+            Leftover,
+
+            /// <nodoc />
+            Growth,
+
+            /// <nodoc />
+            [CounterType(CounterType.Stopwatch)]
+            FlushingTime,
+
+            /// <nodoc />
+            [CounterType(CounterType.Stopwatch)]
+            CleanupTime
         }
     }
 }

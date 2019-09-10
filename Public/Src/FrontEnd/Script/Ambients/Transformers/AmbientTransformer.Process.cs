@@ -100,6 +100,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
+        private SymbolAtom m_executeEnableMultiLineErrorScanning;
         private SymbolAtom m_executeTags;
         private SymbolAtom m_executeServiceShutdownCmd;
         private SymbolAtom m_executeServiceFinalizationCmds;
@@ -243,6 +244,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAdditionalTempDirectories = Symbol("additionalTempDirectories");
             m_executeWarningRegex = Symbol("warningRegex");
             m_executeErrorRegex = Symbol("errorRegex");
+            m_executeEnableMultiLineErrorScanning = Symbol("enableMultiLineErrorScanning");
             m_executeAllowedSurvivingChildProcessNames = Symbol("allowedSurvivingChildProcessNames");
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
             m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
@@ -512,9 +514,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 ProcessUnsafeOptions(context, processBuilder, unsafeOptions);
             }
 
-            // GlobalUnsafePassthroughEnvironmentVariables
-            processBuilder.SetGlobalPassthroughEnvironmentVariable(context.FrontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, context.StringTable);
-
             // Set outputs to remain writable.
             var keepOutputsWritable = Converter.ExtractOptionalBoolean(obj, m_executeKeepOutputsWritable);
             if (keepOutputsWritable == true)
@@ -546,6 +545,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (errorRegex != null)
             {
                 processBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(context.StringTable, errorRegex), RegexOptions.None);
+            }
+
+            var enableMultiLineErrorScanning = Converter.ExtractOptionalBoolean(obj, m_executeEnableMultiLineErrorScanning);
+            if (enableMultiLineErrorScanning != null)
+            {
+                processBuilder.EnableMultiLineErrorScanning = enableMultiLineErrorScanning.Value;
             }
 
             // Tags.

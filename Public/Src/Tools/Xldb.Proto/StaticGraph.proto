@@ -3,7 +3,11 @@
 
 syntax = "proto3";
 
-import "EnumsAndHelperStructs.proto";
+import "HelperStructs.proto";
+
+// Import Enums
+import "Enums/PipType.proto";
+import "Enums/ProducerConsumerType.proto";
 
 package BuildXL.Xldb.Proto;
 
@@ -36,13 +40,6 @@ message PipIdKey{
     // We include the PipType in the key to know which type of pip is stored in the value
     // and how to appropriately parse it (since Protobuf has no inheritance)
     PipType PipType = 2;
-}
-
-enum ProducerConsumerType{
-    /// Since this is used in a key, we need an invalid enum for 0
-    ProducerConsumerType_Invalid = 0;
-    ProducerConsumerType_Producer = 1;
-    ProducerConsumerType_Consumer = 2;
 }
 
 message FileProducerConsumerKey{

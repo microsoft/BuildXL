@@ -146,15 +146,14 @@ namespace Test.BuildXL.TestUtilities
             return logBuilder.ToString();
         }
 
-        private event Action<EventWrittenEventArgs> NestedLoggerHandler;
+        /// <summary>
+        /// Nested handler to be invoked first.
+        /// </summary>
+        public event Action<EventWrittenEventArgs> NestedLoggerHandler;
 
         private void Log(EventWrittenEventArgs eventData)
         {
-            if (NestedLoggerHandler != null)
-            {
-                NestedLoggerHandler(eventData);
-                return;
-            }
+            NestedLoggerHandler?.Invoke(eventData);
 
             string s = FormattingEventListener.CreateFullMessageString(eventData, eventData.Level.ToString(), eventData.Message, m_baseTime, false);
             lock (m_logMessagesLock)

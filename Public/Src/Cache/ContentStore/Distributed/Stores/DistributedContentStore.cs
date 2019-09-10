@@ -607,7 +607,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        public Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash)
         {
             var operationContext = OperationContext(context);
             return operationContext.PerformOperationAsync(Tracer,

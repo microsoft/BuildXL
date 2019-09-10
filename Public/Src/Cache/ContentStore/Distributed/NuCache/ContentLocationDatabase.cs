@@ -288,8 +288,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             EnumerationFilter filter = null)
         {
-            Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
-            ForceCacheFlush(context);
+            if (IsInMemoryCacheEnabled)
+            {
+                // If we don't check, then GC will happen anyways and we will -incorrectly- increment the counter
+                Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
+                ForceCacheFlush(context);
+            }
+
             return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
         }
 
@@ -591,14 +596,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     try
                     {
                         await Task.Yield();
-                        await _inMemoryCache.FlushAsync(context);
-                        return BoolResult.Success;
+                        return Result.Success(await _inMemoryCache.FlushAsync(context));
                     }
                     finally
                     {
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
+                }, extraEndMessage: maybeCounters =>
+                {
+                    if (!maybeCounters.Succeeded)
+                    {
+                        return string.Empty;
+                    }
+
+                    var counters = maybeCounters.Value;
+                    return $"Persisted={counters[FlushableCache.FlushableCacheCounters.Persisted].Value} Leftover={counters[FlushableCache.FlushableCacheCounters.Leftover].Value} Growth={counters[FlushableCache.FlushableCacheCounters.Growth].Value} FlushingTime={counters[FlushableCache.FlushableCacheCounters.FlushingTime].Duration.TotalMilliseconds}ms CleanupTime={counters[FlushableCache.FlushableCacheCounters.CleanupTime].Duration.TotalMilliseconds}ms";
                 }).ThrowIfFailure();
         }
 

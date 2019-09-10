@@ -100,6 +100,11 @@ namespace BuildXL.Utilities.Configuration
         int? MaxFrontEndConcurrency { get; }
 
         /// <summary>
+        /// If true, spawn unlimited tasks at once in the front end
+        /// </summary>
+        bool? EnableEvaluationThrottling { get; }
+
+        /// <summary>
         /// The max concurrency to use for restoring nuget packages.
         /// </summary>
         int? MaxRestoreNugetConcurrency { get; }
@@ -288,16 +293,6 @@ namespace BuildXL.Utilities.Configuration
         /// Whether the frontend statistics should contain statistics about the largest files.
         /// </summary>
         bool ShowLargestFilesStatistics { get; }
-
-        /// <summary> 
-        /// Environment Variables which should be passed through for all processes 
-        /// </summary> 
-        /// <remarks>
-        /// This is an unsafe configuration.
-        /// This global configuration from cammand line will bypass cache,
-        /// which means pips and graph will be cached ignoring environment variables specified in this configure
-        /// </remarks>
-        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
 
         /// <summary>
         /// Wheather or not to release workspace before evaluation.

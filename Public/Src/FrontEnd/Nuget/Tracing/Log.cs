@@ -289,7 +289,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.NugetDependencyVersionDoesNotMatch,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "NuGet package 'nuget://{packageRequestorId}/{packageRequestorVersion}' requested dependency 'nuget://{packageDependencyId}/{requestedVersion}', but found version '{pickedVersion}' specified in the configuration file. The found version was selected anyway.",
             Keywords = (int)Keywords.UserMessage)]

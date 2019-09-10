@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 
@@ -19,7 +21,13 @@ namespace BuildXL.Pips
         /// </summary>
         /// <param name="filePath">Path to the file to read.</param>
         /// <param name="description">Description of the fragment for printing on the console</param>
-        bool AddFragmentFileToGraph(AbsolutePath filePath, string description);
+        /// <param name="dependencies">Path to the fragments this fragment depends on.</param>
+        bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies);
+
+        /// <summary>
+        /// Get all tasks
+        /// </summary>
+        IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks();
 
         /// <summary>
         /// Adds a module pip.

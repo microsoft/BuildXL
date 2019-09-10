@@ -1,0 +1,73 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum ReportedFileOperation{
+    ReportedFileOperation_UNSPECIFIED = 0;
+    
+    Unknown = 1;
+    CreateFile = 2;
+    GetFileAttributes = 3;
+    GetFileAttributesEx = 4;
+    ReportedFileOperation_Process = 5;
+    FindFirstFileEx = 6;
+    FindNextFile = 7;
+    CreateDirectory = 8;
+    DeleteFile = 9;
+    MoveFileSource = 10;
+    MoveFileDestination = 11;
+    SetFileInformationByHandleSource = 12;
+    SetFileInformationByHandleDest = 13;
+    ZwSetRenameInformationFileSource = 14;
+    ZwSetRenameInformationFileDest = 15;
+    ZwSetLinkInformationFile = 16;
+    ZwSetDispositionInformationFile = 17;
+    ZwSetModeInformationFile = 18;
+    ZwSetFileNameInformationFileSource = 19;
+    ZwSetFileNameInformationFileDest = 20;
+    CopyFileSource = 21;
+    CopyFileDestination = 22;
+    CreateHardLinkSource = 23;
+    CreateHardLinkDestination = 24;
+    RemoveDirectory = 25;
+    NtQueryDirectoryFile = 26;
+    ZwQueryDirectoryFile = 27;
+    NtCreateFile = 28;
+    ZwCreateFile = 29;
+    ZwOpenFile = 30;
+    ChangedReadWriteToReadAccess = 31;
+    FirstAllowWriteCheckInProcess = 32;
+    ReparsePointTarget = 33;
+    CreateSymbolicLinkSource = 34;
+    MoveFileWithProgressSource = 35;
+    MoveFileWithProgressDest = 36;
+    MultipleOperations = 37;
+    ProcessExit = 38;
+    MacLookup = 39;
+    MacReadlink = 40;
+    MacVNodeCreate = 41;
+    KAuthMoveSource = 42;
+    KAuthMoveDest = 43;
+    KAuthCreateHardlinkSource = 44;
+    KAuthCreateHardlinkDest = 45;
+    KAuthCopySource = 46;
+    KAuthCopyDest = 47;
+    KAuthDeleteDir = 48;
+    KAuthDeleteFile = 49;
+    KAuthOpenDir = 50;
+    KAuthReadFile = 51;
+    KAuthCreateDir = 52;
+    KAuthWriteFile = 53;
+    KAuthClose = 54;
+    KAuthCloseModified = 55;
+    KAuthGetAttributes = 56;
+    KAuthVNodeExecute = 57;
+    KAuthVNodeWrite = 58;
+    KAuthVNodeRead = 59;
+    KAuthVNodeProb = 60;
+}

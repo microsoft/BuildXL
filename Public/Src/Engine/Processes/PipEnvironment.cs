@@ -87,7 +87,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the effective environment variables, taking into account default and machine-specific values
         /// </summary>
-        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer)
+        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
         {
             Contract.Requires(pipFragmentRenderer != null);
             Contract.Requires(pip != null);
@@ -95,6 +95,9 @@ namespace BuildXL.Processes
 
             var trackedEnv = pip.EnvironmentVariables.Where(envVar => !envVar.IsPassThrough);
             var passThroughEnvNames = pip.EnvironmentVariables.Where(envVar => envVar.IsPassThrough).Select(envVar => pipFragmentRenderer.Render(envVar.Name));
+
+            // Append any passthrough environment variables if they're specified
+            passThroughEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? passThroughEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : passThroughEnvNames;
 
             IBuildParameters fullEnvironmentForPassThrough = MasterEnvironmentVariables != null ?
 

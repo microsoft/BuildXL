@@ -121,6 +121,9 @@ namespace BuildXL.Pips.Builders
         public RegexDescriptor? ErrorRegex { get; set; }
 
         /// <nodoc />
+        public bool EnableMultiLineErrorScanning { get; set; }
+
+        /// <nodoc />
         public Options Options { get; set; }
 
         /// <nodoc />
@@ -469,19 +472,7 @@ namespace BuildXL.Pips.Builders
             Contract.Requires(key.IsValid);
 
             m_environmentVariables[key] = PipData.Invalid;
-        }
-
-        /// <summary>
-        /// Set GlobalUnsafePassthroughEnvironmentVariables for each pip.
-        /// The passthrough environment varibles will not be computed in pip fingerprint.
-        /// </summary>
-        public void SetGlobalPassthroughEnvironmentVariable(IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables, StringTable stringTable)
-        {
-            foreach (var passThroughEnvironmentVariable in globalUnsafePassthroughEnvironmentVariables)
-            {
-                SetPassthroughEnvironmentVariable(StringId.Create(stringTable, passThroughEnvironmentVariable));
-            }
-        }                    
+        }                 
 
         private ReadOnlyArray<EnvironmentVariable> FinishEnvironmentVariables()
         {
@@ -520,6 +511,14 @@ namespace BuildXL.Pips.Builders
         public void SetResponseFileSpecification(ResponseFileSpecification specification)
         {
             m_responseFileSpecification = specification;
+        }
+
+        /// <summary>
+        /// Set the file path that will be used to write the change affected inputs
+        /// </summary>
+        public void SetChangeAffectedInputListWrittenFilePath(FileArtifact path)
+        {
+            m_changeAffectedInputListWrittenFile = path;
         }
 
         private PipData FinishArgumentsAndCreateResponseFileIfNeeded(DirectoryArtifact defaultDirectory)
@@ -662,6 +661,7 @@ namespace BuildXL.Pips.Builders
                 timeout: Timeout,
                 warningRegex: WarningRegex ?? RegexDescriptor.CreateDefaultForWarnings(m_pathTable.StringTable),
                 errorRegex: ErrorRegex ?? RegexDescriptor.CreateDefaultForErrors(m_pathTable.StringTable),
+                enableMultiLineErrorScanning: EnableMultiLineErrorScanning,
 
                 uniqueOutputDirectory: defaultDirectory,
                 uniqueRedirectedDirectoryRoot: redirectedDirectoryRoot,
@@ -674,7 +674,8 @@ namespace BuildXL.Pips.Builders
                 absentPathProbeMode: AbsentPathProbeUnderOpaquesMode,
                 weight: Weight,
                 priority: Priority,
-                preserveOutputWhitelist: PreserveOutputWhitelist);
+                preserveOutputWhitelist: PreserveOutputWhitelist,
+                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
 
             return true;
         }

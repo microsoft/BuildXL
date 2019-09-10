@@ -50,6 +50,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
             GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
             PreserveOutputsForIncrementalTool = false;
+            GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
         }
 
         /// <nodoc />
@@ -97,6 +98,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
             GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
             PreserveOutputsForIncrementalTool = template.PreserveOutputsForIncrementalTool;
+            GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
         }
 
         /// <inheritdoc />
@@ -249,5 +251,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc /> 
         public bool PreserveOutputsForIncrementalTool { get; set; }
+
+        /// <nodoc /> 
+        public List<string> GlobalUnsafePassthroughEnvironmentVariables { get; set; }
+
+        /// <inheritdoc /> 
+        IReadOnlyList<string> ISandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
     }
 }

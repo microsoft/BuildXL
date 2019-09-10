@@ -2261,7 +2261,7 @@ namespace BuildXL.Scheduler
                         m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Count);
                         m_groupedPipCounters.AddToCounter(processRunnablePip.Process, PipCountersByGroup.ProcessDuration, processDuration);
 
-                        if(!succeeded && result.Status == PipResultStatus.Failed)
+                        if (!succeeded && result.Status == PipResultStatus.Failed)
                         {
                             m_groupedPipCounters.IncrementCounter(processRunnablePip.Process, PipCountersByGroup.Failed);
                         }
@@ -2274,6 +2274,24 @@ namespace BuildXL.Scheduler
                 else if (pipType == PipType.Ipc)
                 {
                     Interlocked.Increment(ref m_numIpcPipsCompleted);
+                }
+
+                if (!IsDistributedWorker && m_configuration.Schedule.InputChanges.IsValid && (pipType == PipType.CopyFile || pipType == PipType.Process))
+                {
+                    ReadOnlyArray<FileArtifact> outputContents = ReadOnlyArray<FileArtifact>.Empty;
+                    PipResultStatus status = result.Status;
+                    if (pipType == PipType.CopyFile)
+                    {
+                        outputContents = new[] { ((CopyFile)runnablePip.Pip).Destination }.ToReadOnlyArray();
+                    }
+                    else if (runnablePip.ExecutionResult?.OutputContent != null)
+                    {
+                        outputContents = runnablePip.ExecutionResult.OutputContent.SelectList(o => o.Item1).ToReadOnlyArray();
+                    }
+                    m_fileContentManager.SourceChangeAffectedContents.ReportSourceChangeAffectedFiles(
+                        pip,
+                        result.DynamicallyObservedFiles,
+                        outputContents);
                 }
 
                 if (!succeeded)
@@ -3515,6 +3533,7 @@ namespace BuildXL.Scheduler
                         }
 
                         processRunnable.Executed = true;
+
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 
                         // Don't count service pips in process pip counters
@@ -3656,7 +3675,12 @@ namespace BuildXL.Scheduler
 
                         // Output content is reported here to ensure that it happens both on worker executing PostProcess and
                         // master which called worker to execute post process.
-                        PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, processRunnable.Description, executionResult, processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
+                        PipExecutor.ReportExecutionResultOutputContent(
+                            operationContext,
+                            environment,
+                            processRunnable.Description,
+                            executionResult,
+                            processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
 
                         return processRunnable.SetPipResult(executionResult);
                     }
@@ -4401,7 +4425,7 @@ namespace BuildXL.Scheduler
                     if (duration != 0)
                     {
                         builder.AppendLine(I($"\t{name,-98}: {duration,10}"));
-                        statistics.Add(I($"CriticalPath.{name}DurationMs"),duration);
+                        statistics.Add(I($"CriticalPath.{name}DurationMs"), duration);
                     }
                 }
 
@@ -4430,15 +4454,15 @@ namespace BuildXL.Scheduler
                 }
 
                 builder.AppendLine();
-                builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker, 10}"));
+                builder.AppendLine(I($"{"Total Worker Selection Overhead (ms) on the Critical Path",-106}: {totalChooseWorker,10}"));
                 statistics.Add("CriticalPath.ChooseWorkerDurationMs", totalChooseWorker);
 
                 builder.AppendLine();
-                builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration, 10}"));
+                builder.AppendLine(I($"{"Total Cache Miss Analysis Overhead (ms) on the Critical Path",-106}: {totalCacheMissAnalysisDuration,10}"));
                 statistics.Add("CriticalPath.CacheMissAnalysisDurationMs", totalCacheMissAnalysisDuration);
 
                 builder.AppendLine();
-                builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalMasterQueueTime + totalChooseWorker + totalCriticalPathRunningTime, 10}"));
+                builder.AppendLine(I($"{"Total Critical Path Length (including queue waiting time and choosing worker(s)) ms",-106}: {totalMasterQueueTime + totalChooseWorker + totalCriticalPathRunningTime,10}"));
 
                 statistics.Add("CriticalPath.ExeDurationMs", exeDurationCriticalPathMs);
                 statistics.Add("CriticalPath.PipDurationMs", totalCriticalPathRunningTime);
@@ -4549,7 +4573,7 @@ namespace BuildXL.Scheduler
                     stringBuilder.AppendLine(I($"\t\t  {"NumPathSetsDownloaded",-88}: {performanceInfo.CacheLookupPerfInfo.NumPathSetsDownloaded,10}"));
 
                     long totalCacheLookupDurationForPip = 0;
-                    for(int j = 0; j < performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters.Length; j++)
+                    for (int j = 0; j < performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters.Length; j++)
                     {
                         var name = OperationKind.GetTrackedCacheOperationKind(j).ToString();
                         var tuple = performanceInfo.CacheLookupPerfInfo.CacheLookupStepCounters[j];
@@ -4557,7 +4581,7 @@ namespace BuildXL.Scheduler
 
                         if (duration != 0)
                         {
-                            stringBuilder.AppendLine(I($"\t\t  {name,-88}: {duration,10} - occurred {tuple.occurrences, 10} times"));
+                            stringBuilder.AppendLine(I($"\t\t  {name,-88}: {duration,10} - occurred {tuple.occurrences,10} times"));
                         }
 
                         totalCacheLookupDurationForPip += duration;
@@ -4784,7 +4808,7 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-
+                        
                         switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
                         {
                             case SandboxKind.MacOsEndpointSecurity:
@@ -4898,6 +4922,8 @@ namespace BuildXL.Scheduler
                     m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
+
+                    m_fileContentManager.SourceChangeAffectedContents.InitialAffectedOutputList(inputChangeList, Context.PathTable);
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;

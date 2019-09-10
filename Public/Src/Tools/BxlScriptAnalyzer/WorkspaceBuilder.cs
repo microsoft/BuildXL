@@ -68,15 +68,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             }
 
             return TryBuildWorkspace(
-                EnginePhases.AnalyzeWorkspace, // The IDE always wants to analyze the workspace
+                new CommandLineConfiguration() { Startup = { ConfigFile = config } },
                 frontEndContext,
                 engineContext,
-                config,
                 EvaluationFilter.Empty, // TODO: consider passing a filter that scopes down the build to the root folder
-                AbsolutePath.Invalid,
-                AbsolutePath.Invalid,
-                AbsolutePath.Invalid,
-                false,
                 progressHandler,
                 false,
                 out workspace,
@@ -96,15 +91,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <summary>
         /// Tries to build/analyze a workspace given a config and an evaluation filter
         /// </summary>
-        /// <param name="phase">Engine phase, must have either <see cref="EnginePhases.ParseWorkspace"/> or <see cref="EnginePhases.AnalyzeWorkspace"/>.</param>
+        /// <param name="commandLineConfig">Command line parameters</param>
         /// <param name="frontEndContext">Contextual information used by BuildXL front-end.</param>
         /// <param name="engineContext">Contextual information used by BuildXL engine.</param>
-        /// <param name="configFile">Path to the primary configuration file. If invalid, a lookup will be performed</param>
         /// <param name="evaluationFilter">Evaluation filter that defines the build extent to care about.</param>
-        /// <param name="outputDirectory">Output directory that will be used for evaluation.</param>
-        /// <param name="objectDirectory">Object directory that will be used for evaluation.</param>
-        /// <param name="redirectedUserProfileJunctionRoot">If a valid path, the path will be redirected to a stable user profile lcoation.</param>
-        /// <param name="inCloudBuild">If true, build a graph a graph with work arounds for cloudbuild.</param>
         /// <param name="progressHandler">Event handler to receive workspace loading progress notifications.</param>
         /// <param name="topSort">If true, build a dependency graph from the read in pips to serialize and load them faster</param>
         /// <param name="workspace">The parsed, and possibly type-checked workspace.</param>
@@ -115,15 +105,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// <param name="collectMemoryAsSoonAsPossible">Flag to indicate if memory should be released as soon as possible after workspace creation</param>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public static bool TryBuildWorkspace(
-            EnginePhases phase,
+            ICommandLineConfiguration commandLineConfig,
             FrontEndContext frontEndContext,
             EngineContext engineContext,
-            AbsolutePath configFile,
             EvaluationFilter evaluationFilter,
-            AbsolutePath outputDirectory,
-            AbsolutePath objectDirectory,
-            AbsolutePath redirectedUserProfileJunctionRoot,
-            bool inCloudBuild,
             EventHandler<WorkspaceProgressEventArgs> progressHandler,
             bool topSort,
             out Workspace workspace,
@@ -133,10 +118,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             FrontEndEngineAbstraction frontEndEngineAbstraction = null,
             bool collectMemoryAsSoonAsPossible = true)
         {
-            Contract.Requires((phase & (EnginePhases.ParseWorkspace | EnginePhases.AnalyzeWorkspace)) != EnginePhases.None);
+            Contract.Requires((commandLineConfig.Engine.Phase & (EnginePhases.ParseWorkspace | EnginePhases.AnalyzeWorkspace)) != EnginePhases.None);
             Contract.Requires(frontEndContext != null);
             Contract.Requires(engineContext != null);
-            Contract.Requires(configFile.IsValid);
+            Contract.Requires(commandLineConfig.Startup.ConfigFile.IsValid);
             Contract.Requires(evaluationFilter != null);
 
             workspace = null;
@@ -146,38 +131,33 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             var pathTable = engineContext.PathTable;
             var loggingContext = frontEndContext.LoggingContext;
 
-            var commandlineConfig = GetCommandLineConfiguration(
-                configuration, 
-                phase, 
-                configFile,
-                outputDirectory,
-                objectDirectory,
-                redirectedUserProfileJunctionRoot,
-                inCloudBuild);
-            BuildXLEngine.ModifyConfigurationForCloudbuild(commandlineConfig, false, pathTable, loggingContext);
-            BuildXLEngine.PopulateLoggingAndLayoutConfiguration(commandlineConfig, pathTable, bxlExeLocation: null);
+            var mutableCommandlineConfig = GetCommandLineConfiguration(
+                commandLineConfig,
+                configuration);
+            BuildXLEngine.ModifyConfigurationForCloudbuild(mutableCommandlineConfig, false, pathTable, loggingContext);
+            BuildXLEngine.PopulateLoggingAndLayoutConfiguration(mutableCommandlineConfig, pathTable, bxlExeLocation: null);
 
             var statistics = new FrontEndStatistics(progressHandler);
             var frontEndControllerFactory = FrontEndControllerFactory.Create(
                 mode: FrontEndMode.NormalMode,
                 loggingContext: loggingContext,
-                configuration: commandlineConfig,
+                configuration: mutableCommandlineConfig,
                 collector: null,
                 statistics: statistics,
                 collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
 
             var controller = frontEndControllerFactory.Create(engineContext.PathTable, engineContext.SymbolTable);
-            controller.InitializeHost(frontEndContext, commandlineConfig);
+            controller.InitializeHost(frontEndContext, mutableCommandlineConfig);
 
             frontEndHostController = (FrontEndHostController)controller;
 
             // If there is an explicit engine abstraction, we set it. This is used by IDE test.
             if (frontEndEngineAbstraction != null)
             {
-                frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: commandlineConfig);
+                frontEndHostController.SetState(frontEndEngineAbstraction, pipGraph: null, configuration: mutableCommandlineConfig);
             }
 
-            var config = controller.ParseConfig(commandlineConfig);
+            var config = controller.ParseConfig(mutableCommandlineConfig);
             if (config == null)
             {
                 return false;
@@ -195,14 +175,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 
                 if (frontEndEngineAbstraction == null)
                 {
-                    if (phase.HasFlag(EnginePhases.Schedule))
+                    if (mutableCommandlineConfig.Engine.Phase.HasFlag(EnginePhases.Schedule))
                     {
-                        var mountsTable = MountsTable.CreateAndRegister(loggingContext, engineContext, config, commandlineConfig.Startup.Properties);
+                        var mountsTable = MountsTable.CreateAndRegister(loggingContext, engineContext, config, mutableCommandlineConfig.Startup.Properties);
                         frontEndEngineAbstraction = new FrontEndEngineImplementation(
                             loggingContext,
                             frontEndContext.PathTable,
                             config,
-                            commandlineConfig.Startup,
+                            mutableCommandlineConfig.Startup,
                             mountsTable,
                             InputTracker.CreateDisabledTracker(loggingContext),
                             null,
@@ -213,7 +193,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                         if (topSort)
                         {
-                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config);
+                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config, mountsTable.MountPathExpander);
                         }
                         else
                         {
@@ -257,7 +237,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                         engineAbstraction: frontEndEngineAbstraction,
                         evaluationFilter: evaluationFilter,
                         configuration: config,
-                        startupConfiguration: commandlineConfig.Startup))
+                        startupConfiguration: mutableCommandlineConfig.Startup))
                     {
                         workspace = frontEndHostController.GetWorkspace();
 
@@ -284,7 +264,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             workspace = frontEndHostController.GetWorkspace();
 
-            if (phase == EnginePhases.AnalyzeWorkspace)
+            if (mutableCommandlineConfig.Engine.Phase == EnginePhases.AnalyzeWorkspace)
             {
                 // If workspace construction is successful, we run the linter on all specs.
                 // This makes sure the workspace will carry all the errors that will occur when running the same specs in the regular engine path
@@ -327,20 +307,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         }
 
         private static CommandLineConfiguration GetCommandLineConfiguration(
-            WorkspaceBuilderConfiguration configuration,
-            EnginePhases phase,
-            AbsolutePath configFile,
-            AbsolutePath outputDirectory,
-            AbsolutePath objectDirectory,
-            AbsolutePath redirectedUserProfileJunctionRoot,
-            bool inCloudBuild)
+            ICommandLineConfiguration commandLineConfig,
+            WorkspaceBuilderConfiguration configuration)
         {
-            return new CommandLineConfiguration
+            return new CommandLineConfiguration (commandLineConfig)
             {
-                Startup =
-                {
-                    ConfigFile = configFile,
-                },
                 FrontEnd =
                 {
                     DebugScript = false,
@@ -356,23 +327,13 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                     
                     // Don't release workspace so that analyses can still be done if the min required phase is evaluation.
                     // TODO: Hack -- when phase Evaluate is use, then release workspace. This is for Office to be performant.
-                    ReleaseWorkspaceBeforeEvaluation = !phase.HasFlag(EnginePhases.Evaluate),
+                    ReleaseWorkspaceBeforeEvaluation = !commandLineConfig.Engine.Phase.HasFlag(EnginePhases.Evaluate),
                     UnsafeOptimizedAstConversion = true,
                     AllowUnsafeAmbient = true,
-                },
-                Engine =
-                {
-                    Phase = phase,
                 },
                 Schedule =
                 {
                     UseFixedApiServerMoniker = true
-                },
-                Layout =
-                {
-                    OutputDirectory = outputDirectory,
-                    ObjectDirectory = objectDirectory,
-                    RedirectedUserProfileJunctionRoot = redirectedUserProfileJunctionRoot
                 },
                 Logging =
                 {
@@ -381,8 +342,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 Cache =
                 {
                     CacheSpecs = SpecCachingOption.Disabled
-                },
-                InCloudBuild = inCloudBuild
+                }
             };
         }
 
@@ -392,13 +352,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         public static bool TryBuildWorkspaceAndCollectFilesToAnalyze(
             Tracing.Logger logger,
             PathTable pathTable,
-            EnginePhases phase,
-            string configFile,
-            string filter,
-            string outputDirectory,
-            string objectDirectory,
-            string redirectedUserProfileJunctionRoot,
-            bool inCloudBuild,
+            ICommandLineConfiguration configuation,
             bool topSort,
             out Workspace workspace,
             out IPipGraph pipGraph,
@@ -417,41 +371,21 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
             // Parse filter string into EvaluationFilter
             var evaluationFilter = EvaluationFilter.Empty;
-            if (!string.IsNullOrEmpty(filter))
+            if (!string.IsNullOrEmpty(configuation.Filter))
             {
-                if (!TryGetEvaluationFilter(logger, loggingContext, engineContext, filter, out evaluationFilter))
+                if (!TryGetEvaluationFilter(logger, loggingContext, engineContext, configuation.Filter, out evaluationFilter))
                 {
                     // Error has been reported already
                     return false;
                 }
             }
 
-            var configFilePath = AbsolutePath.Create(pathTable, configFile);
-
-
-            var outputDirectoryPath = !string.IsNullOrEmpty(outputDirectory)
-                ? AbsolutePath.Create(pathTable, outputDirectory)
-                : AbsolutePath.Invalid;
-
-            var objectDirectoryPath = !string.IsNullOrEmpty(objectDirectory)
-                ? AbsolutePath.Create(pathTable, objectDirectory)
-                : AbsolutePath.Invalid;
-
-            var redirectedUserProfileJunctionRootPath = !string.IsNullOrEmpty(redirectedUserProfileJunctionRoot)
-                ? AbsolutePath.Create(pathTable, redirectedUserProfileJunctionRoot)
-                : AbsolutePath.Invalid;
-
             // Try parsing the workspace from config and evaluation filter
             if (!TryBuildWorkspace(
-                phase,
+                configuation,
                 context,
                 engineContext,
-                configFilePath,
                 evaluationFilter,
-                outputDirectoryPath,
-                objectDirectoryPath,
-                redirectedUserProfileJunctionRootPath,
-                inCloudBuild,
                 progressHandler: null,
                 topSort,
                 workspace: out workspace,
@@ -462,18 +396,18 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 return false;
             }
 
-            if (phase == EnginePhases.AnalyzeWorkspace)
+            if (configuation.Engine.Phase == EnginePhases.AnalyzeWorkspace)
             {
                 // Find strict subset of specs in workspace that should be analyzed
                 var collectedFilesToAnalyze = CollectFilesToAnalyze(
                         workspace,
                         pathTable,
-                        configFilePath,
+                        configuation.Startup.ConfigFile,
                         evaluationFilter);
 
                 if (collectedFilesToAnalyze.Count == 0)
                 {
-                    logger.ErrorFilterHasNoMatchingSpecs(loggingContext, filter);
+                    logger.ErrorFilterHasNoMatchingSpecs(loggingContext, configuation.Filter);
                     return false;
                 }
 

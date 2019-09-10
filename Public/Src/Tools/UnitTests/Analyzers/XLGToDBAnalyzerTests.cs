@@ -39,6 +39,11 @@ namespace Test.Tool.Analyzers
                 {
                     Name = "outputDir",
                     Value = OutputDirPath.ToString(Context.PathTable)
+                },
+                new Option
+                {
+                    Name = "includeProcessFingerprintComputationEvent",
+                    Value = "true"
                 }
             };
         }
@@ -56,12 +61,12 @@ namespace Test.Tool.Analyzers
 
             var file = FileArtifact.CreateOutputFile(Combine(TestDirPath, "blah.txt"));
 
-            var pipA = CreateAndSchedulePipBuilder(new []
+            var pipA = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.WriteFile(file),
             }).Process;
 
-            var pipB = CreateAndSchedulePipBuilder(new []
+            var pipB = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.ReadFile(file),
                 Operation.WriteFile(CreateOutputFileArtifact())
@@ -91,23 +96,23 @@ namespace Test.Tool.Analyzers
             File.WriteAllText(Path.Combine(dirOne, "abc.txt"), "text");
             File.WriteAllText(Path.Combine(dirOne, "xyz.txt"), "text12");
 
-            var pipA = CreateAndSchedulePipBuilder(new []
+            var pipA = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.WriteFile(fileOne),
             }).Process;
 
-            var pipB = CreateAndSchedulePipBuilder(new []
+            var pipB = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.WriteFile(fileTwo),
             }).Process;
 
-            var pipC = CreateAndSchedulePipBuilder(new []
+            var pipC = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.ReadFile(fileOne),
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
-            var pipD = CreateAndSchedulePipBuilder(new []
+            var pipD = CreateAndSchedulePipBuilder(new[]
             {
                 Operation.EnumerateDir(new DirectoryArtifact(AbsolutePath.Create(Context.PathTable, dirOne), 0, false)),
                 Operation.WriteFile(CreateOutputFileArtifact())
@@ -117,7 +122,7 @@ namespace Test.Tool.Analyzers
             var analyzerRes = RunAnalyzer(buildA).AssertSuccess();
 
             var dataStore = new XldbDataStore(storeDirectory: OutputDirPath.ToString(Context.PathTable));
-            
+
             // As per Mike's offline comment, non-zero vs zero event count tests for now until we can rent out some mac machines
             // and figure out the true reason why the windows and mac event log counts differ by so much 
 

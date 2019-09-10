@@ -1,0 +1,33 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum ExecutionEventId{
+    option allow_alias = true;
+    ExecutionEventId_UNSPECIFIED = 0;
+
+    FileArtifactContentDecided = 1;
+    WorkerList = 2;
+    ExecutionEventId_PipExecutionPerformance = 3;
+    DirectoryMembershipHashed = 4;
+
+    // Deprecated in favor of ProcessFingerprintComputation (enum 11)
+    ObservedInputs = 5;
+
+    ProcessExecutionMonitoringReported = 6;
+    ExecutionEventId_ExtraEventDataReported = 7;
+    DependencyViolationReported = 8;
+    PipExecutionStepPerformanceReported = 9;
+    ResourceUsageReported = 10;
+    ProcessFingerprintComputation = 11;
+    PipCacheMiss = 12;
+    PipExecutionDirectoryOutputs = 13;
+    BxlInvocation = 14;
+
+    // Alias to BxlInvocation. Used for unit tests internally
+    DominoInvocation = 14;
+}

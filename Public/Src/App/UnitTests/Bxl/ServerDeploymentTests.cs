@@ -28,14 +28,14 @@ namespace Test.Bxl
             File.WriteAllText(manifestPath, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
 
             var appDeployment = AppDeployment.ReadDeploymentManifest(
-                Path.GetDirectoryName(manifestPath),
+                manifestRootDir,
                 AppDeployment.DeploymentManifestFileName,
                 skipManifestCheckTestHook: true);
 
-            string deploymentDir = ServerDeployment.ComputeDeploymentDir(TemporaryDirectory);
+            string deploymentDir = ServerDeployment.ComputeDeploymentDir(manifestRootDir);
             Directory.CreateDirectory(deploymentDir);
 
-            XAssert.IsTrue(ServerDeployment.IsServerDeploymentOutOfSync(TemporaryDirectory, appDeployment, out deploymentDir));
+            XAssert.IsTrue(ServerDeployment.IsServerDeploymentOutOfSync(manifestRootDir, appDeployment, out deploymentDir));
         }
 
     }

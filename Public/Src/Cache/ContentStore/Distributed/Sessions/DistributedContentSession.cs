@@ -57,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
             MachineLocation localMachineLocation,
-            CentralStorage centralStorage,
+            CentralStorage centralStorage = null,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
@@ -73,16 +73,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 settings)
         {
             _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
-            _predictionStorePath = new AbsolutePath(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob));
+            _predictionStorePath = new AbsolutePath(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob, localMachineLocation));
             _predictionStore = settings.ContentPlacementPredictionsBlob == null && centralStorage != null
                 ? null
                 : new RocksDbContentPlacementPredictionStore(_predictionStorePath.Path, clean: false);
             _centralStorage = centralStorage;
         }
 
-        private string GetPredictionStoreFileLocation(string blobName)
+        private string GetPredictionStoreFileLocation(string blobName, MachineLocation machineLocation)
         {
-            throw new NotImplementedException();
+            return Path.Combine(machineLocation.Path, "PlacementPredictions", blobName);
         }
 
         /// <inheritdoc />
@@ -99,11 +99,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
             }
 
-            if (_predictionStore != null)
+            if (_predictionStore != null && _centralStorage != null)
             {
-                if (!File.Exists(_predictionStorePath.Path))
+                if (!Directory.Exists(_predictionStorePath.Path))
                 {
-                    await _centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, _predictionStorePath).ThrowIfFailure();
+                    var zipFile = _predictionStorePath / "snapshot.zip";
+                    await _centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, zipFile).ThrowIfFailure();
+                    _predictionStore.UncompressSnapshot(zipFile.Path, Settings.ContentPlacementPredictionsBlob);
                 }
                 await _predictionStore.StartupAsync(context).ThrowIfFailure();
             }

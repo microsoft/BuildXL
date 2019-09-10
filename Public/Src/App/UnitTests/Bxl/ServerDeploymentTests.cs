@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using BuildXL;
 using BuildXL.Engine;
 using BuildXL.Utilities;
@@ -18,18 +16,16 @@ namespace Test.Bxl
         [Fact]
         public void TestMissingManifestDirectory()
         {
-            string deploymentDir;
-            XAssert.IsTrue(ServerDeployment.IsServerDeploymentOutOfSync(TemporaryDirectory, null, out deploymentDir));
+            XAssert.IsTrue(ServerDeployment.IsServerDeploymentOutOfSync(TemporaryDirectory, null, out var deploymentDir));
         }
 
         [Fact]
         public void TestMissingManifestFile()
         {
-            string manifestPath = Path.Combine(TemporaryDirectory, AppDeployment.DeploymentManifestFileName);
+            var manifestRootDir = TemporaryDirectory;
+            var manifestPath = Path.Combine(manifestRootDir, AppDeployment.DeploymentManifestFileName);
 
-            File.WriteAllText(
-                    Path.Combine(Path.GetDirectoryName(manifestPath), AppDeployment.DeploymentManifestFileName),
-                    AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
+            File.WriteAllText(manifestPath, AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly()));
 
             var appDeployment = AppDeployment.ReadDeploymentManifest(
                 Path.GetDirectoryName(manifestPath),

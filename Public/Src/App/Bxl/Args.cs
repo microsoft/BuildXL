@@ -190,6 +190,8 @@ namespace BuildXL
                 var ideConfiguration = configuration.Ide;
                 var resolverDefaults = configuration.ResolverDefaults;
 
+                loggingConfiguration.InvocationExpandedCommandLineArguments = cl.ExpandedArguments.ToArray();
+
                 bool unsafeUnexpectedFileAccessesAreErrorsSet = false;
                 bool failPipOnFileAccessErrorSet = false;
                 bool? enableProfileRedirect = null;

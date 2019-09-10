@@ -125,6 +125,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 new List<string>(template.CacheMissAnalysisOption.Keys),
                 pathRemapper.Remap(template.CacheMissAnalysisOption.CustomPath));
             OptimizeConsoleOutputForAzureDevOps = template.OptimizeConsoleOutputForAzureDevOps;
+            InvocationExpandedCommandLineArguments = template.InvocationExpandedCommandLineArguments;
         }
 
         /// <inheritdoc />
@@ -313,5 +314,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool OptimizeConsoleOutputForAzureDevOps { get; set; }
+
+        /// <inheritdoc />
+        public IReadOnlyList<string> InvocationExpandedCommandLineArguments { get; set; }
     }
 }

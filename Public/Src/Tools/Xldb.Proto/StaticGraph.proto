@@ -29,10 +29,6 @@ message PipSemistableHashKey{
     int64 SemiStableHash = 1;
 }
 
-message PipIdValue{
-    uint32 PipId = 1;
-}
-
 message PipIdKey{
     // Always unique within a build (makes the key unique), and same as the node id in graph
     uint32 PipId = 1;
@@ -45,7 +41,7 @@ message PipIdKey{
 message FileProducerConsumerKey{
     ProducerConsumerType Type = 1;
 
-    string FileArtifact = 2;
+    string FilePath = 2;
 
     int32 RewriteCount = 3;
 }
@@ -61,7 +57,7 @@ message FileConsumerValue{
 message DirectoryProducerConsumerKey{
     ProducerConsumerType Type = 1;
 
-    string DirectoryArtifact = 2;
+    string DirectoryPath = 2;
 }
 
 message DirectoryProducerValue{
@@ -126,7 +122,7 @@ message PipGraph{
     ContentFingerprint SemistableFingerprint = 2;
 
     // Gets the range of node IDs valid in the current graph.
-    NodeRange NodeRange = 3;
+    int32 NodeCount = 3;
 
     // The maximum index of serialized absolute paths.
     int32 MaxAbsolutePathIndex = 4;
@@ -144,7 +140,7 @@ message PipGraph{
     int32 ArtifactContentCount = 8;
 
     // Mapping from module id to module nodes.
-    map<string, NodeId> Modules = 9;
+    map<string, uint32> Modules = 9;
 
     // String id corresponding to the BuildXL.Ipc.Interfaces.IIpcMoniker.Id property of the moniker used by the
     // BuildXL API server. Empty string indicates that no BuildXL API operation has been requested.

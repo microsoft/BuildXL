@@ -10,10 +10,12 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -2621,6 +2623,18 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            foreach (var enumVal in Enum.GetValues(typeof(HashType)))
+            {
+                if (Convert.ToInt32(enumVal) == 810505046)
+                {
+                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.HashType), 810505046).ToLowerInvariant().Replace("_", ""));
+                }
+                else
+                {
+                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.HashType), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                }
+            }
+
             VerifyIncrementedOnceEnumsAreEqual(typeof(ObservedInputType), typeof(global::BuildXL.Xldb.Proto.ObservedInputType));
 
             foreach (var enumVal in Enum.GetValues(typeof(Process.Options)))
@@ -2635,6 +2649,7 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            VerifyIncrementedOnceEnumsAreEqual(typeof(PathExistence), typeof(global::BuildXL.Xldb.Proto.PathExistence));
             VerifyNonShiftedEnumsAreEqual(typeof(PipCacheMissType), typeof(global::BuildXL.Xldb.Proto.PipCacheMissType));
             VerifyIncrementedOnceEnumsAreEqual(typeof(PipExecutionStep), typeof(global::BuildXL.Xldb.Proto.PipExecutionStep));
             VerifyIncrementedOnceEnumsAreEqual(typeof(PipOutputOrigin), typeof(global::BuildXL.Xldb.Proto.PipOutputOrigin));

@@ -14,8 +14,10 @@ import "Enums/FileAccessStatus.proto";
 import "Enums/FlagsAndAttributes.proto";
 import "Enums/FileAccessStatusMethod.proto";
 import "Enums/FileExistence.proto";
+import "Enums/HashType.proto";
 import "Enums/ObservedInputType.proto";
 import "Enums/Options.proto";
+import "Enums/PathExistence.proto";
 import "Enums/PreserveOutputsMode.proto";
 import "Enums/ReportedFileOperation.proto";
 import "Enums/RequestedAccess.proto";
@@ -24,7 +26,6 @@ import "Enums/SealDirectoryKind.proto";
 import "Enums/ServicePipKind.proto";
 import "Enums/ShareMode.proto";
 import "Enums/WriteFileEncoding.proto";
-
 
 package BuildXL.Xldb.Proto;
 
@@ -39,7 +40,13 @@ message AbsolutePath{
 }
 
 message ContentHash{
-    string Value = 1;
+    bytes Value = 1;
+
+    HashType HashType = 2;
+
+    int32 ByteLength = 3;
+
+    int32 StringLength = 4;
 }
 
 message FileArtifact{
@@ -48,9 +55,16 @@ message FileArtifact{
     int32 RewriteCount = 2;
 }
 
+message LengthAndExistence{
+    bool HasKnownLength = 1;
+
+    int64 Length = 2;
+
+    PathExistence Existence = 3;
+}
+
 message FileContentInfo{
-    // [IsKnownExistenceFlag | Existence | IsKnownLengthFlag | Length];
-    int64 LengthAndExistence = 1;
+    LengthAndExistence LengthAndExistence = 1;
 
     ContentHash Hash = 2;
 }
@@ -191,11 +205,11 @@ message ProcessDetouringStatusData{
     uint32 Error = 11;
 }
 
-message WeakContentFingerPrint{
+message WeakContentFingerprint{
     Fingerprint Hash = 1;
 }
 
-message StrongContentFingerPrint{
+message StrongContentFingerprint{
     Fingerprint Hash = 1;
 }
 
@@ -203,6 +217,18 @@ message ObservedPathEntry{
     AbsolutePath Path = 1;
 
     string EnumeratePatternRegex = 2;
+
+    bool IsSearchPath = 3;
+
+    bool IsDirectoryPath = 4;
+
+    bool DirectoryEnumeration = 5;
+
+    bool DirectoryEnumerationWithCustomPattern = 6;
+
+    bool DirectoryEnumerationWithAllPattern = 7;
+    
+    bool IsFileProbe = 8;
 }
 
 message UnsafeSandboxConfiguration{
@@ -282,13 +308,13 @@ message ProcessStrongFingerprintComputationData{
 
     repeated string ObservedAccessedFileNames = 5;
 
-    repeated StrongContentFingerPrint PriorStrongFingerprints = 6;
+    repeated StrongContentFingerprint PriorStrongFingerprints = 6;
 
     bool Succeeded = 7;
 
     bool IsStrongFingerprintHit = 8;
 
-    StrongContentFingerPrint ComputedStrongFingerprint = 9;
+    StrongContentFingerprint ComputedStrongFingerprint = 9;
 
     repeated ObservedInput ObservedInputs = 10;
 }
@@ -320,11 +346,9 @@ message Pip{
 
     uint32 PipId = 2;
 
-    NodeId NodeId = 3;
+    repeated uint32 IncomingEdges = 3;
 
-    repeated Edge IncomingEdges = 4;
-
-    repeated Edge OutgoingEdges = 5;
+    repeated uint32 OutgoingEdges = 4;
 }
 
 message PipProvenance{
@@ -510,45 +534,6 @@ message LocationData{
 
 message IpcClientInfo{
     string IpcMonikerId = 1;
-}
-
-// This is a PipGraph Node (name is kept the same as in internal code)
-message NodeId{
-    uint32 Value = 1;
-}
-
-// This is a PipGraph edge (name is kept the same as in internal code)
-message Edge{
-    // Source or target node represented by edge
-    NodeId OtherNode = 1;
-
-    bool IsLight = 2;
-
-    uint32 Value = 3;
-}
-
-message Graph{
-    int32 NodeCount = 1;
-
-    NodeRange NodeRange = 2;
-
-    int32 EdgeCount = 3;
-}
-
-message NodeEdgeListHeader{
-    int32 FirstIndex = 1;
-
-    int32 Count = 2;
-}
-
-message NodeRange{
-    bool IsEmpty = 1;
-
-    int32 Size = 2;
-
-    NodeId FromInclusive = 3;
-
-    NodeId ToInclusive = 4;
 }
 
 message ContentFingerprint{

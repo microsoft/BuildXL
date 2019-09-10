@@ -284,6 +284,15 @@ namespace BuildXL.Execution.Analyzer
                 WriteToDb(dBStorageStatsKey.ToByteArray(), kvp.Value.ToByteArray());
             }
 
+            // Write the Xldb version file to the Xldb directory
+            using (var outputStream = File.OpenWrite(Path.Combine(OutputDirPath, XldbDataStore.XldbVersionFileName)))
+            {
+                using (var writer = new StreamWriter(outputStream))
+                {
+                    writer.WriteLine(XldbDataStore.XldbVersion);
+                }
+            }
+
             return 0;
         }
 
@@ -722,12 +731,7 @@ namespace BuildXL.Execution.Analyzer
                                 SemiStableHash = hydratedPip.SemiStableHash,
                             };
 
-                            var pipIdValue = new PipIdValue()
-                            {
-                                PipId = hydratedPip.PipId.Value,
-                            };
-
-                            pipSemistableMap.Add(pipSemistableHashKey.ToByteArray(), pipIdValue.ToByteArray());
+                            pipSemistableMap.Add(pipSemistableHashKey.ToByteArray(), pipIdKeyArr);
                         }
 
                         pipIdMap.Add(pipIdKeyArr, xldbSpecificPip.ToByteArray());
@@ -758,7 +762,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileConsumerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
+                    FilePath = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -777,7 +781,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryConsumerKey = new DirectoryProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    DirectoryArtifact = AbsolutePathToXldbString(kvp.Key.Path)
+                    DirectoryPath = AbsolutePathToXldbString(kvp.Key.Path)
                 };
 
                 var directoryConsumerValue = new DirectoryConsumerValue();
@@ -795,7 +799,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
+                    FilePath = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -816,7 +820,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryProducerKey = new DirectoryProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    DirectoryArtifact = AbsolutePathToXldbString(kvp.Key.Path)
+                    DirectoryPath = AbsolutePathToXldbString(kvp.Key.Path)
                 };
 
                 var directoryProducerValue = new DirectoryProducerValue()
@@ -836,7 +840,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
+                    FilePath = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 

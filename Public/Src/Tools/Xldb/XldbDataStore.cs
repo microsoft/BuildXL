@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using BuildXL.Engine.Cache.KeyValueStores;
@@ -12,7 +13,7 @@ using Google.Protobuf;
 
 namespace BuildXL.Xldb
 {
-    public sealed class XldbDataStore : IDisposable
+    public sealed class XldbDataStore : IDisposable, IXldbDataStore
     {
         /// <summary>
         /// Rocks DB Accessor for XLG++ data
@@ -27,6 +28,18 @@ namespace BuildXL.Xldb
         public const string StaticGraphColumnFamilyName = "StaticGraph";
 
         /// <summary>
+        /// Version file name. Contains a single integer that represents the XldbVersion (see below)
+        /// </summary>
+        public const string XldbVersionFileName = "xldbversion.txt";
+
+        /// <summary>
+        /// The Xldb datastore can read any Xldb that has a verion that is equal to this number or before.
+        /// Only bump this version when there are major changes to the underlying db instance
+        /// (ie ProtoBuf objects being changed, new APIs being created, etc).
+        /// </summary>
+        public const int XldbVersion = 1;
+
+        /// <summary>
         /// Open the datastore and populate the KeyValueStoreAccessor for the XLG++ DB
         /// </summary>
         public XldbDataStore(string storeDirectory,
@@ -36,6 +49,21 @@ namespace BuildXL.Xldb
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false)
         {
+            if (File.Exists(Path.Combine(storeDirectory, XldbVersionFileName)))
+            {
+                using TextReader reader = File.OpenText(Path.Combine(storeDirectory, XldbVersionFileName));
+                var version = int.Parse(reader.ReadLine());
+
+                if (version > XldbVersion)
+                {
+                    throw new Exception($"The Xldb version you are trying to access is newer than your Xldb Datastore version. There may be breaking changes in this new version and so the accessor cannot be created. Exiting now ...");
+                }
+            }
+            else
+            {
+                throw new Exception($"Xldb version file not found in storeDirectory. Cannot open the accessor with this version file and exiting now ...");
+            }
+
             var accessor = KeyValueStoreAccessor.Open(storeDirectory,
                defaultColumnKeyTracked,
                new string[] { EventColumnFamilyName, PipColumnFamilyName, StaticGraphColumnFamilyName },
@@ -124,10 +152,8 @@ namespace BuildXL.Xldb
             return storedEvents;
         }
 
-        /// <summary>
-        /// Gets a depdendency violated events by key
-        /// </summary>
-        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolatedEventByKey(uint violatorPipID, uint workerID = 0)
+        /// <inheritdoc />
+        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationEventByKey(uint violatorPipID, uint workerID = 0)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
@@ -141,9 +167,7 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey).Cast<DependencyViolationReportedEvent>();
         }
 
-        /// <summary>
-        /// Gets pip execution step performance events by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = 0, uint workerID = 0)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -159,9 +183,7 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey).Cast<PipExecutionStepPerformanceReportedEvent>();
         }
 
-        /// <summary>
-        /// Gets process fingerprint computation events by key.
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint workerID = 0)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -177,9 +199,7 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey).Cast<ProcessFingerprintComputationEvent>();
         }
 
-        /// <summary>
-        /// Gets directory membership hashed event by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint workerID = 0)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -195,9 +215,7 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey).Cast<DirectoryMembershipHashedEvent>();
         }
 
-        /// <summary>
-        /// Gets pip execution directory output event by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = "", uint workerID = 0)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -213,9 +231,7 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey).Cast<PipExecutionDirectoryOutputsEvent>();
         }
 
-        /// <summary>
-        /// Gets file artficat content decided event by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int fileRewriteCount = 0, uint workerID = 0)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -231,19 +247,13 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey).Cast<FileArtifactContentDecidedEvent>();
         }
 
-        /// <summary>
-        /// Gets pip execution performance events by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint workerID = 0) => GetEventsByPipIdOnly(ExecutionEventId.PipExecutionPerformance, pipID, workerID).Cast<PipExecutionPerformanceEvent>();
 
-        /// <summary>
-        /// Gets process execution monitoring reported events by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint workerID = 0) => GetEventsByPipIdOnly(ExecutionEventId.ProcessExecutionMonitoringReported, pipID, workerID).Cast<ProcessExecutionMonitoringReportedEvent>();
 
-        /// <summary>
-        /// Gets pip cache miss events by key
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint workerID = 0) => GetEventsByPipIdOnly(ExecutionEventId.PipCacheMiss, pipID, workerID).Cast<PipCacheMissEvent>();
 
         /// <summary>
@@ -263,11 +273,8 @@ namespace BuildXL.Xldb
             return GetEventsByKey(eventKey);
         }
 
-        /// <summary>
-        /// Returns the count and payload of items stored in the DB
-        /// </summary>
-        /// <returns>DBStorageStatsValue if exists, null otherwise</returns>
-        public DBStorageStatsValue GetCountByEvent(DBStoredTypes storageType)
+        /// <inheritdoc />
+        public DBStorageStatsValue GetDBStatsInfoByStorageType(DBStoredTypes storageType)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
@@ -293,75 +300,46 @@ namespace BuildXL.Xldb
             return maybeFound.Result;
         }
 
-        /// <summary>
-        /// Gets all the File Artifact Content Decided Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEvents() => GetEventsByType(ExecutionEventId.FileArtifactContentDecided).Cast<FileArtifactContentDecidedEvent>();
 
-        /// <summary>
-        /// Gets all the Worker List Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<WorkerListEvent> GetWorkerListEvents() => GetEventsByType(ExecutionEventId.WorkerList).Cast<WorkerListEvent>();
 
-        /// <summary>
-        /// Gets all the Pip Execution Performance Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEvents() => GetEventsByType(ExecutionEventId.PipExecutionPerformance).Cast<PipExecutionPerformanceEvent>();
 
-        /// <summary>
-        /// Gets all the Directory Membership Hashed Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEvents() => GetEventsByType(ExecutionEventId.DirectoryMembershipHashed).Cast<DirectoryMembershipHashedEvent>();
 
-        /// <summary>
-        /// Gets all the Process Execution Monitoring Reported Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEvents() => GetEventsByType(ExecutionEventId.ProcessExecutionMonitoringReported).Cast<ProcessExecutionMonitoringReportedEvent>();
 
-        /// <summary>
-        /// Gets all the Process Execution Monitoring Reported Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEvents() => GetEventsByType(ExecutionEventId.ProcessFingerprintComputation).Cast<ProcessFingerprintComputationEvent>();
 
-        /// <summary>
-        /// Gets all the Extra Event Data Reported Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<ExtraEventDataReported> GetExtraEventDataReportedEvents() => GetEventsByType(ExecutionEventId.ExtraEventDataReported).Cast<ExtraEventDataReported>();
 
-        /// <summary>
-        /// Gets all the Dependency Violation Reported Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationReportedEvents() => GetEventsByType(ExecutionEventId.DependencyViolationReported).Cast<DependencyViolationReportedEvent>();
 
-        /// <summary>
-        /// Gets all the Pip Execution Step Performance Reported Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceReportedEvents() => GetEventsByType(ExecutionEventId.PipExecutionStepPerformanceReported).Cast<PipExecutionStepPerformanceReportedEvent>();
 
-        /// <summary>
-        /// Gets all the Status Reported Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<StatusReportedEvent> GetStatusReportedEvents() => GetEventsByType(ExecutionEventId.ResourceUsageReported).Cast<StatusReportedEvent>();
 
-        /// <summary>
-        /// Gets all the Pip Cache Miss Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipCacheMissEvent> GetPipCacheMissEvents() => GetEventsByType(ExecutionEventId.PipCacheMiss).Cast<PipCacheMissEvent>();
 
-        /// <summary>
-        /// Gets all the BXL Invocation Events.
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.BxlInvocation).Cast<BXLInvocationEvent>();
 
-        /// <summary>
-        /// Gets all the Pip Execution Directory Outputs Events
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputsEvents() => GetEventsByType(ExecutionEventId.PipExecutionDirectoryOutputs).Cast<PipExecutionDirectoryOutputsEvent>();
 
-        /// <summary>
-        /// Gets the pip stored based on the semistable hash
-        /// </summary>
-        /// <returns>Returns null if no such pip is found</returns>
+        /// <inheritdoc />
         public IMessage GetPipBySemiStableHash(long semiStableHash, out PipType pipType)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -379,7 +357,7 @@ namespace BuildXL.Xldb
             {
                 if (database.TryGetValue(pipSemistableHashKey.ToByteArray(), out var pipValueSemistableHash, PipColumnFamilyName))
                 {
-                    foundPip = GetPipByPipId(PipIdValue.Parser.ParseFrom(pipValueSemistableHash).PipId, out outPipType);
+                    foundPip = GetPipByPipId(PipIdKey.Parser.ParseFrom(pipValueSemistableHash).PipId, out outPipType);
                 }
             });
 
@@ -392,10 +370,7 @@ namespace BuildXL.Xldb
             return foundPip;
         }
 
-        /// <summary>
-        /// Gets the pip stored based on the pip id
-        /// </summary>
-        /// <returns>Returns null if no such pip is found</returns>
+        /// <inheritdoc />
         public IMessage GetPipByPipId(uint pipId, out PipType pipType)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -436,10 +411,7 @@ namespace BuildXL.Xldb
             return foundPip;
         }
 
-        /// <summary>
-        /// Gets all pips of a certain type.
-        /// </summary>
-        /// <returns>Returns list of all pips of certain type, empty if no such pips exist.</returns>
+        /// <inheritdoc />
         public IEnumerable<IMessage> GetAllPipsByType(PipType pipType)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -474,73 +446,22 @@ namespace BuildXL.Xldb
             return storedPips;
         }
 
-        /// <summary>
-        /// Gets all Process Pips
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<ProcessPip> GetAllProcessPips() => GetAllPipsByType(PipType.Process).Cast<ProcessPip>();
 
-        /// <summary>
-        /// Gets all WriteFile Pips
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<WriteFile> GetAllWriteFilePips() => GetAllPipsByType(PipType.WriteFile).Cast<WriteFile>();
 
-        /// <summary>
-        /// Gets all CopyFile Pips
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<CopyFile> GetAllCopyFilePips() => GetAllPipsByType(PipType.CopyFile).Cast<CopyFile>();
 
-        /// <summary>
-        /// Gets all IPC Pips
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<IpcPip> GetAllIPCPips() => GetAllPipsByType(PipType.Ipc).Cast<IpcPip>();
 
-        /// <summary>
-        /// Gets all Seal Directory Pips
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<SealDirectory> GetAllSealDirectoryPips() => GetAllPipsByType(PipType.SealDirectory).Cast<SealDirectory>();
 
-        /// <summary>
-        /// Gets all scheduled pips (ie. all the non meta pips). Must return pair of PipType, IMessage so user knows how to
-        /// cast the IMessage object
-        /// </summary>
-        public IEnumerable<(PipType, IMessage)> GetAllScheduledPips()
-        {
-            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
-
-            var allPips = new List<(PipType, IMessage)>();
-
-            // Empty key to prefix match all pips stored in DB
-            var pipIdKey = new PipIdKey();
-
-            var maybeFound = m_accessor.Use(database =>
-            {
-                foreach (var kvp in database.PrefixSearch(pipIdKey.ToByteArray(), PipColumnFamilyName))
-                {
-                    var pipType = PipIdKey.Parser.ParseFrom(kvp.Key).PipType;
-                    if (m_pipParserDictionary.TryGetValue(pipType, out var parser))
-                    {
-                        var xldbPip = parser.ParseFrom(kvp.Value);
-                        allPips.Add((pipType, xldbPip));
-                    }
-                    else
-                    {
-                        Contract.Assert(false, "No parser found for PipId");
-                    }
-                }
-            });
-
-            if (!maybeFound.Succeeded)
-            {
-                maybeFound.Failure.Throw();
-            }
-
-            return allPips;
-        }
-
-        /// <summary>
-        /// Gets the pip graph meta data
-        /// </summary>
-        /// <returns>Metadata, null if no such value found</returns>
+        /// <inheritdoc />
         public PipGraph GetPipGraphMetaData()
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -564,11 +485,7 @@ namespace BuildXL.Xldb
             return maybeFound.Result;
         }
 
-        /// <summary>
-        /// Gets all the information about a certain path (which pips produce it, and which consume it)
-        /// Though there should be one producer for each file artifact, since we do not store the rewrite count, 
-        /// prefix search will match every pip that produced (and re-wrote) a file, which means it can be a list.
-        /// </summary>
+        /// <inheritdoc />
         public (IEnumerable<uint>, IEnumerable<uint>) GetProducerAndConsumersOfPath(string path, bool isDirectory)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -581,11 +498,7 @@ namespace BuildXL.Xldb
             return (GetProducersOfFile(path), GetConsumersOfFile(path));
         }
 
-        /// <summary>
-        /// Gets all producers of a particular file
-        /// Though there should be one producer for each file artifact, since we do not store the rewrite count, 
-        /// prefix search will match every pip that produced (and re-wrote) a file, which means it can be a list.
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<uint> GetProducersOfFile(string path)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -593,15 +506,13 @@ namespace BuildXL.Xldb
             var fileProducerKey = new FileProducerConsumerKey()
             {
                 Type = ProducerConsumerType.Producer,
-                FileArtifact = path
+                FilePath = path
             };
 
             return GetProducerConsumerOfFileByKey(fileProducerKey);
         }
 
-        /// <summary>
-        /// Gets all consumers of a particular file
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<uint> GetConsumersOfFile(string path)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -609,7 +520,7 @@ namespace BuildXL.Xldb
             var fileConsumerKey = new FileProducerConsumerKey()
             {
                 Type = ProducerConsumerType.Consumer,
-                FileArtifact = path
+                FilePath = path
             };
 
             return GetProducerConsumerOfFileByKey(fileConsumerKey);
@@ -648,10 +559,7 @@ namespace BuildXL.Xldb
             return fileProducersOrConsumers;
         }
 
-        /// <summary>
-        /// Gets all producers of a particular directory. There should be only one, but to make it 
-        /// compatible with GetProducerAndConsumersOfPath, it also returns a list of producers.
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<uint> GetProducersOfDirectory(string path)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -659,15 +567,13 @@ namespace BuildXL.Xldb
             var directoryProducerKey = new DirectoryProducerConsumerKey()
             {
                 Type = ProducerConsumerType.Producer,
-                DirectoryArtifact = path
+                DirectoryPath = path
             };
 
             return GetProducerConsumerOfDirectoryByKey(directoryProducerKey);
         }
 
-        /// <summary>
-        /// Gets all consumers of a particular directory
-        /// </summary>
+        /// <inheritdoc />
         public IEnumerable<uint> GetConsumersOfDirectory(string path)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
@@ -675,7 +581,7 @@ namespace BuildXL.Xldb
             var directoryConsumerKey = new DirectoryProducerConsumerKey()
             {
                 Type = ProducerConsumerType.Consumer,
-                DirectoryArtifact = path
+                DirectoryPath = path
             };
 
             return GetProducerConsumerOfDirectoryByKey(directoryConsumerKey);

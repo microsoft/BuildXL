@@ -30,4 +30,6 @@ enum ExecutionEventId{
 
     // Alias to BxlInvocation. Used for unit tests internally
     DominoInvocation = 14;
+
+    CacheMaterializationError = 15;
 }

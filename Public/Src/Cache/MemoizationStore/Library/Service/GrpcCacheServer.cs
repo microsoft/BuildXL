@@ -201,25 +201,17 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             /// <inheritdoc />
             public MemoizationServerAdapter(GrpcCacheServer server) : base(server) => _server = server;
 
-            public override Task<AddOrGetContentHashListResponse> AddOrGetContentHashList(AddOrGetContentHashListRequest request, ServerCallContext context)
-            {
-                return _server.AddOrGetContentHashListAsync(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<AddOrGetContentHashListResponse> AddOrGetContentHashList(AddOrGetContentHashListRequest request, ServerCallContext context) => _server.AddOrGetContentHashListAsync(request, context);
 
-            public override Task<GetContentHashListResponse> GetContentHashList(GetContentHashListRequest request, ServerCallContext context)
-            {
-                return _server.GetContentHashListAsync(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<GetContentHashListResponse> GetContentHashList(GetContentHashListRequest request, ServerCallContext context) => _server.GetContentHashListAsync(request, context);
 
-            public override Task<GetSelectorsResponse> GetSelectors(GetSelectorsRequest request, ServerCallContext context)
-            {
-                return _server.GetSelectorsAsync(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<GetSelectorsResponse> GetSelectors(GetSelectorsRequest request, ServerCallContext context) => _server.GetSelectorsAsync(request, context);
 
-            public override Task<IncorporateStrongFingerprintsResponse> IncorporateStrongFingerprints(IncorporateStrongFingerprintsRequest request, ServerCallContext context)
-            {
-                return _server.IncorporateStrongFingerprints(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<IncorporateStrongFingerprintsResponse> IncorporateStrongFingerprints(IncorporateStrongFingerprintsRequest request, ServerCallContext context) => _server.IncorporateStrongFingerprints(request, context);
         }
     }
 }

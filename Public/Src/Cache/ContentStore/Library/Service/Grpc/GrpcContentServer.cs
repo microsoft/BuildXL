@@ -53,7 +53,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// Expected to be read-only after construction. Child classes may overwrite the field in their constructor,
         /// but not afterwards, or behavior will be undefined.
         /// </remarks>
-        protected CacheServer.CacheServerBase GrpcAdapter { get; set; }
+        protected ContentServerAdapter GrpcAdapter { get; set; }
 
         /// <nodoc />
         protected readonly ILogger Logger;

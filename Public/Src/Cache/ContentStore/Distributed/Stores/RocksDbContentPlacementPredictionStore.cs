@@ -4,12 +4,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -106,7 +107,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _database.UpdateClusterState(context, _clusterState, true);
             var absolutePath = new AbsolutePath(path);
             var result = _database.SaveCheckpoint(context, absolutePath);
-            return result.Succeeded;
+
+            if (!result.Succeeded)
+            {
+                return false;
+            }
+
+            ZipFile.CreateFromDirectory(path, Path.Combine(path, $"{DateTime.UtcNow}.zip"));
+
+            return true;
+        }
+
+        /// <nodoc />
+        public void UncompressSnapshot(string zipPath, string destinationPath)
+        {
+            ZipFile.ExtractToDirectory(zipPath, destinationPath);
         }
     }
 }

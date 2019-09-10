@@ -965,6 +965,14 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
 
+        /// <summary>
+        /// The basic idea of this test is to create a pip for which each invocation generates a new path set.
+        /// The pip reads a file A which prompts it to read another file B_x. 
+        /// In iteration 0 it reads { A, B_0 }, in iteration 1 { A, B_1 }, ... and so forth.
+        /// 
+        /// This tests behavior for augmenting weak fingerprints whereby the fingerprint eventually gets augmented with (at the very
+        /// least A) and thus changes for every iteration over the threshold.
+        /// </summary>
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -975,18 +983,18 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var sealDirectoryPath = CreateUniqueDirectory(ObjectRoot);
             var path = sealDirectoryPath.ToString(Context.PathTable);
-            var firstFile = CreateSourceFile(path);
+            var fileA = CreateSourceFile(path);
 
             DirectoryArtifact dir = SealDirectory(sealDirectoryPath, SealDirectoryKind.SourceAllDirectories);
 
             var ops = new Operation[]
             {
                 Operation.EnumerateDir(dir),
-                Operation.ReadFileFromOtherFile(firstFile, doNotInfer: true),
+                Operation.ReadFileFromOtherFile(fileA, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact())
             };
 
-            var otherFiles = Enumerable.Range(0, iterations).Select(i => CreateSourceFile(path)).Select(s => s.Path.ToString(Context.PathTable)).ToArray();
+            var fileBPathByIteration = Enumerable.Range(0, iterations).Select(i => CreateSourceFile(path)).Select(s => s.Path.ToString(Context.PathTable)).ToArray();
 
             var builder = CreatePipBuilder(ops);
             builder.AddInputDirectory(dir);
@@ -1003,14 +1011,18 @@ namespace IntegrationTest.BuildXL.Scheduler
             List<ContentHash> orderedPathSetHashes = new List<ContentHash>();
 
             // Ensure that we get cache misses and generate new weak fingerprints
-            for (int i = 0; i < otherFiles.Length; i++)
+            for (int i = 0; i < fileBPathByIteration.Length; i++)
             {
-                File.WriteAllText(path: firstFile.Path.ToString(Context.PathTable), contents: otherFiles[i]);
+                // Indicate to from file A that file B_i should be read
+                File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
 
                 var result = RunScheduler().AssertCacheMiss();
 
                 var weakFingerprint = result.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
                 bool addedWeakFingerprint = weakFingerprints.Add(weakFingerprint);
+
+                // Record the weak fingerprints so in the second phase we can check that the cache lookups get
+                // hits against the appropriate fingerprints
                 orderedWeakFingerprints.Add(weakFingerprint);
 
                 if (augmentWeakFingerprint)
@@ -1031,13 +1043,17 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 ContentHash pathSetHash = result.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
                 bool addedPathSet = pathSetHashes.Add(pathSetHash);
+
+                // Record the path sets so in the second phase we can check that the cache lookups get
+                // hits with the appropriate path sets
                 orderedPathSetHashes.Add(pathSetHash);
             }
 
             // Ensure that we get cache hits when inputs are the same
-            for (int i = 0; i < otherFiles.Length; i++)
+            for (int i = 0; i < fileBPathByIteration.Length; i++)
             {
-                File.WriteAllText(path: firstFile.Path.ToString(Context.PathTable), contents: otherFiles[i]);
+                // Indicate to from file A that file B_i should be read
+                File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
 
                 // We should get a hit for the same inputs
                 var result = RunScheduler().AssertCacheHit();

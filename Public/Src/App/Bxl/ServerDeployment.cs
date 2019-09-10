@@ -243,6 +243,7 @@ namespace BuildXL
                 }
                 catch (BuildXLException)
                 {
+                    // This case occurs when the deployment directory is missing or the ServerDeploymentManifestFile is missing
                     return true;
                 }
             }

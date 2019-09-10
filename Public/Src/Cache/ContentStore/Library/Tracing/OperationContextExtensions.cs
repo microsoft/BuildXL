@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         private readonly OperationContext _context;
         private readonly Tracer _tracer;
 
-        private readonly Counter _counter;
+        private readonly Counter? _counter;
         private readonly bool _traceErrorsOnly;
         private readonly bool _traceOperationStarted;
         private readonly bool _traceOperationFinished;
@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         private PerformOperationBuilder(
             OperationContext context,
             Tracer tracer,
-            Counter counter,
+            Counter? counter,
             bool traceErrorsOnly,
             bool traceOperationStarted,
             bool traceOperationFinished,

@@ -2189,6 +2189,14 @@ namespace BuildXL.Scheduler
                 }
 
                 processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
+
+                Logger.Log.PipCacheLookupStats(
+                    operationContext,
+                    process.FormattedSemiStableHash,
+                    weakFingerprint.ToString(),
+                    numCacheEntriesVisited,
+                    numPathSetsDownloaded);
+
                 return runnableFromCacheResult;
             }
         }

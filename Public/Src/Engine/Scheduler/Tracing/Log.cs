@@ -4442,6 +4442,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Engine,
             Message = "{message}")]
         public abstract void DebugFragment(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)EventId.PipCacheLookupStats,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}', Visited entries: {visitedEntriesCount}, Unique pathsets: {pathsetCount}")]
+        public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, string weakFigerprint, int visitedEntriesCount, int pathsetCount);
     }
 }
 #pragma warning restore CA1823 // Unused field

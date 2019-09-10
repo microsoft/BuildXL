@@ -1130,6 +1130,9 @@ namespace BuildXL
                             "vs",
                             sign => ideConfiguration.IsEnabled = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "vsNew", // temporary undocumented option for enabling new VS solution generation
+                            sign => ideConfiguration.IsNewEnabled = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),
                         OptionHandlerFactory.CreateBoolOptionWithValue(

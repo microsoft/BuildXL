@@ -16,6 +16,7 @@ using BuildXL.ToolSupport;
 using ContentPlacementAnalysisTools.Core.ML.Classifier;
 using ContentPlacementAnalysisTools.Core.Utils;
 using ContentPlacementAnalysisTools.ML.Action;
+using ICSharpCode.SharpZipLib.Zip;
 using Newtonsoft.Json;
 using NLog;
 
@@ -121,7 +122,6 @@ namespace ContentPlacementAnalysisTools.OfflineMapping.Main
                             var selectedMachines = result.Value;
                             foreach (var path in i.Result.Linear.ReportedPaths)
                             {
-                                s_logger.Info($"Storing path={path}, machines=[{string.Join(";", selectedMachines)}]");
                                 store.StoreResult(opContext, path, selectedMachines);
                                 Interlocked.Add(ref sharedCount, 1);
                             }

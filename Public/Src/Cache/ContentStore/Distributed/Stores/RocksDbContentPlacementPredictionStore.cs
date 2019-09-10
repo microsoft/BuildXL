@@ -104,8 +104,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <nodoc />
         public bool CreateSnapshot(OperationContext context, string path)
         {
+            var tempPath = Path.Combine(path, "temp");
             _database.UpdateClusterState(context, _clusterState, true);
-            var absolutePath = new AbsolutePath(path);
+            var absolutePath = new AbsolutePath(tempPath);
             var result = _database.SaveCheckpoint(context, absolutePath);
 
             if (!result.Succeeded)
@@ -113,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 return false;
             }
 
-            ZipFile.CreateFromDirectory(path, Path.Combine(path, $"{DateTime.UtcNow}.zip"));
+            ZipFile.CreateFromDirectory(tempPath, Path.Combine(path, $"{DateTime.UtcNow:yyyy-MM-dd HHmmss}.zip"));
 
             return true;
         }

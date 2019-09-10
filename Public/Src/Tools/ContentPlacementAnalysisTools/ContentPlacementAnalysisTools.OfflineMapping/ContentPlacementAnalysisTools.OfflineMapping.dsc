@@ -33,6 +33,7 @@ namespace ContentPlacement.OfflineMapping {
             importFrom("NLog").pkg,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("RuntimeContracts").pkg,
+            importFrom("SharpZipLib").pkg,
         ],
     });
 }

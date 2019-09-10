@@ -22,6 +22,7 @@ namespace ContentPlacement.OfflineMapping {
                     NetFx.System.Data.dll,
                 ]),
             ContentPlacement.Core.dll,
+            ContentPlacement.ML.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,

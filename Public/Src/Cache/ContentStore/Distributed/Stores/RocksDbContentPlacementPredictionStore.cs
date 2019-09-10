@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities;
@@ -45,11 +47,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <nodoc />
-        public async Task<bool> StartupAsync(OperationContext context)
+        public async Task<BoolResult> StartupAsync(OperationContext context)
         {
             var result = await _database.StartupAsync(context);
             _database.UpdateClusterState(context, _clusterState, false);
-            return result.Succeeded;
+            return result;
         }
 
         /// <nodoc />
@@ -67,7 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             var pathHash = ComputePathHash(path);
 
-            var entry = ContentLocationEntry.Create(MachineIdSet.Empty.SetExistence(machines.SelectList(machine => _knownMachines[machine]), true), 0, UnixTime.Zero);
+            var entry = ContentLocationEntry.Create(MachineIdSet.Empty.SetExistence(machines.SelectList(machine => _knownMachines[machine]), true), 0, DateTime.UtcNow);
             _database.Store(context, pathHash, entry);
         }
 

@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -37,8 +38,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
-
         private readonly SemaphoreSlim _putFileGate;
+        private readonly RocksDbContentPlacementPredictionStore _predictionStore;
+        private readonly CentralStorage _centralStorage;
+        private readonly AbsolutePath _predictionStorePath;
 
         private string _buildId = null;
         private ContentHash? _buildIdHash = null;
@@ -54,6 +57,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
             MachineLocation localMachineLocation,
+            CentralStorage centralStorage,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
@@ -69,7 +73,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 settings)
         {
             _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
+            _predictionStorePath = new AbsolutePath(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob));
+            _predictionStore = settings.ContentPlacementPredictionsBlob == null && centralStorage != null
+                ? null
+                : new RocksDbContentPlacementPredictionStore(_predictionStorePath.Path, clean: false);
+            _centralStorage = centralStorage;
+        }
 
+        private string GetPredictionStoreFileLocation(string blobName)
+        {
+            throw new NotImplementedException();
         }
 
         /// <inheritdoc />
@@ -84,6 +97,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 Tracer.Info(context, $"Registering machine with build {_buildId} (build id hash: {_buildIdHash.Value.ToShortString()}");
                 await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
+            }
+
+            if (_predictionStore != null)
+            {
+                if (!File.Exists(_predictionStorePath.Path))
+                {
+                    await _centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, _predictionStorePath).ThrowIfFailure();
+                }
+                await _predictionStore.StartupAsync(context).ThrowIfFailure();
             }
 
             return BoolResult.Success;
@@ -179,7 +201,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private async Task<PutResult> PutCoreAsync(
             OperationContext context,
             Func<IDecoratedStreamContentSession, Func<Stream, Stream>, Task<PutResult>> putRecordedAsync,
-            Func<IContentSession, Task<PutResult>> putAsync)
+            Func<IContentSession, Task<PutResult>> putAsync,
+            string path = null)
         {
             PutResult result;
             bool putBlob = false;
@@ -221,7 +244,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 WithOperationContext(
                     context,
                     CancellationToken.None,
-                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, result.ContentHash)
+                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, result.ContentHash, path)
                 ).FireAndForget(context);
             }
 
@@ -247,11 +270,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return putResult;
         }
 
-        private Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
+        private Task<ProactiveCopyResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
-                return BoolResult.SuccessTask;
+                return Task.FromResult(ProactiveCopyResult.CopyNotRequiredResult);
             }
 
             return context.PerformOperationAsync(
@@ -270,7 +293,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                         {
                             _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
-                            return BoolResult.Success;
+                            return ProactiveCopyResult.CopyNotRequiredResult;
                         }
                         else
                         {
@@ -280,14 +303,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                         {
-                            return BoolResult.Success;
+                            return ProactiveCopyResult.CopyNotRequiredResult;
                         }
 
                         IReadOnlyList<MachineLocation> buildRingMachines;
 
-                        Task<BoolResult> copyToBuildRingMachineTask = BoolResult.SuccessTask;
-
                         // Get random machine inside build ring
+                        Task<BoolResult> insideRingCopyTask;
                         if (_buildIdHash != null)
                         {
                             buildRingMachines = getLocationsResult.ContentHashesInfo[getLocationsResult.ContentHashesInfo.Count - 1].Locations;
@@ -296,30 +318,63 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             {
                                 var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
                                 Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' in build ring (of {candidates.Length} machines).");
-                                copyToBuildRingMachineTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                                insideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                            }
+                            else
+                            {
+                                insideRingCopyTask = Task.FromResult(new BoolResult("Could not find any machines belonging to the build ring."));
                             }
                         }
                         else
                         {
+                            insideRingCopyTask = Task.FromResult(new BoolResult("BuildId was not specified, so machines in the build ring cannot be found."));
                             buildRingMachines = new[] { LocalCacheRootMachineLocation };
                         }
 
-                        BoolResult result = BoolResult.Success;
-                        var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
+                        var fromPredictionStore = true;
+                        Result<MachineLocation> getLocationResult = null;
+                        if (_predictionStore != null && path != null)
+                        {
+                            var machines = _predictionStore.GetTargetMachines(context, path);
+                            if (machines?.Count > 0)
+                            {
+                                var index = Math.Min(machines.Count, GetRandomVariableWithGeometricDistribution(0.5)) - 1;
+                                getLocationResult = new Result<MachineLocation>(new MachineLocation(machines[index]));
+                            }
+                        }
+
+                        if (getLocationResult == null)
+                        {
+                            getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
+                            fromPredictionStore = false;
+                        }
+
+                        Task<BoolResult> outsideRingCopyTask;
                         if (getLocationResult.Succeeded)
                         {
                             var candidate = getLocationResult.Value;
-                            Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
-                            result &= await DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                            Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' outside build ring. Candidate gotten from {(fromPredictionStore ? nameof(RocksDbContentPlacementPredictionStore) : nameof(ContentLocationStore))}");
+                            outsideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                        }
+                        else
+                        {
+                            outsideRingCopyTask = Task.FromResult(new BoolResult(getLocationResult));
                         }
 
-                        return result & await copyToBuildRingMachineTask;
+                        return new ProactiveCopyResult(await insideRingCopyTask, await outsideRingCopyTask);
                     }
                     finally
                     {
                         _pendingProactivePuts.Remove(hash);
                     }
                 });
+        }
+
+        private static int GetRandomVariableWithGeometricDistribution(double p)
+        {
+            var random = ThreadSafeRandom.Generator.NextDouble();
+            var x = Math.Log(random, 1 - p);
+            return (int)Math.Ceiling(x);
         }
 
         /// <inheritdoc />

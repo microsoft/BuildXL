@@ -625,9 +625,8 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine("");
             WriteCopyFilesAnalyzerHelp(writer);
 
-            // TODO: Uncomment out help messages when analyzers are more polished.
-            //writer.WriteLine("");
-            //WriteXLGToDBHelp(writer);
+            writer.WriteLine("");
+            WriteXLGToDBHelp(writer);
 
 //writer.WriteLine("");
 //WriteDominoInvocationHelp(writer);

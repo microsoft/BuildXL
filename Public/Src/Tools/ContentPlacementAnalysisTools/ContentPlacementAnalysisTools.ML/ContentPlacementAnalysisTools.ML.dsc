@@ -35,4 +35,20 @@ namespace ContentPlacement.ML {
             importFrom("RuntimeContracts").pkg,
         ],
     });
+
+    @@public
+    export const dll = BuildXLSdk.library({
+        assemblyName: "BuildXL.ContentPlacementAnalysisTools.ML",
+        sources: globR(d`.`, "*.cs"),
+        references: [
+            ContentPlacement.Core.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").ToolSupport.dll,
+            importFrom("NLog").pkg,
+            importFrom("Newtonsoft.Json").pkg,
+            importFrom("RuntimeContracts").pkg,
+        ],
+    });
+
 }

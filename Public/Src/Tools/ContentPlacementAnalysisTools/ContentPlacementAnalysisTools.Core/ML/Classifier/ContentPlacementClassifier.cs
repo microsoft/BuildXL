@@ -42,6 +42,15 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             m_configPath = config;
         }
 
+        /// <summary>
+        ///  The argument is the path to a valid ContentPlacementClassifierConfiguration
+        /// </summary>
+        public ContentPlacementClassifier(ContentPlacementClassifierConfiguration config)
+        {
+            Contract.Requires(config != null, "Config file path cannot be null");
+            LoadClassifier(config);
+        }
+
         public Task<Result<bool>> StartupAsync()
         {
             try

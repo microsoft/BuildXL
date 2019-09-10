@@ -140,6 +140,10 @@ namespace ContentPlacementAnalysisTools.Core.ML
         /// Semaphore count (avg) of the output pips
         /// </summary>
         public double AvgSemaphoreCountForOutputPips { get; set; }
+        /// <summary>
+        /// The reported file
+        /// </summary>
+        public HashSet<string> ReportedPaths { get; set; } = new HashSet<string>();
 
         /// <summary>
         /// Writes the column headers for a csv output

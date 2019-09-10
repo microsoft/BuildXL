@@ -167,7 +167,7 @@ namespace BuildXL.FrontEnd.Core
             Engine = engine;
             FrontEndArtifactManager = CreateFrontEndArtifactManager();
             PipGraph = pipGraph;
-            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph);
+            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph, configuration.FrontEnd.MaxFrontEndConcurrency);
 
             // TODO: The EngineBasedFileSystem should be replaced with a tracking file system that wraps the passed in filesystem
             // so that the speccache, engine caching/tracking all work for the real and for the fake filesystem.s
@@ -263,7 +263,8 @@ namespace BuildXL.FrontEnd.Core
             }
 
             var frontEndConcurrency = resultingConfiguration.FrontEnd.MaxFrontEndConcurrency();
-            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, FrontEndContext.CancellationToken);
+            var enableEvaluationThrottling = resultingConfiguration.FrontEnd.EnableEvaluationThrottling();
+            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, enableEvaluationThrottling, FrontEndContext.CancellationToken);
 
             HostState = State.ConfigInterpreted;
 
@@ -1070,7 +1071,7 @@ namespace BuildXL.FrontEnd.Core
             var frontEndHost = new FrontEndHostController(
                 frontEndFactory,
                 new DScriptWorkspaceResolverFactory(),
-                new EvaluationScheduler(degreeOfParallelism: 1, cancellationToken: frontEndContext.CancellationToken),
+                new EvaluationScheduler(degreeOfParallelism: 1, false, cancellationToken: frontEndContext.CancellationToken),
                 moduleRegistry,
                 new FrontEndStatistics(),
                 logger ?? Logger.CreateLogger(),
@@ -1376,6 +1377,18 @@ namespace BuildXL.FrontEnd.Core
                 return false;
             }
 
+            if (PipGraphFragmentManager != null)
+            {
+                var tasks = PipGraphFragmentManager.GetAllFragmentTasks();
+                numSpecs = tasks.Count;
+                results = await TaskUtilities.AwaitWithProgressReporting(
+                    tasks,
+                    taskSelector: item => item.Item2,
+                    action: (elapsed, all, remaining) => LogFragmentEvaluationProgress(numSpecs, elapsed, all, remaining),
+                    period: EvaluationProgressReportingPeriod);
+                return results.All(b => b);
+            }
+
             return true;
         }
 
@@ -1460,6 +1473,34 @@ namespace BuildXL.FrontEnd.Core
                 numSpecsDone: m_frontEndStatistics.SpecEvaluation.Count,
                 numSpecsTotal: numSpecsTotal,
                 remaining: remainingMessage);
+        }
+
+        private void LogFragmentEvaluationProgress(
+            int numSpecsTotal,
+            TimeSpan elapsed,
+            IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> allItems,
+            IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
+        {
+            string remainingMessage = ConstructProgressRemainingMessage(elapsed, remainingItems);
+            m_logger.FrontEndEvaluatePhaseFragmentProgress(
+                FrontEndContext.LoggingContext,
+                numFragmentsDone: allItems.Count - remainingItems.Count,
+                numFragmentsTotal: allItems.Count,
+                remaining: remainingMessage);
+        }
+
+        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
+        {
+            var progressMessages = remainingItems
+                .Where(item => item.Item1.PipsDeserialized > 0)
+                .Take(10)
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToList();
+
+            return progressMessages.Count > 0
+                ? Environment.NewLine + string.Join(Environment.NewLine, progressMessages)
+                : "0";
         }
 
         private string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)

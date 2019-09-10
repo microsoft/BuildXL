@@ -30,6 +30,10 @@ namespace ContentPlacementAnalysisTools.ML.Action
         {
             m_database = database;
         }
+        /// <summary>
+        /// This version does not write results to any file
+        /// </summary>
+        public LinearizeArtifacts(){}
 
         /// <summary>
         /// Linearize artifacts one by one
@@ -42,27 +46,48 @@ namespace ContentPlacementAnalysisTools.ML.Action
                 var totalIpips = 0;
                 var totalOpips = 0;
                 var linear = new MLArtifact();
-                // we are supposed to have a set of files here
-                foreach (var file in Directory.EnumerateFiles(input.ArtifactFolder, "*.json"))
+                // we are supposed to have a set of files here, or a list
+                if(input.ArtifactsForHash == null)
                 {
-                    currentFile = file;
-                    // so in here we will read a single input file and classify its artifacts
-                    var artifact = new JsonSerializer().Deserialize<ArtifactWithBuildMeta>(
-                        new JsonTextReader(
-                            new StreamReader(file)
-                        )
-                    );
-                    // so we have it in here, lets start accumulating
-                    var linearResult = LinearizeTo(linear, artifact);
-                    totalIpips += linearResult.Item1;
-                    totalOpips += linearResult.Item2;
+                    foreach (var file in Directory.EnumerateFiles(input.ArtifactFolder, "*.json"))
+                    {
+                        currentFile = file;
+                        // so in here we will read a single input file and classify its artifacts
+                        var artifact = new JsonSerializer().Deserialize<ArtifactWithBuildMeta>(
+                            new JsonTextReader(
+                                new StreamReader(file)
+                            )
+                        );
+                        // so we have it in here, lets start accumulating
+                        var linearResult = LinearizeTo(linear, artifact);
+                        totalIpips += linearResult.Item1;
+                        totalOpips += linearResult.Item2;
+                        linear.ReportedPaths.Add(artifact.Artifact.ReportedFile);
+                    }
+                    // set the hash
+                    linear.Hash = Path.GetDirectoryName(input.ArtifactFolder);
+                }
+                else
+                {
+                    foreach (var artifact in input.ArtifactsForHash)
+                    {
+                        // so we have it in here, lets start accumulating
+                        var linearResult = LinearizeTo(linear, artifact);
+                        totalIpips += linearResult.Item1;
+                        totalOpips += linearResult.Item2;
+                        // and the paths
+                        linear.ReportedPaths.Add(artifact.Artifact.ReportedFile);
+                    }
+                    // set the hash
+                    linear.Hash = input.Hash;
                 }
                 // and when we are done, we calculate the avgs
                 AdjustAverages(linear, totalIpips, totalOpips);
-                // set the hash
-                linear.Hash = Path.GetDirectoryName(input.ArtifactFolder);
                 // and write
-                linear.WriteToCsvStream(m_database);
+                if(m_database != null)
+                {
+                    linear.WriteToCsvStream(m_database);
+                }
                 // done...
                 return new LinearizeArtifactsOutput(linear.Queues.Count, linear);
             }
@@ -242,7 +267,7 @@ namespace ContentPlacementAnalysisTools.ML.Action
     }
 
     /// <summary>
-    /// The input for this action requires an existing folder
+    /// The input for this action requires an existing folder or a set of ML artifacts
     /// </summary>
     public class LinearizeArtifactsInput
     {
@@ -251,11 +276,27 @@ namespace ContentPlacementAnalysisTools.ML.Action
         /// </summary>
         public string ArtifactFolder { get; set; }
         /// <summary>
+        /// The list of artifacts to linearize in case they are already in memory
+        /// </summary>
+        public IReadOnlyList<ArtifactWithBuildMeta> ArtifactsForHash { get; set; } = null;
+        /// <summary>
+        /// The hash, used when the artifacts are in memory
+        /// </summary>
+        public string Hash { get; set; }
+        /// <summary>
         /// Constructor
         /// </summary>
         public LinearizeArtifactsInput(string dir)
         {
             ArtifactFolder = dir;
+        }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public LinearizeArtifactsInput(string hash, IReadOnlyList<ArtifactWithBuildMeta> ar)
+        {
+            ArtifactsForHash = ar;
+            Hash = hash;
         }
     }
 

@@ -157,5 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Maximum number of PutFile operations that can happen concurrently.
         /// </summary>
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        public string ContentPlacementPredictionsBlob { get; set; } // Can be null.
     }
 }

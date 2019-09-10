@@ -256,7 +256,7 @@ namespace BuildXL.Execution.Analyzer
                     var bxlArtifact = new BxlArtifact
                     {
                         Hash = artifactInfo.Hash.ToHex(),
-                        ReportedFile = Path.GetFileName(artifact.Path.ToString(CachedGraph.Context.PathTable)),
+                        ReportedFile = artifact.Path.ToString(CachedGraph.Context.PathTable),
                         ReportedSize = artifactInfo.Length
                     };
                     if (m_artifactInputPips.TryGetValue(artifact, out var inputPipsForThisArtifact))

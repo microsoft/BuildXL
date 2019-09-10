@@ -58,7 +58,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => new[] { _grcpCacheServer.Bind() };
+        protected override ServerServiceDefinition[] BindServices() => _grcpCacheServer.Bind();
 
         /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(ICache store, OperationContext context) => store.GetStatsAsync(context);

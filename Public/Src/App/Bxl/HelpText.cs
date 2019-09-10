@@ -1089,10 +1089,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_SymlinkDefinitionFile);
 
             hw.WriteOption(
-                "/inputChanges:<file>",
-                Strings.HelpText_DisplayHelp_InputChanges);
-
-            hw.WriteOption(
                 "/telemetryTagPrefix:<string>",
                 Strings.HelpText_DisplayHelp_TelemetryTagPrefix);
 

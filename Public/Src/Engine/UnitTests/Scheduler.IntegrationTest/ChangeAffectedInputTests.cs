@@ -62,7 +62,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
-            Configuration.Schedule.InputChanges = inputChangesFile.Path;
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]inputChanges", inputChangesFile.Path.ToString(Context.PathTable));
             Environment.SetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType", "DynamicCodeCov");
 
             RunScheduler().AssertCacheMiss();
@@ -70,6 +70,31 @@ namespace IntegrationTest.BuildXL.Scheduler
             var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
             var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
+        }
+
+        [Fact]
+        public void InvalidChangeInputsPathTest()
+        {
+            // Process A.
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            FileArtifact aInput = CreateSourceFile(root: dirPath, prefix: "pip-a-input-file");
+            FileArtifact aOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-a-out-file");
+
+            var pipBuilderA = CreatePipBuilder(new[] { Operation.ReadFile(aInput), Operation.WriteFile(aOutput) });
+            SchedulePipBuilder(pipBuilderA);
+
+            // Process B.
+            FileArtifact bOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-b-out-file");
+            FileArtifact changeAffectedWrittenFile = CreateOutputFileArtifact();
+            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) });
+            SchedulePipBuilder(pipBuilderB);
+
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]inputChanges", "aaa");
+
+            RunScheduler().AssertSuccess();
+
+            XAssert.IsFalse(File.Exists(ArtifactToString(changeAffectedWrittenFile)), $"File in the content list when seal was not supposed to exist: {changeAffectedWrittenFile}");
         }
 
         [Fact]
@@ -127,7 +152,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInputFile));
-            Configuration.Schedule.InputChanges = inputChangesFile.Path;
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]inputChanges", inputChangesFile.Path.ToString(Context.PathTable));
 
             RunScheduler().AssertSuccess();
 
@@ -216,7 +241,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInputFile));
-            Configuration.Schedule.InputChanges = inputChangesFile.Path;
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]inputChanges", inputChangesFile.Path.ToString(Context.PathTable));
 
             RunScheduler().AssertSuccess();
               
@@ -307,7 +332,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInputFile));
-            Configuration.Schedule.InputChanges = inputChangesFile.Path;
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]inputChanges", inputChangesFile.Path.ToString(Context.PathTable));
 
             RunScheduler().AssertSuccess();
 

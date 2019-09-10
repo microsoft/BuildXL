@@ -6,7 +6,11 @@ import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 const root = Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? d`${Environment.getFileValue("QTEST_DEPLOYMENT_PATH")}` : d`.`;
 const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
     ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
-    : "None";
+    : "None"; 
+
+const qInputChangesFilePath = Environment.hasVariable("[Sdk.BuildXL]inputChanges") 
+    ? f`${Environment.getFileValue("[Sdk.BuildXL]inputChanges")}`
+    : undefined;
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -126,7 +130,7 @@ export function runQTest(args: QTestArguments): Result {
      
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
-    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+    if (qCodeCoverageEnumType === "DynamicCodeCov" && File.exists(qInputChangesFilePath)){
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;

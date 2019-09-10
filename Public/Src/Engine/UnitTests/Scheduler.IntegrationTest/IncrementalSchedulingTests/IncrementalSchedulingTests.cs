@@ -418,7 +418,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         {
             var changeFile = CreateSourceFileWithPrefix(SourceRoot, "changeFile");
             File.WriteAllText(ArtifactToString(changeFile), string.Empty);
-            Configuration.Schedule.InputChanges = changeFile.Path;
+            Environment.SetEnvironmentVariable("[Sdk.BuildXL]inputChanges", changeFile.Path.ToString(Context.PathTable));
 
             var sourceFile = CreateSourceFileWithPrefix(SourceRoot, "sourceFile");
 

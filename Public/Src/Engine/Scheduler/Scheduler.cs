@@ -174,6 +174,11 @@ namespace BuildXL.Scheduler
         private readonly FileContentManager m_fileContentManager;
 
         /// <summary>
+        /// Path to file containing input changes.
+        /// </summary>
+        private AbsolutePath m_inputChangesFilePath = AbsolutePath.Invalid;
+
+        /// <summary>
         /// Symlink definitions
         /// </summary>
         public readonly SymlinkDefinitions SymlinkDefinitions;
@@ -2276,7 +2281,7 @@ namespace BuildXL.Scheduler
                     Interlocked.Increment(ref m_numIpcPipsCompleted);
                 }
 
-                if (!IsDistributedWorker && m_configuration.Schedule.InputChanges.IsValid && (pipType == PipType.CopyFile || pipType == PipType.Process))
+                if (!IsDistributedWorker && m_inputChangesFilePath.IsValid && (pipType == PipType.CopyFile || pipType == PipType.Process))
                 {
                     ReadOnlyArray<FileArtifact> outputContents = ReadOnlyArray<FileArtifact>.Empty;
                     PipResultStatus status = result.Status;
@@ -4915,11 +4920,18 @@ namespace BuildXL.Scheduler
         {
             InputChangeList inputChangeList = null;
 
-            if (m_configuration.Schedule.InputChanges.IsValid)
+            var inputChangesFilePath = Environment.GetEnvironmentVariable("[Sdk.BuildXL]inputChanges");
+
+            if (!String.IsNullOrEmpty(inputChangesFilePath) && File.Exists(Path.GetFullPath(inputChangesFilePath)))
+            {
+                m_inputChangesFilePath = AbsolutePath.Create(Context.PathTable, Path.GetFullPath(inputChangesFilePath));
+            }
+
+            if (m_inputChangesFilePath.IsValid)
             {
                 inputChangeList = InputChangeList.CreateFromFile(
                     loggingContext,
-                    m_configuration.Schedule.InputChanges.ToString(Context.PathTable),
+                    m_inputChangesFilePath.ToString(Context.PathTable),
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
 

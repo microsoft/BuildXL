@@ -8,8 +8,9 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Tracing.Internal
 {
@@ -56,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public OperationTracer Trace(Action operationStarted)
+        public OperationTracer Trace(Action? operationStarted)
         {
             operationStarted?.Invoke();
             return new OperationTracer(StopwatchSlim.Start());
@@ -83,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public async Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, [CallerMemberName]string caller = null)
+        public async Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, [CallerMemberName]string? caller = null)
             where T : ResultBase
         {
             var self = this;
@@ -111,14 +112,14 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceErrorsOnly = false,
             bool traceOperationStarted = true,
             bool traceOperationFinished = true,
-            Func<T, string> messageFactory = null,
-            string extraStartMessage = null,
-            [CallerMemberName]string caller = null) where T : ResultBase
+            Func<T, string>? messageFactory = null,
+            string? extraStartMessage = null,
+            [CallerMemberName]string? caller = null) where T : ResultBase
         {
             var self = this;
             var operationStartedAction = traceOperationStarted
                 ? () => operationTracer?.OperationStarted(self, caller, enabled: !traceErrorsOnly, additionalInfo: extraStartMessage)
-                : (Action)null;
+                : (Action?)null;
 
             using (counter?.Start())
             {
@@ -130,7 +131,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
                 var operationFinishedAction = traceOperationFinished
                     ? duration => operationTracer?.OperationFinished(self, result, duration, message, caller, traceErrorsOnly: traceErrorsOnly)
-                    : (Action<TimeSpan>)null;
+                    : (Action<TimeSpan>?)null;
 
                 tracer.OperationFinished(operationFinishedAction);
                 return result;
@@ -145,9 +146,9 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             bool traceErrorsOnly = false,
             bool traceOperationStarted = true,
             bool traceOperationFinished = true,
-            string extraStartMessage = null,
-            Func<T, string> extraEndMessage = null,
-            [CallerMemberName]string caller = null) where T : ResultBase
+            string? extraStartMessage = null,
+            Func<T, string>? extraEndMessage = null,
+            [CallerMemberName]string? caller = null) where T : ResultBase
         {
             var self = this;
             return PerformNonResultOperationAsync(
@@ -164,39 +165,106 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public async Task<T> PerformNonResultOperationAsync<T>(
+        public Task<T> PerformOperationWithStatusAsync<T>(
             Tracer operationTracer,
             Func<Task<T>> operation,
             Counter? counter = default,
             bool traceErrorsOnly = false,
             bool traceOperationStarted = true,
             bool traceOperationFinished = true,
-            string extraStartMessage = null,
-            Func<T, string> extraEndMessage = null,
-            Func<T, ResultBase> resultBaseFactory = null,
-            [CallerMemberName]string caller = null)
+            string? extraStartMessage = null,
+            Func<T, bool, string>? extraEndMessageWithStatus = null,
+            [CallerMemberName]string? caller = null) where T : ResultBase
+        {
+            var self = this;
+            return PerformNonResultOperationWithStatusAsync(
+                operationTracer,
+                operation: () => self.RunOperationAndConvertExceptionToErrorAsync(operation),
+                counter,
+                traceErrorsOnly,
+                traceOperationStarted,
+                traceOperationFinished,
+                extraStartMessage,
+                extraEndMessageWithStatus,
+                resultBaseFactory: r => r,
+                caller);
+        }
+
+        /// <nodoc />
+        public async Task<T> PerformNonResultOperationWithStatusAsync<T>(
+            Tracer operationTracer,
+            Func<Task<T>> operation,
+            Counter? counter = default,
+            bool traceErrorsOnly = false,
+            bool traceOperationStarted = true,
+            bool traceOperationFinished = true,
+            string? extraStartMessage = null,
+            Func<T, bool, string>? extraEndMessageWithStatus = null,
+            Func<T, ResultBase>? resultBaseFactory = null,
+            [CallerMemberName]string? caller = null)
         {
             var self = this;
 
             var operationStartedAction = traceOperationStarted
                 ? () => operationTracer?.OperationStarted(self, caller, enabled: !traceErrorsOnly, additionalInfo: extraStartMessage)
-                : (Action)null;
+                : (Action?)null;
 
             using (counter?.Start())
             {
                 var tracer = Trace(operationStartedAction);
 
-                var result = await operation();
+                var resultTask = operation();
+                bool completedSynchronously = resultTask.IsCompleted;
 
-                var message = extraEndMessage?.Invoke(result) ?? string.Empty;
+                var result = await resultTask;
+
+                var message = extraEndMessageWithStatus?.Invoke(result, completedSynchronously) ?? string.Empty;
 
                 var operationFinishedAction = traceOperationFinished
                     ? duration => operationTracer?.OperationFinished(self, resultBaseFactory?.Invoke(result) ?? BoolResult.Success, duration, message, caller, traceErrorsOnly: traceErrorsOnly)
-                    : (Action<TimeSpan>)null;
+                    : (Action<TimeSpan>?)null;
 
                 tracer.OperationFinished(operationFinishedAction);
                 return result;
             }
+        }
+
+        /// <nodoc />
+        public Task<T> PerformNonResultOperationAsync<T>(
+            Tracer operationTracer,
+            Func<Task<T>> operation,
+            Counter? counter = default,
+            bool traceErrorsOnly = false,
+            bool traceOperationStarted = true,
+            bool traceOperationFinished = true,
+            string? extraStartMessage = null,
+            Func<T, string>? extraEndMessage = null,
+            Func<T, ResultBase>? resultBaseFactory = null,
+            [CallerMemberName]string? caller = null)
+        {
+            return PerformNonResultOperationWithStatusAsync(
+                operationTracer,
+                operation,
+                counter,
+                traceErrorsOnly,
+                traceOperationStarted,
+                traceOperationFinished,
+                extraStartMessage,
+                ExtraEndMessage(extraEndMessage),
+                resultBaseFactory,
+                caller);
+        }
+
+        private static Func<T, bool, string>? ExtraEndMessage<T>(Func<T, string>? messageFactory)
+        {
+            if (messageFactory != null)
+            {
+                // It seems that this is a compiler issue that we force to use 'messageFactory!' here
+                // to avoid warning from the compiler.
+                return (result, _) => messageFactory!(result);
+            }
+
+            return null;
         }
 
         private T RunOperationAndConvertExceptionToError<T>(Func<T> operation)
@@ -252,7 +320,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public void OperationFinished(Action<TimeSpan> tracer)
+        public void OperationFinished(Action<TimeSpan>? tracer)
         {
             tracer?.Invoke(_stopwatch.Elapsed);
         }

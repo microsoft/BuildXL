@@ -554,7 +554,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        protected void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        public void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
         {
             Counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].Increment();
 

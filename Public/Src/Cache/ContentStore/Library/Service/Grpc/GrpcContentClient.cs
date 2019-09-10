@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public class GrpcContentClient : GrpcClientBase, IRpcClient
     {
-        private readonly ContentServer.ContentServerClient _client;
+        private readonly CacheServer.CacheServerClient _client;
 
         /// <summary>
         /// Size of the batch used in bulk operations.
@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             : base(fileSystem, tracer, grpcPort, scenario, capabilities, heartbeatInterval)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _client = new ContentServer.ContentServerClient(Channel);
+            _client = new CacheServer.CacheServerClient(Channel);
         }
 
         /// <inheritdoc />

@@ -2,8 +2,8 @@
 
 package ContentStore.Grpc;
 
-// Defines an interface of a content server
-service ContentServer {
+// Defines an interface of a cache server
+service CacheServer {
     rpc Hello(HelloRequest) returns (HelloResponse) {}
 
     rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
@@ -31,10 +31,7 @@ service ContentServer {
     rpc Delete(DeleteContentRequest) returns (DeleteContentResponse) {}
     
     rpc RequestCopyFile(RequestCopyFileRequest) returns (RequestCopyFileResponse) {}
-}
 
-// Defines an interface of a cache server
-service CacheServer {
     rpc AddOrGetContentHashList(AddOrGetContentHashListRequest) returns (AddOrGetContentHashListResponse) {}
 
     rpc GetContentHashList(GetContentHashListRequest) returns (GetContentHashListResponse) {}

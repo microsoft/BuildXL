@@ -35,6 +35,13 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// Base implementation of IPC to a file system content cache.
     /// </summary>
+    /// <typeparam name="TStore">
+    ///     Type of underlying store. This is kept to inherit from <see cref="IStartupShutdown"/> instead of, for
+    ///     example, <see cref="IContentStore"/>, because if that were the case it couldn't be used with ICache
+    /// </typeparam>
+    /// <typeparam name="TSession">
+    ///     Type of sessions that will be created. Must match the store.
+    /// </typeparam>
     public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>
         where TSession : IContentSession
         where TStore : IStartupShutdown
@@ -78,11 +85,8 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         /// <remarks>
         /// This is only supposed to be used by this class and inheritors, do not make internal or public.
-        /// 
-        /// It is also expected to be immutable, because inheritors may copy it around. So do NOT add keys after
-        /// constructed.
         /// </remarks>
-        protected readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
+        public readonly IReadOnlyDictionary<string, TStore> StoresByName;
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -107,12 +111,14 @@ namespace BuildXL.Cache.ContentStore.Service
             _serviceReadinessChecker = new ServiceReadinessChecker(Tracer, logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, SessionHandle<TSession>>();
 
+            var storesByName = new Dictionary<string, TStore>();
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
                 fileSystem.CreateDirectory(kvp.Value);
                 var store = contentStoreFactory(kvp.Value);
-                StoresByName.Add(kvp.Key, store);
+                storesByName.Add(kvp.Key, store);
             }
+            StoresByName = storesByName;
 
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {

@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.App
                 }
 
                 var _channel = new Channel(host, grpcPort, ChannelCredentials.Insecure);
-                var _client = new ContentServer.ContentServerClient(_channel);
+                var _client = new CacheServer.CacheServerClient(_channel);
                 var helloResponse = _client.Hello(new HelloRequest(), new CallOptions(deadline: DateTime.UtcNow + TimeSpan.FromSeconds(2)));
 
                 _logger.Always("Hello response {0}: {1}", helloResponse.Success ? "succeeded" : "failed", helloResponse.ToString());

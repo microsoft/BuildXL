@@ -17,7 +17,7 @@ using BuildXL.Cache.ContentStore.Service.Grpc;
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
-    /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>, <seealso cref="GrpcServerFactory"/>
+    /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
     public class GrpcFileCopier : IAbsolutePathFileCopier, ICopyRequester
     {

@@ -37,8 +37,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
-
         private readonly SemaphoreSlim _putFileGate;
+        private readonly RocksDbContentPlacementPredictionStore _predictionStore;
 
         private string _buildId = null;
         private ContentHash? _buildIdHash = null;
@@ -69,7 +69,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 settings)
         {
             _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
+            _predictionStore = settings.ContentPlacementPredictionsBlob == null
+                ? null
+                : new RocksDbContentPlacementPredictionStore(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob), clean: false);
+        }
 
+        private string GetPredictionStoreFileLocation(string blobUrl)
+        {
+            throw new NotImplementedException();
         }
 
         /// <inheritdoc />
@@ -84,6 +91,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 Tracer.Info(context, $"Registering machine with build {_buildId} (build id hash: {_buildIdHash.Value.ToShortString()}");
                 await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
+            }
+
+            if (_predictionStore != null)
+            {
+                await _predictionStore.StartupAsync(context).ThrowIfFailure();
             }
 
             return BoolResult.Success;
@@ -179,7 +191,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private async Task<PutResult> PutCoreAsync(
             OperationContext context,
             Func<IDecoratedStreamContentSession, Func<Stream, Stream>, Task<PutResult>> putRecordedAsync,
-            Func<IContentSession, Task<PutResult>> putAsync)
+            Func<IContentSession, Task<PutResult>> putAsync,
+            string path = null)
         {
             PutResult result;
             bool putBlob = false;
@@ -221,7 +234,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 WithOperationContext(
                     context,
                     CancellationToken.None,
-                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, result.ContentHash)
+                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, result.ContentHash, path)
                 ).FireAndForget(context);
             }
 
@@ -247,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return putResult;
         }
 
-        private Task<ProactiveCopyResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
+        private Task<ProactiveCopyResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -309,6 +322,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         }
 
                         Task<BoolResult> outsideRingCopyTask;
+                        BoolResult result = BoolResult.Success;
+                        Result<MachineLocation> machineLocationResult = null;
+                        if (_predictionStore != null && path != null)
+                        {
+                            var machines = _predictionStore.GetTargetMachines(context, path);
+                            if (machines?.Count > 0)
+                            {
+                                var index = Math.Min(machines.Count, GetRandomVariableWithGeometricDistribution(0.5)) - 1;
+                                machineLocationResult = new Result<MachineLocation>(new MachineLocation(machines[index]));
+                            }
+                        }
                         var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
                         if (getLocationResult.Succeeded)
                         {
@@ -328,6 +352,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         _pendingProactivePuts.Remove(hash);
                     }
                 });
+        }
+
+        private static int GetRandomVariableWithGeometricDistribution(double p)
+        {
+            var random = ThreadSafeRandom.Generator.NextDouble();
+            var x = Math.Log(random, 1 - p);
+            return (int)Math.Ceiling(x);
         }
 
         /// <inheritdoc />

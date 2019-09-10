@@ -117,7 +117,7 @@ namespace BuildXL.Scheduler
         public bool Equals(ReportedViolation other)
         {
             return IsError == other.IsError &&
-                RelatedPipId.Value == other.RelatedPipId.Value &&
+                RelatedPipId?.Value == other.RelatedPipId?.Value &&
                 Path == other.Path &&
                 Type == other.Type &&
                 ViolatorPipId == other.ViolatorPipId &&

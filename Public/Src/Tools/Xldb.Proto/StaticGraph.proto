@@ -3,7 +3,11 @@
 
 syntax = "proto3";
 
-import "EnumsAndHelperStructs.proto";
+import "HelperStructs.proto";
+
+// Import Enums
+import "Enums/PipType.proto";
+import "Enums/ProducerConsumerType.proto";
 
 package BuildXL.Xldb.Proto;
 
@@ -14,22 +18,22 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 //
 
 // CachedGraphQuery is the key for the top level data structures stored in the cached graph
-message CachedGraphQuery{
+message CachedGraphKey{
     bool PipGraph = 1;  
 }
 
 // Pip Query is 2 levels deep. SemistableHash -> PipId -> PipValues
 // For the pips with SemiStableHash = 0, we will only have PipId -> Values
-message PipQuerySemiStableHash{
+message PipSemistableHashKey{
     // Primary key, unique except for the pips that have a SemiStableHash = 0
     int64 SemiStableHash = 1;
 }
 
-message PipValueSemiStableHash{
+message PipIdValue{
     uint32 PipId = 1;
 }
 
-message PipQueryPipId{
+message PipIdKey{
     // Always unique within a build (makes the key unique), and same as the node id in graph
     uint32 PipId = 1;
 
@@ -37,6 +41,38 @@ message PipQueryPipId{
     // and how to appropriately parse it (since Protobuf has no inheritance)
     PipType PipType = 2;
 }
+
+message FileProducerConsumerKey{
+    ProducerConsumerType Type = 1;
+
+    string FileArtifact = 2;
+
+    int32 RewriteCount = 3;
+}
+
+message FileProducerValue{
+    uint32 PipId = 1;
+}
+
+message FileConsumerValue{
+    repeated uint32 PipIds = 1;
+}
+
+message DirectoryProducerConsumerKey{
+    ProducerConsumerType Type = 1;
+
+    string DirectoryArtifact = 2;
+}
+
+message DirectoryProducerValue{
+    uint32 PipId = 1;
+}
+
+message DirectoryConsumerValue{
+    repeated uint32 PipIds = 1;
+}
+
+
 
 //
 //  Map Messages -> Protobuf does not allow for float, double, bytes, or message types to be 
@@ -46,16 +82,10 @@ message PipQueryPipId{
 //  message wraper { repeated primitiveMap; }
 //
 
-message FileArtifactMap{
-    FileArtifact Artifact = 1;
-
-    uint32 Value = 2;
-}
-
 message DirectoryArtifactMap{
     DirectoryArtifact Artifact = 1;
 
-    uint32 Value = 2;
+    uint32 PipId = 2;
 }
 
 message PipIdSet{
@@ -85,33 +115,41 @@ message PipGraphStaticFingerprints{
 //
 
 message PipGraph{
+    // Unique identifier for a graph, established at creation time. This ID is durable under serialization and deserialization.
     string GraphId = 1;
 
+    // Gets the fingerprint used for looking up performance data.
+    // This is calculated by taking the first N process semistable hashes after sorting.
+    // This provides a stable fingerprint because it is unlikely that modifications to this pip graph
+    // will change those semistable hashes. Further, it is unlikely that pip graphs of different codebases
+    // will share these values.
     ContentFingerprint SemistableFingerprint = 2;
 
+    // Gets the range of node IDs valid in the current graph.
     NodeRange NodeRange = 3;
 
+    // The maximum index of serialized absolute paths.
     int32 MaxAbsolutePathIndex = 4;
 
+    // Gets all seal directories and their producers
     repeated DirectoryArtifactMap AllSealDirectoriesAndProducers = 5;
 
-    repeated FileArtifactMap AllFilesAndProducers = 6;
+    // Gets the number of known files for the build
+    int32 FileCount = 6;
 
-    repeated DirectoryArtifactMap AllOutputDirectoriesAndProducers = 7;
+    // Gets the number of declared content (file or sealed directories or service pips) for the build
+    int32 ContentCount = 7;
 
-    int32 FileCount = 8;
+    // Gets the number of declared content (file or sealed directories) for the build
+    int32 ArtifactContentCount = 8;
 
-    int32 ContentCount = 9;
+    // Mapping from module id to module nodes.
+    map<string, NodeId> Modules = 9;
 
-    int32 ArtifactContentCount = 10;
+    // String id corresponding to the BuildXL.Ipc.Interfaces.IIpcMoniker.Id property of the moniker used by the
+    // BuildXL API server. Empty string indicates that no BuildXL API operation has been requested.
+    string ApiServerMoniker = 10;
 
-    repeated NodeValuesMap Values = 11;
-
-    repeated FileArtifactMap SpecFiles = 12;
-
-    map<string, NodeId> Modules = 13;
-
-    string ApiServerMoniker = 14;
-
-    repeated uint32 StableKeys = 15;
+    // All PipId values issued so far.
+    repeated uint32 StableKeys = 11;
 }

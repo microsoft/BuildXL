@@ -7,11 +7,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -29,12 +32,51 @@ namespace BuildXL.Scheduler.Graph
         private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
         private readonly ConcurrentBigMap<FileArtifact, PipId> m_fileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
         private readonly ConcurrentBigMap<DirectoryArtifact, PipId> m_opaqueDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, PipId>();
+        private readonly PipStaticFingerprinter m_pipStaticFingerprinter;
+        private readonly PipGraphStaticFingerprints m_pipStaticFingerprints = new PipGraphStaticFingerprints();
 
         /// <summary>
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilderTopSort(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration) : base(loggingContext, pipExecutionContext, configuration)
+        public GraphFragmentBuilderTopSort(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration, PathExpander pathExpander) : base(loggingContext, pipExecutionContext, configuration)
         {
+            if (configuration.Schedule.ComputePipStaticFingerprints)
+            {
+                var extraFingerprintSalts = new ExtraFingerprintSalts(
+                    configuration,
+                    PipFingerprintingVersion.TwoPhaseV2,
+                    configuration.Cache.CacheSalt,
+                    new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
+
+                m_pipStaticFingerprinter = new PipStaticFingerprinter(
+                    pipExecutionContext.PathTable,
+                    GetSealDirectoryFingerprint,
+                    GetDirectoryProducerFingerprint,
+                    extraFingerprintSalts,
+                    pathExpander)
+                {
+                    FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
+                };
+            }
+        }
+
+        private ContentFingerprint GetSealDirectoryFingerprint(DirectoryArtifact directory)
+        {
+            Contract.Requires(directory.IsValid);
+
+            return SealDirectoryTable.TryGetSealForDirectoryArtifact(directory, out PipId pipId)
+                   && m_pipStaticFingerprints.TryGetFingerprint(pipId, out ContentFingerprint fingerprint)
+                   ? fingerprint
+                   : ContentFingerprint.Zero;
+        }
+
+        private ContentFingerprint GetDirectoryProducerFingerprint(DirectoryArtifact directory)
+        {
+            Contract.Requires(directory.IsValid);
+            return m_opaqueDirectoryProducers.TryGetValue(directory, out PipId pipId)
+                && m_pipStaticFingerprints.TryGetFingerprint(pipId, out ContentFingerprint fingerprint)
+                ? fingerprint
+                : ContentFingerprint.Zero;
         }
 
         /// <inheritdoc />
@@ -43,6 +85,7 @@ namespace BuildXL.Scheduler.Graph
             var result = base.AddCopyFile(copyFile, valuePip);
             AddFileDependent(copyFile.Source, copyFile);
             m_fileProducers[copyFile.Destination] = copyFile.PipId;
+            ComputeStaticFingerprint(copyFile);
             return result;
         }
 
@@ -64,6 +107,7 @@ namespace BuildXL.Scheduler.Graph
                 m_opaqueDirectoryProducers[directoryOutput] = process.PipId;
             }
 
+            ComputeStaticFingerprint(process);
             return result;
         }
 
@@ -73,6 +117,7 @@ namespace BuildXL.Scheduler.Graph
             base.AddSealDirectory(sealDirectory, valuePip);
             AddFileDependents(sealDirectory.Contents, sealDirectory);
             AddDirectoryDependents(sealDirectory.ComposedDirectories, sealDirectory);
+            ComputeStaticFingerprint(sealDirectory);
             return sealDirectory.Directory;
         }
 
@@ -81,7 +126,18 @@ namespace BuildXL.Scheduler.Graph
         {
             var result = base.AddWriteFile(writeFile, valuePip);
             m_fileProducers[writeFile.Destination] = writeFile.PipId;
+            ComputeStaticFingerprint(writeFile);
             return result;
+        }
+
+        /// <inheritdoc />
+        private void ComputeStaticFingerprint(Pip pip)
+        {
+            if (Configuration.Schedule.ComputePipStaticFingerprints)
+            {
+                pip.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
+                m_pipStaticFingerprints.AddFingerprint(pip, new ContentFingerprint(pip.StaticFingerprint));
+            }
         }
 
         /// <inheritdoc />

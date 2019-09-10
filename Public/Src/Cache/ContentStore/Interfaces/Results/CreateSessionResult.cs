@@ -80,7 +80,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <nodoc />
-        public CreateSessionResult<B> Select<B>(Func<T, B> transform)
+        public CreateSessionResult<B> Map<B>(Func<T, B> transform)
             where B : IName
         {
             if (Success)

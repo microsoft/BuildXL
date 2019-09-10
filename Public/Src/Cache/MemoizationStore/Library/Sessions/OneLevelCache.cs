@@ -51,6 +51,9 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <summary>
         ///     Initializes a new instance of the <see cref="OneLevelCache" /> class.
         /// </summary>
+        /// <remarks>
+        ///     It is assumed that the produced sessions are different objects.
+        /// </remarks>
         public OneLevelCache(Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id)
         {
             Contract.Requires(contentStoreFunc != null);
@@ -59,6 +62,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ContentStore = contentStoreFunc();
             MemoizationStore = memoizationStoreFunc();
             Id = id;
+
+            Contract.Assert(!ReferenceEquals(ContentStore, MemoizationStore));
         }
 
         /// <summary>
@@ -355,11 +360,11 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        public async Task<BoolResult> HandleCopyFileRequestAsync(Context context, ContentHash hash)
         {
             if (ContentStore is ICopyRequestHandler innerCopyStore)
             {
-                return await innerCopyStore.RequestCopyFileAsync(context, hash);
+                return await innerCopyStore.HandleCopyFileRequestAsync(context, hash);
             }
 
             return new BoolResult($"{ContentStore} does not implement {nameof(ICopyRequestHandler)} in {nameof(OneLevelCache)}.");
@@ -367,12 +372,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
         CreateSessionResult<IReadOnlyContentSession> IContentStore.CreateReadOnlySession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateReadOnlySession(context, name, implicitPin).Select(session => (IReadOnlyContentSession)session);
+            return CreateReadOnlySession(context, name, implicitPin).Map(session => (IReadOnlyContentSession)session);
         }
 
         CreateSessionResult<IContentSession> IContentStore.CreateSession(Context context, string name, ImplicitPin implicitPin)
         {
-            return CreateSession(context, name, implicitPin).Select(session => (IContentSession)session);
+            return CreateSession(context, name, implicitPin).Map(session => (IContentSession)session);
         }
 
         /// <inheritdoc />

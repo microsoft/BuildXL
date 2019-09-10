@@ -1086,7 +1086,6 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoFail()
         {
             int exitCode = int.TryParse(Content, out var result) ? result : -1;
-            Console.Error.WriteLine($"{Type.Fail} requested: Exiting with exit code {exitCode}");
             Environment.Exit(exitCode);
         }
 

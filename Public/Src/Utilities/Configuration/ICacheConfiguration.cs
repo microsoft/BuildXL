@@ -123,6 +123,11 @@ namespace BuildXL.Utilities.Configuration
         bool UseDedupStore { get; }
 
         /// <summary>
+        /// Indicates whether minimal graph enumerations should elide absent path probes in the directory root
+        /// </summary>
+        bool ElideMinimalGraphEnumerationAbsentPathProbes { get; }
+
+        /// <summary>
         /// The maximum number of visited path sets allowed before switching to an 'augmented' weak fingerprint
         /// computed from common dynamically accessed paths.
         /// </summary>

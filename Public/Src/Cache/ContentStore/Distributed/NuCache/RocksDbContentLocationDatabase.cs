@@ -793,7 +793,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // a new element is smaller than the Top, it's not in the top K, if larger, it is.
                 var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
                     capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
-                    comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Default);
+                    comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
                 foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
                 {
                     // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we

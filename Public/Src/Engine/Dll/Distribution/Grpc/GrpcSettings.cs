@@ -13,7 +13,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         public const string BuildIdKey = "buildid";
         public const string SenderKey = "sender";
 
-        public const int MaxRetry = 4;
+        public const int MaxRetry = 3;
 
         /// <summary>
         /// Maximum time for a Grpc call (both master->worker and worker->master)

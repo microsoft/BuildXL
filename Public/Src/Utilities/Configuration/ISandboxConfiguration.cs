@@ -262,5 +262,15 @@ namespace BuildXL.Utilities.Configuration
         /// Temporary flag to use tool incremental behavior when preserve outputs is enabled.
         /// </summary>
         bool PreserveOutputsForIncrementalTool { get; }
+
+        /// <summary> 
+        /// Environment Variables which should be passed through for all processes 
+        /// </summary> 
+        /// <remarks>
+        /// This is an unsafe configuration.
+        /// This global configuration from cammand line will bypass cache,
+        /// which means pips and graph will be cached ignoring environment variables specified in this configuration.  
+        /// </remarks>
+        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
     }
 }

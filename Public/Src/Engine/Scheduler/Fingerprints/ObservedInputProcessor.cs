@@ -497,7 +497,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         {
                             // We need to iterate the observations in the order so that we can first visit the directory and then the child paths under that directory.
                             // CanIgnoreAbsentPathProbe relies on that assumption.
-                            if (CanIgnoreAbsentPathProbe(environment.PathExpander, enumeratedDirectories, pathTable, path, lastAbsentPath, isCacheLookup))
+                            if (CanIgnoreAbsentPathProbe(environment, enumeratedDirectories, pathTable, path, lastAbsentPath, isCacheLookup))
                             {
                                 numAbsentPathsEliminated++;
                                 continue;
@@ -742,13 +742,14 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
-        private static bool CanIgnoreAbsentPathProbe(
-            SemanticPathExpander pathExpander,
+        private static bool CanIgnoreAbsentPathProbe<TEnv>(
+            TEnv env,
             Dictionary<AbsolutePath, (DirectoryMembershipFilter, DirectoryEnumerationMode)> enumeratedDirectories,
             PathTable pathTable,
             AbsolutePath path,
             AbsolutePath lastAbsentPath,
             bool isCacheLookup)
+            where TEnv : IObservedInputProcessingEnvironment
         {
             if (isCacheLookup)
             {
@@ -758,13 +759,29 @@ namespace BuildXL.Scheduler.Fingerprints
             (DirectoryMembershipFilter directoryMemberShipFilter, DirectoryEnumerationMode directoryEnumerationMode) tuple;
 
             AbsolutePath parent = path.GetParent(pathTable);
-            if (enumeratedDirectories.TryGetValue(parent, out tuple) && tuple.directoryEnumerationMode == DirectoryEnumerationMode.RealFilesystem && tuple.directoryMemberShipFilter.Include(pathTable, path))
+            if (enumeratedDirectories.TryGetValue(parent, out tuple)
+                && (enumerationAllowsAbsentProbeElision(tuple))
+                && tuple.directoryMemberShipFilter.Include(pathTable, path))
             {
                 return true;
             }
 
             // Skip nested absent paths except the uppermost one
             return lastAbsentPath.IsValid && path.IsWithin(pathTable, lastAbsentPath);
+
+            bool enumerationAllowsAbsentProbeElision((DirectoryMembershipFilter directoryMemberShipFilter, DirectoryEnumerationMode directoryEnumerationMode) info)
+            {
+                if (info.directoryEnumerationMode == DirectoryEnumerationMode.RealFilesystem)
+                {
+                    return true;
+                }
+                else if (info.directoryEnumerationMode == DirectoryEnumerationMode.MinimalGraph && env.Configuration.ElideMinimalGraphEnumerationAbsentPathProbes)
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -1157,6 +1174,11 @@ namespace BuildXL.Scheduler.Fingerprints
         SemanticPathExpander PathExpander { get; }
 
         /// <summary>
+        /// Configuration for caching behavior
+        /// </summary>
+        ICacheConfiguration Configuration { get; }
+
+        /// <summary>
         /// Probes a path for existence
         /// </summary>
         Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, bool isReadOnly, bool trackPathExistence);
@@ -1544,6 +1566,8 @@ namespace BuildXL.Scheduler.Fingerprints
         public PathTable PathTable => m_env.Context.PathTable;
 
         public PipExecutionContext Context => m_env.Context;
+
+        public ICacheConfiguration Configuration => m_env.Configuration.Cache;
 
         public CounterCollection<PipExecutorCounter> Counters => m_env.Counters;
 

@@ -1,0 +1,25 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum PipType{
+    PipType_UNSPECIFIED = 0;
+
+    PipType_WriteFile = 1;
+    PipType_CopyFile = 2;
+    PipType_Process = 3;
+    PipType_Ipc = 4;
+    PipType_Value = 5;
+    PipType_SpecFile = 6;
+    PipType_Module = 7;
+    PipType_HashSourceFile = 8;
+    PipType_SealDirectory = 9;
+
+    /// This is a non-value, but places an upper-bound on the range of the enum
+    PipType_Max = 10;
+}

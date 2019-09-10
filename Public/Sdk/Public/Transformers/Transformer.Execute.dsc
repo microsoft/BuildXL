@@ -33,7 +33,7 @@ namespace Transformer {
 
         /** Grant permissions permanently, i.e., until the service pip terminates. */
         permanent
-    } 
+    }
 
     @@public
     export interface ExecuteArgumentsCommon extends ExecuteArgumentsComposible {
@@ -83,9 +83,27 @@ namespace Transformer {
 
         /** Regex that would be used to extract warnings from the output. */
         warningRegex?: string;
-        
+
         /** Regex that would be used to extract errors from the output. */
         errorRegex?: string;
+
+        /** 
+         * When false (or not set): process output is scanned for error messages line by line;
+         * 'errorRegex' is applied to each line and if ANY match is found the ENTIRE line is reported.
+         *
+         * When true: process output is scanned in chunks of up to 10000 lines; 'errorRegex' is applied to
+         * each chunk and only the matches are reported.  Furthermore, if 'errorRegex' contains a capture 
+         * group named "ErrorMessage", the value of that group is reported; otherwise, the value of the
+         * entire match is reported.
+         * 
+         *   NOTE: because this scanning is done against chunks of text (instead of the entire process output),
+         *         false negatives are possible if an error message spans across multiple chunks.  The scanning
+         *         is done in chunks because attempting to construct a single string from the entire process
+         *         output can easily lead to OutOfMemory exception.
+         * 
+         * Default: false
+         */
+        enableMultiLineErrorScanning?: boolean;
 
         /** Semaphores to acquire */
         acquireSemaphores?: SemaphoreInfo[];

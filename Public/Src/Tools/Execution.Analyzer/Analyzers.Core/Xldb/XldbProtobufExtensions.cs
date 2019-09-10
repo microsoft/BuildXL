@@ -3,10 +3,12 @@
 
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Processes;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Xldb.Proto;
+using static BuildXL.Utilities.HierarchicalNameTable;
 using AbsolutePath = BuildXL.Utilities.AbsolutePath;
 using CopyFile = BuildXL.Pips.Operations.CopyFile;
 using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;
@@ -20,7 +22,6 @@ using NodeRange = BuildXL.Scheduler.Graph.NodeRange;
 using ObservedPathEntry = BuildXL.Scheduler.Fingerprints.ObservedPathEntry;
 using ObservedPathSet = BuildXL.Scheduler.Fingerprints.ObservedPathSet;
 using Pip = BuildXL.Pips.Operations.Pip;
-using PipData = BuildXL.Pips.Operations.PipData;
 using PipGraph = BuildXL.Scheduler.Graph.PipGraph;
 using PipProvenance = BuildXL.Pips.Operations.PipProvenance;
 using PipTable = BuildXL.Pips.PipTable;
@@ -33,6 +34,8 @@ using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
 
+/// Many enums have been shifted or incremented and this is to avoid protobuf's design to not serialize 
+/// int/enum values that are equal to 0. Thus we make "0" as an invalid value for each ProtoBuf enum.
 namespace BuildXL.Execution.Analyzer
 {
     /// <summary>
@@ -41,18 +44,18 @@ namespace BuildXL.Execution.Analyzer
     public static class XldbProtobufExtensions
     {
         /// <nodoc />
-        public static FileArtifactContentDecidedEvent ToFileArtifactContentDecidedEvent(this FileArtifactContentDecidedEventData data, uint workerID, PathTable pathTable)
+        public static FileArtifactContentDecidedEvent ToFileArtifactContentDecidedEvent(this FileArtifactContentDecidedEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             return new FileArtifactContentDecidedEvent()
             {
                 WorkerID = workerID,
-                FileArtifact = data.FileArtifact.ToFileArtifact(pathTable),
+                FileArtifact = data.FileArtifact.ToFileArtifact(pathTable, nameExpander),
                 FileContentInfo = new FileContentInfo
                 {
                     LengthAndExistence = data.FileContentInfo.SerializedLengthAndExistence,
                     Hash = new ContentHash() { Value = data.FileContentInfo.Hash.ToString() }
                 },
-                OutputOrigin = (PipOutputOrigin)data.OutputOrigin
+                OutputOrigin = (PipOutputOrigin)(data.OutputOrigin + 1)
             };
         }
 
@@ -64,7 +67,7 @@ namespace BuildXL.Execution.Analyzer
                 WorkerID = workerID
             };
 
-            workerListEvent.Workers.AddRange(data.Workers.Select(worker => worker));
+            workerListEvent.Workers.AddRange(data.Workers);
             return workerListEvent;
         }
 
@@ -129,7 +132,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static DirectoryMembershipHashedEvent ToDirectoryMembershipHashedEvent(this DirectoryMembershipHashedEventData data, uint workerID, PathTable pathTable)
+        public static DirectoryMembershipHashedEvent ToDirectoryMembershipHashedEvent(this DirectoryMembershipHashedEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             var directoryMembershipEvent = new DirectoryMembershipHashedEvent()
             {
@@ -138,20 +141,20 @@ namespace BuildXL.Execution.Analyzer
                 {
                     Hash = new ContentHash() { Value = data.DirectoryFingerprint.Hash.ToString() }
                 },
-                Directory = data.Directory.ToAbsolutePath(pathTable),
+                Directory = data.Directory.ToAbsolutePath(pathTable, nameExpander),
                 IsStatic = data.IsSearchPath,
                 IsSearchPath = data.IsSearchPath,
                 PipID = data.PipId.Value,
                 EnumeratePatternRegex = data.EnumeratePatternRegex ?? ""
             };
 
-            directoryMembershipEvent.Members.AddRange(data.Members.Select(member => member.ToAbsolutePath(pathTable)));
+            directoryMembershipEvent.Members.AddRange(data.Members.Select(member => member.ToAbsolutePath(pathTable, nameExpander)));
 
             return directoryMembershipEvent;
         }
 
         /// <nodoc />
-        public static ProcessExecutionMonitoringReportedEvent ToProcessExecutionMonitoringReportedEvent(this ProcessExecutionMonitoringReportedEventData data, uint workerID, PathTable pathTable)
+        public static ProcessExecutionMonitoringReportedEvent ToProcessExecutionMonitoringReportedEvent(this ProcessExecutionMonitoringReportedEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             var processExecutionMonitoringReportedEvent = new ProcessExecutionMonitoringReportedEvent
             {
@@ -162,14 +165,14 @@ namespace BuildXL.Execution.Analyzer
             processExecutionMonitoringReportedEvent.ReportedProcesses.AddRange(
                 data.ReportedProcesses.Select(rp => rp.ToReportedProcess()));
             processExecutionMonitoringReportedEvent.ReportedFileAccesses.AddRange(
-                data.ReportedFileAccesses.Select(reportedFileAccess => reportedFileAccess.ToReportedFileAccess(pathTable)));
+                data.ReportedFileAccesses.Select(reportedFileAccess => reportedFileAccess.ToReportedFileAccess(pathTable, nameExpander)));
             processExecutionMonitoringReportedEvent.WhitelistedReportedFileAccesses.AddRange(
                 data.WhitelistedReportedFileAccesses.Select(
-                    whiteListReportedFileAccess => whiteListReportedFileAccess.ToReportedFileAccess(pathTable)));
+                    whiteListReportedFileAccess => whiteListReportedFileAccess.ToReportedFileAccess(pathTable, nameExpander)));
 
             foreach (var processDetouringStatus in data.ProcessDetouringStatuses)
             {
-                processExecutionMonitoringReportedEvent.ProcessDetouringStatuses.Add(new ProcessDetouringStatusData()
+                processExecutionMonitoringReportedEvent.ProcessDetouringStatuses.Add(new Xldb.Proto.ProcessDetouringStatusData()
                 {
                     ProcessID = processDetouringStatus.ProcessId,
                     ReportStatus = processDetouringStatus.ReportStatus,
@@ -189,12 +192,12 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static ProcessFingerprintComputationEvent ToProcessFingerprintComputationEvent(this ProcessFingerprintComputationEventData data, uint workerID, PathTable pathTable)
+        public static ProcessFingerprintComputationEvent ToProcessFingerprintComputationEvent(this ProcessFingerprintComputationEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             var processFingerprintComputationEvent = new ProcessFingerprintComputationEvent
             {
                 WorkerID = workerID,
-                Kind = (Xldb.Proto.FingerprintComputationKind)data.Kind,
+                Kind = (Xldb.Proto.FingerprintComputationKind)(data.Kind + 1),
                 PipID = data.PipId.Value,
                 WeakFingerprint = new WeakContentFingerPrint()
                 {
@@ -206,7 +209,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 var processStrongFingerprintComputationData = new Xldb.Proto.ProcessStrongFingerprintComputationData()
                 {
-                    PathSet = strongFingerprintComputation.PathSet.ToObservedPathSet(pathTable),
+                    PathSet = strongFingerprintComputation.PathSet.ToObservedPathSet(pathTable, nameExpander),
                     PathSetHash = new ContentHash()
                     {
                         Value = strongFingerprintComputation.PathSetHash.ToString()
@@ -222,7 +225,7 @@ namespace BuildXL.Execution.Analyzer
 
                 processStrongFingerprintComputationData.PathEntries.AddRange(
                     strongFingerprintComputation.PathEntries.Select(
-                        pathEntry => pathEntry.ToObservedPathEntry(pathTable)));
+                        pathEntry => pathEntry.ToObservedPathEntry(pathTable, nameExpander)));
                 processStrongFingerprintComputationData.ObservedAccessedFileNames.AddRange(
                     strongFingerprintComputation.ObservedAccessedFileNames.Select(
                         observedAccessedFileName => observedAccessedFileName.ToString(pathTable)));
@@ -234,13 +237,13 @@ namespace BuildXL.Execution.Analyzer
                 {
                     processStrongFingerprintComputationData.ObservedInputs.Add(new ObservedInput()
                     {
-                        Type = (ObservedInputType)observedInput.Type,
+                        Type = (ObservedInputType)(observedInput.Type + 1),
                         Hash = new ContentHash()
                         {
                             Value = observedInput.Hash.ToString()
                         },
-                        PathEntry = observedInput.PathEntry.ToObservedPathEntry(pathTable),
-                        Path = observedInput.Path.ToAbsolutePath(pathTable),
+                        PathEntry = observedInput.PathEntry.ToObservedPathEntry(pathTable, nameExpander),
+                        Path = observedInput.Path.ToAbsolutePath(pathTable, nameExpander),
                         IsSearchPath = observedInput.IsSearchPath,
                         IsDirectoryPath = observedInput.IsDirectoryPath,
                         DirectoryEnumeration = observedInput.DirectoryEnumeration
@@ -284,16 +287,16 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static DependencyViolationReportedEvent ToDependencyViolationReportedEvent(this DependencyViolationEventData data, uint workerID, PathTable pathTable)
+        public static DependencyViolationReportedEvent ToDependencyViolationReportedEvent(this DependencyViolationEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             return new DependencyViolationReportedEvent()
             {
                 WorkerID = workerID,
                 ViolatorPipID = data.ViolatorPipId.Value,
                 RelatedPipID = data.RelatedPipId.Value,
-                ViolationType = (FileMonitoringViolationAnalyzer_DependencyViolationType)data.ViolationType,
-                AccessLevel = (FileMonitoringViolationAnalyzer_AccessLevel)data.AccessLevel,
-                Path = data.Path.ToAbsolutePath(pathTable)
+                ViolationType = (FileMonitoringViolationAnalyzer_DependencyViolationType)(data.ViolationType + 1),
+                AccessLevel = (FileMonitoringViolationAnalyzer_AccessLevel)(data.AccessLevel + 1),
+                Path = data.Path.ToAbsolutePath(pathTable, nameExpander)
             };
         }
 
@@ -306,8 +309,8 @@ namespace BuildXL.Execution.Analyzer
                 PipID = data.PipId.Value,
                 StartTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.StartTime),
                 Duration = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(data.Duration),
-                Step = (PipExecutionStep)data.Step,
-                Dispatcher = (WorkDispatcher_DispatcherKind)data.Dispatcher
+                Step = (PipExecutionStep)(data.Step + 1),
+                Dispatcher = (WorkDispatcher_DispatcherKind)(data.Dispatcher + 1)
             };
 
             return pipExecStepPerformanceEvent;
@@ -346,29 +349,29 @@ namespace BuildXL.Execution.Analyzer
                 LookupWaiting = data.LookupWaiting,
                 LookupRunning = data.LookupRunning,
                 ExternalProcesses = data.ExternalProcesses,
-                LimitingResource = (ExecutionSampler_LimitingResource)data.LimitingResource,
+                LimitingResource = (ExecutionSampler_LimitingResource)(data.LimitingResource + 1),
                 UnresponsivenessFactor = data.UnresponsivenessFactor,
                 ProcessPipsPending = data.ProcessPipsPending,
                 ProcessPipsAllocatedSlots = data.ProcessPipsAllocatedSlots
             };
 
-            statusReportedEvent.DiskPercents.AddRange(data.DiskPercents.Select(percent => percent));
-            statusReportedEvent.DiskQueueDepths.AddRange(data.DiskQueueDepths.Select(depth => depth));
-            statusReportedEvent.PipsSucceededAllTypes.AddRange(data.PipsSucceededAllTypes.Select(type => type));
+            statusReportedEvent.DiskPercents.AddRange(data.DiskPercents);
+            statusReportedEvent.DiskQueueDepths.AddRange(data.DiskQueueDepths);
+            statusReportedEvent.PipsSucceededAllTypes.AddRange(data.PipsSucceededAllTypes);
 
             return statusReportedEvent;
         }
 
         /// <nodoc />
-        public static BXLInvocationEvent ToBXLInvocationEvent(this DominoInvocationEventData data, uint workerID, PathTable pathTable)
+        public static BXLInvocationEvent ToBXLInvocationEvent(this DominoInvocationEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             var loggingConfig = data.Configuration.Logging;
 
             var bxlInvEvent = new BXLInvocationEvent
             {
                 WorkerID = workerID,
-                SubstSource = loggingConfig.SubstSource.ToAbsolutePath(pathTable),
-                SubstTarget = loggingConfig.SubstTarget.ToAbsolutePath(pathTable),
+                SubstSource = loggingConfig.SubstSource.ToAbsolutePath(pathTable, nameExpander),
+                SubstTarget = loggingConfig.SubstTarget.ToAbsolutePath(pathTable, nameExpander),
                 IsSubstSourceValid = loggingConfig.SubstSource.IsValid,
                 IsSubstTargetValid = loggingConfig.SubstTarget.IsValid
             };
@@ -377,57 +380,38 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static PipExecutionDirectoryOutputsEvent ToPipExecutionDirectoryOutputsEvent(this PipExecutionDirectoryOutputs data, uint workerID, PathTable pathTable)
-        {
-            var pipExecDirectoryOutputEvent = new PipExecutionDirectoryOutputsEvent
-            {
-                WorkerID = workerID
-            };
-
-            foreach (var (directoryArtifact, fileArtifactArray) in data.DirectoryOutputs)
-            {
-                var directoryOutput = new DirectoryOutput()
-                {
-                    DirectoryArtifact = directoryArtifact.ToDirectoryArtifact(pathTable)
-                };
-
-                directoryOutput.FileArtifactArray.AddRange(
-                    fileArtifactArray.Select(
-                        file => file.ToFileArtifact(pathTable)));
-                pipExecDirectoryOutputEvent.DirectoryOutput.Add(directoryOutput);
-            }
-
-            return pipExecDirectoryOutputEvent;
-        }
-
-        /// <nodoc />
-        public static Xldb.Proto.ReportedFileAccess ToReportedFileAccess(this ReportedFileAccess reportedFileAccess, PathTable pathTable)
+        public static Xldb.Proto.ReportedFileAccess ToReportedFileAccess(this ReportedFileAccess reportedFileAccess, PathTable pathTable, NameExpander nameExpander)
         {
             return new Xldb.Proto.ReportedFileAccess()
             {
-                CreationDisposition = (CreationDisposition)reportedFileAccess.CreationDisposition,
-                DesiredAccess = (DesiredAccess)reportedFileAccess.DesiredAccess,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Unspecified=0 did not change the bxl->protobuf enum mapping
+                CreationDisposition = (Xldb.Proto.CreationDisposition)reportedFileAccess.CreationDisposition,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Unspecified=0 did not change the bxl->protobuf enum mapping
+                // However, GENERIC_READ is of value 2^31 in bxl code, but -2^31 in protobuf enum due to 2^31 - 1 being the maximum value of an enum in protobuf. Thus special ternary assignment here.
+                DesiredAccess = reportedFileAccess.DesiredAccess == Processes.DesiredAccess.GENERIC_READ ? Xldb.Proto.DesiredAccess.GenericRead : (Xldb.Proto.DesiredAccess)reportedFileAccess.DesiredAccess,
                 Error = reportedFileAccess.Error,
                 Usn = reportedFileAccess.Usn.Value,
-                FlagsAndAttributes = (FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
+                // No need to + 1 here since the Bxl version of the enum never conained a 0 value, so adding Unspecified=0 did not change the bxl->protobuf enum mapping
+                // However, WRITE_THROUGH is of value 2^31 in bxl code, but -2^31 in protobuf enum due to 2^31 - 1 being the maximum value of an enum in protobuf. Thus special ternary assignment here.
+                FlagsAndAttributes = reportedFileAccess.FlagsAndAttributes == Processes.FlagsAndAttributes.FILE_FLAG_WRITE_THROUGH ? Xldb.Proto.FlagsAndAttributes.FileFlagWriteThrough : (Xldb.Proto.FlagsAndAttributes)reportedFileAccess.FlagsAndAttributes,
                 Path = reportedFileAccess.Path,
-                ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.HostOs),
+                ManifestPath = reportedFileAccess.ManifestPath.ToString(pathTable, PathFormat.Windows, nameExpander),
                 Process = reportedFileAccess.Process.ToReportedProcess(),
-                ShareMode = (ShareMode)reportedFileAccess.ShareMode,
-                Status = (FileAccessStatus)reportedFileAccess.Status,
-                Method = (FileAccessStatusMethod)reportedFileAccess.Method,
-                RequestedAccess = (RequestedAccess)reportedFileAccess.RequestedAccess,
-                Operation = (ReportedFileOperation)reportedFileAccess.Operation,
+                ShareMode = reportedFileAccess.ShareMode == Processes.ShareMode.FILE_SHARE_NONE ? Xldb.Proto.ShareMode.FileShareNone : (Xldb.Proto.ShareMode)((int)reportedFileAccess.ShareMode << 1),
+                Status = (Xldb.Proto.FileAccessStatus)(reportedFileAccess.Status + 1),
+                Method = (Xldb.Proto.FileAccessStatusMethod)(reportedFileAccess.Method + 1),
+                RequestedAccess = reportedFileAccess.RequestedAccess == Processes.RequestedAccess.None ? Xldb.Proto.RequestedAccess.None : (Xldb.Proto.RequestedAccess)((int)reportedFileAccess.RequestedAccess << 1),
+                Operation = (Xldb.Proto.ReportedFileOperation)(reportedFileAccess.Operation + 1),
                 ExplicitlyReported = reportedFileAccess.ExplicitlyReported,
                 EnumeratePattern = reportedFileAccess.EnumeratePattern
             };
         }
 
         /// <nodoc />
-        public static Xldb.Proto.ObservedPathSet ToObservedPathSet(this ObservedPathSet pathSet, PathTable pathTable)
+        public static Xldb.Proto.ObservedPathSet ToObservedPathSet(this ObservedPathSet pathSet, PathTable pathTable, NameExpander nameExpander)
         {
             var observedPathSet = new Xldb.Proto.ObservedPathSet();
-            observedPathSet.Paths.AddRange(pathSet.Paths.Select(pathEntry => pathEntry.ToObservedPathEntry(pathTable)));
+            observedPathSet.Paths.AddRange(pathSet.Paths.Select(pathEntry => pathEntry.ToObservedPathEntry(pathTable, nameExpander)));
             observedPathSet.ObservedAccessedFileNames.AddRange(
                 pathSet.ObservedAccessedFileNames.Select(
                     observedAccessedFileName => observedAccessedFileName.ToString(pathTable)));
@@ -447,7 +431,7 @@ namespace BuildXL.Execution.Analyzer
                 },
                 UnsafeConfiguration = new UnsafeSandboxConfiguration()
                 {
-                    PreserveOutputs = (PreserveOutputsMode)unsafeOption.UnsafeConfiguration.PreserveOutputs,
+                    PreserveOutputs = (PreserveOutputsMode)(unsafeOption.UnsafeConfiguration.PreserveOutputs + 1),
                     MonitorFileAccesses = unsafeOption.UnsafeConfiguration.MonitorFileAccesses,
                     IgnoreZwRenameFileInformation = unsafeOption.UnsafeConfiguration.IgnoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = unsafeOption.UnsafeConfiguration.IgnoreZwOtherFileInformation,
@@ -458,7 +442,7 @@ namespace BuildXL.Execution.Analyzer
                     ExistingDirectoryProbesAsEnumerations = unsafeOption.UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations,
                     MonitorNtCreateFile = unsafeOption.UnsafeConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = unsafeOption.UnsafeConfiguration.MonitorZwCreateOpenQueryFile,
-                    SandboxKind = (SandboxKind)unsafeOption.UnsafeConfiguration.SandboxKind,
+                    SandboxKind = (SandboxKind)(unsafeOption.UnsafeConfiguration.SandboxKind + 1),
                     UnexpectedFileAccessesAreErrors = unsafeOption.UnsafeConfiguration.UnexpectedFileAccessesAreErrors,
                     IgnoreGetFinalPathNameByHandle = unsafeOption.UnsafeConfiguration.IgnoreGetFinalPathNameByHandle,
                     IgnoreDynamicWritesOnAbsentProbes = unsafeOption.UnsafeConfiguration.IgnoreDynamicWritesOnAbsentProbes,
@@ -468,7 +452,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (unsafeOption.UnsafeConfiguration.DoubleWritePolicy != null)
             {
-                unsafeOpt.UnsafeConfiguration.DoubleWritePolicy = (DoubleWritePolicy)unsafeOption.UnsafeConfiguration.DoubleWritePolicy;
+                unsafeOpt.UnsafeConfiguration.DoubleWritePolicy = (DoubleWritePolicy)(unsafeOption.UnsafeConfiguration.DoubleWritePolicy + 1);
             }
 
             return unsafeOpt;
@@ -480,20 +464,20 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.AbsolutePath ToAbsolutePath(this AbsolutePath path, PathTable pathTable)
+        public static Xldb.Proto.AbsolutePath ToAbsolutePath(this AbsolutePath path, PathTable pathTable, NameExpander nameExpander)
         {
             return new Xldb.Proto.AbsolutePath()
             {
-                Value = path.ToString(pathTable, PathFormat.HostOs)
+                Value = path.ToString(pathTable, PathFormat.Windows, nameExpander)
             };
         }
 
         /// <nodoc />
-        public static Xldb.Proto.FileArtifact ToFileArtifact(this FileArtifact fileArtifact, PathTable pathTable)
+        public static Xldb.Proto.FileArtifact ToFileArtifact(this FileArtifact fileArtifact, PathTable pathTable, NameExpander nameExpander)
         {
             return !fileArtifact.IsValid ? null : new Xldb.Proto.FileArtifact
             {
-                Path = fileArtifact.Path.ToAbsolutePath(pathTable),
+                Path = fileArtifact.Path.ToAbsolutePath(pathTable, nameExpander),
                 RewriteCount = fileArtifact.RewriteCount,
             };
         }
@@ -531,11 +515,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.ObservedPathEntry ToObservedPathEntry(this ObservedPathEntry pathEntry, PathTable pathTable)
+        public static Xldb.Proto.ObservedPathEntry ToObservedPathEntry(this ObservedPathEntry pathEntry, PathTable pathTable, NameExpander nameExpander)
         {
             return new Xldb.Proto.ObservedPathEntry()
             {
-                Path = pathEntry.Path.ToAbsolutePath(pathTable),
+                Path = pathEntry.Path.ToAbsolutePath(pathTable, nameExpander),
                 EnumeratePatternRegex = pathEntry.EnumeratePatternRegex ?? ""
             };
         }
@@ -551,24 +535,13 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.DirectoryArtifact ToDirectoryArtifact(this DirectoryArtifact artifact, PathTable pathTable)
+        public static Xldb.Proto.DirectoryArtifact ToDirectoryArtifact(this DirectoryArtifact artifact, PathTable pathTable, NameExpander nameExpander)
         {
             return !artifact.IsValid ? null : new Xldb.Proto.DirectoryArtifact()
             {
-                Path = artifact.Path.ToAbsolutePath(pathTable),
+                Path = artifact.Path.ToAbsolutePath(pathTable, nameExpander),
                 PartialSealID = artifact.PartialSealId,
                 IsSharedOpaque = artifact.IsSharedOpaque
-            };
-        }
-
-        /// <nodoc />
-        public static Xldb.Proto.PipData ToPipData(this PipData pipData)
-        {
-            return !pipData.IsValid ? null : new Xldb.Proto.PipData
-            {
-                FragmentSeparator = pipData.FragmentSeparator.ToString(),
-                FragmentCount = pipData.FragmentCount,
-                FragmentEscaping = (PipDataFragmentEscaping)pipData.FragmentEscaping
             };
         }
 
@@ -577,7 +550,7 @@ namespace BuildXL.Execution.Analyzer
         {
             return provenance == null ? null : new Xldb.Proto.PipProvenance()
             {
-                Usage = provenance.Usage.ToPipData(),
+                Usage = provenance.Usage.IsValid ? provenance.Usage.ToString(pathTable) : "",
                 ModuleId = provenance.ModuleId.Value.ToString(pathTable),
                 ModuleName = provenance.ModuleName.ToString(pathTable),
                 SemiStableHash = provenance.SemiStableHash
@@ -585,7 +558,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.FileOrDirectoryArtifact ToFileOrDirectoryArtifact(this FileOrDirectoryArtifact artifact, PathTable pathTable)
+        public static Xldb.Proto.FileOrDirectoryArtifact ToFileOrDirectoryArtifact(this FileOrDirectoryArtifact artifact, PathTable pathTable, NameExpander nameExpander)
         {
             if (!artifact.IsValid)
             {
@@ -596,12 +569,12 @@ namespace BuildXL.Execution.Analyzer
             if (artifact.IsDirectory)
             {
                 xldbFileOrDirectoryArtifact.IsDirectory = true;
-                xldbFileOrDirectoryArtifact.DirectoryArtifact = artifact.DirectoryArtifact.ToDirectoryArtifact(pathTable);
+                xldbFileOrDirectoryArtifact.DirectoryArtifact = artifact.DirectoryArtifact.ToDirectoryArtifact(pathTable, nameExpander);
             }
             else
             {
                 xldbFileOrDirectoryArtifact.IsFile = true;
-                xldbFileOrDirectoryArtifact.FileArtifact = artifact.FileArtifact.ToFileArtifact(pathTable);
+                xldbFileOrDirectoryArtifact.FileArtifact = artifact.FileArtifact.ToFileArtifact(pathTable, nameExpander);
             }
 
             return xldbFileOrDirectoryArtifact;
@@ -616,7 +589,7 @@ namespace BuildXL.Execution.Analyzer
                 PipId = pip.PipId.Value,
             };
 
-            foreach(var incomingEdge in cachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
+            foreach (var incomingEdge in cachedGraph.DataflowGraph.GetIncomingEdges(pip.PipId.ToNodeId()))
             {
                 var pipType = cachedGraph.PipTable.HydratePip(incomingEdge.OtherNode.ToPipId(), Pips.PipQueryContext.Explorer).PipType;
 
@@ -640,23 +613,22 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.SealDirectory ToSealDirectory(this SealDirectory pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
+        public static Xldb.Proto.SealDirectory ToSealDirectory(this SealDirectory pip, PathTable pathTable, Xldb.Proto.Pip parentPip, NameExpander nameExpander)
         {
             var xldbSealDirectory = new Xldb.Proto.SealDirectory
             {
                 GraphInfo = parentPip,
-                Kind = (SealDirectoryKind)pip.Kind,
-                DirectoryRoot = pip.DirectoryRoot.ToAbsolutePath(pathTable),
+                Kind = (SealDirectoryKind)(pip.Kind + 1),
                 IsComposite = pip.IsComposite,
                 Scrub = pip.Scrub,
-                Directory = pip.Directory.ToDirectoryArtifact(pathTable),
+                Directory = pip.Directory.ToDirectoryArtifact(pathTable, nameExpander),
                 IsSealSourceDirectory = pip.IsSealSourceDirectory,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
 
             xldbSealDirectory.Patterns.AddRange(pip.Patterns.Select(key => key.ToString(pathTable)));
-            xldbSealDirectory.Contents.AddRange(pip.Contents.Select(file => file.ToFileArtifact(pathTable)));
-            xldbSealDirectory.ComposedDirectories.AddRange(pip.ComposedDirectories.Select(dir => dir.ToDirectoryArtifact(pathTable)));
+            xldbSealDirectory.Contents.AddRange(pip.Contents.Select(file => file.ToFileArtifact(pathTable, nameExpander)));
+            xldbSealDirectory.ComposedDirectories.AddRange(pip.ComposedDirectories.Select(dir => dir.ToDirectoryArtifact(pathTable, nameExpander)));
 
             if (pip.Tags.IsValid)
             {
@@ -667,13 +639,13 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.CopyFile ToCopyFile(this CopyFile pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
+        public static Xldb.Proto.CopyFile ToCopyFile(this CopyFile pip, PathTable pathTable, Xldb.Proto.Pip parentPip, NameExpander nameExpander)
         {
             var xldbCopyFile = new Xldb.Proto.CopyFile
             {
                 GraphInfo = parentPip,
-                Source = pip.Source.ToFileArtifact(pathTable),
-                Destination = pip.Destination.ToFileArtifact(pathTable),
+                Source = pip.Source.ToFileArtifact(pathTable, nameExpander),
+                Destination = pip.Destination.ToFileArtifact(pathTable, nameExpander),
                 OutputsMustRemainWritable = pip.OutputsMustRemainWritable,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
@@ -687,14 +659,14 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.WriteFile ToWriteFile(this WriteFile pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
+        public static Xldb.Proto.WriteFile ToWriteFile(this WriteFile pip, PathTable pathTable, Xldb.Proto.Pip parentPip, NameExpander nameExpander)
         {
             var xldbWriteFile = new Xldb.Proto.WriteFile
             {
                 GraphInfo = parentPip,
-                Destination = pip.Destination.ToFileArtifact(pathTable),
-                Contents = pip.Contents.ToPipData(),
-                Encoding = (WriteFileEncoding)pip.Encoding,
+                Destination = pip.Destination.ToFileArtifact(pathTable, nameExpander),
+                Contents = pip.Contents.IsValid ? pip.Contents.ToString(pathTable) : "",
+                Encoding = (WriteFileEncoding)(pip.Encoding + 1),
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
 
@@ -707,26 +679,26 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.ProcessPip ToProcessPip(this Process pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
+        public static ProcessPip ToProcessPip(this Process pip, PathTable pathTable, Xldb.Proto.Pip parentPip, NameExpander nameExpander)
         {
             var xldbProcessPip = new ProcessPip
             {
                 GraphInfo = parentPip,
-                ProcessOptions = (Options)pip.ProcessOptions,
-                StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable),
-                StandardInputData = pip.StandardInputData.ToPipData(),
+                ProcessOptions = pip.ProcessOptions == Process.Options.None ? Options.None : (Options) ((int)pip.ProcessOptions << 1),
+                StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable, nameExpander),
+                StandardInputData = pip.StandardInputData.IsValid ? pip.StandardInputData.ToString(pathTable) : "",
                 StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
                 {
-                    File = pip.StandardInput.File.ToFileArtifact(pathTable),
-                    Data = pip.StandardInput.Data.ToPipData(),
+                    File = pip.StandardInput.File.ToFileArtifact(pathTable, nameExpander),
+                    Data = pip.StandardInput.Data.ToString(pathTable),
                 },
-                ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable),
-                ResponseFileData = pip.ResponseFileData.ToPipData(),
-                Executable = pip.Executable.ToFileArtifact(pathTable),
-                ToolDescription = pip.ToolDescription.ToString(),
-                WorkingDirectory = pip.WorkingDirectory.ToAbsolutePath(pathTable),
-                Arguments = pip.Arguments.ToPipData(),
-                TempDirectory = pip.TempDirectory.ToAbsolutePath(pathTable),
+                ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable, nameExpander),
+                ResponseFileData = pip.ResponseFileData.IsValid ? pip.ResponseFileData.ToString(pathTable) : "",
+                Executable = pip.Executable.ToFileArtifact(pathTable, nameExpander),
+                ToolDescription = pip.ToolDescription.ToString(pathTable),
+                WorkingDirectory = pip.WorkingDirectory.ToAbsolutePath(pathTable, nameExpander),
+                Arguments = pip.Arguments.IsValid ? pip.Arguments.ToString(pathTable) : "",
+                TempDirectory = pip.TempDirectory.ToAbsolutePath(pathTable, nameExpander),
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
 
@@ -734,7 +706,7 @@ namespace BuildXL.Execution.Analyzer
             {
                 var serviceInfo = new ServiceInfo
                 {
-                    Kind = (ServicePipKind)pip.ServiceInfo.Kind,
+                    Kind = (ServicePipKind)(pip.ServiceInfo.Kind + 1),
                     ShutdownPipId = pip.ServiceInfo.ShutdownPipId.Value,
                     IsStartOrShutdownKind = pip.ServiceInfo.IsStartOrShutdownKind
                 };
@@ -745,17 +717,25 @@ namespace BuildXL.Execution.Analyzer
             }
 
             xldbProcessPip.EnvironmentVariable.AddRange(pip.EnvironmentVariables.Select(
-                envVar => new EnvironmentVariable() { Name = envVar.Name.ToString(), Value = envVar.Value.ToPipData(), IsPassThrough = envVar.IsPassThrough }));
-            xldbProcessPip.Dependencies.AddRange(pip.Dependencies.Select(file => file.ToFileArtifact(pathTable)));
-            xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable)));
-            xldbProcessPip.UntrackedPaths.AddRange(pip.UntrackedPaths.Select(path => path.ToAbsolutePath(pathTable)));
-            xldbProcessPip.UntrackedScopes.AddRange(pip.UntrackedScopes.Select(path => path.ToAbsolutePath(pathTable)));
-            xldbProcessPip.FileOutputs.AddRange(pip.FileOutputs.Select(
-                output => !output.IsValid ? null : new Xldb.Proto.FileArtifactWithAttributes()
-                { Path = output.Path.ToAbsolutePath(pathTable), RewriteCount = output.RewriteCount, FileExistence = (Xldb.Proto.FileExistence)output.FileExistence }));
-            xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable)));
-            xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable)));
-            xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable)));
+                envVar => new EnvironmentVariable()
+                {
+                    Name = envVar.Name.ToString(pathTable),
+                    Value = envVar.Value.IsValid ? envVar.Value.ToString(pathTable) : "",
+                    IsPassThrough = envVar.IsPassThrough
+                }));
+            xldbProcessPip.Dependencies.AddRange(pip.Dependencies.Select(file => file.ToFileArtifact(pathTable, nameExpander)));
+            xldbProcessPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(dir => dir.ToDirectoryArtifact(pathTable, nameExpander)));
+            xldbProcessPip.UntrackedPaths.AddRange(pip.UntrackedPaths.Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbProcessPip.UntrackedScopes.AddRange(pip.UntrackedScopes.Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbProcessPip.FileOutputs.AddRange(pip.FileOutputs.Select(output => !output.IsValid ? null : new Xldb.Proto.FileArtifactWithAttributes()
+            {
+                Path = output.Path.ToAbsolutePath(pathTable, nameExpander),
+                RewriteCount = output.RewriteCount,
+                FileExistence = (Xldb.Proto.FileExistence)(output.FileExistence + 1)
+            }));
+            xldbProcessPip.DirectoryOutputs.AddRange(pip.DirectoryOutputs.Select(dir => dir.ToDirectoryArtifact(pathTable, nameExpander)));
+            xldbProcessPip.AdditionalTempDirectories.AddRange(pip.AdditionalTempDirectories.Select(dir => dir.ToAbsolutePath(pathTable, nameExpander)));
+            xldbProcessPip.PreserveOutputWhitelist.AddRange(pip.PreserveOutputWhitelist.Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
 
             if (pip.Tags.IsValid)
             {
@@ -766,16 +746,16 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.IpcPip ToIpcPip(this IpcPip pip, PathTable pathTable, Xldb.Proto.Pip parentPip)
+        public static Xldb.Proto.IpcPip ToIpcPip(this IpcPip pip, PathTable pathTable, Xldb.Proto.Pip parentPip, NameExpander nameExpander)
         {
             var xldbIpcPip = new Xldb.Proto.IpcPip()
             {
                 GraphInfo = parentPip,
                 IpcInfo = new IpcClientInfo()
                 {
-                    IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(),
+                    IpcMonikerId = pip.IpcInfo.IpcMonikerId.ToString(pathTable),
                 },
-                MessageBody = pip.MessageBody.ToPipData(),
+                MessageBody = pip.MessageBody.IsValid ? pip.MessageBody.ToString(pathTable) : "",
                 IsServiceFinalization = pip.IsServiceFinalization,
                 Provenance = pip.Provenance.ToPipProvenance(pathTable),
             };
@@ -786,9 +766,9 @@ namespace BuildXL.Execution.Analyzer
             }
 
             xldbIpcPip.ServicePipDependencies.AddRange(pip.ServicePipDependencies.Select(pipId => pipId.Value));
-            xldbIpcPip.FileDependencies.AddRange(pip.FileDependencies.Select(file => file.ToFileArtifact(pathTable)));
-            xldbIpcPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(directory => directory.ToDirectoryArtifact(pathTable)));
-            xldbIpcPip.LazilyMaterializedDependencies.AddRange(pip.LazilyMaterializedDependencies.Select(dep => dep.ToFileOrDirectoryArtifact(pathTable)));
+            xldbIpcPip.FileDependencies.AddRange(pip.FileDependencies.Select(file => file.ToFileArtifact(pathTable, nameExpander)));
+            xldbIpcPip.DirectoryDependencies.AddRange(pip.DirectoryDependencies.Select(directory => directory.ToDirectoryArtifact(pathTable, nameExpander)));
+            xldbIpcPip.LazilyMaterializedDependencies.AddRange(pip.LazilyMaterializedDependencies.Select(dep => dep.ToFileOrDirectoryArtifact(pathTable, nameExpander)));
 
             return xldbIpcPip;
         }
@@ -826,7 +806,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.PipGraph ToPipGraph(this PipGraph pipGraph, PathTable pathTable, PipTable pipTable)
+        public static Xldb.Proto.PipGraph ToPipGraph(this PipGraph pipGraph, PathTable pathTable, PipTable pipTable, NameExpander nameExpander)
         {
             var xldbPipGraph = new Xldb.Proto.PipGraph()
             {
@@ -840,20 +820,10 @@ namespace BuildXL.Execution.Analyzer
                 ApiServerMoniker = pipGraph.ApiServerMoniker.ToString(pathTable)
             };
 
-            xldbPipGraph.AllFilesAndProducers.AddRange(pipGraph.AllFilesAndProducers.Select(kvp => new FileArtifactMap()
-            {
-                Artifact = kvp.Key.ToFileArtifact(pathTable),
-                Value = kvp.Value.Value
-            }));
             xldbPipGraph.AllSealDirectoriesAndProducers.AddRange(pipGraph.AllSealDirectoriesAndProducers.Select(kvp => new DirectoryArtifactMap()
             {
-                Artifact = kvp.Key.ToDirectoryArtifact(pathTable),
-                Value = kvp.Value.Value
-            }));
-            xldbPipGraph.AllOutputDirectoriesAndProducers.AddRange(pipGraph.AllOutputDirectoriesAndProducers.Select(kvp => new DirectoryArtifactMap()
-            {
-                Artifact = kvp.Key.ToDirectoryArtifact(pathTable),
-                Value = kvp.Value.Value
+                Artifact = kvp.Key.ToDirectoryArtifact(pathTable, nameExpander),
+                PipId = kvp.Value.Value
             }));
             xldbPipGraph.StableKeys.AddRange(pipTable.StableKeys.Select(stableKey => stableKey.Value));
 

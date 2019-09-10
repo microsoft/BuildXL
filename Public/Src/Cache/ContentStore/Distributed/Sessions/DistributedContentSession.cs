@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -39,6 +40,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
         private readonly SemaphoreSlim _putFileGate;
         private readonly RocksDbContentPlacementPredictionStore _predictionStore;
+        private readonly CentralStorage _centralStorage;
+        private readonly AbsolutePath _predictionStorePath;
 
         private string _buildId = null;
         private ContentHash? _buildIdHash = null;
@@ -54,6 +57,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
             MachineLocation localMachineLocation,
+            CentralStorage centralStorage,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
@@ -69,12 +73,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 settings)
         {
             _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
-            _predictionStore = settings.ContentPlacementPredictionsBlob == null
+            _predictionStorePath = new AbsolutePath(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob));
+            _predictionStore = settings.ContentPlacementPredictionsBlob == null && centralStorage != null
                 ? null
-                : new RocksDbContentPlacementPredictionStore(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob), clean: false);
+                : new RocksDbContentPlacementPredictionStore(_predictionStorePath.Path, clean: false);
+            _centralStorage = centralStorage;
         }
 
-        private string GetPredictionStoreFileLocation(string blobUrl)
+        private string GetPredictionStoreFileLocation(string blobName)
         {
             throw new NotImplementedException();
         }
@@ -95,6 +101,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (_predictionStore != null)
             {
+                if (!File.Exists(_predictionStorePath.Path))
+                {
+                    await _centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, _predictionStorePath).ThrowIfFailure();
+                }
                 await _predictionStore.StartupAsync(context).ThrowIfFailure();
             }
 
@@ -321,23 +331,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             buildRingMachines = new[] { LocalCacheRootMachineLocation };
                         }
 
-                        Task<BoolResult> outsideRingCopyTask;
-                        BoolResult result = BoolResult.Success;
-                        Result<MachineLocation> machineLocationResult = null;
+                        var fromPredictionStore = true;
+                        Result<MachineLocation> getLocationResult = null;
                         if (_predictionStore != null && path != null)
                         {
                             var machines = _predictionStore.GetTargetMachines(context, path);
                             if (machines?.Count > 0)
                             {
                                 var index = Math.Min(machines.Count, GetRandomVariableWithGeometricDistribution(0.5)) - 1;
-                                machineLocationResult = new Result<MachineLocation>(new MachineLocation(machines[index]));
+                                getLocationResult = new Result<MachineLocation>(new MachineLocation(machines[index]));
                             }
                         }
-                        var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
+
+                        if (getLocationResult == null)
+                        {
+                            getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
+                            fromPredictionStore = false;
+                        }
+
+                        Task<BoolResult> outsideRingCopyTask;
                         if (getLocationResult.Succeeded)
                         {
                             var candidate = getLocationResult.Value;
-                            Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
+                            Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' outside build ring. Candidate gotten from {(fromPredictionStore ? nameof(RocksDbContentPlacementPredictionStore) : nameof(ContentLocationStore))}");
                             outsideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
                         }
                         else

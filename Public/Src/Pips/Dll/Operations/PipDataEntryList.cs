@@ -108,7 +108,7 @@ namespace BuildXL.Pips.Operations
                     i++;
                     var nextEntry = this[i];
                     Contract.Assert(nextEntry.EntryType == PipDataEntryType.AbsolutePath);
-                    writer.Write(new DirectoryArtifact(nextEntry.GetPathValue(), unchecked((uint)entry.GetIntegralValue())));
+                    writer.Write(new DirectoryArtifact(nextEntry.GetPathValue(), entry.GetUInt32Value()));
                 }
             }
         }
@@ -127,6 +127,7 @@ namespace BuildXL.Pips.Operations
                     if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId)
                     {
                         var directory = reader.ReadDirectoryArtifact();
+
                         PipDataEntry.CreateDirectoryIdEntries(directory, out var entry1SealId, out var entry2Path);
                         yield return entry1SealId;
                         yield return entry2Path;

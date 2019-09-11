@@ -684,17 +684,14 @@ namespace BuildXL
                             "optimizeConsoleOutputForAzureDevOps",
                             "ado",
                             sign => loggingConfiguration.OptimizeConsoleOutputForAzureDevOps = sign),
-                        OptionHandlerFactory.CreateBoolOption2(
-                            "optimizeProgressUpdatingForAzureDevOps",
-                            "adoProgress",
+                        OptionHandlerFactory.CreateBoolOption(
+                            "adoProgressLogging",
                             sign => loggingConfiguration.OptimizeProgressUpdatingForAzureDevOps = sign),
-                        OptionHandlerFactory.CreateBoolOption2(
-                            "optimizeVsoAnnotationsForAzureDevOps",
-                            "adoVso",
+                        OptionHandlerFactory.CreateBoolOption(
+                            "adoTaskLogging",
                             sign => loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps = sign),
-                        OptionHandlerFactory.CreateBoolOption2(
-                            "optimizeWarningOrErrorAnnotationsForAzureDevOps",
-                            "adoWarningError",
+                        OptionHandlerFactory.CreateBoolOption(
+                            "adoWarningErrorLogging",
                             sign => loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps = sign),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",

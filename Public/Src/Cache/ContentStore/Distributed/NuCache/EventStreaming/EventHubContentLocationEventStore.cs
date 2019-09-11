@@ -238,10 +238,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             if (_eventProcessingBlocks != null)
             {
-                await context.WithTracer(Tracer).RunAsync(
-                    () => sendToActionBlockAsync(),
-                    extraEndMessageFactory: (r, completedSynchronously) => extraEndMessageForSendToActionBlock(completedSynchronously, r),
-                    caller: "SendToActionBlockAsync").TraceIfFailure(context);
+                await context
+                    .CreateOperation(Tracer, () => sendToActionBlockAsync())
+                    .WithOptions(traceOperationStarted: false, endMessageFactory: r => $"TotalQueueSize={Interlocked.Read(ref _queueSize)}")
+                    .RunAsync(caller: "SendToActionBlockAsync")
+                    .TraceIfFailure(context);
             }
             else
             {
@@ -278,16 +279,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 }
 
                 return BoolResult.Success;
-            }
-
-            string extraEndMessageForSendToActionBlock(bool completedSynchronously, BoolResult result)
-            {
-                if (!result.Succeeded)
-                {
-                    return string.Empty;
-                }
-
-                return $"CompletedSynchronously={completedSynchronously}, TotalQueueSize={Interlocked.Read(ref _queueSize)}.";
             }
         }
 

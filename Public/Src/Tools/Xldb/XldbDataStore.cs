@@ -466,15 +466,15 @@ namespace BuildXL.Xldb
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
-            var graphMetadata = new CachedGraphKey
+            var graphMetadata = new GraphMetadataKey
             {
-                PipGraph = true
+                Type = GraphMetaData.PipGraph
             };
 
             var maybeFound = m_accessor.Use(database =>
             {
-                database.TryGetValue(graphMetadata.ToByteArray(), out var pipTableMetadata, StaticGraphColumnFamilyName);
-                return PipGraph.Parser.ParseFrom(pipTableMetadata);
+                database.TryGetValue(graphMetadata.ToByteArray(), out var pipGraphMetaData, StaticGraphColumnFamilyName);
+                return PipGraph.Parser.ParseFrom(pipGraphMetaData);
             });
 
             if (!maybeFound.Succeeded)
@@ -484,6 +484,29 @@ namespace BuildXL.Xldb
 
             return maybeFound.Result;
         }
+
+        public MountPathExpander GetMountPathExpander()
+        {
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
+
+            var graphMetadata = new GraphMetadataKey
+            {
+                Type = GraphMetaData.MountPathExpander
+            };
+
+            var maybeFound = m_accessor.Use(database =>
+            {
+                database.TryGetValue(graphMetadata.ToByteArray(), out var mountPathExpanderData, StaticGraphColumnFamilyName);
+                return MountPathExpander.Parser.ParseFrom(mountPathExpanderData);
+            });
+
+            if (!maybeFound.Succeeded)
+            {
+                maybeFound.Failure.Throw();
+            }
+
+            return maybeFound.Result;
+        } 
 
         /// <inheritdoc />
         public (IEnumerable<uint>, IEnumerable<uint>) GetProducerAndConsumersOfPath(string path, bool isDirectory)

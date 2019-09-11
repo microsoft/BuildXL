@@ -8,6 +8,7 @@ import "HelperStructs.proto";
 // Import Enums
 import "Enums/PipType.proto";
 import "Enums/ProducerConsumerType.proto";
+import "Enums/SemanticPathFlags.proto";
 
 package BuildXL.Xldb.Proto;
 
@@ -17,9 +18,16 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 //  Generic Static Graph Info (key, etc)
 //
 
-// CachedGraphQuery is the key for the top level data structures stored in the cached graph
-message CachedGraphKey{
-    bool PipGraph = 1;  
+enum GraphMetaData{
+    GraphMetaData_UNSPECIFIED = 0;
+
+    GraphMetaData_PipGraph = 1;
+    GraphMetaData_MountPathExpander = 2;
+}
+
+// CachedGraphMetadataKey is the key for the top level data structures stored in the cached graph
+message GraphMetadataKey{
+    GraphMetaData Type = 1;  
 }
 
 // Pip Query is 2 levels deep. SemistableHash -> PipId -> PipValues
@@ -148,4 +156,38 @@ message PipGraph{
 
     // All PipId values issued so far.
     repeated uint32 StableKeys = 11;
+}
+
+message MountPathExpander{
+    repeated AbsolutePath WriteableRoots = 1;
+
+    repeated AbsolutePath PathsWithAllowedCreateDirectory = 2;
+
+    repeated AbsolutePath ScrubbableRoots = 3;
+
+    repeated AbsolutePath AllRoots = 4;
+
+    map<string, SemanticPathInfo> MountsByName = 5;
+}
+
+message SemanticPathInfo{
+    AbsolutePath Root = 1;
+
+    string RootName = 2;
+
+    bool IsValid = 3;
+
+    bool AllowHashing = 4;
+
+    bool IsReadable = 5;
+
+    bool IsWriteable = 6;
+
+    bool IsSystem = 7;
+
+    bool IsScrubbable = 8;
+
+    bool HasPotentialBuildOutputs = 9;
+
+    SemanticPathFlags Flags = 10;
 }

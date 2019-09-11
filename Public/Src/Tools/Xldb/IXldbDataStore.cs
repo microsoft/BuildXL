@@ -208,6 +208,11 @@ namespace BuildXL.Xldb
         PipGraph GetPipGraphMetaData();
 
         /// <summary>
+        /// Gets the mount path expander information from the DB so the consumer knows the roots and mounts used in the build
+        /// </summary>
+        MountPathExpander GetMountPathExpander();
+
+        /// <summary>
         /// Returns the count and payload of items stored in the DB
         /// </summary>
         /// <returns>DBStorageStatsValue if exists, null otherwise</returns>

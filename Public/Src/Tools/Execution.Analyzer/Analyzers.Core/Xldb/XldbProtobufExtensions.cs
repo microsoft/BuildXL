@@ -30,6 +30,9 @@ using ReportedProcess = BuildXL.Processes.ReportedProcess;
 using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
+using MountPathExpander = BuildXL.Engine.MountPathExpander;
+using BuildXL.Pips;
+using SemanticPathInfo = BuildXL.Pips.SemanticPathInfo;
 
 /// Many enums have been shifted or incremented and this is to avoid protobuf's design to not serialize 
 /// int/enum values that are equal to 0. Thus we make "0" as an invalid value for each ProtoBuf enum.
@@ -53,7 +56,7 @@ namespace BuildXL.Execution.Analyzer
                     {
                         HasKnownLength = data.FileContentInfo.HasKnownLength,
                         Length = data.FileContentInfo.Length,
-                        Existence = (PathExistence)(data.FileContentInfo.Existence + 1)
+                        Existence = data.FileContentInfo.Existence == null ? 0 : (PathExistence)(data.FileContentInfo.Existence + 1)
                     },
                     Hash = data.FileContentInfo.Hash.ToContentHash()
                 },
@@ -77,7 +80,7 @@ namespace BuildXL.Execution.Analyzer
         public static PipExecutionPerformanceEvent ToPipExecutionPerformanceEvent(this PipExecutionPerformanceEventData data)
         {
             var pipExecPerfEvent = new PipExecutionPerformanceEvent();
-            var pipExecPerformance = new PipExecutionPerformance();
+            var pipExecPerformance = new Xldb.Proto.PipExecutionPerformance();
             pipExecPerformance.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
             pipExecPerformance.ExecutionStart = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.ExecutionPerformance.ExecutionStart);
             pipExecPerformance.ExecutionStop = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.ExecutionPerformance.ExecutionStop);
@@ -111,7 +114,7 @@ namespace BuildXL.Execution.Analyzer
                 processPipExecPerformance.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
                 processPipExecPerformance.NumberOfProcesses = performance.NumberOfProcesses;
 
-                processPipExecPerformance.FileMonitoringViolationCounters = new FileMonitoringViolationCounters()
+                processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.Proto.FileMonitoringViolationCounters()
                 {
                     NumFileAccessesWhitelistedAndCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedAndCacheable,
                     NumFileAccessesWhitelistedButNotCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
@@ -699,7 +702,7 @@ namespace BuildXL.Execution.Analyzer
                 ProcessOptions = pip.ProcessOptions == Process.Options.None ? Options.None : (Options) ((int)pip.ProcessOptions << 1),
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable, nameExpander),
                 StandardInputData = pip.StandardInputData.IsValid ? pip.StandardInputData.ToString(pathTable) : "",
-                StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
+                StandardInput = !pip.StandardInput.IsValid ? null : new Xldb.Proto.StandardInput()
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable, nameExpander),
                     Data = pip.StandardInput.Data.ToString(pathTable),
@@ -813,6 +816,56 @@ namespace BuildXL.Execution.Analyzer
             }
 
             return xldbPipGraph;
+        }
+
+        /// <nodoc />
+        public static Xldb.Proto.MountPathExpander ToMountPathExpander(this MountPathExpander mount, PathTable pathTable, NameExpander nameExpander)
+        {
+            var xldbMountPathExpander = new Xldb.Proto.MountPathExpander();
+
+            xldbMountPathExpander.WriteableRoots.AddRange(mount.GetWritableRoots().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbMountPathExpander.PathsWithAllowedCreateDirectory.AddRange(mount.GetPathsWithAllowedCreateDirectory().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbMountPathExpander.ScrubbableRoots.AddRange(mount.GetScrubbableRoots().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbMountPathExpander.AllRoots.AddRange(mount.GetAllRoots().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+
+            foreach(var kvp in mount.GetAllMountsByName())
+            {
+                xldbMountPathExpander.MountsByName.Add(kvp.Key, kvp.Value.ToSemanticPathInfo(pathTable, nameExpander));
+            }
+
+            return xldbMountPathExpander;
+        }
+
+        /// <nodoc />
+        public static Xldb.Proto.SemanticPathInfo ToSemanticPathInfo(this SemanticPathInfo pathInfo, PathTable pathTable, NameExpander nameExpander)
+        {
+            var xldbSemanticPathInfo = new Xldb.Proto.SemanticPathInfo()
+            {
+                Root = pathInfo.Root.ToAbsolutePath(pathTable, nameExpander),
+                RootName = pathInfo.RootName.ToString(pathTable.StringTable),
+                IsValid = pathInfo.IsValid,
+                AllowHashing = pathInfo.AllowHashing,
+                IsReadable = pathInfo.IsReadable,
+                IsWriteable = pathInfo.IsWritable,
+                IsSystem = pathInfo.IsSystem,
+                IsScrubbable = pathInfo.IsScrubbable,
+                HasPotentialBuildOutputs = pathInfo.HasPotentialBuildOutputs,
+            };
+
+            if (pathInfo.Flags == Pips.SemanticPathFlags.None)
+            {
+                xldbSemanticPathInfo.Flags = Xldb.Proto.SemanticPathFlags.None;
+            }
+            else if (pathInfo.Flags == Pips.SemanticPathFlags.Writable)
+            {
+                xldbSemanticPathInfo.Flags = Xldb.Proto.SemanticPathFlags.Writable;
+            }
+            else
+            {
+                xldbSemanticPathInfo.Flags = (Xldb.Proto.SemanticPathFlags)((int)pathInfo.Flags << 1);
+            }
+
+            return xldbSemanticPathInfo;
         }
     }
 }

@@ -33,6 +33,7 @@ namespace BuildXL.Execution.Analyzer
             string outputDirPath = null;
             bool removeDirPath = false;
             bool includeProcessFingerprintComputationEvent = false;
+
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
@@ -261,12 +262,24 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine("\nStarting to ingest PipGraph metadata");
             var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable, m_nameExpander);
 
-            var cachedGraphKey = new CachedGraphKey
+            var cachedGraphKey = new GraphMetadataKey
             {
-                PipGraph = true
+                Type = GraphMetaData.PipGraph
             };
+            var keyArr = cachedGraphKey.ToByteArray();
+            var valueArr = xldbPipGraph.ToByteArray();
 
-            WriteToDb(cachedGraphKey.ToByteArray(), xldbPipGraph.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            WriteToDb(keyArr, valueArr, XldbDataStore.StaticGraphColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.GraphMetaData, keyArr.Length + valueArr.Length);
+
+            var xldbMounts = CachedGraph.MountPathExpander.ToMountPathExpander(PathTable, m_nameExpander);
+            cachedGraphKey.Type = GraphMetaData.MountPathExpander;
+            keyArr = cachedGraphKey.ToByteArray();
+            valueArr = xldbMounts.ToByteArray();
+
+            WriteToDb(keyArr, valueArr, XldbDataStore.StaticGraphColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.MountPathExpander, keyArr.Length + valueArr.Length);
+
             Console.WriteLine($"\nPipGraph metadata ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
             Console.WriteLine("\nStarting to ingest file and directory consumer/producer information.");

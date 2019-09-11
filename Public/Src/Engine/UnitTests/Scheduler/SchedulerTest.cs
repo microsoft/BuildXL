@@ -2671,6 +2671,19 @@ namespace Test.BuildXL.Scheduler
 
             VerifyIncrementedOnceEnumsAreEqual(typeof(SandboxKind), typeof(global::BuildXL.Xldb.Proto.SandboxKind));
             VerifyIncrementedOnceEnumsAreEqual(typeof(SealDirectoryKind), typeof(global::BuildXL.Xldb.Proto.SealDirectoryKind));
+
+            foreach (var enumVal in Enum.GetValues(typeof(SemanticPathFlags)))
+            {
+                if (Convert.ToInt32(enumVal) == 0)
+                {
+                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SemanticPathFlags), Convert.ToInt32(enumVal) + 1).ToLowerInvariant().Replace("_", ""));
+                }
+                else
+                {
+                    XAssert.Equals(enumVal.ToString().ToLowerInvariant().Replace("_", ""), Enum.GetName(typeof(global::BuildXL.Xldb.Proto.SemanticPathFlags), Convert.ToInt32(enumVal) << 1).ToLowerInvariant().Replace("_", ""));
+                }
+            }
+
             VerifyIncrementedOnceEnumsAreEqual(typeof(ServicePipKind), typeof(global::BuildXL.Xldb.Proto.ServicePipKind));
 
             foreach (var enumVal in Enum.GetValues(typeof(ShareMode)))

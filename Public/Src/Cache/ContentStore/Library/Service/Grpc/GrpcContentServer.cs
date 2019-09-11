@@ -55,8 +55,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </remarks>
         protected ContentServerAdapter GrpcAdapter { get; set; }
 
-        private LegacyContentServerAdapter LegacyGrpcAdapter { get; set; }
-
         /// <nodoc />
         protected readonly ILogger Logger;
 
@@ -89,13 +87,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _sessionHandler = sessionHandler;
 
             GrpcAdapter = new ContentServerAdapter(this);
-            LegacyGrpcAdapter = new LegacyContentServerAdapter(this);
 
             Logger = logger;
         }
 
         /// <nodoc />
-        public ServerServiceDefinition[] Bind() => new ServerServiceDefinition[] { ContentServer.BindService(LegacyGrpcAdapter), CacheServer.BindService(GrpcAdapter) };
+        public ServerServiceDefinition[] Bind() => new ServerServiceDefinition[] { ContentServer.BindService(GrpcAdapter) };
 
         /// <summary>
         /// Implements a create session request.
@@ -677,74 +674,12 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// This adapter only implements the content verbs, and will throw an
         /// unimplemented exception when a client calls an unavailable method.
         /// </remarks>
-        protected class ContentServerAdapter : CacheServer.CacheServerBase
+        protected class ContentServerAdapter : ContentServer.ContentServerBase
         {
             private readonly GrpcContentServer _contentServer;
 
             /// <inheritdoc />
             public ContentServerAdapter(GrpcContentServer contentServer)
-            {
-                _contentServer = contentServer;
-            }
-
-            /// <inheritdoc />
-            public override Task<ExistenceResponse> CheckFileExists(ExistenceRequest request, ServerCallContext context) => _contentServer.CheckFileExistsAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task CopyFile(CopyFileRequest request, IServerStreamWriter<CopyFileResponse> responseStream, ServerCallContext context) => _contentServer.CopyFileAsync(request, responseStream, context);
-
-            /// <inheritdoc />
-            public override Task<RequestCopyFileResponse> RequestCopyFile(RequestCopyFileRequest request, ServerCallContext context) => _contentServer.RequestCopyFileAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<HelloResponse> Hello(HelloRequest request, ServerCallContext context) => _contentServer.HelloAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<GetStatsResponse> GetStats(GetStatsRequest request, ServerCallContext context) => _contentServer.GetStatsAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<CreateSessionResponse> CreateSession(CreateSessionRequest request, ServerCallContext context) => _contentServer.CreateSessionAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<DeleteContentResponse> Delete(DeleteContentRequest request, ServerCallContext context) => _contentServer.DeleteAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<PinResponse> Pin(PinRequest request, ServerCallContext context) => _contentServer.PinAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<PlaceFileResponse> PlaceFile(PlaceFileRequest request, ServerCallContext context) => _contentServer.PlaceFileAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<PinBulkResponse> PinBulk(PinBulkRequest request, ServerCallContext context) => _contentServer.PinBulkAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<PutFileResponse> PutFile(PutFileRequest request, ServerCallContext context) => _contentServer.PutFileAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<ShutdownResponse> ShutdownSession(ShutdownRequest request, ServerCallContext context) => _contentServer.ShutdownSessionAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<HeartbeatResponse> Heartbeat(HeartbeatRequest request, ServerCallContext context) => _contentServer.HeartbeatAsync(request, context.CancellationToken);
-
-            /// <inheritdoc />
-            public override Task<RemoveFromTrackerResponse> RemoveFromTracker(RemoveFromTrackerRequest request, ServerCallContext context) => _contentServer.RemoveFromTrackerAsync(request, context.CancellationToken);
-        }
-
-        /// <summary>
-        /// Glue logic between this class and the Grpc abstract class.
-        /// </summary>
-        /// <remarks>
-        /// This adapter only implements the content verbs, and will throw an unimplemented exception when a client
-        /// calls an unavailable method.
-        ///
-        /// This is required for backwards-compatibility purposes. View comments in ContentStore.proto for reference.
-        /// </remarks>
-        protected class LegacyContentServerAdapter : ContentServer.ContentServerBase
-        {
-            private readonly GrpcContentServer _contentServer;
-
-            /// <inheritdoc />
-            public LegacyContentServerAdapter(GrpcContentServer contentServer)
             {
                 _contentServer = contentServer;
             }

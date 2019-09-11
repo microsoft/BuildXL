@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public sealed class GrpcCopyClient : StartupShutdownSlimBase
     {
         private readonly Channel _channel;
-        private readonly CacheServer.CacheServerClient _client;
+        private readonly ContentServer.ContentServerClient _client;
         private readonly int _bufferSize;
 
         /// <inheritdoc />
@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
-            _client = new CacheServer.CacheServerClient(_channel);
+            _client = new ContentServer.ContentServerClient(_channel);
             _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             Key = key;
         }

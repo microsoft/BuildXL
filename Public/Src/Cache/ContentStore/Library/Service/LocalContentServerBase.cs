@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -86,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <remarks>
         /// This is only supposed to be used by this class and inheritors, do not make internal or public.
         /// </remarks>
-        public readonly IReadOnlyDictionary<string, TStore> StoresByName;
+        protected readonly IReadOnlyDictionary<string, TStore> StoresByName;
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -118,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Service
                 var store = contentStoreFactory(kvp.Value);
                 storesByName.Add(kvp.Key, store);
             }
-            StoresByName = storesByName;
+            StoresByName = new ReadOnlyDictionary<string, TStore>(storesByName);
 
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {

@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     public class GrpcRepairClient : IShutdown<BoolResult>
     {
         private readonly Channel _channel;
-        private readonly CacheServer.CacheServerClient _client;
+        private readonly ContentServer.ContentServerClient _client;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcRepairClient" /> class.
@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(GrpcEnvironment.Localhost, (int)grpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
-            _client = new CacheServer.CacheServerClient(_channel);
+            _client = new ContentServer.ContentServerClient(_channel);
         }
 
         /// <inheritdoc />

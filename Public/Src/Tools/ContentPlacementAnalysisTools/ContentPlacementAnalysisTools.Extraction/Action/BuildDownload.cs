@@ -59,7 +59,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                     var bxlZip = Path.Combine(bxlPath, "BuildXLLogs.zip");
                     var dominoZip = Path.Combine(dominoPath, "Domino.zip");
                     // build the urls
-                    var urls = BuildDownloadUrls(input);
+                    var urls = BuildDownloadUrls(input, m_configuration.UseCBTest);
                     var downloaded = 0;
                     // and download the two of them
                     try
@@ -108,9 +108,16 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
             
         }
 
-        private string[] BuildDownloadUrls(KustoBuild buildData) => new string[] {
-            $"https://b/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\BuildXLLogs.zip",
-            $"https://b/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\Domino\\Domino.zip"
+        private string[] BuildDownloadUrls(KustoBuild buildData, bool isCBTest) => 
+            isCBTest? 
+                new string[] {
+                    $"https://cbtest/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\BuildXLLogs.zip",
+                    $"https://cbtest/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\Domino\\Domino.zip"
+                 }
+                :
+                new string[] {
+                    $"https://b/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\BuildXLLogs.zip",
+                    $"https://b/getfile?path=\\\\{buildData.BuildControllerMachineName}\\{buildData.LogDirectory}\\Logs\\ProductBuild\\Domino\\Domino.zip"
         };
 
         private bool DownloadFileTo(string url, string bxl, string domino)

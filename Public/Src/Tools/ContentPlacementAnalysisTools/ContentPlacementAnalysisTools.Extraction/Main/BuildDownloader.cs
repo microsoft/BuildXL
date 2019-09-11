@@ -190,6 +190,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
     /// <summary>
     /// Represents the configuration file of this app. A configuration file has the form
     /// {
+    ///     "UseCBTest": // true or false
     ///     "AnalyzerConfig":{
     ///         // attrs of ContentPlacementAnalyzerConfig class
     ///     },
@@ -203,6 +204,10 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
     /// </summary>
     public sealed class ApplicationConfiguration
     {
+        /// <summary>
+        /// True if we are using cbtest
+        /// </summary>
+        public bool UseCBTest { get; set; } = false;
         /// <summary>
         /// Analyzer configuration that affects each analysis task
         /// </summary>
@@ -225,6 +230,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Main
         public override string ToString()
         {
             return new StringBuilder()
+                .Append("UseCBTest=").Append(UseCBTest).Append(", ")
                 .Append("AnalyzerConfig=[").Append(AnalyzerConfig).Append("], ")
                 .Append("KustoConnectionConfiguration=[").Append(KustoConfig).Append("], ")
                 .Append("ConcurrencyConfig=[").Append(ConcurrencyConfig).Append("]")

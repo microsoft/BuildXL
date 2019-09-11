@@ -520,7 +520,6 @@ namespace BuildXL.FrontEnd.Nuget
                     }
                 }
                 
-                // Rijul: restoredPackagesById contains the Name
                 var possiblePackages = GenerateSpecsForDownloadedPackages(restoredPackagesById);
 
                 // At this point we know which are all the packages that contain embedded specs, so we can initialize the embedded resolver properly
@@ -641,7 +640,7 @@ namespace BuildXL.FrontEnd.Nuget
 
         private Possible<NugetGenerationResult> GetNugetGenerationResultFromDownloadedPackages(
             Dictionary<string, Possible<AbsolutePath>> possiblePackages,
-            Dictionary<string, NugetAnalyzedPackage> restoredPackagesById)
+            Dictionary<string, NugetAnalyzedPackage> nugetPackagesByModuleName)
         {
             var generatedProjectsByPackageDescriptor = new Dictionary<ModuleDescriptor, AbsolutePath>(m_resolverSettings.Packages.Count);
             var generatedProjectsByPath = new Dictionary<AbsolutePath, ModuleDescriptor>(m_resolverSettings.Packages.Count);
@@ -666,7 +665,7 @@ namespace BuildXL.FrontEnd.Nuget
                 generatedProjectsByPackageName.Add(moduleDescriptor.Name, moduleDescriptor);
             }
 
-            return new NugetGenerationResult(generatedProjectsByPackageDescriptor, generatedProjectsByPath, generatedProjectsByPackageName, restoredPackagesById);
+            return new NugetGenerationResult(generatedProjectsByPackageDescriptor, generatedProjectsByPath, generatedProjectsByPackageName, nugetPackagesByModuleName);
         }
 
         /// <summary>
@@ -1747,12 +1746,12 @@ namespace BuildXL.FrontEnd.Nuget
             Dictionary<ModuleDescriptor, AbsolutePath> generatedProjectsByModuleDescriptor, 
             Dictionary<AbsolutePath, ModuleDescriptor> generatedProjectsByPath, 
             MultiValueDictionary<string, ModuleDescriptor> generatedProjectsByModuleName,
-            Dictionary<string, NugetAnalyzedPackage> restoredPackagesById)
+            Dictionary<string, NugetAnalyzedPackage> nugetPackagesByModuleName)
         {
             GeneratedProjectsByModuleDescriptor = generatedProjectsByModuleDescriptor;
             GeneratedProjectsByPath = generatedProjectsByPath;
             GeneratedProjectsByModuleName = generatedProjectsByModuleName;
-            RestoredPackagesById = restoredPackagesById;
+            NugetPackagesByModuleName = nugetPackagesByModuleName;
         }
 
         /// <summary>
@@ -1770,11 +1769,11 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public MultiValueDictionary<string, ModuleDescriptor> GeneratedProjectsByModuleName { get; set; }
 
-        public Dictionary<string, NugetAnalyzedPackage> RestoredPackagesById { get; }
+        public Dictionary<string, NugetAnalyzedPackage> NugetPackagesByModuleName { get; }
 
         internal string GetOriginalNugetPackageName(ModuleDefinition def)
         {
-            return RestoredPackagesById != null && RestoredPackagesById.TryGetValue(def.Descriptor.Name, out var value)
+            return NugetPackagesByModuleName != null && NugetPackagesByModuleName.TryGetValue(def.Descriptor.Name, out var value)
                 ? value.NugetName
                 : def.Descriptor.Name;
         }

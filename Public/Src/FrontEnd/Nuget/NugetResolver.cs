@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Nuget;
@@ -10,6 +11,7 @@ using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -72,9 +74,62 @@ namespace BuildXL.FrontEnd.Script
             if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid ||
                 Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
             {
-                System.Diagnostics.Debugger.Launch();
+                
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
-                var cgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
+                string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
+                string existingCgManifest = "{}";
+
+                try {
+                    var existingCgManifestReader = await FrontEndHost.Engine.GetFileContentAsync(Configuration.FrontEnd.GenerateCgManifestForNugets);
+
+                    if (existingCgManifestReader.Succeeded) {
+                        existingCgManifest = new string(existingCgManifestReader.Result.Content);
+                    }
+                }
+                catch (BuildXLException) {
+                    // CgManifest FileNotFound, continue to write the new file
+                    // No operations required as the empty existingCgManifest will not match with the newly generated cgManifest
+                }
+
+                if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
+                {
+                    System.Diagnostics.Debugger.Launch();
+                    // Overwrite or create new cgmanifest.json file with updated nuget package and version info
+                    string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
+
+                    try
+                    {
+                        FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
+
+                        ExceptionUtilities.HandleRecoverableIOException(
+                            () =>
+                            {
+                        File.WriteAllText(targetFilePath, generatedCgManifest);
+                            },
+                            e =>
+                            {
+                                throw new BuildXLException("Cannot write cgmanifest.json file to disk", e);
+                            });
+                    }
+                    catch (BuildXLException e)
+                    {
+                        // Rijul: Add log here ?
+
+                        //logger.Log.NugetFailedToWriteSpecFileForPackage(
+                        //    m_context.LoggingContext,
+                        //    package.Id,
+                        //    package.Version,
+                        //    targetFilePath,
+                        //    e.LogEventMessage);
+                        //return new NugetFailure(package, NugetFailure.FailureType.WriteSpecFile, e.InnerException);
+                    }
+
+                    // Fix:
+                    FrontEndHost.Engine.RecordFrontEndFile(
+                        Configuration.FrontEnd.GenerateCgManifestForNugets,
+                        generatedCgManifest);
+                }
+                
                 // TODO(rijul): based on {Generate|Validate}CgManifestForNugets, decide whether 
                 //              to save manifestContent to disk or compare it against an existing file.
                 //

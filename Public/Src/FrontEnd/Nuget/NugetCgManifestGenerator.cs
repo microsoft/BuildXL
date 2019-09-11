@@ -9,11 +9,14 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>
-    /// TODO(rijul)
+    /// NugetCgManifestGenerator is used for creation & comparasion of the cgmanifest.json file.
+    /// cgmanifest.json contains all the Nuget Packages used in BuildXL with all their versions in use
+    /// cgmanifest.json is used by Component Governance in Cloud Build to determine security risks within components used by BuildXL
     /// </summary>
     public sealed class NugetCgManifestGenerator
     {
@@ -26,27 +29,23 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         /// <summary>
-        /// TODO(rijul)
+        /// Generates json as a string containing Nuget package and version information for all package used in BuildXL
+        /// To be stored in cgmanifest.json only if output is different from the existing cgmanifest.json
         /// </summary>
         public string GenerateCgManifestForPackages(MultiValueDictionary<string, Package> packages)
         {
-            List<SimplePackage> components = new List<SimplePackage>();
-
-            foreach (string nugetName in packages.Keys)
-            {
-                IReadOnlyList<Package> multiPackages;
-                packages.TryGetValue(nugetName, out multiPackages);
-                foreach (Package package in multiPackages) {
-                    components.Add(new SimplePackage(nugetName, ExtractNugetVersion(package)));
-                }
-            }
-
-            components = components.OrderBy(c => c.Name).ThenBy(c => c.Version).ToList();
+            var components = packages
+                .Keys
+                .SelectMany(nugetName => packages[nugetName].Select(package => new NugetPackageAndVersionStore(nugetName, ExtractNugetVersion(package))))
+                .OrderBy(c => c.Name)
+                .ThenBy(c => c.Version)
+                .Select(c => ToNugetComponent(c.Name, c.Version))
+                .ToList();
 
             var cgmanifest = new
             {
                 Version = 1,
-                Registrations = ToNugetComponentArray(components)
+                Registrations = components
             };
 
             return JsonConvert.SerializeObject(cgmanifest, Formatting.Indented);
@@ -60,46 +59,35 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public bool CompareForEquality(string lhsManifest, string rhsManifest)
         {
-            // TODO(rijul)
-            return false;
+            return JToken.DeepEquals(JObject.Parse(lhsManifest), JObject.Parse(rhsManifest));
         }
 
         private string ExtractNugetVersion(Package p)
         {
-            // TODO(rijul) see if there is a more explicit way to get the version from the package instead of 
-            //             extracting it from the path of the package spec
             return p.Path.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable);
         }
 
-        private object[] ToNugetComponentArray(List<SimplePackage> sortedComponents)
+        private object ToNugetComponent(string name, string version)
         {
-            List<object> components = new List<object>();
-
-            foreach (SimplePackage package in sortedComponents) {
-                components.Add(
-                    new
+            return new
+            {
+                Component = new
+                {
+                    Type = "NuGet",
+                    NuGet = new
                     {
-                        Component = new
-                        {
-                            Type = "NuGet",
-                            NuGet = new
-                            {
-                                Name = package.Name,
-                                Version = package.Version
-                            }
-                        }
+                        Name = name,
+                        Version = version
                     }
-                );
-            }
-
-            return components.ToArray();
+                }
+            };
         }
 
-        private class SimplePackage {
-            public string Name { get; set; }
-            public string Version { get; set; }
+        private class NugetPackageAndVersionStore {
+            public string Name { get; }
+            public string Version { get; }
 
-            public SimplePackage(string name, string version) {
+            public NugetPackageAndVersionStore(string name, string version) {
                 Name = name;
                 Version = version;
             }

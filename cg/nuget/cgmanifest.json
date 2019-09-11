@@ -123,7 +123,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTest",
-          "Version": "19.8.23.151259"
+          "Version": "19.9.6.1149"
         }
       }
     },
@@ -133,15 +133,6 @@
         "NuGet": {
           "Name": "CLAP",
           "Version": "4.6"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "DataflowForMSBuild",
-          "Version": "4.5.24"
         }
       }
     },
@@ -428,7 +419,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.AspNet.WebApi.Client.NetCore",
+          "Name": "Microsoft.AspNet.WebApi.Client",
           "Version": "5.2.7"
         }
       }
@@ -1716,15 +1707,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App",
-          "Version": "3.0.0-preview5-27626-15"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.App.210",
           "Version": "2.1.0"
         }
       }
@@ -1733,8 +1715,17 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.NETCore.App.211",
+          "Name": "Microsoft.NETCore.App",
           "Version": "2.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App",
+          "Version": "3.0.0-preview5-27626-15"
         }
       }
     },
@@ -1752,7 +1743,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetAppHost",
-          "Version": "3.0.0-preview5-27626-15"
+          "Version": "2.2.0"
         }
       }
     },
@@ -1760,8 +1751,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.NETCore.DotNetAppHost.220",
-          "Version": "2.2.0"
+          "Name": "Microsoft.NETCore.DotNetAppHost",
+          "Version": "3.0.0-preview5-27626-15"
         }
       }
     },
@@ -1779,7 +1770,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.DotNetHostResolver",
-          "Version": "3.0.0-preview5-27626-15"
+          "Version": "2.2.0"
         }
       }
     },
@@ -1787,8 +1778,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.NETCore.DotNetHostResolver.220",
-          "Version": "2.2.0"
+          "Name": "Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.0.0-preview5-27626-15"
         }
       }
     },
@@ -2418,6 +2409,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Newtonsoft.Json",
+          "Version": "10.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Newtonsoft.Json",
           "Version": "11.0.2"
         }
       }
@@ -2428,15 +2428,6 @@
         "NuGet": {
           "Name": "Newtonsoft.Json.Bson",
           "Version": "1.0.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Newtonsoft.Json.v10",
-          "Version": "10.0.3"
         }
       }
     },
@@ -2498,7 +2489,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "RocksDbSharpSigned",
+          "Name": "RocksDbSharp",
           "Version": "5.8.0-b20181023.3"
         }
       }
@@ -2652,6 +2643,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.App",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.App",
           "Version": "3.0.0-preview5-27626-15"
         }
       }
@@ -2660,7 +2660,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.App.220",
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
           "Version": "2.2.0"
         }
       }
@@ -2678,7 +2678,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220",
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
           "Version": "2.2.0"
         }
       }
@@ -2696,7 +2696,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220",
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "2.2.0"
         }
       }
@@ -2707,15 +2707,6 @@
         "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "3.0.0-preview5-27626-15"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220",
-          "Version": "2.2.0"
         }
       }
     },
@@ -2787,6 +2778,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.App",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.App",
           "Version": "3.0.0-preview5-27626-15"
         }
       }
@@ -2795,7 +2795,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.App.220",
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost",
           "Version": "2.2.0"
         }
       }
@@ -2813,7 +2813,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220",
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
           "Version": "2.2.0"
         }
       }
@@ -2831,7 +2831,7 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220",
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "2.2.0"
         }
       }
@@ -2842,15 +2842,6 @@
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "3.0.0-preview5-27626-15"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220",
-          "Version": "2.2.0"
         }
       }
     },
@@ -3174,7 +3165,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.DiagnosticSource",
-          "Version": "4.5.0"
+          "Version": "4.0.0-beta-23516"
         }
       }
     },
@@ -3182,8 +3173,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "System.Diagnostics.DiagnosticsSource.ForEventHub",
-          "Version": "4.0.0-beta-23516"
+          "Name": "System.Diagnostics.DiagnosticSource",
+          "Version": "4.5.0"
         }
       }
     },
@@ -3497,6 +3488,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Memory",
+          "Version": "4.5.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Net.Http",
           "Version": "4.3.0"
         }
@@ -3598,6 +3598,15 @@
         "NuGet": {
           "Name": "System.Numerics.Vectors",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Numerics.Vectors",
+          "Version": "4.4.0"
         }
       }
     },
@@ -3760,6 +3769,15 @@
         "NuGet": {
           "Name": "System.Runtime.CompilerServices.Unsafe",
           "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.CompilerServices.Unsafe",
+          "Version": "4.5.2"
         }
       }
     },
@@ -4128,6 +4146,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Tasks.Dataflow",
+          "Version": "4.5.24"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks.Dataflow",
           "Version": "4.9.0"
         }
       }
@@ -4246,33 +4273,6 @@
         "NuGet": {
           "Name": "System.Xml.XPath.XmlDocument",
           "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "SystemMemoryForMSBuild",
-          "Version": "4.5.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "SystemNumericsVectorsForMSBuild",
-          "Version": "4.4.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "SystemRuntimeCompilerServicesUnsafeForMSBuild",
-          "Version": "4.5.2"
         }
       }
     },
@@ -4406,8 +4406,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Windows.Sdk",
-          "Version": "10.0.16299.1"
+          "Name": "WindowsAzure.Storage",
+          "Version": "9.3.3"
         }
       }
     },
@@ -4415,8 +4415,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "WindowsAzure.Storage",
-          "Version": "9.3.3"
+          "Name": "WindowsSdk.Corext",
+          "Version": "10.0.16299.1"
         }
       }
     },

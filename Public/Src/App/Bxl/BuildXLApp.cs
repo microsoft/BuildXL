@@ -1276,7 +1276,10 @@ namespace BuildXL
                     ConfigureConsoleLogging(notWorker, buildViewModel);
                 }
 
-                if (notWorker && m_configuration.OptimizeConsoleOutputForAzureDevOps)
+                if (notWorker 
+                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps 
+                    || m_configuration.OptimizeVsoAnnotationsForAzureDevOps 
+                    || m_configuration.OptimizeProgressUpdatingForAzureDevOps))
                 {
                     ConfigureAzureDevOpsLogging(buildViewModel);
                 }
@@ -1423,7 +1426,7 @@ namespace BuildXL
                     m_noLogMask,
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                     maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
-                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps);
+                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeWarningOrErrorAnnotationsForAzureDevOps);
 
                 listener.SetBuildViewModel(buildViewModel);
 
@@ -2094,7 +2097,10 @@ namespace BuildXL
                 PathTranslator.CreateIfEnabled(loggingConfiguration.SubstTarget, loggingConfiguration.SubstSource, pathTable, out translator);
             }
 
-            if (loggingConfiguration.OptimizeConsoleOutputForAzureDevOps)
+            if (loggingConfiguration.OptimizeConsoleOutputForAzureDevOps
+                || loggingConfiguration.OptimizeProgressUpdatingForAzureDevOps
+                || loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps
+                || loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps)
             {
                 // Use a very simple logger for azure devops
                 return new StandardConsole(colorize: false, animateTaskbar: false, supportsOverwriting: false, pathTranslator: translator);

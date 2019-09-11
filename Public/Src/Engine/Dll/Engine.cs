@@ -323,7 +323,7 @@ namespace BuildXL.Engine
             m_buildViewModel = buildViewModel;
 
             var loggingConfig = Configuration.Logging;
-            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
             {
                 var filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), loggingConfig.LogPrefix + ".Summary.md");
                 
@@ -3326,7 +3326,7 @@ namespace BuildXL.Engine
         {
             if (loggingConfig != null)
             {
-                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
                 {
                     return 10_000;
                 }

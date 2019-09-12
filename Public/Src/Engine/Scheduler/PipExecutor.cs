@@ -1805,7 +1805,7 @@ namespace BuildXL.Scheduler
                 state,
                 cacheableProcess,
                 computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
-                canAugmentWeakFingerprint: true);
+                canAugmentWeakFingerprint: processRunnable.Environment.Configuration.Cache.AugmentWeakFingerprintPathSetThreshold > 0);
         }
 
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
@@ -2113,7 +2113,7 @@ namespace BuildXL.Scheduler
                                 environment.ReportCacheDescriptorHit(entryRef.OriginatingCache);
                                 break;
                             }
-                            else if (entryRef.StrongFingerprint == StrongContentFingerprint.AugmentedWeakFingerprintMarker)
+                            else if (canAugmentWeakFingerprint && entryRef.StrongFingerprint == StrongContentFingerprint.AugmentedWeakFingerprintMarker)
                             {
                                 // The strong fingeprint is the marker fingerprint indicating that computing an augmented weak fingerprint is required.
                                 augmentedWeakFingerprint = new WeakContentFingerprint(strongFingerprint.Value.Hash);
@@ -2402,7 +2402,7 @@ namespace BuildXL.Scheduler
 
                 foreach (var pathSet in strongFingerprintComputationList.Select(s => s.Value.PathSet))
                 {
-                    // Union all observed access file names to increase the strength (specificity) of the augmented weak fingerprint
+                    // Union common observed access file names to increase the strength (specificity) of the augmented weak fingerprint
                     // for search path enumerations in the path sets.
                     foreach (var accessedFileName in pathSet.ObservedAccessedFileNames)
                     {
@@ -2421,6 +2421,7 @@ namespace BuildXL.Scheduler
                         accessedNameUseCountMap[accessedFileName] = useCount;
                     }
 
+                    // Union common observed paths to increase the strength (specificity) of the augmented weak fingerprint.
                     foreach (ObservedPathEntry pathEntry in pathSet.Paths)
                     {
                         if (map.TryGetValue(pathEntry.Path, out var existingEntry))

@@ -27,7 +27,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackingInclusionRoots = new List<AbsolutePath>();
             ReplaceExistingFileOnMaterialization = false;
             ElideMinimalGraphEnumerationAbsentPathProbes = true;
-            AugmentWeakFingerprintRequiredPathCommonalityFactor = 0.5;
+            AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
         }
 
         /// <nodoc />

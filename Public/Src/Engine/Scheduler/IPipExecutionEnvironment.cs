@@ -195,11 +195,6 @@ namespace BuildXL.Scheduler
         /// Temp directory cleaner
         /// </summary>
         ITempCleaner TempCleaner { get; }
-
-        /// <summary>
-        /// Gets the execution information for the producer pip of the given file. 
-        /// </summary>
-        string GetProducerExecutionInfo(in FileOrDirectoryArtifact artifact);
     }
 
     /// <summary>

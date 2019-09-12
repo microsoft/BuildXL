@@ -582,11 +582,6 @@ namespace Test.BuildXL.Scheduler
 
             public bool ShouldCreateHandleWithSequentialScan(FileArtifact file) => false;
 
-            public string GetProducerExecutionInfo(in FileOrDirectoryArtifact artifact)
-            {
-                return string.Empty;
-            }
-
             IArtifactContentCache IFileContentManagerHost.ArtifactContentCache => Cache.ArtifactContentCache;
 
             IExecutionLogTarget IFileContentManagerHost.ExecutionLog => State.ExecutionLog;

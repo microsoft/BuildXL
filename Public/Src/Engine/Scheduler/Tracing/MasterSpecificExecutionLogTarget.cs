@@ -16,18 +16,12 @@ namespace BuildXL.Scheduler.Tracing
     {
         private readonly LoggingContext m_loggingContext;
 
-        private readonly IPipExecutionEnvironment m_executionEnvironment;
+        private readonly Scheduler m_scheduler;
 
         /// <summary>
-        /// Constructor.
+        /// Handle the events from workers
         /// </summary>
-        public MasterSpecificExecutionLogTarget(
-            LoggingContext loggingContext,
-            IPipExecutionEnvironment executionEnvironment)
-        {
-            m_loggingContext = loggingContext;
-            m_executionEnvironment = executionEnvironment;
-        }
+        public override bool CanHandleWorkerEvents => true;
 
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
@@ -35,20 +29,31 @@ namespace BuildXL.Scheduler.Tracing
             return this;
         }
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        public MasterSpecificExecutionLogTarget(
+            LoggingContext loggingContext,
+            Scheduler scheduler)
+        {
+            m_loggingContext = loggingContext;
+            m_scheduler = scheduler;
+        }
+
         /// <inheritdoc/>
         public override void CacheMaterializationError(CacheMaterializationErrorEventData data)
         {
-            var pathTable = m_executionEnvironment.Context.PathTable;
-            var process = (Process) m_executionEnvironment.PipTable.HydratePip(data.PipId, Pips.PipQueryContext.CacheMaterializationError);
+            var pathTable = m_scheduler.Context.PathTable;
+            var process = (Process) m_scheduler.PipGraph.PipTable.HydratePip(data.PipId, Pips.PipQueryContext.CacheMaterializationError);
 
             string descriptionFailure = string.Join(
                 Environment.NewLine,
                 new[] { I($"Failed files to materialize:") }
-                .Concat(data.FailedFiles.Select(f => I($"{f.Item1.Path.ToString(pathTable)} | Hash={f.Item2.ToString()} | ProducedBy={m_executionEnvironment.GetProducerExecutionInfo(f.Item1)}"))));
+                .Concat(data.FailedFiles.Select(f => I($"{f.Item1.Path.ToString(pathTable)} | Hash={f.Item2.ToString()} | ProducedBy={m_scheduler.GetProducerInfoForFailedMaterializeFile(f.Item1)}"))));
 
             Logger.Log.DetailedPipMaterializeDependenciesFromCacheFailure(
                 m_loggingContext,
-                process.GetDescription(m_executionEnvironment.Context),
+                process.GetDescription(m_scheduler.Context),
                 descriptionFailure);
         }
     }

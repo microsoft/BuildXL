@@ -1293,7 +1293,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// a file produced inside a dynamic directory so its 'declared' producer will be the
         /// producer of the dynamic directory
         /// </summary>
-        private Pip GetDeclaredProducer(FileArtifact file)
+        public Pip GetDeclaredProducer(FileArtifact file)
         {
             return m_host.GetProducer(GetDeclaredArtifact(file));
         }

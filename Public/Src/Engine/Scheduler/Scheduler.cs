@@ -4178,29 +4178,32 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public DirectoryTranslator DirectoryTranslator { get; }
 
-        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        string IPipExecutionEnvironment.GetProducerExecutionInfo(in FileOrDirectoryArtifact artifact)
+        /// <summary>
+        /// Gets the execution information for the producer pip of the given file. 
+        /// </summary>
+        public string GetProducerInfoForFailedMaterializeFile(in FileArtifact artifact)
         {
-            var producerId = PipGraph.GetProducer(artifact);
-            if (!producerId.IsValid)
-            {
-                return "N/A";
-            }
+            var producer = m_fileContentManager.GetDeclaredProducer(artifact);
 
-            var producer = PipGraph.GetPipFromPipId(producerId);
+            RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[producer.PipId];
 
-            RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[producerId];
-
-            PipExecutionStep step = PipExecutionStep.ExecuteProcess;
-            if (perfInfo.StepDurations[(int)step].TotalMilliseconds == 0)
-            {
-                step = PipExecutionStep.RunFromCache;
-            }
+            PipExecutionStep step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : PipExecutionStep.RunFromCache;
 
             var workerId = perfInfo.Workers.Value[(int)step];
             var worker = m_workers[(int)workerId];
             bool isWorkerReleasedEarly = worker.WorkerEarlyReleasedTime != null;
-            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - IsReleasedEarly: {isWorkerReleasedEarly})";
+
+            PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterialize);
+            if (isWorkerReleasedEarly)
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterializeDueToEarlyWorkerRelease);
+            }
+
+            string whenWorkerReleased = isWorkerReleasedEarly ? 
+                $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" : 
+                "N/A";
+
+            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";
         }
 
         /// <inheritdoc />
@@ -4374,7 +4377,7 @@ namespace BuildXL.Scheduler
                     totalCacheLookupStepDurations = totalCacheLookupStepDurations
                         .Zip(performance.CacheLookupPerfInfo.CacheLookupStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
 
-                    totalCacheMissAnalysisDuration += (long)performance.CacheMissDuration.TotalMilliseconds;
+                    totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
 
                     index++;
                 }
@@ -4612,9 +4615,9 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissDuration.TotalMilliseconds != 0)
+                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
                 {
-                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissDuration.TotalMilliseconds,10}"));
+                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
                 }
             }
         }

@@ -35,6 +35,7 @@ namespace Test.BuildXL.Storage
         [Fact]
         public void DeleteDirectoryContentsHandleOpen()
         {
+
             string directory = Path.Combine(TemporaryDirectory, "directoryToDelete");
             Directory.CreateDirectory(directory);
             string openFile = Path.Combine(directory, "openfileDelDirContents.txt");

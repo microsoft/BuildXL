@@ -21,6 +21,7 @@ namespace Test.BuildXL.Storage.Admin
         [FactIfSupported(requiresAdmin:true, requiresWindowsBasedOperatingSystem: true)]
         public void QueryJournal()
         {
+
             WithVolumeHandle(
                 volumeHandle =>
                 {

@@ -31,8 +31,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     public class DistributedContentCopier<T> : StartupShutdownSlimBase, IDistributedContentCopier
         where T : PathBase
     {
-        // Gate to control the maximum number of simultaneously active active IO operations.
+        // Gate to control the maximum number of simultaneously active IO operations.
         private readonly SemaphoreSlim _ioGate;
+
+        // Gate to control the maximum number of simultaneously active proactive copies.
+        private readonly SemaphoreSlim _proactiveCopyIoGate;
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly DisposableDirectory _tempFolderForCopies;
@@ -85,6 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _hashers = HashInfoLookup.CreateAll();
 
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
+            _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
         }
 
@@ -235,9 +239,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             context.TraceDebug("Waiting on IOGate for RequestCopyFileAsync: " +
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} ");
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _proactiveCopyIoGate.CurrentCount} ");
 
-            return _ioGate.GatedOperationAsync(ts =>
+            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
                     return context.PerformOperationAsync(
                         Tracer,
@@ -249,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                             $"IOGate.Wait={ts.TotalMilliseconds}ms."
                         );
                 },

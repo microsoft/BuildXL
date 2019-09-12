@@ -500,6 +500,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
+        [DataMember]
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>

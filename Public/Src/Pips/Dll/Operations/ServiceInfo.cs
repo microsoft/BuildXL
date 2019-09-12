@@ -44,7 +44,7 @@ namespace BuildXL.Pips.Operations
         public PipId ShutdownPipId { get; }
 
         /// <summary>
-        /// Service pip dependencies.
+        /// Finalization Pip Ids.
         /// </summary>
         [Pure]
         public ReadOnlyArray<PipId> FinalizationPipIds { get; }

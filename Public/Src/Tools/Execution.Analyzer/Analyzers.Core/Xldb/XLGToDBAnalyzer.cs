@@ -613,7 +613,7 @@ namespace BuildXL.Execution.Analyzer
                         if (pipsIngested % s_pipOutputBatchLogSize == 0)
                         {
                             Console.Write(".");
-                            database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                            database.ApplyBatch(pipSemistableMap);
                             database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
 
                             pipSemistableMap.Clear();
@@ -750,7 +750,7 @@ namespace BuildXL.Execution.Analyzer
                         pipIdMap.Add(pipIdKeyArr, xldbSpecificPip.ToByteArray());
                     }
 
-                    database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                    database.ApplyBatch(pipSemistableMap);
                     database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
                 });
 

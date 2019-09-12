@@ -93,25 +93,24 @@ namespace BuildXL.Execution.Analyzer
                 processPipExecPerformance.ReadCounters = new IOTypeCounters()
                 {
                     OperationCount = performance.IO.ReadCounters.OperationCount,
-                    TransferCOunt = performance.IO.ReadCounters.TransferCount
+                    TransferCount = performance.IO.ReadCounters.TransferCount
                 };
 
                 processPipExecPerformance.WriteCounters = new IOTypeCounters()
                 {
                     OperationCount = performance.IO.WriteCounters.OperationCount,
-                    TransferCOunt = performance.IO.WriteCounters.TransferCount
+                    TransferCount = performance.IO.WriteCounters.TransferCount
                 };
 
                 processPipExecPerformance.OtherCounters = new IOTypeCounters()
                 {
                     OperationCount = performance.IO.OtherCounters.OperationCount,
-                    TransferCOunt = performance.IO.OtherCounters.TransferCount
+                    TransferCount = performance.IO.OtherCounters.TransferCount
                 };
 
                 processPipExecPerformance.UserTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.UserTime);
                 processPipExecPerformance.KernelTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.KernelTime);
                 processPipExecPerformance.PeakMemoryUsage = performance.PeakMemoryUsage;
-                processPipExecPerformance.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
                 processPipExecPerformance.NumberOfProcesses = performance.NumberOfProcesses;
 
                 processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.Proto.FileMonitoringViolationCounters()
@@ -189,7 +188,8 @@ namespace BuildXL.Execution.Analyzer
                     DisableDetours = processDetouringStatus.DisableDetours,
                     CreationFlags = processDetouringStatus.CreationFlags,
                     Detoured = processDetouringStatus.Detoured,
-                    Error = processDetouringStatus.Error
+                    Error = processDetouringStatus.Error,
+                    CreateProcessStatusReturn = processDetouringStatus.CreateProcessStatusReturn
                 });
             }
 
@@ -502,17 +502,17 @@ namespace BuildXL.Execution.Analyzer
                 ReadCounters = new IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.ReadCounters.OperationCount,
-                    TransferCOunt = reportedProcess.IOCounters.ReadCounters.TransferCount
+                    TransferCount = reportedProcess.IOCounters.ReadCounters.TransferCount
                 },
                 WriteCounters = new IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.WriteCounters.OperationCount,
-                    TransferCOunt = reportedProcess.IOCounters.WriteCounters.TransferCount
+                    TransferCount = reportedProcess.IOCounters.WriteCounters.TransferCount
                 },
                 OtherCounters = new IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.OtherCounters.OperationCount,
-                    TransferCOunt = reportedProcess.IOCounters.OtherCounters.TransferCount
+                    TransferCount = reportedProcess.IOCounters.OtherCounters.TransferCount
                 },
                 CreationTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(reportedProcess.CreationTime),
                 ExitTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(reportedProcess.ExitTime),
@@ -706,6 +706,8 @@ namespace BuildXL.Execution.Analyzer
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable, nameExpander),
                     Data = pip.StandardInput.Data.ToString(pathTable),
+                    IsFile = pip.StandardInput.IsFile,
+                    IsData = pip.StandardInput.IsData
                 },
                 ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable, nameExpander),
                 ResponseFileData = pip.ResponseFileData.IsValid ? pip.ResponseFileData.ToString(pathTable) : "",
@@ -847,6 +849,7 @@ namespace BuildXL.Execution.Analyzer
                 AllowHashing = pathInfo.AllowHashing,
                 IsReadable = pathInfo.IsReadable,
                 IsWriteable = pathInfo.IsWritable,
+                AllowCreateDirectory = pathInfo.AllowCreateDirectory,
                 IsSystem = pathInfo.IsSystem,
                 IsScrubbable = pathInfo.IsScrubbable,
                 HasPotentialBuildOutputs = pathInfo.HasPotentialBuildOutputs,

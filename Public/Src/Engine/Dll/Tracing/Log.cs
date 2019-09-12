@@ -917,15 +917,6 @@ namespace BuildXL.Engine.Tracing
             Message = "After we received an exit request from the master, worker exits with an unexpected reason due to a failure in one of the master-related calls (e.g., attach, notify).")]
         public abstract void DistributionWorkerUnexpectedFailureAfterMasterExits(LoggingContext context);
 
-        [GeneratedEvent(
-    (ushort)LogEventId.DistributionWorkerUnexpectedFailureAfterMasterExits,
-    EventGenerators = EventGenerators.LocalOnly,
-    EventLevel = Level.Verbose,
-    Keywords = (int)Keywords.UserMessage,
-    EventTask = (ushort)Tasks.Distribution,
-    Message = "After we received an exit request from the master, worker exits with an unexpected reason due to a failure in one of the master-related calls (e.g., attach, notify).")]
-        public abstract void DistributionWorkerUnexpectedFailureAfterMasterExits(LoggingContext context);
-
         #endregion
 
         [GeneratedEvent(

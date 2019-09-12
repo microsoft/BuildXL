@@ -13,4 +13,5 @@
 [Environment]::SetEnvironmentVariable($name, $value,"Process")
 [Environment]::SetEnvironmentVariable($name2, $value2,"Process")
 # .\RunCheckInTests.cmd /lab $arg /internal
-.\bxl.cmd /q:ReleaseNet472 /q:ReleaseDotNetCore /f:output='out/bin/release/public/pkgs/*' /server- /logOutput:FullOutputOnWarningOrError /enableGrpc+ /traceInfo:prvalidation=TestingPart4 /enableIncrementalFrontEnd- /ado
+.\bxl.cmd /q:ReleaseNet472 /q:ReleaseDotNetCore /f:output='out/bin/release/public/pkgs/*' /server- /logOutput:FullOutputOnWarningOrError /enableGrpc+ /traceInfo:prvalidation=TestingPart4 /enableIncrementalFrontEnd-
+q

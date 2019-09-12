@@ -2140,7 +2140,7 @@ namespace BuildXL.Scheduler
                 bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
                 bool underMinimumAvailableRam = perfInfo.AvailableRamMb < m_configuration.Schedule.MinimumTotalAvailableRamMb;
 
-                resourceAvailable = !(exceededMaxRamUtilizationPercentage || underMinimumAvailableRam);
+                resourceAvailable = !(exceededMaxRamUtilizationPercentage && underMinimumAvailableRam);
 
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
                 // the throttling is. It happens regardless of the throttling limits and is logged when we're pretty

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -23,6 +24,7 @@ namespace BuildXL.FrontEnd.Script
     /// </summary>
     public sealed class NugetResolver : DScriptSourceResolver
     {
+        internal const string NugetResolverName = "ComponentGovernance";
         private WorkspaceNugetModuleResolver m_nugetWorkspaceResolver;
 
         /// <nodoc />
@@ -74,70 +76,50 @@ namespace BuildXL.FrontEnd.Script
             if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid ||
                 Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
             {
-                
+                //System.Diagnostics.Debugger.Launch();
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
                 string existingCgManifest = "{}";
 
                 try {
-                    var existingCgManifestReader = await FrontEndHost.Engine.GetFileContentAsync(Configuration.FrontEnd.GenerateCgManifestForNugets);
-
-                    if (existingCgManifestReader.Succeeded) {
-                        existingCgManifest = new string(existingCgManifestReader.Result.Content);
-                    }
+                    existingCgManifest = File.ReadAllText(Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable));
                 }
-                catch (BuildXLException) {
-                    // CgManifest FileNotFound, continue to write the new file
-                    // No operations required as the empty existingCgManifest will not match with the newly generated cgManifest
-                }
+                // CgManifest FileNotFound, continue to write the new file
+                // No operations required as the empty existingCgManifest will not match with the newly generated cgManifest
+                catch (DirectoryNotFoundException) { }
+                catch (FileNotFoundException) { }
 
                 if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                 {
-                    System.Diagnostics.Debugger.Launch();
-                    // Overwrite or create new cgmanifest.json file with updated nuget package and version info
-                    string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
-
-                    try
+                    if (Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
                     {
-                        FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
-
-                        ExceptionUtilities.HandleRecoverableIOException(
-                            () =>
-                            {
-                        File.WriteAllText(targetFilePath, generatedCgManifest);
-                            },
-                            e =>
-                            {
-                                throw new BuildXLException("Cannot write cgmanifest.json file to disk", e);
-                            });
-                    }
-                    catch (BuildXLException e)
-                    {
-                        // Rijul: Add log here ?
-
-                        //logger.Log.NugetFailedToWriteSpecFileForPackage(
-                        //    m_context.LoggingContext,
-                        //    package.Id,
-                        //    package.Version,
-                        //    targetFilePath,
-                        //    e.LogEventMessage);
-                        //return new NugetFailure(package, NugetFailure.FailureType.WriteSpecFile, e.InnerException);
+                        // Validation of existing cgmainfest.json results in failure due to mismatch. Should fail the build in this case.
+                        // TODO: Rijul Log
+                        return false;
                     }
 
-                    // Fix:
-                    FrontEndHost.Engine.RecordFrontEndFile(
-                        Configuration.FrontEnd.GenerateCgManifestForNugets,
-                        generatedCgManifest);
+                    if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
+                    {
+                        // Overwrite or create new cgmanifest.json file with updated nuget package and version info
+                        string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
+
+                        try
+                        {
+                            FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
+                            await FileUtilities.WriteAllTextAsync(targetFilePath, generatedCgManifest, Encoding.UTF8);
+                        }
+                        catch (BuildXLException e)
+                        {
+                            throw new BuildXLException("Cannot write cgmanifest.json file to disk", e);
+                        }
+                    }
                 }
-                
-                // TODO(rijul): based on {Generate|Validate}CgManifestForNugets, decide whether 
-                //              to save manifestContent to disk or compare it against an existing file.
-                //
-                // IMPORTANT: do not use System.IO.File to read/write files; instead:
-                //   (1) to read a file, use FrontEndHost.Engine.GetFileContentAsync() 
-                //   (2) to write a file, use File.WriteAllText(), and then call FrontEndHost.Engine.RecordFrontEndFile()
-                //       (see WorkspaceNugetModuleResolver.TryWriteSourceFile)
+
+                FrontEndHost.Engine.RecordFrontEndFile(
+                    Configuration.FrontEnd.GenerateCgManifestForNugets,
+                    NugetResolverName);
             }
+
 
             m_resolverState = State.ResolverInitialized;
 

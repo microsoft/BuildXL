@@ -14,7 +14,7 @@ using Newtonsoft.Json.Linq;
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>
-    /// NugetCgManifestGenerator is used for creation & comparasion of the cgmanifest.json file.
+    /// NugetCgManifestGenerator is used for creation and comparasion of the cgmanifest.json file.
     /// cgmanifest.json contains all the Nuget Packages used in BuildXL with all their versions in use
     /// cgmanifest.json is used by Component Governance in Cloud Build to determine security risks within components used by BuildXL
     /// </summary>
@@ -59,7 +59,17 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public bool CompareForEquality(string lhsManifest, string rhsManifest)
         {
-            return JToken.DeepEquals(JObject.Parse(lhsManifest), JObject.Parse(rhsManifest));
+            try
+            {
+                return JToken.DeepEquals(JObject.Parse(lhsManifest), JObject.Parse(rhsManifest));
+            }
+            catch (JsonReaderException)
+            {
+                // The existing Manifest file was in invalid JSON format.
+                // Hence it does not match.
+                return false;
+            }
+            
         }
 
         private string ExtractNugetVersion(Package p)

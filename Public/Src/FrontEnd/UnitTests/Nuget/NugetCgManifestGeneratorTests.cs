@@ -3,6 +3,7 @@
 
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -13,6 +14,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
         private readonly FrontEndContext m_context;
         private readonly NugetCgManifestGenerator m_generator;
 
+        MultiValueDictionary<string, Package> packages = new MultiValueDictionary<string, Package>();
+
         public NugetCgManifestGeneratorTests()
         {
             m_context = FrontEndContext.CreateInstanceForTesting();
@@ -22,7 +25,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         [Fact]
         public void TestEmptyPackages()
         {
-            var manifest = m_generator.GenerateCgManifestForPackages(new Package[0]);
+            var manifest = m_generator.GenerateCgManifestForPackages(packages);
             // TODO(rijul) 
         }
 
@@ -43,6 +46,12 @@ namespace Test.BuildXL.FrontEnd.Nuget
         public void TestCompareForEquality()
         {
             // TODO(rijul) make sure that NugetCgManifestGenerator.CompareForEquality is white space agnostic and case insensitive
+        }
+
+        [Fact]
+        public void TestCompareForEqualityInvalidFormat()
+        {
+            
         }
     }
 }

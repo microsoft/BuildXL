@@ -79,8 +79,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 tempPath,
                 FileSystem,
                 RedisContentLocationStoreConstants.DefaultBatchSize,
-                retryIntervalForCopies: DefaultRetryIntervalsForTest,
-                pinConfiguration: new PinConfiguration());
+                settings: new DistributedContentStoreSettings
+                {
+                    RetryIntervalForCopies = DefaultRetryIntervalsForTest,
+                    PinConfiguration = new PinConfiguration()
+                },
+                setPostInitializationCompletionAfterStartup: true);
         }
     }
 }

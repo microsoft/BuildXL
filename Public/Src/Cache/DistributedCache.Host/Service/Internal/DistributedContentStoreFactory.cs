@@ -219,6 +219,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
+                        MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
                     },

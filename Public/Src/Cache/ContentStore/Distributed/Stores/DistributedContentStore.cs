@@ -93,73 +93,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,
             int locationStoreBatchSize,
-            IReadOnlyList<TimeSpan> retryIntervalForCopies = null,
-            PinConfiguration pinConfiguration = null,
-            int? replicaCreditInMinutes = null,
-            IClock clock = null,
-            bool enableRepairHandling = false,
-            TimeSpan? contentHashBumpTime = null,
-            bool useTrustedHash = false,
-            int trustedHashFileSizeBoundary = -1,
-            long parallelHashingFileSizeBoundary = -1,
-            int maxConcurrentCopyOperations = 512,
-            ContentStoreSettings contentStoreSettings = null,
-            bool enableProactiveCopy = false)
-            : this (
-                  localMachineLocation,
-                  innerContentStoreFunc,
-                  contentLocationStoreFactory,
-                  fileExistenceChecker,
-                  fileCopier,
-                  pathTransform,
-                  copyRequester,
-                  contentAvailabilityGuarantee,
-                  tempFolderForCopies,
-                  fileSystem,
-                  locationStoreBatchSize,
-                  new DistributedContentStoreSettings()
-                  {
-                      UseTrustedHash = useTrustedHash,
-                      TrustedHashFileSizeBoundary = trustedHashFileSizeBoundary,
-                      ParallelHashingFileSizeBoundary = parallelHashingFileSizeBoundary,
-                      MaxConcurrentCopyOperations = maxConcurrentCopyOperations,
-                      RetryIntervalForCopies = retryIntervalForCopies,
-                      PinConfiguration = pinConfiguration,
-                      EnableProactiveCopy = enableProactiveCopy
-                  },
-                  replicaCreditInMinutes,
-                  clock,
-                  enableRepairHandling,
-                  contentHashBumpTime,
-                  contentStoreSettings)
-        {
-            // This constructor is used from tests,
-            // so we need to complete _postInitializationCompletion when startup is done.
-            _setPostInitializationCompletionAfterStartup = true;
-        }
-
-        /// <nodoc />
-        public DistributedContentStore(
-            byte[] localMachineLocation,
-            Func<NagleQueue<ContentHash>, DistributedEvictionSettings, ContentStoreSettings, TrimBulkAsync, IContentStore> innerContentStoreFunc,
-            IContentLocationStoreFactory contentLocationStoreFactory,
-            IFileExistenceChecker<T> fileExistenceChecker,
-            IFileCopier<T> fileCopier,
-            IPathTransformer<T> pathTransform,
-            ICopyRequester copyRequester,
-            ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
-            AbsolutePath tempFolderForCopies,
-            IAbsFileSystem fileSystem,
-            int locationStoreBatchSize,
             DistributedContentStoreSettings settings,
             int? replicaCreditInMinutes = null,
             IClock clock = null,
             bool enableRepairHandling = false,
             TimeSpan? contentHashBumpTime = null,
-            ContentStoreSettings contentStoreSettings = null)
+            ContentStoreSettings contentStoreSettings = null,
+            bool setPostInitializationCompletionAfterStartup = false)
         {
             Contract.Requires(settings != null);
 
+            _setPostInitializationCompletionAfterStartup = setPostInitializationCompletionAfterStartup;
             LocalMachineLocation = new MachineLocation(localMachineLocation);
             _enableRepairHandling = enableRepairHandling;
             _contentLocationStoreFactory = contentLocationStoreFactory;

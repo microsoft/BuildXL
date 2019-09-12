@@ -22,5 +22,6 @@ namespace Storage.Untracked {
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             Storage.dll,
         ],
+        runTestArgs: { privilegeLevel: "admin" },
     });
 }

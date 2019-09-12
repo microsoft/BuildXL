@@ -72,7 +72,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     s_isElevated = CurrentProcess.IsElevated;
                 }
 
-                if (!s_isElevated.Value)
+                var isInCloudBuild = BuildXLEnvironments.GetFlag(BuildParameters.IsInCloudBuildVariableName);
+
+                if (!s_isElevated.Value && !isInCloudBuild)
                 {
                     Skip = "Test must be run elevated!";
                     return;

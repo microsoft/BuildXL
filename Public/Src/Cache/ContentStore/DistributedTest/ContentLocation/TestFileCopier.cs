@@ -8,12 +8,10 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Test;
 
@@ -137,7 +135,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             return 0;
         }
 
-        public Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, MachineLocation targetMachine)
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
         }

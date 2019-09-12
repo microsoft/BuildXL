@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -38,6 +37,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly SemaphoreSlim _proactiveCopyIoGate;
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
+        private readonly TimeSpan _timeoutForPoractiveCopies;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
         private readonly ICopyRequester _copyRequester;
@@ -90,6 +90,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
+
+            _timeoutForPoractiveCopies = settings.TimeoutForProactiveCopies;
         }
 
         /// <inheritdoc />
@@ -243,18 +245,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
+                    var cts = new CancellationTokenSource();
+                    cts.CancelAfter(_timeoutForPoractiveCopies);
+                    var innerToken = CancellationTokenSource.CreateLinkedTokenSource(context.Token, cts.Token).Token;
+                    var innerContext = new OperationContext(context, innerToken);
                     return context.PerformOperationAsync(
                         Tracer,
                         operation: () =>
                         {
-                            return _copyRequester.RequestCopyFileAsync(context, hash, targetLocation);
+                            return _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation);
                         },
                         traceOperationStarted: false,
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                            $"IOGate.Wait={ts.TotalMilliseconds}ms."
+                            $"IOGate.Wait={ts.TotalMilliseconds}ms." +
+                            $"Timeout={innerToken.IsCancellationRequested}"
                         );
                 },
                 context.Token);

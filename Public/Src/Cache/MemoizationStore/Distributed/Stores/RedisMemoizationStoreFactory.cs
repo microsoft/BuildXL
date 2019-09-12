@@ -14,23 +14,22 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
 {
     /// <nodoc />
-    public class RedisCacheFactory : RedisContentLocationStoreFactory
+    public class RedisMemoizationStoreFactory : RedisContentLocationStoreFactory
     {
         private readonly TimeSpan _memoizationExpiryTime;
 
         /// <nodoc />
-        public RedisCacheFactory(
+        public RedisMemoizationStoreFactory(
             IConnectionStringProvider contentConnectionStringProvider,
             IConnectionStringProvider machineLocationConnectionStringProvider,
             IClock clock,
             TimeSpan contentHashBumpTime,
-            TimeSpan memoizationExpiryTime,
             string keySpace,
             IAbsFileSystem fileSystem = null,
-            RedisContentLocationStoreConfiguration configuration = null)
+            RedisMemoizationStoreConfiguration configuration = null)
             : base(contentConnectionStringProvider, machineLocationConnectionStringProvider, clock, contentHashBumpTime, keySpace, fileSystem, configuration)
         {
-            _memoizationExpiryTime = memoizationExpiryTime;
+            _memoizationExpiryTime = configuration.MemoizationExpiryTime;
         }
 
         /// <nodoc />

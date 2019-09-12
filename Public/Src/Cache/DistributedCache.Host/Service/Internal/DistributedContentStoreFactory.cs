@@ -59,15 +59,16 @@ namespace BuildXL.Cache.Host.Service.Internal
             _secretRetriever = secretRetriever;
         }
 
-        public RedisCacheFactory CreateRedisCacheFactory(AbsolutePath localCacheRoot, out RedisContentLocationStoreConfiguration config)
+        public RedisMemoizationStoreFactory CreateRedisCacheFactory(AbsolutePath localCacheRoot, out RedisContentLocationStoreConfiguration config)
         {
-            var redisContentLocationStoreConfiguration = new RedisContentLocationStoreConfiguration
+            var redisContentLocationStoreConfiguration = new RedisMemoizationStoreConfiguration
             {
                 RedisBatchPageSize = _distributedSettings.RedisBatchPageSize,
                 BlobExpiryTimeMinutes = _distributedSettings.BlobExpiryTimeMinutes,
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
-                EvictionWindowSize = _distributedSettings.EvictionWindowSize
+                EvictionWindowSize = _distributedSettings.EvictionWindowSize,
+                MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
             };
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));
@@ -126,12 +127,11 @@ namespace BuildXL.Cache.Host.Service.Internal
 
             config = redisContentLocationStoreConfiguration;
 
-            return new RedisCacheFactory(
+            return new RedisMemoizationStoreFactory(
                 contentConnectionStringProvider,
                 machineLocationsConnectionStringProvider,
                 SystemClock.Instance,
                 contentHashBumpTime,
-                memoizationExpiryTime,
                 _keySpace,
                 configuration: redisContentLocationStoreConfiguration
                 );

@@ -727,6 +727,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerExitFailure(LoggingContext context, string failure);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerExitFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Timed out waiting for attach request from master")]
+        public abstract void DistributionWorkerTimeoutFailure(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionTryMaterializeInputsFailedRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Failed to materialize inputs for pip. Number of remaining retries: {remainingRetryCount}.",
@@ -906,6 +915,15 @@ namespace BuildXL.Engine.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "After we received an exit request from the master, worker exits with an unexpected reason due to a failure in one of the master-related calls (e.g., attach, notify).")]
+        public abstract void DistributionWorkerUnexpectedFailureAfterMasterExits(LoggingContext context);
+
+        [GeneratedEvent(
+    (ushort)LogEventId.DistributionWorkerUnexpectedFailureAfterMasterExits,
+    EventGenerators = EventGenerators.LocalOnly,
+    EventLevel = Level.Verbose,
+    Keywords = (int)Keywords.UserMessage,
+    EventTask = (ushort)Tasks.Distribution,
+    Message = "After we received an exit request from the master, worker exits with an unexpected reason due to a failure in one of the master-related calls (e.g., attach, notify).")]
         public abstract void DistributionWorkerUnexpectedFailureAfterMasterExits(LoggingContext context);
 
         #endregion

@@ -141,8 +141,8 @@ message ProcessExecutionMonitoringReportedEvent{
     repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
 }
 
-// The ExtraEventDataReported Event message
-message ExtraEventDataReported{
+// The ExecutionLogSaltsData Event message
+message ExecutionLogSaltsDataEvent{
     uint32 WorkerID = 1;
 
     bool DisableDetours = 2;
@@ -303,7 +303,7 @@ message PipExecutionDirectoryOutputsEvent{
 }
 
 // The BXLInvocation Event message
-message BXLInvocationEvent{
+message BxlInvocationEvent{
     uint32 WorkerID = 1;
 
     AbsolutePath SubstSource = 2;

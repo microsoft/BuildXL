@@ -419,13 +419,13 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Override event to capture its data and store it in the protobuf 
         /// </summary>
-        public override void ExtraEventDataReported(ExtraEventData data)
+        public override void ExecutionLogSaltsData(ExecutionLogSaltsEventData data)
         {
-            var value = data.ToExtraEventDataReported(WorkerID.Value);
+            var value = data.ToExecutionLogSaltsData(WorkerID.Value);
             // There will be exactly one event of this type that is reported, so nothing special needs to be added to the key
             var key = new EventKey
             {
-                EventTypeID = Xldb.Proto.ExecutionEventId.ExtraEventDataReported,
+                EventTypeID = Xldb.Proto.ExecutionEventId.ExecutionLogSaltsData,
             };
 
             var keyArr = key.ToByteArray();
@@ -511,9 +511,9 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Override event to capture its data and store it in the protobuf 
         /// </summary>
-        public override void DominoInvocation(DominoInvocationEventData data)
+        public override void BxlInvocation(BxlInvocationEventData data)
         {
-            var value = data.ToBXLInvocationEvent(WorkerID.Value, PathTable, m_nameExpander);
+            var value = data.ToBxlInvocationEvent(WorkerID.Value, PathTable, m_nameExpander);
             var key = new EventKey
             {
                 EventTypeID = Xldb.Proto.ExecutionEventId.BxlInvocation,

@@ -111,7 +111,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <inheritdoc />
-        public virtual void ExtraEventDataReported(ExtraEventData data)
+        public virtual void ExecutionLogSaltsData(ExecutionLogSaltsEventData data)
         {
             ReportUnhandledEvent(data);
         }
@@ -155,7 +155,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Single event giving build invocation information that contains configuration details useful for analyzers.
         /// </summary>
-        public virtual void DominoInvocation(DominoInvocationEventData data)
+        public virtual void BxlInvocation(BxlInvocationEventData data)
         {
             ReportUnhandledEvent(data);
         }

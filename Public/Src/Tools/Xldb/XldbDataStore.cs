@@ -61,12 +61,12 @@ namespace BuildXL.Xldb
             m_eventParserDictionary.Add(ExecutionEventId.DirectoryMembershipHashed, DirectoryMembershipHashedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.ProcessExecutionMonitoringReported, ProcessExecutionMonitoringReportedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.ProcessFingerprintComputation, ProcessFingerprintComputationEvent.Parser);
-            m_eventParserDictionary.Add(ExecutionEventId.ExtraEventDataReported, ExtraEventDataReported.Parser);
+            m_eventParserDictionary.Add(ExecutionEventId.ExecutionLogSaltsData, ExecutionLogSaltsDataEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.DependencyViolationReported, DependencyViolationReportedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipExecutionStepPerformanceReported, PipExecutionStepPerformanceReportedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipCacheMiss, PipCacheMissEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.ResourceUsageReported, StatusReportedEvent.Parser);
-            m_eventParserDictionary.Add(ExecutionEventId.BxlInvocation, BXLInvocationEvent.Parser);
+            m_eventParserDictionary.Add(ExecutionEventId.BxlInvocation, BxlInvocationEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipExecutionDirectoryOutputs, PipExecutionDirectoryOutputsEvent.Parser);
 
             // We only store non-meta pips (and no HashSourceFile pips) into this database, so module, hash, value, and specfile are not included in the parser dictionary
@@ -326,7 +326,7 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all the Extra Event Data Reported Events
         /// </summary>
-        public IEnumerable<ExtraEventDataReported> GetExtraEventDataReportedEvents() => GetEventsByType(ExecutionEventId.ExtraEventDataReported).Cast<ExtraEventDataReported>();
+        public IEnumerable<ExecutionLogSaltsDataEvent> GetExecutionLogSaltsDataEvents() => GetEventsByType(ExecutionEventId.ExecutionLogSaltsData).Cast<ExecutionLogSaltsDataEvent>();
 
         /// <summary>
         /// Gets all the Dependency Violation Reported Events
@@ -351,7 +351,7 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all the BXL Invocation Events.
         /// </summary>
-        public IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.BxlInvocation).Cast<BXLInvocationEvent>();
+        public IEnumerable<BxlInvocationEvent> GetBXLInvocationEvents() => GetEventsByType(ExecutionEventId.BxlInvocation).Cast<BxlInvocationEvent>();
 
         /// <summary>
         /// Gets all the Pip Execution Directory Outputs Events

@@ -257,9 +257,9 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static ExtraEventDataReported ToExtraEventDataReported(this ExtraEventData data, uint workerID)
+        public static ExecutionLogSaltsDataEvent ToExecutionLogSaltsData(this ExecutionLogSaltsEventData data, uint workerID)
         {
-            return new ExtraEventDataReported
+            return new ExecutionLogSaltsDataEvent
             {
                 WorkerID = workerID,
                 DisableDetours = data.DisableDetours,
@@ -363,11 +363,11 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static BXLInvocationEvent ToBXLInvocationEvent(this DominoInvocationEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
+        public static BxlInvocationEvent ToBxlInvocationEvent(this BxlInvocationEventData data, uint workerID, PathTable pathTable, NameExpander nameExpander)
         {
             var loggingConfig = data.Configuration.Logging;
 
-            var bxlInvEvent = new BXLInvocationEvent
+            var bxlInvEvent = new BxlInvocationEvent
             {
                 WorkerID = workerID,
                 SubstSource = loggingConfig.SubstSource.ToAbsolutePath(pathTable, nameExpander),

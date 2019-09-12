@@ -19,7 +19,7 @@ enum ExecutionEventId{
     ObservedInputs = 5;
 
     ProcessExecutionMonitoringReported = 6;
-    ExecutionEventId_ExtraEventDataReported = 7;
+    ExecutionEventId_ExecutionLogSaltsData = 7;
     DependencyViolationReported = 8;
     PipExecutionStepPerformanceReported = 9;
     ResourceUsageReported = 10;

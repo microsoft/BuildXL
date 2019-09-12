@@ -651,7 +651,7 @@ namespace BuildXL.Execution.Analyzer
                     return true;
                 case ExecutionEventId.ResourceUsageReported:
                 case ExecutionEventId.PipExecutionPerformance:
-                case ExecutionEventId.ExtraEventDataReported:
+                case ExecutionEventId.ExecutionLogSaltsData:
                 case ExecutionEventId.DirectoryMembershipHashed:
                 case ExecutionEventId.ObservedInputs:
                 case ExecutionEventId.WorkerList:
@@ -1002,7 +1002,7 @@ namespace BuildXL.Execution.Analyzer
                     case ExecutionEventId.PipExecutionPerformance:
 
                     case ExecutionEventId.ResourceUsageReported:
-                    case ExecutionEventId.ExtraEventDataReported:
+                    case ExecutionEventId.ExecutionLogSaltsData:
                     case ExecutionEventId.DirectoryMembershipHashed:
                     case ExecutionEventId.ObservedInputs:
                     case ExecutionEventId.WorkerList:

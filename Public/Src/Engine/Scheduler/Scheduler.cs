@@ -1282,7 +1282,7 @@ namespace BuildXL.Scheduler
                 m_workers,
                 m_pipQueue);
 
-            ExecutionLog?.DominoInvocation(new DominoInvocationEventData(m_configuration));
+            ExecutionLog?.BxlInvocation(new BxlInvocationEventData(m_configuration));
 
             UpdateStatus();
             m_drainThread = new Thread(m_pipQueue.DrainQueues);
@@ -5962,7 +5962,7 @@ namespace BuildXL.Scheduler
 
                     var logFile = new BinaryLogger(executionLogStream, context, pipGraph.GraphId, lastStaticAbsolutePathValue);
                     var executionLogTarget = new ExecutionLogFileTarget(logFile, disabledEventIds: configuration.Logging.NoExecutionLog);
-                    executionLogTarget.ExtraEventDataReported(new ExtraEventData(salts));
+                    executionLogTarget.ExecutionLogSaltsData(new ExecutionLogSaltsEventData(salts));
 
                     return executionLogTarget;
                 }

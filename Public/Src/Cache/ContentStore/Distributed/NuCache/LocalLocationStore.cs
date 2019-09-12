@@ -466,10 +466,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline)
         {
-            var result = await processStateCoreAsync();
+            var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
-            if (result.Succeeded &&
-                _postInitializationTask != null && _postInitializationTask.Status == TaskStatus.RanToCompletion && (await _postInitializationTask).Succeeded == false)
+            if (result.Succeeded)
             {
                 // A post initialization process may fail due to a transient issue, like a storage failure or an inconsistent checkpoint's state.
                 // The transient error can go away and the system may recover itself by calling this method again.
@@ -477,7 +476,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // In this case we need to reset _postInitializationTask and move its state from "failure" to "success"
                 // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
 
-                _postInitializationTask = Task.FromResult(result);
+                _postInitializationTask = BoolResult.SuccessTask;
             }
 
             return result;

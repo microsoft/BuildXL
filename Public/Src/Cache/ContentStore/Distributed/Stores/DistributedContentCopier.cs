@@ -247,8 +247,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     var cts = new CancellationTokenSource();
                     cts.CancelAfter(_timeoutForPoractiveCopies);
-                    var innerToken = CancellationTokenSource.CreateLinkedTokenSource(context.Token, cts.Token).Token;
-                    var innerContext = new OperationContext(context, innerToken);
+                    var innerContext = context.CreateNested(cts.Token);
                     return context.PerformOperationAsync(
                         Tracer,
                         operation: () =>
@@ -261,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             $"TargetLocation=[{targetLocation}] " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                             $"IOGate.Wait={ts.TotalMilliseconds}ms." +
-                            $"Timeout={innerToken.IsCancellationRequested}"
+                            $"Timeout={cts.Token.IsCancellationRequested}"
                         );
                 },
                 context.Token);

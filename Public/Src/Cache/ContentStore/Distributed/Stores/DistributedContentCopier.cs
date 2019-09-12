@@ -239,7 +239,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             context.TraceDebug("Waiting on IOGate for RequestCopyFileAsync: " +
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _proactiveCopyIoGate.CurrentCount} ");
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} ");
 
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
@@ -253,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                             $"IOGate.Wait={ts.TotalMilliseconds}ms."
                         );
                 },

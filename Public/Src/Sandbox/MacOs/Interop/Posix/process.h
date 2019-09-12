@@ -11,9 +11,11 @@ typedef struct {
     double exitTime;
     unsigned long systemTime;
     unsigned long userTime;
-} ProcessTimesInfo;
+    unsigned long bytesRead;
+    unsigned long bytesWritten;
+} ProcessResourceUsage;
 
-int GetProcessTimes(pid_t pid, ProcessTimesInfo *buffer, long bufferSize, bool includeChildProcesses);
+int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses);
 
 typedef struct {
     char *outputPath;

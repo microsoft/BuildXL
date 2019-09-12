@@ -11,11 +11,11 @@
 
 #include "process.h"
 
-int GetProcessTimes(pid_t pid, ProcessTimesInfo *buffer, long bufferSize, bool includeChildProcesses)
+int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long bufferSize, bool includeChildProcesses)
 {
-    if (sizeof(ProcessTimesInfo) != bufferSize)
+    if (sizeof(ProcessResourceUsage) != bufferSize)
     {
-        printf("ERROR: Wrong size of ProcessTimesInfo buffer; expected %ld, received %ld\n", sizeof(ProcessTimesInfo), bufferSize);
+        printf("ERROR: Wrong size of ProcessResourceUsage buffer; expected %ld, received %ld\n", sizeof(ProcessResourceUsage), bufferSize);
         return GET_RUSAGE_ERROR;
     }
 
@@ -36,7 +36,7 @@ int GetProcessTimes(pid_t pid, ProcessTimesInfo *buffer, long bufferSize, bool i
     }
 
     uint64_t absoluteTime = mach_absolute_time();
-    double factor = (((double)numer) / denom) / NSEC_PER_SEC;
+    double factor = (((double) numer) / denom) / NSEC_PER_SEC;
 
     buffer->startTime = ((long)rusage.ri_proc_start_abstime - (long)absoluteTime) * factor;
 
@@ -45,6 +45,9 @@ int GetProcessTimes(pid_t pid, ProcessTimesInfo *buffer, long bufferSize, bool i
 
     buffer->systemTime = rusage.ri_system_time;
     buffer->userTime = rusage.ri_user_time;
+
+    buffer->bytesRead = rusage.ri_diskio_bytesread;
+    buffer->bytesWritten = rusage.ri_diskio_byteswritten;
 
     if (includeChildProcesses)
     {
@@ -205,7 +208,7 @@ bool SetupProcessDumps(const char *logsDirectory, /*out*/ char *buffer, size_t b
             // Install signal handlers for the all unexpected failure conditions of interest, this helps debugging
             // unexpected errors and crashes that can't be caught by the CoreCLR
             RegisterSignalHandlers();
-            
+
             size_t len;
             if (sysctlbyname(SYSCTL_KERN_COREFILE, NULL, &len, NULL, 0) != 0 || len > bufsiz)
             {

@@ -37,7 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CheckDetoursMessageCount = true;
             AllowInternalDetoursErrorNotificationFile = true;
             EnforceAccessPoliciesOnDirectoryCreation = false;
-            KextMeasureProcessCpuTimes = false;             // measuring CPU times amounts to wrapping processes in /usr/bin/time, so let's not do that by default
+            KextMeasureProcessCpuTimes = true;              // always measure process times + ram consumption
             KextReportQueueSizeMb = 0;                      // let the sandbox kernel extension apply defaults
             KextEnableReportBatching = true;                // use lock-free queue for batching access reports
             KextThrottleCpuUsageBlockThresholdPercent = 0;  // no throttling by default
@@ -245,17 +245,17 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <nodoc />
         public List<AbsolutePath> GlobalUnsafeUntrackedScopes { get; set; }
-        
+
         /// <inheritdoc />
         IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;
 
-        /// <inheritdoc /> 
+        /// <inheritdoc />
         public bool PreserveOutputsForIncrementalTool { get; set; }
 
-        /// <nodoc /> 
+        /// <nodoc />
         public List<string> GlobalUnsafePassthroughEnvironmentVariables { get; set; }
 
-        /// <inheritdoc /> 
+        /// <inheritdoc />
         IReadOnlyList<string> ISandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
     }
 }

@@ -465,12 +465,6 @@ namespace BuildXL.Utilities
             // we have to look at VM statistics to calculate the actual available RAM though
             if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
             {
-                // OLD formula based on Active pages (does not coincide with Activity Monitor)    
-                //availableAvailablePhysicalBytes =
-                //    totalPhysicalBytes - (ramUsageInfo.Active + ramUsageInfo.Speculative +
-                //        ramUsageInfo.Wired + ramUsageInfo.Compressed - ramUsageInfo.Purgable);
-
-                // "Physical Memory" - "Memory Used" from Activity Monitor
                 availableAvailablePhysicalBytes = totalPhysicalBytes
                     - ramUsageInfo.AppMemory
                     - ramUsageInfo.Wired

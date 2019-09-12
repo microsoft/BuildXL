@@ -2673,16 +2673,6 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FailedToRedirectUserProfile(LoggingContext context, string detailedErrorMessage);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Scheduler has been configured to cancel/re-run pips due to resource exhaustion. There is at least one pip that produces a shared opaque directory ('{sharedOpaquePath}'). "
-                      + "Resource based cancellation and shared opaque directories are not compatible. Please use /disableProcessRetryOnResourceExhaustion+ argument to disable resource based cancellation.")]
-        internal abstract void ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent(LoggingContext loggingContext, string sharedOpaquePath);
-
-        [GeneratedEvent(
             (ushort)LogEventId.GrpcSettings,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

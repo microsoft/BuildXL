@@ -8,7 +8,7 @@ int GetRamUsageInfo(RamUsageInfo *buffer, long bufferSize)
     if (sizeof(RamUsageInfo) != bufferSize)
     {
         printf("ERROR: Wrong size of RamUsageInfo buffer; expected %ld, received %ld\n", sizeof(RamUsageInfo), bufferSize);
-        return 1;
+        return RUNTIME_ERROR;
     }
 
     vm_size_t page_size;
@@ -42,15 +42,58 @@ int GetRamUsageInfo(RamUsageInfo *buffer, long bufferSize)
     return KERN_SUCCESS;
 }
 
+static uint64_t ProcessTreeWorkingSetSize(pid_t pid, const rlim_t max_proc_count, bool *success)
+{
+    uint64_t children_usage = 0;
+
+    pid_t pids[max_proc_count];
+    int child_count = proc_listchildpids(pid, pids, (int) max_proc_count);
+    *success &= child_count >= 0;
+
+    for (int i = 0; (i < child_count) && *success; i++)
+    {
+        int pid = pids[i];
+        rusage_info_current rusage;
+        *success &= proc_pid_rusage(pid, RUSAGE_INFO_CURRENT, (void **)&rusage) == 0;
+        children_usage += rusage.ri_resident_size;
+
+        pid_t childs_pids[max_proc_count];
+        int count = proc_listchildpids(pid, childs_pids, (int) max_proc_count);
+        *success &= count >= 0;
+
+        if (count != 0)
+        {
+            children_usage += ProcessTreeWorkingSetSize(pid, max_proc_count, success);
+        }
+    }
+
+    return children_usage;
+
+}
+
 int GetPeakWorkingSetSize(pid_t pid, uint64_t *buffer)
 {
+    struct rlimit rl;
+    bool success = getrlimit(RLIMIT_NPROC, &rl) == 0;
+
     rusage_info_current rusage;
-    if (proc_pid_rusage(pid, RUSAGE_INFO_CURRENT, (void **)&rusage) != 0)
+    success &= proc_pid_rusage(pid, RUSAGE_INFO_CURRENT, (void **)&rusage) == 0;
+
+    // We look at the resident size for the complete process tree because we care about "real" memory used,
+    // logic that does resource based cancelation of pips in BuildXL (see ProcessResourceManager.cs) does calculations
+    // against the total available memory and the reported value from this invocation.
+    uint64_t mem_usage = rusage.ri_resident_size + ProcessTreeWorkingSetSize(pid, rl.rlim_cur, &success);
+    if (!success)
     {
-        return GET_RUSAGE_ERROR;
+        return RUNTIME_ERROR;
     }
-    
-    *buffer = rusage.ri_lifetime_max_phys_footprint;
-    
+
+    *buffer = mem_usage;
     return KERN_SUCCESS;
+}
+
+int GetMemoryPressureLevel(int *level)
+{
+    size_t length = sizeof(int);
+    return sysctlbyname("kern.memorystatus_vm_pressure_level", level, &length, NULL, 0);
 }

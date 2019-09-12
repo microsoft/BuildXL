@@ -54,6 +54,7 @@ using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.IncrementalScheduling;
+using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
@@ -2132,12 +2133,14 @@ namespace BuildXL.Scheduler
             }
 
             bool resourceAvailable = true;
+            bool isMemoryPressureCritical = false;
+
             if (perfInfo.RamUsagePercentage != null)
             {
                 bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
                 bool underMinimumAvailableRam = perfInfo.AvailableRamMb < m_configuration.Schedule.MinimumTotalAvailableRamMb;
 
-                resourceAvailable = !(exceededMaxRamUtilizationPercentage && underMinimumAvailableRam);
+                resourceAvailable = !(exceededMaxRamUtilizationPercentage || underMinimumAvailableRam);
 
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
                 // the throttling is. It happens regardless of the throttling limits and is logged when we're pretty
@@ -2151,7 +2154,17 @@ namespace BuildXL.Scheduler
                 }
             }
 
+#if PLATFORM_OSX
+
+            Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
+            var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+            isMemoryPressureCritical = result && (pressureLevel >= Memory.PressureLevel.Warning);
+
+            if (!resourceAvailable || isMemoryPressureCritical)
+#else
             if (!resourceAvailable)
+#endif
+
             {
                 if (LocalWorker.ResourcesAvailable)
                 {
@@ -2175,9 +2188,11 @@ namespace BuildXL.Scheduler
 
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
                 {
-                    // Free down to the specified max RAM utilization percentage with 10% slack
-                    var desiredRamToFreePercentage =
-                        (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
+                    // Free down to the specified max RAM utilization percentage with 10% slack, if VM memory pressure is critical
+                    // we instantly try to free up 15% of the overall system memory to improve stability
+                    var desiredRamToFreePercentage = !isMemoryPressureCritical
+                        ? (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10
+                        : 15;
 
                     // Ensure percentage to free is in valid percent range [0, 100]
                     desiredRamToFreePercentage = Math.Max(0, Math.Min(100, desiredRamToFreePercentage));
@@ -2992,7 +3007,7 @@ namespace BuildXL.Scheduler
             Contract.Assert(runnablePip.IsCancelled);
             if (runnablePip is ProcessRunnablePip processRunnable)
             {
-                FlagSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
+                FlagAndReturnSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
             }
         }
 
@@ -3562,6 +3577,13 @@ namespace BuildXL.Scheduler
                             // reschedule and choose worker again after adjusting expected RAM utilization
                             processRunnable.SetWorker(null);
 
+                            // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
+                            var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
+                            if (worker.IsLocal)
+                            {
+                                ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+                            }
+
                             // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
                             var expectedRamUsageMb = Math.Max(
                                     worker.GetExpectedRamUsageMb(processRunnable),
@@ -3602,7 +3624,7 @@ namespace BuildXL.Scheduler
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
-                        FlagSharedOpaqueOutputs(environment, processRunnable);
+                        var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3653,6 +3675,9 @@ namespace BuildXL.Scheduler
                             // the content of the (final) outputs
                             if (executionResult.Converged)
                             {
+                                // On convergence, delete shared opaque outputs
+                                ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+
                                 executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
                                    operationContext,
                                    environment,
@@ -3699,12 +3724,17 @@ namespace BuildXL.Scheduler
             return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
         }
 
-        private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
+        private List<string> FlagAndReturnSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
+            List<string> outputPaths = new List<string>();
+
             // Select all declared output files
             foreach (var fileArtifact in process.Process.FileOutputs)
             {
-                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+                if (MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path))
+                {
+                    outputPaths.Add(fileArtifact.Path.ToString(Context.PathTable));
+                }
             }
 
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
@@ -3717,10 +3747,19 @@ namespace BuildXL.Scheduler
                 {
                     foreach (AbsolutePath writeInPath in writesPerSharedOpaque)
                     {
-                        SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(writeInPath.ToString(environment.Context.PathTable));
+                        var path = writeInPath.ToString(environment.Context.PathTable);
+                        SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
+                        outputPaths.Add(path);
                     }
                 }
             }
+
+            return outputPaths;
+        }
+
+        private void ScrubSharedOpaqueOutputs(List<string> outputs)
+        {
+            outputs.ForEach(o => FileUtilities.DeleteFile(o));
         }
 
         private static void HandleDeterminismProbe(
@@ -4808,12 +4847,12 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-                        
+
                         switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
                         {
                             case SandboxKind.MacOsEndpointSecurity:
                             {
-                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES();
+                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.KextMeasureProcessCpuTimes);
                                 break;
                             }
                             default:
@@ -5609,12 +5648,15 @@ namespace BuildXL.Scheduler
             MakeSharedOpaqueOutputIfNeeded(artifact.Path);
         }
 
-        private void MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
+        private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
         {
             if (IsPathUnderSharedOpaqueDirectory(path))
             {
                 SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
+                return true;
             }
+
+            return false;
         }
 
         private bool IsPathUnderSharedOpaqueDirectory(AbsolutePath path)

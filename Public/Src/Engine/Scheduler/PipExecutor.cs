@@ -814,7 +814,7 @@ namespace BuildXL.Scheduler
                     else
                     {
                         // Write file pips do not specify execution result since they are not distributed
-                        // (i.e. they only run on the master). Given that, they report directly to the file content manager. 
+                        // (i.e. they only run on the master). Given that, they report directly to the file content manager.
                         fileContentManager.ReportOutputContent(
                             operationContext,
                             pipDescription,
@@ -1178,7 +1178,7 @@ namespace BuildXL.Scheduler
                     {
                         if (!FileUtilities.FileExistsNoFollow(path))
                         {
-                            // Output file doesn't exist. No need to make it private, 
+                            // Output file doesn't exist. No need to make it private,
                             // but return false so BuildXL ensures the output directory is created.
                             return false;
                         }
@@ -1385,8 +1385,8 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid 
-                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip) 
+                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
+                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
                                     : null;
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);
@@ -1589,7 +1589,7 @@ namespace BuildXL.Scheduler
                     //
                     // Don't track file changes in observed input processor when process execution failed. Running observed input processor has side effects
                     // that some files get tracked by the file change tracker. Suppose that the process failed because it accesses paths that
-                    // are supposed to be untracked (but the user forgot to specify it in the spec). Those paths will be tracked by 
+                    // are supposed to be untracked (but the user forgot to specify it in the spec). Those paths will be tracked by
                     // file change tracker because the observed input processor may try to probe and track those paths.
                     observedInputValidationResult =
                         await ValidateObservedFileAccesses(
@@ -2865,7 +2865,7 @@ namespace BuildXL.Scheduler
             List<FileArtifact> absentArtifacts = null; // Almost never populated, since outputs are almost always required.
             List<(FileArtifact, FileMaterializationInfo)> cachedArtifactContentHashes =
                 new List<(FileArtifact, FileMaterializationInfo)>(pip.Outputs.Length);
- 
+
             // Only the CanBeReferencedOrCached output will be saved in metadata.StaticOutputHashes
             // We looped metadata.StaticOutputHashes and meanwhile find the corresponding output in current executing pip.
             FileArtifactWithAttributes attributedOutput;
@@ -3398,7 +3398,7 @@ namespace BuildXL.Scheduler
             // only check/load "real" files - reparse points are not stored in CAS, they are stored in metadata that we have already obtained
             // if we try to load reparse points' content from CAS, content availability check would fail, and as a result,
             // BuildXL would have to re-run the pip (even if all other outputs are available)
-            // Also, do not load zero-hash files (there is nothing in CAS with this hash) 
+            // Also, do not load zero-hash files (there is nothing in CAS with this hash)
             allHashes.AddRange(cachedArtifactContentHashes
                 .Where(pair => pair.fileMaterializationInfo.IsCacheable)
                 .Select(a => (a.fileArtifact, a.fileMaterializationInfo.Hash)));
@@ -4116,7 +4116,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable); 
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable);
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)
@@ -4260,11 +4260,11 @@ namespace BuildXL.Scheduler
             // Suppose that we don't include the output hashes. Let's have a pip P whose output o should be preserved.
             // P executes, and stores #M of metadata hash with some strong fingerprint SF.
             // Before the next build, o is deleted from disk. Now, P maintains its SF because its input has not changed.
-            // P gets a cache hit, but when BuildXL tries to load o with #o (stored in M), it fails because o wasn't stored in the cache 
-            // and o doesn't exist on disk. Thus, P executes and produces o with different hash #o'. However, the post-execution of P 
+            // P gets a cache hit, but when BuildXL tries to load o with #o (stored in M), it fails because o wasn't stored in the cache
+            // and o doesn't exist on disk. Thus, P executes and produces o with different hash #o'. However, the post-execution of P
             // will fail to store #M because the entry has existed.
             //
-            // In the next run, P again gets a cache hit, but when BuildXL tries to load o with #o (stored in M) it fails because o wasn't stored 
+            // In the next run, P again gets a cache hit, but when BuildXL tries to load o with #o (stored in M) it fails because o wasn't stored
             // in the cache and o, even though exists on disk, has different hash (#o vs. #o'). Thus, P executes again and produces o with different hash #o''.
             // This will happen over and over again.
             //

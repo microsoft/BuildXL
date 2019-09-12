@@ -248,7 +248,7 @@ namespace BuildXL.Processes
                 DumpCreationException               = m_dumpCreationException,
                 DumpFileDirectory                   = ProcessInfo.TimeoutDumpDirectory,
                 PrimaryProcessTimes                 = GetProcessTimes(),
-                SurvivingChildProcesses             = CoalesceProcesses(GetSurvivingChildProcesses())
+                SurvivingChildProcesses             = CoalesceProcesses(reports?.GetActiveProcesses())
             };
         }
 
@@ -366,13 +366,6 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Returns surviving child processes in the case when the pip had to be terminated because its child
-        /// processes didn't exit within allotted time (<see cref="SandboxedProcessInfo.NestedProcessTerminationTimeout"/>)
-        /// after the main pip process has already exited.
-        /// </summary>
-        protected virtual IEnumerable<ReportedProcess> GetSurvivingChildProcesses() => null;
-
-        /// <summary>
         /// Returns any collected sandboxed process reports or null.
         /// </summary>
         internal virtual Task<SandboxedProcessReports> GetReportsAsync() => Task.FromResult<SandboxedProcessReports>(null);
@@ -389,7 +382,7 @@ namespace BuildXL.Processes
         [NotNull]
         internal virtual CpuTimes GetCpuTimes()
         {
-            // 'Dispatch.GetProcessTimes()' doesn't work because the process has already exited
+            // 'Dispatch.GetProcessResourceUsage()' doesn't work because the process has already exited
             return CpuTimes.Zeros;
         }
 

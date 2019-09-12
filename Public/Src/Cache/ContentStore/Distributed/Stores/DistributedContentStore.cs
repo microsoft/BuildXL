@@ -254,7 +254,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             // so that it can be queried and used to unregister content.
             await _contentLocationStoreFactory.StartupAsync(context).ThrowIfFailure();
 
-            _contentLocationStore = await _contentLocationStoreFactory.CreateAsync();
+            _contentLocationStore = await _contentLocationStoreFactory.CreateAsync(LocalMachineLocation);
 
             _distributedCopier = _distributedCopierFactory(_contentLocationStore);
             await _distributedCopier.StartupAsync(context).ThrowIfFailure();

@@ -142,6 +142,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         Task<bool> KeyExpireAsync(string key, DateTime newExpiryTimeUtc);
 
         /// <summary>
+        /// Updates the time to live for a particular key in Redis.
+        /// </summary>
+        Task<bool> KeyExpireAsync(string key, TimeSpan timeToLive);
+
+        /// <summary>
         /// Gets a string value at a specified key.
         /// </summary>
         Task<RedisValue> StringGetAsync(string key, CommandFlags commandFlags = CommandFlags.None);
@@ -195,6 +200,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Gets length of set stored at key.
         /// </summary>
         Task<long> SetLengthAsync(RedisKey key, CommandFlags commandFlags = CommandFlags.None);
+
+        /// <summary>
+        /// Compare exchange for metadata.
+        /// </summary>
+        Task<bool> CompareExchangeAsync(string weakFingerprintKey, RedisValue selectorFieldName, RedisValue tokenFieldName, string expectedToken, RedisValue contentHashList, string newReplacementToken);
 
         /// <summary>
         /// Unset the machineId bit if local and remote last-access times are in sync.

@@ -20,6 +20,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Creates and returns a file location cache for the given session.
         /// </summary>
-        Task<IContentLocationStore> CreateAsync();
+        Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation);
     }
 }

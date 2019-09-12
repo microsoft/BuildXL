@@ -524,6 +524,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EnableProactiveCopy { get; set; } = false;
 
         [DataMember]
+        public bool EnableProactiveCopyInsideRing { get; set; } = true;
+
+        [DataMember]
+        public bool EnableProactiveCopyOutsideRing { get; set; } = true;
+
+        [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
 
         [DataMember]

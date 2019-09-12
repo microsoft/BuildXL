@@ -146,14 +146,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool EnableProactiveCopy { get; set; } = false;
 
         /// <summary>
-        /// Time before a proactive copy times out.
+        /// Whether proactive copies are enabled inside the build ring.
         /// </summary>
-        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
+        public bool EnableProactiveCopyInsideRing { get; set; } = true;
+
+        /// <summary>
+        /// Whether proactive copies are enabled outside the build ring.
+        /// </summary>
+        public bool EnableProactiveCopyOutsideRing { get; set; } = true;
 
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        /// <summary>
+        /// Time before a proactive copy times out.
+        /// </summary>
+        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
         /// Defines pinning behavior

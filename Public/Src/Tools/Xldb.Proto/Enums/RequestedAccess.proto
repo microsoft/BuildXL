@@ -1,0 +1,23 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum RequestedAccess{
+    RequestedAccess_UNSPECIFIED = 0;
+
+    RequestedAccess_None = 1;
+    RequestedAccess_Read = 2;
+    RequestedAccess_Write = 4;
+    Probe = 8;
+    Enumerate = 16;
+    EnumerationProbe = 32;
+    // Read | Write => 2 | 4 = 6
+    ReadWrite = 6;
+    // Read | Write | Probe | Enumerate | EnumerationProbe =>  2 | 4 | 8 | 16 | 31 = 62
+    All = 62;
+}

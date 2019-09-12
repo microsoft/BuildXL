@@ -323,7 +323,7 @@ namespace BuildXL.Engine
             m_buildViewModel = buildViewModel;
 
             var loggingConfig = Configuration.Logging;
-            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
             {
                 var filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), loggingConfig.LogPrefix + ".Summary.md");
                 
@@ -1809,12 +1809,24 @@ namespace BuildXL.Engine
                                 {
                                     Contract.Assert(engineSchedule != null);
 
-                                    IdeGenerator.Generate(
-                                        engineSchedule.Context,
-                                        engineSchedule.Scheduler.PipGraph,
-                                        engineSchedule.Scheduler.ScheduledGraph,
-                                        m_initialCommandLineConfiguration.Startup.ConfigFile,
-                                        Configuration.Ide);
+                                    if (Configuration.Ide.IsNewEnabled)
+                                    {
+                                        IdeGenerator.Generate(
+                                            engineSchedule.Context,
+                                            engineSchedule.Scheduler.PipGraph,
+                                            engineSchedule.Scheduler.ScheduledGraph,
+                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                            Configuration.Ide);
+                                    }
+                                    else
+                                    {
+                                        BuildXL.Ide.Generator.Old.IdeGenerator.Generate(
+                                            engineSchedule.Context,
+                                            engineSchedule.Scheduler.PipGraph,
+                                            engineSchedule.Scheduler.ScheduledGraph,
+                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                            Configuration.Ide);
+                                    }
                                 }
 
                                 // Front end is no longer needed and can be clean-up before moving to a next phase.
@@ -3314,7 +3326,7 @@ namespace BuildXL.Engine
         {
             if (loggingConfig != null)
             {
-                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
                 {
                     return 10_000;
                 }

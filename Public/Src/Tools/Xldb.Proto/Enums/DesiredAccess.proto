@@ -1,0 +1,25 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum DesiredAccess{
+    DesiredAccess_UNSPECIFIED = 0;
+
+    DELETE = 0x00010000;
+    SYNCHRONIZE = 0x00100000;
+    FILE_APPEND_DATA = 0x00000004;
+    FILE_WRITE_EA = 0x00000010;
+    FILE_WRITE_ATTRIBUTES = 0x00000100;
+    FILE_WRITE_DATA = 0x00000002;
+    GENERIC_ALL = 0x10000000;
+    GENERIC_EXECUTE = 0x20000000;
+    GENERIC_WRITE = 0x40000000;
+    
+    // Protobuf Maximum value for enums is 2^31-1, so we assign this to -2^31
+    GENERIC_READ = -2147483648;
+}

@@ -619,6 +619,9 @@ namespace BuildXL
                             "mF",
                             opt => frontEndConfiguration.MaxFrontEndConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
+                            "enableEvaluationThrottling",
+                            opt => frontEndConfiguration.EnableEvaluationThrottling = CommandLineUtilities.ParseBooleanOption(opt)),
+                        OptionHandlerFactory.CreateOption(
                             "maxRestoreNugetConcurrency",
                             opt => frontEndConfiguration.MaxRestoreNugetConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
@@ -684,6 +687,15 @@ namespace BuildXL
                             "optimizeConsoleOutputForAzureDevOps",
                             "ado",
                             sign => loggingConfiguration.OptimizeConsoleOutputForAzureDevOps = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "adoProgressLogging",
+                            sign => loggingConfiguration.OptimizeProgressUpdatingForAzureDevOps = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "adoTaskLogging",
+                            sign => loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "adoWarningErrorLogging",
+                            sign => loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps = sign),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",
                             opt => schedulingConfiguration.OutputFileExtensionsForSequentialScanHandleOnHashing.AddRange(CommandLineUtilities.ParseRepeatingPathAtomOption(opt, pathTable.StringTable, ";"))),
@@ -1126,6 +1138,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "vs",
                             sign => ideConfiguration.IsEnabled = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "vsNew", // temporary undocumented option for enabling new VS solution generation
+                            sign => ideConfiguration.IsNewEnabled = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),

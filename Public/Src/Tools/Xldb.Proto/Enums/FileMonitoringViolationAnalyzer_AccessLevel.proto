@@ -1,0 +1,15 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum FileMonitoringViolationAnalyzer_AccessLevel{
+    FileMonitoringViolationAnalyzer_AccessLevel_UNSPECIFIED = 0;
+
+    FileMonitoringViolationAnalyzer_AccessLevel_Read = 1;
+    FileMonitoringViolationAnalyzer_AccessLevel_Write = 2;
+}

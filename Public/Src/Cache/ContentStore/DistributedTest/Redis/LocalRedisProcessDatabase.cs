@@ -84,6 +84,7 @@ namespace ContentStoreTest.Distributed.Redis
             IDictionary<RedisKey, DateTime> expiryData,
             IDictionary<RedisKey, RedisValue[]> setData)
         {
+            logger.Debug($"Fixture '{redisFixture.Id}' has {redisFixture.DatabasePool.ObjectsInPool} available redis databases.");
             var instance = redisFixture.DatabasePool.GetInstance();
             var oldOrNew = instance.Instance._process != null ? "an old" : "a new";
             logger.Debug($"LocalRedisProcessDatabase: got {oldOrNew} instance from the pool.");
@@ -112,6 +113,7 @@ namespace ContentStoreTest.Distributed.Redis
                 return;
             }
 
+            _logger.Debug($"Returning database to pool in fixture '{_redisFixture.Id}'");
             _redisFixture.DatabasePool.PutInstance(this);
             _disposed = true;
         }

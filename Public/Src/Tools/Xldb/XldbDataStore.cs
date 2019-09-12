@@ -17,11 +17,11 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Rocks DB Accessor for XLG++ data
         /// </summary>
-        private KeyValueStoreAccessor Accessor { get; set; }
+        private readonly KeyValueStoreAccessor m_accessor;
+
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
         private Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
 
-        public const string EventCountKey = "EventCount";
         public const string EventColumnFamilyName = "Event";
         public const string PipColumnFamilyName = "Pip";
         public const string StaticGraphColumnFamilyName = "StaticGraph";
@@ -47,12 +47,12 @@ namespace BuildXL.Xldb
 
             if (accessor.Succeeded)
             {
-                Accessor = accessor.Result;
+                m_accessor = accessor.Result;
             }
             else
             {
-                Accessor = null;
-                Console.Error.WriteLine("Could not create an accessor for RocksDB. Accessor is null! " + accessor.Failure.DescribeIncludingInnerFailures());
+                m_accessor = null;
+                throw new Exception($"Could not create an accessor for RocksDB. Accessor is null! Error is {accessor.Failure.DescribeIncludingInnerFailures()}");
             }
 
             m_eventParserDictionary.Add(ExecutionEventId.FileArtifactContentDecided, FileArtifactContentDecidedEvent.Parser);
@@ -83,7 +83,7 @@ namespace BuildXL.Xldb
         /// <returns>List of events, empty if no such events exist</returns>
         private IEnumerable<IMessage> GetEventsByType(ExecutionEventId eventTypeID)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -99,7 +99,7 @@ namespace BuildXL.Xldb
         /// <returns>List of events, empty if no such events exist</returns>
         private IEnumerable<IMessage> GetEventsByKey(EventKey eventKey)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var storedEvents = new List<IMessage>();
 
@@ -108,7 +108,7 @@ namespace BuildXL.Xldb
                 Contract.Assert(false, "No parser found for EventTypeId passed in");
             }
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(eventKey.ToByteArray(), EventColumnFamilyName))
                 {
@@ -129,7 +129,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolatedEventByKey(uint violatorPipID, uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -146,7 +146,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = 0, uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -160,11 +160,11 @@ namespace BuildXL.Xldb
         }
 
         /// <summary>
-        /// Gets process fingerprint computation events by key
+        /// Gets process fingerprint computation events by key.
         /// </summary>
         public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -182,7 +182,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -200,7 +200,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = "", uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -218,7 +218,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int fileRewriteCount = 0, uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -251,7 +251,7 @@ namespace BuildXL.Xldb
         /// </summary>
         private IEnumerable<IMessage> GetEventsByPipIdOnly(ExecutionEventId eventTypeID, uint pipID, uint workerID = 0)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
@@ -264,46 +264,25 @@ namespace BuildXL.Xldb
         }
 
         /// <summary>
-        /// Returns the count and payload of events by the event type
+        /// Returns the count and payload of items stored in the DB
         /// </summary>
-        /// <returns>EventCountsByTypeValue if exists, null otherwise</returns>
-        public EventCountByTypeValue GetCountByEvent(ExecutionEventId eventTypeID)
+        /// <returns>DBStorageStatsValue if exists, null otherwise</returns>
+        public DBStorageStatsValue GetCountByEvent(DBStoredTypes storageType)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
-            var eventCountKey = new EventCountByTypeKey
+            var storageStatsKey = new DBStorageStatsKey
             {
-                EventTypeID = eventTypeID,
+                StorageType = storageType,
             };
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
-                if (database.TryGetValue(eventCountKey.ToByteArray(), out var eventCountObj))
+                if (database.TryGetValue(storageStatsKey.ToByteArray(), out var storageStatValue))
                 {
-                    return EventCountByTypeValue.Parser.ParseFrom(eventCountObj);
+                    return DBStorageStatsValue.Parser.ParseFrom(storageStatValue);
                 }
                 return null;
-            });
-
-            if (!maybeFound.Succeeded)
-            {
-                maybeFound.Failure.Throw();
-            }
-
-            return maybeFound.Result;
-        }
-
-        /// <summary>
-        /// Gets the total number of stored xlg events in the database, 0 if the accessor was unsuccesful.
-        /// </summary>
-        public uint GetTotalEventCount()
-        {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
-
-            var maybeFound = Accessor.Use(database =>
-            {
-                database.TryGetValue(Encoding.ASCII.GetBytes(EventCountKey), out var eventCountObj);
-                return EventCount.Parser.ParseFrom(eventCountObj).Value;
             });
 
             if (!maybeFound.Succeeded)
@@ -385,7 +364,7 @@ namespace BuildXL.Xldb
         /// <returns>Returns null if no such pip is found</returns>
         public IMessage GetPipBySemiStableHash(long semiStableHash, out PipType pipType)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             IMessage foundPip = null;
 
@@ -396,7 +375,7 @@ namespace BuildXL.Xldb
 
             PipType outPipType = 0;
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 if (database.TryGetValue(pipSemistableHashKey.ToByteArray(), out var pipValueSemistableHash, PipColumnFamilyName))
                 {
@@ -419,7 +398,7 @@ namespace BuildXL.Xldb
         /// <returns>Returns null if no such pip is found</returns>
         public IMessage GetPipByPipId(uint pipId, out PipType pipType)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             IMessage foundPip = null;
 
@@ -430,7 +409,7 @@ namespace BuildXL.Xldb
 
             PipType outPipType = 0;
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(pipIdKey.ToByteArray(), PipColumnFamilyName))
                 {
@@ -463,7 +442,7 @@ namespace BuildXL.Xldb
         /// <returns>Returns list of all pips of certain type, empty if no such pips exist.</returns>
         public IEnumerable<IMessage> GetAllPipsByType(PipType pipType)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var storedPips = new List<IMessage>();
 
@@ -475,7 +454,7 @@ namespace BuildXL.Xldb
             // Empty key will match all pips in the prefix search, and then we grab only the ones that match the type we want
             var pipIdKey = new PipIdKey();
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(pipIdKey.ToByteArray(), PipColumnFamilyName))
                 {
@@ -526,14 +505,14 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<(PipType, IMessage)> GetAllScheduledPips()
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var allPips = new List<(PipType, IMessage)>();
 
             // Empty key to prefix match all pips stored in DB
             var pipIdKey = new PipIdKey();
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(pipIdKey.ToByteArray(), PipColumnFamilyName))
                 {
@@ -564,14 +543,14 @@ namespace BuildXL.Xldb
         /// <returns>Metadata, null if no such value found</returns>
         public PipGraph GetPipGraphMetaData()
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var graphMetadata = new CachedGraphKey
             {
                 PipGraph = true
             };
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 database.TryGetValue(graphMetadata.ToByteArray(), out var pipTableMetadata, StaticGraphColumnFamilyName);
                 return PipGraph.Parser.ParseFrom(pipTableMetadata);
@@ -592,7 +571,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public (IEnumerable<uint>, IEnumerable<uint>) GetProducerAndConsumersOfPath(string path, bool isDirectory)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             if (isDirectory)
             {
@@ -609,7 +588,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<uint> GetProducersOfFile(string path)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var fileProducerKey = new FileProducerConsumerKey()
             {
@@ -625,7 +604,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<uint> GetConsumersOfFile(string path)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var fileConsumerKey = new FileProducerConsumerKey()
             {
@@ -641,11 +620,11 @@ namespace BuildXL.Xldb
         /// </summary>
         private IEnumerable<uint> GetProducerConsumerOfFileByKey(FileProducerConsumerKey key)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var fileProducersOrConsumers = new List<uint>();
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(key.ToByteArray(), StaticGraphColumnFamilyName))
                 {
@@ -675,7 +654,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<uint> GetProducersOfDirectory(string path)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var directoryProducerKey = new DirectoryProducerConsumerKey()
             {
@@ -691,7 +670,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public IEnumerable<uint> GetConsumersOfDirectory(string path)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var directoryConsumerKey = new DirectoryProducerConsumerKey()
             {
@@ -707,11 +686,11 @@ namespace BuildXL.Xldb
         /// </summary>
         private IEnumerable<uint> GetProducerConsumerOfDirectoryByKey(DirectoryProducerConsumerKey key)
         {
-            Contract.Requires(Accessor != null, "XldbDataStore is not initialized");
+            Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var directoryProducerOrConsumers = new List<uint>();
 
-            var maybeFound = Accessor.Use(database =>
+            var maybeFound = m_accessor.Use(database =>
             {
                 foreach (var kvp in database.PrefixSearch(key.ToByteArray(), StaticGraphColumnFamilyName))
                 {
@@ -740,7 +719,7 @@ namespace BuildXL.Xldb
         /// </summary>
         public void Dispose()
         {
-            Accessor.Dispose();
+            m_accessor.Dispose();
         }
     }
 }

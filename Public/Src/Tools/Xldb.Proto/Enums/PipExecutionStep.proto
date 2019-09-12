@@ -1,0 +1,29 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum PipExecutionStep{
+    PipExecutionStep_UNSPECIFIED = 0;
+    
+    PipExecutionStep_None = 1;
+    Start = 2;
+    Cancel = 3;
+    SkipDueToFailedDependencies = 4;
+    CheckIncrementalSkip = 5;
+    MaterializeInputs = 6;
+    MaterializeOutputs = 7;
+    ExecuteNonProcessPip = 8;
+    PipExecutionStep_CacheLookup = 9;
+    RunFromCache = 10;
+    ExecuteProcess = 11;
+    PostProcess = 12;
+    HandleResult = 13;
+    PipExecutionStep_ChooseWorkerCpu = 14;
+    PipExecutionStep_ChooseWorkerCacheLookup = 15;
+    Done = 16;
+}

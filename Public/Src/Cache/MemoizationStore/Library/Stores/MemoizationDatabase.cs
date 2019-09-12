@@ -6,6 +6,7 @@ extern alias Async;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -34,13 +35,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public abstract Task<Result<bool>> CompareExchange(
             OperationContext context,
             StrongFingerprint strongFingerprint,
+            string expectedReplacementToken,
             ContentHashListWithDeterminism expected,
             ContentHashListWithDeterminism replacement);
 
         /// <summary>
-        /// Load a ContentHashList.
+        /// Load a ContentHashList and the token used to replace it.
         /// </summary>
-        public abstract Task<GetContentHashListResult> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
+        public abstract Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
 
         /// <summary>
         /// Enumerates all strong fingerprints

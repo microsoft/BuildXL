@@ -1,0 +1,21 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum WorkDispatcher_DispatcherKind{
+    WorkDispatcher_DispatcherKind_UNSPECIFIED = 0;
+
+    WorkDispatcherKind_None = 1;
+    IO = 2;
+    WorkDispatcher_DispatcherKind_CPU = 3;
+    Light = 4;
+    WorkDispatcher_DispatcherKind_CacheLookup = 5;
+    WorkDispatcher_DispatcherKind_ChooseWorkerCpu = 6;
+    WorkDispatcher_DispatcherKind_ChooseWorkerCacheLookup = 7;
+    Materialize = 8;
+}

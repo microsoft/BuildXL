@@ -8,6 +8,9 @@ const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverag
     ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
     : "None";
 
+const isChangeBasedCodeCoverage = Environment.getFlag("[Sdk.BuildXL]inputChangesPresented");
+
+
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
     exe: f`${root}/bin/DBS.QTest.exe`,
@@ -126,7 +129,7 @@ export function runQTest(args: QTestArguments): Result {
      
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
-    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+    if (qCodeCoverageEnumType === "DynamicCodeCov" && isChangeBasedCodeCoverage){
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
@@ -185,7 +188,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
-        Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile)       
+        Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
+        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile)
     ];          
 
     let unsafeOptions = {
@@ -357,6 +361,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestEnvironmentVariables?: Transformer.EnvironmentVariable[];
     /** Specify the path relative to enlistment root of the sources from which the test target is built */
     testSourceDir?: RelativePath;
+    /** Path to a file which contains a list of target file names excluded for code coverage processing*/
+    qTestExcludeCcTargetsFile?: Path;
 }
 /**
  * Test results from a vstest.console.exe run

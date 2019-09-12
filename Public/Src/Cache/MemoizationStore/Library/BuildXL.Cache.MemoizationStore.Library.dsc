@@ -20,6 +20,8 @@ namespace Library {
             
             importFrom("BuildXL.Utilities").dll,
 
+            importFrom("StackExchange.Redis.StrongName").pkg,
+
             importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
 

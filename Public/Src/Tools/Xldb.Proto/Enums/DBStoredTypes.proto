@@ -41,4 +41,8 @@ enum DBStoredTypes{
     DBStoredTypes_FileProducer = 20;
     DBStoredTypes_DirectoryConsumer = 21;
     DBStoredTypes_DirectoryProducer = 22;
+
+    // Metadata Information
+    DBStoredTypes_GraphMetaData = 23;
+    DBStoredTypes_MountPathExpander = 24;
 }

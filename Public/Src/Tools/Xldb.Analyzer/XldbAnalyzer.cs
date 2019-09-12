@@ -139,7 +139,7 @@ namespace Xldb.Analyzer
 
                 foreach (DBStoredTypes storageType in Enum.GetValues(typeof(DBStoredTypes)))
                 {
-                    var dbStorageStatValue = dataStore.GetCountByEvent(storageType);
+                    var dbStorageStatValue = dataStore.GetDBStatsInfoByStorageType(storageType);
 
                     if (dbStorageStatValue != null)
                     {
@@ -276,7 +276,7 @@ namespace Xldb.Analyzer
                 }
 
                 writer.WriteLine("Dependency Violation Reported Event:\n");
-                var depViolationEvents = dataStore.GetDependencyViolatedEventByKey(pipId);
+                var depViolationEvents = dataStore.GetDependencyViolationEventByKey(pipId);
 
                 foreach (var ev in depViolationEvents)
                 {

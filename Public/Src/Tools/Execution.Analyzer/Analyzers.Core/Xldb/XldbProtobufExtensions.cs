@@ -3,7 +3,6 @@
 
 using System.Linq;
 using BuildXL.Engine;
-using BuildXL.Processes;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
@@ -11,14 +10,12 @@ using BuildXL.Xldb.Proto;
 using static BuildXL.Utilities.HierarchicalNameTable;
 using AbsolutePath = BuildXL.Utilities.AbsolutePath;
 using CopyFile = BuildXL.Pips.Operations.CopyFile;
+using ContentHash = BuildXL.Cache.ContentStore.Hashing.ContentHash;
 using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;
-using Edge = BuildXL.Scheduler.Graph.Edge;
 using FileArtifact = BuildXL.Utilities.FileArtifact;
 using FileOrDirectoryArtifact = BuildXL.Utilities.FileOrDirectoryArtifact;
 using Fingerprint = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.Fingerprint;
 using IpcPip = BuildXL.Pips.Operations.IpcPip;
-using NodeId = BuildXL.Scheduler.Graph.NodeId;
-using NodeRange = BuildXL.Scheduler.Graph.NodeRange;
 using ObservedPathEntry = BuildXL.Scheduler.Fingerprints.ObservedPathEntry;
 using ObservedPathSet = BuildXL.Scheduler.Fingerprints.ObservedPathSet;
 using Pip = BuildXL.Pips.Operations.Pip;
@@ -33,6 +30,9 @@ using ReportedProcess = BuildXL.Processes.ReportedProcess;
 using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
+using MountPathExpander = BuildXL.Engine.MountPathExpander;
+using BuildXL.Pips;
+using SemanticPathInfo = BuildXL.Pips.SemanticPathInfo;
 
 /// Many enums have been shifted or incremented and this is to avoid protobuf's design to not serialize 
 /// int/enum values that are equal to 0. Thus we make "0" as an invalid value for each ProtoBuf enum.
@@ -52,8 +52,13 @@ namespace BuildXL.Execution.Analyzer
                 FileArtifact = data.FileArtifact.ToFileArtifact(pathTable, nameExpander),
                 FileContentInfo = new FileContentInfo
                 {
-                    LengthAndExistence = data.FileContentInfo.SerializedLengthAndExistence,
-                    Hash = new ContentHash() { Value = data.FileContentInfo.Hash.ToString() }
+                    LengthAndExistence = new LengthAndExistence()
+                    {
+                        HasKnownLength = data.FileContentInfo.HasKnownLength,
+                        Length = data.FileContentInfo.Length,
+                        Existence = data.FileContentInfo.Existence == null ? 0 : (PathExistence)(data.FileContentInfo.Existence + 1)
+                    },
+                    Hash = data.FileContentInfo.Hash.ToContentHash()
                 },
                 OutputOrigin = (PipOutputOrigin)(data.OutputOrigin + 1)
             };
@@ -75,7 +80,7 @@ namespace BuildXL.Execution.Analyzer
         public static PipExecutionPerformanceEvent ToPipExecutionPerformanceEvent(this PipExecutionPerformanceEventData data)
         {
             var pipExecPerfEvent = new PipExecutionPerformanceEvent();
-            var pipExecPerformance = new PipExecutionPerformance();
+            var pipExecPerformance = new Xldb.Proto.PipExecutionPerformance();
             pipExecPerformance.PipExecutionLevel = (int)data.ExecutionPerformance.ExecutionLevel;
             pipExecPerformance.ExecutionStart = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.ExecutionPerformance.ExecutionStart);
             pipExecPerformance.ExecutionStop = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(data.ExecutionPerformance.ExecutionStop);
@@ -88,28 +93,27 @@ namespace BuildXL.Execution.Analyzer
                 processPipExecPerformance.ReadCounters = new IOTypeCounters()
                 {
                     OperationCount = performance.IO.ReadCounters.OperationCount,
-                    TransferCOunt = performance.IO.ReadCounters.TransferCount
+                    TransferCount = performance.IO.ReadCounters.TransferCount
                 };
 
                 processPipExecPerformance.WriteCounters = new IOTypeCounters()
                 {
                     OperationCount = performance.IO.WriteCounters.OperationCount,
-                    TransferCOunt = performance.IO.WriteCounters.TransferCount
+                    TransferCount = performance.IO.WriteCounters.TransferCount
                 };
 
                 processPipExecPerformance.OtherCounters = new IOTypeCounters()
                 {
                     OperationCount = performance.IO.OtherCounters.OperationCount,
-                    TransferCOunt = performance.IO.OtherCounters.TransferCount
+                    TransferCount = performance.IO.OtherCounters.TransferCount
                 };
 
                 processPipExecPerformance.UserTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.UserTime);
                 processPipExecPerformance.KernelTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.KernelTime);
                 processPipExecPerformance.PeakMemoryUsage = performance.PeakMemoryUsage;
-                processPipExecPerformance.PeakMemoryUsageMb = performance.PeakMemoryUsageMb;
                 processPipExecPerformance.NumberOfProcesses = performance.NumberOfProcesses;
 
-                processPipExecPerformance.FileMonitoringViolationCounters = new FileMonitoringViolationCounters()
+                processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.Proto.FileMonitoringViolationCounters()
                 {
                     NumFileAccessesWhitelistedAndCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedAndCacheable,
                     NumFileAccessesWhitelistedButNotCacheable = performance.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
@@ -139,7 +143,7 @@ namespace BuildXL.Execution.Analyzer
                 WorkerID = workerID,
                 DirectoryFingerprint = new DirectoryFingerprint()
                 {
-                    Hash = new ContentHash() { Value = data.DirectoryFingerprint.Hash.ToString() }
+                    Hash = data.DirectoryFingerprint.Hash.ToContentHash()
                 },
                 Directory = data.Directory.ToAbsolutePath(pathTable, nameExpander),
                 IsStatic = data.IsSearchPath,
@@ -184,7 +188,8 @@ namespace BuildXL.Execution.Analyzer
                     DisableDetours = processDetouringStatus.DisableDetours,
                     CreationFlags = processDetouringStatus.CreationFlags,
                     Detoured = processDetouringStatus.Detoured,
-                    Error = processDetouringStatus.Error
+                    Error = processDetouringStatus.Error,
+                    CreateProcessStatusReturn = processDetouringStatus.CreateProcessStatusReturn
                 });
             }
 
@@ -199,7 +204,7 @@ namespace BuildXL.Execution.Analyzer
                 WorkerID = workerID,
                 Kind = (Xldb.Proto.FingerprintComputationKind)(data.Kind + 1),
                 PipID = data.PipId.Value,
-                WeakFingerprint = new WeakContentFingerPrint()
+                WeakFingerprint = new WeakContentFingerprint()
                 {
                     Hash = data.WeakFingerprint.Hash.ToFingerprint()
                 },
@@ -210,14 +215,11 @@ namespace BuildXL.Execution.Analyzer
                 var processStrongFingerprintComputationData = new Xldb.Proto.ProcessStrongFingerprintComputationData()
                 {
                     PathSet = strongFingerprintComputation.PathSet.ToObservedPathSet(pathTable, nameExpander),
-                    PathSetHash = new ContentHash()
-                    {
-                        Value = strongFingerprintComputation.PathSetHash.ToString()
-                    },
+                    PathSetHash = strongFingerprintComputation.PathSetHash.ToContentHash(),
                     UnsafeOptions = strongFingerprintComputation.UnsafeOptions.ToUnsafeOptions(),
                     Succeeded = strongFingerprintComputation.Succeeded,
                     IsStrongFingerprintHit = strongFingerprintComputation.IsStrongFingerprintHit,
-                    ComputedStrongFingerprint = new StrongContentFingerPrint()
+                    ComputedStrongFingerprint = new StrongContentFingerprint()
                     {
                         Hash = strongFingerprintComputation.ComputedStrongFingerprint.Hash.ToFingerprint()
                     }
@@ -231,17 +233,14 @@ namespace BuildXL.Execution.Analyzer
                         observedAccessedFileName => observedAccessedFileName.ToString(pathTable)));
                 processStrongFingerprintComputationData.PriorStrongFingerprints.AddRange(
                     strongFingerprintComputation.PriorStrongFingerprints.Select(
-                        priorStrongFingerprint => new StrongContentFingerPrint() { Hash = priorStrongFingerprint.Hash.ToFingerprint() }));
+                        priorStrongFingerprint => new StrongContentFingerprint() { Hash = priorStrongFingerprint.Hash.ToFingerprint() }));
 
                 foreach (var observedInput in strongFingerprintComputation.ObservedInputs)
                 {
                     processStrongFingerprintComputationData.ObservedInputs.Add(new ObservedInput()
                     {
                         Type = (ObservedInputType)(observedInput.Type + 1),
-                        Hash = new ContentHash()
-                        {
-                            Value = observedInput.Hash.ToString()
-                        },
+                        Hash = observedInput.Hash.ToContentHash(),
                         PathEntry = observedInput.PathEntry.ToObservedPathEntry(pathTable, nameExpander),
                         Path = observedInput.Path.ToAbsolutePath(pathTable, nameExpander),
                         IsSearchPath = observedInput.IsSearchPath,
@@ -275,7 +274,7 @@ namespace BuildXL.Execution.Analyzer
                 IgnoreGetFinalPathNameByHandle = data.IgnoreGetFinalPathNameByHandle,
                 FingerprintVersion = (int)data.FingerprintVersion,
                 FingerprintSalt = data.FingerprintSalt,
-                SearchPathToolsHash = new ContentHash() { Value = data.SearchPathToolsHash.ToString() },
+                SearchPathToolsHash = data.SearchPathToolsHash != null ? ((ContentHash)data.SearchPathToolsHash).ToContentHash() : null,
                 UnexpectedFileAccessesAreErrors = data.UnexpectedFileAccessesAreErrors,
                 MonitorFileAccesses = data.MonitorFileAccesses,
                 MaskUntrackedAccesses = data.MaskUntrackedAccesses,
@@ -376,7 +375,20 @@ namespace BuildXL.Execution.Analyzer
                 IsSubstTargetValid = loggingConfig.SubstTarget.IsValid
             };
 
+            bxlInvEvent.CommandLineArguments.AddRange(data.Configuration.CommandLineArguments);
+
             return bxlInvEvent;
+        }
+
+        public static Xldb.Proto.ContentHash ToContentHash(this ContentHash contentHash)
+        {
+            return new Xldb.Proto.ContentHash()
+            {
+                Value = Google.Protobuf.ByteString.CopyFrom(contentHash.ToHashByteArray()),
+                HashType = contentHash.HashType == Cache.ContentStore.Hashing.HashType.DeprecatedVso0 ? Xldb.Proto.HashType.DeprecatedVso0 : (Xldb.Proto.HashType)(contentHash.HashType + 1),
+                ByteLength = contentHash.ByteLength,
+                StringLength = contentHash.StringLength,
+            };
         }
 
         /// <nodoc />
@@ -425,10 +437,7 @@ namespace BuildXL.Execution.Analyzer
         {
             var unsafeOpt = new Xldb.Proto.UnsafeOptions()
             {
-                PreserveOutputsSalt = new ContentHash()
-                {
-                    Value = unsafeOption.PreserveOutputsSalt.ToString()
-                },
+                PreserveOutputsSalt = unsafeOption.PreserveOutputsSalt.ToContentHash(),
                 UnsafeConfiguration = new UnsafeSandboxConfiguration()
                 {
                     PreserveOutputs = (PreserveOutputsMode)(unsafeOption.UnsafeConfiguration.PreserveOutputs + 1),
@@ -493,17 +502,17 @@ namespace BuildXL.Execution.Analyzer
                 ReadCounters = new IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.ReadCounters.OperationCount,
-                    TransferCOunt = reportedProcess.IOCounters.ReadCounters.TransferCount
+                    TransferCount = reportedProcess.IOCounters.ReadCounters.TransferCount
                 },
                 WriteCounters = new IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.WriteCounters.OperationCount,
-                    TransferCOunt = reportedProcess.IOCounters.WriteCounters.TransferCount
+                    TransferCount = reportedProcess.IOCounters.WriteCounters.TransferCount
                 },
                 OtherCounters = new IOTypeCounters
                 {
                     OperationCount = reportedProcess.IOCounters.OtherCounters.OperationCount,
-                    TransferCOunt = reportedProcess.IOCounters.OtherCounters.TransferCount
+                    TransferCount = reportedProcess.IOCounters.OtherCounters.TransferCount
                 },
                 CreationTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(reportedProcess.CreationTime),
                 ExitTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(reportedProcess.ExitTime),
@@ -520,7 +529,13 @@ namespace BuildXL.Execution.Analyzer
             return new Xldb.Proto.ObservedPathEntry()
             {
                 Path = pathEntry.Path.ToAbsolutePath(pathTable, nameExpander),
-                EnumeratePatternRegex = pathEntry.EnumeratePatternRegex ?? ""
+                EnumeratePatternRegex = pathEntry.EnumeratePatternRegex ?? "",
+                IsSearchPath = pathEntry.IsSearchPath,
+                IsDirectoryPath = pathEntry.IsDirectoryPath,
+                DirectoryEnumeration = pathEntry.DirectoryEnumeration,
+                DirectoryEnumerationWithCustomPattern = pathEntry.DirectoryEnumerationWithCustomPattern,
+                DirectoryEnumerationWithAllPattern = pathEntry.DirectoryEnumerationWithAllPattern,
+                IsFileProbe = pathEntry.IsFileProbe
             };
         }
 
@@ -595,7 +610,7 @@ namespace BuildXL.Execution.Analyzer
 
                 if (pipType != PipType.Value && pipType != PipType.HashSourceFile && pipType != PipType.SpecFile && pipType != PipType.Module)
                 {
-                    xldbPip.IncomingEdges.Add(incomingEdge.ToEdge());
+                    xldbPip.IncomingEdges.Add(incomingEdge.OtherNode.Value);
                 }
             }
 
@@ -605,7 +620,7 @@ namespace BuildXL.Execution.Analyzer
 
                 if (pipType != PipType.Value && pipType != PipType.HashSourceFile && pipType != PipType.SpecFile && pipType != PipType.Module)
                 {
-                    xldbPip.OutgoingEdges.Add(outgoingEdge.ToEdge());
+                    xldbPip.OutgoingEdges.Add(outgoingEdge.OtherNode.Value);
                 }
             }
 
@@ -687,10 +702,12 @@ namespace BuildXL.Execution.Analyzer
                 ProcessOptions = pip.ProcessOptions == Process.Options.None ? Options.None : (Options) ((int)pip.ProcessOptions << 1),
                 StandardInputFile = pip.StandardInputFile.ToFileArtifact(pathTable, nameExpander),
                 StandardInputData = pip.StandardInputData.IsValid ? pip.StandardInputData.ToString(pathTable) : "",
-                StandardInput = !pip.StandardInput.IsValid ? null : new StandardInput()
+                StandardInput = !pip.StandardInput.IsValid ? null : new Xldb.Proto.StandardInput()
                 {
                     File = pip.StandardInput.File.ToFileArtifact(pathTable, nameExpander),
                     Data = pip.StandardInput.Data.ToString(pathTable),
+                    IsFile = pip.StandardInput.IsFile,
+                    IsData = pip.StandardInput.IsData
                 },
                 ResponseFile = pip.ResponseFile.ToFileArtifact(pathTable, nameExpander),
                 ResponseFileData = pip.ResponseFileData.IsValid ? pip.ResponseFileData.ToString(pathTable) : "",
@@ -774,45 +791,13 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static Xldb.Proto.NodeId ToNodeId(this NodeId nodeId)
-        {
-            return !nodeId.IsValid ? null : new Xldb.Proto.NodeId()
-            {
-                Value = nodeId.Value
-            };
-        }
-
-        /// <nodoc />
-        public static Xldb.Proto.Edge ToEdge(this Edge edge)
-        {
-            return new Xldb.Proto.Edge()
-            {
-                OtherNode = edge.OtherNode.ToNodeId(),
-                IsLight = edge.IsLight,
-                Value = edge.Value
-            };
-        }
-
-        /// <nodoc />
-        public static Xldb.Proto.NodeRange ToNodeRange(this NodeRange nodeRange)
-        {
-            return new Xldb.Proto.NodeRange()
-            {
-                IsEmpty = nodeRange.IsEmpty,
-                Size = nodeRange.Size,
-                FromInclusive = nodeRange.FromInclusive.ToNodeId(),
-                ToInclusive = nodeRange.ToInclusive.ToNodeId()
-            };
-        }
-
-        /// <nodoc />
         public static Xldb.Proto.PipGraph ToPipGraph(this PipGraph pipGraph, PathTable pathTable, PipTable pipTable, NameExpander nameExpander)
         {
             var xldbPipGraph = new Xldb.Proto.PipGraph()
             {
                 GraphId = pipGraph.GraphId.ToString(),
                 SemistableFingerprint = new ContentFingerprint() { Hash = pipGraph.SemistableFingerprint.Hash.ToFingerprint() },
-                NodeRange = pipGraph.NodeRange.ToNodeRange(),
+                NodeCount = pipTable.StableKeys.Count,
                 MaxAbsolutePathIndex = pipGraph.MaxAbsolutePathIndex,
                 FileCount = pipGraph.FileCount,
                 ContentCount = pipGraph.ContentCount,
@@ -829,10 +814,61 @@ namespace BuildXL.Execution.Analyzer
 
             foreach (var kvp in pipGraph.Modules)
             {
-                xldbPipGraph.Modules.Add(kvp.Key.Value.ToString(pathTable), kvp.Value.ToNodeId());
+                xldbPipGraph.Modules.Add(kvp.Key.Value.ToString(pathTable), kvp.Value.Value);
             }
 
             return xldbPipGraph;
+        }
+
+        /// <nodoc />
+        public static Xldb.Proto.MountPathExpander ToMountPathExpander(this MountPathExpander mount, PathTable pathTable, NameExpander nameExpander)
+        {
+            var xldbMountPathExpander = new Xldb.Proto.MountPathExpander();
+
+            xldbMountPathExpander.WriteableRoots.AddRange(mount.GetWritableRoots().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbMountPathExpander.PathsWithAllowedCreateDirectory.AddRange(mount.GetPathsWithAllowedCreateDirectory().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbMountPathExpander.ScrubbableRoots.AddRange(mount.GetScrubbableRoots().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+            xldbMountPathExpander.AllRoots.AddRange(mount.GetAllRoots().Select(path => path.ToAbsolutePath(pathTable, nameExpander)));
+
+            foreach(var kvp in mount.GetAllMountsByName())
+            {
+                xldbMountPathExpander.MountsByName.Add(kvp.Key, kvp.Value.ToSemanticPathInfo(pathTable, nameExpander));
+            }
+
+            return xldbMountPathExpander;
+        }
+
+        /// <nodoc />
+        public static Xldb.Proto.SemanticPathInfo ToSemanticPathInfo(this SemanticPathInfo pathInfo, PathTable pathTable, NameExpander nameExpander)
+        {
+            var xldbSemanticPathInfo = new Xldb.Proto.SemanticPathInfo()
+            {
+                Root = pathInfo.Root.ToAbsolutePath(pathTable, nameExpander),
+                RootName = pathInfo.RootName.ToString(pathTable.StringTable),
+                IsValid = pathInfo.IsValid,
+                AllowHashing = pathInfo.AllowHashing,
+                IsReadable = pathInfo.IsReadable,
+                IsWriteable = pathInfo.IsWritable,
+                AllowCreateDirectory = pathInfo.AllowCreateDirectory,
+                IsSystem = pathInfo.IsSystem,
+                IsScrubbable = pathInfo.IsScrubbable,
+                HasPotentialBuildOutputs = pathInfo.HasPotentialBuildOutputs,
+            };
+
+            if (pathInfo.Flags == Pips.SemanticPathFlags.None)
+            {
+                xldbSemanticPathInfo.Flags = Xldb.Proto.SemanticPathFlags.None;
+            }
+            else if (pathInfo.Flags == Pips.SemanticPathFlags.Writable)
+            {
+                xldbSemanticPathInfo.Flags = Xldb.Proto.SemanticPathFlags.Writable;
+            }
+            else
+            {
+                xldbSemanticPathInfo.Flags = (Xldb.Proto.SemanticPathFlags)((int)pathInfo.Flags << 1);
+            }
+
+            return xldbSemanticPathInfo;
         }
     }
 }

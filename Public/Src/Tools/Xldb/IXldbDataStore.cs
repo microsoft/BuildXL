@@ -19,7 +19,7 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets all IPC Pips
         /// </summary>
-        IEnumerable<IpcPip> GetAllIPCPips();
+        IEnumerable<IpcPip> GetAllIpcPips();
 
         /// <summary>
         /// Gets all pips of a certain type.
@@ -63,10 +63,10 @@ namespace BuildXL.Xldb
         IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents();
 
         /// <summary>
-        /// Gets a depdendency violated events by key
+        /// Gets a depdendency violation events by key
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationEventByKey(uint violatorPipID, uint workerID = uint.MaxValue);
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationEventByKey(uint violatorPipID, uint? workerID = null);
 
         /// <summary>
         /// Gets all the Dependency Violation Reported Events
@@ -76,8 +76,9 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets directory membership hashed event by key
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint workerID = uint.MaxValue);
+        /// <param name="directoryPath">Directory Path to match. If unset, will match all directory paths</param>
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint? workerID = null);
 
         /// <summary>
         /// Gets all the Directory Membership Hashed Events
@@ -92,9 +93,9 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets file artficat content decided event by key. 
         /// </summary>
-        /// <param name="fileRewriteCount">If fileRewriteCount = -1, it will match all rewrite counts. Else it will match a specific rewrite count.</param>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int fileRewriteCount = -1, uint workerID = uint.MaxValue);
+        /// <param name="fileRewriteCount">File Rewrite Count to match. If unset, will match all File Rewrite Counts</param>
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int? fileRewriteCount = null, uint? workerID = null);
 
         /// <summary>
         /// Gets all the File Artifact Content Decided Events
@@ -104,8 +105,8 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets pip cache miss events by key
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint workerID = uint.MaxValue);
+        /// <param name="workerID">If workerID is null, will match all worker IDs</param>
+        IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint? workerID = null);
 
         /// <summary>
         /// Gets all the Pip Cache Miss Events
@@ -115,20 +116,21 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets pip execution directory output event by key
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = "", uint workerID = uint.MaxValue);
+        /// <param name="directoryPath">Directory Path to match. If unset, will match all directory paths</param>
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = "", uint? workerID = null);
 
         /// <summary>
         /// Gets all the Pip Execution Directory Outputs Events
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
+        /// <param name="workerID">If workerID is null, will match all worker IDs</param>
         IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputsEvents();
 
         /// <summary>
         /// Gets pip execution performance events by key
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint workerID = uint.MaxValue);
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint? workerID = null);
 
         /// <summary>
         /// Gets all the Pip Execution Performance Events
@@ -139,8 +141,8 @@ namespace BuildXL.Xldb
         /// Gets pip execution step performance events by key.
         /// If pipExecutionStep is not passed in, will match and return all steps for matching pipID
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = PipExecutionStep.Unspecified, uint workerID = uint.MaxValue);
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = PipExecutionStep.Unspecified, uint? workerID = null);
 
         /// <summary>
         /// Gets all the Pip Execution Step Performance Reported Events
@@ -150,8 +152,8 @@ namespace BuildXL.Xldb
         /// <summary>
         /// Gets process execution monitoring reported events by key
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint workerID = uint.MaxValue);
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint? workerID = null);
 
         /// <summary>
         /// Gets all the Process Execution Monitoring Reported Events
@@ -162,8 +164,8 @@ namespace BuildXL.Xldb
         /// Gets process fingerprint computation events by key.
         /// If computationKind is not passed in, will match and return all all computation kinds for a matching pipID
         /// </summary>
-        /// <param name="workerID">If workerId = uint.MaxValue, it will match all worker IDs. Else it will match a specific worker ID</param>"
-        IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = FingerprintComputationKind.Unspecified, uint workerID = uint.MaxValue);
+        /// <param name="workerID">Worker ID to match. If unset, will match all worker IDs</param>
+        IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = FingerprintComputationKind.Unspecified, uint? workerID = null);
 
         /// <summary>
         /// Gets all the Process Execution Monitoring Reported Events

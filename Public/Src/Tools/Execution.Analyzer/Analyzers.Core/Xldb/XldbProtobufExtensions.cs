@@ -9,13 +9,14 @@ using BuildXL.Utilities;
 using BuildXL.Xldb.Proto;
 using static BuildXL.Utilities.HierarchicalNameTable;
 using AbsolutePath = BuildXL.Utilities.AbsolutePath;
-using CopyFile = BuildXL.Pips.Operations.CopyFile;
 using ContentHash = BuildXL.Cache.ContentStore.Hashing.ContentHash;
+using CopyFile = BuildXL.Pips.Operations.CopyFile;
 using DirectoryArtifact = BuildXL.Utilities.DirectoryArtifact;
 using FileArtifact = BuildXL.Utilities.FileArtifact;
 using FileOrDirectoryArtifact = BuildXL.Utilities.FileOrDirectoryArtifact;
 using Fingerprint = BuildXL.Cache.MemoizationStore.Interfaces.Sessions.Fingerprint;
 using IpcPip = BuildXL.Pips.Operations.IpcPip;
+using MountPathExpander = BuildXL.Engine.MountPathExpander;
 using ObservedPathEntry = BuildXL.Scheduler.Fingerprints.ObservedPathEntry;
 using ObservedPathSet = BuildXL.Scheduler.Fingerprints.ObservedPathSet;
 using Pip = BuildXL.Pips.Operations.Pip;
@@ -28,11 +29,9 @@ using ProcessPipExecutionPerformance = BuildXL.Pips.ProcessPipExecutionPerforman
 using ReportedFileAccess = BuildXL.Processes.ReportedFileAccess;
 using ReportedProcess = BuildXL.Processes.ReportedProcess;
 using SealDirectory = BuildXL.Pips.Operations.SealDirectory;
+using SemanticPathInfo = BuildXL.Pips.SemanticPathInfo;
 using UnsafeOptions = BuildXL.Scheduler.Fingerprints.UnsafeOptions;
 using WriteFile = BuildXL.Pips.Operations.WriteFile;
-using MountPathExpander = BuildXL.Engine.MountPathExpander;
-using BuildXL.Pips;
-using SemanticPathInfo = BuildXL.Pips.SemanticPathInfo;
 
 /// Many enums have been shifted or incremented and this is to avoid protobuf's design to not serialize 
 /// int/enum values that are equal to 0. Thus we make "0" as an invalid value for each ProtoBuf enum.
@@ -386,8 +385,6 @@ namespace BuildXL.Execution.Analyzer
             {
                 Value = Google.Protobuf.ByteString.CopyFrom(contentHash.ToHashByteArray()),
                 HashType = contentHash.HashType == Cache.ContentStore.Hashing.HashType.DeprecatedVso0 ? Xldb.Proto.HashType.DeprecatedVso0 : (Xldb.Proto.HashType)(contentHash.HashType + 1),
-                ByteLength = contentHash.ByteLength,
-                StringLength = contentHash.StringLength,
             };
         }
 

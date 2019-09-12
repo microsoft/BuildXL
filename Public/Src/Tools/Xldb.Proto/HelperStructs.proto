@@ -44,12 +44,6 @@ message ContentHash{
 
     // The Hash Type
     HashType HashType = 2;
-
-    // Number of bytes used for the hash
-    int32 ByteLength = 3;
-
-    // THe number of characters used for the hash string form
-    int32 StringLength = 4;
 }
 
 // File Artifact message
@@ -69,7 +63,7 @@ message LengthAndExistence{
     // THe legth of the value. 0 if no known length
     int64 Length = 2;
 
-    // The stored existence value. If no value is stored, returns null.i
+    // The stored existence value. If no value is stored, returns null
     PathExistence Existence = 3;
 }
 
@@ -802,7 +796,7 @@ message LocationData{
 
 // IpcClientInfo message. Information necessary for creating an IPC client
 message IpcClientInfo{
-    // // Id of the moniker to use to obtain a connection string for IIpcProvider.GetClient
+    // Id of the moniker to use to obtain a connection string for IIpcProvider.GetClient
     string IpcMonikerId = 1;
 }
 

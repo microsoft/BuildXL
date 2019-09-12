@@ -298,14 +298,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             // Write the Xldb version file to the Xldb directory
-            using (var outputStream = File.OpenWrite(Path.Combine(OutputDirPath, XldbDataStore.XldbVersionFileName)))
-            {
-                using (var writer = new StreamWriter(outputStream))
-                {
-                    writer.WriteLine(XldbDataStore.XldbVersion);
-                }
-            }
-
+            File.WriteAllText(Path.Combine(OutputDirPath, XldbDataStore.XldbVersionFileName), XldbDataStore.XldbVersion.ToString());
             return 0;
         }
 

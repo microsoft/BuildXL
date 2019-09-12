@@ -1336,7 +1336,7 @@ namespace BuildXL.Scheduler.Tracing
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
-                CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments ?? CollectionUtilities.EmptyArray<string>();
+                CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
             /// <nodoc />

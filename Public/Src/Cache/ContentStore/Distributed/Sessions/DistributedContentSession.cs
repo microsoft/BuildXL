@@ -247,11 +247,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return putResult;
         }
 
-        private Task<BoolResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
+        private Task<ProactiveCopyResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
-                return BoolResult.SuccessTask;
+                return Task.FromResult(ProactiveCopyResult.CopyNotRequiredResult);
             }
 
             return context.PerformOperationAsync(
@@ -270,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if (getLocationsResult.Succeeded && getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                         {
                             _counters[Counters.GetLocationsSatisfiedFromLocal].Increment();
-                            return BoolResult.Success;
+                            return ProactiveCopyResult.CopyNotRequiredResult;
                         }
                         else
                         {
@@ -280,14 +280,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         if (getLocationsResult.ContentHashesInfo[0].Locations.Count > Settings.ProactiveCopyLocationsThreshold)
                         {
-                            return BoolResult.Success;
+                            return ProactiveCopyResult.CopyNotRequiredResult;
                         }
 
                         IReadOnlyList<MachineLocation> buildRingMachines;
 
-                        Task<BoolResult> copyToBuildRingMachineTask = BoolResult.SuccessTask;
-
                         // Get random machine inside build ring
+                        Task<BoolResult> insideRingCopyTask;
                         if (_buildIdHash != null)
                         {
                             buildRingMachines = getLocationsResult.ContentHashesInfo[getLocationsResult.ContentHashesInfo.Count - 1].Locations;
@@ -296,24 +295,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             {
                                 var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
                                 Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' in build ring (of {candidates.Length} machines).");
-                                copyToBuildRingMachineTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                                insideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                            }
+                            else
+                            {
+                                insideRingCopyTask = Task.FromResult(new BoolResult("Could not find any machines belonging to the build ring."));
                             }
                         }
                         else
                         {
+                            insideRingCopyTask = Task.FromResult(new BoolResult("BuildId was not specified, so machines in the build ring cannot be found."));
                             buildRingMachines = new[] { LocalCacheRootMachineLocation };
                         }
 
-                        BoolResult result = BoolResult.Success;
+                        Task<BoolResult> outsideRingCopyTask;
                         var getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
                         if (getLocationResult.Succeeded)
                         {
                             var candidate = getLocationResult.Value;
                             Tracer.Info(context, $"{nameof(RequestProactiveCopyIfNeededAsync)}: Copying {hash.ToShortString()} to machine '{candidate}' outside build ring.");
-                            result &= await DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                            outsideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate);
+                        }
+                        else
+                        {
+                            outsideRingCopyTask = Task.FromResult(new BoolResult(getLocationResult));
                         }
 
-                        return result & await copyToBuildRingMachineTask;
+                        return new ProactiveCopyResult(await insideRingCopyTask, await outsideRingCopyTask);
                     }
                     finally
                     {

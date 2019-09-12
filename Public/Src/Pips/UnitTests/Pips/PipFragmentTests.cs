@@ -3,6 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
+using BuildXL.Ipc.ExternalApi;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -74,6 +75,8 @@ namespace Test.BuildXL.Pips
             var outFile = FileArtifact.CreateOutputFile(srcFile);
             var rwFile = outFile.CreateNextWrittenVersion();
             var rw2File = rwFile.CreateNextWrittenVersion();
+            var opaqueDir = DirectoryArtifact.CreateDirectoryArtifactForTesting(path, 0);
+            var sharedDir = new DirectoryArtifact(path, 1, isSharedOpaque: true);
 
             // AbsolutePath
             XAssert.AreEqual(pathStr, renderer.Render(PipFragment.FromAbsolutePathForTesting(path)));
@@ -87,6 +90,10 @@ namespace Test.BuildXL.Pips
             XAssert.AreEqual(expectedHash, renderer.Render(PipFragment.VsoHashFromFileForTesting(outFile)));
             XAssert.AreEqual(expectedHash, renderer.Render(PipFragment.VsoHashFromFileForTesting(rwFile)));
             XAssert.AreEqual(expectedHash, renderer.Render(PipFragment.VsoHashFromFileForTesting(rw2File)));
+
+            XAssert.AreEqual(DirectoryId.ToString(opaqueDir), renderer.Render(PipFragment.DirectoryIdForTesting(opaqueDir)));
+            XAssert.AreEqual(DirectoryId.ToString(sharedDir), renderer.Render(PipFragment.DirectoryIdForTesting(sharedDir)));
+
         }
     }
 }

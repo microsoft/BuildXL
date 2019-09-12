@@ -50,7 +50,7 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
-        /// Create a Fingerprint with all zeros except the given value in the first byte and the algorithm ID in the last byte.
+        /// Create a Fingerprint with all zeros except the given value in the first byte.
         /// </summary>
         public static Fingerprint CreateSpecialValue(byte first)
         {

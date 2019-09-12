@@ -62,6 +62,11 @@ namespace BuildXL.Scheduler
                 () => new Dictionary<AbsolutePath, ExtractedPathEntry>(),
                 map => { map.Clear(); return map; });
 
+        private static readonly ObjectPool<Dictionary<StringId, int>> s_accessedFileNameToUseCountPool =
+            new ObjectPool<Dictionary<StringId, int>>(
+                () => new Dictionary<StringId, int>(),
+                map => { map.Clear(); return map; });
+
         private static readonly ObjectPool<Dictionary<AbsolutePath, FileOutputData>> s_absolutePathFileOutputDataMapPool =
             new ObjectPool<Dictionary<AbsolutePath, FileOutputData>>(
                 () => new Dictionary<AbsolutePath, FileOutputData>(),
@@ -1390,8 +1395,8 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid 
-                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip) 
+                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
+                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
                                     : null;
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);
@@ -1833,12 +1838,6 @@ namespace BuildXL.Scheduler
                     CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
             };
 
-            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
-            {
-                PipId = process.PipId,
-                CacheMissType = PipCacheMissType.Invalid,
-            };
-
             int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0;
 
             using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
@@ -1847,7 +1846,7 @@ namespace BuildXL.Scheduler
                 List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList =
                     strongFingerprintComputationListWrapper.Instance;
 
-                var result = await innerComputeAsync(strongFingerprintComputationList);
+                var result = await innerCheckRunnableFromCacheAsync(strongFingerprintComputationList);
 
                 // Update the strong fingerprint computations list
                 processFingerprintComputationResult.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
@@ -1864,8 +1863,14 @@ namespace BuildXL.Scheduler
             // Extracted local function with main logic for performing the cache lookup.
             // This is done to ensure that execution log logging is always done even in cases of early return (namely augmented weak fingerprint cache lookup
             // defers to an inner cache lookup and performs an early return of the result)
-            async Task<RunnableFromCacheResult> innerComputeAsync(List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
+            async Task<RunnableFromCacheResult> innerCheckRunnableFromCacheAsync(List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
             {
+                BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
+                {
+                    PipId = process.PipId,
+                    CacheMissType = PipCacheMissType.Invalid,
+                };
+
                 // Totally usable descriptor (may additionally require content availability), or null.
                 RunnableFromCacheResult.CacheHitData cacheHitData = null;
                 PublishedEntryRefLocality? refLocality;
@@ -2002,7 +2007,6 @@ namespace BuildXL.Scheduler
                                 var currentUnsafeOptions = state.UnsafeOptions;
                                 var priorUnsafeOptions = pathSet.UnsafeOptions;
 
-                                // prior options are safer --> use the precomputed path set hash to aim for a cache hit
                                 if (priorUnsafeOptions.IsLessSafeThan(currentUnsafeOptions))
                                 {
                                     // This path set's options are less safe than our current options so we cannot use it. Just ignore it.
@@ -2360,7 +2364,7 @@ namespace BuildXL.Scheduler
                     maybeUsableProcessingResult,
                     cacheResultWeakFingerprint);
 
-                if (!runnableFromCacheResult.CanRunFromCache 
+                if (!runnableFromCacheResult.CanRunFromCache
                     // Don't perform redundant cache miss logging if already handled for augmented weak fingerprint
                     && !performedLookupForAugmentedWeakFingerprint)
                 {
@@ -2387,18 +2391,34 @@ namespace BuildXL.Scheduler
             ICacheConfiguration cacheConfiguration,
             List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
         {
-            var requiredUseCount = Math.Max(1, cacheConfiguration.AugmentWeakFingerprintPathSetThreshold / 2);
+            var requiredUseCount = Math.Max(1, cacheConfiguration.AugmentWeakFingerprintPathSetThreshold * cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor);
             using (var pool = s_pathToObservationEntryMapPool.GetInstance())
+            using (var accessedNameUseCountMapPool = s_accessedFileNameToUseCountPool.GetInstance())
             using (var stringIdPool = Pools.StringIdSetPool.GetInstance())
             {
                 Dictionary<AbsolutePath, ExtractedPathEntry> map = pool.Instance;
+                var accessedNameUseCountMap = accessedNameUseCountMapPool.Instance;
                 var accessedFileNameSet = stringIdPool.Instance;
 
                 foreach (var pathSet in strongFingerprintComputationList.Select(s => s.Value.PathSet))
                 {
+                    // Union all observed access file names to increase the strength (specificity) of the augmented weak fingerprint
+                    // for search path enumerations in the path sets.
                     foreach (var accessedFileName in pathSet.ObservedAccessedFileNames)
                     {
-                        accessedFileNameSet.Add(accessedFileName);
+                        if (!accessedNameUseCountMap.TryGetValue(accessedFileName, out var useCount))
+                        {
+                            useCount = 0;
+                        }
+
+                        useCount++;
+
+                        if (useCount >= requiredUseCount)
+                        {
+                            accessedFileNameSet.Add(accessedFileName);
+                        }
+
+                        accessedNameUseCountMap[accessedFileName] = useCount;
                     }
 
                     foreach (ObservedPathEntry pathEntry in pathSet.Paths)
@@ -2434,7 +2454,7 @@ namespace BuildXL.Scheduler
                 return new ObservedPathSet(
                     paths,
                     observedAccessedFileNames,
-                    // Use default unsafe options which allows the path set to prevent path set from ever being rejected due to
+                    // Use default unsafe options which prevents path set from ever being rejected due to
                     // incompatibility with the currently specified unsafe options during cache lookup
                     unsafeOptions: null);
             }

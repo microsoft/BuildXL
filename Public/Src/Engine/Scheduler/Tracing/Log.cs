@@ -309,7 +309,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Augmented weak fingerprint '{weakFingerprint}' -> '{augmentedWeakFingerprint}' using path set '{pathSetHash}' with {pathCount} paths Keep augmenting path set alive result={keepAliveResult}.")]
+            Message = "[{pipDescription}] Augmented weak fingerprint '{weakFingerprint}' -> '{augmentedWeakFingerprint}' using path set '{pathSetHash}' with {pathCount} paths. Keep augmenting path set alive result={keepAliveResult}.")]
         internal abstract void AugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string augmentedWeakFingerprint, string pathSetHash, int pathCount, string keepAliveResult);
 
         [GeneratedEvent(

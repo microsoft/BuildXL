@@ -996,6 +996,8 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var fileBPathByIteration = Enumerable.Range(0, iterations).Select(i => CreateSourceFile(path)).Select(s => s.Path.ToString(Context.PathTable)).ToArray();
 
+            var lastFileBPath = fileBPathByIteration.Last();
+
             var builder = CreatePipBuilder(ops);
             builder.AddInputDirectory(dir);
             Process pip = SchedulePipBuilder(builder).Process;
@@ -1010,7 +1012,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             HashSet<ContentHash> pathSetHashes = new HashSet<ContentHash>();
             List<ContentHash> orderedPathSetHashes = new List<ContentHash>();
 
-            // Ensure that we get cache misses and generate new weak fingerprints
+            // Part 1: Ensure that we get cache misses and generate new augmented weak fingerprints when
+            // over the threshold
             for (int i = 0; i < fileBPathByIteration.Length; i++)
             {
                 // Indicate to from file A that file B_i should be read
@@ -1043,13 +1046,56 @@ namespace IntegrationTest.BuildXL.Scheduler
 
                 ContentHash pathSetHash = result.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
                 bool addedPathSet = pathSetHashes.Add(pathSetHash);
+                Assert.True(addedPathSet, "Every invocation should have a unique path set.");
 
                 // Record the path sets so in the second phase we can check that the cache lookups get
                 // hits with the appropriate path sets
                 orderedPathSetHashes.Add(pathSetHash);
             }
 
-            // Ensure that we get cache hits when inputs are the same
+            // Part 2: Test behavior of multiple strong fingerprints for the same augmented weak fingerprint
+
+            // Indicate to from file A that the last file B_i should be read
+            File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: lastFileBPath);
+
+            HashSet<StrongContentFingerprint> strongFingerprints = new HashSet<StrongContentFingerprint>();
+
+            for (int i = 0; i < iterations; i++)
+            {
+                // Change content of file B
+                File.WriteAllText(path: lastFileBPath, contents: Guid.NewGuid().ToString());
+
+                var executionResult = RunScheduler().AssertCacheMiss();
+                var weakFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
+                ContentHash pathSetHash = executionResult.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
+                var executionStrongFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].StrongFingerprint;
+                var addedStrongFingerprint = strongFingerprints.Add(executionStrongFingerprint);
+
+                // Weak fingerprint should not change since file B should not be in the augmenting path set
+                Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
+
+                // Set of paths is not changing
+                Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
+
+                Assert.True(addedStrongFingerprint, "New strong fingerprint should be computed since file B has unique content");
+
+                var cacheHitResult = RunScheduler().AssertCacheHit();
+
+                weakFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].WeakFingerprint;
+                pathSetHash = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().PathSetHash;
+                var cacheLookupStrongFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().StrongFingerprint;
+
+                // Weak fingerprint should not change since file B should not be in path set
+                Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
+
+                // Weak fingerprint should not change since file B should not be in path set
+                Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
+
+                // Should get a hit against the strong fingerprint just added above
+                Assert.Equal(expected: executionStrongFingerprint, actual: cacheLookupStrongFingerprint);
+            }
+
+            // Part 3: Ensure that we get cache hits when inputs are the same
             for (int i = 0; i < fileBPathByIteration.Length; i++)
             {
                 // Indicate to from file A that file B_i should be read

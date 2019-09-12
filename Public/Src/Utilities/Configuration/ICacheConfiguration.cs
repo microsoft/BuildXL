@@ -134,6 +134,12 @@ namespace BuildXL.Utilities.Configuration
         int AugmentWeakFingerprintPathSetThreshold { get; }
 
         /// <summary>
+        /// Used to compute the number of times (i.e. <see cref="AugmentWeakFingerprintRequiredPathCommonalityFactor"/> * <see cref="AugmentWeakFingerprintPathSetThreshold"/>) an entry must
+        /// appear among paths in the observed path set in order to be included in the common path set. Value must be (0, 1]
+        /// </summary>
+        double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; }
+
+        /// <summary>
         /// When enabled, the cache will be responsible for replacing exisiting file during file materialization.
         /// </summary>
         bool ReplaceExistingFileOnMaterialization { get; }

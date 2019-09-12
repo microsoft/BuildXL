@@ -27,6 +27,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackingInclusionRoots = new List<AbsolutePath>();
             ReplaceExistingFileOnMaterialization = false;
             ElideMinimalGraphEnumerationAbsentPathProbes = true;
+            AugmentWeakFingerprintRequiredPathCommonalityFactor = 0.5;
         }
 
         /// <nodoc />
@@ -59,6 +60,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             VfsCasRoot = pathRemapper.Remap(template.VfsCasRoot);
             ElideMinimalGraphEnumerationAbsentPathProbes = template.ElideMinimalGraphEnumerationAbsentPathProbes;
             AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
+            AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
         }
 
         /// <nodoc />
@@ -150,5 +152,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int AugmentWeakFingerprintPathSetThreshold { get; set; }
+
+        /// <inheritdoc />
+        public double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; set; }
     }
 }

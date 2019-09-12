@@ -474,7 +474,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // A post initialization process may fail due to a transient issue, like a storage failure or an inconsistent checkpoint's state.
                 // The transient error can go away and the system may recover itself by calling this method again.
 
-                // In this case we need to reset _postInitializationTask and move it's state from "failure" to "success"
+                // In this case we need to reset _postInitializationTask and move its state from "failure" to "success"
                 // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
 
                 _postInitializationTask = Task.FromResult(result);

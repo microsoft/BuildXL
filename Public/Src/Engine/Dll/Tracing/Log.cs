@@ -727,7 +727,7 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerExitFailure(LoggingContext context, string failure);
 
         [GeneratedEvent(
-            (ushort)LogEventId.DistributionWorkerExitFailure,
+            (ushort)LogEventId.DistributionWorkerTimeoutFailure,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),

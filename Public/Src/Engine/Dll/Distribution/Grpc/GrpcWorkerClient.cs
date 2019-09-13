@@ -46,7 +46,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 {
                     using (await m_attachAcquireAsync(callOptions.CancellationToken))
                     {
-                        return m_client.AttachAsync(grpcMessage, options: callOptions);
+                        return await m_client.AttachAsync(grpcMessage, options: callOptions);
                     }
                 },
                 "Attach",
@@ -58,7 +58,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             var grpcMessage = message.ToGrpc();
 
             return m_connectionManager.CallAsync(
-               (callOptions) => m_client.ExecutePipsAsync(grpcMessage, options: callOptions),
+               async (callOptions) => await m_client.ExecutePipsAsync(grpcMessage, options: callOptions),
                GetExecuteDescription(semiStableHashes));
         }
 
@@ -72,7 +72,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
 
             return m_connectionManager.CallAsync(
-                (callOptions) => m_client.ExitAsync(grpcBuildEndData, options: callOptions),
+                async (callOptions) => await m_client.ExitAsync(grpcBuildEndData, options: callOptions),
                 "Exit",
                 cancellationToken);
         }

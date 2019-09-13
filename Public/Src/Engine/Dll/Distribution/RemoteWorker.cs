@@ -111,7 +111,7 @@ namespace BuildXL.Engine.Distribution
                 serviceLocation.Port, 
                 OnConnectionTimeOutAsync,
                 // Limit number of concurrently attaching workers
-                token => m_masterService.WorkerAttachSemaphore.AcquireAsync(token));
+                async token => await m_masterService.WorkerAttachSemaphore.AcquireAsync(token));
 
             // Depending on how long send requests take. It might make sense to use the same thread between all workers. 
             m_sendThread = new Thread(SendBuildRequests);

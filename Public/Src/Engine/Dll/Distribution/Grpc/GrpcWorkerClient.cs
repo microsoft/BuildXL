@@ -18,13 +18,15 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly LoggingContext m_loggingContext;
         private readonly ClientConnectionManager m_connectionManager;
         private readonly Worker.WorkerClient m_client;
+        private readonly Func<CancellationToken, Task<IDisposable>> m_attachAcquireAsync;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOutAsync)
+        public GrpcWorkerClient(LoggingContext loggingContext, string buildId, string ipAddress, int port, EventHandler onConnectionTimeOutAsync, Func<CancellationToken, Task<IDisposable>> attachAcquireAsync)
         {
             m_loggingContext = loggingContext;
             m_connectionManager = new ClientConnectionManager(loggingContext, ipAddress, port, buildId);
             m_connectionManager.OnConnectionTimeOutAsync += onConnectionTimeOutAsync;
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);
+            m_attachAcquireAsync = attachAcquireAsync;
         }
 
         public Task CloseAsync()
@@ -40,7 +42,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             var grpcMessage = message.ToGrpc();
 
             return m_connectionManager.CallAsync(
-                (callOptions) => m_client.AttachAsync(grpcMessage, options: callOptions),
+                async (callOptions) =>
+                {
+                    using (await m_attachAcquireAsync(callOptions.CancellationToken))
+                    {
+                        return m_client.AttachAsync(grpcMessage, options: callOptions);
+                    }
+                },
                 "Attach",
                 waitForConnection: true);
         }

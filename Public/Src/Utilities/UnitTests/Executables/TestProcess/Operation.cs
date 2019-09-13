@@ -358,7 +358,6 @@ namespace Test.BuildXL.Executables.TestProcess
 
             try
             {
-                Console.WriteLine($"Type: {OpType}, PathAsString: '{PathAsString}'");
                 switch (OpType)
                 {
                     case Type.None:

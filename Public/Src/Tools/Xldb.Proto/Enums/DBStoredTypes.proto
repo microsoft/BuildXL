@@ -10,7 +10,7 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 // This enum keeps track of the different kinds of items we are storing into the DB,
 // so we can keep track of their counts and sizes.
 enum DBStoredTypes{
-    DBStoredTypes_Uninitialized = 0;
+    DBStoredTypes_UNSPECIFIED = 0;
 
     // Stored Events
     DBStoredTypes_FileArtifactContentDecided = 1;
@@ -41,4 +41,8 @@ enum DBStoredTypes{
     DBStoredTypes_FileProducer = 20;
     DBStoredTypes_DirectoryConsumer = 21;
     DBStoredTypes_DirectoryProducer = 22;
+
+    // Metadata Information
+    DBStoredTypes_GraphMetaData = 23;
+    DBStoredTypes_MountPathExpander = 24;
 }

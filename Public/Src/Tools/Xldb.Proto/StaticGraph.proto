@@ -6,8 +6,10 @@ syntax = "proto3";
 import "HelperStructs.proto";
 
 // Import Enums
+import "Enums/GraphMetaData.proto";
 import "Enums/PipType.proto";
 import "Enums/ProducerConsumerType.proto";
+import "Enums/SemanticPathFlags.proto";
 
 package BuildXL.Xldb.Proto;
 
@@ -17,9 +19,10 @@ option csharp_namespace = "BuildXL.Xldb.Proto";
 //  Generic Static Graph Info (key, etc)
 //
 
-// CachedGraphQuery is the key for the top level data structures stored in the cached graph
-message CachedGraphKey{
-    bool PipGraph = 1;  
+// GraphMetadataKey is the key for the top level data structures stored in the cached graph such as the CachedGraph, or the MountPathExpander
+message GraphMetadataKey{
+    // GraphMetaData type
+    GraphMetaData Type = 1;  
 }
 
 // Pip Query is 2 levels deep. SemistableHash -> PipId -> PipValues
@@ -27,10 +30,6 @@ message CachedGraphKey{
 message PipSemistableHashKey{
     // Primary key, unique except for the pips that have a SemiStableHash = 0
     int64 SemiStableHash = 1;
-}
-
-message PipIdValue{
-    uint32 PipId = 1;
 }
 
 message PipIdKey{
@@ -42,37 +41,50 @@ message PipIdKey{
     PipType PipType = 2;
 }
 
+// Generic Key to get either a producer or a consumer of a file
 message FileProducerConsumerKey{
+    // The type, Producer OR Consumer
     ProducerConsumerType Type = 1;
 
-    string FileArtifact = 2;
+    // The fully rooted file path
+    string FilePath = 2;
 
+    // The rewrite count of this path (if known)
     int32 RewriteCount = 3;
 }
 
+// Value for the producer of a file
 message FileProducerValue{
+    // The id of the pip that produced this file
     uint32 PipId = 1;
 }
 
+// Value for consumers of a file
 message FileConsumerValue{
+    // List of Pip IDs that consumed this file
     repeated uint32 PipIds = 1;
 }
 
+// Generic Key to get either a producer or a consumer of a directory 
 message DirectoryProducerConsumerKey{
+    // The type, Producer OR Consumer
     ProducerConsumerType Type = 1;
 
-    string DirectoryArtifact = 2;
+    // The fully rooted directory path
+    string DirectoryPath = 2;
 }
 
+// Value for the producer of a directory
 message DirectoryProducerValue{
+     // The id of the pip that produced this directory
     uint32 PipId = 1;
 }
 
+// Value for the consumers of a directory
 message DirectoryConsumerValue{
+     // List of Pip IDs that consumed this directory
     repeated uint32 PipIds = 1;
 }
-
-
 
 //
 //  Map Messages -> Protobuf does not allow for float, double, bytes, or message types to be 
@@ -82,38 +94,18 @@ message DirectoryConsumerValue{
 //  message wraper { repeated primitiveMap; }
 //
 
+// Primitive map that contains the DirectoryArtifact as the key, and the PipId as the value
 message DirectoryArtifactMap{
     DirectoryArtifact Artifact = 1;
 
     uint32 PipId = 2;
 }
 
-message PipIdSet{
-    repeated uint32 PipIds = 1;
-}
-
-message NodeValuesKey{
-    int32 FullSymbol = 1;
-
-    int32 QualifierId = 2;
-
-    AbsolutePath Path = 3;
-}
-
-message NodeValuesMap{
-    NodeValuesKey Key = 1;
-
-    uint32 Value = 2;
-}
-
-message PipGraphStaticFingerprints{
-    map<uint32, ContentFingerprint> PipStaticFingerprints = 1;
-}
-
 //
 //  Graph Data
 //
 
+// Pip Graph metadata message
 message PipGraph{
     // Unique identifier for a graph, established at creation time. This ID is durable under serialization and deserialization.
     string GraphId = 1;
@@ -126,7 +118,7 @@ message PipGraph{
     ContentFingerprint SemistableFingerprint = 2;
 
     // Gets the range of node IDs valid in the current graph.
-    NodeRange NodeRange = 3;
+    int32 NodeCount = 3;
 
     // The maximum index of serialized absolute paths.
     int32 MaxAbsolutePathIndex = 4;
@@ -144,7 +136,7 @@ message PipGraph{
     int32 ArtifactContentCount = 8;
 
     // Mapping from module id to module nodes.
-    map<string, NodeId> Modules = 9;
+    map<string, uint32> Modules = 9;
 
     // String id corresponding to the BuildXL.Ipc.Interfaces.IIpcMoniker.Id property of the moniker used by the
     // BuildXL API server. Empty string indicates that no BuildXL API operation has been requested.
@@ -152,4 +144,58 @@ message PipGraph{
 
     // All PipId values issued so far.
     repeated uint32 StableKeys = 11;
+}
+
+// MountPathExpander data message
+message MountPathExpander{
+    // List of all writeable roots
+    repeated AbsolutePath WriteableRoots = 1;
+
+    // List of all paths where directories were allowed to be created
+    repeated AbsolutePath PathsWithAllowedCreateDirectory = 2;
+
+    // List of roots that are scrubbable
+    repeated AbsolutePath ScrubbableRoots = 3;
+
+    // List of all rots 
+    repeated AbsolutePath AllRoots = 4;
+
+    // Map of all mount names to their SemanticPathInfo object
+    map<string, SemanticPathInfo> MountsByName = 5;
+}
+
+// SemanticPathInfo message
+message SemanticPathInfo{
+    // The semantic root path
+    AbsolutePath Root = 1;
+
+    // The semantic root name
+    string RootName = 2;
+
+    // Gets whether the semantic path info is valid.
+    bool IsValid = 3;
+
+    // Gets whether the path is hashable
+    bool AllowHashing = 4;
+
+    // Gets whether the path is readable
+    bool IsReadable = 5;
+
+    // Gets whether the path is writable
+    bool IsWriteable = 6;
+
+    // Gets whether CreateDirectory is allowed at the path
+    bool AllowCreateDirectory = 7;
+
+    // Gets whether the path is a system location
+    bool IsSystem = 8;
+
+    // Gets whether the path is a location that can be scrubbed
+    bool IsScrubbable = 9;
+
+    // Gets whether the path has potential build outputs
+    bool HasPotentialBuildOutputs = 10;
+
+    // The semantic flags describing behavior for the path
+    SemanticPathFlags Flags = 11;
 }

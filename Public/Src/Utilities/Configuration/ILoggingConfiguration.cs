@@ -315,6 +315,11 @@ namespace BuildXL.Utilities.Configuration
         bool OptimizeConsoleOutputForAzureDevOps { get; }
 
         /// <summary>
+        /// The expanded command line arguments for the invocation for logging
+        /// </summary>
+        IReadOnlyList<string> InvocationExpandedCommandLineArguments { get; }
+
+        /// <summary>
         /// Whether progress updating should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeProgressUpdatingForAzureDevOps { get; }

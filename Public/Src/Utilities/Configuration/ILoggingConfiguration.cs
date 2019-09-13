@@ -310,8 +310,28 @@ namespace BuildXL.Utilities.Configuration
         CacheMissAnalysisOption CacheMissAnalysisOption { get; }
 
         /// <summary>
-        /// Whether console output should e optimized for Azure DevOps output.
+        /// Whether console output should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeConsoleOutputForAzureDevOps { get; }
+
+        /// <summary>
+        /// The expanded command line arguments for the invocation for logging
+        /// </summary>
+        IReadOnlyList<string> InvocationExpandedCommandLineArguments { get; }
+
+        /// <summary>
+        /// Whether progress updating should be optimized for Azure DevOps output.
+        /// </summary>
+        bool OptimizeProgressUpdatingForAzureDevOps { get; }
+
+        /// <summary>
+        /// Whether Vso annotations should be optimized for Azure DevOps output.
+        /// </summary>
+        bool OptimizeVsoAnnotationsForAzureDevOps { get; }
+
+        /// <summary>
+        /// Whether Warning/Error annotations should be optimized for Azure DevOps output.
+        /// </summary>
+        bool OptimizeWarningOrErrorAnnotationsForAzureDevOps { get; }
     }
 }

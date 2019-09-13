@@ -57,6 +57,16 @@ namespace BuildXL.Scheduler
 
         private static readonly object s_telemetryDetoursHeapLock = new object();
 
+        private static readonly ObjectPool<Dictionary<AbsolutePath, ExtractedPathEntry>> s_pathToObservationEntryMapPool =
+            new ObjectPool<Dictionary<AbsolutePath, ExtractedPathEntry>>(
+                () => new Dictionary<AbsolutePath, ExtractedPathEntry>(),
+                map => { map.Clear(); return map; });
+
+        private static readonly ObjectPool<Dictionary<StringId, int>> s_accessedFileNameToUseCountPool =
+            new ObjectPool<Dictionary<StringId, int>>(
+                () => new Dictionary<StringId, int>(),
+                map => { map.Clear(); return map; });
+
         private static readonly ObjectPool<Dictionary<AbsolutePath, FileOutputData>> s_absolutePathFileOutputDataMapPool =
             new ObjectPool<Dictionary<AbsolutePath, FileOutputData>>(
                 () => new Dictionary<AbsolutePath, FileOutputData>(),
@@ -1385,8 +1395,8 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid 
-                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip) 
+                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
+                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
                                     : null;
 
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);
@@ -1785,10 +1795,25 @@ namespace BuildXL.Scheduler
         ///   a non-null result is returned.
         /// - If cache lookup fails (i.e., the result is inconclusive due to failed hashing, etc.), a null result is returned.
         /// </summary>
-        public static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
+        public static Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
             ProcessRunnablePip processRunnable,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)
+        {
+            return TryCheckProcessRunnableFromCacheAsync(
+                processRunnable,
+                state,
+                cacheableProcess,
+                computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
+                canAugmentWeakFingerprint: processRunnable.Environment.Configuration.Cache.AugmentWeakFingerprintPathSetThreshold > 0);
+        }
+
+        private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
+            ProcessRunnablePip processRunnable,
+            PipExecutionState.PipScopeState state,
+            CacheableProcess cacheableProcess,
+            Func<WeakContentFingerprint> computeWeakFingerprint,
+            bool canAugmentWeakFingerprint)
         {
             Contract.Requires(processRunnable != null);
             Contract.Requires(cacheableProcess != null);
@@ -1813,27 +1838,55 @@ namespace BuildXL.Scheduler
                     CollectionUtilities.EmptyArray<ProcessStrongFingerprintComputationData>(),
             };
 
-            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
-            {
-                PipId = process.PipId,
-                CacheMissType = PipCacheMissType.Invalid,
-            };
-
             int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0;
 
             using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
+            using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
             {
+                List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList =
+                    strongFingerprintComputationListWrapper.Instance;
+
+                var result = await innerCheckRunnableFromCacheAsync(strongFingerprintComputationList);
+
+                // Update the strong fingerprint computations list
+                processFingerprintComputationResult.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
+
+                using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration))
+                {
+                    // TODO: How to log to execution log
+                    environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult);
+                }
+
+                return result;
+            }
+
+            // Extracted local function with main logic for performing the cache lookup.
+            // This is done to ensure that execution log logging is always done even in cases of early return (namely augmented weak fingerprint cache lookup
+            // defers to an inner cache lookup and performs an early return of the result)
+            async Task<RunnableFromCacheResult> innerCheckRunnableFromCacheAsync(List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
+            {
+                BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
+                {
+                    PipId = process.PipId,
+                    CacheMissType = PipCacheMissType.Invalid,
+                };
+
                 // Totally usable descriptor (may additionally require content availability), or null.
-                RunnableFromCacheResult.CacheHitData usableDescriptor = null;
+                RunnableFromCacheResult.CacheHitData cacheHitData = null;
                 PublishedEntryRefLocality? refLocality;
                 ObservedInputProcessingResult? maybeUsableProcessingResult = null;
 
                 string description = processRunnable.Description;
 
                 WeakContentFingerprint weakFingerprint;
+
+                // Augmented weak fingerprint used for storing cache entry in case of cache miss
+                WeakContentFingerprint? augmentedWeakFingerprint = null;
+                bool performedLookupForAugmentedWeakFingerprint = false;
+
                 using (operationContext.StartOperation(PipExecutorCounter.ComputeWeakFingerprintDuration))
                 {
-                    weakFingerprint = new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash);
+                    weakFingerprint = computeWeakFingerprint();
                     processFingerprintComputationResult.WeakFingerprint = weakFingerprint;
                 }
 
@@ -1870,7 +1923,6 @@ namespace BuildXL.Scheduler
 
                     using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheChapter1DetermineStrongFingerprintDuration))
                     using (var strongFingerprintCacheWrapper = SchedulerPools.HashFingerprintDataMapPool.GetInstance())
-                    using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
                     {
                         // It is common to have many entry refs for the same PathSet, since often path content changes more often than the set of paths
                         // (i.e., the refs differ by strong fingerprint). We cache the strong fingerprint computation per PathSet; this saves the repeated
@@ -1878,8 +1930,6 @@ namespace BuildXL.Scheduler
                         // For those path sets that are ill-defined for the pip (e.g. inaccessible paths), we use a null marker.
                         Dictionary<ContentHash, Tuple<BoxRef<ProcessStrongFingerprintComputationData>, ObservedInputProcessingResult, ObservedPathSet>> strongFingerprintCache =
                             strongFingerprintCacheWrapper.Instance;
-                        List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList =
-                            strongFingerprintComputationListWrapper.Instance;
 
                         foreach (
                             Task<Possible<PublishedEntryRef, Failure>> batchPromise in
@@ -1944,41 +1994,47 @@ namespace BuildXL.Scheduler
                                 }
 
                                 var pathSet = maybePathSet.Value;
-                                (bool succeeded, ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint? strongContentFingerprint, ObservedPathSet pathSetUsed, ContentHash pathSetHashUsed)
-                                    strongFingerprintComputationResult =
-                                        await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
-                                            operationContext,
-                                            environment,
-                                            state,
-                                            cacheableProcess,
-                                            weakFingerprint,
-                                            pathSet,
-                                            entryRef.PathSetHash);
 
                                 // Record the most relevant strong fingerprint information, defaulting to information retrieved from cache
-                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = strongFingerprintComputationResult.succeeded
-                                    ? new ProcessStrongFingerprintComputationData(
-                                        pathSet: strongFingerprintComputationResult.pathSetUsed,
-                                        pathSetHash: strongFingerprintComputationResult.pathSetHashUsed,
-                                        priorStrongFingerprints: new List<StrongContentFingerprint>(1) { strongFingerprintComputationResult.strongContentFingerprint.Value })
-                                    : new ProcessStrongFingerprintComputationData(
+                                BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputationData = new ProcessStrongFingerprintComputationData(
                                         pathSet: pathSet,
                                         pathSetHash: entryRef.PathSetHash,
                                         priorStrongFingerprints: new List<StrongContentFingerprint>(1) { entryRef.StrongFingerprint });
 
                                 strongFingerprintComputationList.Add(strongFingerprintComputationData);
 
-                                ObservedInputProcessingResult observedInputProcessingResult = strongFingerprintComputationResult.observedInputProcessingResult;
+                                // check if now running with safer options than before (i.e., prior are not strictly safer than current)
+                                var currentUnsafeOptions = state.UnsafeOptions;
+                                var priorUnsafeOptions = pathSet.UnsafeOptions;
+
+                                if (priorUnsafeOptions.IsLessSafeThan(currentUnsafeOptions))
+                                {
+                                    // This path set's options are less safe than our current options so we cannot use it. Just ignore it.
+                                    // Poison this path set hash so we don't repeatedly try to retrieve and parse it.
+                                    strongFingerprintCache[entryRef.PathSetHash] = null;
+                                    continue;
+                                }
+
+                                (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint) =
+                                    await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+                                        operationContext,
+                                        environment,
+                                        state,
+                                        cacheableProcess,
+                                        weakFingerprint,
+                                        pathSet,
+                                        entryRef.PathSetHash);
+
                                 ObservedInputProcessingStatus processingStatus = observedInputProcessingResult.Status;
 
                                 switch (processingStatus)
                                 {
                                     case ObservedInputProcessingStatus.Success:
-                                        strongFingerprint = strongFingerprintComputationResult.strongContentFingerprint;
+                                        strongFingerprint = computedStrongFingerprint;
                                         Contract.Assume(strongFingerprint.HasValue);
 
                                         strongFingerprintComputationData.Value = strongFingerprintComputationData.Value.ToSuccessfulResult(
-                                            computedStrongFingerprint: strongFingerprint.Value,
+                                            computedStrongFingerprint: computedStrongFingerprint,
                                             observedInputs: observedInputProcessingResult.ObservedInputs.BaseArray);
 
                                         if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
@@ -2057,6 +2113,55 @@ namespace BuildXL.Scheduler
                                 environment.ReportCacheDescriptorHit(entryRef.OriginatingCache);
                                 break;
                             }
+                            else if (canAugmentWeakFingerprint && entryRef.StrongFingerprint == StrongContentFingerprint.AugmentedWeakFingerprintMarker)
+                            {
+                                // The strong fingeprint is the marker fingerprint indicating that computing an augmented weak fingerprint is required.
+                                augmentedWeakFingerprint = new WeakContentFingerprint(strongFingerprint.Value.Hash);
+                                performedLookupForAugmentedWeakFingerprint = true;
+
+                                // Notice this is a recursive call to same method with augmented weak fingerprint but disallowing
+                                // further augmentation
+                                var result = await TryCheckProcessRunnableFromCacheAsync(
+                                    processRunnable,
+                                    state,
+                                    cacheableProcess,
+                                    () => augmentedWeakFingerprint.Value,
+                                    canAugmentWeakFingerprint: false);
+
+                                string keepAliveResult = "N/A";
+
+                                try
+                                {
+                                    if (result.CanRunFromCache)
+                                    {
+                                        // Fetch the augmenting path set entry to keep it alive
+                                        // NOTE: This is best-effort so we don't observe the result here. This would
+                                        // be a good candidate for incorporate since we don't actually need the cache entry
+                                        var fetchAugmentingPathSetEntryResult = await cache.TryGetCacheEntryAsync(
+                                            cacheableProcess.Process,
+                                            weakFingerprint,
+                                            entryRef.PathSetHash,
+                                            entryRef.StrongFingerprint);
+
+                                        keepAliveResult = fetchAugmentingPathSetEntryResult.Succeeded
+                                            ? (fetchAugmentingPathSetEntryResult.Result == null ? "Missing" : "Success")
+                                            : fetchAugmentingPathSetEntryResult.Failure.Describe();
+
+                                        return result;
+                                    }
+                                }
+                                finally
+                                {
+                                    Logger.Log.AugmentedWeakFingerprint(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint: weakFingerprint.ToString(),
+                                        augmentedWeakFingerprint: augmentedWeakFingerprint.ToString(),
+                                        pathSetHash: entryRef.PathSetHash.ToHex(),
+                                        pathCount: maybePathSet?.Paths.Length ?? -1,
+                                        keepAliveResult: keepAliveResult);
+                                }
+                            }
 
                             if (ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                             {
@@ -2068,9 +2173,6 @@ namespace BuildXL.Scheduler
                                     availableStrongFingerprint: strongFingerprint.Value.ToString());
                             }
                         }
-
-                        // Update the strong fingerprint computations list
-                        processFingerprintComputationResult.StrongFingerprintComputations = strongFingerprintComputationList.SelectArray(s => s.Value);
                     }
 
                     CacheEntry? maybeUsableCacheEntry = null;
@@ -2145,7 +2247,7 @@ namespace BuildXL.Scheduler
 
                     if (maybeUsableCacheEntry.HasValue)
                     {
-                        usableDescriptor = await TryConvertToRunnableFromCacheResultAsync(
+                        cacheHitData = await TryConvertToRunnableFromCacheResultAsync(
                          processRunnable,
                          operationContext,
                          environment,
@@ -2164,14 +2266,107 @@ namespace BuildXL.Scheduler
 
                 RunnableFromCacheResult runnableFromCacheResult;
 
+                bool isCacheHit = cacheHitData != null;
+
+                if (!isCacheHit)
+                {
+                    var pathSetCount = strongFingerprintComputationList.Count;
+                    int threshold = environment.Configuration.Cache.AugmentWeakFingerprintPathSetThreshold;
+                    if (augmentedWeakFingerprint == null
+                        && threshold > 0
+                        && canAugmentWeakFingerprint
+                        && pathSetCount >= threshold)
+                    {
+                        // Compute 'weak augmenting' path set with common paths among path sets
+                        ObservedPathSet weakAugmentingPathSet = ExtractPathSetForAugmentingWeakFingerprint(pathTable, environment.Configuration.Cache, strongFingerprintComputationList);
+
+                        var minPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Min();
+                        var maxPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Max();
+
+                        var weakAugmentingPathSetHashResult = await cache.TryStorePathSetAsync(weakAugmentingPathSet);
+                        string addAugmentingPathSetResultDescription;
+
+                        if (weakAugmentingPathSetHashResult.Succeeded)
+                        {
+                            ContentHash weakAugmentingPathSetHash = weakAugmentingPathSetHashResult.Result;
+
+                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we 
+                            // could compute augmented weak fingerprint and perform the cache lookup as above
+                            (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint)
+                                        = await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+                                                operationContext,
+                                                environment,
+                                                state,
+                                                cacheableProcess,
+                                                weakFingerprint,
+                                                weakAugmentingPathSet,
+                                                weakAugmentingPathSetHash);
+
+                            BoxRef<ProcessStrongFingerprintComputationData> strongFingerprintComputation = new ProcessStrongFingerprintComputationData(
+                                weakAugmentingPathSetHash,
+                                new List<StrongContentFingerprint>() { StrongContentFingerprint.AugmentedWeakFingerprintMarker },
+                                weakAugmentingPathSet);
+
+                            // Add the computation of the augmenting weak fingerprint
+                            strongFingerprintComputationList.Add(strongFingerprintComputation);
+
+                            if (observedInputProcessingResult.Status == ObservedInputProcessingStatus.Success)
+                            {
+                                // Add marker selector with weak augmenting path set
+                                var addAugmentationResult = await cache.TryPublishCacheEntryAsync(
+                                    cacheableProcess.Process,
+                                    weakFingerprint,
+                                    weakAugmentingPathSetHash,
+                                    StrongContentFingerprint.AugmentedWeakFingerprintMarker,
+                                    CacheEntry.FromArray((new[] { weakAugmentingPathSetHash }).ToReadOnlyArray(), "AugmentWeakFingerprint"));
+
+                                addAugmentingPathSetResultDescription = addAugmentationResult.Succeeded
+                                    ? addAugmentationResult.Result.Status.ToString()
+                                    : addAugmentationResult.Failure.Describe();
+
+                                augmentedWeakFingerprint = new WeakContentFingerprint(computedStrongFingerprint.Hash);
+
+                                strongFingerprintComputation.Value = strongFingerprintComputation.Value.ToSuccessfulResult(
+                                    computedStrongFingerprint,
+                                    observedInputProcessingResult.ObservedInputs);
+                            }
+                            else
+                            {
+                                addAugmentingPathSetResultDescription = observedInputProcessingResult.Status.ToString();
+                            }
+                        }
+                        else
+                        {
+                            addAugmentingPathSetResultDescription = weakAugmentingPathSetHashResult.Failure.Describe();
+                        }
+
+                        Logger.Log.AddAugmentingPathSet(
+                            operationContext,
+                            cacheableProcess.Description,
+                            weakFingerprint: weakFingerprint.ToString(),
+                            pathSetHash: weakAugmentingPathSetHashResult.Succeeded ? weakAugmentingPathSetHashResult.Result.ToHex() : "N/A",
+                            pathCount: weakAugmentingPathSet.Paths.Length,
+                            pathSetCount: pathSetCount,
+                            minPathCount: minPathCount,
+                            maxPathCount: maxPathCount,
+                            result: addAugmentingPathSetResultDescription);
+                    }
+                }
+
+                WeakContentFingerprint cacheResultWeakFingerprint = isCacheHit || augmentedWeakFingerprint == null
+                    ? weakFingerprint
+                    : augmentedWeakFingerprint.Value;
+
                 runnableFromCacheResult = CreateRunnableFromCacheResult(
-                    usableDescriptor,
+                    cacheHitData,
                     environment,
                     refLocality,
                     maybeUsableProcessingResult,
-                    weakFingerprint);
+                    cacheResultWeakFingerprint);
 
-                if (!runnableFromCacheResult.CanRunFromCache)
+                if (!runnableFromCacheResult.CanRunFromCache
+                    // Don't perform redundant cache miss logging if already handled for augmented weak fingerprint
+                    && !performedLookupForAugmentedWeakFingerprint)
                 {
                     Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
                     environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
@@ -2183,14 +2378,93 @@ namespace BuildXL.Scheduler
                     environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
                 }
 
-                using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration))
-                {
-                    environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult);
-                }
-
                 processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
                 return runnableFromCacheResult;
             }
+        }
+
+        /// <summary>
+        /// Extract a path set to represent the commonly accessed paths which can be used to compute an augmented weak fingerprint
+        /// </summary>
+        private static ObservedPathSet ExtractPathSetForAugmentingWeakFingerprint(
+            PathTable pathTable,
+            ICacheConfiguration cacheConfiguration,
+            List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
+        {
+            var requiredUseCount = Math.Max(1, cacheConfiguration.AugmentWeakFingerprintPathSetThreshold * cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor);
+            using (var pool = s_pathToObservationEntryMapPool.GetInstance())
+            using (var accessedNameUseCountMapPool = s_accessedFileNameToUseCountPool.GetInstance())
+            using (var stringIdPool = Pools.StringIdSetPool.GetInstance())
+            {
+                Dictionary<AbsolutePath, ExtractedPathEntry> map = pool.Instance;
+                var accessedNameUseCountMap = accessedNameUseCountMapPool.Instance;
+                var accessedFileNameSet = stringIdPool.Instance;
+
+                foreach (var pathSet in strongFingerprintComputationList.Select(s => s.Value.PathSet))
+                {
+                    // Union common observed access file names to increase the strength (specificity) of the augmented weak fingerprint
+                    // for search path enumerations in the path sets.
+                    foreach (var accessedFileName in pathSet.ObservedAccessedFileNames)
+                    {
+                        if (!accessedNameUseCountMap.TryGetValue(accessedFileName, out var useCount))
+                        {
+                            useCount = 0;
+                        }
+
+                        useCount++;
+
+                        if (useCount >= requiredUseCount)
+                        {
+                            accessedFileNameSet.Add(accessedFileName);
+                        }
+
+                        accessedNameUseCountMap[accessedFileName] = useCount;
+                    }
+
+                    // Union common observed paths to increase the strength (specificity) of the augmented weak fingerprint.
+                    foreach (ObservedPathEntry pathEntry in pathSet.Paths)
+                    {
+                        if (map.TryGetValue(pathEntry.Path, out var existingEntry))
+                        {
+                            if (IsCompatible(pathEntry, existingEntry.Entry))
+                            {
+                                existingEntry.UseCount++;
+                                map[pathEntry.Path] = existingEntry;
+                            }
+                        }
+                        else
+                        {
+                            map[pathEntry.Path] = new ExtractedPathEntry()
+                            {
+                                Entry = pathEntry,
+                                UseCount = 1
+                            };
+                        }
+                    }
+                }
+
+                var firstPathSet = strongFingerprintComputationList[0].Value.PathSet;
+                var paths = SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer>.CloneAndSort(
+                    map.Values.Where(e => e.UseCount >= requiredUseCount).Select(e => e.Entry),
+                    firstPathSet.Paths.Comparer);
+
+                var observedAccessedFileNames = SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>.CloneAndSort(
+                    accessedFileNameSet,
+                    firstPathSet.ObservedAccessedFileNames.Comparer);
+
+                return new ObservedPathSet(
+                    paths,
+                    observedAccessedFileNames,
+                    // Use default unsafe options which prevents path set from ever being rejected due to
+                    // incompatibility with the currently specified unsafe options during cache lookup
+                    unsafeOptions: null);
+            }
+        }
+
+        private static bool IsCompatible(ObservedPathEntry pathEntry, ObservedPathEntry existingEntry)
+        {
+            return pathEntry.Flags == existingEntry.Flags
+                && pathEntry.EnumeratePatternRegex == existingEntry.EnumeratePatternRegex;
         }
 
         private static RunnableFromCacheResult CreateRunnableFromCacheResult(
@@ -2865,7 +3139,7 @@ namespace BuildXL.Scheduler
             List<FileArtifact> absentArtifacts = null; // Almost never populated, since outputs are almost always required.
             List<(FileArtifact, FileMaterializationInfo)> cachedArtifactContentHashes =
                 new List<(FileArtifact, FileMaterializationInfo)>(pip.Outputs.Length);
- 
+
             // Only the CanBeReferencedOrCached output will be saved in metadata.StaticOutputHashes
             // We looped metadata.StaticOutputHashes and meanwhile find the corresponding output in current executing pip.
             FileArtifactWithAttributes attributedOutput;
@@ -3210,7 +3484,7 @@ namespace BuildXL.Scheduler
         /// Note that if the returned processing status is <see cref="ObservedInputProcessingStatus.Aborted"/>, then a failure has been logged and pip
         /// execution must fail.
         /// </summary>
-        private static async Task<(bool, ObservedInputProcessingResult, StrongContentFingerprint?, ObservedPathSet, ContentHash)> TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
+        private static async Task<(ObservedInputProcessingResult, StrongContentFingerprint)> TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -3239,21 +3513,7 @@ namespace BuildXL.Scheduler
                 // force cache miss if observed input processing result is not 'Success'
                 if (validationResult.Status != ObservedInputProcessingStatus.Success)
                 {
-                    return (false, validationResult, default(StrongContentFingerprint?), default(ObservedPathSet), default(ContentHash));
-                }
-
-                // check if now running with safer options than before (i.e., prior are not strictly safer than current)
-                var currentUnsafeOptions = state.UnsafeOptions;
-                var priorUnsafeOptions = pathSet.UnsafeOptions;
-
-                // prior options are safer --> use the precomputed path set hash to aim for a cache hit
-                var finalPathSetHash = pathSetHash;
-                var finalPathSet = pathSet;
-                if (!priorUnsafeOptions.IsAsSafeOrSaferThan(currentUnsafeOptions))
-                {
-                    // prior options are less safe --> compute new path set hash (with updated unsafe options)
-                    finalPathSet = pathSet.WithUnsafeOptions(currentUnsafeOptions);
-                    finalPathSetHash = await pathSet.WithUnsafeOptions(currentUnsafeOptions).ToContentHash(environment.Context.PathTable, state.PathExpander);
+                    return (validationResult, default(StrongContentFingerprint));
                 }
 
                 // log and compute strong fingerprint using the PathSet hash from the cache
@@ -3263,16 +3523,16 @@ namespace BuildXL.Scheduler
                     pip,
                     validationResult);
 
-                StrongContentFingerprint? strongFingerprint;
+                StrongContentFingerprint strongFingerprint;
                 using (operationContext.StartOperation(PipExecutorCounter.ComputeStrongFingerprintDuration))
                 {
                     strongFingerprint = validationResult.ComputeStrongFingerprint(
                         environment.Context.PathTable,
                         weakFingerprint,
-                        finalPathSetHash);
+                        pathSetHash);
                 }
 
-                return (true, validationResult, strongFingerprint, finalPathSet, finalPathSetHash);
+                return (validationResult, strongFingerprint);
             }
         }
 
@@ -3443,6 +3703,12 @@ namespace BuildXL.Scheduler
 
                 return succeeded;
             }
+        }
+
+        private struct ExtractedPathEntry
+        {
+            public ObservedPathEntry Entry;
+            public int UseCount;
         }
 
         [Flags]
@@ -4116,7 +4382,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable); 
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable);
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

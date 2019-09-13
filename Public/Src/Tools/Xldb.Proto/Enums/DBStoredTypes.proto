@@ -1,0 +1,48 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+// This enum keeps track of the different kinds of items we are storing into the DB,
+// so we can keep track of their counts and sizes.
+enum DBStoredTypes{
+    DBStoredTypes_UNSPECIFIED = 0;
+
+    // Stored Events
+    DBStoredTypes_FileArtifactContentDecided = 1;
+    DBStoredTypes_WorkerList = 2;
+    DBStoredTypes_PipExecutionPerformance = 3;
+    DBStoredTypes_DirectoryMembershipHashed = 4;
+    DBStoredTypes_ProcessExecutionMonitoringReported = 5;
+    DBStoredTypes_ExtraEventDataReported = 6;
+    DBStoredTypes_DependencyViolationReported = 7;
+    DBStoredTypes_PipExecutionStepPerformanceReported = 8;
+    DBStoredTypes_ResourceUsageReported = 9;
+    DBStoredTypes_ProcessFingerprintComputation = 10;
+    DBStoredTypes_PipCacheMiss = 11;
+    DBStoredTypes_PipExecutionDirectoryOutputs = 12;
+    DBStoredTypes_BxlInvocation = 13;
+
+    // Stored Pips
+    DBStoredTypes_ProcessPip = 14;    
+    DBStoredTypes_WriteFilePip = 15;    
+    DBStoredTypes_CopyFilePip = 16;    
+    DBStoredTypes_SealDirectoryPip = 17;    
+    DBStoredTypes_IpcPip = 18;
+
+    // Indexing information
+    // For consumer/producer mapping, both key and value will be stored for DB size (since keys (strings) may be much larger
+    // than values (list of ints)
+    DBStoredTypes_FileConsumer = 19;
+    DBStoredTypes_FileProducer = 20;
+    DBStoredTypes_DirectoryConsumer = 21;
+    DBStoredTypes_DirectoryProducer = 22;
+
+    // Metadata Information
+    DBStoredTypes_GraphMetaData = 23;
+    DBStoredTypes_MountPathExpander = 24;
+}

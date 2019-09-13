@@ -112,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         UpdateBulk,
-
+        
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         TrimBulkRemote,
@@ -140,6 +140,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         ScanEntriesWithLastAccessTime,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        HashGetKeys,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        HashGetValue,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        HashSetValue,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        CompareExchange,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        GetContentHashList,
     }
 
     /// <nodoc />
@@ -216,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return result;
         }
 
-        private List<(IServer server, string serverId)> GetServers(string serverId)
+        private List<(IServer server, string serverId)> GetServers(string serverId = null)
         {
             return _databaseFactory.GetEndPoints()
                 .Select(ep => _databaseFactory.GetServer(ep))
@@ -280,19 +300,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <param name="cancellationToken">A cancellation token</param>
         /// <param name="commandFlags">optional command flags to execute the command</param>
         public Task<RedisValue> StringGetAsync(Context context, string key, CancellationToken cancellationToken, CommandFlags commandFlags = CommandFlags.None)
-        {
-            using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.StringGet].Start())
-            {
-                return _redisRetryStrategy.ExecuteAsync(
-                    async () =>
-                    {
-                        var database = await GetDatabaseAsync(context);
-                        return await database.StringGetAsync(key, commandFlags);
-                    },
-                    cancellationToken);
-            }
-        }
+            => PerformDatabaseOperationAsync(context, db => db.StringGetAsync(key, commandFlags), Counters[RedisOperation.StringGet], cancellationToken);
 
         /// <summary>
         /// Atomically increments an integer in redis and returns the incremented integer.
@@ -302,83 +310,60 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// <param name="byValue">The value to increment by.</param>
         /// <param name="cancellationToken">A cancellation token</param>
         public Task<long> StringIncrementAsync(Context context, string key, CancellationToken cancellationToken, long byValue = 1)
-        {
-            using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.StringIncrement].Start())
-            {
-                return _redisRetryStrategy.ExecuteAsync(
-                    async () =>
-                    {
-                        var database = await GetDatabaseAsync(context);
-                        return await database.StringIncrementAsync(key, byValue);
-                    }, cancellationToken);
-            }
-        }
+            => PerformDatabaseOperationAsync(context, db => db.StringIncrementAsync(key, byValue), Counters[RedisOperation.StringIncrement], cancellationToken);
 
         /// <summary>
         /// Sets a string in redis to a particular value and returns whether or not the string was updated.
         /// </summary>
         public Task<bool> StringSetAsync(Context context, string stringKey, RedisValue redisValue, When when, CancellationToken cancellationToken)
-        {
-            using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.StringSet].Start())
-            {
-                return _redisRetryStrategy.ExecuteAsync(
-                    async () =>
-                    {
-                        var database = await GetDatabaseAsync(context);
-                        return await database.StringSetAsync(stringKey, redisValue, when: when);
-                    }, cancellationToken);
-            }
-        }
+            => PerformDatabaseOperationAsync(context, db => db.StringSetAsync(stringKey, redisValue, when: when), Counters[RedisOperation.StringSet], cancellationToken);
 
         /// <summary>
         /// Sets a string in redis to a particular value and returns whether or not the string was updated.
         /// </summary>
         public Task<bool> StringSetAsync(Context context, string stringKey, RedisValue redisValue, TimeSpan? expiry, When when, CancellationToken cancellationToken)
-        {
-            using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.StringSet].Start())
-            {
-                return _redisRetryStrategy.ExecuteAsync(
-                    async () =>
-                    {
-                        var database = await GetDatabaseAsync(context);
-                        return await database.StringSetAsync(stringKey, redisValue, expiry, when);
-                    }, cancellationToken);
-            }
-        }
+            => PerformDatabaseOperationAsync(context, db => db.StringSetAsync(stringKey, redisValue, expiry, when), Counters[RedisOperation.StringSet], cancellationToken);
 
         /// <summary>
         /// Get expiry of specified key.
         /// </summary>
         public Task<TimeSpan?> GetExpiryAsync(Context context, RedisKey stringKey, CancellationToken cancellationToken)
-        {
-            using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.GetExpiry].Start())
-            {
-                return _redisRetryStrategy.ExecuteAsync(
-                    async () =>
-                    {
-                        var database = await GetDatabaseAsync(context);
-                        return await database.KeyTimeToLiveAsync(stringKey);
-                    }, cancellationToken);
-            }
-        }
+            => PerformDatabaseOperationAsync(context, db => db.KeyTimeToLiveAsync(stringKey), Counters[RedisOperation.GetExpiry], cancellationToken);
 
         /// <summary>
         /// Checks whether a key exists.
         /// </summary>
-        public Task<bool> KeyExists(Context context, RedisKey key, CancellationToken token)
+        public Task<bool> KeyExistsAsync(Context context, RedisKey key, CancellationToken token)
+            => PerformDatabaseOperationAsync(context, db => db.KeyExistsAsync(key), Counters[RedisOperation.CheckExists], token);
+        
+        /// <summary>
+        /// Gets all the field names associated with a key
+        /// </summary>
+        public Task<RedisValue[]> GetHashKeysAsync(Context context, RedisKey key, CancellationToken token)
+            => PerformDatabaseOperationAsync(context, db => db.HashKeysAsync(key), Counters[RedisOperation.HashGetKeys], token);
+
+        /// <summary>
+        /// Gets the value associated to a key's field.
+        /// </summary>
+        public Task<RedisValue> GetHashValueAsync(Context context, RedisKey key, RedisValue hashField, CancellationToken token)
+            => PerformDatabaseOperationAsync(context, db => db.HashGetAsync(key, hashField), Counters[RedisOperation.HashGetValue], token);
+
+        /// <summary>
+        /// Sets the value associated to a key's field.
+        /// </summary>
+        public Task<bool> SetHashValueAsync(Context context, RedisKey key, RedisValue hashField, RedisValue value, When when, CancellationToken token)
+            => PerformDatabaseOperationAsync(context, db => db.HashSetAsync(key, hashField, value, when), Counters[RedisOperation.HashSetValue], token);
+
+        private Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token)
         {
             using (Counters[RedisOperation.All].Start())
-            using (Counters[RedisOperation.CheckExists].Start())
+            using (stopwatch.Start())
             {
                 return _redisRetryStrategy.ExecuteAsync(
                     async () =>
                     {
                         var database = await GetDatabaseAsync(context);
-                        return await database.KeyExistsAsync(key);
+                        return await operation(database);
                     }, token);
             }
         }

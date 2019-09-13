@@ -29,9 +29,11 @@ namespace Test.BuildXL.Scheduler
         private readonly Dictionary<PipId, PipResultStatus> m_overridePipResults = new Dictionary<PipId, PipResultStatus>();
         private readonly LoggingContext m_loggingContext;
 
-        public ConcurrentDictionary<PipId, PipResultStatus> PipResults { get; } = new ConcurrentDictionary<PipId, PipResultStatus>();
-        
-        public ConcurrentDictionary<PipId, ObservedPathSet?> PathSets { get; } = new ConcurrentDictionary<PipId, ObservedPathSet?>();
+        public ConcurrentDictionary<PipId, PipResultStatus> PipResults => RunData.PipResults;
+
+        public ConcurrentDictionary<PipId, ObservedPathSet?> PathSets => RunData.PathSets;
+
+        public ScheduleRunData RunData { get; } = new ScheduleRunData();
 
         protected override bool SandboxingWithKextEnabled => OperatingSystemHelper.IsUnixOS;
 
@@ -132,6 +134,9 @@ namespace Test.BuildXL.Scheduler
             if (runnablePip.Result.HasValue && runnablePip.PipType == PipType.Process)
             {
                 PathSets[pipId] = runnablePip.ExecutionResult?.PathSet;
+
+                RunData.CacheLookupResults[pipId] = ((ProcessRunnablePip)runnablePip).CacheResult;
+                RunData.ExecutionCachingInfos[pipId] = runnablePip.ExecutionResult?.TwoPhaseCachingInfo;
             }
 
             await base.OnPipCompleted(runnablePip);

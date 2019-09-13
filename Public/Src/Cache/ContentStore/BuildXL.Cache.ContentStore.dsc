@@ -22,16 +22,7 @@ namespace Default {
             {
                 subfolder: r`App`,
                 contents: [
-                    App.exe,
-                    // Back-Compat naming
-                    {
-                        file: App.exe.runtime.binary,
-                        targetFileName: "Microsoft.ContentStoreApp.exe",
-                    },
-                    {
-                        file: App.exe.runtime.pdb,
-                        targetFileName: "Microsoft.ContentStoreApp.pdb",
-                    }
+                    App.exe
                 ]
             },
             {
@@ -120,14 +111,6 @@ namespace DotNetCore {
 export const deploymentForBuildXL: Deployment.Definition = {
     contents: [
         App.exe,
-        {
-            file: App.exe.runtime.binary,
-            targetFileName: "Microsoft.ContentStoreApp.exe",
-        },
-        {
-            file: App.exe.runtime.pdb,
-            targetFileName: "Microsoft.ContentStoreApp.pdb",
-        },
 
         importFrom("Grpc.Core").pkg,
         importFrom("Google.Protobuf").pkg,

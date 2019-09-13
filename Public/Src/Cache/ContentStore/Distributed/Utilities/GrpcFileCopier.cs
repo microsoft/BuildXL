@@ -13,11 +13,12 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
-    /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>, <seealso cref="GrpcServerFactory"/>
+    /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
     public class GrpcFileCopier : IAbsolutePathFileCopier, ICopyRequester
     {
@@ -104,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, MachineLocation targetMachine)
+        public async Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             var targetPath = new AbsolutePath(targetMachine.Path);
             var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];

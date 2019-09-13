@@ -195,7 +195,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) }, rotateLogs: true);
+                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                    rotateLogs: true,
+                    failureHandler: failure =>
+                    {
+                        Tracer.Error(context, $"RocksDb critical error caused store deprecation: {failure.DescribeIncludingInnerFailures()}");
+                    });
+
                 if (possibleStore.Succeeded)
                 {
                     var oldKeyValueStore = _keyValueStore;
@@ -607,19 +613,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            return context.PerformOperation(
-                Tracer,
-                () =>
+            var key = GetMetadataKey(strongFingerprint);
+            ContentHashListWithDeterminism? result = null;
+            var status = _keyValueStore.Use(
+                store =>
                 {
-                    var key = GetMetadataKey(strongFingerprint);
-                    ContentHashListWithDeterminism? result = null;
-                    var status = _keyValueStore.Use(
-                        store =>
-                        {
-                            if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
-                            {
-                                var metadata = DeserializeMetadataEntry(data);
-                                result = metadata.ContentHashListWithDeterminism;
+                    if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                    {
+                        var metadata = DeserializeMetadataEntry(data);
+                        result = metadata.ContentHashListWithDeterminism;
 
                                 // Update the time, only if no one else has changed it in the mean time. We don't
                                 // really care if this succeeds or not, because if it doesn't it only means someone
@@ -629,20 +631,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                                 // hashes exist. Moreover, we can prune content.
                             }
-                        });
+                });
 
-                    if (!status.Succeeded)
-                    {
-                        return new GetContentHashListResult(status.Failure.CreateException());
-                    }
+            if (!status.Succeeded)
+            {
+                return new GetContentHashListResult(status.Failure.CreateException());
+            }
 
-                    if (result is null)
-                    {
-                        return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
-                    }
+            if (result is null)
+            {
+                return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
+            }
 
-                    return new GetContentHashListResult(result.Value);
-                }, Counters[ContentLocationDatabaseCounters.GetContentHashList]);
+            return new GetContentHashListResult(result.Value);
         }
 
         /// <summary>
@@ -852,47 +853,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return Unit.Void;
             }).ToBoolResult();
-        }
-
-        /// <summary>
-        /// Metadata that is stored inside the <see cref="Columns.Metadata"/> column family.
-        /// </summary>
-        private readonly struct MetadataEntry
-        {
-            /// <summary>
-            /// Effective <see cref="ContentHashList"/> that we want to store, along with information about its cache
-            /// determinism.
-            /// </summary>
-            public ContentHashListWithDeterminism ContentHashListWithDeterminism { get; }
-
-            /// <summary>
-            /// Last update time, stored as output by <see cref="DateTime.ToFileTimeUtc"/>.
-            /// </summary>
-            public long LastAccessTimeUtc { get; }
-
-            public MetadataEntry(ContentHashListWithDeterminism contentHashListWithDeterminism, long lastAccessTimeUtc)
-            {
-                ContentHashListWithDeterminism = contentHashListWithDeterminism;
-                LastAccessTimeUtc = lastAccessTimeUtc;
-            }
-
-            public static MetadataEntry Deserialize(BuildXLReader reader)
-            {
-                var lastUpdateTimeUtc = reader.ReadInt64Compact();
-                var contentHashListWithDeterminism = ContentHashListWithDeterminism.Deserialize(reader);
-                return new MetadataEntry(contentHashListWithDeterminism, lastUpdateTimeUtc);
-            }
-
-            public static long DeserializeLastAccessTimeUtc(BuildXLReader reader)
-            {
-                return reader.ReadInt64Compact();
-            }
-            
-            public void Serialize(BuildXLWriter writer)
-            {
-                writer.WriteCompact(LastAccessTimeUtc);
-                ContentHashListWithDeterminism.Serialize(writer);
-            }
         }
 
         private class KeyValueStoreGuard : IDisposable

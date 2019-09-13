@@ -136,9 +136,12 @@ namespace ContentStoreTest.Distributed.Sessions
                 tempPath,
                 FileSystem,
                 RedisContentLocationStoreConstants.DefaultBatchSize,
-                retryIntervalForCopies: DistributedContentSessionTests.DefaultRetryIntervalsForTest,
+                settings: new DistributedContentStoreSettings
+                {
+                    RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
+                    PinConfiguration = PinConfiguration,
+                },
                 replicaCreditInMinutes: replicaCreditInMinutes,
-                pinConfiguration: PinConfiguration,
                 clock: TestClock,
                 enableRepairHandling: enableRepairHandling,
                 contentStoreSettings: new ContentStoreSettings()
@@ -146,7 +149,8 @@ namespace ContentStoreTest.Distributed.Sessions
                     CheckFiles = true,
                     UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled,
                     UseLegacyQuotaKeeperImplementation = false,
-                });
+                },
+                setPostInitializationCompletionAfterStartup: true);
 
             distributedContentStore.DisposeContentStoreFactory = false;
             return distributedContentStore;

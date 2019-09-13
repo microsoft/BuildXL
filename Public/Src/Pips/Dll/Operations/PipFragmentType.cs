@@ -68,5 +68,10 @@ namespace BuildXL.Pips.Operations
         /// File id, i.e., path and its rewrite count.
         /// </summary>
         FileId,
+
+        /// <summary>
+        /// Directory id, i.e., path and its partial seal id.
+        /// </summary>
+        DirectoryId,
     }
 }

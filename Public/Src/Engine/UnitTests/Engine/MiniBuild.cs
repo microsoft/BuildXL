@@ -73,6 +73,7 @@ namespace Test.BuildXL.EngineTests
         {
             // Relatively simple test to ensure the /VS generation feature doesn't crash
             Configuration.Ide.IsEnabled = true;
+            Configuration.Ide.IsNewEnabled = true;
             SetupHelloWorld();
             RunEngine();
 

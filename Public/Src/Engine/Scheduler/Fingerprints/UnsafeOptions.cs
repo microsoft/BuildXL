@@ -76,6 +76,14 @@ namespace BuildXL.Scheduler.Fingerprints
             return UnsafeConfiguration.IsAsSafeOrSaferThan(other.UnsafeConfiguration) && IsPreserveOutputsSaltAsSafeOrSaferThan(other);
         }
 
+        /// <summary>
+        /// Checks if this instance of <see cref="UnsafeOptions"/> is less safe than <paramref name="other"/>.
+        /// </summary>
+        public bool IsLessSafeThan(UnsafeOptions other)
+        {
+            return !IsAsSafeOrSaferThan(other);
+        }
+
         private bool IsPreserveOutputsSaltAsSafeOrSaferThan(UnsafeOptions otherUnsafeOptions)
         {
             return m_preserveOutputsSalt == null || 

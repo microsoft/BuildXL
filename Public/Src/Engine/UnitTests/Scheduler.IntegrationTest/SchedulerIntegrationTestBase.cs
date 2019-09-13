@@ -467,9 +467,8 @@ namespace Test.BuildXL.Scheduler
                     Graph = graph,
                     Config = config,
                     Success = success,
-                    PipResults = testScheduler.PipResults,
+                    RunData = testScheduler.RunData,
                     PipExecutorCounters = testScheduler.PipExecutionCounters,
-                    PathSets = testScheduler.PathSets,
                     ProcessPipCountersByFilter = testScheduler.ProcessPipCountersByFilter,
                     ProcessPipCountersByTelemetryTag = testScheduler.ProcessPipCountersByTelemetryTag,
                     SchedulerState = new SchedulerState(testScheduler)

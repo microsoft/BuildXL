@@ -4468,8 +4468,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}', Visited entries: {visitedEntriesCount}, Unique pathsets: {pathsetCount}")]
-        public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, string weakFigerprint, int visitedEntriesCount, int pathsetCount);
+            Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}' (augmented: {isAugmentedFingerprint}), Visited entries: {visitedEntriesCount}, Unique pathsets: {pathsetCount}")]
+        public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, bool isAugmentedFingerprint, string weakFigerprint, int visitedEntriesCount, int pathsetCount);
     }
 }
 #pragma warning restore CA1823 // Unused field

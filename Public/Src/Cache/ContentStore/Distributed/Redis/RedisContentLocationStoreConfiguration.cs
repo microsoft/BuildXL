@@ -9,7 +9,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// Configuration properties for <see cref="RedisContentLocationStore"/>
     /// </summary>
-    public sealed class RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
+    public class RedisContentLocationStoreConfiguration : LocalLocationStoreConfiguration
     {
         /// <summary>
         /// Gets or sets size of batch calls to Redis.

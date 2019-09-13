@@ -22,6 +22,8 @@ namespace BuildXL.Xldb
 
         private Dictionary<ExecutionEventId, MessageParser> m_eventParserDictionary = new Dictionary<ExecutionEventId, MessageParser>();
         private Dictionary<PipType, MessageParser> m_pipParserDictionary = new Dictionary<PipType, MessageParser>();
+        private const uint s_workerIDDefaultValue = uint.MaxValue;
+        private const int s_fileRewriteCountDefaultValue = -1;
 
         public const string EventColumnFamilyName = "Event";
         public const string PipColumnFamilyName = "Pip";
@@ -35,7 +37,7 @@ namespace BuildXL.Xldb
         /// <summary>
         /// The Xldb datastore can read any Xldb that has a verion that is equal to this number or before.
         /// Only bump this version when there are major changes to the underlying db instance
-        /// (ie ProtoBuf objects being changed, new APIs being created, etc).
+        /// (i.e. ProtoBuf objects being changed, indexes being created/changed, etc).
         /// </summary>
         public const int XldbVersion = 1;
 
@@ -116,15 +118,22 @@ namespace BuildXL.Xldb
             var eventKey = new EventKey
             {
                 EventTypeID = eventTypeID,
-                WorkerID = uint.MaxValue
+                WorkerID = s_workerIDDefaultValue,
+                FileRewriteCount = s_fileRewriteCountDefaultValue
             };
 
             return GetEventsByKey(eventKey);
         }
 
         /// <summary>
-        /// Gets events from the DB based on the eventKey
+        /// Gets events from the DB based on the eventKey. 
         /// </summary>
+        /// <remarks>
+        /// Since 0 isn't serialized by Protobuf, a PrefixSearch for RewriteCount = 0 would match everything. 
+        /// Thus to avoid that, we set it to -1 to "match everything", else we look for specific rewrite counts.
+        /// Similarly, a PrefixSearch for WorkerID = 0 would match everything. 
+        /// Thus to avoid that, we set it to uint.MaxValue to "match everything", else we look for specific rewrite counts.
+        /// </remarks>
         /// <returns>List of events, empty if no such events exist</returns>
         private IEnumerable<IMessage> GetEventsByKey(EventKey eventKey)
         {
@@ -140,18 +149,14 @@ namespace BuildXL.Xldb
             var matchAllRewriteCounts = false;
             var matchAllWorkerIDs = false;
 
-            // Since 0 isn't serialized by Protobuf, a PrefixSearch for RewriteCount = 0 would match everything.
-            // Thus to avoid that, we set it to -1 to "match everything", else we look for specific rewrite counts.
-            if (eventKey.FileRewriteCount == -1)
+            if (eventKey.FileRewriteCount == s_fileRewriteCountDefaultValue)
             {
                 matchAllRewriteCounts = true;
                 // Set it to 0 to match everything
                 eventKey.FileRewriteCount = 0;
             }
 
-            // Since 0 isn't serialized by Protobuf, a PrefixSearch for WorkerID = 0 would match everything.
-            // Thus to avoid that, we set it to uint.MaxValue to "match everything", else we look for specific rewrite counts.
-            if (eventKey.WorkerID == uint.MaxValue)
+            if (eventKey.WorkerID == s_workerIDDefaultValue)
             {
                 matchAllWorkerIDs = true;
                 // Set it to 0 to match everything
@@ -163,34 +168,22 @@ namespace BuildXL.Xldb
                 foreach (var kvp in database.PrefixSearch(eventKey.ToByteArray(), EventColumnFamilyName))
                 {
                     var kvpKey = EventKey.Parser.ParseFrom(kvp.Key);
-                    // Match all Worker IDs and all RewriteCounts, just add everything
+                    // MatchAllWorker IDs and MatchAllRewriteCounts are true, so just add everything
                     if (matchAllWorkerIDs && matchAllRewriteCounts)
                     {
                         storedEvents.Add(parser.ParseFrom(kvp.Value));
                     }
-                    // Else if only all Worker IDs, go through and check the RewriteCounts
-                    else if (matchAllWorkerIDs)
+                    // Else if matching all WorkerIDs, check for specific RewriteCounts OR
+                    // if matching all RewriteCounts, check for specific worker ID
+                    else if ((matchAllWorkerIDs && kvpKey.FileRewriteCount == eventKey.FileRewriteCount) ||
+                             (matchAllRewriteCounts && kvpKey.WorkerID == eventKey.WorkerID))
                     {
-                        if (kvpKey.FileRewriteCount == eventKey.FileRewriteCount)
-                        {
-                            storedEvents.Add(parser.ParseFrom(kvp.Value));
-                        }
+                        storedEvents.Add(parser.ParseFrom(kvp.Value));
                     }
-                    // Else if only all RewriteCounts, then go through and check the Worker IDs
-                    else if (matchAllRewriteCounts)
-                    {
-                        if (kvpKey.WorkerID == eventKey.WorkerID)
-                        {
-                            storedEvents.Add(parser.ParseFrom(kvp.Value));
-                        }
-                    }
-                    // Else check both RewriteCounts and Worker IDs for an exact match
+                    // Else both worker ID and RewriteCounts are unique so the prefix search matches the right one
                     else
                     {
-                        if (kvpKey.WorkerID == eventKey.WorkerID && kvpKey.FileRewriteCount == eventKey.FileRewriteCount)
-                        {
-                            storedEvents.Add(parser.ParseFrom(kvp.Value));
-                        }
+                        storedEvents.Add(parser.ParseFrom(kvp.Value));
                     }
                 }
             });
@@ -204,7 +197,7 @@ namespace BuildXL.Xldb
         }
 
         /// <inheritdoc />
-        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationEventByKey(uint violatorPipID, uint workerID = uint.MaxValue)
+        public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationEventByKey(uint violatorPipID, uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
@@ -212,21 +205,23 @@ namespace BuildXL.Xldb
             {
                 EventTypeID = ExecutionEventId.DependencyViolationReported,
                 ViolatorPipID = violatorPipID,
-                WorkerID = workerID
+                FileRewriteCount = s_fileRewriteCountDefaultValue,
+                WorkerID = workerID ?? s_workerIDDefaultValue
             };
 
             return GetEventsByKey(eventKey).Cast<DependencyViolationReportedEvent>();
         }
 
         /// <inheritdoc />
-        public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = 0, uint workerID = uint.MaxValue)
+        public IEnumerable<PipExecutionStepPerformanceReportedEvent> GetPipExecutionStepPerformanceEventByKey(uint pipID, PipExecutionStep pipExecutionStep = 0, uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
                 EventTypeID = ExecutionEventId.PipExecutionStepPerformanceReported,
-                WorkerID = workerID,
+                WorkerID = workerID ?? s_workerIDDefaultValue,
+                FileRewriteCount = s_fileRewriteCountDefaultValue,
                 PipId = pipID,
                 PipExecutionStepPerformanceKey = pipExecutionStep
             };
@@ -235,14 +230,15 @@ namespace BuildXL.Xldb
         }
 
         /// <inheritdoc />
-        public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint workerID = uint.MaxValue)
+        public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEventByKey(uint pipID, FingerprintComputationKind computationKind = 0, uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
                 EventTypeID = ExecutionEventId.ProcessFingerprintComputation,
-                WorkerID = workerID,
+                WorkerID = workerID ?? s_workerIDDefaultValue,
+                FileRewriteCount = s_fileRewriteCountDefaultValue,
                 PipId = pipID,
                 ProcessFingerprintComputationKey = computationKind
             };
@@ -251,14 +247,15 @@ namespace BuildXL.Xldb
         }
 
         /// <inheritdoc />
-        public IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint workerID = uint.MaxValue)
+        public IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEventByKey(uint pipID, string directoryPath = "", uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
                 EventTypeID = ExecutionEventId.DirectoryMembershipHashed,
-                WorkerID = workerID,
+                WorkerID = workerID ?? s_workerIDDefaultValue,
+                FileRewriteCount = s_fileRewriteCountDefaultValue,
                 PipId = pipID,
                 DirectoryMembershipHashedKey = directoryPath
             };
@@ -267,14 +264,15 @@ namespace BuildXL.Xldb
         }
 
         /// <inheritdoc />
-        public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = "", uint workerID = uint.MaxValue)
+        public IEnumerable<PipExecutionDirectoryOutputsEvent> GetPipExecutionDirectoryOutputEventByKey(uint pipID, string directoryPath = "", uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
                 EventTypeID = ExecutionEventId.PipExecutionDirectoryOutputs,
-                WorkerID = workerID,
+                WorkerID = workerID ?? s_workerIDDefaultValue,
+                FileRewriteCount = s_fileRewriteCountDefaultValue,
                 PipId = pipID,
                 PipExecutionDirectoryOutputKey = directoryPath
             };
@@ -283,34 +281,34 @@ namespace BuildXL.Xldb
         }
 
         /// <inheritdoc />
-        public IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int fileRewriteCount = -1, uint workerID = uint.MaxValue)
+        public IEnumerable<FileArtifactContentDecidedEvent> GetFileArtifactContentDecidedEventByKey(string directoryPath, int? fileRewriteCount = null, uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
             var eventKey = new EventKey
             {
                 EventTypeID = ExecutionEventId.FileArtifactContentDecided,
-                WorkerID = workerID,
+                WorkerID = workerID ?? s_workerIDDefaultValue,
                 FileArtifactContentDecidedKey = directoryPath,
-                FileRewriteCount = fileRewriteCount
+                FileRewriteCount = fileRewriteCount ?? s_fileRewriteCountDefaultValue
             };
 
             return GetEventsByKey(eventKey).Cast<FileArtifactContentDecidedEvent>();
         }
 
         /// <inheritdoc />
-        public IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint workerID = uint.MaxValue) => GetEventsByPipIdOnly(ExecutionEventId.PipExecutionPerformance, pipID, workerID).Cast<PipExecutionPerformanceEvent>();
+        public IEnumerable<PipExecutionPerformanceEvent> GetPipExecutionPerformanceEventByKey(uint pipID, uint? workerID = null) => GetEventsByPipIdOnly(ExecutionEventId.PipExecutionPerformance, pipID, workerID).Cast<PipExecutionPerformanceEvent>();
 
         /// <inheritdoc />
-        public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint workerID = uint.MaxValue) => GetEventsByPipIdOnly(ExecutionEventId.ProcessExecutionMonitoringReported, pipID, workerID).Cast<ProcessExecutionMonitoringReportedEvent>();
+        public IEnumerable<ProcessExecutionMonitoringReportedEvent> GetProcessExecutionMonitoringReportedEventByKey(uint pipID, uint? workerID = null) => GetEventsByPipIdOnly(ExecutionEventId.ProcessExecutionMonitoringReported, pipID, workerID).Cast<ProcessExecutionMonitoringReportedEvent>();
 
         /// <inheritdoc />
-        public IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint workerID = uint.MaxValue) => GetEventsByPipIdOnly(ExecutionEventId.PipCacheMiss, pipID, workerID).Cast<PipCacheMissEvent>();
+        public IEnumerable<PipCacheMissEvent> GetPipCacheMissEventByKey(uint pipID, uint? workerID = null) => GetEventsByPipIdOnly(ExecutionEventId.PipCacheMiss, pipID, workerID).Cast<PipCacheMissEvent>();
 
         /// <summary>
         /// Get events that only use PipID as the key
         /// </summary>
-        private IEnumerable<IMessage> GetEventsByPipIdOnly(ExecutionEventId eventTypeID, uint pipID, uint workerID = uint.MaxValue)
+        private IEnumerable<IMessage> GetEventsByPipIdOnly(ExecutionEventId eventTypeID, uint pipID, uint? workerID = null)
         {
             Contract.Requires(m_accessor != null, "XldbDataStore is not initialized");
 
@@ -318,7 +316,8 @@ namespace BuildXL.Xldb
             {
                 EventTypeID = eventTypeID,
                 PipId = pipID,
-                WorkerID = workerID
+                WorkerID = workerID ?? s_workerIDDefaultValue,
+                FileRewriteCount = s_fileRewriteCountDefaultValue
             };
 
             return GetEventsByKey(eventKey);
@@ -507,7 +506,7 @@ namespace BuildXL.Xldb
         public IEnumerable<CopyFile> GetAllCopyFilePips() => GetAllPipsByType(PipType.CopyFile).Cast<CopyFile>();
 
         /// <inheritdoc />
-        public IEnumerable<IpcPip> GetAllIPCPips() => GetAllPipsByType(PipType.Ipc).Cast<IpcPip>();
+        public IEnumerable<IpcPip> GetAllIpcPips() => GetAllPipsByType(PipType.Ipc).Cast<IpcPip>();
 
         /// <inheritdoc />
         public IEnumerable<SealDirectory> GetAllSealDirectoryPips() => GetAllPipsByType(PipType.SealDirectory).Cast<SealDirectory>();

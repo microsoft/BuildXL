@@ -18,6 +18,8 @@ namespace ContentStoreTest.Distributed.Redis
     /// </remarks>
     public sealed class LocalRedisFixture : IDisposable
     {
+        public string Id { get; } = Guid.NewGuid().ToString();
+
         public ObjectPool<LocalRedisProcessDatabase> DatabasePool { get; }
             = new ObjectPool<LocalRedisProcessDatabase>(
             () => new LocalRedisProcessDatabase(),

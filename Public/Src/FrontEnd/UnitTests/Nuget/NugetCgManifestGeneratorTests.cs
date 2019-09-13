@@ -3,6 +3,8 @@
 
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.Mutable;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using Newtonsoft.Json;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -40,6 +42,9 @@ namespace Test.BuildXL.FrontEnd.Nuget
         [Fact]
         public void TestSinglePackage()
         {
+            //Package package = Package.Create();
+            //version:  p.Path.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable)
+            //    [packageName] for the name
             //var package = NugetResolverUnitTests.CreateTestPackageOnDisk(includeScriptSpec: false, packageName: "System.Memory", version: "4.5.1");
             // TODO(rijul) check that manifest looks as expected for a single package;
             //             see NugetResolverUnitTests.cs for how to generate objects of type Package
@@ -120,5 +125,17 @@ namespace Test.BuildXL.FrontEnd.Nuget
             string inValidJson = "{ ";
             XAssert.IsFalse(m_generator.CompareForEquality(validJson, inValidJson));
         }
+
+        //private Package CreatePackage(string name, string version)
+        //{
+        //    PackageId id = new PackageId();
+        //    AbsolutePath path = new AbsolutePath();
+        //    IPackageDescriptor descriptor = new PackageDescriptor();
+
+        //    path.
+
+        //    return Package.Create(id, path, descriptor);
+
+        //}
     }
 }

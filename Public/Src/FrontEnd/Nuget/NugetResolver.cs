@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -40,6 +41,7 @@ namespace BuildXL.FrontEnd.Script
         { }
 
         /// <inheritdoc/>
+        [SuppressMessage("AsyncUsage", "AsyncFixer02:awaitinsteadofwait")]
         public override async Task<bool> InitResolverAsync(IResolverSettings resolverSettings, object workspaceResolver)
         {
             Contract.Requires(resolverSettings != null);
@@ -93,20 +95,17 @@ namespace BuildXL.FrontEnd.Script
                             NugetResolverName);
                     }
                     // CgManifest FileNotFound, log error and fail build
-                    catch (DirectoryNotFoundException)
+                    catch (DirectoryNotFoundException e)
                     {
-                        // TODO: Rijul Log (Make function if common log)
-                        return false;
+                        throw new BuildXLException(@"Cannot read cgmanifest.json file from disk", e);
                     }
-                    catch (FileNotFoundException)
+                    catch (FileNotFoundException e)
                     {
-                        // TODO: Rijul Log
-                        return false;
+                        throw new BuildXLException(@"Cannot read cgmanifest.json file from disk", e);
                     }
                     if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                     {
-                        // TODO: Rijul Log
-                        return false;
+                        throw new BuildXLException(@"Existing cgmanifest.json file is outdated, please generate a new one using /GenerateCgManifestForNugets:path");
                     }
 
                     m_resolverState = State.ResolverInitialized;

@@ -309,12 +309,15 @@ namespace BuildXL.Utilities.Configuration
         bool AllowUnsafeAmbient { get; }
 
         /// <summary>
-        /// TODO(rijul)
+        /// Generates a new cgmaiifest.json file and overwrites the existing cgmanifest.json file if it is outdated
         /// </summary>
+        /// <remarks>
+        /// cgmanifest.json is used for Component Governance in CloudBuild
+        /// </remarks>
         AbsolutePath GenerateCgManifestForNugets { get; }
 
         /// <summary>
-        /// TODO(rijul)
+        /// Validates the existing cgmaiifest.json file and throws error on mismatch
         /// </summary>
         AbsolutePath ValidateCgManifestForNugets { get; }
     }

@@ -341,6 +341,12 @@ namespace Tool.DropDaemon
 
             var startTime = DateTime.UtcNow;
 
+            // m_dropClient.AssociateAsync does some internal batching. For each batch, it will create AssociationsStatus.
+            // The very first created AssociationsStatus is stored and later returned as Item2 in the tuple.
+            // Elements from all AssociationsStatus.Missing are added to the same IEnumerable<BlobIdentifier> and returned
+            // as Item2 in the tuple.
+            // If the method creates more than one batch (i.e., more than one AssociationsStatus is created), the returned
+            // associateResult.Item1 will not match associateResult.Item2.Missing.
             Tuple<IEnumerable<BlobIdentifier>, AssociationsStatus> associateResult = await m_dropClient.AssociateAsync(
                 DropName,
                 blobsForAssociate.ToList(),
@@ -357,17 +363,17 @@ namespace Tool.DropDaemon
 
             if (missingBlobIdsCount != associationsStatusMissingBlobsCount)
             {
-                m_logger.Warning("Mismatch in the number of missing files during Associate call -- missingBlobIdsCount={0}, associationsStatusMissingBlobsCount={1}",
+                m_logger.Verbose("Mismatch in the number of missing files during Associate call -- missingBlobIdsCount={0}, associationsStatusMissingBlobsCount={1}",
                     missingBlobIdsCount,
                     associationsStatusMissingBlobsCount);
 
                 if (missingBlobIdsCount < associationsStatusMissingBlobsCount)
                 {
-                    // This is an unexpected scenario. If there is a mismatch, count(associateResult.Item1) must be >= count(associateResult.Item2.Missing).
+                    // This is an unexpected scenario. If there is a mismatch, count(associateResult.Item1) must be > count(associateResult.Item2.Missing).
                     Contract.Assert(false, "Unexpected mismatch in the number of missing files.");
                 }
 
-                // 'fix' AssociationsStatus so it contains all the missing files. 
+                // fix AssociationsStatus so it contains all the missing files. 
                 result.Missing = associateResult.Item1;
             }
 

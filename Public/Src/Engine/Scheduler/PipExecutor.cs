@@ -1840,6 +1840,7 @@ namespace BuildXL.Scheduler
 
             int numPathSetsDownloaded = 0, numCacheEntriesVisited = 0;
             WeakContentFingerprint weakFingerprint;
+            bool performedLookupForAugmentedWeakFingerprint = false;
 
             using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheDuration))
             using (var strongFingerprintComputationListWrapper = SchedulerPools.StrongFingerprintDataListPool.GetInstance())
@@ -1867,8 +1868,7 @@ namespace BuildXL.Scheduler
                 Logger.Log.PipCacheLookupStats(
                     operationContext,
                     process.FormattedSemiStableHash,
-                    // if we can augment the FP, it means that we are NOT processing an augmented one
-                    !canAugmentWeakFingerprint,
+                    performedLookupForAugmentedWeakFingerprint,
                     weakFingerprint.ToString(),
                     numCacheEntriesVisited,
                     numPathSetsDownloaded);
@@ -1896,7 +1896,6 @@ namespace BuildXL.Scheduler
 
                 // Augmented weak fingerprint used for storing cache entry in case of cache miss
                 WeakContentFingerprint? augmentedWeakFingerprint = null;
-                bool performedLookupForAugmentedWeakFingerprint = false;
 
                 if (cacheableProcess.ShouldHaveArtificialMiss())
                 {

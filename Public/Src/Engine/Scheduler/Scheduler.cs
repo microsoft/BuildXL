@@ -5962,7 +5962,7 @@ namespace BuildXL.Scheduler
 
                     var logFile = new BinaryLogger(executionLogStream, context, pipGraph.GraphId, lastStaticAbsolutePathValue);
                     var executionLogTarget = new ExecutionLogFileTarget(logFile, disabledEventIds: configuration.Logging.NoExecutionLog);
-                    executionLogTarget.ExecutionLogSaltsData(new ExecutionLogSaltsEventData(salts));
+                    executionLogTarget.BuildSessionConfiguration(new BuildSessionConfigurationEventData(salts));
 
                     return executionLogTarget;
                 }

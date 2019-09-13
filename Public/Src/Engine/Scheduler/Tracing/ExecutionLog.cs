@@ -111,7 +111,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <inheritdoc />
-        public virtual void ExecutionLogSaltsData(ExecutionLogSaltsEventData data)
+        public virtual void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
         {
             ReportUnhandledEvent(data);
         }

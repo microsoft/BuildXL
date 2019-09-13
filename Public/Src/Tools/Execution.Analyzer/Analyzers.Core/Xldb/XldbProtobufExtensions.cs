@@ -255,9 +255,9 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
-        public static ExecutionLogSaltsDataEvent ToExecutionLogSaltsData(this ExecutionLogSaltsEventData data, uint workerID)
+        public static BuildSessionConfigurationEvent ToExecutionLogSaltsData(this BuildSessionConfigurationEventData data, uint workerID)
         {
-            return new ExecutionLogSaltsDataEvent
+            return new BuildSessionConfigurationEvent
             {
                 WorkerID = workerID,
                 DisableDetours = data.DisableDetours,

@@ -7,7 +7,6 @@ package BuildXL.Xldb.Proto;
 option csharp_namespace = "BuildXL.Xldb.Proto";
 
 enum ExecutionEventId{
-    option allow_alias = true;
     ExecutionEventId_UNSPECIFIED = 0;
 
     FileArtifactContentDecided = 1;
@@ -19,7 +18,7 @@ enum ExecutionEventId{
     ObservedInputs = 5;
 
     ProcessExecutionMonitoringReported = 6;
-    ExecutionEventId_ExecutionLogSaltsData = 7;
+    ExecutionEventId_BuildSessionConfiguration = 7;
     DependencyViolationReported = 8;
     PipExecutionStepPerformanceReported = 9;
     ResourceUsageReported = 10;
@@ -27,7 +26,4 @@ enum ExecutionEventId{
     PipCacheMiss = 12;
     PipExecutionDirectoryOutputs = 13;
     BxlInvocation = 14;
-
-    // Alias to BxlInvocation. Used for unit tests internally
-    DominoInvocation = 14;
 }

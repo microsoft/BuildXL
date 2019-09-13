@@ -131,7 +131,7 @@ namespace Tool.ExecutionLogSdk
                     case ExecutionEventId.ProcessExecutionMonitoringReported:
                         return ExecutionLogLoadOptions.LoadProcessMonitoringData;
 
-                    case ExecutionEventId.ExecutionLogSaltsData:
+                    case ExecutionEventId.BuildSessionConfiguration:
                         // Extra event data is always supported
                         return ExecutionLogLoadOptions.None;
                     default:

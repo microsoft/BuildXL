@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The value for monitoring NTCreateFile API.
         /// </summary>
-        void ExecutionLogSaltsData(ExecutionLogSaltsEventData data);
+        void BuildSessionConfiguration(BuildSessionConfigurationEventData data);
 
         /// <summary>
         /// Dependency analysis violation is reported.
@@ -155,9 +155,9 @@ namespace BuildXL.Scheduler.Tracing
         ProcessExecutionMonitoringReported = 5,
 
         /// <summary>
-        /// See <see cref="IExecutionLogTarget.ExecutionLogSaltsData"/>
+        /// See <see cref="IExecutionLogTarget.BuildSessionConfiguration"/>
         /// </summary>
-        ExecutionLogSaltsData = 6,
+        BuildSessionConfiguration = 6,
 
         /// <summary>
         /// See <see cref="IExecutionLogTarget.DependencyViolationReported"/>
@@ -234,12 +234,12 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.DirectoryMembershipHashed(data));
 
         /// <summary>
-        /// Event description for <see cref="IExecutionLogTarget.ExecutionLogSaltsData"/>
+        /// Event description for <see cref="IExecutionLogTarget.BuildSessionConfiguration"/>
         /// </summary>
-        public static readonly ExecutionLogEventMetadata<ExecutionLogSaltsEventData> ExecutionLogSaltsData =
-            new ExecutionLogEventMetadata<ExecutionLogSaltsEventData>(
-                ExecutionEventId.ExecutionLogSaltsData,
-                (data, target) => target.ExecutionLogSaltsData(data));
+        public static readonly ExecutionLogEventMetadata<BuildSessionConfigurationEventData> BuildSessionConfiguration =
+            new ExecutionLogEventMetadata<BuildSessionConfigurationEventData>(
+                ExecutionEventId.BuildSessionConfiguration,
+                (data, target) => target.BuildSessionConfiguration(data));
 
         /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.ProcessExecutionMonitoringReported"/>
@@ -317,7 +317,7 @@ namespace BuildXL.Scheduler.Tracing
                                                                                      PipExecutionPerformance,
                                                                                      DirectoryMembershipHashed,
                                                                                      ProcessExecutionMonitoringReported,
-                                                                                     ExecutionLogSaltsData,
+                                                                                     BuildSessionConfiguration,
                                                                                      DependencyViolationReported,
                                                                                      PipExecutionStepPerformanceReported,
                                                                                      ResourceUsageReported,
@@ -328,10 +328,10 @@ namespace BuildXL.Scheduler.Tracing
     }
 
     /// <summary>
-    /// Stores salt information
+    /// Stores salt information and other session configurations
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public struct ExecutionLogSaltsEventData : IExecutionLogEventData<ExecutionLogSaltsEventData>
+    public struct BuildSessionConfigurationEventData : IExecutionLogEventData<BuildSessionConfigurationEventData>
     {
         /// <summary>
         /// Whether the /unsafe_DisableDetours flag is passed to BuildXL.
@@ -439,12 +439,12 @@ namespace BuildXL.Scheduler.Tracing
         public string RequiredKextVersionNumber;
 
         /// <inheritdoc />
-        public ExecutionLogEventMetadata<ExecutionLogSaltsEventData> Metadata => ExecutionLogMetadata.ExecutionLogSaltsData;
+        public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
         /// <summary>
         /// Creates event data from salts
         /// </summary>
-        public ExecutionLogSaltsEventData(ExtraFingerprintSalts salts)
+        public BuildSessionConfigurationEventData(ExtraFingerprintSalts salts)
         {
             IgnoreSetFileInformationByHandle = salts.IgnoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = salts.IgnoreZwRenameFileInformation;

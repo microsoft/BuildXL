@@ -91,7 +91,7 @@ namespace BuildXL.Xldb
             m_eventParserDictionary.Add(ExecutionEventId.DirectoryMembershipHashed, DirectoryMembershipHashedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.ProcessExecutionMonitoringReported, ProcessExecutionMonitoringReportedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.ProcessFingerprintComputation, ProcessFingerprintComputationEvent.Parser);
-            m_eventParserDictionary.Add(ExecutionEventId.ExecutionLogSaltsData, ExecutionLogSaltsDataEvent.Parser);
+            m_eventParserDictionary.Add(ExecutionEventId.BuildSessionConfiguration, BuildSessionConfigurationEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.DependencyViolationReported, DependencyViolationReportedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipExecutionStepPerformanceReported, PipExecutionStepPerformanceReportedEvent.Parser);
             m_eventParserDictionary.Add(ExecutionEventId.PipCacheMiss, PipCacheMissEvent.Parser);
@@ -369,7 +369,7 @@ namespace BuildXL.Xldb
         public IEnumerable<ProcessFingerprintComputationEvent> GetProcessFingerprintComputationEvents() => GetEventsByType(ExecutionEventId.ProcessFingerprintComputation).Cast<ProcessFingerprintComputationEvent>();
 
         /// <inheritdoc />
-        public IEnumerable<ExecutionLogSaltsDataEvent> GetExecutionLogSaltsDataEvents() => GetEventsByType(ExecutionEventId.ExecutionLogSaltsData).Cast<ExecutionLogSaltsDataEvent>();
+        public IEnumerable<BuildSessionConfigurationEvent> GetBuildSessionConfigurationEvents() => GetEventsByType(ExecutionEventId.BuildSessionConfiguration).Cast<BuildSessionConfigurationEvent>();
 
         /// <inheritdoc />
         public IEnumerable<DependencyViolationReportedEvent> GetDependencyViolationReportedEvents() => GetEventsByType(ExecutionEventId.DependencyViolationReported).Cast<DependencyViolationReportedEvent>();

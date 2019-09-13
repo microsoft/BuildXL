@@ -434,13 +434,13 @@ namespace BuildXL.Execution.Analyzer
         /// <summary>
         /// Override event to capture its data and store it in the protobuf 
         /// </summary>
-        public override void ExecutionLogSaltsData(ExecutionLogSaltsEventData data)
+        public override void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
         {
             var value = data.ToExecutionLogSaltsData(WorkerID.Value);
             // There will be exactly one event of this type that is reported, so nothing special needs to be added to the key
             var key = new EventKey
             {
-                EventTypeID = Xldb.Proto.ExecutionEventId.ExecutionLogSaltsData,
+                EventTypeID = Xldb.Proto.ExecutionEventId.BuildSessionConfiguration,
             };
 
             var keyArr = key.ToByteArray();

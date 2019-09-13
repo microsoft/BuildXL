@@ -86,9 +86,9 @@ namespace BuildXL.Xldb
         IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEvents();
 
         /// <summary>
-        /// Gets all the Execution Log Salts Data Events
+        /// Gets all the Build Session Configuration Events
         /// </summary>
-        IEnumerable<ExecutionLogSaltsDataEvent> GetExecutionLogSaltsDataEvents();
+        IEnumerable<BuildSessionConfigurationEvent> GetBuildSessionConfigurationEvents();
 
         /// <summary>
         /// Gets file artficat content decided event by key. 

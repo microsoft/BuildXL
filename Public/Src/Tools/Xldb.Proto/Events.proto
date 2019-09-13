@@ -171,8 +171,8 @@ message ProcessExecutionMonitoringReportedEvent{
     repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
 }
 
-// The ExecutionLogSaltsData Event message
-message ExecutionLogSaltsDataEvent{
+// The BuildSessionConfiguration Event message
+message BuildSessionConfigurationEvent{
     uint32 WorkerID = 1;
 
     // Whether the /unsafe_DisableDetours flag is passed to BuildXL

@@ -225,7 +225,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <inheritdoc />
-        public override void ExecutionLogSaltsData(ExecutionLogSaltsEventData data)
+        public override void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
         {
             m_fingerprintSalts = data.ToFingerprintSalts();
         }

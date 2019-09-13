@@ -1793,7 +1793,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <inheritdoc />
-        public override void ExecutionLogSaltsData(ExecutionLogSaltsEventData data)
+        public override void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
         {
             m_fingerprintSalts = data.ToFingerprintSalts();
         }
@@ -1874,7 +1874,7 @@ namespace BuildXL.Execution.Analyzer
                     return !m_filterOptions.WhatBuilt;
                 case ExecutionEventId.ProcessFingerprintComputation:
                     return !m_filterOptions.WhatBuilt;
-                case ExecutionEventId.ExecutionLogSaltsData:
+                case ExecutionEventId.BuildSessionConfiguration:
                 case ExecutionEventId.FileArtifactContentDecided:
                 case ExecutionEventId.PipExecutionPerformance:
                     return true;

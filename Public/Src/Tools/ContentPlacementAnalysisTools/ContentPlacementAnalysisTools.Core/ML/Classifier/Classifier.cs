@@ -19,10 +19,12 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         TResult Classify(TInstance instance, int maxParalellism);
     }
 
+    /// <nodoc />
     public interface IMultiClassMLClassifier<TInstance> : IMLClassifier<TInstance, Result<List<string>>>
     {
     }
-
+    
+    /// <nodoc />
     public interface IBinaryMLClassifier<TInstance> : IMLClassifier<TInstance, Result<string>>
     {
     }

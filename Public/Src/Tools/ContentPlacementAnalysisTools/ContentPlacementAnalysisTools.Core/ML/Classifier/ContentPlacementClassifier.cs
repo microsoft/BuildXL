@@ -15,10 +15,13 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     public class ContentPlacementClassifier : IMLClassifier<ContentPlacementInstance, ContentPlacementClassifierResult>
     {
         private static readonly string s_sharedClassLabel = MLArtifact.SharingClassLabels[0];
-
+        
+        /// <nodoc />
         public enum LoadMode
         {
+            /// <nodoc />
             MachinesFromClosestQueue,
+            /// <nodoc />
             NMachinesPerClosestQueues
         }
 
@@ -51,6 +54,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             LoadClassifier(config);
         }
 
+        /// <nodoc />
         public Task<Result<bool>> StartupAsync()
         {
             try
@@ -304,6 +308,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 
     }
 
+    /// <nodoc />
     public class ContentPlacementClassifierResult : Result<List<string>>
     {
         /// <nodoc />
@@ -312,8 +317,11 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         /// <nodoc />
         public enum ResultCode
         {
+            /// <nodoc />
             ArtifactNotShared,
+            /// <nodoc />
             NoAlternativesForQueue,
+            /// <nodoc />
             QueueNotFound
         }
 
@@ -324,22 +332,27 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             ReturnCode = code;
         }
 
+        /// <nodoc />
         public ContentPlacementClassifierResult(List<string> result) : base(result)
         {
         }
 
+        /// <nodoc />
         public ContentPlacementClassifierResult(List<string> result, bool isNullAllowed) : base(result, isNullAllowed)
         {
         }
 
+        /// <nodoc />
         public ContentPlacementClassifierResult(string errorMessage, string diagnostics = null) : base(errorMessage, diagnostics)
         {
         }
 
+        /// <nodoc />
         public ContentPlacementClassifierResult(Exception exception, string message = null) : base(exception, message)
         {
         }
 
+        /// <nodoc />
         public ContentPlacementClassifierResult(ResultBase other, string message = null) : base(other, message)
         {
         }

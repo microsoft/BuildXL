@@ -58,7 +58,7 @@ namespace BuildXL.Execution.Analyzer
                     buildDurationMs = ParseDoubleOption(opt, 0, double.MaxValue);
                 }
             }
-            Contract.Requires(sampleProportion > 0, "Sample proportion needs to be specified and be within bounds");
+            Contract.Requires(sampleProportion > 0, "Sample proportion needs to be specified and be within bounds"); 
             return new ContentPlacementAnalyzer(GetAnalysisInput(), sampleProportion, sampleSizeHardLimit, buildQueue, buildId, buildStartTicks, buildDurationMs) { };
         }
 
@@ -157,78 +157,124 @@ namespace BuildXL.Execution.Analyzer
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
         public override int Analyze()
         {
-            Console.WriteLine($"Analyzing log file");
+            Console.WriteLine($"Analyzing log file...");
             var stopWatch = Stopwatch.StartNew();
-            // process the pips in the graph
-            int totalPips = ProcessPips();
-            var samples = SampleArtifacts();
-            // so, start by creating the build itself
-            var build = new BxlBuild
+            try
             {
-                Meta = new BxlBuildMeta()
+                // process the pips in the graph
+                int totalPips = ProcessPips();
+                if(totalPips > 0)
                 {
-                    BuidId = m_buildId,
-                    BuildQueue = m_buildQueue,
-                    BuildDurationMs = m_buildDurationMs,
-                    BuildStartTimeTicks = m_buildStartTicks,
-                    TotalPips = totalPips,
-                    TotalArtifacts = m_fileContentMap.Count,
-                    EmptyArtifacts = m_countEmptyArtifacts.Count,
-                    SampledArtifacts = samples.Count
+                    var samples = SampleArtifacts();
+                    if(samples.Count > 0)
+                    {
+                        // so, start by creating the build itself
+                        var build = new BxlBuild
+                        {
+                            Meta = new BxlBuildMeta()
+                            {
+                                BuidId = m_buildId,
+                                BuildQueue = m_buildQueue,
+                                BuildDurationMs = m_buildDurationMs,
+                                BuildStartTimeTicks = m_buildStartTicks,
+                                TotalPips = totalPips,
+                                TotalArtifacts = m_fileContentMap.Count,
+                                EmptyArtifacts = m_countEmptyArtifacts.Count,
+                                SampledArtifacts = samples.Count
+                            }
+                        };
+                        // and now for each artifact, add it to the build
+                        PopulateBuild(samples, build);
+                        // and finally write
+                        WriteToJsonStream(build);
+                    }
+                    else
+                    {
+                        Console.WriteLine("After sampling no files remained, so output will be empty...");
+                    }
+                    
                 }
-            };
-            // and now for each artifact, add it to the build
-            PopulateBuild(samples, build);
-            // and finally write
-            WriteToJsonStream(build);
-            stopWatch.Stop();
-            Console.WriteLine($"Done, file analized in {stopWatch.ElapsedMilliseconds}ms");
-            return 0;
+                else
+                {
+                    Console.WriteLine("This build does not seem to have pips, no output will be written...");
+                }
+                return 0;
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine("An error ocurred when analyzing build...");
+                Console.WriteLine(e.ToString());
+                throw;
+            }
+            finally
+            {
+                stopWatch.Stop();
+                Console.WriteLine($"Done, file analized in {stopWatch.ElapsedMilliseconds}ms");
+            }
         }
 
         private int ProcessPips()
         {
-            int pipCount = 0;
+            var pipCount = 0;
             Console.WriteLine($"Processing pip graph (mapping input/outputs)");
-            var stopWatch = Stopwatch.StartNew();
-            foreach (var pip in CachedGraph.PipGraph.RetrieveScheduledPips())
+            Stopwatch stopWatch = null;
+            try
             {
-                if (IncludePip(pip))
+                stopWatch = Stopwatch.StartNew();
+                foreach (var pip in CachedGraph.PipGraph.RetrieveScheduledPips())
                 {
-                    // these are for the pip inputs. We want to identify who is the input of who,
-                    // since we need to know their relationship...
-                    PipArtifacts.ForEachInput(pip, input =>
+                    if (IncludePip(pip))
                     {
-                        if (input.IsFile && input.FileArtifact.IsSourceFile)
+                        // these are for the pip inputs. We want to identify who is the input of who,
+                        // since we need to know their relationship...
+                        PipArtifacts.ForEachInput(pip, input =>
                         {
-                            m_artifactInputPips.Add(input.FileArtifact, pip);
-                            m_scheduledPipInputCount.Add(pip.PipId.Value, 1);
-                        }
-                        return true;
-                    },
-                    includeLazyInputs: true);
-                    // these are for the pip outputs. 
-                    PipArtifacts.ForEachOutput(pip, output =>
-                    {
-                        if (output.IsFile)
+                            if (input.IsFile && input.FileArtifact.IsSourceFile)
+                            {
+                                m_artifactInputPips.Add(input.FileArtifact, pip);
+                                m_scheduledPipInputCount.Add(pip.PipId.Value, 1);
+                            }
+                            return true;
+                        },
+                        includeLazyInputs: true);
+                        // these are for the pip outputs. 
+                        PipArtifacts.ForEachOutput(pip, output =>
                         {
-                            m_artifactOutputPips.Add(output.FileArtifact, pip);
-                            m_scheduledPipOutputCount.Add(pip.PipId.Value, 1);
+                            if (output.IsFile)
+                            {
+                                m_artifactOutputPips.Add(output.FileArtifact, pip);
+                                m_scheduledPipOutputCount.Add(pip.PipId.Value, 1);
+                            }
+                            return true;
+                        },
+                        includeUncacheable: true);
+                        // the dependencies, cause we want to count them...
+                        foreach (var dependency in CachedGraph.PipGraph.RetrievePipImmediateDependencies(pip))
+                        {
+                            m_scheduledPipDependencyCount.Add(pip.PipId.Value, 1);
                         }
-                        return true;
-                    },
-                    includeUncacheable: true);
-                    // the dependencies, cause we want to count them...
-                    foreach (var dependency in CachedGraph.PipGraph.RetrievePipImmediateDependencies(pip))
-                    {
-                        m_scheduledPipDependencyCount.Add(pip.PipId.Value, 1);
+                        ++pipCount;
                     }
-                    ++pipCount;
+                }
+                return pipCount;
+            }
+            catch(Exception)
+            {
+                Console.WriteLine("Propagating exception when processing pips...");
+                throw;
+            }
+            finally
+            {
+                if(stopWatch != null)
+                {
+                    stopWatch.Stop();
+                    Console.WriteLine($"Done, processed {pipCount} pips in {stopWatch.ElapsedMilliseconds}ms");
+                }
+                else
+                {
+                    Console.WriteLine("There is an error when creating a stopwatch...");
                 }
             }
-            stopWatch.Stop();
-            Console.WriteLine($"Done, processed {pipCount} pips in {stopWatch.ElapsedMilliseconds}ms");
-            return pipCount;
         }
 
         private Dictionary<FileArtifact, FileContentInfo> SampleArtifacts()

@@ -171,7 +171,8 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
             m_query = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), constants.GetMonthlyQueueDataQuery))
                 .Replace("{0}", Convert.ToString(input.Year))
                 .Replace("{1}", Convert.ToString(input.Month))
-                .Replace("{2}", Convert.ToString(lastDayOfMonth));
+                .Replace("{2}", Convert.ToString(lastDayOfMonth))
+                .Replace("{3}", m_configuration.UseCBTest ? constants.CBTestDatabaseName : constants.ProdDatabaseName);
             s_logger.Debug($"Target Query: {m_query}");
             // and prepare the directory with the output
             m_outputDir = Path.Combine(input.OutputDirectory, constants.ResultDirectoryName);

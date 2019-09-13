@@ -24,7 +24,7 @@ let domino_in_cb = database("Domino").dominocompletion
             "master"
             )
     | join kind=leftouter (
-        database("CloudBuildProd").BuildInfo
+        database("{3}").BuildInfo
         | where TIMESTAMP between(sDate .. eDate)
         | where ReturnCode == "Success"
         | project 

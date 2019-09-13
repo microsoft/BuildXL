@@ -4,7 +4,7 @@
 let sDate = make_datetime({0}, {1}, 1, 0, 0, 0);
 let eDate = make_datetime({0}, {1}, {2}, 23, 59, 59);
 
- database("CloudBuildProd").BuildInfo
+ database("{4}").BuildInfo
         | where BuildQueue == "{3}"
         | where TIMESTAMP between(sDate .. eDate)
         | distinct Builders

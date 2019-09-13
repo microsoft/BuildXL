@@ -117,6 +117,10 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="CBTestDatabaseName" xml:space="preserve">
+    <value>CloudBuildCBTest</value>
+    <comment>Name of the test database</comment>
+  </data>
   <data name="GetBuildQuery" xml:space="preserve">
     <value>CPResources\Query\get_build_data.kql</value>
     <comment>A query to get the build info of a single build</comment>
@@ -140,6 +144,10 @@
   <data name="MaxRetryBuilds" xml:space="preserve">
     <value>5</value>
     <comment>The number of retry builds in case one cannot be downloaded</comment>
+  </data>
+  <data name="ProdDatabaseName" xml:space="preserve">
+    <value>CloudBuildProd</value>
+    <comment>Name of the prod database</comment>
   </data>
   <data name="QueueMapDirectoryName" xml:space="preserve">
     <value>QueueMap</value>

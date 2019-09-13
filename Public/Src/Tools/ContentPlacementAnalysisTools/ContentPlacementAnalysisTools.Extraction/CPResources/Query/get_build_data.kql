@@ -15,7 +15,7 @@ let productBuilds = (start:datetime, end:datetime){
 let ProductBuilds = productBuilds(sDate, eDate);
 
 let buildsWithQueues = (start:datetime, end:datetime){
-    database('CloudBuildProd').BuildInfo
+    database('{4}').BuildInfo
     | where StartTime >= start and EndTime < end
 	| where ReturnCode == "Success" and ReturnType == "Success"
     | where BuildQueue contains "Office"

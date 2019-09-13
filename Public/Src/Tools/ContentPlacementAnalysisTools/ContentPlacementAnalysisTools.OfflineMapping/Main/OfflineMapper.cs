@@ -22,6 +22,7 @@ using NLog;
 
 namespace ContentPlacementAnalysisTools.OfflineMapping.Main
 {
+    /// <nodoc />
     public class OfflineMapper
     {
         private static readonly NLog.Logger s_logger = NLog.LogManager.GetCurrentClassLogger();
@@ -155,12 +156,14 @@ namespace ContentPlacementAnalysisTools.OfflineMapping.Main
                 var snapshotDir = Path.Combine(arguments.OutputDirectory, "Snap");
                 Directory.CreateDirectory(snapshotDir);
                 s_logger.Info($"Done, snapshoting to [{snapshotDir}]");
-                store.CreateSnapshot(opContext, snapshotDir);
+                var result = store.CreateSnapshot(opContext, snapshotDir);
                 // done
             }
             finally
             {
-                s_logger.Info($"Stats: shared={sharedCount} ({1.0 * (sharedCount) / 1.0 * (sharedCount + nonSharedCount)}), nonShared={nonSharedCount}, total={sharedCount + nonSharedCount}");
+                var total = 1.0 * (sharedCount + nonSharedCount); 
+                var percentage = (1.0 * sharedCount) / total;
+                s_logger.Info($"Stats: shared={sharedCount} ({percentage}), nonShared={nonSharedCount}, total={total}");
             }
         }
 

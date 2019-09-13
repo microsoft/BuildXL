@@ -10,6 +10,7 @@ using ContentPlacementAnalysisTools.Extraction.Main;
 using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
+using NLog.Config;
 
 namespace ContentPlacementAnalysisTools.Extraction.Action
 {
@@ -111,7 +112,8 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 .Replace("{0}", Convert.ToString(input.Year))
                 .Replace("{1}", Convert.ToString(input.Month))
                 .Replace("{2}", Convert.ToString(lastDayOfMonth))
-                .Replace("{3}", input.QueueName);
+                .Replace("{3}", input.QueueName)
+                .Replace("{4}", m_configuration.UseCBTest? constants.CBTestDatabaseName : constants.ProdDatabaseName);
             s_logger.Debug($"Target Query: {m_query}");
             // and prepare the directory with the output
             m_outputDir = Path.Combine(input.OutputDirectory, constants.ResultDirectoryName, constants.MachineMapDirectoryName);

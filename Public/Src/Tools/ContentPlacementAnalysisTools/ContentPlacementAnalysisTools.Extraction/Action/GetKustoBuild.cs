@@ -99,7 +99,8 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                 .Replace("{0}", Convert.ToString(input.Year))
                 .Replace("{1}", Convert.ToString(input.Month))
                 .Replace("{2}", Convert.ToString(input.Day))
-                .Replace("{3}", Convert.ToString(input.NumBuilds * s_maxRetryBuilds));
+                .Replace("{3}", Convert.ToString(input.NumBuilds * s_maxRetryBuilds))
+                .Replace("{4}", m_configuration.UseCBTest? constants.CBTestDatabaseName : constants.ProdDatabaseName);
             s_logger.Debug($"Target Query: {m_query}");
 
         }

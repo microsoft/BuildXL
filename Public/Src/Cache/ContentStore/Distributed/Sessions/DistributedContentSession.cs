@@ -39,13 +39,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
         private readonly CounterCollection<Counters> _counters = new CounterCollection<Counters>();
         private readonly SemaphoreSlim _putFileGate;
-        private readonly RocksDbContentPlacementPredictionStore _predictionStore;
-        private readonly CentralStorage _centralStorage;
-        private readonly AbsolutePath _predictionStorePath;
 
+        private RocksDbContentPlacementPredictionStore _predictionStore;
         private string _buildId = null;
         private ContentHash? _buildIdHash = null;
         private ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
+
+        private static readonly string PredictionBlobNameFile = "blobName.txt";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DistributedContentSession{T}"/> class.
@@ -57,7 +57,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
             MachineLocation localMachineLocation,
-            CentralStorage centralStorage = null,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
@@ -73,16 +72,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 settings)
         {
             _putFileGate = new SemaphoreSlim(settings.MaximumConcurrentPutFileOperations);
-            _predictionStorePath = new AbsolutePath(GetPredictionStoreFileLocation(settings.ContentPlacementPredictionsBlob, localMachineLocation));
-            _predictionStore = settings.ContentPlacementPredictionsBlob == null && centralStorage != null
-                ? null
-                : new RocksDbContentPlacementPredictionStore(_predictionStorePath.Path, clean: false);
-            _centralStorage = centralStorage;
-        }
-
-        private string GetPredictionStoreFileLocation(string blobName, MachineLocation machineLocation)
-        {
-            return Path.Combine(machineLocation.Path, "PlacementPredictions", blobName);
         }
 
         /// <inheritdoc />
@@ -99,18 +88,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 await ContentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(_buildIdHash.Value, _buildId.Length) }, context.Token, UrgencyHint.Nominal).ThrowIfFailure();
             }
 
-            if (_predictionStore != null && _centralStorage != null)
-            {
-                if (!Directory.Exists(_predictionStorePath.Path))
-                {
-                    var zipFile = _predictionStorePath / "snapshot.zip";
-                    await _centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, zipFile).ThrowIfFailure();
-                    _predictionStore.UncompressSnapshot(zipFile.Path, Settings.ContentPlacementPredictionsBlob);
-                }
-                await _predictionStore.StartupAsync(context).ThrowIfFailure();
-            }
+            await InitializePredictionStoreAsync(context);
 
             return BoolResult.Success;
+        }
+
+        private Task InitializePredictionStoreAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    var centralStorage = (ContentLocationStore as TransitioningContentLocationStore)?.LocalLocationStore?.CentralStorage;
+
+                    if (Settings.ContentPlacementPredictionsBlob != null)
+                    {
+                        var checkpointDirectory = Path.Combine(LocalCacheRootMachineLocation.Path, "PlacementPredictions");
+                        _predictionStore = new RocksDbContentPlacementPredictionStore(checkpointDirectory, clean: false);
+                        await _predictionStore.StartupAsync(context).ThrowIfFailure();
+
+                        var fileName = Path.Combine(checkpointDirectory, PredictionBlobNameFile);
+                        if (!File.Exists(fileName) || File.ReadAllText(fileName) != Settings.ContentPlacementPredictionsBlob)
+                        {
+                            Directory.Delete(checkpointDirectory);
+
+                            Directory.CreateDirectory(checkpointDirectory);
+
+                            var zipFile = Path.Combine(checkpointDirectory, "snapshot.zip");
+                            await centralStorage.TryGetFileAsync(context, Settings.ContentPlacementPredictionsBlob, new AbsolutePath(zipFile)).ThrowIfFailure();
+                            _predictionStore.UncompressSnapshot(context, zipFile).ThrowIfFailure();
+                        }
+                    }
+
+                    return BoolResult.Success;
+                });
         }
 
         /// <inheritdoc />
@@ -127,7 +138,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PutCoreAsync(
                     operationContext,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, hashType, realizationMode, operationContext.Token, urgencyHint, wrapStream),
-                    session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint));
+                    session => session.PutFileAsync(operationContext, hashType, path, realizationMode, operationContext.Token, urgencyHint),
+                    path: path.Path);
             });
         }
 
@@ -147,7 +159,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return PutCoreAsync(
                     operationContext,
                     (decoratedStreamSession, wrapStream) => decoratedStreamSession.PutFileAsync(operationContext, path, contentHash, realizationMode, operationContext.Token, urgencyHint, wrapStream),
-                    session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint));
+                    session => session.PutFileAsync(operationContext, contentHash, path, realizationMode, operationContext.Token, urgencyHint),
+                    path: path.Path);
             });
         }
 
@@ -340,7 +353,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             var machines = _predictionStore.GetTargetMachines(context, path);
                             if (machines?.Count > 0)
                             {
-                                var index = Math.Min(machines.Count, GetRandomVariableWithGeometricDistribution(0.5)) - 1;
+                                var index = ThreadSafeRandom.Generator.Next(0, machines.Count);
                                 getLocationResult = new Result<MachineLocation>(new MachineLocation(machines[index]));
                             }
                         }
@@ -370,13 +383,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         _pendingProactivePuts.Remove(hash);
                     }
                 });
-        }
-
-        private static int GetRandomVariableWithGeometricDistribution(double p)
-        {
-            var random = ThreadSafeRandom.Generator.NextDouble();
-            var x = Math.Log(random, 1 - p);
-            return (int)Math.Ceiling(x);
         }
 
         /// <inheritdoc />

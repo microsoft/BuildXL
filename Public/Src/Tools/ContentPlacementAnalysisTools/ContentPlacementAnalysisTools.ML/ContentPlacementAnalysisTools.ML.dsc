@@ -11,6 +11,15 @@ namespace ContentPlacement.ML {
             f`CPResources\weka.jar`,
         ]};
 
+    const scripts = {
+        subfolder: "CPScripts", contents : [ 
+            f`CPScripts\createDatabase.cmd`,
+            f`CPScripts\linearizeDatabase.cmd`,
+            f`CPScripts\buildClassifiers.cmd`,
+            f`CPScripts\evaluateClassifiers.cmd`,
+        ]
+    };
+
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "cptools.ml.consolidate",
@@ -20,6 +29,7 @@ namespace ContentPlacement.ML {
         runtimeContent: [
                 consolidateLogFile,
                 staticResources,
+                scripts,
         ],
         references: [
             ...addIfLazy(

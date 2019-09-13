@@ -12,7 +12,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -42,36 +41,58 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected override Tracer Tracer => _tracer;
 
         private readonly Capabilities _serviceCapabilities;
-        private readonly ILogger _logger;
-        private readonly Dictionary<string, IContentStore> _contentStoreByCacheName;
-        private readonly ISessionHandler<IContentSession> _sessionHandler;
-        private readonly ContentServerAdapter _adapter;
+        private readonly IReadOnlyDictionary<string, IContentStore> _contentStoreByCacheName;
         private readonly int _bufferSize;
         private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
+
+        /// <summary>
+        /// This adapter routes messages from Grpc to the current class.
+        /// </summary>
+        /// <remarks>
+        /// Expected to be read-only after construction. Child classes may overwrite the field in their constructor,
+        /// but not afterwards, or behavior will be undefined.
+        /// </remarks>
+        protected ContentServerAdapter GrpcAdapter { get; set; }
+
+        /// <nodoc />
+        protected readonly ILogger Logger;
+
+        private readonly ISessionHandler<IContentSession> _sessionHandler;
+
+        /// <summary>
+        /// Session handler for <see cref="IContentSession"/>
+        /// </summary>
+        /// <remarks>
+        /// This is a hack to allow for an <see cref="ISessionHandler"/> with other sessions that inherit from
+        /// <see cref="IContentSession"/> to be used instead.
+        /// </remarks>
+        protected virtual ISessionHandler<IContentSession> ContentSessionHandler => _sessionHandler;
 
         /// <nodoc />
         public GrpcContentServer(
             ILogger logger,
             Capabilities serviceCapabilities,
             ISessionHandler<IContentSession> sessionHandler,
-            Dictionary<string, IContentStore> storesByName,
+            IReadOnlyDictionary<string, IContentStore> storesByName,
             LocalServerConfiguration localServerConfiguration = null)
         {
             Contract.Requires(storesByName != null);
 
-            _logger = logger;
             _serviceCapabilities = serviceCapabilities;
-            _sessionHandler = sessionHandler;
-            _adapter = new ContentServerAdapter(this);
             _contentStoreByCacheName = storesByName;
             _bufferSize = localServerConfiguration?.BufferSizeForGrpcCopies ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             _gzipSizeBarrier = localServerConfiguration?.GzipBarrierSizeForGrpcCopies ?? (_bufferSize * 8);
             _pool = new ByteArrayPool(_bufferSize);
+            _sessionHandler = sessionHandler;
+
+            GrpcAdapter = new ContentServerAdapter(this);
+
+            Logger = logger;
         }
 
         /// <nodoc />
-        public ServerServiceDefinition Bind() => ContentServer.BindService(_adapter);
+        public ServerServiceDefinition[] Bind() => new ServerServiceDefinition[] { ContentServer.BindService(GrpcAdapter) };
 
         /// <summary>
         /// Implements a create session request.
@@ -80,8 +101,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             OperationStarted();
 
-            var cacheContext = new Context(new Guid(request.TraceId), _logger);
-            var sessionCreationResult = await _sessionHandler.CreateSessionAsync(
+            var cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var sessionCreationResult = await ContentSessionHandler.CreateSessionAsync(
                 new OperationContext(cacheContext, token),
                 request.SessionName,
                 request.CacheName,
@@ -109,8 +130,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// </summary>
         public async Task<ShutdownResponse> ShutdownSessionAsync(ShutdownRequest request, CancellationToken token)
         {
-            var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
-            await _sessionHandler.ReleaseSessionAsync(new OperationContext(cacheContext, token), request.Header.SessionId);
+            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
+            await ContentSessionHandler.ReleaseSessionAsync(new OperationContext(cacheContext, token), request.Header.SessionId);
             return new ShutdownResponse();
         }
 
@@ -130,8 +151,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <nodoc />
         public async Task<GetStatsResponse> GetStatsAsync(GetStatsRequest request, CancellationToken token)
         {
-            var cacheContext = new Context(Guid.NewGuid(), _logger);
-            var counters = await _sessionHandler.GetStatsAsync(new OperationContext(cacheContext, token));
+            var cacheContext = new Context(Guid.NewGuid(), Logger);
+            var counters = await ContentSessionHandler.GetStatsAsync(new OperationContext(cacheContext, token));
             if (!counters)
             {
                 return GetStatsResponse.Failure();
@@ -151,8 +172,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), _logger);
-            var removeFromTrackerResult = await _sessionHandler.RemoveFromTrackerAsync(new OperationContext(cacheContext, token));
+            var cacheContext = new Context(new Guid(request.TraceId), Logger);
+            var removeFromTrackerResult = await ContentSessionHandler.RemoveFromTrackerAsync(new OperationContext(cacheContext, token));
             if (!removeFromTrackerResult)
             {
                 return new RemoveFromTrackerResponse
@@ -197,7 +218,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             HashType type = (HashType)request.HashType;
             ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
@@ -229,7 +250,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             // Get the content stream.
-            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             ContentHash hash = request.GetContentHash();
             OpenStreamResult result = await GetFileStreamAsync(cacheContext, hash);
 
@@ -300,7 +321,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            Context cacheContext = new Context(new Guid(request.TraceId), _logger);
+            Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
             // Iterate through all known stores, looking for content in each.
@@ -397,7 +418,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             DateTime startTime = DateTime.UtcNow;
 
-            var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
+            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
             return await RunFuncAndReportAsync(
                 request.Header.SessionId,
                 async session =>
@@ -424,7 +445,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
+            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
             return await RunFuncAndReportAsync(
                 request.Header.SessionId,
                 async session =>
@@ -484,7 +505,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
+            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
             return await RunFuncAndReportAsync(
                 request.Header.SessionId,
                 async session =>
@@ -523,7 +544,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.Header.TraceId), _logger);
+            var cacheContext = new Context(new Guid(request.Header.TraceId), Logger);
             return await RunFuncAndReportAsync(
                 request.Header.SessionId,
                 async session =>
@@ -584,7 +605,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             OperationStarted();
 
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new Context(new Guid(request.TraceId), _logger);
+            var cacheContext = new Context(new Guid(request.TraceId), Logger);
             var contentHash = request.ContentHash.ToContentHash((HashType)request.HashType);
 
             var deleteResults = await Task.WhenAll<DeleteResult>(_contentStoreByCacheName.Values.Select(store => store.DeleteAsync(cacheContext, contentHash)));
@@ -622,7 +643,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             Func<IContentSession, Task<T>> taskFunc,
             Func<string, T> failFunc)
         {
-            if (!_sessionHandler.TryGetSession(sessionId, out var session))
+            if (!ContentSessionHandler.TryGetSession(sessionId, out var session))
             {
                 return failFunc($"Could not find session for session ID {sessionId}");
             }
@@ -636,17 +657,24 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
             catch (TaskCanceledException)
             {
-                _logger.Info("GRPC server operation canceled.");
+                Logger.Info("GRPC server operation canceled.");
                 return failFunc("The operation was canceled.");
             }
             catch (Exception e)
             {
-                _logger.Error(e, "GRPC server operation failed.");
+                Logger.Error(e, "GRPC server operation failed.");
                 return failFunc(e.ToString());
             }
         }
 
-        private class ContentServerAdapter : global::ContentStore.Grpc.ContentServer.ContentServerBase
+        /// <summary>
+        /// Glue logic between this class and the Grpc abstract class.
+        /// </summary>
+        /// <remarks>
+        /// This adapter only implements the content verbs, and will throw an
+        /// unimplemented exception when a client calls an unavailable method.
+        /// </remarks>
+        protected class ContentServerAdapter : ContentServer.ContentServerBase
         {
             private readonly GrpcContentServer _contentServer;
 

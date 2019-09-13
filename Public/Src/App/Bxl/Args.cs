@@ -190,6 +190,8 @@ namespace BuildXL
                 var ideConfiguration = configuration.Ide;
                 var resolverDefaults = configuration.ResolverDefaults;
 
+                loggingConfiguration.InvocationExpandedCommandLineArguments = cl.ExpandedArguments.ToArray();
+
                 bool unsafeUnexpectedFileAccessesAreErrorsSet = false;
                 bool failPipOnFileAccessErrorSet = false;
                 bool? enableProfileRedirect = null;
@@ -706,6 +708,12 @@ namespace BuildXL
                             "parameter",
                             "p",
                             opt => CommandLineUtilities.ParsePropertyOption(opt, startupConfiguration.Properties)),
+                        OptionHandlerFactory.CreateOption(
+                            "pathSetThreshold",
+                            opt => cacheConfiguration.AugmentWeakFingerprintPathSetThreshold = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "augmentingPathSetCommonalityFactor",
+                            opt =>  cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateOption(
                             "phase",
                             opt => engineConfiguration.Phase = CommandLineUtilities.ParseEnumOption<EnginePhases>(opt)),

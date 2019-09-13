@@ -613,19 +613,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            return context.PerformOperation(
-                Tracer,
-                () =>
+            var key = GetMetadataKey(strongFingerprint);
+            ContentHashListWithDeterminism? result = null;
+            var status = _keyValueStore.Use(
+                store =>
                 {
-                    var key = GetMetadataKey(strongFingerprint);
-                    ContentHashListWithDeterminism? result = null;
-                    var status = _keyValueStore.Use(
-                        store =>
-                        {
-                            if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
-                            {
-                                var metadata = DeserializeMetadataEntry(data);
-                                result = metadata.ContentHashListWithDeterminism;
+                    if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                    {
+                        var metadata = DeserializeMetadataEntry(data);
+                        result = metadata.ContentHashListWithDeterminism;
 
                                 // Update the time, only if no one else has changed it in the mean time. We don't
                                 // really care if this succeeds or not, because if it doesn't it only means someone
@@ -635,20 +631,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                                 // hashes exist. Moreover, we can prune content.
                             }
-                        });
+                });
 
-                    if (!status.Succeeded)
-                    {
-                        return new GetContentHashListResult(status.Failure.CreateException());
-                    }
+            if (!status.Succeeded)
+            {
+                return new GetContentHashListResult(status.Failure.CreateException());
+            }
 
-                    if (result is null)
-                    {
-                        return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
-                    }
+            if (result is null)
+            {
+                return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
+            }
 
-                    return new GetContentHashListResult(result.Value);
-                }, Counters[ContentLocationDatabaseCounters.GetContentHashList]);
+            return new GetContentHashListResult(result.Value);
         }
 
         /// <summary>

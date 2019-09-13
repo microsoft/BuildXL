@@ -1330,21 +1330,27 @@ namespace BuildXL.Scheduler.Tracing
             public LoggingConfigurationData Logging;
 
             /// <nodoc />
+            public IReadOnlyList<string> CommandLineArguments;
+
+            /// <nodoc />
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
+                CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
             /// <nodoc />
             public void Serialize(BinaryLogger.EventWriter writer)
             {
                 Logging.Serialize(writer);
+                writer.WriteReadOnlyList(CommandLineArguments, (w, a) => w.Write(a));
             }
 
             /// <nodoc />
             public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
             {
                 Logging.DeserializeAndUpdate(reader);
+                CommandLineArguments = reader.ReadReadOnlyList((r => r.ReadString()));
             }
         }
 

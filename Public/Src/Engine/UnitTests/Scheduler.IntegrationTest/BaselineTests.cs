@@ -4,6 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
@@ -162,7 +165,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(true)]
         [InlineData(false)]
         public void FailOnUnspecifiedInput(bool partialSealDirectory)
-        {  
+        {
             // Process depends on unspecified input
             var ops = new Operation[]
             {
@@ -223,7 +226,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 if (shouldPipFail)
                 {
-                    RunScheduler(tempCleaner : tempCleaner).AssertFailure();
+                    RunScheduler(tempCleaner: tempCleaner).AssertFailure();
                     AssertErrorEventLogged(EventId.PipProcessError);
                     tempCleaner.WaitPendingTasksForCompletion();
                     XAssert.IsTrue(Directory.Exists(tempdirStr), $"TEMP directory deleted but wasn't supposed to: {tempdirStr}");
@@ -231,7 +234,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 }
                 else
                 {
-                    RunScheduler(tempCleaner : tempCleaner).AssertSuccess();
+                    RunScheduler(tempCleaner: tempCleaner).AssertSuccess();
                     tempCleaner.WaitPendingTasksForCompletion();
                     XAssert.IsFalse(File.Exists(fileStr), $"Temp file not deleted: {fileStr}");
                     XAssert.IsFalse(Directory.Exists(tempdirStr), $"TEMP directory not deleted: {tempdirStr}");
@@ -242,7 +245,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Feature(Features.UndeclaredAccess)]
         [Fact]
         public void FailOnUndeclaredOutput()
-        {          
+        {
             // Process depends on unspecified output
             var undeclaredOutFile = CreateOutputFileArtifact();
             CreateAndSchedulePipBuilder(new Operation[]
@@ -961,6 +964,157 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+
+        /// <summary>
+        /// The basic idea of this test is to create a pip for which each invocation generates a new path set.
+        /// The pip reads a file A which prompts it to read another file B_x. 
+        /// In iteration 0 it reads { A, B_0 }, in iteration 1 { A, B_1 }, ... and so forth.
+        /// 
+        /// This tests behavior for augmenting weak fingerprints whereby the fingerprint eventually gets augmented with (at the very
+        /// least A) and thus changes for every iteration over the threshold.
+        /// </summary>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void AugmentedWeakFingerprint(bool augmentWeakFingerprint)
+        {
+            const int threshold = 3;
+            const int iterations = 7;
+
+            var sealDirectoryPath = CreateUniqueDirectory(ObjectRoot);
+            var path = sealDirectoryPath.ToString(Context.PathTable);
+            var fileA = CreateSourceFile(path);
+
+            DirectoryArtifact dir = SealDirectory(sealDirectoryPath, SealDirectoryKind.SourceAllDirectories);
+
+            var ops = new Operation[]
+            {
+                Operation.EnumerateDir(dir),
+                Operation.ReadFileFromOtherFile(fileA, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            };
+
+            var fileBPathByIteration = Enumerable.Range(0, iterations).Select(i => CreateSourceFile(path)).Select(s => s.Path.ToString(Context.PathTable)).ToArray();
+
+            var lastFileBPath = fileBPathByIteration.Last();
+
+            var builder = CreatePipBuilder(ops);
+            builder.AddInputDirectory(dir);
+            Process pip = SchedulePipBuilder(builder).Process;
+
+            if (augmentWeakFingerprint)
+            {
+                Configuration.Cache.AugmentWeakFingerprintPathSetThreshold = threshold;
+            }
+
+            HashSet<WeakContentFingerprint> weakFingerprints = new HashSet<WeakContentFingerprint>();
+            List<WeakContentFingerprint> orderedWeakFingerprints = new List<WeakContentFingerprint>();
+            HashSet<ContentHash> pathSetHashes = new HashSet<ContentHash>();
+            List<ContentHash> orderedPathSetHashes = new List<ContentHash>();
+
+            // Part 1: Ensure that we get cache misses and generate new augmented weak fingerprints when
+            // over the threshold
+            for (int i = 0; i < fileBPathByIteration.Length; i++)
+            {
+                // Indicate to from file A that file B_i should be read
+                File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
+
+                var result = RunScheduler().AssertCacheMiss();
+
+                var weakFingerprint = result.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
+                bool addedWeakFingerprint = weakFingerprints.Add(weakFingerprint);
+
+                // Record the weak fingerprints so in the second phase we can check that the cache lookups get
+                // hits against the appropriate fingerprints
+                orderedWeakFingerprints.Add(weakFingerprint);
+
+                if (augmentWeakFingerprint)
+                {
+                    if (i >= threshold)
+                    {
+                        Assert.True(addedWeakFingerprint, "Weak fingerprint should keep changing when over the threshold.");
+                    }
+                    else if (i > 0)
+                    {
+                        Assert.False(addedWeakFingerprint, "Weak fingerprint should NOT keep changing when under the threshold.");
+                    }
+                }
+                else
+                {
+                    Assert.True(weakFingerprints.Count == 1, "Weak fingerprint should not change unless weak fingerprint augmentation is enabled.");
+                }
+
+                ContentHash pathSetHash = result.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
+                bool addedPathSet = pathSetHashes.Add(pathSetHash);
+                Assert.True(addedPathSet, "Every invocation should have a unique path set.");
+
+                // Record the path sets so in the second phase we can check that the cache lookups get
+                // hits with the appropriate path sets
+                orderedPathSetHashes.Add(pathSetHash);
+            }
+
+            // Part 2: Test behavior of multiple strong fingerprints for the same augmented weak fingerprint
+
+            // Indicate to from file A that the last file B_i should be read
+            File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: lastFileBPath);
+
+            HashSet<StrongContentFingerprint> strongFingerprints = new HashSet<StrongContentFingerprint>();
+
+            for (int i = 0; i < iterations; i++)
+            {
+                // Change content of file B
+                File.WriteAllText(path: lastFileBPath, contents: Guid.NewGuid().ToString());
+
+                var executionResult = RunScheduler().AssertCacheMiss();
+                var weakFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].WeakFingerprint;
+                ContentHash pathSetHash = executionResult.RunData.ExecutionCachingInfos[pip.PipId].PathSetHash;
+                var executionStrongFingerprint = executionResult.RunData.ExecutionCachingInfos[pip.PipId].StrongFingerprint;
+                var addedStrongFingerprint = strongFingerprints.Add(executionStrongFingerprint);
+
+                // Weak fingerprint should not change since file B should not be in the augmenting path set
+                Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
+
+                // Set of paths is not changing
+                Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
+
+                Assert.True(addedStrongFingerprint, "New strong fingerprint should be computed since file B has unique content");
+
+                var cacheHitResult = RunScheduler().AssertCacheHit();
+
+                weakFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].WeakFingerprint;
+                pathSetHash = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().PathSetHash;
+                var cacheLookupStrongFingerprint = cacheHitResult.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().StrongFingerprint;
+
+                // Weak fingerprint should not change since file B should not be in path set
+                Assert.Equal(expected: orderedWeakFingerprints.Last(), actual: weakFingerprint);
+
+                // Weak fingerprint should not change since file B should not be in path set
+                Assert.Equal(expected: orderedPathSetHashes.Last(), actual: pathSetHash);
+
+                // Should get a hit against the strong fingerprint just added above
+                Assert.Equal(expected: executionStrongFingerprint, actual: cacheLookupStrongFingerprint);
+            }
+
+            // Part 3: Ensure that we get cache hits when inputs are the same
+            for (int i = 0; i < fileBPathByIteration.Length; i++)
+            {
+                // Indicate to from file A that file B_i should be read
+                File.WriteAllText(path: fileA.Path.ToString(Context.PathTable), contents: fileBPathByIteration[i]);
+
+                // We should get a hit for the same inputs
+                var result = RunScheduler().AssertCacheHit();
+
+                // Weak fingerprint should be the same as the first run with this configuration (i.e. the
+                // augmented fingerprint when over the threshold)
+                var weakFingerprint = result.RunData.CacheLookupResults[pip.PipId].WeakFingerprint;
+                Assert.Equal(expected: orderedWeakFingerprints[i], actual: weakFingerprint);
+
+                // Path set should be the same as the first run with this configuration
+                ContentHash pathSetHash = result.RunData.CacheLookupResults[pip.PipId].GetCacheHitData().PathSetHash;
+                Assert.Equal(expected: orderedPathSetHashes[i], actual: pathSetHash);
+            }
+        }
+
         /// <summary>
         /// This test goes back to "Bug #1343546: ObservedInputProcessor;ProcessInternal: If the access is a file content read, then the FileContentInfo cannot be null"
         /// </summary>
@@ -1146,7 +1300,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var ops = new Operation[]
             {
                 Operation.WriteFile(FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "out.txt")), content: "Hello"),
-                succeedOnRetry ? 
+                succeedOnRetry ?
                     Operation.SucceedOnRetry(untrackedStateFilePath: stateFile, firstFailExitCode: 42) :
                     Operation.Fail(-2),
             };
@@ -1231,7 +1385,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
 
             DirectoryInfo[] dirs = dir.GetDirectories();
-            
+
             if (!Directory.Exists(destDirName))
             {
                 Directory.CreateDirectory(destDirName);

@@ -33,6 +33,7 @@ namespace BuildXL.Execution.Analyzer
             string outputDirPath = null;
             bool removeDirPath = false;
             bool includeProcessFingerprintComputationEvent = false;
+
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("outputDir", StringComparison.OrdinalIgnoreCase) ||
@@ -261,12 +262,24 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine("\nStarting to ingest PipGraph metadata");
             var xldbPipGraph = CachedGraph.PipGraph.ToPipGraph(PathTable, CachedGraph.PipTable, m_nameExpander);
 
-            var cachedGraphKey = new CachedGraphKey
+            var cachedGraphKey = new GraphMetadataKey
             {
-                PipGraph = true
+                Type = GraphMetaData.PipGraph
             };
+            var keyArr = cachedGraphKey.ToByteArray();
+            var valueArr = xldbPipGraph.ToByteArray();
 
-            WriteToDb(cachedGraphKey.ToByteArray(), xldbPipGraph.ToByteArray(), XldbDataStore.StaticGraphColumnFamilyName);
+            WriteToDb(keyArr, valueArr, XldbDataStore.StaticGraphColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.GraphMetaData, keyArr.Length + valueArr.Length);
+
+            var xldbMounts = CachedGraph.MountPathExpander.ToMountPathExpander(PathTable, m_nameExpander);
+            cachedGraphKey.Type = GraphMetaData.MountPathExpander;
+            keyArr = cachedGraphKey.ToByteArray();
+            valueArr = xldbMounts.ToByteArray();
+
+            WriteToDb(keyArr, valueArr, XldbDataStore.StaticGraphColumnFamilyName);
+            AddToDbStorageDictionary(DBStoredTypes.MountPathExpander, keyArr.Length + valueArr.Length);
+
             Console.WriteLine($"\nPipGraph metadata ingested ... total time is: {m_stopWatch.ElapsedMilliseconds / 1000.0} seconds");
 
             Console.WriteLine("\nStarting to ingest file and directory consumer/producer information.");
@@ -284,6 +297,8 @@ namespace BuildXL.Execution.Analyzer
                 WriteToDb(dBStorageStatsKey.ToByteArray(), kvp.Value.ToByteArray());
             }
 
+            // Write the Xldb version file to the Xldb directory
+            File.WriteAllText(Path.Combine(OutputDirPath, XldbDataStore.XldbVersionFileName), XldbDataStore.XldbVersion.ToString());
             return 0;
         }
 
@@ -591,7 +606,7 @@ namespace BuildXL.Execution.Analyzer
                         if (pipsIngested % s_pipOutputBatchLogSize == 0)
                         {
                             Console.Write(".");
-                            database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                            database.ApplyBatch(pipSemistableMap);
                             database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
 
                             pipSemistableMap.Clear();
@@ -722,18 +737,13 @@ namespace BuildXL.Execution.Analyzer
                                 SemiStableHash = hydratedPip.SemiStableHash,
                             };
 
-                            var pipIdValue = new PipIdValue()
-                            {
-                                PipId = hydratedPip.PipId.Value,
-                            };
-
-                            pipSemistableMap.Add(pipSemistableHashKey.ToByteArray(), pipIdValue.ToByteArray());
+                            pipSemistableMap.Add(pipSemistableHashKey.ToByteArray(), pipIdKeyArr);
                         }
 
                         pipIdMap.Add(pipIdKeyArr, xldbSpecificPip.ToByteArray());
                     }
 
-                    database.ApplyBatch(pipSemistableMap, XldbDataStore.PipColumnFamilyName);
+                    database.ApplyBatch(pipSemistableMap);
                     database.ApplyBatch(pipIdMap, XldbDataStore.PipColumnFamilyName);
                 });
 
@@ -758,7 +768,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileConsumerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
+                    FilePath = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -777,7 +787,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryConsumerKey = new DirectoryProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Consumer,
-                    DirectoryArtifact = AbsolutePathToXldbString(kvp.Key.Path)
+                    DirectoryPath = AbsolutePathToXldbString(kvp.Key.Path)
                 };
 
                 var directoryConsumerValue = new DirectoryConsumerValue();
@@ -795,7 +805,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
+                    FilePath = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 
@@ -816,7 +826,7 @@ namespace BuildXL.Execution.Analyzer
                 var directoryProducerKey = new DirectoryProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    DirectoryArtifact = AbsolutePathToXldbString(kvp.Key.Path)
+                    DirectoryPath = AbsolutePathToXldbString(kvp.Key.Path)
                 };
 
                 var directoryProducerValue = new DirectoryProducerValue()
@@ -836,7 +846,7 @@ namespace BuildXL.Execution.Analyzer
                 var fileProducerKey = new FileProducerConsumerKey()
                 {
                     Type = ProducerConsumerType.Producer,
-                    FileArtifact = AbsolutePathToXldbString(kvp.Key.Path),
+                    FilePath = AbsolutePathToXldbString(kvp.Key.Path),
                     RewriteCount = kvp.Key.RewriteCount
                 };
 

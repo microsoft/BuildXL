@@ -81,7 +81,44 @@ namespace BuildXL.FrontEnd.Script
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
                 string existingCgManifest = "{}";
 
-                try {
+                if ( !Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid &&
+                      Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid )
+                {
+                    // Validation of existing cgmainfest.json results in failure due to mismatch. Should fail the build in this case.
+                    try
+                    {
+                        existingCgManifest = File.ReadAllText(Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
+                        FrontEndHost.Engine.RecordFrontEndFile(
+                            Configuration.FrontEnd.ValidateCgManifestForNugets,
+                            NugetResolverName);
+                    }
+                    // CgManifest FileNotFound, log error and fail build
+                    catch (DirectoryNotFoundException)
+                    {
+                        // TODO: Rijul Log (Make function if common log)
+                        return false;
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        // TODO: Rijul Log
+                        return false;
+                    }
+                    if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
+                    {
+                        // TODO: Rijul Log
+                        return false;
+                    }
+
+                    m_resolverState = State.ResolverInitialized;
+                    return true;
+                }
+
+                // GenerateCgManifestForNugets writes a new file, hence it will always be valid and does noty need validation
+
+                try
+                {
+                    // We are calling FrontEndHost.Engine.RecordFrontEndFile towards the end of this function because we may update this file after the read below
+                    // Updating the file will cause a hash mismatch and the build to fail if this file is read again downstream
                     existingCgManifest = File.ReadAllText(Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable));
                 }
                 // CgManifest FileNotFound, continue to write the new file
@@ -91,12 +128,7 @@ namespace BuildXL.FrontEnd.Script
 
                 if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                 {
-                    if (Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
-                    {
-                        // Validation of existing cgmainfest.json results in failure due to mismatch. Should fail the build in this case.
-                        // TODO: Rijul Log
-                        return false;
-                    }
+                    
 
                     if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
                     {

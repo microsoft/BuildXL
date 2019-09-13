@@ -115,7 +115,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             var ctx = new OperationContext(context, cts);
             return GetContentHashListCall.RunAsync(_tracer, ctx, strongFingerprint, async () => {
-                return await _database.GetContentHashListAsync(ctx, strongFingerprint);
+                var result = await _database.GetContentHashListAsync(ctx, strongFingerprint);
+                return result.Succeeded
+                    ? new GetContentHashListResult(result.Value.contentHashListInfo)
+                    : new GetContentHashListResult(result);
             });
         }
 
@@ -139,8 +142,13 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                        // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
                        var oldContentHashListWithDeterminism = await _database.GetContentHashListAsync(ctx, strongFingerprint);
-                       var oldContentHashList = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.ContentHashList;
-                       var oldDeterminism = oldContentHashListWithDeterminism.ContentHashListWithDeterminism.Determinism;
+
+                       var (oldContentHashListInfo, replacementToken) = oldContentHashListWithDeterminism.Succeeded
+                        ? (oldContentHashListWithDeterminism.Value.contentHashListInfo, oldContentHashListWithDeterminism.Value.replacementToken)
+                        : (default(ContentHashListWithDeterminism), string.Empty);
+
+                       var oldContentHashList = oldContentHashListInfo.ContentHashList;
+                       var oldDeterminism = oldContentHashListInfo.Determinism;
 
                        // Make sure we're not mixing SinglePhaseNonDeterminism records
                        if (!(oldContentHashList is null) &&
@@ -158,7 +166,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                            var exchanged = await _database.CompareExchange(
                               ctx,
                               strongFingerprint,
-                              oldContentHashListWithDeterminism.ContentHashListWithDeterminism,
+                              replacementToken,
+                              oldContentHashListInfo,
                               contentHashListWithDeterminism).ThrowIfFailureAsync();
                            if (!exchanged)
                            {
@@ -181,7 +190,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                        {
                            return new AddOrGetContentHashListResult(
                                AddOrGetContentHashListResult.ResultCode.InvalidToolDeterminismError,
-                               oldContentHashListWithDeterminism.ContentHashListWithDeterminism);
+                               oldContentHashListWithDeterminism.Value.contentHashListInfo);
                        }
 
                        // If we did not accept the given value, return the value in the cache

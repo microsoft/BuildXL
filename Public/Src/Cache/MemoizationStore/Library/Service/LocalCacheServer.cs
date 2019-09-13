@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -10,7 +9,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
@@ -25,8 +23,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// </summary>
     public class LocalCacheServer : LocalContentServerBase<ICache, ICacheSession>
     {
-        private readonly GrpcCacheServer _grpcCacheServer;
-        private readonly GrpcContentServer _grpcContentServer;
+        private readonly GrpcCacheServer _grcpCacheServer;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(LocalCacheServer));
@@ -41,15 +38,27 @@ namespace BuildXL.Cache.MemoizationStore.Service
             Capabilities capabilities = Capabilities.All)
         : base(logger, fileSystem, scenario, cacheFactory, localContentServerConfiguration)
         {
-            // This must agree with the base class' StoresByName to avoid "missing content store" errors from GRpc, and
+            // This must agree with the base class' StoresByName to avoid "missing content store" errors from Grpc, and
             // to make sure everything is initialized properly when we expect it to.
-            var storesByNameAsContentStore = StoresByName.ToDictionary(kvp => kvp.Key, kvp => (IContentStore)kvp.Value);
-            _grpcContentServer = new GrpcContentServer(logger, capabilities, this, storesByNameAsContentStore);
-            _grpcCacheServer = new GrpcCacheServer(logger, this);
+            var storesByNameAsContentStore = StoresByName.ToDictionary(kvp => kvp.Key, kvp =>
+            {
+                var store = kvp.Value;
+                if (store is IContentStore contentStore)
+                {
+                    return contentStore;
+                }
+
+                throw new ArgumentException(
+                    $"Severe cache misconfiguration: {nameof(cacheFactory)} must generate instances that are " +
+                    $"IContentStore. Instead, it generated {store.GetType()}.",
+                    nameof(cacheFactory));
+            });
+
+            _grcpCacheServer = new GrpcCacheServer(logger, capabilities, this, storesByNameAsContentStore);
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => new[] {_grpcContentServer.Bind(), _grpcCacheServer.Bind()};
+        protected override ServerServiceDefinition[] BindServices() => _grcpCacheServer.Bind();
 
         /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(ICache store, OperationContext context) => store.GetStatsAsync(context);
@@ -60,7 +69,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            await _grpcContentServer.StartupAsync(context).ThrowIfFailure();
+            await _grcpCacheServer.StartupAsync(context).ThrowIfFailure();
 
             return await base.StartupCoreAsync(context);
         }
@@ -70,7 +79,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
         {
             var result = await base.ShutdownCoreAsync(context);
 
-            result &= await _grpcContentServer.ShutdownAsync(context);
+            result &= await _grcpCacheServer.ShutdownAsync(context);
 
             return result;
         }

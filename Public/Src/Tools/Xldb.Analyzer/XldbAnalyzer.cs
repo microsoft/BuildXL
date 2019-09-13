@@ -15,12 +15,13 @@ using Newtonsoft.Json.Linq;
 namespace Xldb.Analyzer
 {
     /// <summary>
-    /// Xldb Analyzers that use the rocksDb instanceand the Xldb API to analyze BXL logs
+    /// Xldb Analyzers that use the rocksDb instance and the Xldb API to analyze BXL logs
     /// </summary>
     public class Program
     {
-        private const string s_eventStatsAnalyzer = "eventstats";
+        private const string s_eventStatsAnalyzer = "dbstats";
         private const string s_dumpPipAnalyzer = "dumppip";
+        private const double m_thousandDivisor = 1000.0; // Bytes to Kilobytes
 
         private Dictionary<string, string> m_commandLineOptions = new Dictionary<string, string>();
 
@@ -39,7 +40,7 @@ namespace Xldb.Analyzer
                 switch (mode)
                 {
                     case s_eventStatsAnalyzer:
-                        return p.AnalyzeEventStats();
+                        return p.AnalyzeDbStats();
                     case s_dumpPipAnalyzer:
                         return p.AnalyzeDumpPip();
                     default:
@@ -92,19 +93,26 @@ namespace Xldb.Analyzer
         /// </summary>
         public bool ParseSemistableHash(string pipHash, out long parsedHash)
         {
-            var hexedHash = pipHash.ToUpper().Replace("PIP", "");
+            // Check that the pipHash string starts with PIP
+            if (!pipHash.ToUpperInvariant().StartsWith("PIP"))
+            {
+                parsedHash = -1;
+                return false;
+            }
+
+            var hexedHash = pipHash.ToUpperInvariant().Substring(3);
             return long.TryParse(hexedHash, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedHash);
         }
 
         /// <summary>
         /// Analyzes the event stats from the Xldb instance
         /// </summary>
-        public int AnalyzeEventStats()
+        public int AnalyzeDbStats()
         {
             if (m_commandLineOptions.ContainsKey("/h"))
             {
-                Console.WriteLine("\nEvent Stats Analyzer");
-                Console.WriteLine("Generates stats on the aggregate size and count of execution log events, but uses the RocksDB database as the source of truth");
+                Console.WriteLine("\nDB Stats Analyzer");
+                Console.WriteLine("Dumps stats on the aggregate size and count of different items stored in the Xldb instance.");
                 Console.WriteLine("/i: \t Required \t The directory to read the RocksDB database from");
                 Console.WriteLine("/o: \t Required \t The file where to write the results");
                 return 1;
@@ -112,7 +120,7 @@ namespace Xldb.Analyzer
 
             if (!m_commandLineOptions.TryGetValue("/o", out var outputFilePath))
             {
-                Console.WriteLine("Output directory required. Exiting analyzer ...");
+                Console.WriteLine("Output file required. Exiting analyzer ...");
                 return 1;
             }
 
@@ -122,43 +130,48 @@ namespace Xldb.Analyzer
             using (var outputStream = File.OpenWrite(outputFilePath))
             using (var writer = new StreamWriter(outputStream))
             {
-                var workerToEventDict = new Dictionary<uint, Dictionary<ExecutionEventId, int>>();
-                foreach (ExecutionEventId eventId in Enum.GetValues(typeof(ExecutionEventId)))
-                {
-                    var eventCount = dataStore.GetCountByEvent(eventId);
+                var maxLength = Enum.GetValues(typeof(DBStoredTypes)).Cast<DBStoredTypes>().Select(e => e.ToString().Length).Max();
+                var storageMetadata = new List<DBStorageStatsValue>();
+                ulong totalCount = 0;
+                ulong totalPayload = 0;
 
-                    if (eventCount != null)
+                writer.WriteLine("Storage stats (uncompressed) of the DB.\n\n");
+
+                foreach (DBStoredTypes storageType in Enum.GetValues(typeof(DBStoredTypes)))
+                {
+                    var dbStorageStatValue = dataStore.GetDBStatsInfoByStorageType(storageType);
+
+                    if (dbStorageStatValue != null)
                     {
-                        foreach (var workerCount in eventCount.WorkerToCountMap)
-                        {
-                            if (workerToEventDict.TryGetValue(workerCount.Key, out var eventDict))
-                            {
-                                eventDict[eventId] = workerCount.Value;
-                            }
-                            else
-                            {
-                                var dict = new Dictionary<ExecutionEventId, int>();
-                                dict.Add(eventId, workerCount.Value);
-                                workerToEventDict.Add(workerCount.Key, dict);
-                            }
-                        }
+                        totalCount += dbStorageStatValue.Count;
+                        totalPayload += dbStorageStatValue.Size;
+                        storageMetadata.Add(dbStorageStatValue);
+                    }
+                    else
+                    {
+                        storageMetadata.Add(new DBStorageStatsValue());
                     }
                 }
 
-                var maxLength = Enum.GetValues(typeof(ExecutionEventId)).Cast<ExecutionEventId>().Select(e => e.ToString().Length).Max();
+                // 12 digits of padding for count/payload
+                var countPadding = 12; 
+                // 8 digits of percentage paddin
+                var percentagePadding = 8;
 
-                foreach (var workerDict in workerToEventDict)
+                for (var i = 0; i < storageMetadata.Count; i++)
                 {
-                    writer.WriteLine("Worker {0}", workerDict.Key);
-                    foreach (var eventStats in workerDict.Value)
-                    {
-                        writer.WriteLine(
-                        "{0}: Count = {1}",
-                        eventStats.Key.ToString().PadRight(maxLength, ' '),
-                        eventStats.Value.ToString(CultureInfo.InvariantCulture).PadLeft(12, ' '));
-                    }
-                    writer.WriteLine();
+                    var currDbStorageStatValue = storageMetadata[i];
+
+                    writer.WriteLine(
+                    "{0}: Count = {1} K ( {2} %),   Payload = {3} KB ( {4} %)",
+                    ((DBStoredTypes)i).ToString().PadRight(maxLength, ' '),
+                    (currDbStorageStatValue.Count/ m_thousandDivisor).ToString("#.####").PadLeft(countPadding, ' '),
+                    (currDbStorageStatValue.Count / (double)totalCount * 100).ToString("#.####").PadLeft(percentagePadding, ' '),
+                    (currDbStorageStatValue.Size / m_thousandDivisor).ToString("#.####").PadLeft(countPadding, ' '),
+                    (currDbStorageStatValue.Size / (double)totalPayload * 100).ToString("#.####").PadLeft(percentagePadding, ' '));
                 }
+
+                writer.WriteLine($"\n\nTotal uncompressed storage size is: {totalPayload/m_thousandDivisor} KB");
             }
 
             return 0;
@@ -187,13 +200,13 @@ namespace Xldb.Analyzer
 
             if (!ParseSemistableHash(pipHash, out var parsedSemiStableHash))
             {
-                Console.WriteLine($"Invalid pip: {pipHash}. Id must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69. Exiting analyzer ...");
+                Console.WriteLine($"Invalid PipId: {pipHash}. PipId must be a semistable hash that starts with Pip i.e.: PipC623BCE303738C69. Exiting analyzer ...");
                 return 1;
             }
 
             if (!m_commandLineOptions.TryGetValue("/o", out var outputFilePath))
             {
-                Console.WriteLine("Output directory required. Exiting analyzer ...");
+                Console.WriteLine("Output file required. Exiting analyzer ...");
                 return 1;
             }
 
@@ -251,25 +264,19 @@ namespace Xldb.Analyzer
                 }
 
                 writer.WriteLine("Process Execution Monitoring Information:\n");
-                foreach(var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
+                foreach (var i in dataStore.GetProcessExecutionMonitoringReportedEventByKey(pipId))
                 {
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
-                writer.WriteLine("Process Fingerprint Computation Information:\n");
-                foreach(var i in dataStore.GetProcessFingerprintComputationEventByKey(pipId))
-                {
-                    writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
-                }
-
-                writer.WriteLine("Directory Membership Hashted Information:\n");
-                foreach(var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
+                writer.WriteLine("Directory Membership Hashed Information:\n");
+                foreach (var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
                 {
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
                 writer.WriteLine("Dependency Violation Reported Event:\n");
-                var depViolationEvents = dataStore.GetDependencyViolatedEventByKey(pipId);
+                var depViolationEvents = dataStore.GetDependencyViolationEventByKey(pipId);
 
                 foreach (var ev in depViolationEvents)
                 {
@@ -278,7 +285,7 @@ namespace Xldb.Analyzer
 
                 if (pipType == PipType.Process)
                 {
-                    writer.WriteLine("Getting directory output information for Process Pip");
+                    writer.WriteLine("Getting directory output information for Process Pip\n");
 
                     foreach (var output in dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId))
                     {
@@ -288,12 +295,12 @@ namespace Xldb.Analyzer
                         }
                     }
 
-                    writer.WriteLine("Geting directory dependency information for Process Pip");
+                    writer.WriteLine("Geting directory dependency information for Process Pip\n");
 
                     var pipGraph = dataStore.GetPipGraphMetaData();
                     var sealDirectoryAndProducersDict = new Dictionary<DirectoryArtifact, uint>();
 
-                    foreach(var kvp in pipGraph.AllSealDirectoriesAndProducers)
+                    foreach (var kvp in pipGraph.AllSealDirectoriesAndProducers)
                     {
                         sealDirectoryAndProducersDict.Add(kvp.Artifact, kvp.PipId);
                     }

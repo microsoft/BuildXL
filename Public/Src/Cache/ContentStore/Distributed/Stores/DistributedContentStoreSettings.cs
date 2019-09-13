@@ -126,6 +126,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaxConcurrentCopyOperations { get; set; } = 512;
 
         /// <summary>
+        /// Maximum number of concurrent proactive copies.
+        /// </summary>
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = 512;
+
+        /// <summary>
         /// Maximum number of files to copy locally in parallel for a given operation
         /// </summary>
         public int ParallelCopyFilesLimit { get; set; } = DefaultParallelCopyFilesLimit;
@@ -139,6 +144,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Whether proactive copies are enabled.
         /// </summary>
         public bool EnableProactiveCopy { get; set; } = false;
+
+        /// <summary>
+        /// Time before a proactive copy times out.
+        /// </summary>
+        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.

@@ -1830,6 +1830,12 @@ namespace BuildXL.Scheduler
 
             var process = cacheableProcess.Process;
 
+            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
+            {
+                PipId = process.PipId,
+                CacheMissType = PipCacheMissType.Invalid,
+            };
+
             var processFingerprintComputationResult = new ProcessFingerprintComputationEventData
             {
                 Kind = FingerprintComputationKind.CacheCheck,
@@ -1853,9 +1859,10 @@ namespace BuildXL.Scheduler
 
                 using (operationContext.StartOperation(PipExecutorCounter.CheckProcessRunnableFromCacheExecutionLogDuration))
                 {
-                    // TODO: How to log to execution log
                     environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult);
                 }
+
+                processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
 
                 return result;
             }
@@ -1865,12 +1872,6 @@ namespace BuildXL.Scheduler
             // defers to an inner cache lookup and performs an early return of the result)
             async Task<RunnableFromCacheResult> innerCheckRunnableFromCacheAsync(List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
             {
-                BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
-                {
-                    PipId = process.PipId,
-                    CacheMissType = PipCacheMissType.Invalid,
-                };
-
                 // Totally usable descriptor (may additionally require content availability), or null.
                 RunnableFromCacheResult.CacheHitData cacheHitData = null;
                 PublishedEntryRefLocality? refLocality;
@@ -2378,7 +2379,6 @@ namespace BuildXL.Scheduler
                     environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
                 }
 
-                processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
                 return runnableFromCacheResult;
             }
         }

@@ -51,8 +51,8 @@ namespace BuildXL.Scheduler
         public void LogCounters(PipCacheMissType cacheMissType, int numPathSetsDownloaded, int numCacheEntriesVisited)
         {
             CacheMissType = cacheMissType;
-            NumPathSetsDownloaded = numPathSetsDownloaded;
-            NumCacheEntriesVisited = numCacheEntriesVisited;
+            NumPathSetsDownloaded += numPathSetsDownloaded;
+            NumCacheEntriesVisited += numCacheEntriesVisited;
         }
 
         /// <nodoc/>

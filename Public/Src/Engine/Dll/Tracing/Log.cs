@@ -727,6 +727,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerExitFailure(LoggingContext context, string failure);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerTimeoutFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Timed out waiting for attach request from master")]
+        public abstract void DistributionWorkerTimeoutFailure(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionTryMaterializeInputsFailedRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Failed to materialize inputs for pip. Number of remaining retries: {remainingRetryCount}.",

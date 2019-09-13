@@ -220,6 +220,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         EnableProactiveCopy = _distributedSettings.EnableProactiveCopy,
                         TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
+                        EnableProactiveCopyInsideRing = _distributedSettings.EnableProactiveCopyInsideRing,
+                        EnableProactiveCopyOutsideRing = _distributedSettings.EnableProactiveCopyOutsideRing,
                         MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,

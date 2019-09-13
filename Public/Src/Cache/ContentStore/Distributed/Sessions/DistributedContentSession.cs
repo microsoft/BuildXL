@@ -321,7 +321,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             return ProactiveCopyResult.CopyNotRequiredResult;
                         }
 
-                        IReadOnlyList<MachineLocation> buildRingMachines;
+                        IReadOnlyList<MachineLocation> buildRingMachines = null;
 
                         // Get random machine inside build ring
                         Task<BoolResult> insideRingCopyTask;
@@ -345,13 +345,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             else
                             {
                                 insideRingCopyTask = Task.FromResult(new BoolResult("BuildId was not specified, so machines in the build ring cannot be found."));
-                                buildRingMachines = new[] { LocalCacheRootMachineLocation };
                             }
                         }
                         else
                         {
                             insideRingCopyTask = BoolResult.SuccessTask;
                         }
+
+                        buildRingMachines ??= new[] { LocalCacheRootMachineLocation };
 
                         Task<BoolResult> outsideRingCopyTask;
                         if (Settings.EnableProactiveCopyOutsideRing)

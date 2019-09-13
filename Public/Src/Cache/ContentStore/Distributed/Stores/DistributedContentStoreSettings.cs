@@ -146,6 +146,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool EnableProactiveCopy { get; set; } = false;
 
         /// <summary>
+        /// Time before a proactive copy times out.
+        /// </summary>
+        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
+
+        /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;

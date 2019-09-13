@@ -538,6 +538,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool UseRedisMetadataStore{ get; set; } = false;
 
+        [DataMember]
+        public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
+
         #endregion
 
         /// <summary>

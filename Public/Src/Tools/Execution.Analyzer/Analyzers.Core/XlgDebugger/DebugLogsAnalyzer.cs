@@ -192,7 +192,7 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <inheritdoc />
-        public override void DominoInvocation(DominoInvocationEventData data)
+        public override void BxlInvocation(BxlInvocationEventData data)
         {
             var conf = data.Configuration.Logging;
             m_pathTranslator = GetPathTranslator(conf.SubstSource, conf.SubstTarget, PathTable);

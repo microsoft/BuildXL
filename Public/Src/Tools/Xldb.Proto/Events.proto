@@ -171,9 +171,8 @@ message ProcessExecutionMonitoringReportedEvent{
     repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
 }
 
-// The ExtraEventDataReported Event message. Exactly 1 of these is generated per build
-message ExtraEventDataReported{
-    // Worker ID that generated this event
+// The BuildSessionConfiguration Event message
+message BuildSessionConfigurationEvent{
     uint32 WorkerID = 1;
 
     // Whether the /unsafe_DisableDetours flag is passed to BuildXL
@@ -406,8 +405,7 @@ message PipExecutionDirectoryOutputsEvent{
 }
 
 // The BXLInvocation Event message
-message BXLInvocationEvent{
-    // Worker ID that generated this event
+message BxlInvocationEvent{
     uint32 WorkerID = 1;
 
     // Original root that is being substituted

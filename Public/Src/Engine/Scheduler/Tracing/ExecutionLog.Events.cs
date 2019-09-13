@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The value for monitoring NTCreateFile API.
         /// </summary>
-        void ExtraEventDataReported(ExtraEventData data);
+        void BuildSessionConfiguration(BuildSessionConfigurationEventData data);
 
         /// <summary>
         /// Dependency analysis violation is reported.
@@ -105,8 +105,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Single event giving build invocation information that contains configuration details usefull for analyzers.
         /// </summary>
-        // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        void DominoInvocation(DominoInvocationEventData data);
+        void BxlInvocation(BxlInvocationEventData data);
 
         /// <summary>
         /// Creates a worker target that logs back to master for distributed builds
@@ -156,9 +155,9 @@ namespace BuildXL.Scheduler.Tracing
         ProcessExecutionMonitoringReported = 5,
 
         /// <summary>
-        /// See <see cref="IExecutionLogTarget.ExtraEventDataReported"/>
+        /// See <see cref="IExecutionLogTarget.BuildSessionConfiguration"/>
         /// </summary>
-        ExtraEventDataReported = 6,
+        BuildSessionConfiguration = 6,
 
         /// <summary>
         /// See <see cref="IExecutionLogTarget.DependencyViolationReported"/>
@@ -191,9 +190,9 @@ namespace BuildXL.Scheduler.Tracing
         PipExecutionDirectoryOutputs = 12,
 
         /// <summary>
-        /// See <see cref="IExecutionLogTarget.DominoInvocation"/>
+        /// See <see cref="IExecutionLogTarget.BxlInvocation"/>
         /// </summary>
-        DominoInvocation = 13,
+        BxlInvocation = 13,
     }
 
     /// <summary>
@@ -235,12 +234,12 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.DirectoryMembershipHashed(data));
 
         /// <summary>
-        /// Event description for <see cref="IExecutionLogTarget.ExtraEventDataReported"/>
+        /// Event description for <see cref="IExecutionLogTarget.BuildSessionConfiguration"/>
         /// </summary>
-        public static readonly ExecutionLogEventMetadata<ExtraEventData> ExtraEventDataReported =
-            new ExecutionLogEventMetadata<ExtraEventData>(
-                ExecutionEventId.ExtraEventDataReported,
-                (data, target) => target.ExtraEventDataReported(data));
+        public static readonly ExecutionLogEventMetadata<BuildSessionConfigurationEventData> BuildSessionConfiguration =
+            new ExecutionLogEventMetadata<BuildSessionConfigurationEventData>(
+                ExecutionEventId.BuildSessionConfiguration,
+                (data, target) => target.BuildSessionConfiguration(data));
 
         /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.ProcessExecutionMonitoringReported"/>
@@ -275,13 +274,13 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.StatusReported(data));
 
         /// <summary>
-        /// Event description for <see cref="IExecutionLogTarget.DominoInvocation"/>
+        /// Event description for <see cref="IExecutionLogTarget.BxlInvocation"/>
         /// </summary>
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        public static readonly ExecutionLogEventMetadata<DominoInvocationEventData> DominoInvocation =
-            new ExecutionLogEventMetadata<DominoInvocationEventData>(
-                ExecutionEventId.DominoInvocation,
-                (data, target) => target.DominoInvocation(data));
+        public static readonly ExecutionLogEventMetadata<BxlInvocationEventData> BxlInvocation =
+            new ExecutionLogEventMetadata<BxlInvocationEventData>(
+                ExecutionEventId.BxlInvocation,
+                (data, target) => target.BxlInvocation(data));
 
         /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.ProcessFingerprintComputation"/>
@@ -312,13 +311,13 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public static readonly IReadOnlyList<ExecutionLogEventMetadata> Events = new ExecutionLogEventMetadata[]
                                                                                  {
-                                                                                     DominoInvocation,
+                                                                                     BxlInvocation,
                                                                                      FileArtifactContentDecided,
                                                                                      WorkerList,
                                                                                      PipExecutionPerformance,
                                                                                      DirectoryMembershipHashed,
                                                                                      ProcessExecutionMonitoringReported,
-                                                                                     ExtraEventDataReported,
+                                                                                     BuildSessionConfiguration,
                                                                                      DependencyViolationReported,
                                                                                      PipExecutionStepPerformanceReported,
                                                                                      ResourceUsageReported,
@@ -329,10 +328,10 @@ namespace BuildXL.Scheduler.Tracing
     }
 
     /// <summary>
-    /// Stores salt information
+    /// Stores salt information and other session configurations
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public struct ExtraEventData : IExecutionLogEventData<ExtraEventData>
+    public struct BuildSessionConfigurationEventData : IExecutionLogEventData<BuildSessionConfigurationEventData>
     {
         /// <summary>
         /// Whether the /unsafe_DisableDetours flag is passed to BuildXL.
@@ -440,12 +439,12 @@ namespace BuildXL.Scheduler.Tracing
         public string RequiredKextVersionNumber;
 
         /// <inheritdoc />
-        public ExecutionLogEventMetadata<ExtraEventData> Metadata => ExecutionLogMetadata.ExtraEventDataReported;
+        public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
         /// <summary>
         /// Creates event data from salts
         /// </summary>
-        public ExtraEventData(ExtraFingerprintSalts salts)
+        public BuildSessionConfigurationEventData(ExtraFingerprintSalts salts)
         {
             IgnoreSetFileInformationByHandle = salts.IgnoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = salts.IgnoreZwRenameFileInformation;
@@ -1311,7 +1310,7 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-    public struct DominoInvocationEventData : IExecutionLogEventData<DominoInvocationEventData>
+    public struct BxlInvocationEventData : IExecutionLogEventData<BxlInvocationEventData>
     {
         /// <summary>
         /// The expanded configuration used to run the engine.
@@ -1392,13 +1391,13 @@ namespace BuildXL.Scheduler.Tracing
 
         /// <nodoc />
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        public DominoInvocationEventData(IConfiguration configuration)
+        public BxlInvocationEventData(IConfiguration configuration)
         {
             Configuration = new ConfigurationData(configuration);
         }
 
         /// <inheritdoc />
-        public ExecutionLogEventMetadata<DominoInvocationEventData> Metadata => ExecutionLogMetadata.DominoInvocation;
+        public ExecutionLogEventMetadata<BxlInvocationEventData> Metadata => ExecutionLogMetadata.BxlInvocation;
 
         /// <inheritdoc />
         public void Serialize(BinaryLogger.EventWriter writer)

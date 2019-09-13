@@ -58,9 +58,9 @@ namespace BuildXL.Xldb
         /// Event Related Endpoints
 
         /// <summary>
-        /// Gets all the BXL Invocation Events.
+        /// Gets all the Bxl Invocation Events.
         /// </summary>
-        IEnumerable<BXLInvocationEvent> GetBXLInvocationEvents();
+        IEnumerable<BxlInvocationEvent> GetBxlInvocationEvents();
 
         /// <summary>
         /// Gets a depdendency violation events by key
@@ -86,9 +86,9 @@ namespace BuildXL.Xldb
         IEnumerable<DirectoryMembershipHashedEvent> GetDirectoryMembershipHashedEvents();
 
         /// <summary>
-        /// Gets all the Extra Event Data Reported Events
+        /// Gets all the Build Session Configuration Events
         /// </summary>
-        IEnumerable<ExtraEventDataReported> GetExtraEventDataReportedEvents();
+        IEnumerable<BuildSessionConfigurationEvent> GetBuildSessionConfigurationEvents();
 
         /// <summary>
         /// Gets file artficat content decided event by key. 

@@ -175,7 +175,7 @@ namespace BuildXL.Engine.Tracing
         DistributionWorkerStatus = 7038,
 
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
-        // UNUSED 7040
+        DistributionWorkerTimeoutFailure = 7040,
 
         DistributionBondCall = 7041,
         DistributionDebugMessage = 7042,

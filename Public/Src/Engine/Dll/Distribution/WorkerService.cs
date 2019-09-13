@@ -283,6 +283,7 @@ namespace BuildXL.Engine.Distribution
                 if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > EngineEnvironmentSettings.WorkerAttachTimeout)
                 {
                     Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
+                    Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
                     return false;
                 }
             }

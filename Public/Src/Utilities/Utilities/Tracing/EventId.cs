@@ -1143,6 +1143,8 @@ namespace BuildXL.Utilities.Tracing
         KextFailedToInitializeConnectionManager = 14500,
         KextFailureNotificationReceived = 14501,
 
-        FailedToLoadPipGraphFragment = 14502
+        FailedToLoadPipGraphFragment = 14502,
+
+        PipCacheLookupStats = 14503,
     }
 }

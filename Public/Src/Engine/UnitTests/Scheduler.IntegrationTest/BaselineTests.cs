@@ -981,6 +981,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             const int threshold = 3;
             const int iterations = 7;
 
+            if (Configuration.Schedule.IncrementalScheduling)
+            {
+                // Test relies on cache info which would not be available when running with incremental scheduling
+                // since the pip may be skipped
+                return;
+            }
+
             var sealDirectoryPath = CreateUniqueDirectory(ObjectRoot);
             var path = sealDirectoryPath.ToString(Context.PathTable);
             var fileA = CreateSourceFile(path);

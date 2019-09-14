@@ -26,4 +26,5 @@ enum ExecutionEventId{
     PipCacheMiss = 12;
     PipExecutionDirectoryOutputs = 13;
     BxlInvocation = 14;
+    CacheMaterializationError = 15;
 }

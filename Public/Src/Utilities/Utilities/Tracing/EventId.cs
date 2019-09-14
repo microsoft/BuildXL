@@ -656,6 +656,8 @@ namespace BuildXL.Utilities.Tracing
         // Elsewhere  = 2603,
         PipWillBeRetriedDueToExitCode = 2604,
 
+        DetailedPipMaterializeDependenciesFromCacheFailure = 2610,
+
         // MLAM
         FileArtifactContentMismatch = 2700,
         PipOutputNotMaterialized = 2701,
@@ -1144,7 +1146,6 @@ namespace BuildXL.Utilities.Tracing
         KextFailureNotificationReceived = 14501,
 
         FailedToLoadPipGraphFragment = 14502,
-
         PipCacheLookupStats = 14503,
     }
 }

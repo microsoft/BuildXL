@@ -160,6 +160,14 @@ namespace BuildXL.Scheduler.Tracing
             ReportUnhandledEvent(data);
         }
 
+        /// <summary>
+        /// Cache materialization error is reported
+        /// </summary>
+        public virtual void CacheMaterializationError(CacheMaterializationErrorEventData data)
+        {
+            ReportUnhandledEvent(data);
+        }
+
         protected virtual void ReportUnhandledEvent<TEventData>(TEventData data)
             where TEventData : struct, IExecutionLogEventData<TEventData>
         {

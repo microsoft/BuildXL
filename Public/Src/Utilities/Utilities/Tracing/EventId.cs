@@ -1146,5 +1146,6 @@ namespace BuildXL.Utilities.Tracing
         KextFailureNotificationReceived = 14501,
 
         FailedToLoadPipGraphFragment = 14502,
+        PipCacheLookupStats = 14503,
     }
 }

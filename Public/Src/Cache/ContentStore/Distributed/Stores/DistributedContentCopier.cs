@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -31,10 +30,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     public class DistributedContentCopier<T> : StartupShutdownSlimBase, IDistributedContentCopier
         where T : PathBase
     {
-        // Gate to control the maximum number of simultaneously active active IO operations.
+        // Gate to control the maximum number of simultaneously active IO operations.
         private readonly SemaphoreSlim _ioGate;
 
+        // Gate to control the maximum number of simultaneously active proactive copies.
+        private readonly SemaphoreSlim _proactiveCopyIoGate;
+
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
+        private readonly TimeSpan _timeoutForPoractiveCopies;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
         private readonly ICopyRequester _copyRequester;
@@ -85,7 +88,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _hashers = HashInfoLookup.CreateAll();
 
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
+            _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
+
+            _timeoutForPoractiveCopies = settings.TimeoutForProactiveCopies;
         }
 
         /// <inheritdoc />
@@ -235,22 +241,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             context.TraceDebug("Waiting on IOGate for RequestCopyFileAsync: " +
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} ");
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} ");
 
-            return _ioGate.GatedOperationAsync(ts =>
+            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
+                    var cts = new CancellationTokenSource();
+                    cts.CancelAfter(_timeoutForPoractiveCopies);
+                    var innerContext = context.CreateNested(cts.Token);
                     return context.PerformOperationAsync(
                         Tracer,
                         operation: () =>
                         {
-                            return _copyRequester.RequestCopyFileAsync(context, hash, targetLocation);
+                            return _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation);
                         },
                         traceOperationStarted: false,
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
-                            $"IOGate.Wait={ts.TotalMilliseconds}ms."
+                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
+                            $"IOGate.Wait={ts.TotalMilliseconds}ms." +
+                            $"Timeout={cts.Token.IsCancellationRequested}"
                         );
                 },
                 context.Token);

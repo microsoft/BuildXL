@@ -140,6 +140,11 @@ namespace BuildXL.Utilities.Configuration
             TimeSpan.FromMinutes(30));
 
         /// <summary>
+        /// The maximum number of workers allowed to attach concurrently
+        /// </summary>
+        public static readonly Setting<int> MaxConcurrentWorkersAttachLimit = CreateSetting("BuildXLMaxConcurrentWorkersAttachLimit", value => ParseInt32(value) ?? 10);
+
+        /// <summary>
         /// The number of threads in the grpc thread pool.
         /// </summary>
         /// <remarks>

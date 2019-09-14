@@ -1505,7 +1505,7 @@ namespace BuildXL.FrontEnd.Core
 
         private string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
         {
-            if (Configuration.Logging.OptimizeConsoleOutputForAzureDevOps)
+            if (Configuration.Logging.OptimizeConsoleOutputForAzureDevOps || Configuration.Logging.OptimizeProgressUpdatingForAzureDevOps)
             {
                 return remainingItems.Count.ToString(CultureInfo.InvariantCulture);
             }

@@ -56,6 +56,13 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
+        public OperationContext CreateNested(CancellationToken linkedCancellationToken)
+        {
+            var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
+            return new OperationContext(new Context(TracingContext), token);
+        }
+
+        /// <nodoc />
         public OperationTracer Trace(Action operationStarted)
         {
             operationStarted?.Invoke();

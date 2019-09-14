@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 // ReSharper disable All
 namespace BuildXL.Cache.ContentStore.Distributed
@@ -64,6 +64,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <param name="context">The context of the operation</param>
         /// <param name="hash">The hash of the file to be copied.</param>
         /// <param name="targetMachine">The machine that should copy the file</param>
-        Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, MachineLocation targetMachine);
+        Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
     }
 }

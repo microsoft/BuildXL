@@ -155,7 +155,7 @@ namespace BuildXL.Execution.Analyzer
             m_model.AddDirectoryData(CurrentEventWorkerId, data);
         }
 
-        public override void ExtraEventDataReported(ExtraEventData data)
+        public override void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
         {
             m_model.Salts = data.ToFingerprintSalts();
         }
@@ -384,7 +384,7 @@ namespace BuildXL.Execution.Analyzer
             }
 
             /// <inheritdoc />
-            public override void ExtraEventDataReported(ExtraEventData data)
+            public override void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
             {
                 m_conversionModel.ConvertedNewModel.Salts = data.ToFingerprintSalts();
             }

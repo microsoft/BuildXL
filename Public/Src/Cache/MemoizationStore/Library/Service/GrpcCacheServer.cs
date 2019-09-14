@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -25,26 +26,32 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
     /// <summary>
     /// A cache server implementation based on GRPC.
     /// </summary>
-    public sealed class GrpcCacheServer : IGrpcService
+    public sealed class GrpcCacheServer : GrpcContentServer
     {
-        private readonly ILogger _logger;
-        private readonly ISessionHandler<ICacheSession> _sessionHandler;
+        private readonly Tracer _tracer = new Tracer(nameof(GrpcCacheServer));
 
-        private readonly MemoizationServerAdapter _adapter;
-        
+        /// <inheritdoc />
+        protected override Tracer Tracer => _tracer;
+
+        /// <summary>
+        /// We need this because these methods rely on having memoization verbs, which only an ICacheSession can
+        /// provide.
+        /// </summary>
+        private readonly ISessionHandler<ICacheSession> _cacheSessionHandler;
+
         /// <nodoc />
         public GrpcCacheServer(
             ILogger logger,
-            ISessionHandler<ICacheSession> sessionHandler)
+            Capabilities serviceCapabilities,
+            ISessionHandler<ICacheSession> sessionHandler,
+            Dictionary<string, IContentStore> storesByName,
+            LocalServerConfiguration localServerConfiguration = null)
+            : base(logger, serviceCapabilities, sessionHandler, storesByName, localServerConfiguration)
         {
-            _logger = logger;
-            _sessionHandler = sessionHandler;
+            _cacheSessionHandler = sessionHandler;
 
-            _adapter = new MemoizationServerAdapter(this);
+            GrpcAdapter = new MemoizationServerAdapter(this);
         }
-
-        /// <inheritdoc />
-        public ServerServiceDefinition Bind() => CacheServer.BindService(_adapter);
 
         private Task<AddOrGetContentHashListResponse> AddOrGetContentHashListAsync(AddOrGetContentHashListRequest request, ServerCallContext context)
         {
@@ -125,10 +132,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
         {
             var stopwatch = StopwatchSlim.Start();
             DateTime startTime = DateTime.UtcNow;
-            var cacheContext = new OperationContext(new Context(new Guid(request.Header.TraceId), _logger), token);
+            var cacheContext = new OperationContext(new Context(new Guid(request.Header.TraceId), Logger), token);
 
             var sessionId = request.Header.SessionId;
-            if (!_sessionHandler.TryGetSession(sessionId, out var session))
+            if (!_cacheSessionHandler.TryGetSession(sessionId, out var session))
             {
                 return failure($"Could not find session for session ID {sessionId}");
             }
@@ -146,23 +153,23 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                     result.Header = ResponseHeader.Success(startTime);
                 }
 
-                _logger.Info($"GRPC server operation '{operation}' succeeded by {stopwatch.Elapsed.TotalMilliseconds}ms.");
+                Logger.Info($"GRPC server operation '{operation}' succeeded by {stopwatch.Elapsed.TotalMilliseconds}ms.");
                 return result;
             }
             catch (TaskCanceledException)
             {
-                _logger.Info($"GRPC server operation '{operation}' is canceled by {stopwatch.Elapsed.TotalMilliseconds}ms.");
+                Logger.Info($"GRPC server operation '{operation}' is canceled by {stopwatch.Elapsed.TotalMilliseconds}ms.");
                 return failure("The operation was canceled.");
             }
             catch (ResultPropagationException e)
             {
-                _logger.Error(e, $"GRPC server operation '{operation}' failed by {stopwatch.Elapsed.TotalMilliseconds}ms. Error: {e}");
+                Logger.Error(e, $"GRPC server operation '{operation}' failed by {stopwatch.Elapsed.TotalMilliseconds}ms. Error: {e}");
 
                 return new TResponse {Header = ResponseHeader.Failure(startTime, e.Result.ErrorMessage, e.Result.Diagnostics)};
             }
             catch (Exception e)
             {
-                _logger.Error(e, $"GRPC server operation '{operation}' failed by {stopwatch.Elapsed.TotalMilliseconds}ms. Error: {e}");
+                Logger.Error(e, $"GRPC server operation '{operation}' failed by {stopwatch.Elapsed.TotalMilliseconds}ms. Error: {e}");
                 return failure(e.ToString());
             }
 
@@ -187,32 +194,24 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
             }
         }
 
-        private class MemoizationServerAdapter : CacheServer.CacheServerBase
+        private class MemoizationServerAdapter : ContentServerAdapter
         {
             private readonly GrpcCacheServer _server;
 
             /// <inheritdoc />
-            public MemoizationServerAdapter(GrpcCacheServer server) => _server = server;
+            public MemoizationServerAdapter(GrpcCacheServer server) : base(server) => _server = server;
 
-            public override Task<AddOrGetContentHashListResponse> AddOrGetContentHashList(AddOrGetContentHashListRequest request, ServerCallContext context)
-            {
-                return _server.AddOrGetContentHashListAsync(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<AddOrGetContentHashListResponse> AddOrGetContentHashList(AddOrGetContentHashListRequest request, ServerCallContext context) => _server.AddOrGetContentHashListAsync(request, context);
 
-            public override Task<GetContentHashListResponse> GetContentHashList(GetContentHashListRequest request, ServerCallContext context)
-            {
-                return _server.GetContentHashListAsync(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<GetContentHashListResponse> GetContentHashList(GetContentHashListRequest request, ServerCallContext context) => _server.GetContentHashListAsync(request, context);
 
-            public override Task<GetSelectorsResponse> GetSelectors(GetSelectorsRequest request, ServerCallContext context)
-            {
-                return _server.GetSelectorsAsync(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<GetSelectorsResponse> GetSelectors(GetSelectorsRequest request, ServerCallContext context) => _server.GetSelectorsAsync(request, context);
 
-            public override Task<IncorporateStrongFingerprintsResponse> IncorporateStrongFingerprints(IncorporateStrongFingerprintsRequest request, ServerCallContext context)
-            {
-                return _server.IncorporateStrongFingerprints(request, context);
-            }
+            /// <inheritdoc />
+            public override Task<IncorporateStrongFingerprintsResponse> IncorporateStrongFingerprints(IncorporateStrongFingerprintsRequest request, ServerCallContext context) => _server.IncorporateStrongFingerprints(request, context);
         }
     }
 }

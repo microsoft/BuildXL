@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -50,6 +51,8 @@ namespace BuildXL.Engine.Distribution
         private PipGraphCacheDescriptor m_cachedGraphDescriptor;
         private readonly ushort m_buildServicePort;
         private readonly IServer m_masterServer;
+
+        internal readonly SemaphoreSlim WorkerAttachSemaphore = new SemaphoreSlim(EngineEnvironmentSettings.MaxConcurrentWorkersAttachLimit);
 
         internal readonly DistributionServices DistributionServices;
 

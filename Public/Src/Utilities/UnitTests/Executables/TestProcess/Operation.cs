@@ -112,6 +112,11 @@ namespace Test.BuildXL.Executables.TestProcess
             ReadRequiredFile,
 
             /// <summary>
+            /// Type for reading a file specified as the content of another file
+            /// </summary>
+            ReadFileFromOtherFile,
+
+            /// <summary>
             /// Type for copying a file
             /// </summary>
             CopyFile,
@@ -378,6 +383,9 @@ namespace Test.BuildXL.Executables.TestProcess
                     case Type.ReadRequiredFile:
                         DoReadRequiredFile();
                         return;
+                    case Type.ReadFileFromOtherFile:
+                        DoReadFileFromOtherFile();
+                        return;
                     case Type.CopyFile:
                         DoCopyFile();
                         return;
@@ -550,6 +558,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation ReadFile(FileArtifact path, bool doNotInfer = false)
         {
             return new Operation(Type.ReadFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Creates a chained read file operation (reads file specified in the given file)
+        /// </summary>
+        public static Operation ReadFileFromOtherFile(FileArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.ReadFileFromOtherFile, path, doNotInfer: doNotInfer);
         }
 
         /// <summary>
@@ -783,6 +799,15 @@ namespace Test.BuildXL.Executables.TestProcess
             DoWriteFile(Content ?? Guid.NewGuid().ToString());
         }
 
+        private void DoReadFileFromOtherFile()
+        {
+            // Read the file path from the first file
+            var path = DoReadRequiredFile();
+
+            // Now read the file
+            DoReadFile(path);
+        }
+
         private void DoReadAndWriteFile()
         {
             string content = DoReadFile();
@@ -859,11 +884,12 @@ namespace Test.BuildXL.Executables.TestProcess
             }
         }
 
-        private string DoReadFile()
+        private string DoReadFile(string path = null)
         {
             try
             {
-                var content = File.ReadAllText(PathAsString);
+                path = path ?? PathAsString;
+                var content = File.ReadAllText(path);
                 return content;
             }
             catch (FileNotFoundException)
@@ -878,12 +904,13 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 // Ignore tests for denied file access policies
             }
+
             return string.Empty;
         }
 
-        private void DoReadRequiredFile()
+        private string DoReadRequiredFile()
         {
-            File.ReadAllText(PathAsString);
+            return File.ReadAllText(PathAsString);
         }
 
         private void DoCopyFile()

@@ -18,6 +18,7 @@ namespace Test {
                 NetFx.System.Xml.Linq.dll
             ),
             ContentStore.Distributed.dll,
+            ContentStore.DistributedTest.dll,
             ContentStore.Hashing.dll,
             ContentStore.UtilitiesCore.dll,
             ContentStore.Interfaces.dll,
@@ -30,6 +31,7 @@ namespace Test {
             Library.dll,
 
             importFrom("BuildXL.Utilities").dll,
+            importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("System.Data.SQLite.Core").pkg,
             importFrom("System.Interactive.Async").pkg,
             ...BuildXLSdk.fluentAssertionsWorkaround,

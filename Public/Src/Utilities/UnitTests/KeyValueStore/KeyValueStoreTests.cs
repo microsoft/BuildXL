@@ -132,99 +132,79 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Fact]
-        public void PutNullValue()
+        [Theory]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        public void PutNullValue(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
-            string key1 = null, value1 = "value1";
+            string key1 = "key1", value1 = null;
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
-                    try
+                    DrowningAssertThrows<NullReferenceException>(() =>
                     {
                         store.Put(key1, value1);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.AreNotEqual(null, exception);
+                    });
                 }).Succeeded);
             }
         }
 
-        [Fact]
-        public void PutNullKey()
+        [Theory]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        public void PutNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = null, value1 = "value1";
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
-                    try
+                    DrowningAssertThrows<NullReferenceException>(() =>
                     {
                         store.Put(key1, value1);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.AreNotEqual(null, exception);
+                    });
                 }).Succeeded);
             }
         }
 
-        [Fact]
-        public void RemoveNullKey()
+        [Theory]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        public void RemoveNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = null;
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
-                    try
+                    DrowningAssertThrows<NullReferenceException>(() =>
                     {
                         store.Remove(key1);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.AreNotEqual(null, exception);
+                    });
                 }).Succeeded);
             }
         }
 
 
-        [Fact]
-        public void GetNullKey()
+        [Theory]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        public void GetNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = null;
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    Exception exception = null;
-                    try
+                    DrowningAssertThrows<NullReferenceException>(() =>
                     {
                         store.TryGetValue(key1, out var value);
-                    }
-                    catch (Exception e)
-                    {
-                        exception = e;
-                    }
-
-                    XAssert.AreNotEqual(null, exception);
+                    });
                 }).Succeeded);
             }
         }
@@ -873,24 +853,32 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Fact]
-        public void NonExistentColumnTest()
+        [Theory]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        public void NonExistentColumnTest(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = "key1", value1A = "value1A";
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
             {
-                Assert.Throws<KeyNotFoundException>(
-                    () =>
-                    {
-                        AssertFailed(
-                            accessor.Use(
-                                store =>
-                                {
-                                    // Accessing a non-existent column causes a failure
-                                    store.Put(key1, value1A, "fakeColumn");
-                                }));
-                    });
+                // Can't inline due to typing issues.
+                Action inexistentColumnAccess = () =>
+                {
+                    var result = accessor.Use(
+                            store =>
+                            {
+                                // Accessing a non-existent column causes a failure
+                                store.Put(key1, value1A, "fakeColumn");
+                            });
+
+                    // In relaxed mode, this will be considered a RocksDb exception, which won't throw.
+                    XAssert.AreEqual(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED, exceptionHandlingMode);
+                    AssertFailed(result);
+                    throw ((Failure<Exception>)result.Failure).Content;
+                };
+
+                Assert.Throws<KeyNotFoundException>(inexistentColumnAccess);
             }
         }
 
@@ -986,17 +974,11 @@ namespace Test.BuildXL.Engine.Cache
                             store.Put(key, value, columnFamilyName: column);
                         }
 
-                        Exception exception = null;
-                        try
+
+                        DrowningAssertThrows<NullReferenceException>(() =>
                         {
                             store.TryGetValue(key, out var v, columnFamilyName: changingColumn);
-                        }
-                        catch (Exception ex)
-                        {
-                            exception = ex;
-                        }
-
-                        XAssert.AreNotEqual(null, exception);
+                        });
                     })
                 );
             }
@@ -1016,17 +998,10 @@ namespace Test.BuildXL.Engine.Cache
                             AssertEntryExists(store, key, value, column: column);
                         }
 
-                        Exception exception = null;
-                        try
+                        DrowningAssertThrows<NullReferenceException>(() =>
                         {
                             store.TryGetValue(key, out var v, columnFamilyName: changingKeyColumn);
-                        }
-                        catch (Exception ex)
-                        {
-                            exception = ex;
-                        }
-
-                        XAssert.AreNotEqual(null, exception);
+                        });
                     })
                 );
             }
@@ -1252,11 +1227,17 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Fact]
-        public void FailureHandlersSeeAccessViolationException()
+        [Theory]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        public void FailureHandlersHandleAccessViolationException(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             bool failureHandled = false;
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, failureHandler: (f) => { failureHandled = true; }).Result)
+            bool invalidationHandled = false;
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, 
+                failureHandler: (f) => { failureHandled = true; },
+                invalidationHandler: (f) => { invalidationHandled = true; },
+                exceptionHandlingMode: exceptionHandlingMode).Result)
             {
                 try
                 {
@@ -1272,6 +1253,7 @@ namespace Test.BuildXL.Engine.Cache
             }
 
             XAssert.IsTrue(failureHandled);
+            XAssert.IsTrue(invalidationHandled || exceptionHandlingMode == KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED);
         }
 
         private string LongRandomString()
@@ -1371,6 +1353,23 @@ namespace Test.BuildXL.Engine.Cache
             {
                 base.Dispose(disposing); 
             }
+        }
+
+        private void DrowningAssertThrows<T>(Action action)
+            where T : class
+        {
+            Exception exception = null;
+            try
+            {
+                action.Invoke();
+            }
+            catch (Exception e)
+            {
+                exception = e;
+            }
+
+            XAssert.AreNotEqual(null, exception);
+            XAssert.AreEqual(typeof(T), exception.GetType());
         }
     }
 }

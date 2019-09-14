@@ -1870,6 +1870,8 @@ namespace BuildXL.Scheduler
                     environment.State.ExecutionLog?.ProcessFingerprintComputation(processFingerprintComputationResult);
                 }
 
+                processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
+
                 Logger.Log.PipCacheLookupStats(
                     operationContext,
                     process.FormattedSemiStableHash,
@@ -2383,8 +2385,6 @@ namespace BuildXL.Scheduler
                         runnableFromCacheResult.Fingerprint.ToString());
                     environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
                 }
-
-                processRunnable.CacheLookupPerfInfo.LogCounters(pipCacheMiss.Value.CacheMissType, numPathSetsDownloaded, numCacheEntriesVisited);
 
                 return runnableFromCacheResult;
             }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Security.Cryptography;
@@ -634,7 +635,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             StoreVersion = storeVersion;
             CreatedNewStore = createdNewStore;
 
-            var rocksDbStore = new RocksDbStore(
+            m_store = new RocksDbStore(
                 StoreDirectory,
                 defaultColumnKeyTracked,
                 additionalColumns,
@@ -643,14 +644,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 dropColumns,
                 rotateLogs,
                 openBulkLoad);
-            if (exceptionHandlingMode == ExceptionHandlingMode.RELAXED)
-            {
-                m_store = new RocksDbExceptionWrapper(rocksDbStore);
-            }
-            else
-            {
-                m_store = rocksDbStore;
-            }
 
             m_failureHandler = failureHandler;
             m_invalidationHandler = invalidationHandler;
@@ -740,42 +733,42 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             Contract.Requires(ex != null);
 
-            var isRocksDbFatalException = false;
-
-            // If the exception wrapper caught the exception, it will be marked.
-            if (ex.Data.Contains(RocksDbExceptionWrapper.RocksDbInternalExceptionMarker))
+            rethrow = false;
+            var disableStore = false;
+            if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException)
             {
-                isRocksDbFatalException = true;
-                ex.Data.Remove(RocksDbExceptionWrapper.RocksDbInternalExceptionMarker);
-            }
-
-            // It is possible for the user to obtain an IEnumerable to an underlying RocksDb iterator. In those 
-            // cases, we can't guarantee that the exception will be caught by the wrapper, and hence it may happen 
-            // inside user code.
-            if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException) {
                 // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
                 // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
                 // class also corresponds to the HRESULT E_FAIL (0x80004005).
-                isRocksDbFatalException = true;
+                disableStore = true;
             }
 
-            // There is an underlying assumption here, which is that whatever exception that wasn't caught thus 
-            // far is due to user error. This is not strictly correct, because it could not be impossible for a 
-            // user to obtain an iterator, and for RocksDb to fail with a different exception than handled above 
-            // as the user is iterating.
-
-            rethrow = false;
             var failure = new Failure<Exception>(ex);
-
             switch (m_exceptionHandlingMode)
             {
                 case ExceptionHandlingMode.STRICT:
                     InvalidateStore(failure);
                     m_failureHandler?.Invoke(failure);
-                    rethrow = !isRocksDbFatalException;
+                    rethrow = !disableStore;
                     break;
                 case ExceptionHandlingMode.RELAXED:
-                    if (isRocksDbFatalException)
+                    if (!disableStore)
+                    {
+                        // We need to know if the exception was our fault, or RocksDb's. We can't do that with a 
+                        // wrapper around the RocksDbStore, because it may:
+                        //  - Call lambdas that could throw, and generate false positives.
+                        //  - Return IEnumerables, which we would be unable to detect.
+                        // Hence, we just obtain a stack trace and check if the exception originated in the interface's
+                        // assembly.
+                        var trace = new StackTrace(ex);
+                        for (var i = 0; !disableStore && i < trace.FrameCount; ++i)
+                        {
+                            var method = trace.GetFrame(i).GetMethod();
+                            disableStore = method.DeclaringType.Assembly.GetName().Name == "RocksDbSharp";
+                        }
+                    }
+
+                    if (disableStore)
                     {
                         InvalidateStore(failure);
                     } 

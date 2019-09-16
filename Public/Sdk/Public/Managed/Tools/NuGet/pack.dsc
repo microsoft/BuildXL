@@ -304,3 +304,30 @@ export function createAssemblyLayout(assembly: Managed.Assembly) : Deployment.De
         ]
     };
 }
+
+@@public
+export function createAssemblyLayoutWithSubfolder(assembly: Managed.Assembly, subfolder: string) : Deployment.Definition {
+    // When the assembly is undefined, return empty deployment.
+    if (assembly === undefined) {
+        return {
+            contents: []
+        };
+    }
+
+    return {
+        contents: [
+            {
+                subfolder: r`lib/${assembly.targetFramework}/${subfolder}`,
+                contents: [
+                    assembly.runtime || emptyFile,
+                ]
+            },
+            {
+                subfolder: r`ref/${assembly.targetFramework}/${subfolder}`,
+                contents: [
+                    assembly.compile || emptyFile,
+                ]
+            }
+        ]
+    };
+}

@@ -230,7 +230,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             {
                 if ((deleteOptions & DeleteOptions.ReadOnly) != 0 &&
                     accessException.HResult > 0 &&
-                    (uint)accessException.HResult == Hresult.AccessDenied)
+                    accessException.HResult == Hresult.AccessDenied)
                 {
                     bool foundReadonly = false;
 

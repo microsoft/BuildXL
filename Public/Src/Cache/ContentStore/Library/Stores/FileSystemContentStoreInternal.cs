@@ -2496,8 +2496,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                     catch (IOException e)
                     {
-                        if ((uint)e.HResult == Hresult.FileExists || (e.InnerException != null &&
-                                                                      (uint)e.InnerException.HResult == Hresult.FileExists))
+                        if (e.HResult == Hresult.FileExists || (e.InnerException != null &&
+                                                                      e.InnerException.HResult == Hresult.FileExists))
                         {
                             // File existing in the racing SkipIfExists case.
                             code = PlaceFileResult.ResultCode.NotPlacedAlreadyExists;
@@ -2561,7 +2561,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         catch (IOException e)
                         {
-                            if (e.InnerException != null && (long)e.InnerException.HResult == Hresult.FileExists)
+                            if (e.InnerException != null && e.InnerException.HResult == Hresult.FileExists)
                             {
                                 // File existing in the racing SkipIfExists case.
                                 code = PlaceFileResult.ResultCode.NotPlacedAlreadyExists;

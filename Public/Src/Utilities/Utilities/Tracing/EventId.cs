@@ -655,6 +655,7 @@ namespace BuildXL.Utilities.Tracing
         FailPipOutputWithNoAccessed = 2602,
         // Elsewhere  = 2603,
         PipWillBeRetriedDueToExitCode = 2604,
+        PipRetry = 2605,
 
         DetailedPipMaterializeDependenciesFromCacheFailure = 2610,
 

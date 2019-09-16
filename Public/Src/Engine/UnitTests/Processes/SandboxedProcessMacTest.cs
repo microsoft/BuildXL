@@ -97,11 +97,7 @@ namespace Test.BuildXL.Processes
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
-
-            // NOTE: Not wrapping this process in 'time' because KillAsync can only kill 'time' and the its child process (from 'Operation.Block').
-            //       This is only because we are using a mock sandbox connection here; in production, a real connection instance
-            //       notifies the sandbox which kills the surviving processes.
-            var process = CreateAndStartSandboxedProcess(processInfo, measureTime: false);
+            var process = CreateAndStartSandboxedProcess(processInfo, measureTime: true);
             var taskCancelationSource = new CancellationTokenSource();
 
             // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout

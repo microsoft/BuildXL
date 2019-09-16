@@ -470,6 +470,10 @@ namespace BuildXL.Processes
                         LogProcessState("Process timed out due to inactivity from sandbox kernel extension report queue: " +
                                         $"the process has been running for {CurrentRunningTime().TotalSeconds} seconds " +
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
+
+                        m_pendingReports.Complete();
+                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
+
                         await KillAsync();
                         processTreeTimeoutSource.SetResult(Unit.Void);
                         break;

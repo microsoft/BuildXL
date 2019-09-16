@@ -325,7 +325,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         // Get random machine inside build ring
                         Task<BoolResult> insideRingCopyTask;
-                        if (Settings.ProactiveCopyMode.HasFlag(ProactiveCopyMode.InsideRing))
+                        if ((Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
                         {
                             if (_buildIdHash != null)
                             {
@@ -355,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         buildRingMachines ??= new[] { LocalCacheRootMachineLocation };
 
                         Task<BoolResult> outsideRingCopyTask;
-                        if (Settings.ProactiveCopyMode.HasFlag(ProactiveCopyMode.OutsideRing))
+                        if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
                         {
                             var fromPredictionStore = true;
                             Result<MachineLocation> getLocationResult = null;

@@ -141,19 +141,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
 
         /// <summary>
-        /// Whether proactive copies are enabled.
+        /// The mode in which proactive copy should run
         /// </summary>
-        public bool EnableProactiveCopy { get; set; } = false;
-
-        /// <summary>
-        /// Whether proactive copies are enabled inside the build ring.
-        /// </summary>
-        public bool EnableProactiveCopyInsideRing { get; set; } = true;
-
-        /// <summary>
-        /// Whether proactive copies are enabled outside the build ring.
-        /// </summary>
-        public bool EnableProactiveCopyOutsideRing { get; set; } = true;
+        public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
 
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.

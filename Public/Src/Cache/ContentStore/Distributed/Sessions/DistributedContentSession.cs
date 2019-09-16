@@ -253,7 +253,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             // Only perform proactive copy to other machines if we didn't put the blob into Redis
-            if (!putBlob && Settings.EnableProactiveCopy)
+            if (!putBlob && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
             {
                 // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
                 WithOperationContext(
@@ -325,7 +325,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         // Get random machine inside build ring
                         Task<BoolResult> insideRingCopyTask;
-                        if (Settings.EnableProactiveCopyInsideRing)
+                        if (Settings.ProactiveCopyMode.HasFlag(ProactiveCopyMode.InsideRing))
                         {
                             if (_buildIdHash != null)
                             {
@@ -355,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         buildRingMachines ??= new[] { LocalCacheRootMachineLocation };
 
                         Task<BoolResult> outsideRingCopyTask;
-                        if (Settings.EnableProactiveCopyOutsideRing)
+                        if (Settings.ProactiveCopyMode.HasFlag(ProactiveCopyMode.OutsideRing))
                         {
                             var fromPredictionStore = true;
                             Result<MachineLocation> getLocationResult = null;

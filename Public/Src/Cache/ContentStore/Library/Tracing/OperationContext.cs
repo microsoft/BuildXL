@@ -63,13 +63,6 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
             return new OperationContext(new Context(TracingContext), token);
         }
 
-        /// <nodoc />
-        public OperationTracer Trace(Action operationStarted)
-        {
-            operationStarted?.Invoke();
-            return new OperationTracer(StopwatchSlim.Start());
-        }
-
         /// <summary>
         /// Implicit conversion from <see cref="OperationContext"/> to <see cref="Context"/>.
         /// </summary>

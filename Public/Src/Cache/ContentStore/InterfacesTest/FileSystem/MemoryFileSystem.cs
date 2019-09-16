@@ -886,7 +886,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
                         {
                             unchecked
                             {
-                                throw new IOException("File already exists", new IOException("File exists", (int)Hresult.FileExists));
+                                throw new IOException("File already exists", new IOException("File exists", Hresult.FileExists));
                             }
                         }
 

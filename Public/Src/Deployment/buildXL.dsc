@@ -23,6 +23,14 @@ namespace BuildXL {
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
+            // content placement
+            ...addIfLazy(qualifier.targetFramework === "net472" && qualifier.targetRuntime !== "osx-x64", () => [
+                importFrom("BuildXL.Tools").ContentPlacement.Extraction.exe,
+                importFrom("BuildXL.Tools").ContentPlacement.ML.exe,
+                importFrom("BuildXL.Tools").ContentPlacement.ML.dll,
+                importFrom("BuildXL.Tools").ContentPlacement.OfflineMapping.exe,
+            ]),
+
             ...addIfLazy(qualifier.targetRuntime !== "osx-x64", () => [
                 importFrom("BuildXL.Tools").SandboxedProcessExecutor.exe,
             ]),

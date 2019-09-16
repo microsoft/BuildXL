@@ -8,6 +8,9 @@ const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverag
     ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
     : "None";
 
+const isChangeBasedCodeCoverage = Environment.getFlag("[Sdk.BuildXL]inputChangesPresented");
+
+
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
     exe: f`${root}/bin/DBS.QTest.exe`,
@@ -126,7 +129,7 @@ export function runQTest(args: QTestArguments): Result {
      
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
-    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+    if (qCodeCoverageEnumType === "DynamicCodeCov" && isChangeBasedCodeCoverage){
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;

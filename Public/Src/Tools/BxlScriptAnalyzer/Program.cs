@@ -138,7 +138,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                 foreach (var analyzer in arguments.Analyzers)
                 {
-                    analyzer.FinalizeAnalysis();
+                    if (!analyzer.FinalizeAnalysis())
+                    {
+                        return 1;
+                    }
                 }
 
                 if (errorCount > 0)

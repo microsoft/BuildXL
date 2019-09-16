@@ -105,14 +105,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        AddOrGetContentHashList,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
-        GetContentHashList,
-
-        /// <nodoc />
-        [CounterType(CounterType.Stopwatch)]
         GarbageCollectMetadata,
 
         /// <nodoc />

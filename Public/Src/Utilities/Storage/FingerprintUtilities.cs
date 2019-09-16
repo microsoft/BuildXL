@@ -50,6 +50,19 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
+        /// Create a Fingerprint with all zeros except the given value in the first byte.
+        /// </summary>
+        public static Fingerprint CreateSpecialValue(byte first)
+        {
+            Contract.Requires(first >= 0);
+
+            var hashBytes = new byte[FingerprintLength];
+            hashBytes[0] = first;
+
+            return CreateFrom(hashBytes);
+        }
+
+        /// <summary>
         /// Create a Fingerprint from the given bytes, which must match exactly with the select type.
         /// </summary>
         public static Fingerprint CreateFrom(byte[] value)

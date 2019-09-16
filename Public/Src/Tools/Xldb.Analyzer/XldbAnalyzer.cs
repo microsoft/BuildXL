@@ -139,7 +139,7 @@ namespace Xldb.Analyzer
 
                 foreach (DBStoredTypes storageType in Enum.GetValues(typeof(DBStoredTypes)))
                 {
-                    var dbStorageStatValue = dataStore.GetCountByEvent(storageType);
+                    var dbStorageStatValue = dataStore.GetDBStatsInfoByStorageType(storageType);
 
                     if (dbStorageStatValue != null)
                     {
@@ -269,14 +269,14 @@ namespace Xldb.Analyzer
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
-                writer.WriteLine("Directory Membership Hashted Information:\n");
+                writer.WriteLine("Directory Membership Hashed Information:\n");
                 foreach (var i in dataStore.GetDirectoryMembershipHashedEventByKey(pipId))
                 {
                     writer.WriteLine(JToken.Parse(JsonConvert.SerializeObject(i, Formatting.Indented)));
                 }
 
                 writer.WriteLine("Dependency Violation Reported Event:\n");
-                var depViolationEvents = dataStore.GetDependencyViolatedEventByKey(pipId);
+                var depViolationEvents = dataStore.GetDependencyViolationEventByKey(pipId);
 
                 foreach (var ev in depViolationEvents)
                 {
@@ -285,7 +285,7 @@ namespace Xldb.Analyzer
 
                 if (pipType == PipType.Process)
                 {
-                    writer.WriteLine("Getting directory output information for Process Pip");
+                    writer.WriteLine("Getting directory output information for Process Pip\n");
 
                     foreach (var output in dataStore.GetPipExecutionDirectoryOutputEventByKey(pipId))
                     {
@@ -295,7 +295,7 @@ namespace Xldb.Analyzer
                         }
                     }
 
-                    writer.WriteLine("Geting directory dependency information for Process Pip");
+                    writer.WriteLine("Geting directory dependency information for Process Pip\n");
 
                     var pipGraph = dataStore.GetPipGraphMetaData();
                     var sealDirectoryAndProducersDict = new Dictionary<DirectoryArtifact, uint>();

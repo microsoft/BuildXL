@@ -1185,19 +1185,18 @@ namespace BuildXL.Scheduler
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
 
-            if (m_fingerprintStoreTarget != null)
+            MasterSpecificExecutionLogTarget masterTarget = null;
+
+            if (!IsDistributedWorker)
             {
-                m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
-                    m_executionLogFileTarget,
-                    m_fingerprintStoreTarget,
-                    new ObservedInputAnomalyAnalyzer(graph));
+                masterTarget = new MasterSpecificExecutionLogTarget(loggingContext, this);
             }
-            else
-            {
-                m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
-                    m_executionLogFileTarget,
-                    new ObservedInputAnomalyAnalyzer(graph));
-            }
+
+            m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
+                m_executionLogFileTarget,
+                m_fingerprintStoreTarget,
+                new ObservedInputAnomalyAnalyzer(graph),
+                masterTarget);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
@@ -1282,7 +1281,7 @@ namespace BuildXL.Scheduler
                 m_workers,
                 m_pipQueue);
 
-            ExecutionLog?.DominoInvocation(new DominoInvocationEventData(m_configuration));
+            ExecutionLog?.BxlInvocation(new BxlInvocationEventData(m_configuration));
 
             UpdateStatus();
             m_drainThread = new Thread(m_pipQueue.DrainQueues);
@@ -2369,9 +2368,14 @@ namespace BuildXL.Scheduler
                     // We stop on the first error only on the master or single-machine builds.
                     // During cancellation, master coordinates with workers to stop the build.
 
-                    // ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
-                    bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
-                        || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
+
+                    //// ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
+                    //bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
+                    //    || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
+
+                    // TODO(seokur): It is currently disabled to cancel the pips on the first materialization error.
+                    // We just want to see how many materialization errors would occur in total.
+                    bool hasMaterializationErrorHappened = false;
 
                     // Early terminate the build if
                     // (1) StopOnFirstError is enabled or
@@ -4179,6 +4183,34 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public DirectoryTranslator DirectoryTranslator { get; }
 
+        /// <summary>
+        /// Gets the execution information for the producer pip of the given file. 
+        /// </summary>
+        public string GetProducerInfoForFailedMaterializeFile(in FileArtifact artifact)
+        {
+            var producer = m_fileContentManager.GetDeclaredProducer(artifact);
+
+            RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[producer.PipId];
+
+            PipExecutionStep step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : PipExecutionStep.RunFromCache;
+
+            var workerId = perfInfo.Workers.Value[(int)step];
+            var worker = m_workers[(int)workerId];
+            bool isWorkerReleasedEarly = worker.WorkerEarlyReleasedTime != null;
+
+            PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterialize);
+            if (isWorkerReleasedEarly)
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterializeDueToEarlyWorkerRelease);
+            }
+
+            string whenWorkerReleased = isWorkerReleasedEarly ? 
+                $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" : 
+                "N/A";
+
+            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";
+        }
+
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IPipExecutionEnvironment.IsSourceSealedDirectory(
@@ -4350,7 +4382,7 @@ namespace BuildXL.Scheduler
                     totalCacheLookupStepDurations = totalCacheLookupStepDurations
                         .Zip(performance.CacheLookupPerfInfo.CacheLookupStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
 
-                    totalCacheMissAnalysisDuration += (long)performance.CacheMissDuration.TotalMilliseconds;
+                    totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
 
                     index++;
                 }
@@ -4588,9 +4620,9 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissDuration.TotalMilliseconds != 0)
+                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
                 {
-                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissDuration.TotalMilliseconds,10}"));
+                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
                 }
             }
         }
@@ -5962,7 +5994,7 @@ namespace BuildXL.Scheduler
 
                     var logFile = new BinaryLogger(executionLogStream, context, pipGraph.GraphId, lastStaticAbsolutePathValue);
                     var executionLogTarget = new ExecutionLogFileTarget(logFile, disabledEventIds: configuration.Logging.NoExecutionLog);
-                    executionLogTarget.ExtraEventDataReported(new ExtraEventData(salts));
+                    executionLogTarget.BuildSessionConfiguration(new BuildSessionConfigurationEventData(salts));
 
                     return executionLogTarget;
                 }

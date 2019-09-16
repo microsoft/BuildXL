@@ -75,7 +75,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Returns a task representing the completion of the exit operation
         /// </summary>
-        public Task<bool> ExitCompletion => m_exitCompletionSource.Task;
+        private Task<bool> ExitCompletion => m_exitCompletionSource.Task;
 
         /// <summary>
         /// Returns a task representing the completion of the attach operation
@@ -103,7 +103,8 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public uint WorkerId { get; private set; }
 
-        private bool m_hasFailures = false;
+        private volatile bool m_hasFailures = false;
+        private volatile string m_masterFailureMessage; 
 
         /// <summary>
         /// Whether master is done with the worker by sending a message to worker.
@@ -260,6 +261,10 @@ namespace BuildXL.Engine.Distribution
             success &= await ExitCompletion;
 
             success &= !m_hasFailures;
+            if (m_masterFailureMessage != null)
+            {
+                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, m_masterFailureMessage);
+            }
 
             m_pipQueue.SetAsFinalized();
 
@@ -278,6 +283,7 @@ namespace BuildXL.Engine.Distribution
                 if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > EngineEnvironmentSettings.WorkerAttachTimeout)
                 {
                     Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
+                    Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
                     return false;
                 }
             }
@@ -339,8 +345,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!reportSuccess)
             {
-                // Only log the error, if this thread set exit response
-                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, failure);
+                m_masterFailureMessage = failure;
                 m_hasFailures = true;
             }
 

@@ -46,7 +46,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         /// <nodoc />
         [DllImport(AriaLibName)]
-        static public extern void DisposeAriaLogger(IntPtr logger);
+        public static extern void DisposeAriaLogger(IntPtr logger);
 
         /// <nodoc />
         public static void LogEvent(IntPtr logger, string eventName, EventProperty[] eventProperties)

@@ -46,8 +46,8 @@ int GetProcessResourceUsage(pid_t pid, ProcessResourceUsage *buffer, long buffer
     buffer->systemTime = rusage.ri_system_time;
     buffer->userTime = rusage.ri_user_time;
 
-    buffer->bytesRead = rusage.ri_diskio_bytesread;
-    buffer->bytesWritten = rusage.ri_diskio_byteswritten;
+    buffer->diskio_bytesRead = rusage.ri_diskio_bytesread;
+    buffer->diskio_bytesWritten = rusage.ri_diskio_byteswritten;
 
     if (includeChildProcesses)
     {

@@ -34,12 +34,12 @@ namespace BuildXL.Interop.MacOS
             /// <summary>
             /// Bytes read from disk
             /// </summary>
-            public ulong BytesRead;
+            public ulong DiskBytesRead;
 
             /// <summary>
             /// Bytes written to disk
             /// </summary>
-            public ulong BytesWritten;
+            public ulong DiskBytesWritten;
         }
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]

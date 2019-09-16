@@ -1021,4 +1021,13 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_InputChanges" xml:space="preserve">
     <value>Path to file containing a list of input changes, separated by new lines. The formats of an input change is '&lt;path&gt;|&lt;change kind&gt;' or '&lt;path&gt;', where change kinds are 'DataOrMetadataChanged', 'Removed', 'MembershipChanged', 'NewlyPresentAsFile', 'NewlyPresentAsDirectory'.</value>
   </data>
+  <data name="HelpText_DisplayHelp_CgManifestBanner" xml:space="preserve">
+    <value>Component Governance</value>
+  </data>
+  <data name="HelpText_DisplayHelp_GenerateCgManifest" xml:space="preserve">
+    <value>Generates a cgmanifest.json file at the specified path. This file contains the names and versions for all Nuget packages used within BuildXL, and is used for Component Governance during CloudBuild.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ValidateCgManifest" xml:space="preserve">
+    <value>Validates the cgmanifest.json file at the specified path. This file should contain up-to-date names and versions of all Nuget packages used within BuildXL for Component Governance. Any mismatch will cause the Build to fail. Updated file can be created using the /generateCgManifestForNugets:&lt;path&gt;</value>
+  </data>
 </root>

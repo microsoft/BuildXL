@@ -319,6 +319,9 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Validates the existing cgmaiifest.json file and throws error on mismatch
         /// </summary>
+        /// <remarks>
+        /// cgmanifest.json is used for Component Governance in CloudBuild
+        /// </remarks>
         AbsolutePath ValidateCgManifestForNugets { get; }
     }
 }

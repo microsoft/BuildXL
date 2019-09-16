@@ -1,27 +1,51 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
+using BuildXL.Engine;
+using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Nuget;
+using BuildXL.FrontEnd.Script.Constants;
+using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.Mutable;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration.Mutable;
 using Newtonsoft.Json;
+using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {
-    public sealed class NugetCgManifestGeneratorTests
+    public sealed class NugetCgManifestGeneratorTests 
     {
         private readonly FrontEndContext m_context;
         private readonly NugetCgManifestGenerator m_generator;
+        private FrontEndHostController frontEndHostController;
+        private FrontEndEngineAbstraction engine;
+        TemporaryStorageTestBase storage;
 
         public NugetCgManifestGeneratorTests()
         {
             m_context = FrontEndContext.CreateInstanceForTesting();
             m_generator = new NugetCgManifestGenerator(m_context);
+            //TestSerializationCompleteness temp = TestSerializationCompleteness();
+            //frontEndHostController = CreateFrontEndHostControllerForTesting();
+            //storage = TemporaryStorageTestBase.;
         }
+
+        //private FrontEndHostController CreateFrontEndHostControllerForTesting()
+        //{
+        //    return FrontEndHostController.CreateForTesting(
+        //       m_context,
+        //       new BasicFrontEndEngineAbstraction(m_context.PathTable, m_context.FileSystem),
+        //       new ModuleRegistry(m_context.SymbolTable),
+        //       Path.Combine(TemporaryStorageTestBase.TemporaryDirectory, Names.ConfigDsc),
+        //       outputDirectory: Path.Combine(TemporaryDirectory, "out"));
+        //}
 
         [Fact]
         public void TestEmptyPackages()
@@ -42,7 +66,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         [Fact]
         public void TestSinglePackage()
         {
-            //Package package = Package.Create();
+            //Package package = DsTest.CreatePackageFromConfig(m_context, path);
             //version:  p.Path.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable)
             //    [packageName] for the name
             //var package = NugetResolverUnitTests.CreateTestPackageOnDisk(includeScriptSpec: false, packageName: "System.Memory", version: "4.5.1");
@@ -126,13 +150,21 @@ namespace Test.BuildXL.FrontEnd.Nuget
             XAssert.IsFalse(m_generator.CompareForEquality(validJson, inValidJson));
         }
 
-        //private Package CreatePackage(string name, string version)
+        //private Package CreatePackage(string packageName, string version)
         //{
+        //    NugetPackage np = new NugetPackage
+        //    {
+        //        Id = packageName,
+        //        Version = version
+        //    };
+
+        //    Package p = np
+
+
         //    PackageId id = new PackageId();
         //    AbsolutePath path = new AbsolutePath();
         //    IPackageDescriptor descriptor = new PackageDescriptor();
 
-        //    path.
 
         //    return Package.Create(id, path, descriptor);
 

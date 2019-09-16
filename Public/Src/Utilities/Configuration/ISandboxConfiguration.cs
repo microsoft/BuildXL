@@ -173,7 +173,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether to measure CPU times (user/system) of sandboxed processes.  Default: true.
         /// </summary>
-        bool KextMeasureProcessCpuTimes { get; }
+        bool MeasureProcessCpuTimes { get; }
 
         /// <summary>
         /// Indicates how big a single sandbox kernel extension report queue is in MB when it is allocated in the sandbox kernel extension

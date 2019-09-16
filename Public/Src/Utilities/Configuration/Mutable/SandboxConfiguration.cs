@@ -37,7 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CheckDetoursMessageCount = true;
             AllowInternalDetoursErrorNotificationFile = true;
             EnforceAccessPoliciesOnDirectoryCreation = false;
-            KextMeasureProcessCpuTimes = true;              // always measure process times + ram consumption
+            MeasureProcessCpuTimes = true;                  // always measure process times + ram consumption
             KextReportQueueSizeMb = 0;                      // let the sandbox kernel extension apply defaults
             KextEnableReportBatching = true;                // use lock-free queue for batching access reports
             KextThrottleCpuUsageBlockThresholdPercent = 0;  // no throttling by default
@@ -85,7 +85,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CheckDetoursMessageCount = template.CheckDetoursMessageCount;
             AllowInternalDetoursErrorNotificationFile = template.AllowInternalDetoursErrorNotificationFile;
             EnforceAccessPoliciesOnDirectoryCreation = template.EnforceAccessPoliciesOnDirectoryCreation;
-            KextMeasureProcessCpuTimes = template.KextMeasureProcessCpuTimes;
+            MeasureProcessCpuTimes = template.MeasureProcessCpuTimes;
             KextReportQueueSizeMb = template.KextReportQueueSizeMb;
             KextEnableReportBatching = template.KextEnableReportBatching;
             KextThrottleCpuUsageBlockThresholdPercent = template.KextThrottleCpuUsageBlockThresholdPercent;
@@ -208,7 +208,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool AllowInternalDetoursErrorNotificationFile { get; set; }
 
         /// <inheritdoc />
-        public bool KextMeasureProcessCpuTimes { get; set; }
+        public bool MeasureProcessCpuTimes { get; set; }
 
         /// <inheritdoc />
         public uint KextReportQueueSizeMb { get; set; }

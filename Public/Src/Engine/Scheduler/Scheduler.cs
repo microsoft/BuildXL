@@ -2133,7 +2133,6 @@ namespace BuildXL.Scheduler
             }
 
             bool resourceAvailable = true;
-            bool isMemoryPressureCritical = false;
 
             if (perfInfo.RamUsagePercentage != null)
             {
@@ -2158,7 +2157,7 @@ namespace BuildXL.Scheduler
 
             Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
             var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-            isMemoryPressureCritical = result && (pressureLevel >= Memory.PressureLevel.Warning);
+            bool isMemoryPressureCritical = result && (pressureLevel > Memory.PressureLevel.Warning);
 
             if (!resourceAvailable || isMemoryPressureCritical)
 #else
@@ -2188,11 +2187,8 @@ namespace BuildXL.Scheduler
 
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
                 {
-                    // Free down to the specified max RAM utilization percentage with 10% slack, if VM memory pressure is critical
-                    // we instantly try to free up 15% of the overall system memory to improve stability
-                    var desiredRamToFreePercentage = !isMemoryPressureCritical
-                        ? (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10
-                        : 15;
+                    // Free down to the specified max RAM utilization percentage with 10% slack
+                    var desiredRamToFreePercentage = (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
 
                     // Ensure percentage to free is in valid percent range [0, 100]
                     desiredRamToFreePercentage = Math.Max(0, Math.Min(100, desiredRamToFreePercentage));
@@ -3577,10 +3573,10 @@ namespace BuildXL.Scheduler
                             // reschedule and choose worker again after adjusting expected RAM utilization
                             processRunnable.SetWorker(null);
 
-                            // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
-                            var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
                             if (worker.IsLocal)
                             {
+                                // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
+                                var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
                                 ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
                             }
 
@@ -4826,7 +4822,7 @@ namespace BuildXL.Scheduler
                     {
                         var config = new SandboxConnectionKext.Config
                         {
-                            MeasureCpuTimes = m_configuration.Sandbox.KextMeasureProcessCpuTimes,
+                            MeasureCpuTimes = m_configuration.Sandbox.MeasureProcessCpuTimes,
                             FailureCallback = (int status, string description) =>
                             {
                                 Logger.Log.KextFailureNotificationReceived(loggingContext, status, description);
@@ -4852,7 +4848,7 @@ namespace BuildXL.Scheduler
                         {
                             case SandboxKind.MacOsEndpointSecurity:
                             {
-                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.KextMeasureProcessCpuTimes);
+                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
                                 break;
                             }
                             default:

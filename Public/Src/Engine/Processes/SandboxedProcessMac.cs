@@ -35,8 +35,8 @@ namespace BuildXL.Processes
             internal PerformanceCollector.Aggregation JobKernelTimeMs { get; } = new PerformanceCollector.Aggregation();
             internal PerformanceCollector.Aggregation JobUserTimeMs { get; } = new PerformanceCollector.Aggregation();
             internal PerformanceCollector.Aggregation PeakMemoryBytes { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation BytesRead { get; } = new PerformanceCollector.Aggregation();
-            internal PerformanceCollector.Aggregation BytesWritten { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation DiskBytesRead { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation DiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
         }
 
         /// <summary>
@@ -50,6 +50,8 @@ namespace BuildXL.Processes
 
         private readonly Timer m_perfTimer;
         private readonly PerfAggregator m_perfAggregator;
+
+        private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
 
         private long m_processKilledFlag = 0;
 
@@ -166,8 +168,8 @@ namespace BuildXL.Processes
             // get memory usage for the process tree
             proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
 
-            proc.m_perfAggregator.BytesRead.RegisterSample(buffer.BytesRead);
-            proc.m_perfAggregator.BytesWritten.RegisterSample(buffer.BytesWritten);
+            proc.m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
+            proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
 
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
             if (!proc.Killed)
@@ -238,6 +240,12 @@ namespace BuildXL.Processes
                 LogProcessState($"IOException caught while feeding the standard input: {e.Message}");
                 await KillAsync();
             }
+        }
+
+        /// <inheritdoc />
+        protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
+        {
+            return m_survivingChildProcesses;
         }
 
         /// <inheritdoc />
@@ -403,8 +411,8 @@ namespace BuildXL.Processes
                     {
                         ReadOperationCount = 1,
                         WriteOperationCount = 1,
-                        ReadTransferCount = Convert.ToUInt64(m_perfAggregator.BytesRead.Total),
-                        WriteTransferCount = Convert.ToUInt64(m_perfAggregator.BytesWritten.Total)
+                        ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
+                        WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
                     }),
                     PeakMemoryUsage = (ulong)m_perfAggregator.PeakMemoryBytes.Maximum,
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
@@ -467,7 +475,7 @@ namespace BuildXL.Processes
                         break;
                     }
 
-                    if (HasProcessExitBeenReceived)
+                    if (HasProcessExitBeenReceived && !Killed)
                     {
                         // Proceed if the event queue is beyond the point when ProcessExit was received
                         if (m_processExitTimeNs <= minEnqueueTime)
@@ -479,6 +487,7 @@ namespace BuildXL.Processes
                             }
 
                             LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
+                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }
@@ -584,6 +593,11 @@ namespace BuildXL.Processes
 
         private void ReportFileAccess(ref AccessReport report)
         {
+            if (ReportsCompleted())
+            {
+                return;
+            }
+
             if (IgnoreReportedAccesses &&
                 report.Operation != FileOperation.OpProcessStart &&
                 report.Operation != FileOperation.OpProcessExit)

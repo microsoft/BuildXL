@@ -32,12 +32,12 @@ namespace BuildXL.Interop.MacOS
             public ulong UserTimeNs;
 
             /// <summary>
-            /// User time of a given process in nanoseconds.
+            /// Bytes read from disk
             /// </summary>
             public ulong BytesRead;
 
             /// <summary>
-            /// User time of a given process in nanoseconds.
+            /// Bytes written to disk
             /// </summary>
             public ulong BytesWritten;
         }

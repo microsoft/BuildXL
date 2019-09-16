@@ -229,6 +229,7 @@ namespace BuildXL.Processes
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
+
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
@@ -248,7 +249,7 @@ namespace BuildXL.Processes
                 DumpCreationException               = m_dumpCreationException,
                 DumpFileDirectory                   = ProcessInfo.TimeoutDumpDirectory,
                 PrimaryProcessTimes                 = GetProcessTimes(),
-                SurvivingChildProcesses             = CoalesceProcesses(reports?.GetActiveProcesses())
+                SurvivingChildProcesses             = CoalesceProcesses(GetSurvivingChildProcesses())
             };
         }
 
@@ -364,6 +365,13 @@ namespace BuildXL.Processes
                 Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
             }
         }
+
+        /// <summary>
+        /// Returns surviving child processes in the case when the pip finished and potential child
+        /// processes didn't exit within an allotted time (<see cref="SandboxedProcessInfo.NestedProcessTerminationTimeout"/>)
+        /// after the main pip parent process has already exited.
+        /// </summary>
+        protected virtual IEnumerable<ReportedProcess> GetSurvivingChildProcesses() => null;
 
         /// <summary>
         /// Returns any collected sandboxed process reports or null.

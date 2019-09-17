@@ -134,7 +134,7 @@ namespace BuildXL.Processes
             {
                 AbsolutePath = m_tool.ExecutablePath,
                 Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
-                WorkingDirectory = SandboxedProcessInfo.WorkingDirectory
+                WorkingDirectory = GetOutputDirectory()
             };
 
             VmSerializer.SerializeToFile(RunRequestPath, runRequest);

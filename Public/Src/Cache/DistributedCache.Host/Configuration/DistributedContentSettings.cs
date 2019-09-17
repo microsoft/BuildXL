@@ -520,8 +520,11 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
+        /// <summary>
+        /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
+        /// </summary>
         [DataMember]
-        public bool EnableProactiveCopy { get; set; } = false;
+        public string ProactiveCopyMode { get; set; } = "Disabled";
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;

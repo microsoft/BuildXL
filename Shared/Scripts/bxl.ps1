@@ -113,8 +113,6 @@ param(
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
     [switch]$UseL3Cache = $true,
-
-    [switch]$CgManifest = $true,
 	
 	[Parameter(Mandatory=$false)]
 	[switch]$UseDedupStore = $false,
@@ -148,10 +146,6 @@ $NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /now
 $NonVanillaOptions += @(
         '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace('\', '-'), [System.Net.Dns]::GetHostName())
 );
-
-
-# TODO(rijul) add /generateCgManifestForNugest:B:\cg\nuget\cgmanifest.json once this change makes it to LKG
-$GenerateCgManifets = @('/generateCgManifestForNugest:');
 
 if ($SelfhostHelp) {
     Get-Help -Detailed $PSCommandPath;
@@ -456,6 +450,9 @@ Log-Emphasis -NoNewline $($useDeployment.description)
 Log " version of BuildXL.";
 
 $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment)";
+
+$GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
+# TODO (Rijul: Uncomment when changes in LKG) $AdditionalBuildXLArguments += "/generateCgManifestForNugest:$GenerateCgManifestFilePath";
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

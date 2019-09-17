@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// Checks that a copy has a minimum bandwidth, and cancells copies otherwise.
     /// </summary>
-    public class BandwidthChecker
+    internal class BandwidthChecker
     {
         private const double BytesInMb = 1024 * 1024;
 

@@ -12,7 +12,6 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
@@ -22,7 +21,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// </summary>
     public class GrpcFileCopier : IAbsolutePathFileCopier, ICopyRequester
     {
-        private const int DefaultGrpcPort = 7089;
         private readonly Context _context;
         private readonly int _grpcPort;
         private readonly bool _useCompression;
@@ -32,13 +30,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
         /// </summary>
-        public GrpcFileCopier(Context context, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, int grpcClientCleanupDelayMinutes, bool useCompression = false, int? bufferSize = null)
+        public GrpcFileCopier(Context context, GrpcCopyClient.Configuration clientConfig, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, int grpcClientCleanupDelayMinutes, bool useCompression = false)
         {
             _context = context;
             _grpcPort = grpcPort;
             _useCompression = useCompression;
 
-            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize: bufferSize);
+            _clientCache = new GrpcCopyClientCache(context, clientConfig, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes);
         }
 
         /// <inheritdoc />

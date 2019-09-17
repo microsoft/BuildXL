@@ -69,14 +69,20 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
                 }
 
+                var (minimumSpeedInMbPerSec, bandwidthCheckIntervalSeconds) = dcs.GetBandwidthCheckSettings();
+                var copyClientConfig = new GrpcCopyClient.Configuration(
+                    bandwidthCheckInterval: TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds),
+                    minimumBandwidthMbPerSec: minimumSpeedInMbPerSec,
+                    clientBufferSize: bufferSizeForGrpcCopies);
+
                 var grpcCopier = new GrpcFileCopier(
                             context: new Interfaces.Tracing.Context(_logger),
+                            clientConfig: copyClientConfig,
                             grpcPort: grpcPort,
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
                             grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
-                            useCompression: useCompressionForCopies,
-                            bufferSize: bufferSizeForGrpcCopies);
+                            useCompression: useCompressionForCopies);
 
                 var copier = useDistributedGrpc
                         ? grpcCopier

@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Cache.ContentStore.Service.Grpc
+namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
     /// Key to lookup <see cref="GrpcCopyClient"/> in <see cref="GrpcCopyClientCache"/>.

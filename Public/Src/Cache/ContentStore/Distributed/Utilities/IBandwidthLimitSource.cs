@@ -11,14 +11,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// Gets the bandwidth lower limit for a bandwidth checker.
     /// </summary>
-    public interface IBandwidthLimitSource
+    internal interface IBandwidthLimitSource
     {
         /// <nodoc />
         Task<double> GetMinimumSpeedInMbPerSecAsync(CancellationToken token);
     }
 
     /// <nodoc />
-    public class ConstantBandwidthLimit : IBandwidthLimitSource
+    internal class ConstantBandwidthLimit : IBandwidthLimitSource
     {
         private readonly Task<double> _limitTask;
 
@@ -32,12 +32,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// Gets the bandwidth limit based on historical data of copies.
     /// </summary>
-    public class HistoricalBandwidthLimitSource : IBandwidthLimitSource
+    internal class HistoricalBandwidthLimitSource : IBandwidthLimitSource
     {
         private readonly int _maxRecordsStored;
         private readonly Queue<double> _bandwidthRecords = new Queue<double>();
         private readonly SemaphoreSlim _bandwidthRecordLock = new SemaphoreSlim(1, 1);
 
+        /// <nodoc />
         public HistoricalBandwidthLimitSource(int maxRecordsStored = 64) => _maxRecordsStored = maxRecordsStored;
 
         /// <summary>

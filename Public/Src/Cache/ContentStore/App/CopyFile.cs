@@ -4,12 +4,12 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using CLAP;
 using Microsoft.Practices.TransientFaultHandling;
 
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                using (var clientCache = new GrpcCopyClientCache(context))
+                using (var clientCache = new GrpcCopyClientCache(context, GrpcCopyClient.Configuration.Default))
                 using (var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompressionForCopies).GetAwaiter().GetResult())
                 {
                     var rpcClient = rpcClientWrapper.Value;

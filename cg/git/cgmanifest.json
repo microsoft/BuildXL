@@ -1,0 +1,41 @@
+{
+    "Version": 1,
+    "Registrations": [ 
+        {
+            "component": { 
+                "type": "git", 
+                "git": { 
+                    "repositoryUrl": "https://github.com/mono/mono.git", 
+                    "commitHash": "abad3612068e7333956106e7be02d9ce9e346f92" 
+                }
+            }
+        },
+        {
+            "component": { 
+                "type": "git", 
+                "git": { 
+                    "repositoryUrl": "https://github.com/liblfds/liblfds7.1.1.git", 
+                    "commitHash": "da3494fef10df4681e267d8b2b8cce2c90d5a9fa" 
+                }
+            }
+        },
+        {
+            "component": { 
+                "type": "git", 
+                "git": { 
+                    "repositoryUrl": "https://github.com/apple/darwin-xnu.git", 
+                    "commitHash": "a449c6a3b8014d9406c2ddbdc81795da24aa7443" 
+                }
+            }
+        },
+        {
+            "component": { 
+                "type": "git", 
+                "git": { 
+                    "repositoryUrl": "https://github.com/Microsoft/vscode-mono-debug.git", 
+                    "commitHash": "21a0b1433e8ca281fd1f9fc15ba395ef33ed2686" 
+                }
+            }
+        }
+    ]
+}

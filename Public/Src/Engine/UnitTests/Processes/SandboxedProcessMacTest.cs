@@ -164,6 +164,30 @@ namespace Test.BuildXL.Processes
                     Path = childProcessPath,
                     Allowed = true
                 },
+                new ReportInstruction() {
+                    Process = process,
+                    Operation = FileOperation.OpProcessExit,
+                    Stats = new Sandbox.AccessReportStatistics()
+                    {
+                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(7).Ticks * 100),
+                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(8).Ticks * 100),
+                    },
+                    Pid = 1235,
+                    Path = childProcessPath,
+                    Allowed = true
+                },
+                new ReportInstruction() {
+                    Process = process,
+                    Operation = FileOperation.OpProcessTreeCompleted,
+                    Stats = new Sandbox.AccessReportStatistics()
+                    {
+                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(9).Ticks * 100),
+                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(10).Ticks * 100),
+                    },
+                    Pid = process.ProcessId,
+                    Path = "/dummy/exe",
+                    Allowed = true
+                },
             };
 
             ContinouslyPostAccessReports(process, taskCancelationSource.Token, instructions);
@@ -213,13 +237,14 @@ namespace Test.BuildXL.Processes
                                             instructions[count].Stats, instructions[count].Pid,
                                             instructions[count].Path, instructions[count].Allowed);
 
+
                             // Advance the minimum enqueue time
                             s_connection.MinReportQueueEnqueueTime = instructions[count].Stats.EnqueueTime;
 
                             count++;
                         }
-
-                        await Task.Delay(100);
+                        // Wait for twice as long as the current timeout task within SandboxedProcessMac
+                        await Task.Delay(500);
                     }
                 }, token)
                 , justification: "Fire and forget"

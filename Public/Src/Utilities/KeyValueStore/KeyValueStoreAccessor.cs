@@ -104,13 +104,6 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         private Failure m_disabledFailure;
 
         /// <summary>
-        /// Defines behavior when handling exceptions.
-        /// 
-        /// See <see cref="ExceptionHandlingMode"/> for details.
-        /// </summary>
-        private readonly ExceptionHandlingMode m_exceptionHandlingMode;
-
-        /// <summary>
         /// <see cref="Failure"/> to return when this store has been disposed.
         /// </summary>
         private static readonly Failure s_disposedFailure = new Failure<string>("Access to the key-value store has been disabled because the instance is already closed.");
@@ -119,6 +112,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Whether the store was opened in read-only mode.
         /// </summary>
         public bool ReadOnly { get; }
+
+        /// <summary>
+        /// Determines when the failure handler will be called, when the store will be locked down because of an 
+        /// error, and whether an exception should be rethrown.
+        /// </summary>
+        private readonly Func<Failure<Exception>, (bool lockdown, bool rethrow)> m_errorPolicy;
 
         /// <summary>
         /// Allows handling of exceptions.
@@ -273,7 +272,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Have RocksDb open for bulk loading.
         /// </param>
         /// <param name="exceptionHandlingMode">
-        /// <see cref="m_exceptionHandlingMode"/>
+        /// <see cref="ExceptionHandlingMode"/>
         /// </param>
         /// <param name="invalidationHandler">
         /// <see cref="m_invalidationHandler"/>
@@ -356,7 +355,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Have RocksDb open for bulk loading.
         /// </param>
         /// <param name="exceptionHandlingMode">
-        /// <see cref="m_exceptionHandlingMode"/>
+        /// <see cref="ExceptionHandlingMode"/>
         /// </param>
         /// <param name="invalidationHandler">
         /// <see cref="m_invalidationHandler"/>
@@ -600,7 +599,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             m_failureHandler = accessor.m_failureHandler;
             m_disabledFailure = accessor.m_disabledFailure;
             m_disposed = accessor.m_disposed;
-            m_exceptionHandlingMode = accessor.m_exceptionHandlingMode;
+            m_errorPolicy = accessor.m_errorPolicy;
             m_invalidationHandler = accessor.m_invalidationHandler;
 
             if (accessor.Disabled)
@@ -647,7 +646,16 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             m_failureHandler = failureHandler;
             m_invalidationHandler = invalidationHandler;
-            m_exceptionHandlingMode = exceptionHandlingMode;
+            
+            switch (exceptionHandlingMode)
+            {
+                case ExceptionHandlingMode.RELAXED:
+                    m_errorPolicy = RelaxedErrorPolicy;
+                    break;
+                case ExceptionHandlingMode.STRICT:
+                    m_errorPolicy = StrictErrorPolicy;
+                    break;
+            }
         }
 
         /// <summary>
@@ -728,57 +736,62 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     return Unit.Void;
                 }, use);
         }
-
-        private Failure<Exception> HandleException(Exception ex, out bool rethrow)
+        
+        private (bool lockdown, bool rethrow) StrictErrorPolicy(Failure<Exception> failure)
         {
-            Contract.Requires(ex != null);
+            Contract.Requires(failure != null);
 
-            rethrow = false;
-            var disableStore = false;
+            var ex = failure.Content;
+            var isUserError = true;
             if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException)
             {
                 // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
                 // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
                 // class also corresponds to the HRESULT E_FAIL (0x80004005).
-                disableStore = true;
+                isUserError = false;
             }
 
-            var failure = new Failure<Exception>(ex);
-            switch (m_exceptionHandlingMode)
+            m_failureHandler?.Invoke(failure);
+            return (true, isUserError);
+        }
+
+        private (bool lockdown, bool rethrow) RelaxedErrorPolicy(Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
+            var ex = failure.Content;
+
+            var isRocksDbError = false;
+            if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException)
             {
-                case ExceptionHandlingMode.STRICT:
-                    InvalidateStore(failure);
-                    m_failureHandler?.Invoke(failure);
-                    rethrow = !disableStore;
-                    break;
-                case ExceptionHandlingMode.RELAXED:
-                    if (!disableStore)
-                    {
-                        // We need to know if the exception was our fault, or RocksDb's. We can't do that with a 
-                        // wrapper around the RocksDbStore, because it may:
-                        //  - Call lambdas that could throw, and generate false positives.
-                        //  - Return IEnumerables, which we would be unable to detect.
-                        // Hence, we just obtain a stack trace and check if the exception originated in the interface's
-                        // assembly.
-                        var trace = new StackTrace(ex);
-                        for (var i = 0; !disableStore && i < trace.FrameCount; ++i)
-                        {
-                            var method = trace.GetFrame(i).GetMethod();
-                            disableStore = method.DeclaringType.Assembly.GetName().Name == "RocksDbSharp";
-                        }
-                    }
+                // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
+                // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
+                // class also corresponds to the HRESULT E_FAIL (0x80004005).
+                isRocksDbError = true;
+            }
 
-                    if (disableStore)
-                    {
-                        InvalidateStore(failure);
-                    } 
-                    else
-                    {
-                        m_failureHandler?.Invoke(failure);
-                        rethrow = true;
-                    }
+            if (isRocksDbError)
+            {
+                return (true, false);
+            } 
+            else
+            {
+                m_failureHandler?.Invoke(failure);
+                return (false, true);
+            }
+        }
 
-                    break;
+        private Failure<Exception> HandleException(Exception ex, out bool rethrow)
+        {
+            Contract.Requires(ex != null);
+
+            var failure = new Failure<Exception>(ex);
+
+            var status = m_errorPolicy(failure);
+            rethrow = status.rethrow;
+            if (status.lockdown)
+            {
+                InvalidateStore(failure);
             }
 
             return failure;

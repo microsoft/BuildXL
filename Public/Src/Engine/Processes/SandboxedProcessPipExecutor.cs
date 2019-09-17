@@ -50,7 +50,7 @@ namespace BuildXL.Processes
         private const uint AzureWatsonExitCode = 0xDEAD;
 
         /// <summary>
-        /// Group name in <see cref="Process.ErrorRegex"/> to use to extract error message. 
+        /// Group name in <see cref="Process.ErrorRegex"/> to use to extract error message.
         /// When no such group exists, the entire match is used.
         /// </summary>
         private const string ErrorMessageGroupName = "ErrorMessage";
@@ -528,7 +528,7 @@ namespace BuildXL.Processes
             internal readonly Predicate<string> LinePredicate;
             internal readonly Regex Regex;
 
-            internal OutputFilter(Predicate<string> linePredicate) 
+            internal OutputFilter(Predicate<string> linePredicate)
                 : this(linePredicate, null)
             {
                 Contract.Requires(linePredicate != null);
@@ -548,7 +548,7 @@ namespace BuildXL.Processes
             }
 
             /// <summary>
-            /// When <see cref="LinePredicate" /> is specified: it is invoked against <paramref name="source" /> and if 
+            /// When <see cref="LinePredicate" /> is specified: it is invoked against <paramref name="source" /> and if
             /// it returns true <paramref name="source" /> is returned.
             ///
             /// When <see cref="Regex" /> is specified: it is invoked against <paramref name="source" /> to find all
@@ -582,9 +582,9 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// If <see cref="m_errorRegex"/> is set and its options include <see cref="RegexOptions.Singleline"/> (which means that 
-        /// the whole input string---which in turn may contain multiple lines---should be treated as a single line), returns the 
-        /// regex itself (to be used later to find all the matches in the input string); otherwise, returns a line filter 
+        /// If <see cref="m_errorRegex"/> is set and its options include <see cref="RegexOptions.Singleline"/> (which means that
+        /// the whole input string---which in turn may contain multiple lines---should be treated as a single line), returns the
+        /// regex itself (to be used later to find all the matches in the input string); otherwise, returns a line filter
         /// (to be used later to match individual lines from the input string).
         /// </summary>
         /// <remarks>
@@ -655,7 +655,7 @@ namespace BuildXL.Processes
                             }
 
                             string outputText = filter.ExtractMatches(inputChunk);
-                                
+
                             if (!string.IsNullOrEmpty(outputText))
                             {
                                 // only add leading newlines (when needed).
@@ -790,7 +790,7 @@ namespace BuildXL.Processes
                     };
 
                     return ShouldSandboxedProcessExecuteExternal
-                        ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken) 
+                        ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
                         : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
                 }
             }
@@ -1050,7 +1050,7 @@ namespace BuildXL.Processes
         /// Translates VMs' host shared drive.
         /// </summary>
         /// <remarks>
-        /// VMs' host net shares the drive where the enlistiment resides, e.g., D, that is net used by the VMs. When the process running in a VM 
+        /// VMs' host net shares the drive where the enlistiment resides, e.g., D, that is net used by the VMs. When the process running in a VM
         /// accesses D:\E\f.txt, the process actually accesses D:\E\f.txt in the host. Thus, the file access manifest constructed in the host
         /// is often sufficient for running pips in VMs. However, some tools, like dotnet.exe, can access the path in UNC format, i.e.,
         /// \\192.168.0.1\D\E\f.txt. In this case, we need to supply a directory translation from that UNC path to the non-UNC path.
@@ -1737,10 +1737,10 @@ namespace BuildXL.Processes
                 }
             }
 
-            // Untrack the globally untracked paths specified in the configuration     
+            // Untrack the globally untracked paths specified in the configuration
             foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
             {
-                // Translate the path and untrack the translated one                
+                // Translate the path and untrack the translated one
                 if (m_fileAccessManifest.DirectoryTranslator != null)
                 {
                     var pathString = path.ToString(m_pathTable);
@@ -1806,8 +1806,8 @@ namespace BuildXL.Processes
                     }
 
                     // TODO: named semaphores are not supported in NetStandard2.0
-                    if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal) 
-                        && checkMessageCount 
+                    if ((!m_pip.RequiresAdmin || m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.Internal)
+                        && checkMessageCount
                         && !OperatingSystemHelper.IsUnixOS)
                     {
                         // Semaphore names don't allow '\\' chars.
@@ -1964,7 +1964,7 @@ namespace BuildXL.Processes
                             FileAccessPolicy.AllowRealInputTimestamps |
                             // For shared opaques, we need to know the (write) accesses that occurred, since we determine file ownership based on that.
                             (directory.IsSharedOpaque? FileAccessPolicy.ReportAccess : FileAccessPolicy.Deny) |
-                            // For shared opaques and if allowed undeclared source reads is enabled, make sure that any file used as an undeclared input under the 
+                            // For shared opaques and if allowed undeclared source reads is enabled, make sure that any file used as an undeclared input under the
                             // shared opaque gets deny write access. Observe that with exclusive opaques they are wiped out before the pip runs, so it is moot to check for inputs
                             // TODO: considering configuring this policy for all shared opaques, and not only when AllowedUndeclaredSourceReads is set. The case of a write on an undeclared
                             // input is more likely to happen when undeclared sources are allowed, but also possible otherwise. For now, this is just a conservative way to try this feature
@@ -2172,13 +2172,13 @@ namespace BuildXL.Processes
                 values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent,
                 // Make sure we fake the input timestamp
                 // The file dependency may be under the cone of a shared opaque, which will give write access
-                // to it. Explicitly block this, since we want inputs to not be written. Observe we already know 
+                // to it. Explicitly block this, since we want inputs to not be written. Observe we already know
                 // this is not a rewrite.
                 mask: m_excludeReportAccessMask &
                       DefaultMask &
-                      (pathIsUnderSharedOpaque ? 
-                          ~FileAccessPolicy.AllowWrite: 
-                          FileAccessPolicy.MaskNothing)); 
+                      (pathIsUnderSharedOpaque ?
+                          ~FileAccessPolicy.AllowWrite:
+                          FileAccessPolicy.MaskNothing));
 
             allInputPaths.Add(path);
 
@@ -2275,8 +2275,8 @@ namespace BuildXL.Processes
                     Tracing.Logger.Log.PipTempDirectorySetupError(
                         m_loggingContext,
                         m_pip.SemiStableHash,
-                        m_pip.GetDescription(m_context), 
-                        path, 
+                        m_pip.GetDescription(m_context),
+                        path,
                         ex.ToStringDemystified());
                     return false;
                 }
@@ -2291,7 +2291,7 @@ namespace BuildXL.Processes
                     // When running in VM, a pip often queries TMP or TEMP to get the path to the temp directory.
                     // For most cases, the original path is sufficient because the path is redirected to the one in VM.
                     // However, a number of operations, like creating/accessing/enumerating junctions, will fail.
-                    // Recall that junctions are evaluated locally, so that creating junction using host path is like creating junctions 
+                    // Recall that junctions are evaluated locally, so that creating junction using host path is like creating junctions
                     // on the host from the VM.
                     string redirectedTempDirectoryPath = redirectedTempDirectory.ToString(m_pathTable);
                     var overridenEnvVars = DisallowedTempVariables
@@ -2319,7 +2319,7 @@ namespace BuildXL.Processes
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
                 PreparePathForDirectory(
-                    tempDirectoryPath.ToString(m_pathTable), 
+                    tempDirectoryPath.ToString(m_pathTable),
                     createIfNonExistent: m_sandboxConfig.EnsureTempDirectoriesExistenceBeforePipExecution);
             }
             catch (BuildXLException ex)
@@ -2360,10 +2360,10 @@ namespace BuildXL.Processes
             catch (BuildXLException ex)
             {
                 Tracing.Logger.Log.PipTempDirectorySetupError(
-                    m_loggingContext, 
-                    m_pip.SemiStableHash, 
-                    m_pip.GetDescription(m_context), 
-                    path, 
+                    m_loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pip.GetDescription(m_context),
+                    path,
                     ex.ToStringDemystified());
                 return false;
             }
@@ -2391,11 +2391,11 @@ namespace BuildXL.Processes
             if (!createDirectorySymlink.Succeeded)
             {
                 Tracing.Logger.Log.PipTempSymlinkRedirectionError(
-                    m_loggingContext, 
+                    m_loggingContext,
                     m_pip.SemiStableHash,
                     m_pip.GetDescription(m_context),
-                    redirectedPath, 
-                    path, 
+                    redirectedPath,
+                    path,
                     createDirectorySymlink.Failure.Describe());
                 return false;
             }
@@ -2408,8 +2408,8 @@ namespace BuildXL.Processes
             Tracing.Logger.Log.PipTempSymlinkRedirection(
                 m_loggingContext,
                 m_pip.SemiStableHash,
-                m_pip.GetDescription(m_context), 
-                redirectedPath, 
+                m_pip.GetDescription(m_context),
+                redirectedPath,
                 path);
 
             return true;
@@ -3035,7 +3035,7 @@ namespace BuildXL.Processes
                     // (and for NtQueryDirectoryFile, we can't always report the individual probes anyway).
                     if (reported.RequestedAccess == RequestedAccess.EnumerationProbe)
                     {
-                        // If it is an incremental tool and the pip allows preserving outputs, do not ignore. 
+                        // If it is an incremental tool and the pip allows preserving outputs, do not ignore.
                         if (!IsIncrementalToolAccess(reported))
                         {
                             continue;
@@ -3159,7 +3159,7 @@ namespace BuildXL.Processes
                             {
                                 isProbe = false;
                             }
-                            
+
                             // TODO: Remove this when WDG can grog this feature with no flag.
                                 if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
                                 access.RequestedAccess == RequestedAccess.Enumerate)
@@ -3194,7 +3194,7 @@ namespace BuildXL.Processes
                             // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
                             // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
                             // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) && 
+                            if (!allInputPathsUnderSharedOpaques.Contains(entry.Key) &&
                                 (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _)))
                             {
                                 continue;
@@ -3231,9 +3231,9 @@ namespace BuildXL.Processes
                         foreach (var file in sod.Value)
                         {
                             var pathElement = file.GetParent(m_context.PathTable);
-                            
+
                             while (pathElement.IsValid && pathElement != sod.Key && excludedPaths.Add(pathElement))
-                            {                                
+                            {
                                 pathElement = pathElement.GetParent(m_context.PathTable);
                             }
                         }
@@ -3243,7 +3243,7 @@ namespace BuildXL.Processes
                         .Where(access =>
                             // if it's an enumeration -> include always
                             (access.ObservationFlags & ObservationFlags.Enumeration) == ObservationFlags.Enumeration
-                            // otherwise, check whether it's an excluded path 
+                            // otherwise, check whether it's an excluded path
                             || !excludedPaths.Contains(access.Path))
                         .ToList();
 

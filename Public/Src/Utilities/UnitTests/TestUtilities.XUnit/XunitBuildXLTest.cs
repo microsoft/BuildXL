@@ -36,7 +36,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             return OperatingSystemHelper.IsUnixOS
 #if PLATFORM_OSX
                 ? useEndpointSecuritySandbox
-                    ? (ISandboxConnection) new SandboxConnectionES()
+                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: true, measureCpuTimes: true)
                     : (ISandboxConnection) new SandboxConnectionKext(
 #else
                     ? (ISandboxConnection) new SandboxConnectionKext(

@@ -366,8 +366,7 @@ IOReturn BuildXLSandboxClient::ProcessPipTerminated(PipStateChangedRequest *data
         proc_name(data->processId, name, sizeof(name));
         log_debug("Killing process %s(%d)", name, pid);
 #endif
-        handler.HandleProcessUntracked(pid);
-        proc_signal(pid, SIGTERM);
+        proc_signal(pid, SIGKILL);
     }
 
     return kIOReturnSuccess;

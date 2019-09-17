@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private readonly Task<double> _limitTask;
 
         /// <nodoc />
-        public ConstantBandwidthLimit(double limit) => _limitTask = Task.FromResult(limit);
+        public ConstantBandwidthLimit(double limitMbPerSec) => _limitTask = Task.FromResult(limitMbPerSec);
 
         /// <inheritdoc />
         public Task<double> GetMinimumSpeedInMbPerSecAsync(CancellationToken token) => _limitTask;

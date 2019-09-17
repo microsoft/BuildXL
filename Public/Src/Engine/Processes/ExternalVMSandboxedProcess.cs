@@ -170,7 +170,7 @@ namespace BuildXL.Processes
                 {
                     FileName = m_vmInitializer.VmCommandProxy,
                     Arguments = arguments,
-                    WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
+                    WorkingDirectory = GetOutputDirectory(),
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,

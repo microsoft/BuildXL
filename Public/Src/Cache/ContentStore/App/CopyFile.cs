@@ -28,7 +28,9 @@ namespace BuildXL.Cache.ContentStore.App
             [Required, Description("Path to destination file")] string destinationPath,
             [Description("Whether or not GZip is enabled"), DefaultValue(false)] bool useCompressionForCopies,
             [Description("File name where the GRPC port can be found when using cache service. 'CASaaS GRPC port' if not specified")] string grpcPortFileName,
-            [Description("The GRPC port"), DefaultValue(0)] int grpcPort)
+            [Description("The GRPC port"), DefaultValue(0)] int grpcPort,
+            [Description("Interval at which to check the bandwidth. 0 will disable bandwidth checks"), DefaultValue(0)] int bandwidthCheckIntervalSeconds,
+            [Description("Minimum bandwidth required. Null will enable historical bandwidth check."), DefaultValue(null)] double? minimumBandwidthMbPerSec)
         {
             Initialize();
 
@@ -42,14 +44,18 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
             }
 
-            if (!ContentHash.TryParse(hashString, out ContentHash hash))
+            if (!ContentHash.TryParse(hashString, out var hash))
             {
                 throw new CacheException($"Invalid content hash string provided: {hashString}");
             }
 
             try
             {
-                using (var clientCache = new GrpcCopyClientCache(context, GrpcCopyClient.Configuration.Default))
+                var copyClientConfig = bandwidthCheckIntervalSeconds > 0
+                    ? new GrpcCopyClient.Configuration(TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds), minimumBandwidthMbPerSec, clientBufferSize: null)
+                    : GrpcCopyClient.Configuration.Default;
+
+                using (var clientCache = new GrpcCopyClientCache(context, copyClientConfig))
                 using (var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompressionForCopies).GetAwaiter().GetResult())
                 {
                     var rpcClient = rpcClientWrapper.Value;

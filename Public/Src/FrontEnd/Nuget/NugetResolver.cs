@@ -78,7 +78,6 @@ namespace BuildXL.FrontEnd.Script
             if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid ||
                 Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
             {
-                //System.Diagnostics.Debugger.Launch();
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
                 string existingCgManifest = "{}";
@@ -150,7 +149,6 @@ namespace BuildXL.FrontEnd.Script
                     Configuration.FrontEnd.GenerateCgManifestForNugets,
                     NugetResolverName);
             }
-
 
             m_resolverState = State.ResolverInitialized;
 

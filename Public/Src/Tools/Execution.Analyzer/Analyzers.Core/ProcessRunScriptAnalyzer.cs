@@ -537,7 +537,7 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
-        public override void DominoInvocation(DominoInvocationEventData data)
+        public override void BxlInvocation(BxlInvocationEventData data)
         {
             // Capture the DominoInvocation event for sake of switching process run scripts to their un-substed versions.
             var loggingConfig = data.Configuration.Logging;

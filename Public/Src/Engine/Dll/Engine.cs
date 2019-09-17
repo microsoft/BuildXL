@@ -279,10 +279,10 @@ namespace BuildXL.Engine
             GrpcEnvironment.InitializeIfNeeded(GrpcSettings.ThreadPoolSize, grpcHandlerInliningEnabled);
 
             Logger.Log.GrpcSettings(
-                loggingContext, 
-                GrpcSettings.ThreadPoolSize, 
-                grpcHandlerInliningEnabled, 
-                (int)GrpcSettings.CallTimeout.TotalMinutes, 
+                loggingContext,
+                GrpcSettings.ThreadPoolSize,
+                grpcHandlerInliningEnabled,
+                (int)GrpcSettings.CallTimeout.TotalMinutes,
                 (int)GrpcSettings.InactiveTimeout.TotalMinutes);
 
             Context = context;
@@ -323,10 +323,10 @@ namespace BuildXL.Engine
             m_buildViewModel = buildViewModel;
 
             var loggingConfig = Configuration.Logging;
-            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+            if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
             {
                 var filePath = Path.Combine(loggingConfig.LogsDirectory.ToString(Context.PathTable), loggingConfig.LogPrefix + ".Summary.md");
-                
+
                 // Tell the build viewmodel to collect a builder summary which we report to azure devops.
                 m_buildViewModel.BuildSummary = new BuildSummary(filePath);
             }
@@ -763,9 +763,9 @@ namespace BuildXL.Engine
         /// Populates file system capability.
         /// </summary>
         public static void PopulateFileSystemCapabilities(
-            ConfigurationImpl mutableConfig, 
-            ICommandLineConfiguration initialCommandLineConfiguration, 
-            PathTable pathTable, 
+            ConfigurationImpl mutableConfig,
+            ICommandLineConfiguration initialCommandLineConfiguration,
+            PathTable pathTable,
             LoggingContext loggingContext)
         {
             if (OperatingSystemHelper.IsUnixOS)
@@ -1677,7 +1677,7 @@ namespace BuildXL.Engine
                             }
 
                             // Returns stub if explicitly not use file content table.
-                            m_fileContentTask = Configuration.Engine.UseFileContentTable == false 
+                            m_fileContentTask = Configuration.Engine.UseFileContentTable == false
                                 ? Task.FromResult(FileContentTable.CreateStub())
                                 : FileContentTable.LoadOrCreateAsync(
                                     Configuration.Layout.FileContentTableFile.ToString(Context.PathTable),
@@ -1782,39 +1782,28 @@ namespace BuildXL.Engine
 
                                 var phase = Configuration.Engine.Phase;
 
-                                if (success && phase.HasFlag(EnginePhases.Schedule) && !Configuration.Schedule.DisableProcessRetryOnResourceExhaustion)
-                                {
-                                    // TODO: update this once shared opaques play nicely with resource based cancellation
-                                    // Resource based cancellation might lead to wrong cache entries.
-                                    // Consider this scenario:
-                                    // - a pip is to produce a shared opaque directory dir and files a, b, c, and d inside of this directory
-                                    // - the pip is cancelled after it has produced files dir/a and dir/b
-                                    // - pip is re-run
-                                    // - before producing dir/a and dir/b, the pip probes those files for existence and decides not to produce them;
-                                    //   the pip produces dir/c and dir/d, and finishes successfully
-                                    // - while processing outputs in shared opaques, we rely on a list of write accesses reported by detours;
-                                    //   since the pip only probed files a and b, we do not treat them as pip's output => cache entry does not contain
-                                    //   full output of the pip
-
-                                    var sharedOpaqueDir = engineSchedule.Scheduler.PipGraph.AllSealDirectories.FirstOrDefault(directoryArtifact => directoryArtifact.IsSharedOpaque);
-                                    if (sharedOpaqueDir.IsValid)
-                                    {
-                                        success = false;
-                                        Logger.Log.ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent(pm.LoggingContext, sharedOpaqueDir.Path.ToString(Context.PathTable));
-                                    }
-                                    ValidateSuccessMatches(success, pm.LoggingContext);
-                                }
-
                                 if (success && phase.HasFlag(EnginePhases.Schedule) && Configuration.Ide.IsEnabled)
                                 {
                                     Contract.Assert(engineSchedule != null);
 
-                                    IdeGenerator.Generate(
-                                        engineSchedule.Context,
-                                        engineSchedule.Scheduler.PipGraph,
-                                        engineSchedule.Scheduler.ScheduledGraph,
-                                        m_initialCommandLineConfiguration.Startup.ConfigFile,
-                                        Configuration.Ide);
+                                    if (Configuration.Ide.IsNewEnabled)
+                                    {
+                                        IdeGenerator.Generate(
+                                            engineSchedule.Context,
+                                            engineSchedule.Scheduler.PipGraph,
+                                            engineSchedule.Scheduler.ScheduledGraph,
+                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                            Configuration.Ide);
+                                    }
+                                    else
+                                    {
+                                        BuildXL.Ide.Generator.Old.IdeGenerator.Generate(
+                                            engineSchedule.Context,
+                                            engineSchedule.Scheduler.PipGraph,
+                                            engineSchedule.Scheduler.ScheduledGraph,
+                                            m_initialCommandLineConfiguration.Startup.ConfigFile,
+                                            Configuration.Ide);
+                                    }
                                 }
 
                                 // Front end is no longer needed and can be clean-up before moving to a next phase.
@@ -2203,12 +2192,12 @@ namespace BuildXL.Engine
                 if (Configuration.Logging.RedirectedLogsDirectory.IsValid)
                 {
                     locker.CreateRedirectionAndPreventDeletion(
-                        Configuration.Logging.RedirectedLogsDirectory.ToString(pathTable), 
-                        Configuration.Logging.LogsDirectory.ToString(pathTable), 
+                        Configuration.Logging.RedirectedLogsDirectory.ToString(pathTable),
+                        Configuration.Logging.LogsDirectory.ToString(pathTable),
                         deleteExisting: true,
                         deleteOnClose: true);
                 }
-                
+
                 locker.CreateAndPreventDeletion(m_moveDeleteTempDirectory);
 
                 success = true;
@@ -3314,7 +3303,7 @@ namespace BuildXL.Engine
         {
             if (loggingConfig != null)
             {
-                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps)
+                if (loggingConfig.OptimizeConsoleOutputForAzureDevOps || loggingConfig.OptimizeProgressUpdatingForAzureDevOps || loggingConfig.OptimizeVsoAnnotationsForAzureDevOps)
                 {
                     return 10_000;
                 }

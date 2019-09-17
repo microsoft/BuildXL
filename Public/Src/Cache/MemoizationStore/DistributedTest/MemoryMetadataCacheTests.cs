@@ -218,9 +218,16 @@ namespace BuildXL.Cache.MemoizationStore.DistributedTest
             RedisConnectionMultiplexer.TestConnectionMultiplexer = MockRedisDatabaseFactory.CreateConnection(redisDb);
             var tracer = new DistributedCacheSessionTracer(TestGlobal.Logger, nameof(MemoryMetadataCacheTests));
             var metadataCache = new RedisMetadataCache(new EnvironmentConnectionStringProvider(string.Empty), new RedisSerializer(), RedisNameSpace, tracer);
-            await metadataCache.StartupAsync(context).ShouldBeSuccess();
-            await test(context, metadataCache, redisDb);
-            await metadataCache.ShutdownAsync(context).ShouldBeSuccess();
+            try
+            {
+                await metadataCache.StartupAsync(context).ShouldBeSuccess();
+                await test(context, metadataCache, redisDb);
+                await metadataCache.ShutdownAsync(context).ShouldBeSuccess();
+            }
+            finally
+            {
+                RedisConnectionMultiplexer.TestConnectionMultiplexer = null;
+            }
         }
 
         private Task<Result<Selector[]>> ToSelectorResult(IEnumerable<Selector> selectors)

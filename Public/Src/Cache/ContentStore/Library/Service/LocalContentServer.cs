@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        protected override ServerServiceDefinition[] BindServices() => new[] { _grpcContentServer.Bind() };
+        protected override ServerServiceDefinition[] BindServices() => _grpcContentServer.Bind();
 
         /// <inheritdoc />
         protected override Task<GetStatsResult> GetStatsAsync(IContentStore store, OperationContext context) => store.GetStatsAsync(context);

@@ -185,7 +185,7 @@ namespace BuildXL.SandboxExec
                 ?
 #if PLATFORM_OSX
                 useEndpointSecuritySandbox
-                    ? (ISandboxConnection) new SandboxConnectionES()
+                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, measureCpuTimes: true)
                     :
 #endif
                     (ISandboxConnection) new SandboxConnectionKext(

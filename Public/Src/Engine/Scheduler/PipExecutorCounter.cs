@@ -1107,7 +1107,13 @@ namespace BuildXL.Scheduler
         MinCacheEntriesVisitedForMiss,
 
         /// <nodoc/>
-        NumPipsUsingMinimalGraphFileSystem
+        NumPipsUsingMinimalGraphFileSystem,
+
+        /// <nodoc/>
+        NumFilesFailedToMaterialize,
+
+        /// <nodoc/>
+        NumFilesFailedToMaterializeDueToEarlyWorkerRelease
     }
 
     /// <summary>

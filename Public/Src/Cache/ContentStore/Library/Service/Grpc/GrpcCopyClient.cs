@@ -232,18 +232,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Requests host to copy a file from another source machine.
         /// </summary>
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        public async Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash)
         {
             try
             {
                 var request = new RequestCopyFileRequest
                 {
-                    TraceId = context.Id.ToString(),
+                    TraceId = context.TracingContext.Id.ToString(),
                     ContentHash = hash.ToByteString(),
                     HashType = (int)hash.HashType
                 };
 
-                var response = await _client.RequestCopyFileAsync(request);
+                var response = await _client.RequestCopyFileAsync(request, cancellationToken: context.Token);
 
                 return response.Header.Succeeded
                     ? BoolResult.Success

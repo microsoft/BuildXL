@@ -221,19 +221,10 @@ namespace BuildXL
                     || e is SystemException)
                 {
                     return new Failure<string>(I($"Failed to kill process with name '{processName}' (process id: {processToKill.Id}) and path '{assemblyFullPath}'"), new Failure<Exception>(e));
-                }
+                } 
             }
 
             return Unit.Void;
-        }
-
-        /// <summary>
-        /// Calculates a hash of the contents of the BuildXL binaries from the server deployment directory.
-        /// </summary>
-        public static string GetDeploymentCacheHash(string deploymentDir)
-        {
-            AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
-            return serverDeployment.TimestampBasedHash.ToHex();
         }
 
         /// <summary>
@@ -242,7 +233,22 @@ namespace BuildXL
         public static bool IsServerDeploymentOutOfSync(string serverDeploymentRoot, AppDeployment clientApp, out string deploymentDir)
         {
             deploymentDir = ComputeDeploymentDir(serverDeploymentRoot);
-            return !Directory.Exists(deploymentDir) || clientApp.TimestampBasedHash.ToHex() != GetDeploymentCacheHash(deploymentDir);
+            if (Directory.Exists(deploymentDir))
+            {
+                try
+                {
+                    // Calculates a hash of the contents of the BuildXL binaries from the server deployment directory.
+                    AppDeployment serverDeployment = AppDeployment.ReadDeploymentManifest(deploymentDir, AppDeployment.ServerDeploymentManifestFileName);
+                    return clientApp.TimestampBasedHash.ToHex() != serverDeployment.TimestampBasedHash.ToHex();
+                }
+                catch (BuildXLException)
+                {
+                    // This case occurs when the deployment directory is missing or the ServerDeploymentManifestFile is missing
+                    return true;
+                }
+            }
+
+            return true;
         }
     }
 }

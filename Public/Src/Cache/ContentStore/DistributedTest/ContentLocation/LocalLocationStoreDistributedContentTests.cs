@@ -140,7 +140,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 TestClock,
                 contentHashBumpTime: TimeSpan.FromHours(1),
                 keySpace: RedisContentLocationStoreFactory.DefaultKeySpace,
-                localMachineLocation: testPathTransformer.GetLocalMachineLocation(rootPath),
                 fileSystem: null,
                 configuration: configuration);
 
@@ -166,10 +165,14 @@ namespace ContentStoreTest.Distributed.Sessions
                 ContentAvailabilityGuarantee,
                 tempPath,
                 FileSystem,
-                retryIntervalForCopies: DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                 locationStoreBatchSize: 1,
+                settings: new DistributedContentStoreSettings()
+                {
+                    RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
+                    PinConfiguration = PinConfiguration,
+                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.Both : ProactiveCopyMode.Disabled
+                },
                 replicaCreditInMinutes: replicaCreditInMinutes,
-                pinConfiguration: PinConfiguration,
                 clock: TestClock,
                 enableRepairHandling: enableRepairHandling,
                 contentStoreSettings: new ContentStoreSettings()
@@ -178,7 +181,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled,
                     UseLegacyQuotaKeeperImplementation = false,
                 },
-                enableProactiveCopy: EnableProactiveCopy
+                setPostInitializationCompletionAfterStartup: true
                 );
 
             distributedContentStore.DisposeContentStoreFactory = false;

@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
                     var key = GetBlobKey(hash);
 
-                    if (await _redis.KeyExists(context, key, context.Token))
+                    if (await _redis.KeyExistsAsync(context, key, context.Token))
                     {
                         context.TraceDebug($"Hash=[{hash.ToShortString()}] is already in Redis. PutBlob skipped.");
                         _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();

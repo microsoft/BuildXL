@@ -34,7 +34,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
-                (callOptions) => m_client.AttachCompletedAsync(grpcMessage, options: callOptions),
+                async (callOptions) => await m_client.AttachCompletedAsync(grpcMessage, options: callOptions),
                 "AttachCompleted",
                 waitForConnection: true);
         }
@@ -43,7 +43,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             var grpcMessage = message.ToGrpc();
             return m_connectionManager.CallAsync(
-               (callOptions) => m_client.NotifyAsync(grpcMessage, options: callOptions),
+               async (callOptions) => await m_client.NotifyAsync(grpcMessage, options: callOptions),
                DistributionHelpers.GetNotifyDescription(message, semiStableHashes));
         }
     }

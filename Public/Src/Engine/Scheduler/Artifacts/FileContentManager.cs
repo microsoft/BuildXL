@@ -473,6 +473,13 @@ namespace BuildXL.Scheduler.Artifacts
                             operationContext,
                             pip.GetDescription(Context),
                             state.GetFailure().DescribeIncludingInnerFailures());
+
+                        ExecutionLog?.CacheMaterializationError(new CacheMaterializationErrorEventData()
+                        {
+                            PipId = pip.PipId,
+                            FailedFiles = state.FailedFiles.ToReadOnlyArray()
+                        });
+
                         return false;
                     default:
                         // Catch-all error for non-cache dependency materialization failures
@@ -1286,7 +1293,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// a file produced inside a dynamic directory so its 'declared' producer will be the
         /// producer of the dynamic directory
         /// </summary>
-        private Pip GetDeclaredProducer(FileArtifact file)
+        public Pip GetDeclaredProducer(FileArtifact file)
         {
             return m_host.GetProducer(GetDeclaredArtifact(file));
         }
@@ -3251,7 +3258,7 @@ namespace BuildXL.Scheduler.Artifacts
         private void LogOutputOrigin(OperationContext operationContext, string pipDescription, string path, in FileMaterializationInfo info, PipOutputOrigin origin)
         {
             string hashHex = info.Hash.ToHex();
-            string reparsePointInfo = info.ReparsePointInfo.ToString();
+            string reparsePointInfo = info.ReparsePointInfo.IsActionableReparsePoint ? info.ReparsePointInfo.ToString() : string.Empty;
 
             switch (origin)
             {
@@ -3551,7 +3558,7 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// Files which failed to materialize
             /// </summary>
-            private readonly List<(FileArtifact, ContentHash)> m_failedFiles = new List<(FileArtifact, ContentHash)>();
+            public readonly List<(FileArtifact, ContentHash)> FailedFiles = new List<(FileArtifact, ContentHash)>();
 
             /// <summary>
             /// Directories which failed to materialize
@@ -3598,7 +3605,7 @@ namespace BuildXL.Scheduler.Artifacts
                 HashTasks.Clear();
                 PendingPlacementTasks.Clear();
                 PlacementTasks.Clear();
-                m_failedFiles.Clear();
+                FailedFiles.Clear();
                 m_failedDirectories.Clear();
 
                 InnerFailure = null;
@@ -3611,8 +3618,8 @@ namespace BuildXL.Scheduler.Artifacts
             /// </summary>
             public ArtifactMaterializationFailure GetFailure()
             {
-                Contract.Assert(m_failedFiles.Count != 0 || m_failedDirectories.Count != 0);
-                return new ArtifactMaterializationFailure(m_failedFiles.ToReadOnlyArray(), m_failedDirectories.ToReadOnlyArray(), m_manager.m_host.Context.PathTable, InnerFailure);
+                Contract.Assert(FailedFiles.Count != 0 || m_failedDirectories.Count != 0);
+                return new ArtifactMaterializationFailure(FailedFiles.ToReadOnlyArray(), m_failedDirectories.ToReadOnlyArray(), m_manager.m_host.Context.PathTable, InnerFailure);
             }
 
             /// <summary>
@@ -3631,9 +3638,9 @@ namespace BuildXL.Scheduler.Artifacts
             /// </summary>
             public void AddFailedFile(FileArtifact file, ContentHash contentHash)
             {
-                lock (m_failedFiles)
+                lock (FailedFiles)
                 {
-                    m_failedFiles.Add((file, contentHash));
+                    FailedFiles.Add((file, contentHash));
                 }
             }
 

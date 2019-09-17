@@ -175,7 +175,7 @@ namespace BuildXL.Engine.Tracing
         DistributionWorkerStatus = 7038,
 
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
-        // UNUSED 7040
+        DistributionWorkerTimeoutFailure = 7040,
 
         DistributionBondCall = 7041,
         DistributionDebugMessage = 7042,
@@ -216,7 +216,7 @@ namespace BuildXL.Engine.Tracing
         FailedToAcquireDirectoryLock = 7116,
         UsingRedirectedUserProfile = 7117,
         FailedToRedirectUserProfile = 7118,
-        ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
+        // was: ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
         BusyOrUnavailableOutputDirectoriesException = 7120,
         GrpcSettings = 7121,
 

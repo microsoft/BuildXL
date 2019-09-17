@@ -229,6 +229,7 @@ namespace BuildXL.Processes
 
             var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
             var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
+
             return new SandboxedProcessResult
             {
                 ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : Process.ExitCode,
@@ -366,9 +367,9 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Returns surviving child processes in the case when the pip had to be terminated because its child
-        /// processes didn't exit within allotted time (<see cref="SandboxedProcessInfo.NestedProcessTerminationTimeout"/>)
-        /// after the main pip process has already exited.
+        /// Returns surviving child processes in the case when the pip finished and potential child
+        /// processes didn't exit within an allotted time (<see cref="SandboxedProcessInfo.NestedProcessTerminationTimeout"/>)
+        /// after the main pip parent process has already exited.
         /// </summary>
         protected virtual IEnumerable<ReportedProcess> GetSurvivingChildProcesses() => null;
 
@@ -389,7 +390,7 @@ namespace BuildXL.Processes
         [NotNull]
         internal virtual CpuTimes GetCpuTimes()
         {
-            // 'Dispatch.GetProcessTimes()' doesn't work because the process has already exited
+            // 'Dispatch.GetProcessResourceUsage()' doesn't work because the process has already exited
             return CpuTimes.Zeros;
         }
 

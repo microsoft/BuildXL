@@ -117,7 +117,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         public async Task<RpcCallResult<Unit>> CallAsync(
-            Func<CallOptions, AsyncUnaryCall<RpcResponse>> func, 
+            Func<CallOptions, Task<RpcResponse>> func, 
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false)

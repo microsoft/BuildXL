@@ -43,7 +43,9 @@ namespace BuildXL.Scheduler
 
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
 
-        internal TimeSpan CacheMissDuration { get; private set; }
+        internal TimeSpan CacheMissAnalysisDuration { get; private set; }
+
+        internal bool IsExecuted { get; private set; }
 
         /// <remarks>
         /// MaterializeOutput is executed per each worker
@@ -86,6 +88,11 @@ namespace BuildXL.Scheduler
             {
                 StepDurations[(int)step] += duration;
             }
+
+            if (step == PipExecutionStep.ExecuteProcess)
+            {
+                IsExecuted = true;
+            }
         }
 
         internal void Completed()
@@ -93,9 +100,9 @@ namespace BuildXL.Scheduler
             CompletedTime = DateTime.UtcNow;
         }
 
-        internal void PerformedCacheMiss(TimeSpan duration)
+        internal void PerformedCacheMissAnalysis(TimeSpan duration)
         {
-            CacheMissDuration = duration;
+            CacheMissAnalysisDuration = duration;
         }
 
         internal void RemoteExecuted(

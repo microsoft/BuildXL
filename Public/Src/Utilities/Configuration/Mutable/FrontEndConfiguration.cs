@@ -32,6 +32,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileToFileReportDestination = template.FileToFileReportDestination.HasValue ? (AbsolutePath?)pathRemapper.Remap(template.FileToFileReportDestination.Value) : null;
 
             EnableIncrementalFrontEnd = template.EnableIncrementalFrontEnd;
+            EnableEvaluationThrottling = template.EnableEvaluationThrottling; 
             DebugScript = template.DebugScript;
             DebuggerBreakOnExit = template.DebuggerBreakOnExit;
             DebuggerPort = template.DebuggerPort;
@@ -95,6 +96,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int? MaxFrontEndConcurrency { get; set; }
+
+        /// <inheritdoc />
+        public bool? EnableEvaluationThrottling { get; set; }
 
         /// <inheritdoc />
         public int? MaxRestoreNugetConcurrency { get; set; }

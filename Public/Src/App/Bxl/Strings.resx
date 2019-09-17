@@ -1021,7 +1021,12 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_InputChanges" xml:space="preserve">
     <value>Path to file containing a list of input changes, separated by new lines. The formats of an input change is '&lt;path&gt;|&lt;change kind&gt;' or '&lt;path&gt;', where change kinds are 'DataOrMetadataChanged', 'Removed', 'MembershipChanged', 'NewlyPresentAsFile', 'NewlyPresentAsDirectory'.</value>
   </data>
-  <data name="HelpText_DisplayHelp_CgManifestBanner" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_PathSetThreshold" xml:space="preserve">
+    <value>The maximum number of visited path sets allowed before switching to an 'augmented' weak fingerprint computed from common dynamically accessed paths.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_AugmentingPathSetCommonalityFactor" xml:space="preserve">
+    <value>Used to compute the number of times (i.e. {augmentingPathSetCommonalityFactor} * {pathSetThreshold}) an entry must appear among paths in the observed path set in order to be included in the common path set. Value must be (0, 1]</value>
+<data name="HelpText_DisplayHelp_CgManifestBanner" xml:space="preserve">
     <value>Component Governance</value>
   </data>
   <data name="HelpText_DisplayHelp_GenerateCgManifest" xml:space="preserve">

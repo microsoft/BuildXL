@@ -54,7 +54,7 @@ int StatFile(const char *path, bool followSymlink, StatBuffer *statBuffer, long 
     if (sizeof(StatBuffer) != bufferSize)
     {
         printf("ERROR: Wrong size of StatBuffer buffer; expected %ld, received %ld\n", sizeof(StatBuffer), bufferSize);
-        return 1;
+        return RUNTIME_ERROR;
     }
 
     struct stat fileStat;
@@ -73,7 +73,7 @@ int StatFileDescriptor(intptr_t fd, StatBuffer *statBuffer, long bufferSize)
     if (sizeof(StatBuffer) != bufferSize)
     {
         printf("ERROR: Wrong size of StatBuffer buffer; expected %ld, received %ld\n", sizeof(StatBuffer), bufferSize);
-        return 1;
+        return RUNTIME_ERROR;
     }
 
     struct stat fileStat;

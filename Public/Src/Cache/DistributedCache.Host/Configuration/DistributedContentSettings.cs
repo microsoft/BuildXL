@@ -94,6 +94,17 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int ContentHashBumpTimeMinutes { get; set; } = 2880;
 
+        private int _redisMemoizationExpiryTimeMinutes;
+
+        /// <summary>
+        /// TTL to be set in Redis for memoization entries.
+        /// </summary>
+        [DataMember]
+        public int RedisMemoizationExpiryTimeMinutes {
+            get => _redisMemoizationExpiryTimeMinutes == 0 ? ContentHashBumpTimeMinutes : _redisMemoizationExpiryTimeMinutes;
+            set => _redisMemoizationExpiryTimeMinutes = value;
+        }
+
         /// <summary>
         /// The map of environment to connection secrets
         /// </summary>
@@ -500,14 +511,20 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
+        [DataMember]
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
+        /// <summary>
+        /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
+        /// </summary>
         [DataMember]
-        public bool EnableProactiveCopy { get; set; } = false;
+        public string ProactiveCopyMode { get; set; } = "Disabled";
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
@@ -520,6 +537,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
+
+        [DataMember]
+        public bool UseRedisMetadataStore{ get; set; } = false;
+
+        [DataMember]
+        public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion
 

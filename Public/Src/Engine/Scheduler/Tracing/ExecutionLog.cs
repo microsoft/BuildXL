@@ -111,7 +111,7 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <inheritdoc />
-        public virtual void ExtraEventDataReported(ExtraEventData data)
+        public virtual void BuildSessionConfiguration(BuildSessionConfigurationEventData data)
         {
             ReportUnhandledEvent(data);
         }
@@ -155,7 +155,15 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Single event giving build invocation information that contains configuration details useful for analyzers.
         /// </summary>
-        public virtual void DominoInvocation(DominoInvocationEventData data)
+        public virtual void BxlInvocation(BxlInvocationEventData data)
+        {
+            ReportUnhandledEvent(data);
+        }
+
+        /// <summary>
+        /// Cache materialization error is reported
+        /// </summary>
+        public virtual void CacheMaterializationError(CacheMaterializationErrorEventData data)
         {
             ReportUnhandledEvent(data);
         }

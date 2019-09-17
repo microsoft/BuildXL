@@ -54,26 +54,26 @@ namespace BuildXL.Cache.Host.Service.Internal
                 // In practice, we don't really pass in a null distributedSettings. Hence, we'll enable the metadata
                 // store whenever its set to true. This can only happen in the Application verb, because the Service
                 // verb doesn't change the defaults.
-                return CreateLocalServer(localServerConfiguration,
-                    enableMetadataStore: distributedSettings?.EnableMetadataStore ?? false);
+                return CreateLocalServer(localServerConfiguration, distributedSettings);
             }
             else
             {
-                return CreateDistributedServer(localServerConfiguration,
-                    enableMetadataStore: distributedSettings.EnableMetadataStore);
+                return CreateDistributedServer(localServerConfiguration, distributedSettings);
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
+        private (LocalContentServer, LocalCacheServer) CreateLocalServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings = null)
         {
             Func<AbsolutePath, IContentStore> contentStoreFactory = path => ContentStoreFactory.CreateContentStore(_fileSystem, path, evictionAnnouncer: null, distributedEvictionSettings: default, contentStoreSettings: default, trimBulkAsync: null);
 
-            if (enableMetadataStore)
+            if (distributedSettings?.EnableMetadataStore == true)
             {
-                Func<AbsolutePath, ICache> cacheFactory = path => {
+                Func<AbsolutePath, ICache> cacheFactory = path =>
+                {
+                    var factory = CreateDistributedContentStoreFactory();
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -96,16 +96,31 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, bool enableMetadataStore)
+        private DistributedContentStoreFactory CreateDistributedContentStoreFactory()
         {
             var cacheConfig = _arguments.Configuration;
 
             var hostInfo = _arguments.HostInfo;
             _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
 
-            var factory = new DistributedContentStoreFactory(
+            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
+
+            return new DistributedContentStoreFactory(
                 _arguments,
-                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId));
+                cacheConfig.DistributedContentSettings.GetRedisConnectionSecretNames(hostInfo.StampId),
+                secretRetriever);
+        }
+
+        private (LocalContentServer, LocalCacheServer) CreateDistributedServer(LocalServerConfiguration localServerConfiguration, DistributedContentSettings distributedSettings)
+        {
+            var cacheConfig = _arguments.Configuration;
+
+            var hostInfo = _arguments.HostInfo;
+            _logger.Debug($"Creating on stamp id {hostInfo.StampId} with scenario {cacheConfig.LocalCasSettings.ServiceSettings.ScenarioName ?? string.Empty}");
+
+            var secretRetriever = new DistributedCacheSecretRetriever(_arguments);
+
+            var factory = CreateDistributedContentStoreFactory();
 
             Func<AbsolutePath, IContentStore> contentStoreFactory = path =>
             {
@@ -117,19 +132,19 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _logger.Debug($"Using [{settings.Key}]'s settings: {settings.Value}");
 
                     var rootPath = cacheConfig.LocalCasSettings.GetCacheRootPathWithScenario(settings.Key);
-                    drivesWithContentStore[GetRoot(rootPath)] = factory.CreateContentStore(rootPath, replicationSettings: null);
+                    drivesWithContentStore[GetRoot(rootPath)] = factory.CreateContentStore(rootPath);
                 }
 
                 return new MultiplexedContentStore(drivesWithContentStore, cacheConfig.LocalCasSettings.PreferredCacheDrive);
             };
 
-            if (enableMetadataStore)
+            if (distributedSettings.EnableMetadataStore)
             {
                 Func<AbsolutePath, ICache> cacheFactory = path =>
                 {
                     return new OneLevelCache(
                         contentStoreFunc: () => contentStoreFactory(path),
-                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path),
+                        memoizationStoreFunc: () => CreateServerSideLocalMemoizationStore(path, factory),
                         Guid.NewGuid(),
                         passContentToMemoization: true);
                 };
@@ -156,23 +171,31 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
         }
 
-        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path)
+        private IMemoizationStore CreateServerSideLocalMemoizationStore(AbsolutePath path, DistributedContentStoreFactory factory = null)
         {
-            var config = new RocksDbMemoizationStoreConfiguration()
-            {
-                Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
-                {
-                    MetadataGarbageCollectionEnabled = true,
-                },
-            };
+            var distributedSettings = _arguments.Configuration.DistributedContentSettings;
 
-            var distributedContentSettings = _arguments.Configuration.DistributedContentSettings;
-            if (distributedContentSettings != null)
+            if (distributedSettings.UseRedisMetadataStore)
             {
-                config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedContentSettings.MaximumNumberOfMetadataEntriesToStore;
+                return factory.CreateMemoizationStoreAsync(path).GetAwaiter().GetResult();
             }
+            else
+            {
+                var config = new RocksDbMemoizationStoreConfiguration()
+                {
+                    Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
+                    {
+                        MetadataGarbageCollectionEnabled = true,
+                    },
+                };
 
-            return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
+                if (distributedSettings != null)
+                {
+                    config.Database.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep = distributedSettings.MaximumNumberOfMetadataEntriesToStore;
+                }
+
+                return new RocksDbMemoizationStore(_logger, SystemClock.Instance, config);
+            }
         }
 
         private static LocalServerConfiguration CreateLocalServerConfiguration(LocalCasServiceSettings localCasServiceSettings, ServiceConfiguration serviceConfiguration)

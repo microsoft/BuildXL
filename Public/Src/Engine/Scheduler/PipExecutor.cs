@@ -1489,7 +1489,10 @@ namespace BuildXL.Scheduler
                                         pip.SemiStableHash,
                                         processDescription,
                                         result.ExitCode,
-                                        remainingUserRetries);
+                                        remainingUserRetries,
+                                        result.EncodedStandardOutput,
+                                        result.EncodedStandardError
+                                        );
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
 
                                     continue;

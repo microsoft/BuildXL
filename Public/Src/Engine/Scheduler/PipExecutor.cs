@@ -1394,16 +1394,6 @@ namespace BuildXL.Scheduler
                                     counters.IncrementCounter(PipExecutorCounter.ExternalProcessCount);
                                     environment.SetMaxExternalProcessRan();
                                 }
-                                else
-                                {
-                                    // Log the retry
-                                    Logger.Log.PipProcessRetry(
-                                        operationContext,
-                                        pip.SemiStableHash,
-                                        processDescription,
-                                        pip.Provenance.Token.Path.ToString(pathTable),
-                                        pip.GetToolName(pathTable).ToString(pathTable.StringTable));
-                                }
 
                                 IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
                                     ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)

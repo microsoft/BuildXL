@@ -1295,20 +1295,6 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipWillBeRetriedDueToExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, int remainingRetries);
 
         [GeneratedEvent(
-            (int)EventId.PipRetry,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipSpecPrefix + " - Retry failed process")]
-        public abstract void PipProcessRetry(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string pipSpecPath,
-            string pipExe);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ResumingProcessExecutionAfterSufficientResources,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

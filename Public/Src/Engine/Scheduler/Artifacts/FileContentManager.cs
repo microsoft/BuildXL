@@ -3258,7 +3258,7 @@ namespace BuildXL.Scheduler.Artifacts
         private void LogOutputOrigin(OperationContext operationContext, string pipDescription, string path, in FileMaterializationInfo info, PipOutputOrigin origin)
         {
             string hashHex = info.Hash.ToHex();
-            string reparsePointInfo = info.ReparsePointInfo.ToString();
+            string reparsePointInfo = info.ReparsePointInfo.IsActionableReparsePoint ? info.ReparsePointInfo.ToString() : string.Empty;
 
             switch (origin)
             {

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
@@ -1248,12 +1249,45 @@ namespace Test.BuildXL.Engine.Cache
                 }
                 catch (AccessViolationException)
                 {
-                    // Will be caught by failure handler
+                    // In both cases, an exception will be triggered; strict mode will lock down the DB, and relaxed
+                    // mode won't.
                 }
             }
 
             XAssert.IsTrue(failureHandled);
+
+            // Since this does not trigger an invalidation in relaxed mode, the invalidation handler will only be 
+            // called in strict mode.
             XAssert.IsTrue(invalidationHandled || exceptionHandlingMode == KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED);
+        }
+
+        [Fact]
+        public void RelaxedModeInvalidatesOnRocksDbException()
+        {
+            bool failureHandled = false;
+            bool invalidationHandled = false;
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory,
+                failureHandler: (f) => { failureHandled = true; },
+                invalidationHandler: (f) => { invalidationHandled = true; },
+                exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED).Result)
+            {
+                try
+                {
+                    XAssert.IsFalse(accessor.Use(store =>
+                    {
+                        throw new SEHException("Something went really wrong");
+                    }).Succeeded);
+                }
+                catch (SEHException)
+                {
+                    // Relaxed mode won't throw, but will lock down the DB and fail the operation.
+                    XAssert.IsFalse(true);
+                }
+            }
+
+            // Relaxed mode won't call the failure handler, but the invalidation handler in this case.
+            XAssert.IsFalse(failureHandled);
+            XAssert.IsTrue(invalidationHandled);
         }
 
         private string LongRandomString()

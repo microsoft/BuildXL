@@ -332,7 +332,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             if (isIncrementalCheckpoint)
                             {
-                                successfullyUpdatedIncrementalState = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
+                                var incrementalRestoreResult = await RestoreCheckpointIncrementalAsync(context, checkpointFile, extractedCheckpointDirectory);
+                                successfullyUpdatedIncrementalState = incrementalRestoreResult.Succeeded;
+                                incrementalRestoreResult.ThrowIfFailure();
                             }
                             else
                             {

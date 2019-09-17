@@ -143,7 +143,7 @@ namespace BuildXL.Processes
             string arguments = $"{VmCommands.Run} /{VmCommands.Params.InputJsonFile}:\"{RunRequestPath}\" /{VmCommands.Params.OutputJsonFile}:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
-            LogExternalExecution($"call {m_vmInitializer.VmCommandProxy} {arguments}");
+            LogExternalExecution($"call (wd: {process.StartInfo.WorkingDirectory}) {m_vmInitializer.VmCommandProxy} {arguments}");
 
             m_processExecutor = new AsyncProcessExecutor(
                 process,

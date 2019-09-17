@@ -70,8 +70,8 @@ namespace BuildXL.Interop
             {
                 case OperatingSystem.MacOS:
                 {
-                    var buffer = new MacOS.Process.ProcessTimesInfo();
-                    MacOS.Process.GetProcessTimes(proc.Id, ref buffer, includeChildProcesses: false);
+                    var buffer = new MacOS.Process.ProcessResourceUsage();
+                    MacOS.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
                     long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
                     return new TimeSpan(ticks);
                 }

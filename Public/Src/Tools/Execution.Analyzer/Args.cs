@@ -339,6 +339,11 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.CopyFile:
                     m_analyzer = InitializeCopyFilesAnalyzer();
                     break;
+#if NET_FRAMEWORK
+                case AnalysisMode.ContentPlacement:
+                    m_analyzer = InitializeContentPlacementAnalyzer();
+                    break;
+#endif
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
                     break;
@@ -445,7 +450,7 @@ namespace BuildXL.Execution.Analyzer
             return exitCode;
         }
 
-        #region Telemetry
+#region Telemetry
 
         private void HandleUnhandledFailure(Exception exception)
         {
@@ -495,7 +500,7 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
-        #endregion Telemetry
+#endregion Telemetry
 
         private AnalysisInput GetAnalysisInput()
         {
@@ -623,8 +628,12 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine("");
             WriteXLGToDBHelp(writer);
 
+//writer.WriteLine("");
+//WriteDominoInvocationHelp(writer);
+#if NET_FRAMEWORK
             writer.WriteLine("");
-            WriteDebugLogsAnalyzerHelp(writer);
+            WriteContentPlacementAnalyzerHelp(writer);
+#endif
         }
 
         public void LogEventSummary()

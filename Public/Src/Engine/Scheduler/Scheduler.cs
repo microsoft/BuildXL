@@ -54,6 +54,7 @@ using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.IncrementalScheduling;
+using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Processes.Containers;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
@@ -1185,19 +1186,18 @@ namespace BuildXL.Scheduler
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
 
-            if (m_fingerprintStoreTarget != null)
+            MasterSpecificExecutionLogTarget masterTarget = null;
+
+            if (!IsDistributedWorker)
             {
-                m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
-                    m_executionLogFileTarget,
-                    m_fingerprintStoreTarget,
-                    new ObservedInputAnomalyAnalyzer(graph));
+                masterTarget = new MasterSpecificExecutionLogTarget(loggingContext, this);
             }
-            else
-            {
-                m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
-                    m_executionLogFileTarget,
-                    new ObservedInputAnomalyAnalyzer(graph));
-            }
+
+            m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
+                m_executionLogFileTarget,
+                m_fingerprintStoreTarget,
+                new ObservedInputAnomalyAnalyzer(graph),
+                masterTarget);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
@@ -2132,6 +2132,7 @@ namespace BuildXL.Scheduler
             }
 
             bool resourceAvailable = true;
+
             if (perfInfo.RamUsagePercentage != null)
             {
                 bool exceededMaxRamUtilizationPercentage = perfInfo.RamUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
@@ -2151,7 +2152,17 @@ namespace BuildXL.Scheduler
                 }
             }
 
+#if PLATFORM_OSX
+
+            Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
+            var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+            bool isMemoryPressureCritical = result && (pressureLevel > Memory.PressureLevel.Warning);
+
+            if (!resourceAvailable || isMemoryPressureCritical)
+#else
             if (!resourceAvailable)
+#endif
+
             {
                 if (LocalWorker.ResourcesAvailable)
                 {
@@ -2176,8 +2187,7 @@ namespace BuildXL.Scheduler
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
                 {
                     // Free down to the specified max RAM utilization percentage with 10% slack
-                    var desiredRamToFreePercentage =
-                        (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
+                    var desiredRamToFreePercentage = (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
 
                     // Ensure percentage to free is in valid percent range [0, 100]
                     desiredRamToFreePercentage = Math.Max(0, Math.Min(100, desiredRamToFreePercentage));
@@ -2369,9 +2379,14 @@ namespace BuildXL.Scheduler
                     // We stop on the first error only on the master or single-machine builds.
                     // During cancellation, master coordinates with workers to stop the build.
 
-                    // ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
-                    bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
-                        || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
+
+                    //// ErrorsLoggedById is a ConcurrentBag. Its Contains() isn't particularly performant. It copies everything to a new list and then enumerates that.
+                    //bool hasMaterializationErrorHappened = m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFromCacheFailure)
+                    //    || m_executePhaseLoggingContext.ErrorsLoggedById.Contains((ushort)EventId.PipMaterializeDependenciesFailureUnrelatedToCache);
+
+                    // TODO(seokur): It is currently disabled to cancel the pips on the first materialization error.
+                    // We just want to see how many materialization errors would occur in total.
+                    bool hasMaterializationErrorHappened = false;
 
                     // Early terminate the build if
                     // (1) StopOnFirstError is enabled or
@@ -2992,7 +3007,7 @@ namespace BuildXL.Scheduler
             Contract.Assert(runnablePip.IsCancelled);
             if (runnablePip is ProcessRunnablePip processRunnable)
             {
-                FlagSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
+                FlagAndReturnSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
             }
         }
 
@@ -3562,6 +3577,13 @@ namespace BuildXL.Scheduler
                             // reschedule and choose worker again after adjusting expected RAM utilization
                             processRunnable.SetWorker(null);
 
+                            if (worker.IsLocal)
+                            {
+                                // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
+                                var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
+                                ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+                            }
+
                             // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
                             var expectedRamUsageMb = Math.Max(
                                     worker.GetExpectedRamUsageMb(processRunnable),
@@ -3602,7 +3624,7 @@ namespace BuildXL.Scheduler
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
-                        FlagSharedOpaqueOutputs(environment, processRunnable);
+                        var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3653,6 +3675,9 @@ namespace BuildXL.Scheduler
                             // the content of the (final) outputs
                             if (executionResult.Converged)
                             {
+                                // On convergence, delete shared opaque outputs
+                                ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
+
                                 executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
                                    operationContext,
                                    environment,
@@ -3699,12 +3724,17 @@ namespace BuildXL.Scheduler
             return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
         }
 
-        private void FlagSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
+        private List<string> FlagAndReturnSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
         {
+            List<string> outputPaths = new List<string>();
+
             // Select all declared output files
             foreach (var fileArtifact in process.Process.FileOutputs)
             {
-                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+                if (MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path))
+                {
+                    outputPaths.Add(fileArtifact.Path.ToString(Context.PathTable));
+                }
             }
 
             // The shared dynamic accesses can be null when the pip failed on preparation, in which case it didn't run at all, so there is
@@ -3717,10 +3747,19 @@ namespace BuildXL.Scheduler
                 {
                     foreach (AbsolutePath writeInPath in writesPerSharedOpaque)
                     {
-                        SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(writeInPath.ToString(environment.Context.PathTable));
+                        var path = writeInPath.ToString(environment.Context.PathTable);
+                        SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
+                        outputPaths.Add(path);
                     }
                 }
             }
+
+            return outputPaths;
+        }
+
+        private void ScrubSharedOpaqueOutputs(List<string> outputs)
+        {
+            outputs.ForEach(o => FileUtilities.DeleteFile(o));
         }
 
         private static void HandleDeterminismProbe(
@@ -4179,6 +4218,34 @@ namespace BuildXL.Scheduler
         /// <inheritdoc />
         public DirectoryTranslator DirectoryTranslator { get; }
 
+        /// <summary>
+        /// Gets the execution information for the producer pip of the given file. 
+        /// </summary>
+        public string GetProducerInfoForFailedMaterializeFile(in FileArtifact artifact)
+        {
+            var producer = m_fileContentManager.GetDeclaredProducer(artifact);
+
+            RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[producer.PipId];
+
+            PipExecutionStep step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : PipExecutionStep.RunFromCache;
+
+            var workerId = perfInfo.Workers.Value[(int)step];
+            var worker = m_workers[(int)workerId];
+            bool isWorkerReleasedEarly = worker.WorkerEarlyReleasedTime != null;
+
+            PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterialize);
+            if (isWorkerReleasedEarly)
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterializeDueToEarlyWorkerRelease);
+            }
+
+            string whenWorkerReleased = isWorkerReleasedEarly ? 
+                $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" : 
+                "N/A";
+
+            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";
+        }
+
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IPipExecutionEnvironment.IsSourceSealedDirectory(
@@ -4350,7 +4417,7 @@ namespace BuildXL.Scheduler
                     totalCacheLookupStepDurations = totalCacheLookupStepDurations
                         .Zip(performance.CacheLookupPerfInfo.CacheLookupStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
 
-                    totalCacheMissAnalysisDuration += (long)performance.CacheMissDuration.TotalMilliseconds;
+                    totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
 
                     index++;
                 }
@@ -4588,9 +4655,9 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissDuration.TotalMilliseconds != 0)
+                if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess && performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
                 {
-                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissDuration.TotalMilliseconds,10}"));
+                    stringBuilder.AppendLine(I($"\t\t  {"CacheMissAnalysis",-88}: {(long)performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds,10}"));
                 }
             }
         }
@@ -4787,7 +4854,7 @@ namespace BuildXL.Scheduler
                     {
                         var config = new SandboxConnectionKext.Config
                         {
-                            MeasureCpuTimes = m_configuration.Sandbox.KextMeasureProcessCpuTimes,
+                            MeasureCpuTimes = m_configuration.Sandbox.MeasureProcessCpuTimes,
                             FailureCallback = (int status, string description) =>
                             {
                                 Logger.Log.KextFailureNotificationReceived(loggingContext, status, description);
@@ -4808,12 +4875,12 @@ namespace BuildXL.Scheduler
                                 }
                             }
                         };
-                        
+
                         switch (m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind)
                         {
                             case SandboxKind.MacOsEndpointSecurity:
                             {
-                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES();
+                                sandboxConnection = (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, m_configuration.Sandbox.MeasureProcessCpuTimes);
                                 break;
                             }
                             default:
@@ -5609,12 +5676,15 @@ namespace BuildXL.Scheduler
             MakeSharedOpaqueOutputIfNeeded(artifact.Path);
         }
 
-        private void MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
+        private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
         {
             if (IsPathUnderSharedOpaqueDirectory(path))
             {
                 SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
+                return true;
             }
+
+            return false;
         }
 
         private bool IsPathUnderSharedOpaqueDirectory(AbsolutePath path)

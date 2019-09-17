@@ -59,6 +59,9 @@ config({
                   },
 
             packages: [
+
+                { id: "NLog", version: "4.6.6" },
+
                 { id: "Bond.Core.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp.osx-x64", version: "8.0.0" },

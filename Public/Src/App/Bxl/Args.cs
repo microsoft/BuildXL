@@ -378,9 +378,9 @@ namespace BuildXL
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",
-                            sign => 
-                            { 
-                                // Noop for legacy command line compatibility 
+                            sign =>
+                            {
+                                // Noop for legacy command line compatibility
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableIncrementalFrontEnd",
@@ -494,8 +494,8 @@ namespace BuildXL
                             "kextEnableReportBatching",
                             sign => sandboxConfiguration.KextEnableReportBatching = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "kextMeasureProcessCpuTimes",
-                            sign => sandboxConfiguration.KextMeasureProcessCpuTimes = sign),
+                            "measureProcessCpuTimes",
+                            sign => sandboxConfiguration.MeasureProcessCpuTimes = sign),
                         OptionHandlerFactory.CreateOption(
                             "kextNumberOfConnections",
                             opt =>
@@ -620,9 +620,9 @@ namespace BuildXL
                             "maxFrontEndConcurrency",
                             "mF",
                             opt => frontEndConfiguration.MaxFrontEndConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
-                        OptionHandlerFactory.CreateOption(
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableEvaluationThrottling",
-                            opt => frontEndConfiguration.EnableEvaluationThrottling = CommandLineUtilities.ParseBooleanOption(opt)),
+                            sign => frontEndConfiguration.EnableEvaluationThrottling = sign),
                         OptionHandlerFactory.CreateOption(
                             "maxRestoreNugetConcurrency",
                             opt => frontEndConfiguration.MaxRestoreNugetConcurrency = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),

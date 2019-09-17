@@ -11,11 +11,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         ///     E_ACCESSDENIED
         /// </summary>
-        public const uint AccessDenied = 0x80070005;
+        public const int AccessDenied = unchecked((int)0x80070005);
 
         /// <summary>
         ///     FILE_EXISTS
         /// </summary>
-        public const uint FileExists = 0x80070050;
+        public const int FileExists = unchecked((int)0x80070050);
     }
 }

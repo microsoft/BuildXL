@@ -466,27 +466,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline)
         {
-            try
-            {
-                var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
-                
-                if (!checkpointState)
-                {
-                    // The error is already logged.
-                    return checkpointState;
-                }
+            var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
-                return await RestoreCheckpointAsync(context, checkpointState.Value, inline);
-            }
-            finally
+            if (result.Succeeded)
             {
-                if (!ShutdownStarted)
+                // A post initialization process may fail due to a transient issue, like a storage failure or an inconsistent checkpoint's state.
+                // The transient error can go away and the system may recover itself by calling this method again.
+
+                // In this case we need to reset _postInitializationTask and move its state from "failure" to "success"
+                // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
+
+                _postInitializationTask = BoolResult.SuccessTask;
+            }
+
+            return result;
+
+            async Task<BoolResult> processStateCoreAsync()
+            {
+                try
                 {
-                    // Reseting the timer at the end to avoid multiple calls if it at the same time.
-                    _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
+                    var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+
+                    if (!checkpointState)
+                    {
+                        // The error is already logged.
+                        return checkpointState;
+                    }
+
+                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline);
+                }
+                finally
+                {
+                    if (!ShutdownStarted)
+                    {
+                        // Reseting the timer at the end to avoid multiple calls if it at the same time.
+                        _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
+                    }
                 }
             }
         }
+        
 
         internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
         {

@@ -241,7 +241,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
             bool rotateLogs = false, 
-            bool openBulkLoad = false)
+            bool openBulkLoad = false,
+            Action<Failure> onStoreReset = null)
         {
             return OpenWithVersioning(
                 storeDirectory,
@@ -315,7 +316,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
             bool rotateLogs = false, 
-            bool openBulkLoad = false)
+            bool openBulkLoad = false,
+            Action<Failure> onStoreReset = null)
         {
             // First attempt
             var possibleAccessor = OpenInternal(
@@ -335,6 +337,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
                 && !openReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
             {
+                onStoreReset?.Invoke(possibleAccessor.Failure);
+
                 possibleAccessor = OpenInternal(
                     storeDirectory,
                     storeVersion,

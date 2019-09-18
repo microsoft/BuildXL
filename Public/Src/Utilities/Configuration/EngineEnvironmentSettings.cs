@@ -437,6 +437,9 @@ namespace BuildXL.Utilities.Configuration
                 }
             }
 
+            /// <summary>
+            /// Attempts to set the setting if not value is currently specified
+            /// </summary>
             public bool TrySet(T value)
             {
                 if (!string.IsNullOrEmpty(StringValue) || isExplicitlySet)

@@ -137,7 +137,8 @@ namespace BuildXL.Processes
             long processSandboxedProcessResultMs,
             long processStartTime,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            string stdLog)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
@@ -157,7 +158,8 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: containerConfiguration);
+                containerConfiguration: containerConfiguration,
+                stdLog: stdLog);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
@@ -309,7 +311,8 @@ namespace BuildXL.Processes
             IReadOnlyList<ReportedFileAccess> allReportedFileAccesses,
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            string stdLog="")
         {
             Contract.Requires(
                 (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
@@ -341,6 +344,7 @@ namespace BuildXL.Processes
             MaxDetoursHeapSizeInBytes = maxDetoursHeapSize;
             SharedDynamicDirectoryWriteAccesses = sharedDynamicDirectoryWriteAccesses;
             ContainerConfiguration = containerConfiguration;
+            StdLog = stdLog;
         }
 
         /// <summary>
@@ -353,6 +357,11 @@ namespace BuildXL.Processes
         /// </summary>
         public int ExitCode { get; internal set; }
 
+        /// <summary>
+        /// stdOut and stdErr message.
+        /// </summary>
+        public string StdLog { get; internal set; }
+        
         /// <summary>
         /// Duration of sandbox preparation in milliseconds
         /// </summary>

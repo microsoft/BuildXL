@@ -1490,9 +1490,7 @@ namespace BuildXL.Scheduler
                                         processDescription,
                                         result.ExitCode,
                                         remainingUserRetries,
-                                        result.EncodedStandardOutput,
-                                        result.EncodedStandardError
-                                        );
+                                        result.StdLog);
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
 
                                     continue;

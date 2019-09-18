@@ -1372,6 +1372,8 @@ namespace BuildXL.Processes
                     {
                         LogFinishedFailed(result);
 
+                        var stdLog = await GetStdLogStringAsync(result);
+
                         if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
                         {
                             return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
@@ -1384,7 +1386,8 @@ namespace BuildXL.Processes
                                 sw.ElapsedMilliseconds,
                                 result.ProcessStartTime,
                                 maxDetoursHeapSize,
-                                m_containerConfiguration);
+                                m_containerConfiguration,
+                                stdLog);
                         }
                         else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
                         {
@@ -3950,6 +3953,58 @@ namespace BuildXL.Processes
                     }
 
                     return true;
+                }
+            }
+        }
+
+        private async Task<string> GetStdLogStringAsync(SandboxedProcessResult result)
+        {
+            using (TextReader errorReader = CreateReader(result.StandardError))
+            {
+                using (TextReader outReader = CreateReader(result.StandardOutput))
+                {
+                    if (errorReader == null || outReader == null)
+                    {
+                        return string.Empty;
+                    }
+
+                    while (errorReader.Peek() != -1 || outReader.Peek() != -1)
+                    {
+                        string stdError = await ReadNextChunkAsync(errorReader, result.StandardError);
+                        string stdOut = await ReadNextChunkAsync(outReader, result.StandardOutput);
+
+                        if (stdError == null || stdOut == null)
+                        {
+                            return string.Empty;
+                        }
+
+                        // Sometimes stdOut/StdErr contains NUL characters (ASCII code 0). While this does not
+                        // create a problem for text editors (they will either display the NUL char or show it
+                        // as whitespace), NUL char messes up with ETW logging BuildXL uses. When a string is
+                        // passed into ETW, it is treated as null-terminated string => everything after the
+                        // the first NUL char is dropped. This causes Bug 1310020.
+                        //
+                        // Remove all NUL chars before logging the output.
+                        if (stdOut.Contains("\0"))
+                        {
+                            stdOut = stdOut.Replace("\0", string.Empty);
+                        }
+
+                        if (stdError.Contains("\0"))
+                        {
+                            stdError = stdError.Replace("\0", string.Empty);
+                        }
+
+                        bool stdOutEmpty = string.IsNullOrWhiteSpace(stdOut);
+                        bool stdErrorEmpty = string.IsNullOrWhiteSpace(stdError);
+
+                        string outputToLog = (stdOutEmpty ? string.Empty : stdOut) +
+                            (!stdOutEmpty && !stdErrorEmpty ? Environment.NewLine : string.Empty) +
+                            (stdErrorEmpty ? string.Empty : stdError);
+
+                        return outputToLog;
+                    }
+                    return string.Empty;
                 }
             }
         }

@@ -474,8 +474,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         .AsIndexedTasks();
                 }
 
-                Tracer.Debug(context, $"Copying {getBulkResult.ContentHashesInfo.Count} files locally.");
-
                 // TransformBlock is supposed to return items in FIFO order, so we don't need to index the input
                 var copyFilesLocallyBlock =
                     new TransformBlock<Indexed<ContentHashWithSizeAndLocations>, Indexed<PlaceFileResult>>(

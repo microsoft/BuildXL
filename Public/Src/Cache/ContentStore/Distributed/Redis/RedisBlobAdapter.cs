@@ -55,10 +55,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             _tracer = tracer;
         }
 
+        /// <nodoc />
+        public class PutBlobResult : BoolResult
+        {
+            /// <nodoc />
+            public ContentHash Hash { get; }
+
+            /// <nodoc />
+            public long BlobSize { get; }
+
+            /// <nodoc />
+            public bool AlreadyInRedis { get; }
+
+            /// <nodoc />
+            public long? NewCapacityInRedis { get; }
+
+            /// <nodoc />
+            public string RedisKey { get; }
+
+            /// <nodoc />
+            public PutBlobResult(ContentHash hash, long blobSize, bool alreadyInRedis = false, long? newCapacity = null, string redisKey = null)
+            {
+                Hash = hash;
+                BlobSize = blobSize;
+                AlreadyInRedis = alreadyInRedis;
+                NewCapacityInRedis = newCapacity;
+                RedisKey = redisKey;
+            }
+
+            /// <nodoc />
+            public PutBlobResult(ContentHash hash, long blobSize, string errorMessage)
+                : base(errorMessage)
+            {
+                Hash = hash;
+                BlobSize = blobSize;
+            }
+
+            /// <inheritdoc />
+            public override string ToString()
+            {
+                string baseResult = $"Hash=[{Hash.ToShortString()}], BlobSize=[{BlobSize}]";
+                if (Succeeded)
+                {
+                    if (AlreadyInRedis)
+                    {
+                        return $"{baseResult}. PutBlob skipped: the hash is already in Redis.";
+                    }
+
+                    return $"{baseResult}. Successfully reserved space in {RedisKey}. NewCapacity=[{NewCapacityInRedis}].";
+                }
+
+                return $"{baseResult}. {ErrorMessage}";
+            }
+        }
+
         /// <summary>
         ///     Puts a blob into Redis. Will fail only if capacity cannot be reserved or if Redis fails in some way.
         /// </summary>
-        public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public Task<PutBlobResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
             return context.PerformOperationAsync(
                 _tracer,
@@ -68,21 +122,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
                     if (await _redis.KeyExistsAsync(context, key, context.Token))
                     {
-                        context.TraceDebug($"Hash=[{hash.ToShortString()}] is already in Redis. PutBlob skipped.");
+
                         _counters[RedisBlobAdapterCounters.SkippedBlobs].Increment();
-                        return BoolResult.Success;
+                        return new PutBlobResult(hash, blob.Length, alreadyInRedis: true);
                     }
 
-                    if (!await TryReserveAsync(context, blob.Length, hash))
+                    var reservationResult = await TryReserveAsync(context, blob.Length, hash);
+                    if (!reservationResult)
                     {
                         _counters[RedisBlobAdapterCounters.FailedReservations].Increment();
-                        return new BoolResult("Failed to reserve space for blob.");
+                        return new PutBlobResult(hash, blob.Length, reservationResult.ErrorMessage);
                     }
 
                     var success = await _redis.StringSetAsync(context, key, blob, _blobExpiryTime, StackExchange.Redis.When.Always, context.Token);
-                    return success ? BoolResult.Success : new BoolResult("Redis value could not be updated to upload blob.");
+                    return success
+                        ? new PutBlobResult(hash, blob.Length, alreadyInRedis: false, newCapacity: reservationResult.Value.newCapacity, redisKey: reservationResult.Value.key)
+                        : new PutBlobResult(hash, blob.Length, "Redis value could not be updated to upload blob.");
                 },
-                extraStartMessage: $"Size=[{blob.Length}]",
+                traceOperationStarted: false,
                 counter: _counters[RedisBlobAdapterCounters.PutBlob]);
         }
 
@@ -92,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         ///     Under this scheme, each blob will try to add its length to its box's capacity and fail if max capacity has
         /// been exceeded.
         /// </summary>
-        private async Task<bool> TryReserveAsync(OperationContext context, long byteCount, ContentHash hash)
+        private async Task<Result<(long newCapacity, string key)>> TryReserveAsync(OperationContext context, long byteCount, ContentHash hash)
         {
             var operationStart = _clock.UtcNow;
             var time = new DateTime(ticks: operationStart.Ticks / _blobExpiryTime.Ticks * _blobExpiryTime.Ticks);
@@ -100,8 +157,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             if (key == _lastFailedReservationKey)
             {
-                context.TraceDebug($"Skipping reservation for blob [{hash.ToShortString()}] because key [{key}] has already been used in a previous failed reservation");
-                return false;
+                string message = $"Skipping reservation for blob [{hash.ToShortString()}] because key [{key}] ran out of capacity.";
+                return Result.FromErrorMessage<(long newCapacity, string key)>(message);
             }
             
             var newUsedCapacity = await _redis.ExecuteBatchAsync(context, async batch =>
@@ -114,14 +171,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }, RedisOperation.StringIncrement);
 
             var couldReserve = newUsedCapacity <= _maxCapacityPerTimeBox;
-            context.TraceDebug($"{(couldReserve ? "Successfully reserved" : "Could not reserve")} {byteCount} bytes in {key} for {hash.ToShortString()}. New used capacity: {newUsedCapacity} bytes");
 
             if (!couldReserve)
             {
                 _lastFailedReservationKey = key;
+                string error = $"Could not reserve {byteCount} for {hash.ToShortString()} because key [{key}] ran out of capacity. Expected new capacity={newUsedCapacity} bytes, Max capacity={_maxCapacityPerTimeBox} bytes.";
+                return Result.FromErrorMessage<(long newCapacity, string key)>(error);
             }
 
-            return couldReserve;
+            return Result.Success((newUsedCapacity, key));
         }
 
         /// <summary>
@@ -144,7 +202,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     _counters[RedisBlobAdapterCounters.DownloadedBlobs].Increment();
                     return new Result<byte[]>(result);
                 },
-                extraEndMessage: result => result.Succeeded ? $"Size=[{result.Value.Length}]" : null,
+                traceOperationStarted: false,
+                extraEndMessage: result => result.Succeeded ? $"Hash=[{hash.ToShortString()}], Size=[{result.Value.Length}]" : $"Hash=[{hash.ToShortString()}]",
                 counter: _counters[RedisBlobAdapterCounters.GetBlob]);
         }
 

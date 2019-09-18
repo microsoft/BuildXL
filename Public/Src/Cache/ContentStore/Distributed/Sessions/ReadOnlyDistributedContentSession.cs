@@ -97,6 +97,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected readonly DistributedContentStoreSettings Settings;
 
         /// <summary>
+        /// This type is an entry point for all the operations. So it make sense to trace starts and stops.
+        /// </summary>
+        protected override bool TraceOperationStarted => true;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
         /// </summary>
         public ReadOnlyDistributedContentSession(

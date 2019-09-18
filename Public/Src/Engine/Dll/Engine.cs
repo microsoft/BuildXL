@@ -1041,6 +1041,7 @@ namespace BuildXL.Engine
                 // Enable fail fast for null reference exceptions caught by
                 // ExceptionUtilities.IsUnexpectedException
                 EngineEnvironmentSettings.FailFastOnNullReferenceException.Value = true;
+                EngineEnvironmentSettings.SkipExtraneousPins.TrySet(true);
 
                 mutableConfig.Engine.ScanChangeJournal = false;
                 mutableConfig.Schedule.IncrementalScheduling = false;

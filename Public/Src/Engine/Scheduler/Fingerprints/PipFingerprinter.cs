@@ -56,6 +56,7 @@ namespace BuildXL.Scheduler.Fingerprints
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
         private readonly Comparer<DirectoryArtifact> m_directoryComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
+        private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
 
         /// <summary>
         /// The tokenizer used to handle path roots
@@ -103,6 +104,7 @@ namespace BuildXL.Scheduler.Fingerprints
             PathExpander = pathExpander ?? PathExpander.Default;
             m_expandedPathFileArtifactComparer = new ExpandedPathFileArtifactComparer(m_pathTable.ExpandedPathComparer, pathOnly: false);
             m_directoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
+            m_environmentVariableComparer = Comparer<EnvironmentVariable>.Create((ev1, ev2) => { return ev1.Name.ToString(pathTable.StringTable).CompareTo(ev2.Name.ToString(pathTable.StringTable)); });
             m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
         }
 
@@ -293,7 +295,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 AddPipData(fingerprinter, "ResponseFileData", process.ResponseFileData);
             }
 
-            fingerprinter.AddCollection<EnvironmentVariable, ReadOnlyArray<EnvironmentVariable>>(
+            fingerprinter.AddOrderIndependentCollection<EnvironmentVariable, ReadOnlyArray<EnvironmentVariable>>(
                 "EnvironmentVariables",
                 process.EnvironmentVariables,
                 (fCollection, env) =>
@@ -306,7 +308,9 @@ namespace BuildXL.Scheduler.Fingerprints
                     {
                         AddPipData(fCollection, env.Name.ToString(m_pathTable.StringTable), env.Value);
                     }
-                });
+                },
+                m_environmentVariableComparer
+                );
 
             fingerprinter.Add("WarningTimeout", process.WarningTimeout.HasValue ? process.WarningTimeout.Value.Ticks : -1);
             fingerprinter.Add("Timeout", process.Timeout.HasValue ? process.Timeout.Value.Ticks : -1);

@@ -10,9 +10,10 @@ using Newtonsoft.Json.Linq;
 namespace BuildXL.FrontEnd.Nuget
 {
     /// <summary>
-    /// NugetCgManifestGenerator is used for creation and comparasion of the cgmanifest.json file.
-    /// cgmanifest.json contains all the Nuget Packages used in BuildXL with all their versions in use
-    /// cgmanifest.json is used by Component Governance in Cloud Build to determine security risks within components used by BuildXL
+    /// NugetCgManifestGenerator is used for creation and comparasion of a manifest file for Component Governance.
+    /// The cgmanifest file contains information about all the Nuget Packages used in BuildXL with all their versions in use
+    /// The cgmanifest file is used by Component Governance to determine security risks within components used by BuildXL
+    /// This manifest file will only be picked up for Component Governance if it is named "cgmanifest.json" as per cg documentation: https://docs.opensource.microsoft.com/tools/cg.html
     /// </summary>
     public sealed class NugetCgManifestGenerator
     {
@@ -25,8 +26,7 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         /// <summary>
-        /// Generates json as a string containing Nuget package and version information for all package used in BuildXL
-        /// To be stored in cgmanifest.json only if output is different from the existing cgmanifest.json
+        /// Generates json as an indented string containing all the NuGet package names and versions used in BuildXL
         /// </summary>
         public string GenerateCgManifestForPackages(MultiValueDictionary<string, Package> packages)
         {

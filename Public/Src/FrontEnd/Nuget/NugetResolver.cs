@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.Script
     /// </summary>
     public sealed class NugetResolver : DScriptSourceResolver
     {
-        internal const string NugetResolverName = "ComponentGovernance";
+        internal const string NugetResolverName = "CGManifestGenerator";
         private WorkspaceNugetModuleResolver m_nugetWorkspaceResolver;
 
         /// <nodoc />
@@ -96,22 +96,22 @@ namespace BuildXL.FrontEnd.Script
                     // CgManifest FileNotFound, log error and fail build
                     catch (DirectoryNotFoundException e)
                     {
-                        throw new BuildXLException(@"Cannot read cgmanifest.json file from disk", e);
+                        throw new BuildXLException(@"Cannot read cgmanifest file from disk", e);
                     }
                     catch (FileNotFoundException e)
                     {
-                        throw new BuildXLException(@"Cannot read cgmanifest.json file from disk", e);
+                        throw new BuildXLException(@"Cannot read cgmanifest file from disk", e);
                     }
                     if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                     {
-                        throw new BuildXLException(@"Existing cgmanifest.json file is outdated, please generate a new one using /GenerateCgManifestForNugets:path");
+                        throw new BuildXLException(@"Existing cgmanifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
                     }
 
                     m_resolverState = State.ResolverInitialized;
                     return true;
                 }
 
-                // GenerateCgManifestForNugets writes a new file, hence it will always be valid and does noty need validation
+                // GenerateCgManifestForNugets writes a new file when the old file does not match, hence it will always be valid and does not need validation
 
                 try
                 {
@@ -126,8 +126,6 @@ namespace BuildXL.FrontEnd.Script
 
                 if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                 {
-                    
-
                     if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
                     {
                         // Overwrite or create new cgmanifest.json file with updated nuget package and version info
@@ -140,7 +138,7 @@ namespace BuildXL.FrontEnd.Script
                         }
                         catch (BuildXLException e)
                         {
-                            throw new BuildXLException("Cannot write cgmanifest.json file to disk", e);
+                            throw new BuildXLException("Cannot write cgmanifest file to disk", e);
                         }
                     }
                 }

@@ -425,10 +425,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 path,
                                 fileMode,
                                 context.Token,
-                                (destinationPath, offset, endOffset) =>
-                                    Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) start."),
-                                (destinationPath, offset, endOffset) =>
-                                    Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) end."),
+                                logSegmentStart: (destinationPath, offset, endOffset) => { },
+                                logSegmentStop: (destinationPath, offset, endOffset) => { },
                                 (destinationPath, offset, endOffset, message) =>
                                     Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) failed. (message: {message})"),
                                 async (offset, token) =>

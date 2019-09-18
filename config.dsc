@@ -162,7 +162,7 @@ config({
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
                 { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
-                { id: "Microsoft.Data.OData", version: "5.8.2" },
+                { id: "Microsoft.Data.OData", version: "5.8.4" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
                 { id: "Microsoft.Data.Edm", version: "5.8.2" },

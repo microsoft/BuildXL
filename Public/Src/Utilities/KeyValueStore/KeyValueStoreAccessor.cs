@@ -162,7 +162,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             /// <summary>
             /// Value that indicates the store has no versioning or the versioning should be ignored when opening the store.
-            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool)"/>,
+            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool, Action{Failure})"/>,
             /// all stores using <see cref="KeyValueStoreAccessor"/> are also inherently versioned on <see cref="AccessorVersionHash"/>.
             /// </summary>
             public const int IgnoreStore = -1;
@@ -187,7 +187,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <summary>
         /// Opens or creates a key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
-        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool)"/>
+        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool, Action{Failure})"/>
         /// to open or create a versioned key value store.
         /// </summary>
         /// <param name="storeDirectory">
@@ -230,6 +230,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// </param>
         /// <param name="openBulkLoad">
         /// Have RocksDb open for bulk loading.
+        /// </param>
+        /// <param name="onStoreReset">
+        /// Callback for when the store gets reset due to `onFailureDeleteExistingStoreAndRetry`
         /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
             string storeDirectory,
@@ -304,6 +307,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// </param>
         /// <param name="openBulkLoad">
         /// Have RocksDb open for bulk loading.
+        /// </param>
+        /// <param name="onStoreReset">
+        /// Callback for when the store gets reset due to `onFailureDeleteExistingStoreAndRetry`
         /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
             string storeDirectory,

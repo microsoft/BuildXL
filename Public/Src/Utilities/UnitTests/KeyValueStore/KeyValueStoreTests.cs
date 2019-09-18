@@ -1206,12 +1206,16 @@ namespace Test.BuildXL.Engine.Cache
 
             // Fail due to invalid store version
             XAssert.IsFalse(KeyValueStoreAccessor.OpenWithVersioning(StoreDirectory, version).Succeeded);
-            
+
             // Make sure a new store is created due to invalid store
-            using (var accessor = KeyValueStoreAccessor.OpenWithVersioning(StoreDirectory, version, onFailureDeleteExistingStoreAndRetry: true).Result)
+            bool hasReset = false;
+            using (var accessor = KeyValueStoreAccessor.OpenWithVersioning(StoreDirectory, version, onFailureDeleteExistingStoreAndRetry: true,
+                onStoreReset: failure => { hasReset = true; }).Result)
             {
                 XAssert.IsTrue(accessor.CreatedNewStore);
             }
+
+            XAssert.IsTrue(hasReset);
         }
 
         [Fact]

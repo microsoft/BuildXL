@@ -23,6 +23,7 @@ namespace PrivatePackages {
         copyContentFiles: true,
         deployment: {
             contents: [
+                // Net 472
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Engine").withQualifier(net472Qualifier).Processes.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Pips").withQualifier(net472Qualifier).dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).InMemory.dll),
@@ -60,7 +61,30 @@ namespace PrivatePackages {
                         DetoursServices.Deployment.natives,
                         importFrom("BuildXL.Utilities").withQualifier(net472Qualifier).Branding.brandingManifest
                     ]
-                }
+                },
+                
+                // Net Core App 3.0
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Engine").withQualifier(winx64Qualifier).Processes.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Pips").withQualifier(winx64Qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).InMemory.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).Interfaces.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).BasicFilesystem.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).BuildCacheAdapter.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).MemoizationStoreAdapter.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).VerticalAggregator.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities.Instrumentation").withQualifier(winx64Qualifier).Common.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities.Instrumentation").withQualifier(winx64Qualifier).Tracing.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Collections.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Configuration.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Branding.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Interop.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Ipc.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).KeyValueStore.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Storage.dll),
+
+                ...importFrom("RuntimeContracts").withQualifier({ targetFramework: "netcoreapp3.0" }).pkg.runtime
             ]
         },
     });

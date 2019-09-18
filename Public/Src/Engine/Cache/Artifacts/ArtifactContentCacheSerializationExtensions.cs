@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -219,17 +220,20 @@ namespace BuildXL.Engine.Cache.Artifacts
             ContentHash contentHash,
             BoxRef<long> contentSize = null)
         {
-            Possible<ContentAvailabilityBatchResult, Failure> maybeAvailable =
-                await contentCache.TryLoadAvailableContentAsync(new[] { contentHash });
-            if (!maybeAvailable.Succeeded)
+            if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
-                return maybeAvailable.Failure;
-            }
+                Possible<ContentAvailabilityBatchResult, Failure> maybeAvailable =
+                    await contentCache.TryLoadAvailableContentAsync(new[] { contentHash });
+                if (!maybeAvailable.Succeeded)
+                {
+                    return maybeAvailable.Failure;
+                }
 
-            bool contentIsAvailable = maybeAvailable.Result.AllContentAvailable;
-            if (!contentIsAvailable)
-            {
-                return default(Stream);
+                bool contentIsAvailable = maybeAvailable.Result.AllContentAvailable;
+                if (!contentIsAvailable)
+                {
+                    return default(Stream);
+                }
             }
 
             var maybeStream = await contentCache.TryOpenContentStreamAsync(contentHash);

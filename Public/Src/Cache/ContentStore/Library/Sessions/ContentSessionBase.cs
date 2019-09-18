@@ -155,8 +155,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileRetries]),
-                    extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
-                    extraEndMessage: (_) => $"input={contentHash.ToShortString()}",
+                    traceOperationStarted: false,
+                    extraEndMessage: (_) => $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: _counters[ContentSessionBaseCounters.PlaceFile]));
         }
@@ -219,10 +219,10 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
-                    extraStartMessage: $"({path},{realizationMode},{hashType}) trusted=false",
+                    traceOperationStarted: false,
                     extraEndMessage: result =>
                     {
-                        var message = "trusted=false";
+                        var message = $"({path},{realizationMode}) trusted=false";
                         if (result.Metadata == null)
                         {
                             return message;
@@ -262,8 +262,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
-                    extraStartMessage: $"({path},{realizationMode},{contentHash.ToShortString()}) trusted=false",
-                    extraEndMessage: _ => "trusted=false",
+                    traceOperationStarted: false,
+                    extraEndMessage: _ => $"({path},{realizationMode}) trusted=false",
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: _counters[ContentSessionBaseCounters.PutFile]));
         }
@@ -295,7 +295,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutStreamCoreAsync(operationContext, hashType, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
-                    extraStartMessage: $"({hashType})",
+                    traceOperationStarted: false,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: _counters[ContentSessionBaseCounters.PutStream]));
         }
@@ -326,7 +326,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutStreamCoreAsync(operationContext, contentHash, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
-                    extraStartMessage: $"({contentHash.ToShortString()})",
+                    traceOperationStarted: false,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: _counters[ContentSessionBaseCounters.PutStream]));
         }

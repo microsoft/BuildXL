@@ -1,4 +1,4 @@
-BuildXL attempts to normalize file timestamps that spawned pips see. This is done to improve determinism and cache hit rates. Otherwise BuildXL would have to know which pips consider timestamps as inputs and which ones don't. Additionally, it would be expensive to preserve and coordinate timestamps of output files when they are produced multiple times in the same build graph or need to be transited across machines in distributed builds.
+On the Window splatform BuildXL attempts to normalize file timestamps that spawned pips see. This is done to improve determinism and cache hit rates. Otherwise BuildXL would have to know which pips consider timestamps as inputs and which ones don't. Additionally, it would be expensive to preserve and coordinate timestamps of output files when they are produced multiple times in the same build graph or need to be transited across machines in distributed builds.
 
 The mechanism by which timestamps are normalized is to change the timestamps in detoured file accesses.
 

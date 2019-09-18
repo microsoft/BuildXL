@@ -378,9 +378,9 @@ namespace BuildXL
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",
-                            sign => 
-                            { 
-                                // Noop for legacy command line compatibility 
+                            sign =>
+                            {
+                                // Noop for legacy command line compatibility
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableIncrementalFrontEnd",
@@ -494,8 +494,8 @@ namespace BuildXL
                             "kextEnableReportBatching",
                             sign => sandboxConfiguration.KextEnableReportBatching = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "kextMeasureProcessCpuTimes",
-                            sign => sandboxConfiguration.KextMeasureProcessCpuTimes = sign),
+                            "measureProcessCpuTimes",
+                            sign => sandboxConfiguration.MeasureProcessCpuTimes = sign),
                         OptionHandlerFactory.CreateOption(
                             "kextNumberOfConnections",
                             opt =>

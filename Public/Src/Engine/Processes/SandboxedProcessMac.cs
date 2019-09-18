@@ -13,6 +13,7 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
+using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
@@ -34,6 +35,8 @@ namespace BuildXL.Processes
             internal PerformanceCollector.Aggregation JobKernelTimeMs { get; } = new PerformanceCollector.Aggregation();
             internal PerformanceCollector.Aggregation JobUserTimeMs { get; } = new PerformanceCollector.Aggregation();
             internal PerformanceCollector.Aggregation PeakMemoryBytes { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation DiskBytesRead { get; } = new PerformanceCollector.Aggregation();
+            internal PerformanceCollector.Aggregation DiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
         }
 
         /// <summary>
@@ -48,7 +51,7 @@ namespace BuildXL.Processes
         private readonly Timer m_perfTimer;
         private readonly PerfAggregator m_perfAggregator;
 
-        private IEnumerable<ReportedProcess> m_survivingChildProcesses;
+        private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
 
         private long m_processKilledFlag = 0;
 
@@ -63,7 +66,7 @@ namespace BuildXL.Processes
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private ISandboxConnection SandboxConnectionKext => ProcessInfo.SandboxConnection;
+        private ISandboxConnection SandboxConnection => ProcessInfo.SandboxConnection;
 
         private TimeSpan ChildProcessTimeout => ProcessInfo.NestedProcessTerminationTimeout;
 
@@ -80,7 +83,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => SandboxConnectionKext.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
+        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
 
@@ -108,7 +111,7 @@ namespace BuildXL.Processes
 
             IgnoreReportedAccesses = ignoreReportedAccesses;
 
-            MeasureCpuTime =  overrideMeasureTime.HasValue
+            MeasureCpuTime = overrideMeasureTime.HasValue
                 ? overrideMeasureTime.Value
                 : info.SandboxConnection.MeasureCpuTimes;
 
@@ -129,7 +132,7 @@ namespace BuildXL.Processes
                 info.DetoursEventListener);
 
             m_pendingReports = new ActionBlock<AccessReport>(
-                HandleKextReport,
+                HandleAccessReport,
                 new ExecutionDataflowBlockOptions
                 {
                     EnsureOrdered = true,
@@ -137,17 +140,17 @@ namespace BuildXL.Processes
                     MaxDegreeOfParallelism = 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
                 });
 
-            // install a 'ProcessStarted' handler that informs the kext of the newly started process
+            // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
             ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
         }
 
         private static void UpdatePerfCounters(object state)
         {
-            var proc = (SandboxedProcessMac)state;
-            var buffer = new Process.ProcessTimesInfo();
+            var proc = (SandboxedProcessMac) state;
+            var buffer = new Process.ProcessResourceUsage();
 
             // get processor times for the root process itself
-            int errCode = Interop.MacOS.Process.GetProcessTimes(proc.ProcessId, ref buffer, includeChildProcesses: false);
+            int errCode = Interop.MacOS.Process.GetProcessResourceUsage(proc.ProcessId, ref buffer, includeChildProcesses: false);
             if (errCode == 0)
             {
                 proc.m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
@@ -155,17 +158,24 @@ namespace BuildXL.Processes
             }
 
             // get processor times for the process tree
-            errCode = Interop.MacOS.Process.GetProcessTimes(proc.ProcessId, ref buffer, includeChildProcesses: true);
+            errCode = Interop.MacOS.Process.GetProcessResourceUsage(proc.ProcessId, ref buffer, includeChildProcesses: true);
             if (errCode == 0)
             {
                 proc.m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
                 proc.m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
             }
 
+            // get memory usage for the process tree
             proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
 
+            proc.m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
+            proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
+
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
+            if (!proc.Killed)
+            {
+                proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
+            }
         }
 
         /// <inheritdoc />
@@ -186,12 +196,11 @@ namespace BuildXL.Processes
 
         /// <summary>
         /// Called right after the process starts executing.
-        /// 
+        ///
         /// Since we set the process file name to be /bin/sh and its arguments to be empty (<see cref="CreateProcess"/>),
         /// the process will effectively start in a "suspended" mode, with /bin/sh just waiting for some content to be
-        /// piped to its standard input.  Therefore, in this handler we first notify the kext of the new process (so that
-        /// the kext starts tracking it) and then just send the actual process command line to /bin/sh via its standard
-        /// input.
+        /// piped to its standard input.  Therefore, in this handler we first notify the sandbox of the new process (so that
+        /// it starts tracking it) and then just send the actual process command line to /bin/sh via its standard input.
         /// </summary>
         private async Task OnProcessStartedAsync()
         {
@@ -214,7 +223,7 @@ namespace BuildXL.Processes
                 m_perfTimer.Change(dueTime: TimeSpan.FromSeconds(0), period: Timeout.InfiniteTimeSpan);
             }
 
-            if (!SandboxConnectionKext.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
+            if (!SandboxConnection.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
             {
                 ThrowCouldNotStartProcess("Failed to notify kernel extension about process start, make sure the extension is loaded");
             }
@@ -234,6 +243,12 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
+        protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
+        {
+            return m_survivingChildProcesses;
+        }
+
+        /// <inheritdoc />
         protected override bool Killed => Interlocked.Read(ref m_processKilledFlag) > 0;
 
         /// <inheritdoc />
@@ -249,16 +264,10 @@ namespace BuildXL.Processes
             // Make sure this is done no more than once.
             if (incrementedValue == 1)
             {
-                m_pendingReports.Complete();
-                KillAllChildProcesses();
                 await base.KillAsync();
+                KillAllChildProcesses();
+                await m_pendingReports.Completion;
             }
-        }
-
-        /// <inheritdoc />
-        protected override IEnumerable<ReportedProcess> GetSurvivingChildProcesses()
-        {
-            return m_survivingChildProcesses;
         }
 
         /// <summary>
@@ -283,7 +292,7 @@ namespace BuildXL.Processes
 
             // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
             // which is done by the base class) so notify the sandbox kernel extension connection manager about it.
-            SandboxConnectionKext.NotifyProcessFinished(PipId, this);
+            SandboxConnection.NotifyProcessFinished(PipId, this);
 
             return IgnoreReportedAccesses ? null : m_reports;
         }
@@ -318,13 +327,12 @@ namespace BuildXL.Processes
         /// </summary>
         private IReadOnlyList<ReportedProcess> GetCurrentlyActiveProcesses()
         {
-            return m_reports.GetCurrentlyActiveProcesses();
+            return m_reports.GetActiveProcesses();
         }
 
         private void KillAllChildProcesses()
         {
-            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
-            NotifyPipTerminated(PipId, m_survivingChildProcesses);
+            NotifyPipTerminated(PipId, CoalesceProcesses(GetCurrentlyActiveProcesses()));
         }
 
         private bool ShouldWaitForSurvivingChildProcesses()
@@ -359,7 +367,7 @@ namespace BuildXL.Processes
             var distinctProcessIds = new HashSet<uint>(survivingChildProcesses.Select(p => p.ProcessId));
             foreach (var processId in distinctProcessIds)
             {
-                SandboxConnectionKext.NotifyPipProcessTerminated(pipId, (int)processId);
+                SandboxConnection.NotifyPipProcessTerminated(pipId, (int)processId);
             }
         }
 
@@ -399,6 +407,13 @@ namespace BuildXL.Processes
                 ? base.GetJobAccountingInfo()
                 : new JobObject.AccountingInformation
                 {
+                    IO = new IOCounters(new IO_COUNTERS()
+                    {
+                        ReadOperationCount = 1,
+                        WriteOperationCount = 1,
+                        ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
+                        WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
+                    }),
                     PeakMemoryUsage = (ulong)m_perfAggregator.PeakMemoryBytes.Maximum,
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
@@ -445,24 +460,28 @@ namespace BuildXL.Processes
                         break;
                     }
 
-                    var minEnqueueTime = SandboxConnectionKext.MinReportQueueEnqueueTime;
+                    var minEnqueueTime = SandboxConnection.MinReportQueueEnqueueTime;
 
                     // Ensure we time out if the sandbox stops sending any events within ReportQueueProcessTimeout
                     if (minEnqueueTime != 0 &&
-                        SandboxConnectionKext.CurrentDrought >= ReportQueueProcessTimeout &&
+                        SandboxConnection.CurrentDrought >= ReportQueueProcessTimeout &&
                         CurrentRunningTime() >= ReportQueueProcessTimeout)
                     {
                         LogProcessState("Process timed out due to inactivity from sandbox kernel extension report queue: " +
                                         $"the process has been running for {CurrentRunningTime().TotalSeconds} seconds " +
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
+
+                        m_pendingReports.Complete();
+                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
+
                         await KillAsync();
                         processTreeTimeoutSource.SetResult(Unit.Void);
                         break;
                     }
 
-                    if (HasProcessExitBeenReceived)
+                    if (HasProcessExitBeenReceived && !Killed)
                     {
-                        // Proceed if all queues are beyond the point when ProcessExit was received
+                        // Proceed if the event queue is beyond the point when ProcessExit was received
                         if (m_processExitTimeNs <= minEnqueueTime)
                         {
                             bool shouldWait = ShouldWaitForSurvivingChildProcesses();
@@ -472,13 +491,14 @@ namespace BuildXL.Processes
                             }
 
                             LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
+                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }
                         else
                         {
                             LogProcessState($"Process exited but still waiting for reports :: exit time = {m_processExitTimeNs}, " +
-                                $"min enqueue time = {minEnqueueTime}, current drought = {SandboxConnectionKext.CurrentDrought.TotalMilliseconds}ms");
+                                $"min enqueue time = {minEnqueueTime}, current drought = {SandboxConnection.CurrentDrought.TotalMilliseconds}ms");
                         }
                     }
 
@@ -495,7 +515,7 @@ namespace BuildXL.Processes
             m_sumOfReportQueueTimesUs += (long) (stats.DequeueTime - stats.EnqueueTime) / 1000;
         }
 
-        private void HandleKextReport(AccessReport report)
+        private void HandleAccessReport(AccessReport report)
         {
             if (ProcessInfo.FileAccessManifest.ReportFileAccesses)
             {
@@ -577,7 +597,7 @@ namespace BuildXL.Processes
 
         private void ReportFileAccess(ref AccessReport report)
         {
-            if (Killed)
+            if (ReportsCompleted())
             {
                 return;
             }

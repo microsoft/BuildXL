@@ -110,6 +110,13 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> HistoricMetadataCacheDefaultTimeToLive = CreateSetting("HistoricMetadataCacheDefaultTimeToLive", value => ParseInt32(value));
 
         /// <summary>
+        /// Specifies whether extraneous pins should be skipped such as pins before OpenStream/PutStream calls. Current pin is required before OpenStream/PlaceFile
+        /// for certain cache implementations (i.e. BasicFileSystemCache). This setting is used to disable this behavior in most cases where not applicable
+        /// until all cache implementations remove the need to pin before content retrieval operations.
+        /// </summary>
+        public static readonly Setting<bool> SkipExtraneousPins = CreateSetting("BuildXLSkipExtraneousPins", value => value == "1");
+
+        /// <summary>
         /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities 
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.
@@ -427,6 +434,20 @@ namespace BuildXL.Utilities.Configuration
                         m_value = Optional<T>.Invalid;
                         m_stringValue = Optional<string>.Invalid;
                     }
+                }
+            }
+
+            public bool TrySet(T value)
+            {
+                if (!string.IsNullOrEmpty(StringValue) || isExplicitlySet)
+                {
+                    // Can't set it already has an explicitly set value
+                    return false;
+                }
+                else
+                {
+                    Value = value;
+                    return true;
                 }
             }
 

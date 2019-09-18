@@ -85,7 +85,7 @@ namespace PrivatePackages {
                     ],
                 },
                 {
-                    subfolder: r`lib/netcoreapp3.0/win-x64`,
+                    subfolder: r`runtimes/win-x64/lib/netcoreapp3.0`,
                     contents: [
                         importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Collections.dll.runtime,
@@ -96,7 +96,7 @@ namespace PrivatePackages {
                     ],
                 },
                 {
-                    subfolder: r`lib/netcoreapp3.0/osx-x64`,
+                    subfolder: r`runtimes/osx-x64/lib/netcoreapp3.0/`,
                     contents: [
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Collections.dll.runtime,

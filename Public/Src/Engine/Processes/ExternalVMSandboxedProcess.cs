@@ -134,7 +134,7 @@ namespace BuildXL.Processes
             {
                 AbsolutePath = m_tool.ExecutablePath,
                 Arguments = m_tool.CreateArguments(GetSandboxedProcessInfoFile(), GetSandboxedProcessResultsFile()),
-                WorkingDirectory = SandboxedProcessInfo.WorkingDirectory
+                WorkingDirectory = GetOutputDirectory()
             };
 
             VmSerializer.SerializeToFile(RunRequestPath, runRequest);
@@ -143,7 +143,7 @@ namespace BuildXL.Processes
             string arguments = $"{VmCommands.Run} /{VmCommands.Params.InputJsonFile}:\"{RunRequestPath}\" /{VmCommands.Params.OutputJsonFile}:\"{RunOutputPath}\"";
             var process = CreateVmCommandProxyProcess(arguments);
 
-            LogExternalExecution($"call {m_vmInitializer.VmCommandProxy} {arguments}");
+            LogExternalExecution($"call (wd: {process.StartInfo.WorkingDirectory}) {m_vmInitializer.VmCommandProxy} {arguments}");
 
             m_processExecutor = new AsyncProcessExecutor(
                 process,
@@ -170,7 +170,7 @@ namespace BuildXL.Processes
                 {
                     FileName = m_vmInitializer.VmCommandProxy,
                     Arguments = arguments,
-                    WorkingDirectory = SandboxedProcessInfo.WorkingDirectory,
+                    WorkingDirectory = GetOutputDirectory(),
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,

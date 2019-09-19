@@ -34,6 +34,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(FileSystemContentSession));
 
+        /// <inheritdoc />
+        protected override bool TraceErrorsOnly => true; // This type adds nothing in terms of tracing. So configure it to trace errors only.
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="ReadOnlyFileSystemContentSession" /> class.
         /// </summary>
@@ -46,14 +49,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext operatonContext)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext operationContext)
         {
             await _pinContext.DisposeAsync();
 
-            var statsResult = await Store.GetStatsAsync(operatonContext);
+            var statsResult = await Store.GetStatsAsync(operationContext);
             if (statsResult.Succeeded)
             {
-                statsResult.CounterSet.LogOrderedNameValuePairs(s => Tracer.Debug(operatonContext, s));
+                statsResult.CounterSet.LogOrderedNameValuePairs(s => Tracer.Debug(operationContext, s));
             }
 
             return BoolResult.Success;

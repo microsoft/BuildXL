@@ -99,10 +99,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
                     if (AlreadyInRedis)
                     {
-                        return $"{baseResult}. PutBlob skipped: the hash is already in Redis.";
+                        return $"{baseResult}, AlreadyInRedis=[{AlreadyInRedis}]";
                     }
 
-                    return $"{baseResult}. Successfully reserved space in {RedisKey}. NewCapacity=[{NewCapacityInRedis}].";
+                    return $"{baseResult}. AlreadyInRedis=[False], RedisKey=[{RedisKey}], NewCapacity=[{NewCapacityInRedis}].";
                 }
 
                 return $"{baseResult}. {ErrorMessage}";

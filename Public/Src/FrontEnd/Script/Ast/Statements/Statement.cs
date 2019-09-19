@@ -31,7 +31,7 @@ namespace BuildXL.FrontEnd.Script.Statements
         /// Evaluates a sequence of statements in order. If a statement returns an error, continue, break,
         /// or return value, then that value is returned. Otherwise, returns undefined.
         /// </summary>
-        protected static EvaluationResult EvalStatements([NotNull]Context context, [NotNull]ModuleLiteral env, [NotNull]IReadOnlyList<Statement> statements, EvaluationStackFrame args)
+        protected static EvaluationResult EvalStatements([JetBrains.Annotations.NotNull]Context context, [JetBrains.Annotations.NotNull]ModuleLiteral env, [JetBrains.Annotations.NotNull]IReadOnlyList<Statement> statements, EvaluationStackFrame args)
         {
             for (int i = 0; i < statements.Count; ++i)
             {

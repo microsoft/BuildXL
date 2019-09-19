@@ -70,7 +70,7 @@ namespace TypeScript.Net
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public T First()
         {
             var result = FirstOrDefault();

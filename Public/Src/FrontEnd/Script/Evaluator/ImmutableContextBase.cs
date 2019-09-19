@@ -165,7 +165,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <summary>
         /// Queue that manages pool of evaluation tasks.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IEvaluationScheduler EvaluationScheduler { get; }
 
         private RelativePath m_relativePath;
@@ -267,11 +267,11 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         internal ImmutableContextBase(
             ContextTree contextTree,
             ImmutableContextBase parent,
-            [NotNull]ModuleLiteral module,
+            [JetBrains.Annotations.NotNull]ModuleLiteral module,
             TopLevelValueInfo topLevelValueInfo,
             FileType fileType,
             EvaluatorConfiguration configuration,
-            [NotNull]IEvaluationScheduler evaluationScheduler)
+            [JetBrains.Annotations.NotNull]IEvaluationScheduler evaluationScheduler)
         {
             Contract.Requires(contextTree.IsValid);
             Contract.Requires(parent == null || parent.ContextTree == contextTree);

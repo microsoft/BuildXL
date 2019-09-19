@@ -15,19 +15,19 @@ namespace BuildXL.Pips
         /// <summary>
         /// Retrieves all pips that have been scheduled
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IEnumerable<Pip> RetrieveScheduledPips();
 
         /// <summary>
         /// Retrieves the immediate dependencies of a pip
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip);
 
         /// <summary>
         /// Retrieves the immediate dependents of a pip
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip);
 
         /// <summary>

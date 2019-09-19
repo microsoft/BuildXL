@@ -72,13 +72,13 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public virtual bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip) => AddPip(copyFile);
+        public virtual bool AddCopyFile([JetBrains.Annotations.NotNull] CopyFile copyFile, PipId valuePip) => AddPip(copyFile);
 
         /// <inheritdoc />
-        public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
+        public bool AddIpcPip([JetBrains.Annotations.NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
 
         /// <inheritdoc />
-        public bool AddModule([NotNull] ModulePip module)
+        public bool AddModule([JetBrains.Annotations.NotNull] ModulePip module)
         {
             return AddPip(module);
         }
@@ -87,13 +87,13 @@ namespace BuildXL.Scheduler.Graph
         public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency) => true;
 
         /// <inheritdoc />
-        public bool AddOutputValue([NotNull] ValuePip value) => AddPip(value);
+        public bool AddOutputValue([JetBrains.Annotations.NotNull] ValuePip value) => AddPip(value);
 
         /// <inheritdoc />
-        public virtual bool AddProcess([NotNull] Process process, PipId valuePip) => AddPip(process);
+        public virtual bool AddProcess([JetBrains.Annotations.NotNull] Process process, PipId valuePip) => AddPip(process);
 
         /// <inheritdoc />
-        public virtual DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
+        public virtual DirectoryArtifact AddSealDirectory([JetBrains.Annotations.NotNull] SealDirectory sealDirectory, PipId valuePip)
         {
             AddPip(sealDirectory);
             DirectoryArtifact artifactForNewSeal;
@@ -119,13 +119,13 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public bool AddSpecFile([NotNull] SpecFilePip specFile) => AddPip(specFile);
+        public bool AddSpecFile([JetBrains.Annotations.NotNull] SpecFilePip specFile) => AddPip(specFile);
 
         /// <inheritdoc />
         public bool AddValueValueDependency(in ValuePip.ValueDependency valueDependency) => true;
 
         /// <inheritdoc />
-        public virtual bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip) => AddPip(writeFile);
+        public virtual bool AddWriteFile([JetBrains.Annotations.NotNull] WriteFile writeFile, PipId valuePip) => AddPip(writeFile);
 
         /// <inheritdoc />
         public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
@@ -167,7 +167,7 @@ namespace BuildXL.Scheduler.Graph
         public IIpcMoniker GetApiServerMoniker() => m_lazyApiServerMoniker.Value;
 
         /// <inheritdoc />
-        public GraphPatchingStatistics PartiallyReloadGraph([NotNull] HashSet<AbsolutePath> affectedSpecs) => default;
+        public GraphPatchingStatistics PartiallyReloadGraph([JetBrains.Annotations.NotNull] HashSet<AbsolutePath> affectedSpecs) => default;
 
         /// <inheritdoc />
         public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot) => SealDirectoryTable.CreateSharedOpaqueDirectoryWithNewSealId(directoryArtifactRoot);

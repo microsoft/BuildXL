@@ -138,7 +138,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// Qualifier should be the Unqualified for all uninstantiated modules, and all non-top-level modules.
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public QualifierValue Qualifier => m_qualifier;
 
         /// <summary>
@@ -658,7 +658,7 @@ namespace BuildXL.FrontEnd.Script.Values
         }
 
         /// <summary>
-        /// Evaluates given <paramref name="binding"/> that corresponds to field <paramref name="name"/> 
+        /// Evaluates given <paramref name="binding"/> that corresponds to field <paramref name="name"/>
         /// (<seealso cref="GetOrEvalField(Context, SymbolAtom, bool, ModuleLiteral, LineInfo)"/>)
         /// </summary>
         public EvaluationResult GetOrEvalFieldBinding(Context context, SymbolAtom name, ModuleBinding binding, LineInfo callingLocation)
@@ -690,7 +690,7 @@ namespace BuildXL.FrontEnd.Script.Values
 
             return thunk.LegacyEvaluateWithNewNamedContext(context, this, contextName, binding.Location);
         }
-        
+
         /// <summary>
         /// Creates an encoding consisting of 0s and 1s, one for each character in <paramref name="name"/>,
         /// where '0' means that the corresponding character in <paramref name="name"/> is lower case,
@@ -838,7 +838,7 @@ namespace BuildXL.FrontEnd.Script.Values
             return GetBindings(m_bindings, key => key.ToString(context.StringTable)).Concat(
                 GetBindings(m_nsBindings, key => key.ToString(context.FrontEndContext.SymbolTable)));
         }
-        
+
         /// <nodoc />
         public virtual IEnumerable<KeyValuePair<string, ModuleBinding>> GetAllBindings(SymbolTable symbolTable)
         {

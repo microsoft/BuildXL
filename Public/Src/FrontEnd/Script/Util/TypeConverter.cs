@@ -43,7 +43,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// * <see cref="BuildXL.Utilities.DirectoryArtifact"/>,
         /// * <see cref="string"/> (if the conversion to AbsolutePath succeeds).
         /// </remarks>
-        public static bool TryConvertAbsolutePath([NotNull] object value, [NotNull] PathTable pathTable, out AbsolutePath result)
+        public static bool TryConvertAbsolutePath([JetBrains.Annotations.NotNull] object value, [JetBrains.Annotations.NotNull] PathTable pathTable, out AbsolutePath result)
         {
             var type = value.GetType().TypeHandle;
 
@@ -82,7 +82,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// Converts <paramref name="value"/> to a <see cref="RelativePath"/>.
         /// Returns false if the input is invalid.
         /// </summary>
-        public static bool TryConvertRelativePath([NotNull]object value, [NotNull]StringTable stringTable, out RelativePath result)
+        public static bool TryConvertRelativePath([JetBrains.Annotations.NotNull]object value, [JetBrains.Annotations.NotNull]StringTable stringTable, out RelativePath result)
         {
             if (value is RelativePath)
             {
@@ -108,7 +108,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// Converts <paramref name="value"/> to a <see cref="PathAtom"/>.
         /// Returns false if the input is invalid.
         /// </summary>
-        public static bool TryConvertPathAtom([NotNull] object value, [NotNull] StringTable stringTable, out PathAtom result)
+        public static bool TryConvertPathAtom([JetBrains.Annotations.NotNull] object value, [JetBrains.Annotations.NotNull] StringTable stringTable, out PathAtom result)
         {
             if (value is PathAtom)
             {
@@ -135,7 +135,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
         [SuppressMessage("Microsoft.Design", "CA1007:UseGenericsWhereAppropriate")]
-        public static bool TryConvertNumber([NotNull]object value, [NotNull]TypeInfo targetType, out object result)
+        public static bool TryConvertNumber([JetBrains.Annotations.NotNull]object value, [JetBrains.Annotations.NotNull]TypeInfo targetType, out object result)
         {
             Contract.Requires(value != null);
             Contract.Requires(targetType != null);
@@ -175,7 +175,7 @@ namespace BuildXL.FrontEnd.Script.Util
         /// It means, that if the enum Foo {V = 0}, the conversion of a number 1 to the Foo will return false;
         /// </remarks>
         [SuppressMessage("Microsoft.Design", "CA1007:UseGenericsWhereAppropriate")]
-        public static bool TryConvertEnumValue(int value, [NotNull]Type targetEnumType, out object enumValue)
+        public static bool TryConvertEnumValue(int value, [JetBrains.Annotations.NotNull]Type targetEnumType, out object enumValue)
         {
             enumValue = null;
 

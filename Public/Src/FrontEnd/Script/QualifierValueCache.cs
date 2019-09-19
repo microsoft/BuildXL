@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Adds a given <paramref name="value"/> to the cache if the corresponding qualifier id is less then a size of the cache.
         /// </summary>
-        public bool TryAdd([NotNull]QualifierValue value)
+        public bool TryAdd([JetBrains.Annotations.NotNull]QualifierValue value)
         {
             if (value.QualifierId.Id < CacheSize)
             {

@@ -26,7 +26,7 @@ namespace BuildXL.Ide.LanguageServer
         private readonly GetAppState m_getAppState;
 
         /// <nodoc/>
-        public AddSourceFileToProjectProvider([NotNull] GetAppState getAppState)
+        public AddSourceFileToProjectProvider([JetBrains.Annotations.NotNull] GetAppState getAppState)
         {
             m_getAppState = getAppState;
         }
@@ -163,7 +163,7 @@ namespace BuildXL.Ide.LanguageServer
 
                         // Now check the configurations to see if the any match as there
                         // can be different names (such as "references", "sources", etc.) as
-                        // well as different functions, etc.                
+                        // well as different functions, etc.
 
                         AddSourceFileConfiguration singleConfiguration = null;
 

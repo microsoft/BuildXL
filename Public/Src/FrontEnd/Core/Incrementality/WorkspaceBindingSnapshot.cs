@@ -80,11 +80,11 @@ namespace BuildXL.FrontEnd.Core.Incrementality
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ISpecBindingState[] Specs { get; }
 
         /// <nodoc />
-        public WorkspaceBindingSnapshot([NotNull]ISpecBindingState[] specs, PathTable pathTable)
+        public WorkspaceBindingSnapshot([JetBrains.Annotations.NotNull]ISpecBindingState[] specs, PathTable pathTable)
         {
             Contract.Requires(specs != null, "specs != null");
 

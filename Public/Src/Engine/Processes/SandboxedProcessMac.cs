@@ -390,7 +390,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         internal override CpuTimes GetCpuTimes()
         {
             return !MeasureCpuTime

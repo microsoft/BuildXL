@@ -30,13 +30,13 @@ namespace BuildXL.FrontEnd.Script.Declarations
         /// <summary>
         /// Signature of the current function.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public CallSignature CallSignature { get; }
 
         /// <summary>
         /// Function body.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public Statement Body { get; }
 
         /// <summary>
@@ -56,15 +56,15 @@ namespace BuildXL.FrontEnd.Script.Declarations
         /// <summary>
         /// Function calls statistics..
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public FunctionStatistic Statistic { get; }
 
         /// <nodoc />
         public FunctionDeclaration(
-            [NotNull] IReadOnlyList<SymbolAtom> @namespace,
+            [JetBrains.Annotations.NotNull] IReadOnlyList<SymbolAtom> @namespace,
             SymbolAtom name,
-            [NotNull] CallSignature callSignature,
-            [NotNull] Statement body,
+            [JetBrains.Annotations.NotNull] CallSignature callSignature,
+            [JetBrains.Annotations.NotNull] Statement body,
             int captures,
             int locals,
             DeclarationFlags modifier,

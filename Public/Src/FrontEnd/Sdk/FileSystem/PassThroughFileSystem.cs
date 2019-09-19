@@ -12,7 +12,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.FrontEnd.Sdk.FileSystem
 {
     /// <summary>
-    /// Provides layer around File System (System.IO.File, System.IO.Directory) 
+    /// Provides layer around File System (System.IO.File, System.IO.Directory)
     /// </summary>
     public class PassThroughFileSystem : IFileSystem
     {
@@ -35,18 +35,18 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         }
 
         /// <inheritdoc />
-        public virtual IEnumerable<AbsolutePath> EnumerateDirectories(AbsolutePath path, [NotNull] string pattern = "*", bool recursive = false)
+        public virtual IEnumerable<AbsolutePath> EnumerateDirectories(AbsolutePath path, [JetBrains.Annotations.NotNull] string pattern = "*", bool recursive = false)
         {
             return EnumerateHelper(path, pattern, recursive, directories: true);
         }
 
         /// <nodoc />
-        public virtual IEnumerable<AbsolutePath> EnumerateFiles(AbsolutePath path, [NotNull] string pattern = "*", bool recursive = false)
+        public virtual IEnumerable<AbsolutePath> EnumerateFiles(AbsolutePath path, [JetBrains.Annotations.NotNull] string pattern = "*", bool recursive = false)
         {
             return EnumerateHelper(path, pattern, recursive, directories: false);
         }
 
-        private IEnumerable<AbsolutePath> EnumerateHelper(AbsolutePath path, [NotNull] string pattern = "*", bool recursive = false, bool directories = false)
+        private IEnumerable<AbsolutePath> EnumerateHelper(AbsolutePath path, [JetBrains.Annotations.NotNull] string pattern = "*", bool recursive = false, bool directories = false)
         {
             var entries = new List<AbsolutePath>();
 

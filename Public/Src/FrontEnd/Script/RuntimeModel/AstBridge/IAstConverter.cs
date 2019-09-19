@@ -147,7 +147,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Converts source file.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         SourceFileParseResult ConvertSourceFile();
 
         /// <summary>

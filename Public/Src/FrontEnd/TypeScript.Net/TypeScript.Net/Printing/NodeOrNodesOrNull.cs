@@ -33,7 +33,7 @@ namespace TypeScript.Net.Printing
         public INodeArray<INode> Nodes { get; }
 
         /// <nodoc/>
-        public NodeOrNodesOrNull([NotNull] INode node)
+        public NodeOrNodesOrNull([JetBrains.Annotations.NotNull] INode node)
         {
             Contract.Requires(node != null);
 
@@ -42,7 +42,7 @@ namespace TypeScript.Net.Printing
         }
 
         /// <nodoc/>
-        public NodeOrNodesOrNull([NotNull] INodeArray<INode> nodes)
+        public NodeOrNodesOrNull([JetBrains.Annotations.NotNull] INodeArray<INode> nodes)
         {
             Contract.Requires(nodes != null);
             Node = null;

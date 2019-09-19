@@ -209,7 +209,7 @@ namespace TypeScript.Net.DScript
             return GetDefinitionFromSymbol(typeDeclaration.Symbol, typeDeclaration);
         }
 
-        private Possible<IReadOnlyList<SymbolLocation>> GetDefinitionFromSymbol([NotNull]ISymbol symbol, INode node)
+        private Possible<IReadOnlyList<SymbolLocation>> GetDefinitionFromSymbol([JetBrains.Annotations.NotNull]ISymbol symbol, INode node)
         {
             var result = new List<SymbolLocation>();
             var declarations = symbol.GetDeclarations();

@@ -37,273 +37,273 @@ public interface IJPathVisitor<Result> : IParseTreeVisitor<Result> {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitIntBinaryOp([NotNull] JPathParser.IntBinaryOpContext context);
+	Result VisitIntBinaryOp([JetBrains.Annotations.NotNull] JPathParser.IntBinaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.intUnaryOp"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitIntUnaryOp([NotNull] JPathParser.IntUnaryOpContext context);
+	Result VisitIntUnaryOp([JetBrains.Annotations.NotNull] JPathParser.IntUnaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.boolBinaryOp"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitBoolBinaryOp([NotNull] JPathParser.BoolBinaryOpContext context);
+	Result VisitBoolBinaryOp([JetBrains.Annotations.NotNull] JPathParser.BoolBinaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.logicBinaryOp"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitLogicBinaryOp([NotNull] JPathParser.LogicBinaryOpContext context);
+	Result VisitLogicBinaryOp([JetBrains.Annotations.NotNull] JPathParser.LogicBinaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.logicUnaryOp"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitLogicUnaryOp([NotNull] JPathParser.LogicUnaryOpContext context);
+	Result VisitLogicUnaryOp([JetBrains.Annotations.NotNull] JPathParser.LogicUnaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.arrayBinaryOp"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitArrayBinaryOp([NotNull] JPathParser.ArrayBinaryOpContext context);
+	Result VisitArrayBinaryOp([JetBrains.Annotations.NotNull] JPathParser.ArrayBinaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.anyBinaryOp"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitAnyBinaryOp([NotNull] JPathParser.AnyBinaryOpContext context);
+	Result VisitAnyBinaryOp([JetBrains.Annotations.NotNull] JPathParser.AnyBinaryOpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinaryIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitBinaryIntExpr([NotNull] JPathParser.BinaryIntExprContext context);
+	Result VisitBinaryIntExpr([JetBrains.Annotations.NotNull] JPathParser.BinaryIntExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>ExprIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitExprIntExpr([NotNull] JPathParser.ExprIntExprContext context);
+	Result VisitExprIntExpr([JetBrains.Annotations.NotNull] JPathParser.ExprIntExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>UnaryIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitUnaryIntExpr([NotNull] JPathParser.UnaryIntExprContext context);
+	Result VisitUnaryIntExpr([JetBrains.Annotations.NotNull] JPathParser.UnaryIntExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSubIntExpr([NotNull] JPathParser.SubIntExprContext context);
+	Result VisitSubIntExpr([JetBrains.Annotations.NotNull] JPathParser.SubIntExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinaryBoolExpr</c>
 	/// labeled alternative in <see cref="JPathParser.boolExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitBinaryBoolExpr([NotNull] JPathParser.BinaryBoolExprContext context);
+	Result VisitBinaryBoolExpr([JetBrains.Annotations.NotNull] JPathParser.BinaryBoolExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubBoolExpr</c>
 	/// labeled alternative in <see cref="JPathParser.boolExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSubBoolExpr([NotNull] JPathParser.SubBoolExprContext context);
+	Result VisitSubBoolExpr([JetBrains.Annotations.NotNull] JPathParser.SubBoolExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BoolLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitBoolLogicExpr([NotNull] JPathParser.BoolLogicExprContext context);
+	Result VisitBoolLogicExpr([JetBrains.Annotations.NotNull] JPathParser.BoolLogicExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>UnaryLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitUnaryLogicExpr([NotNull] JPathParser.UnaryLogicExprContext context);
+	Result VisitUnaryLogicExpr([JetBrains.Annotations.NotNull] JPathParser.UnaryLogicExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSubLogicExpr([NotNull] JPathParser.SubLogicExprContext context);
+	Result VisitSubLogicExpr([JetBrains.Annotations.NotNull] JPathParser.SubLogicExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinaryLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitBinaryLogicExpr([NotNull] JPathParser.BinaryLogicExprContext context);
+	Result VisitBinaryLogicExpr([JetBrains.Annotations.NotNull] JPathParser.BinaryLogicExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>PropertyId</c>
 	/// labeled alternative in <see cref="JPathParser.prop"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitPropertyId([NotNull] JPathParser.PropertyIdContext context);
+	Result VisitPropertyId([JetBrains.Annotations.NotNull] JPathParser.PropertyIdContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>EscId</c>
 	/// labeled alternative in <see cref="JPathParser.prop"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitEscId([NotNull] JPathParser.EscIdContext context);
+	Result VisitEscId([JetBrains.Annotations.NotNull] JPathParser.EscIdContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>IdSelector</c>
 	/// labeled alternative in <see cref="JPathParser.selector"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitIdSelector([NotNull] JPathParser.IdSelectorContext context);
+	Result VisitIdSelector([JetBrains.Annotations.NotNull] JPathParser.IdSelectorContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>UnionSelector</c>
 	/// labeled alternative in <see cref="JPathParser.selector"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitUnionSelector([NotNull] JPathParser.UnionSelectorContext context);
+	Result VisitUnionSelector([JetBrains.Annotations.NotNull] JPathParser.UnionSelectorContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>StrLitExpr</c>
 	/// labeled alternative in <see cref="JPathParser.literal"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitStrLitExpr([NotNull] JPathParser.StrLitExprContext context);
+	Result VisitStrLitExpr([JetBrains.Annotations.NotNull] JPathParser.StrLitExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>RegExLitExpr</c>
 	/// labeled alternative in <see cref="JPathParser.literal"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitRegExLitExpr([NotNull] JPathParser.RegExLitExprContext context);
+	Result VisitRegExLitExpr([JetBrains.Annotations.NotNull] JPathParser.RegExLitExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>IntLitExpr</c>
 	/// labeled alternative in <see cref="JPathParser.literal"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitIntLitExpr([NotNull] JPathParser.IntLitExprContext context);
+	Result VisitIntLitExpr([JetBrains.Annotations.NotNull] JPathParser.IntLitExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>MapExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitMapExpr([NotNull] JPathParser.MapExprContext context);
+	Result VisitMapExpr([JetBrains.Annotations.NotNull] JPathParser.MapExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FuncOptExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitFuncOptExpr([NotNull] JPathParser.FuncOptExprContext context);
+	Result VisitFuncOptExpr([JetBrains.Annotations.NotNull] JPathParser.FuncOptExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>CardinalityExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitCardinalityExpr([NotNull] JPathParser.CardinalityExprContext context);
+	Result VisitCardinalityExpr([JetBrains.Annotations.NotNull] JPathParser.CardinalityExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>LetExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitLetExpr([NotNull] JPathParser.LetExprContext context);
+	Result VisitLetExpr([JetBrains.Annotations.NotNull] JPathParser.LetExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSubExpr([NotNull] JPathParser.SubExprContext context);
+	Result VisitSubExpr([JetBrains.Annotations.NotNull] JPathParser.SubExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitBinExpr([NotNull] JPathParser.BinExprContext context);
+	Result VisitBinExpr([JetBrains.Annotations.NotNull] JPathParser.BinExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>RangeExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitRangeExpr([NotNull] JPathParser.RangeExprContext context);
+	Result VisitRangeExpr([JetBrains.Annotations.NotNull] JPathParser.RangeExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>IndexExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitIndexExpr([NotNull] JPathParser.IndexExprContext context);
+	Result VisitIndexExpr([JetBrains.Annotations.NotNull] JPathParser.IndexExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>AssignExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitAssignExpr([NotNull] JPathParser.AssignExprContext context);
+	Result VisitAssignExpr([JetBrains.Annotations.NotNull] JPathParser.AssignExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SelectorExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSelectorExpr([NotNull] JPathParser.SelectorExprContext context);
+	Result VisitSelectorExpr([JetBrains.Annotations.NotNull] JPathParser.SelectorExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FilterExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitFilterExpr([NotNull] JPathParser.FilterExprContext context);
+	Result VisitFilterExpr([JetBrains.Annotations.NotNull] JPathParser.FilterExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>RootExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitRootExpr([NotNull] JPathParser.RootExprContext context);
+	Result VisitRootExpr([JetBrains.Annotations.NotNull] JPathParser.RootExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>PipeExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitPipeExpr([NotNull] JPathParser.PipeExprContext context);
+	Result VisitPipeExpr([JetBrains.Annotations.NotNull] JPathParser.PipeExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>VarExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitVarExpr([NotNull] JPathParser.VarExprContext context);
+	Result VisitVarExpr([JetBrains.Annotations.NotNull] JPathParser.VarExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>LiteralExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitLiteralExpr([NotNull] JPathParser.LiteralExprContext context);
+	Result VisitLiteralExpr([JetBrains.Annotations.NotNull] JPathParser.LiteralExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FuncAppExprParen</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitFuncAppExprParen([NotNull] JPathParser.FuncAppExprParenContext context);
+	Result VisitFuncAppExprParen([JetBrains.Annotations.NotNull] JPathParser.FuncAppExprParenContext context);
 }
 } // namespace BuildXL.Execution.Analyzer.JPath

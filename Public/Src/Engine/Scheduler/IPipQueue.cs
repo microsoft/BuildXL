@@ -77,7 +77,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Enqueues the given <see cref="RunnablePip"/>
         /// </summary>
-        void Enqueue([NotNull]RunnablePip runnablePip);
+        void Enqueue([JetBrains.Annotations.NotNull]RunnablePip runnablePip);
 
         /// <summary>
         /// Finalizes the dispatcher so that external work will not be scheduled

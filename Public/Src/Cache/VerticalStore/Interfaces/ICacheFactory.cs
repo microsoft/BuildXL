@@ -20,11 +20,11 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="cacheData">ICacheConfigData input data</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <returns>Cache object or a Failure</returns>
-        Task<Possible<ICache, Failure>> InitializeCacheAsync([NotNull]ICacheConfigData cacheData, Guid activityId = default(Guid));
+        Task<Possible<ICache, Failure>> InitializeCacheAsync([JetBrains.Annotations.NotNull]ICacheConfigData cacheData, Guid activityId = default(Guid));
 
         /// <summary>
         /// Validates a configuration object.
         /// </summary>
-        IEnumerable<Failure> ValidateConfiguration([NotNull]ICacheConfigData cacheData);
+        IEnumerable<Failure> ValidateConfiguration([JetBrains.Annotations.NotNull]ICacheConfigData cacheData);
     }
 }

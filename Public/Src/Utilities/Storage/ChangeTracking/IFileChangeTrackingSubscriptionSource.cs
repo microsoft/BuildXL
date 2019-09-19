@@ -30,8 +30,8 @@ namespace BuildXL.Storage.ChangeTracking
         /// which also needs an identity).
         /// </remarks>
         FileChangeTrackingSubscription TryTrackChangesToFile(
-            [NotNull]SafeFileHandle handle,
-            [NotNull]string path,
+            [JetBrains.Annotations.NotNull]SafeFileHandle handle,
+            [JetBrains.Annotations.NotNull]string path,
             VersionedFileIdentity? maybeIdentity = null,
             TrackingUpdateMode updateMode = TrackingUpdateMode.Preserve);
 
@@ -41,14 +41,14 @@ namespace BuildXL.Storage.ChangeTracking
         /// and <c>FindNextFile</c> would see a different set of names).
         /// </summary>
         Possible<FileChangeTrackingSet.EnumerationResult> TryEnumerateDirectoryAndTrackMembership(
-            [NotNull]string path,
-            [NotNull]Action<string, FileAttributes> handleEntry);
+            [JetBrains.Annotations.NotNull]string path,
+            [JetBrains.Annotations.NotNull]Action<string, FileAttributes> handleEntry);
 
         /// <summary>
         /// Probes for the existence of a path, while also tracking the result (e.g. if a file does not exist and is later created, that change will be detected).
         /// If probing succeeds but tracking fails, a <see cref="PathExistence"/> is still returned (the underlying tracker should record that tracking is incomplete).
         /// </summary>
-        Possible<PathExistence> TryProbeAndTrackPath([NotNull]string path, bool? isReadOnly = default);
+        Possible<PathExistence> TryProbeAndTrackPath([JetBrains.Annotations.NotNull]string path, bool? isReadOnly = default);
 
         /// <summary>
         /// Tracks a non-existent relative path chain from a tracked parent root.
@@ -57,6 +57,6 @@ namespace BuildXL.Storage.ChangeTracking
         /// ADVANCED. Use with care. This should only because if the relative has been guaranteed to be non-existent
         /// because the parent path non-existent or enumerated and the child path was non-existent
         /// </summary>
-        bool TrackAbsentRelativePath([NotNull]string trackedParentPath, [NotNull]string relativeAbsentPath);
+        bool TrackAbsentRelativePath([JetBrains.Annotations.NotNull]string trackedParentPath, [JetBrains.Annotations.NotNull]string relativeAbsentPath);
     }
 }

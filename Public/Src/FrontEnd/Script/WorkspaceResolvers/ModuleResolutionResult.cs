@@ -21,7 +21,7 @@ namespace BuildXL.FrontEnd.Script
         /// <summary>
         /// Mappings from package id's to package locations and descriuptors.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ConcurrentDictionary<PackageId, Package> Packages { get; }
 
         /// <summary>
@@ -54,8 +54,8 @@ namespace BuildXL.FrontEnd.Script
         /// Creates a successful ModuleResolutionResult
         /// </summary>
         public static ModuleResolutionResult CreateModuleResolutionResult(
-            [NotNull] ConcurrentDictionary<AbsolutePath, List<Package>> packageDirectories,
-            [NotNull] ConcurrentDictionary<PackageId, Package> packages,
+            [JetBrains.Annotations.NotNull] ConcurrentDictionary<AbsolutePath, List<Package>> packageDirectories,
+            [JetBrains.Annotations.NotNull] ConcurrentDictionary<PackageId, Package> packages,
             [CanBeNull] Package configAsPackage)
         {
             return new ModuleResolutionResult(packages: packages, configAsPackage: configAsPackage, success: true);

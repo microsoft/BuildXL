@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Script.Values
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public object Body { get; }
 
         /// <nodoc />

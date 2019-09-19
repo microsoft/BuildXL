@@ -24,78 +24,78 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Exposed for simplicity reasons. Will be removed.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         ITypeChecker TypeChecker { get; }
 
         /// <summary>
         /// Returns all diagnostics that occurred during type checking for a given file.
         /// </summary>
-        [NotNull]
-        IEnumerable<Diagnostic> GetTypeCheckingDiagnosticsForFile([NotNull]ISourceFile file);
+        [JetBrains.Annotations.NotNull]
+        IEnumerable<Diagnostic> GetTypeCheckingDiagnosticsForFile([JetBrains.Annotations.NotNull]ISourceFile file);
 
         /// <summary>
         /// Returns all diagnostics that occurred during semantic binding and type checking.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IEnumerable<Diagnostic> GetAllSemanticDiagnostics();
 
         /// <summary>
         /// Returns a file name that corresponds to a module referenced by <paramref name="sourceFile"/>.
         /// </summary>
         [CanBeNull]
-        string TryGetResolvedModulePath([NotNull] ISourceFile sourceFile, [NotNull]string referencedModuleName);
+        string TryGetResolvedModulePath([JetBrains.Annotations.NotNull] ISourceFile sourceFile, [JetBrains.Annotations.NotNull]string referencedModuleName);
 
         /// <summary>
         /// Returns a set of file indices that depend on the current one.
         /// </summary>
-        [NotNull]
-        RoaringBitSet GetFileDependentFilesOf([NotNull]ISourceFile sourceFile);
+        [JetBrains.Annotations.NotNull]
+        RoaringBitSet GetFileDependentFilesOf([JetBrains.Annotations.NotNull]ISourceFile sourceFile);
 
         /// <summary>
         /// Returns a set of file indices that the current file depend on.
         /// </summary>
-        [NotNull]
-        RoaringBitSet GetFileDependenciesOf([NotNull]ISourceFile sourceFile);
+        [JetBrains.Annotations.NotNull]
+        RoaringBitSet GetFileDependenciesOf([JetBrains.Annotations.NotNull]ISourceFile sourceFile);
 
         /// <summary>
         /// Returns a set of modules that the current file depends on.
         /// </summary>
-        [NotNull]
-        HashSet<string> GetModuleDependentsOf([NotNull]ISourceFile sourceFile);
+        [JetBrains.Annotations.NotNull]
+        HashSet<string> GetModuleDependentsOf([JetBrains.Annotations.NotNull]ISourceFile sourceFile);
 
         /// <summary>
         /// Returns a qualifier type for a given node.
         /// </summary>
         [CanBeNull]
-        IType GetCurrentQualifierType([NotNull]INode currentNode);
+        IType GetCurrentQualifierType([JetBrains.Annotations.NotNull]INode currentNode);
 
         /// <summary>
         /// Returns the qualifier declaration for a given node.
         /// </summary>
         [CanBeNull]
-        INode GetCurrentQualifierDeclaration([NotNull]INode currentNode);
+        INode GetCurrentQualifierDeclaration([JetBrains.Annotations.NotNull]INode currentNode);
 
         /// <summary>
         /// Returns the template symbol in a scope with respect to the given given node, or null if the template is not found.
         /// </summary>
         [CanBeNull]
-        ISymbol GetTemplateAtLocation([NotNull]INode node);
+        ISymbol GetTemplateAtLocation([JetBrains.Annotations.NotNull]INode node);
 
         /// <summary>
         /// Returns true if a given symbol points to a namespace.
         /// </summary>
-        bool IsNamespaceType([NotNull]ISymbol symbol);
+        bool IsNamespaceType([JetBrains.Annotations.NotNull]ISymbol symbol);
 
         /// <summary>
         /// Returns true if a resolved type of a given symbol is a namespace.
         /// </summary>
-        bool IsNamespaceType([NotNull]INode currentNode);
+        bool IsNamespaceType([JetBrains.Annotations.NotNull]INode currentNode);
 
         /// <summary>
         /// Returns the fully qualified name of a symbol.
         /// </summary>
-        [NotNull]
-        string GetFullyQualifiedName([NotNull]ISymbol symbol);
+        [JetBrains.Annotations.NotNull]
+        string GetFullyQualifiedName([JetBrains.Annotations.NotNull]ISymbol symbol);
 
         /// <summary>
         /// Resolves a symbol alias
@@ -105,22 +105,22 @@ namespace BuildXL.FrontEnd.Workspaces
         /// is the standard behavior of the checker. A DScript-specific functionality is available
         /// if resolveAliasRecursively is set to false so the resolution goes one hop at a time.
         /// </remarks>
-        ISymbol GetAliasedSymbol([NotNull]ISymbol symbol, bool resolveAliasRecursively = true);
+        ISymbol GetAliasedSymbol([JetBrains.Annotations.NotNull]ISymbol symbol, bool resolveAliasRecursively = true);
 
         /// <summary>
         /// Returns a value symbol of an identifier in the short-hand property assignment.
         /// </summary>
-        ISymbol GetShorthandAssignmentValueSymbol([NotNull]INode location);
+        ISymbol GetShorthandAssignmentValueSymbol([JetBrains.Annotations.NotNull]INode location);
 
         /// <summary>
         /// Returns the symbol associated with a node
         /// </summary>
-        ISymbol GetSymbolAtLocation([NotNull]INode node);
+        ISymbol GetSymbolAtLocation([JetBrains.Annotations.NotNull]INode node);
 
         /// <summary>
         /// Returns the type associated to the node
         /// </summary>
-        IType GetTypeAtLocation([NotNull]INode node);
+        IType GetTypeAtLocation([JetBrains.Annotations.NotNull]INode node);
 
         /// <summary>
         /// Returns a string representation of a type if possible
@@ -131,7 +131,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// Returns a string representation of the return type of a signature declaration if possible
         /// </summary>
         bool TryPrintReturnTypeOfSignature(
-            [NotNull]ISignatureDeclaration signatureDeclaration,
+            [JetBrains.Annotations.NotNull]ISignatureDeclaration signatureDeclaration,
             out string result,
             INode enclosingDeclaration = null,
             TypeFormatFlags flags = TypeFormatFlags.None);
@@ -139,7 +139,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Notifies a semantic model that the user filter was applied and a given set of specs were filtered out.
         /// </summary>
-        void FilterWasApplied([NotNull]HashSet<ISourceFile> filteredOutSpecs);
+        void FilterWasApplied([JetBrains.Annotations.NotNull]HashSet<ISourceFile> filteredOutSpecs);
 
         /// <summary>
         /// Returns a first declaration for a given symbol.
@@ -160,7 +160,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns true if there was no issues building semantic model.
         /// </summary>
-        public static bool Success([NotNull]this ISemanticModel semanticModel)
+        public static bool Success([JetBrains.Annotations.NotNull]this ISemanticModel semanticModel)
         {
             return !semanticModel.GetAllSemanticDiagnostics().Any();
         }

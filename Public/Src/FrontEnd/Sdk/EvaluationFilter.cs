@@ -21,19 +21,19 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Value names that can be resolved in a string form. If empty, all values must be resolved.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<string> ValueNamesToResolveAsStrings { get; }
 
         /// <summary>
         /// Value definition roots to resolve in a string form. If empty, all definition sites must be resolved.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<string> ValueDefinitionRootsToResolveAsStrings { get; }
 
         /// <summary>
         /// Module to resolve in a string form.  If empty, all modules must be resolved.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<string> ModulesToResolveAsStrings { get; }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Value names that can be resolved. If empty, all values must be resolved
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyList<FullSymbol> ValueNamesToResolve { get; }
 
         IReadOnlyList<string> IEvaluationFilter.ValueNamesToResolveAsStrings => ValueNamesToResolve.Select(n => n.ToString(m_symbolTable)).ToList();
@@ -126,7 +126,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Value definition roots to resolve. If empty, all definition sites must be resolved.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyList<AbsolutePath> ValueDefinitionRootsToResolve { get; }
 
         IReadOnlyList<string> IEvaluationFilter.ValueDefinitionRootsToResolveAsStrings => ValueDefinitionRootsToResolve.Select(r => r.ToString(m_pathTable)).ToList();
@@ -134,7 +134,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Modules to resolve. If empty, all definition sites must be resolved.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyList<StringId> ModulesToResolve { get; }
 
         IReadOnlyList<string> IEvaluationFilter.ModulesToResolveAsStrings => ModulesToResolve.Select(m => m.ToString(m_pathTable.StringTable)).ToList();
@@ -205,8 +205,8 @@ namespace BuildXL.FrontEnd.Sdk
         {
             var thisFilter = this as IEvaluationFilter;
             return new DeserializedEvaluationFilter(
-                thisFilter.ValueNamesToResolveAsStrings, 
-                thisFilter.ValueDefinitionRootsToResolveAsStrings, 
+                thisFilter.ValueNamesToResolveAsStrings,
+                thisFilter.ValueDefinitionRootsToResolveAsStrings,
                 thisFilter.ModulesToResolveAsStrings);
         }
 

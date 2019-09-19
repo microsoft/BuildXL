@@ -18,7 +18,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Serializes the front end snapshot to the given writer.
         /// </summary>
-        public static void SerializeWorkspaceBindingSnapshot([NotNull] IWorkspaceBindingSnapshot snapshot, [NotNull] BuildXLWriter writer, PathTable pathTable)
+        public static void SerializeWorkspaceBindingSnapshot([JetBrains.Annotations.NotNull] IWorkspaceBindingSnapshot snapshot, [JetBrains.Annotations.NotNull] BuildXLWriter writer, PathTable pathTable)
         {
             // File format:
             // 1. # specs
@@ -43,8 +43,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Deserializes the state of all specs from the given reader.
         /// </summary>
-        [NotNull]
-        public static SpecBindingState[] DeserializeSpecStates([NotNull] BuildXLReader reader, PathTable pathTable, int? length = null)
+        [JetBrains.Annotations.NotNull]
+        public static SpecBindingState[] DeserializeSpecStates([JetBrains.Annotations.NotNull] BuildXLReader reader, PathTable pathTable, int? length = null)
         {
             if (length == null)
             {
@@ -69,7 +69,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Serializes the spec binding state to the given writer.
         /// </summary>
-        public static void SerializeSpecBindingState([NotNull] ISourceFileBindingState sourceFile, [NotNull] BuildXLWriter writer, PathTable pathTable)
+        public static void SerializeSpecBindingState([JetBrains.Annotations.NotNull] ISourceFileBindingState sourceFile, [JetBrains.Annotations.NotNull] BuildXLWriter writer, PathTable pathTable)
         {
             // 1. spec path
             // 2. bit vector of spec dependencies
@@ -88,7 +88,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Serializes the binding state to the given writer.
         /// </summary>
-        public static void SerializeBindingSymbols([NotNull] SpecBindingSymbols bindingSymbols, [NotNull] BuildXLWriter writer)
+        public static void SerializeBindingSymbols([JetBrains.Annotations.NotNull] SpecBindingSymbols bindingSymbols, [JetBrains.Annotations.NotNull] BuildXLWriter writer)
         {
             SerializeSymbols(bindingSymbols.DeclaredSymbols, writer);
             SerializeSymbols(bindingSymbols.ReferencedSymbols, writer);
@@ -113,8 +113,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Deserializes the spec fingerprint from the given reader.
         /// </summary>
-        [NotNull]
-        public static SpecBindingSymbols DeserializeBindingFingerprint([NotNull] BuildXLReader reader)
+        [JetBrains.Annotations.NotNull]
+        public static SpecBindingSymbols DeserializeBindingFingerprint([JetBrains.Annotations.NotNull] BuildXLReader reader)
         {
             var declaredSymbols = ReadBindingSymbols(reader);
             var referencedSymbols = ReadBindingSymbols(reader);
@@ -142,7 +142,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Serializes the <see cref="RoaringBitSet"/> to the given writer.
         /// </summary>
-        public static void SerializeBitSet([NotNull]RoaringBitSet bitArray, [NotNull]BuildXLWriter writer)
+        public static void SerializeBitSet([JetBrains.Annotations.NotNull]RoaringBitSet bitArray, [JetBrains.Annotations.NotNull]BuildXLWriter writer)
         {
             var set = bitArray.MaterializedSet;
             writer.WriteCompact(set.Count);
@@ -155,8 +155,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <summary>
         /// Deserializes the <see cref="RoaringBitSet"/> from the given reader.
         /// </summary>
-        [NotNull]
-        public static RoaringBitSet DeserializeBitVector([NotNull]BuildXLReader reader)
+        [JetBrains.Annotations.NotNull]
+        public static RoaringBitSet DeserializeBitVector([JetBrains.Annotations.NotNull]BuildXLReader reader)
         {
             var size = reader.ReadInt32Compact();
             var set = new HashSet<int>();

@@ -182,7 +182,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// Fields may need to be evaluated. This happens in the case of module fields that have thunked expressions.
         /// </remarks>
-        public abstract EvaluationResult GetOrEvalField([NotNull]Context context, StringId name, bool recurs, [NotNull]ModuleLiteral origin, LineInfo location);
+        public abstract EvaluationResult GetOrEvalField([JetBrains.Annotations.NotNull]Context context, StringId name, bool recurs, [JetBrains.Annotations.NotNull]ModuleLiteral origin, LineInfo location);
 
         /// <summary>
         /// Evaluates a right-hand side expression if not evaluated yet.
@@ -197,14 +197,14 @@ namespace BuildXL.FrontEnd.Script.Values
         /// Gets the right-hand side of a name.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1043:UseIntegralOrStringArgumentForIndexers")]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public abstract EvaluationResult this[SymbolAtom name] { get; }
 
         /// <summary>
         /// Gets the right-hand side of a name.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1043:UseIntegralOrStringArgumentForIndexers")]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public abstract EvaluationResult this[StringId name] { get; }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// Handles the left-wins-over-right behavior when custom functions are specified
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         protected MergeFunction GetMergeFunction(Context context, EvaluationStackFrame captures, ObjectLiteral leftObject, EvaluationResult rightObject)
         {
             // If the left object has a custom merge, that trumps the other cases

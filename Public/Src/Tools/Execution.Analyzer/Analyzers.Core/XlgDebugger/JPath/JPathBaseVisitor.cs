@@ -43,7 +43,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitIntBinaryOp([NotNull] JPathParser.IntBinaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitIntBinaryOp([JetBrains.Annotations.NotNull] JPathParser.IntBinaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.intUnaryOp"/>.
 	/// <para>
@@ -53,7 +53,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitIntUnaryOp([NotNull] JPathParser.IntUnaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitIntUnaryOp([JetBrains.Annotations.NotNull] JPathParser.IntUnaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.boolBinaryOp"/>.
 	/// <para>
@@ -63,7 +63,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitBoolBinaryOp([NotNull] JPathParser.BoolBinaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitBoolBinaryOp([JetBrains.Annotations.NotNull] JPathParser.BoolBinaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.logicBinaryOp"/>.
 	/// <para>
@@ -73,7 +73,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitLogicBinaryOp([NotNull] JPathParser.LogicBinaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitLogicBinaryOp([JetBrains.Annotations.NotNull] JPathParser.LogicBinaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.logicUnaryOp"/>.
 	/// <para>
@@ -83,7 +83,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitLogicUnaryOp([NotNull] JPathParser.LogicUnaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitLogicUnaryOp([JetBrains.Annotations.NotNull] JPathParser.LogicUnaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.arrayBinaryOp"/>.
 	/// <para>
@@ -93,7 +93,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitArrayBinaryOp([NotNull] JPathParser.ArrayBinaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitArrayBinaryOp([JetBrains.Annotations.NotNull] JPathParser.ArrayBinaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="JPathParser.anyBinaryOp"/>.
 	/// <para>
@@ -103,7 +103,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitAnyBinaryOp([NotNull] JPathParser.AnyBinaryOpContext context) { return VisitChildren(context); }
+	public virtual Result VisitAnyBinaryOp([JetBrains.Annotations.NotNull] JPathParser.AnyBinaryOpContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinaryIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
@@ -114,7 +114,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitBinaryIntExpr([NotNull] JPathParser.BinaryIntExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitBinaryIntExpr([JetBrains.Annotations.NotNull] JPathParser.BinaryIntExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>ExprIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
@@ -125,7 +125,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitExprIntExpr([NotNull] JPathParser.ExprIntExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitExprIntExpr([JetBrains.Annotations.NotNull] JPathParser.ExprIntExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>UnaryIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
@@ -136,7 +136,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitUnaryIntExpr([NotNull] JPathParser.UnaryIntExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitUnaryIntExpr([JetBrains.Annotations.NotNull] JPathParser.UnaryIntExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubIntExpr</c>
 	/// labeled alternative in <see cref="JPathParser.intExpr"/>.
@@ -147,7 +147,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitSubIntExpr([NotNull] JPathParser.SubIntExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitSubIntExpr([JetBrains.Annotations.NotNull] JPathParser.SubIntExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinaryBoolExpr</c>
 	/// labeled alternative in <see cref="JPathParser.boolExpr"/>.
@@ -158,7 +158,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitBinaryBoolExpr([NotNull] JPathParser.BinaryBoolExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitBinaryBoolExpr([JetBrains.Annotations.NotNull] JPathParser.BinaryBoolExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubBoolExpr</c>
 	/// labeled alternative in <see cref="JPathParser.boolExpr"/>.
@@ -169,7 +169,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitSubBoolExpr([NotNull] JPathParser.SubBoolExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitSubBoolExpr([JetBrains.Annotations.NotNull] JPathParser.SubBoolExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BoolLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
@@ -180,7 +180,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitBoolLogicExpr([NotNull] JPathParser.BoolLogicExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitBoolLogicExpr([JetBrains.Annotations.NotNull] JPathParser.BoolLogicExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>UnaryLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
@@ -191,7 +191,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitUnaryLogicExpr([NotNull] JPathParser.UnaryLogicExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitUnaryLogicExpr([JetBrains.Annotations.NotNull] JPathParser.UnaryLogicExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
@@ -202,7 +202,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitSubLogicExpr([NotNull] JPathParser.SubLogicExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitSubLogicExpr([JetBrains.Annotations.NotNull] JPathParser.SubLogicExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinaryLogicExpr</c>
 	/// labeled alternative in <see cref="JPathParser.logicExpr"/>.
@@ -213,7 +213,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitBinaryLogicExpr([NotNull] JPathParser.BinaryLogicExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitBinaryLogicExpr([JetBrains.Annotations.NotNull] JPathParser.BinaryLogicExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>PropertyId</c>
 	/// labeled alternative in <see cref="JPathParser.prop"/>.
@@ -224,7 +224,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitPropertyId([NotNull] JPathParser.PropertyIdContext context) { return VisitChildren(context); }
+	public virtual Result VisitPropertyId([JetBrains.Annotations.NotNull] JPathParser.PropertyIdContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>EscId</c>
 	/// labeled alternative in <see cref="JPathParser.prop"/>.
@@ -235,7 +235,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitEscId([NotNull] JPathParser.EscIdContext context) { return VisitChildren(context); }
+	public virtual Result VisitEscId([JetBrains.Annotations.NotNull] JPathParser.EscIdContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>IdSelector</c>
 	/// labeled alternative in <see cref="JPathParser.selector"/>.
@@ -246,7 +246,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitIdSelector([NotNull] JPathParser.IdSelectorContext context) { return VisitChildren(context); }
+	public virtual Result VisitIdSelector([JetBrains.Annotations.NotNull] JPathParser.IdSelectorContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>UnionSelector</c>
 	/// labeled alternative in <see cref="JPathParser.selector"/>.
@@ -257,7 +257,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitUnionSelector([NotNull] JPathParser.UnionSelectorContext context) { return VisitChildren(context); }
+	public virtual Result VisitUnionSelector([JetBrains.Annotations.NotNull] JPathParser.UnionSelectorContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>StrLitExpr</c>
 	/// labeled alternative in <see cref="JPathParser.literal"/>.
@@ -268,7 +268,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitStrLitExpr([NotNull] JPathParser.StrLitExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitStrLitExpr([JetBrains.Annotations.NotNull] JPathParser.StrLitExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>RegExLitExpr</c>
 	/// labeled alternative in <see cref="JPathParser.literal"/>.
@@ -279,7 +279,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitRegExLitExpr([NotNull] JPathParser.RegExLitExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitRegExLitExpr([JetBrains.Annotations.NotNull] JPathParser.RegExLitExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>IntLitExpr</c>
 	/// labeled alternative in <see cref="JPathParser.literal"/>.
@@ -290,7 +290,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitIntLitExpr([NotNull] JPathParser.IntLitExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitIntLitExpr([JetBrains.Annotations.NotNull] JPathParser.IntLitExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>MapExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -301,7 +301,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitMapExpr([NotNull] JPathParser.MapExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitMapExpr([JetBrains.Annotations.NotNull] JPathParser.MapExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FuncOptExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -312,7 +312,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitFuncOptExpr([NotNull] JPathParser.FuncOptExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitFuncOptExpr([JetBrains.Annotations.NotNull] JPathParser.FuncOptExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>CardinalityExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -323,7 +323,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitCardinalityExpr([NotNull] JPathParser.CardinalityExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitCardinalityExpr([JetBrains.Annotations.NotNull] JPathParser.CardinalityExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>LetExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -334,7 +334,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitLetExpr([NotNull] JPathParser.LetExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitLetExpr([JetBrains.Annotations.NotNull] JPathParser.LetExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SubExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -345,7 +345,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitSubExpr([NotNull] JPathParser.SubExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitSubExpr([JetBrains.Annotations.NotNull] JPathParser.SubExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -356,7 +356,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitBinExpr([NotNull] JPathParser.BinExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitBinExpr([JetBrains.Annotations.NotNull] JPathParser.BinExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>RangeExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -367,7 +367,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitRangeExpr([NotNull] JPathParser.RangeExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitRangeExpr([JetBrains.Annotations.NotNull] JPathParser.RangeExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>IndexExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -378,7 +378,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitIndexExpr([NotNull] JPathParser.IndexExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitIndexExpr([JetBrains.Annotations.NotNull] JPathParser.IndexExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>AssignExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -389,7 +389,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitAssignExpr([NotNull] JPathParser.AssignExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitAssignExpr([JetBrains.Annotations.NotNull] JPathParser.AssignExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SelectorExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -400,7 +400,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitSelectorExpr([NotNull] JPathParser.SelectorExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitSelectorExpr([JetBrains.Annotations.NotNull] JPathParser.SelectorExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FilterExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -411,7 +411,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitFilterExpr([NotNull] JPathParser.FilterExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitFilterExpr([JetBrains.Annotations.NotNull] JPathParser.FilterExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>RootExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -422,7 +422,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitRootExpr([NotNull] JPathParser.RootExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitRootExpr([JetBrains.Annotations.NotNull] JPathParser.RootExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>PipeExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -433,7 +433,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitPipeExpr([NotNull] JPathParser.PipeExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitPipeExpr([JetBrains.Annotations.NotNull] JPathParser.PipeExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>VarExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -444,7 +444,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitVarExpr([NotNull] JPathParser.VarExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitVarExpr([JetBrains.Annotations.NotNull] JPathParser.VarExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>LiteralExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -455,7 +455,7 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitLiteralExpr([NotNull] JPathParser.LiteralExprContext context) { return VisitChildren(context); }
+	public virtual Result VisitLiteralExpr([JetBrains.Annotations.NotNull] JPathParser.LiteralExprContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FuncAppExprParen</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -466,6 +466,6 @@ public partial class JPathBaseVisitor<Result> : AbstractParseTreeVisitor<Result>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitFuncAppExprParen([NotNull] JPathParser.FuncAppExprParenContext context) { return VisitChildren(context); }
+	public virtual Result VisitFuncAppExprParen([JetBrains.Annotations.NotNull] JPathParser.FuncAppExprParenContext context) { return VisitChildren(context); }
 }
 } // namespace BuildXL.Execution.Analyzer.JPath

@@ -68,7 +68,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
 
             // Intentionally using all the sources. This will allow to use symbols in configuration and list files.
             var sources = Workspace.GetAllSourceFiles();
-            
+
             var referencedSymbols = FindReferenceSymbols(
                 sources,
                 sourceFile,
@@ -204,7 +204,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         private IReadOnlyList<ReferencedSymbol> GetReferencesForPathLikeLiterals(ILiteralLikeNode literal, IReadOnlyList<ISourceFile> sourceFiles, CancellationToken cancellationToken)
         {
             return FindReferencesAndNotify(
-                sourceFiles, 
+                sourceFiles,
                 sourceFile =>
                 {
                     // Path-like literals are case insensitive.
@@ -317,7 +317,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             // Try to get the smallest valid scope that we can limit our search to;
             // otherwise we'll need to search globally (i.e. include each file).
             var scope = GetSymbolScope(symbol);
-            
+
             // Maps from a symbol ID to the ReferencedSymbol entry in 'result'.
             var symbolToIndex = new Dictionary<int, int>();
 
@@ -445,7 +445,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             throw new NotImplementedException();
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private static List<int> GetPossibleSymbolReferencePositions(
             ISourceFile sourceFile,
             string symbolName,
@@ -1048,7 +1048,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
         private ReferencedSymbol GetReferencedSymbol(ISymbol symbol, Dictionary<int, int> symbolToIndex, List<ReferencedSymbol> result)
         {
             var symbolId = TypeChecker.GetSymbolId(symbol);
-            
+
             if (!symbolToIndex.TryGetValue(symbolId, out var index))
             {
                 index = result.Count;

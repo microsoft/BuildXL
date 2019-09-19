@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Script
         /// True if the instance is came from the object's pool.
         /// </summary>
         private bool m_fromThePool;
-        
+
         /// <summary>
         /// Offset in the evaluation stack frame that separates captured variables from the arguments of the function.
         /// </summary>
@@ -89,7 +89,7 @@ namespace BuildXL.FrontEnd.Script
         /// Creates a frame from an array of evaluated values.
         /// Used only by the debugger.
         /// </summary>
-        public static EvaluationStackFrame UnsafeFrom([NotNull]EvaluationResult[] args)
+        public static EvaluationStackFrame UnsafeFrom([JetBrains.Annotations.NotNull]EvaluationResult[] args)
         {
             var result = new EvaluationStackFrame(args.Length, fromPool:false);
             result.Initialize(default(PooledObjectWrapper<EvaluationStackFrame>), args.Length, args.Length, args);

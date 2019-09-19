@@ -20,7 +20,7 @@ namespace TypeScript.Net.Parsing
         private readonly int m_serializedAstLength;
 
         /// <nodoc />
-        public PublicSurfaceParser(BuildXL.Utilities.PathTable pathTable, [NotNull]byte[] serializedAstContent, int serializedAstLength)
+        public PublicSurfaceParser(BuildXL.Utilities.PathTable pathTable, [JetBrains.Annotations.NotNull]byte[] serializedAstContent, int serializedAstLength)
             : base(pathTable)
         {
             Contract.Requires(serializedAstContent != null);

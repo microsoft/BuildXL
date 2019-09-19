@@ -21,11 +21,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public ModuleId Id { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Name { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string DisplayName { get; }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <remarks>
         /// If the module does not have a version, this will be string.Empty
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Version { get; }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 id: ModuleId.Create(table, moduleName, version),
                 name: moduleName,
                 displayName: moduleName,
-                version: version, 
+                version: version,
                 resolverKind: resolver.Kind,
                 resolverName: resolver.Name);
         }
@@ -143,8 +143,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 id: id,
                 name: moduleName,
                 displayName: moduleName,
-                version: version, 
-                resolverKind: KnownResolverKind.DScriptResolverKind, 
+                version: version,
+                resolverKind: KnownResolverKind.DScriptResolverKind,
                 resolverName: resolverName ?? "DScriptTestModule");
         }
     }

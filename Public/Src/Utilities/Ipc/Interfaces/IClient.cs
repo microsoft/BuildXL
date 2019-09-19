@@ -26,7 +26,7 @@ namespace BuildXL.Ipc.Interfaces
         /// Configuration used to create this client (via <see cref="IIpcProvider.GetClient"/>.
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IClientConfig Config { get; }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace BuildXL.Ipc.Interfaces
         ///
         /// Otherwise, the result is what is received from the server.
         /// </returns>
-        [NotNull]
-        Task<IIpcResult> Send([NotNull]IIpcOperation operation);
+        [JetBrains.Annotations.NotNull]
+        Task<IIpcResult> Send([JetBrains.Annotations.NotNull]IIpcOperation operation);
     }
 }

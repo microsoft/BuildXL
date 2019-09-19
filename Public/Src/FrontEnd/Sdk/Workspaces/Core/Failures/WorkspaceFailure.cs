@@ -85,11 +85,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public class ParsingFailure : WorkspaceFailure
     {
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ISourceFile SourceFile { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ModuleDescriptor OwningModule { get; }
 
         /// <nodoc/>
@@ -102,7 +102,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public virtual IReadOnlyList<Diagnostic> ParseDiagnostics => SourceFile.ParseDiagnostics;
 
         /// <inheritdoc/>
@@ -193,11 +193,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public sealed class BindingFailure : WorkspaceFailure
     {
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ISourceFile SourceFile { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ModuleDescriptor OwningModule { get; }
 
         /// <nodoc/>
@@ -211,7 +211,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyList<Diagnostic> BindingDiagnostics => SourceFile.BindDiagnostics;
 
         /// <inheritdoc/>
@@ -228,7 +228,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Returns a list of parsing or binding diagnostics, or empty list if the <paramref name="failure"/> is not a binding or parsing failure.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
-        public static IReadOnlyList<Diagnostic> TryGetDiagnostics([NotNull] this Failure failure)
+        public static IReadOnlyList<Diagnostic> TryGetDiagnostics([JetBrains.Annotations.NotNull] this Failure failure)
         {
             Contract.Requires(failure != null, "failure != null");
 
@@ -259,7 +259,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
             /// <nodoc/>
             IoException,
-            
+
             /// <nodoc/>
             ContentUnavailable,
         }

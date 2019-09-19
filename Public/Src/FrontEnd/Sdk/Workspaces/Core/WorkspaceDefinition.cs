@@ -32,13 +32,13 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// Set of modules for the current workspace.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyCollection<ModuleDefinition> Modules { get; }
 
         /// <summary>
         /// Set of specs with an owning modules.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyList<SpecWithOwningModule> Specs { get; }
 
         /// <summary>

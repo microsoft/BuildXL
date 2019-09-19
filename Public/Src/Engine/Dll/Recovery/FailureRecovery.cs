@@ -11,7 +11,7 @@ using JetBrains.Annotations;
 namespace BuildXL.Engine.Recovery
 {
     /// <summary>
-    /// Abstract class representing recovery action in the presence of previous build failure. 
+    /// Abstract class representing recovery action in the presence of previous build failure.
     /// </summary>
     public abstract class FailureRecovery
     {
@@ -51,14 +51,14 @@ namespace BuildXL.Engine.Recovery
         /// <param name="exception">Exception that causes the failure.</param>
         /// <param name="rootCause"><see cref="ExceptionRootCause"/></param>
         /// <returns>True iff failure should be marked.</returns>
-        public abstract bool ShouldMarkFailure([NotNull] Exception exception, ExceptionRootCause rootCause);
+        public abstract bool ShouldMarkFailure([JetBrains.Annotations.NotNull] Exception exception, ExceptionRootCause rootCause);
 
         /// <summary>
         /// Marks for failure.
         /// </summary>
         /// <param name="exception">Exception that causes the failure.</param>
         /// <returns>Succeeds if marking was successful.</returns>
-        public abstract Possible<Unit> MarkFailure([NotNull] Exception exception);
+        public abstract Possible<Unit> MarkFailure([JetBrains.Annotations.NotNull] Exception exception);
 
         /// <summary>
         /// Condition to determine whether the recovery action should be run.
@@ -78,7 +78,7 @@ namespace BuildXL.Engine.Recovery
         /// <param name="exception">Exception that causes the failure.</param>
         /// <param name="rootCause"><see cref="ExceptionRootCause"/></param>
         /// <returns>Succeeds if marking was successful.</returns>
-        public Possible<Unit> TryMarkFailure([NotNull] Exception exception, ExceptionRootCause rootCause)
+        public Possible<Unit> TryMarkFailure([JetBrains.Annotations.NotNull] Exception exception, ExceptionRootCause rootCause)
         {
             if (!ShouldMarkFailure(exception, rootCause))
             {

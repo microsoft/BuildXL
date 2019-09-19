@@ -37,11 +37,11 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <summary>
         /// Right-hand side expression.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public Expression RightExpression { get; }
 
         /// <nodoc />
-        public AssignmentExpression(SymbolAtom leftExpression, int index, AssignmentOperator operatorKind, [NotNull]Expression rightExpression, LineInfo location)
+        public AssignmentExpression(SymbolAtom leftExpression, int index, AssignmentOperator operatorKind, [JetBrains.Annotations.NotNull]Expression rightExpression, LineInfo location)
             : base(location)
         {
             Contract.Requires(index >= 0);

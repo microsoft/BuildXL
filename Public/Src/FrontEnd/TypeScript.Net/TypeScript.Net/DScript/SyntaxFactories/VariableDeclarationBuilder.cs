@@ -67,7 +67,7 @@ namespace TypeScript.Net.DScript
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IVariableStatement Build()
         {
             if (m_expression == null)

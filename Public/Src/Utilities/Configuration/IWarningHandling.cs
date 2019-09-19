@@ -19,19 +19,19 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Explit list of warnings that should be errors
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<int> WarningsAsErrors { get; }
 
         /// <summary>
         /// Warnings that explicitly should not be treated as errors.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<int> WarningsNotAsErrors { get; }
 
         /// <summary>
         /// Warnings to suppress
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<int> NoWarnings { get; }
     }
 }

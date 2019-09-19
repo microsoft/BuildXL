@@ -223,7 +223,7 @@ namespace TypeScript.Net.Types
         NodeArray<ITypeParameterDeclaration> TypeParameters { get; set; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         NodeArray<IParameterDeclaration> Parameters { get; set; }
 
         /// <nodoc/>
@@ -984,7 +984,7 @@ namespace TypeScript.Net.Types
     public interface IArrayLiteralExpression : IPrimaryExpression
     {
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         NodeArray<IExpression> Elements { get; set; }
     }
 
@@ -1521,7 +1521,7 @@ namespace TypeScript.Net.Types
         new IdentifierOrLiteralExpression Name { get; set; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         ModuleBody Body { get; set; }
     }
 
@@ -1993,14 +1993,14 @@ namespace TypeScript.Net.Types
         /// as well as code diagnostics).
         /// </summary>
         /* @internal */
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<Diagnostic> ParseDiagnostics { get; }
 
         /// <summary>
         /// File level diagnostics reported by the binder.
         /// </summary>
         /* @internal */
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         List<Diagnostic> BindDiagnostics { get; }
 
         /// <nodoc/>
@@ -2010,7 +2010,7 @@ namespace TypeScript.Net.Types
         /// Stores a line map for the file.
         /// This field should never be used directly to obtain line map, use getLineMap function instead.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         LineMap LineMap { get; }
 
         /// <nodoc/>
@@ -2061,7 +2061,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Optional map that is populated when parser is created with preserving trivia.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyDictionary<INode, Trivia> PerNodeTrivia { get; }
 
         /// <summary>
@@ -2098,6 +2098,6 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Computes a binding symbols and keeps it in the file.
         /// </summary>
-        void ComputeBindingFingerprint([NotNull]BuildXL.Utilities.SymbolTable symbolTable);
+        void ComputeBindingFingerprint([JetBrains.Annotations.NotNull]BuildXL.Utilities.SymbolTable symbolTable);
     }
 }

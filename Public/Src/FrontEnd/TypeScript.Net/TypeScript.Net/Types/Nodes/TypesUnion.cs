@@ -95,7 +95,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns current node instance.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public INode Node => m_node;
 
         /// <inheritdoc />

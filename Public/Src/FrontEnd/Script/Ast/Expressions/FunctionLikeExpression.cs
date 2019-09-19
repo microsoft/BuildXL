@@ -42,7 +42,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
     public class FunctionLikeExpression : Expression, IInvocable
     {
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public CallSignature CallSignature { get; }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <summary>
         /// Contains invocation statistics for the current function.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public FunctionStatistic Statistic { get; }
 
         // The delegate with the implemnetation of ambient function/property.
@@ -99,7 +99,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <param name="statistic">Function invocation statistics</param>
         internal FunctionLikeExpression(
             SymbolAtom name,
-            [NotNull]CallSignature callSignature,
+            [JetBrains.Annotations.NotNull]CallSignature callSignature,
             Statement body,
             int captures,
             int locals,
@@ -133,7 +133,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <param name="ambient">Delegate to serve as lambda's body.</param>
         /// <param name="location">Location of delegates definition.</param>
         /// <param name="statistic">Function invocation statistics.</param>
-        private FunctionLikeExpression(SymbolAtom name, [NotNull]CallSignature callSignature, InvokeAmbient ambient, LineInfo location, [NotNull]FunctionStatistic statistic)
+        private FunctionLikeExpression(SymbolAtom name, [JetBrains.Annotations.NotNull]CallSignature callSignature, InvokeAmbient ambient, LineInfo location, [JetBrains.Annotations.NotNull]FunctionStatistic statistic)
             : this(name, callSignature: callSignature, body: null, captures: 0, locals: callSignature.Parameters.Count, fun: ambient, location: location, statistic: statistic)
         {
             Contract.Requires(callSignature != null);
@@ -173,7 +173,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         /// <summary>
         /// Creates ambient function.
         /// </summary>
-        public static FunctionLikeExpression CreateAmbient(SymbolAtom name, CallSignature signature, InvokeAmbient fun, [NotNull]FunctionStatistic statistics)
+        public static FunctionLikeExpression CreateAmbient(SymbolAtom name, CallSignature signature, InvokeAmbient fun, [JetBrains.Annotations.NotNull]FunctionStatistic statistics)
         {
             Contract.Requires(name.IsValid);
             return new FunctionLikeExpression(name, signature, fun, default(LineInfo), statistics);
@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         {
             return new FunctionLikeExpression(SymbolAtom.Invalid, callSignature, body, toCapture, locals, fun: null, location: location, statistic: FunctionStatistic.Empty);
         }
-        
+
         /// <summary>
         /// Creates user-defined function.
         /// </summary>
@@ -202,7 +202,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
             int toCapture,
             int locals,
             LineInfo location,
-            [NotNull]FunctionStatistic statistic)
+            [JetBrains.Annotations.NotNull]FunctionStatistic statistic)
         {
             Contract.Requires(name.IsValid);
             return new FunctionLikeExpression(name, callSignature, body, toCapture, locals, fun: null, location: location, statistic: statistic);

@@ -334,7 +334,7 @@ namespace TypeScript.Net.Types
         /// Body uses <see cref="FastActivator{T}.Create"/> to avoid performance penalty from a regular <see cref="Activator.CreateInstance{T}"/>
         /// that would be used with <code>new T()</code> construct.
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         protected TExtraState ExtraState => m_extraState ?? (m_extraState = FastActivator<TExtraState>.Create());
 
         /// <inheritdoc/>
@@ -2307,7 +2307,7 @@ namespace TypeScript.Net.Types
         public bool BackslashesAllowedInPathInterpolation { get; set; }
 
         /// <nodoc/>
-        public SourceFile([NotNull]ITextSourceProvider textSourceProvider)
+        public SourceFile([JetBrains.Annotations.NotNull]ITextSourceProvider textSourceProvider)
         {
             Contract.Requires(textSourceProvider != null);
             m_textSourceProvider = textSourceProvider;
@@ -3131,11 +3131,11 @@ namespace TypeScript.Net.Types
         public NodeArray<ITypeParameterDeclaration> TypeParameters { get; set; }
 
         /// <inheritdoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public NodeArray<IHeritageClause> HeritageClauses { get; set; }
 
         /// <inheritdoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public NodeArray<ITypeElement> Members { get; set; }
 
         /// <nodoc/>

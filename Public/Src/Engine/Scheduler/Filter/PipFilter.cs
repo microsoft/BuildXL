@@ -482,21 +482,21 @@ namespace BuildXL.Scheduler.Filter
         /// The path table
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         PathTable PathTable { get; }
 
         /// <summary>
         /// All known pips
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IList<PipId> AllPips { get; }
 
         /// <summary>
         /// Materializes pip (expensive)
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         Pip HydratePip(PipId pipId);
 
         /// <summary>
@@ -515,14 +515,14 @@ namespace BuildXL.Scheduler.Filter
         /// Gets all dependencies of a pip
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IEnumerable<PipId> GetDependencies(PipId pipId);
 
         /// <summary>
         /// Gets all dependents of a pip
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IEnumerable<PipId> GetDependents(PipId pipId);
 
         /// <summary>

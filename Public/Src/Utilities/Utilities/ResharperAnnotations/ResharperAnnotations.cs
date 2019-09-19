@@ -40,7 +40,7 @@ namespace JetBrains.Annotations
     /// Indicates that the value of the marked element could never be <c>null</c>.
     /// </summary>
     /// <example><code>
-    /// [NotNull] object Foo() {
+    /// [JetBrains.Annotations.NotNull] object Foo() {
     ///   return null; // Warning: Possible 'null' assignment
     /// }
     /// </code></example>
@@ -77,7 +77,7 @@ namespace JetBrains.Annotations
     }
 
     /// <summary>
-    /// Implicitly apply [NotNull]/[ItemNotNull] annotation to all the of type members and parameters
+    /// Implicitly apply [JetBrains.Annotations.NotNull]/[ItemNotNull] annotation to all the of type members and parameters
     /// in particular scope where this annotation is used (type declaration or whole assembly).
     /// </summary>
     [AttributeUsage(
@@ -104,13 +104,13 @@ namespace JetBrains.Annotations
         AttributeTargets.Property | AttributeTargets.Delegate)]
     public sealed class StringFormatMethodAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string FormatParameterName { get; private set; }
 
         /// <param name="formatParameterName">
         /// Specifies which parameter of an annotated method should be treated as format-string
         /// </param>
-        public StringFormatMethodAttribute([NotNull] string formatParameterName)
+        public StringFormatMethodAttribute([JetBrains.Annotations.NotNull] string formatParameterName)
         {
             FormatParameterName = formatParameterName;
         }
@@ -123,10 +123,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Field)]
     public sealed class ValueProviderAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Name { get; private set; }
 
-        public ValueProviderAttribute([NotNull] string name)
+        public ValueProviderAttribute([JetBrains.Annotations.NotNull] string name)
         {
             Name = name;
         }
@@ -196,7 +196,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public NotifyPropertyChangedInvocatorAttribute([NotNull] string parameterName)
+        public NotifyPropertyChangedInvocatorAttribute([JetBrains.Annotations.NotNull] string parameterName)
         {
             ParameterName = parameterName;
         }
@@ -248,17 +248,17 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public sealed class ContractAnnotationAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Contract { get; private set; }
 
         public bool ForceFullStates { get; private set; }
 
-        public ContractAnnotationAttribute([NotNull] string contract)
+        public ContractAnnotationAttribute([JetBrains.Annotations.NotNull] string contract)
             : this(contract, false)
         {
         }
 
-        public ContractAnnotationAttribute([NotNull] string contract, bool forceFullStates)
+        public ContractAnnotationAttribute([JetBrains.Annotations.NotNull] string contract, bool forceFullStates)
         {
             Contract = contract;
             ForceFullStates = forceFullStates;
@@ -330,10 +330,10 @@ namespace JetBrains.Annotations
     [BaseTypeRequired(typeof(Attribute))]
     public sealed class BaseTypeRequiredAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public Type BaseType { get; private set; }
 
-        public BaseTypeRequiredAttribute([NotNull] Type baseType)
+        public BaseTypeRequiredAttribute([JetBrains.Annotations.NotNull] Type baseType)
         {
             BaseType = baseType;
         }
@@ -460,7 +460,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public PublicAPIAttribute([NotNull] string comment)
+        public PublicAPIAttribute([JetBrains.Annotations.NotNull] string comment)
         {
             Comment = comment;
         }
@@ -505,7 +505,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public MustUseReturnValueAttribute([NotNull] string justification)
+        public MustUseReturnValueAttribute([JetBrains.Annotations.NotNull] string justification)
         {
             Justification = justification;
         }
@@ -639,10 +639,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class AspMvcAreaMasterLocationFormatAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Format { get; private set; }
 
-        public AspMvcAreaMasterLocationFormatAttribute([NotNull] string format)
+        public AspMvcAreaMasterLocationFormatAttribute([JetBrains.Annotations.NotNull] string format)
         {
             Format = format;
         }
@@ -651,10 +651,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class AspMvcAreaPartialViewLocationFormatAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Format { get; private set; }
 
-        public AspMvcAreaPartialViewLocationFormatAttribute([NotNull] string format)
+        public AspMvcAreaPartialViewLocationFormatAttribute([JetBrains.Annotations.NotNull] string format)
         {
             Format = format;
         }
@@ -663,10 +663,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class AspMvcAreaViewLocationFormatAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Format { get; private set; }
 
-        public AspMvcAreaViewLocationFormatAttribute([NotNull] string format)
+        public AspMvcAreaViewLocationFormatAttribute([JetBrains.Annotations.NotNull] string format)
         {
             Format = format;
         }
@@ -686,10 +686,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class AspMvcPartialViewLocationFormatAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Format { get; private set; }
 
-        public AspMvcPartialViewLocationFormatAttribute([NotNull] string format)
+        public AspMvcPartialViewLocationFormatAttribute([JetBrains.Annotations.NotNull] string format)
         {
             Format = format;
         }
@@ -698,10 +698,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class AspMvcViewLocationFormatAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Format { get; private set; }
 
-        public AspMvcViewLocationFormatAttribute([NotNull] string format)
+        public AspMvcViewLocationFormatAttribute([JetBrains.Annotations.NotNull] string format)
         {
             Format = format;
         }
@@ -723,7 +723,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public AspMvcActionAttribute([NotNull] string anonymousProperty)
+        public AspMvcActionAttribute([JetBrains.Annotations.NotNull] string anonymousProperty)
         {
             AnonymousProperty = anonymousProperty;
         }
@@ -744,7 +744,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public AspMvcAreaAttribute([NotNull] string anonymousProperty)
+        public AspMvcAreaAttribute([JetBrains.Annotations.NotNull] string anonymousProperty)
         {
             AnonymousProperty = anonymousProperty;
         }
@@ -766,7 +766,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public AspMvcControllerAttribute([NotNull] string anonymousProperty)
+        public AspMvcControllerAttribute([JetBrains.Annotations.NotNull] string anonymousProperty)
         {
             AnonymousProperty = anonymousProperty;
         }
@@ -894,7 +894,7 @@ namespace JetBrains.Annotations
         {
         }
 
-        public HtmlElementAttributesAttribute([NotNull] string name)
+        public HtmlElementAttributesAttribute([JetBrains.Annotations.NotNull] string name)
         {
             Name = name;
         }
@@ -903,10 +903,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
     public sealed class HtmlAttributeValueAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Name { get; private set; }
 
-        public HtmlAttributeValueAttribute([NotNull] string name)
+        public HtmlAttributeValueAttribute([JetBrains.Annotations.NotNull] string name)
         {
             Name = name;
         }
@@ -1067,13 +1067,13 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public sealed class AspChildControlTypeAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string TagName { get; private set; }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public Type ControlType { get; private set; }
 
-        public AspChildControlTypeAttribute([NotNull] string tagName, [NotNull] Type controlType)
+        public AspChildControlTypeAttribute([JetBrains.Annotations.NotNull] string tagName, [JetBrains.Annotations.NotNull] Type controlType)
         {
             TagName = tagName;
             ControlType = controlType;
@@ -1098,10 +1098,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public sealed class AspRequiredAttributeAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Attribute { get; private set; }
 
-        public AspRequiredAttributeAttribute([NotNull] string attribute)
+        public AspRequiredAttributeAttribute([JetBrains.Annotations.NotNull] string attribute)
         {
             Attribute = attribute;
         }
@@ -1121,10 +1121,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class RazorImportNamespaceAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Name { get; private set; }
 
-        public RazorImportNamespaceAttribute([NotNull] string name)
+        public RazorImportNamespaceAttribute([JetBrains.Annotations.NotNull] string name)
         {
             Name = name;
         }
@@ -1134,13 +1134,13 @@ namespace JetBrains.Annotations
     public sealed class RazorInjectionAttribute : Attribute
     {
         [SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Type { get; private set; }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string FieldName { get; private set; }
 
-        public RazorInjectionAttribute([NotNull] string type, [NotNull] string fieldName)
+        public RazorInjectionAttribute([JetBrains.Annotations.NotNull] string type, [JetBrains.Annotations.NotNull] string fieldName)
         {
             Type = type;
             FieldName = fieldName;
@@ -1150,10 +1150,10 @@ namespace JetBrains.Annotations
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public sealed class RazorDirectiveAttribute : Attribute
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string Directive { get; private set; }
 
-        public RazorDirectiveAttribute([NotNull] string directive)
+        public RazorDirectiveAttribute([JetBrains.Annotations.NotNull] string directive)
         {
             Directive = directive;
         }

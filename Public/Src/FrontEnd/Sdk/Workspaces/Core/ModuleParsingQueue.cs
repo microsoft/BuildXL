@@ -66,7 +66,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// </summary>
         protected System.Threading.CancellationToken CancellationToken => m_cancellationTokenSource.Token;
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private readonly ParsingOptions m_parsingOptions;
 
         // Set to true when no more module may come.
@@ -86,7 +86,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Creates a module parsing queue. The queue options are specified by the provided queueOptions.
         /// </summary>
         public ModuleParsingQueue(
-            [NotNull] WorkspaceProvider workspaceProvider,
+            [JetBrains.Annotations.NotNull] WorkspaceProvider workspaceProvider,
             WorkspaceConfiguration workspaceConfiguration,
             IModuleReferenceResolver moduleReferenceResolver,
             ModuleDefinition designatedPrelude,
@@ -169,9 +169,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Creates a parsing queue for parsing specs in a regular BuildXL invocation.
         /// </summary>
         public static ModuleParsingQueue Create(
-            [NotNull]WorkspaceProvider workspaceProvider,
-            [NotNull]WorkspaceConfiguration workspaceConfiguration,
-            [NotNull]IModuleReferenceResolver moduleReferenceResolver,
+            [JetBrains.Annotations.NotNull]WorkspaceProvider workspaceProvider,
+            [JetBrains.Annotations.NotNull]WorkspaceConfiguration workspaceConfiguration,
+            [JetBrains.Annotations.NotNull]IModuleReferenceResolver moduleReferenceResolver,
             [CanBeNull]ModuleDefinition designatedPrelude,
             [CanBeNull]ParsedModule configurationModule)
         {

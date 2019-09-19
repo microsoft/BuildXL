@@ -62,7 +62,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Unsafe options used to run the pip.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public readonly UnsafeOptions UnsafeOptions;
 
         /// <summary>
@@ -123,7 +123,7 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             writer.WriteCompact(countWithoutDuplicates);
-            
+
             AbsolutePath last = AbsolutePath.Invalid;
             string lastExpanded = null;
             foreach (ObservedPathEntry entry in Paths)
@@ -245,7 +245,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 else
                 {
                     int reuseCount = reader.ReadInt32Compact();
-                    
+
                     if (reuseCount == 0)
                     {
                         full = reader.ReadString();

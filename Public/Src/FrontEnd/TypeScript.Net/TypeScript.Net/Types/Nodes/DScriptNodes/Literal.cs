@@ -54,7 +54,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Path table that was used to create a current node.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public PathTable PathTable => GetSourceFilePathTable(this);
 
         /// <nodoc />
@@ -220,7 +220,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Helper method that returns a path table associated with a current file.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         internal static PathTable GetSourceFilePathTable(INode node)
         {
             var sourceFile = (SourceFile)node.GetSourceFile();

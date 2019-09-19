@@ -71,7 +71,7 @@ namespace BuildXL.Utilities.Configuration
         /// This contains any EngineCache files that were deemed to be corrupt or incorrect during the build.
         /// </summary>
         AbsolutePath EngineCacheCorruptFilesLogDirectory { get; }
-        
+
         /// <summary>
         /// Specifies whether fingerprint computation inputs are stored on disk in the fingerprint store.
         /// The fingerprint store is stored under the <see cref="ILayoutConfiguration.EngineCacheDirectory"/>
@@ -120,7 +120,7 @@ namespace BuildXL.Utilities.Configuration
         /// EventLevel specifies the non-skippable events. All events of this of higher event level will be included in the log
         /// regardless whether they are specified in the event list. Defaults to null (i.e., log will include only the specified events)
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyDictionary<AbsolutePath, (IReadOnlyList<int>, EventLevel?)> CustomLog { get; }
 
         /// <summary>
@@ -132,13 +132,13 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Removes a set of event IDs from the standard log. Does not apply to warning, error, critical, and always level events.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<int> NoLog { get; }
 
         /// <summary>
         /// Removes a set of event IDs from the execution log.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<int> NoExecutionLog { get; }
 
         /// <summary>
@@ -202,7 +202,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyDictionary<string, string> TraceInfo { get; }
 
         /// <summary>

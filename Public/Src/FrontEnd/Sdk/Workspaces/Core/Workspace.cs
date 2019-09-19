@@ -40,7 +40,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         private IReadOnlyCollection<ParsedModule> m_allModules;
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public WorkspaceConfiguration WorkspaceConfiguration { get; }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// A map from an <see cref="AbsolutePath"/> to a parsed source file that excludes prelude and configuration files.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyDictionary<AbsolutePath, SpecFileWithMetadata> SpecSources => m_specSources;
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public IWorkspaceProvider WorkspaceProvider { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IReadOnlyCollection<Failure> Failures { get; }
 
         /// <summary>
@@ -171,11 +171,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         {
             Contract.Requires(failures.Length != 0);
             var workspace = new Workspace(
-                provider: null, 
-                workspaceConfiguration: workspaceConfiguration, 
-                modules: CollectionUtilities.EmptyArray<ParsedModule>(), 
-                failures: failures, 
-                preludeModule: null, 
+                provider: null,
+                workspaceConfiguration: workspaceConfiguration,
+                modules: CollectionUtilities.EmptyArray<ParsedModule>(),
+                failures: failures,
+                preludeModule: null,
                 configurationModule: null);
 
             return workspace;
@@ -320,7 +320,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ParsedModule GetModuleBySpecFileName(AbsolutePath specPath)
         {
             Contract.Requires(specPath.IsValid);
@@ -376,7 +376,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ISourceFile GetSourceFile(AbsolutePath specPath)
         {
             Contract.Requires(ContainsSpec(specPath), "ContainsSpec(specPath)");

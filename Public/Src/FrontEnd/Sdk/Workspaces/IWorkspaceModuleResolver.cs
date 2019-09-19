@@ -22,11 +22,11 @@ namespace BuildXL.FrontEnd.Workspaces
         /// Initializes the workspace resolver
         /// </summary>
         bool TryInitialize(
-            [NotNull]FrontEndHost host,
-            [NotNull]FrontEndContext context,
-            [NotNull]IConfiguration configuration,
-            [NotNull]IResolverSettings resolverSettings,
-            [NotNull]QualifierId[] requestedQualifiers);
+            [JetBrains.Annotations.NotNull]FrontEndHost host,
+            [JetBrains.Annotations.NotNull]FrontEndContext context,
+            [JetBrains.Annotations.NotNull]IConfiguration configuration,
+            [JetBrains.Annotations.NotNull]IResolverSettings resolverSettings,
+            [JetBrains.Annotations.NotNull]QualifierId[] requestedQualifiers);
 
         /// <summary>
         /// If <param name="moduleDescriptor"/> is owned by this resolver, returns the ModuleDefinition with that name.
@@ -63,7 +63,7 @@ namespace BuildXL.FrontEnd.Workspaces
         /// <summary>
         /// Returns a user-facing description of the resolver extent (e.g. what modules the resolver owns, or what directories are looked up)
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         string DescribeExtent();
 
         /// <summary>

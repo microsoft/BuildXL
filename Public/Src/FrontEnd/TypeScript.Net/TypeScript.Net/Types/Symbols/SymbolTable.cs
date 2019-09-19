@@ -75,19 +75,19 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc/>
-        public static bool HasProperty([NotNull] ISymbolTable table, [NotNull] string id)
+        public static bool HasProperty([JetBrains.Annotations.NotNull] ISymbolTable table, [JetBrains.Annotations.NotNull] string id)
         {
             return table[id] != null;
         }
 
         /// <nodoc/>
-        public static bool TryGetProperty([NotNull] ISymbolTable table, [NotNull] string id, out ISymbol result)
+        public static bool TryGetProperty([JetBrains.Annotations.NotNull] ISymbolTable table, [JetBrains.Annotations.NotNull] string id, out ISymbol result)
         {
             return table.TryGetSymbol(id, out result);
         }
 
         /// <nodoc />
-        internal static ISymbolTable Create([NotNull]IReadOnlyList<ISymbol> symbols)
+        internal static ISymbolTable Create([JetBrains.Annotations.NotNull]IReadOnlyList<ISymbol> symbols)
         {
             ISymbolTable result = new SymbolTable(symbols.Count);
             foreach (var symbol in symbols.AsStructEnumerable())
@@ -99,7 +99,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         internal static ISymbolTable Create()
         {
             return new SymbolTable();

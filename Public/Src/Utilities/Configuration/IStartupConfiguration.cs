@@ -25,26 +25,26 @@ namespace BuildXL.Utilities.Configuration
         /// The overrides for environment variables
         /// </summary>
         // TODO: Consider if we should just rename AllowedEnvironmentVars and support default values for them.
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyDictionary<string, string> Properties { get; }
 
         /// <summary>
         /// Qualifiers controlling what flavor to build
         /// </summary>
         // TODO: We probably want a way to specify an instance as well, perhaps overload the parsing. Use a named qualifier if starting with alphanumeric. Use an instance when starting with "{"?
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<string> QualifierIdentifiers { get; }
 
         /// <summary>
         /// The initial implicit filters. This is used as a shortcut instead of using the full filtering syntax
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<string> ImplicitFilters { get; }
 
         /// <summary>
         /// The Host information of the machine currently running
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IHost CurrentHost { get; }
     }
 }

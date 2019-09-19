@@ -17,18 +17,18 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public readonly struct SpecFileWithMetadata : IEquatable<SpecFileWithMetadata>
     {
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ISourceFile SourceFile { get; }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ParsedModule OwningModule { get; }
 
         /// <nodoc />
         public SpecState State { get; }
 
         /// <nodoc />
-        public SpecFileWithMetadata([NotNull]ISourceFile sourceFile, [NotNull]ParsedModule owningModule, SpecState state)
+        public SpecFileWithMetadata([JetBrains.Annotations.NotNull]ISourceFile sourceFile, [JetBrains.Annotations.NotNull]ParsedModule owningModule, SpecState state)
         {
             Contract.Requires(sourceFile != null);
             Contract.Requires(owningModule != null);

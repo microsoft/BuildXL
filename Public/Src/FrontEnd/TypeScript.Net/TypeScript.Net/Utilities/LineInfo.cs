@@ -21,7 +21,7 @@ namespace TypeScript.Net.Utilities
         private int m_position;
 
         /// <nodoc />
-        private LineInfo([NotNull]LineMap map, int position)
+        private LineInfo([JetBrains.Annotations.NotNull]LineMap map, int position)
             : this()
         {
             Contract.Requires(map != null);
@@ -37,7 +37,7 @@ namespace TypeScript.Net.Utilities
         }
 
         /// <nodoc />
-        public static LineInfo FromLineMap([NotNull] LineMap map, int position)
+        public static LineInfo FromLineMap([JetBrains.Annotations.NotNull] LineMap map, int position)
         {
             return new LineInfo(map, position);
         }

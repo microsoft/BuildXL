@@ -352,7 +352,7 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
+        public bool TryInitialize([JetBrains.Annotations.NotNull] FrontEndHost host, [JetBrains.Annotations.NotNull] FrontEndContext context, [JetBrains.Annotations.NotNull] IConfiguration configuration, [JetBrains.Annotations.NotNull] IResolverSettings resolverSettings, [JetBrains.Annotations.NotNull] QualifierId[] requestedQualifiers)
         {
             m_host = host;
             m_context = context;
@@ -385,7 +385,7 @@ namespace BuildXL.FrontEnd.CMake
                 m_resolverSettings.ProjectRoot.Combine(m_context.PathTable, ".git"),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAllButSymlinkCreation);
-            
+
             return fileAccessManifest;
         }
     }

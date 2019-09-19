@@ -92,7 +92,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private readonly Binder m_binder;
         private readonly InterpolationConverter m_interpolationConverter;
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private readonly Workspace m_workspace;
 
         // Set of properties that simplify conversion process
@@ -994,7 +994,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// This code is invalid: for (let x, y of [1, 2]) {}
         /// This is being checked by a lint rule already
         /// </summary>
-        private VarStatement ConvertVarStatement([NotNull]VariableDeclarationListOrExpression source, ConversionContext context)
+        private VarStatement ConvertVarStatement([JetBrains.Annotations.NotNull]VariableDeclarationListOrExpression source, ConversionContext context)
         {
             Contract.Assert(source.AsVariableDeclarationList() != null);
             Contract.Assert(source.AsVariableDeclarationList().Declarations.Count == 1);
@@ -1324,7 +1324,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return ParameterKind.Required;
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private IReadOnlyList<TypeParameter> ConvertTypeParameters(NodeArray<ITypeParameterDeclaration> typeParameters, QualifierSpaceId currentQualifierSpaceId)
         {
             // This method is useful because typeParameters in most cases are empty, so this special case could be covered in one place!
@@ -2078,7 +2078,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Converts expression from TypeScript AST to evaluation AST.
         /// </summary>
-        internal Expression ConvertExpression([NotNull] IExpression expression, FunctionScope escapes, QualifierSpaceId currentQualifierSpaceId)
+        internal Expression ConvertExpression([JetBrains.Annotations.NotNull] IExpression expression, FunctionScope escapes, QualifierSpaceId currentQualifierSpaceId)
         {
             var context = new ConversionContext(escapes, currentQualifierSpaceId);
             return ConvertExpression(expression, context);
@@ -2087,7 +2087,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Converts expression from TypeScript AST to evaluation AST.
         /// </summary>
-        private Expression ConvertExpression([NotNull]IExpression expression, ConversionContext context)
+        private Expression ConvertExpression([JetBrains.Annotations.NotNull]IExpression expression, ConversionContext context)
         {
             var literal = expression.As<ILiteralExpression>();
             if (literal != null)
@@ -2260,7 +2260,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             {
                 return expression;
             }
-            
+
             Type type = ConvertType(source.Type, context.CurrentQualifierSpaceId);
             CastExpression.TypeAssertionKind castKind = CastExpression.TypeAssertionKind.AsCast;
 
@@ -3175,7 +3175,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             string text = isNegative ? ($"-{literal.Text}") : literal.Text;
-            
+
             switch (literal.Kind)
             {
                 case TypeScript.Net.Types.SyntaxKind.NumericLiteral:
@@ -3203,7 +3203,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// </summary>
         private readonly struct ConversionContext
         {
-            [NotNull]
+            [JetBrains.Annotations.NotNull]
             public FunctionScope Scope { get; }
 
             public QualifierSpaceId CurrentQualifierSpaceId { get; }

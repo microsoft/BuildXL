@@ -26,7 +26,7 @@ namespace TypeScript.Net.Types
         private int m_symbolAtomValue;
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public PathTable PathTable => GetSourceFilePathTable(this);
 
         /// <nodoc/>

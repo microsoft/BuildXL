@@ -52,7 +52,7 @@ namespace Test.BuildXL.StorageTestUtilities
 
             VersionedFileIdentity realIdentity = possibleIdentity.Result;
 
-            if (m_verifyKnownIdentity && 
+            if (m_verifyKnownIdentity &&
                 maybeIdentity.HasValue &&
                 maybeIdentity.Value.Kind.IsWeakOrStrong())
             {
@@ -97,7 +97,7 @@ namespace Test.BuildXL.StorageTestUtilities
 
             PathExistence existence = possibleFingerprintResult.Result.PathExistence;
             Possible<FileChangeTrackingSet.ConditionalTrackingResult> trackingResult = new Failure<string>("Tracking membership failed");
-            
+
             lock (m_lock)
             {
                 if (existence == PathExistence.ExistsAsDirectory)
@@ -110,8 +110,8 @@ namespace Test.BuildXL.StorageTestUtilities
             }
 
             return new FileChangeTrackingSet.EnumerationResult(
-                possibleFingerprintResult.Result.Fingerprint, 
-                possibleFingerprintResult.Result.PathExistence, 
+                possibleFingerprintResult.Result.Fingerprint,
+                possibleFingerprintResult.Result.PathExistence,
                 trackingResult);
         }
 
@@ -217,7 +217,7 @@ namespace Test.BuildXL.StorageTestUtilities
             }
         }
 
-        public bool TrackAbsentRelativePath([NotNull] string trackedParentPath, [NotNull] string relativeAbsentPath)
+        public bool TrackAbsentRelativePath([JetBrains.Annotations.NotNull] string trackedParentPath, [JetBrains.Annotations.NotNull] string relativeAbsentPath)
         {
             return false;
         }

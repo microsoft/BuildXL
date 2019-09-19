@@ -203,7 +203,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        public static INodeArray<ITemplateSpan> Create(int pos, int end, [NotNull]ITemplateSpan firstElement, [NotNull]ITemplateSpan secondElement)
+        public static INodeArray<ITemplateSpan> Create(int pos, int end, [JetBrains.Annotations.NotNull]ITemplateSpan firstElement, [JetBrains.Annotations.NotNull]ITemplateSpan secondElement)
         {
             return new TemplateSpanNodeArray(firstElement, secondElement, pos, end);
         }
@@ -783,7 +783,7 @@ namespace TypeScript.Net.Types
         private readonly IModifier m_modifier;
 
         /// <nodoc />
-        public SingleModifiersNodeArray(int pos, int end, [NotNull]IModifier modifier)
+        public SingleModifiersNodeArray(int pos, int end, [JetBrains.Annotations.NotNull]IModifier modifier)
         {
             Pos = pos;
             End = end;
@@ -1886,7 +1886,7 @@ namespace TypeScript.Net.Types
         /// This method not only changes the flags property but also
         /// mutates some other properties based on a <paramref name="symbolFlags"/> value.
         /// </remarks>
-        void SetDeclaration(SymbolFlags symbolFlags, [NotNull] IDeclaration declaration);
+        void SetDeclaration(SymbolFlags symbolFlags, [JetBrains.Annotations.NotNull] IDeclaration declaration);
 
         /// <summary>
         /// Name of symbol
@@ -2475,8 +2475,8 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Resolve object type.
         /// </summary>
-        [NotNull]
-        IResolvedType Resolve([NotNull]ResolvedTypeData resolvedTypeData);
+        [JetBrains.Annotations.NotNull]
+        IResolvedType Resolve([JetBrains.Annotations.NotNull]ResolvedTypeData resolvedTypeData);
     }
 
     /// <summary>
@@ -2707,13 +2707,13 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Call signatures of type
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<ISignature> CallSignatures { get; }
 
         /// <summary>
         /// Construct signatures of type
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<ISignature> ConstructSignatures { get; }
 
         /// <summary>

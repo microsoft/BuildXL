@@ -77,7 +77,7 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public Task<bool> InitResolverAsync([NotNull] IResolverSettings resolverSettings, object workspaceResolver)
+        public Task<bool> InitResolverAsync([JetBrains.Annotations.NotNull] IResolverSettings resolverSettings, object workspaceResolver)
         {
             m_workspaceResolver = workspaceResolver as DownloadWorkspaceResolver;
 
@@ -246,8 +246,8 @@ namespace BuildXL.FrontEnd.Download
                 // Check if the file already exists and matches the exected hash.
                 if (File.Exists(downloadFilePath))
                 {
-                    var expectedHashType = downloadData.ContentHash.HasValue 
-                        ? downloadData.ContentHash.Value.HashType 
+                    var expectedHashType = downloadData.ContentHash.HasValue
+                        ? downloadData.ContentHash.Value.HashType
                         : HashType.Unknown;
 
                     // Compare actual hash to compare if we need to download again.
@@ -742,7 +742,7 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public Task<bool?> TryEvaluateModuleAsync([NotNull] IEvaluationScheduler scheduler, [NotNull] ModuleDefinition module, QualifierId qualifierId)
+        public Task<bool?> TryEvaluateModuleAsync([JetBrains.Annotations.NotNull] IEvaluationScheduler scheduler, [JetBrains.Annotations.NotNull] ModuleDefinition module, QualifierId qualifierId)
         {
             // Abstraction between SDK/Workspace/Core/Resolvers is broken here...
             var moduleDefinition = (ModuleDefinition)module;

@@ -24,7 +24,7 @@ namespace BuildXL.FrontEnd.Script
         public TypeOrNamespaceModuleLiteral TypeOrNamespaceTypeOrNamespaceLiteral { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public ModuleLiteral ModuleLiteral => (ModuleLiteral)FileModuleLiteral ?? TypeOrNamespaceTypeOrNamespaceLiteral;
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace BuildXL.FrontEnd.Script
 
         /// <nodoc />
         // Used only for semantic evaluation
-        public UninstantiatedModuleInfo(SourceFile sourceFile, [NotNull]TypeOrNamespaceModuleLiteral typeOrNamespaceLiteral, QualifierSpaceId qualifierSpaceId)
+        public UninstantiatedModuleInfo(SourceFile sourceFile, [JetBrains.Annotations.NotNull]TypeOrNamespaceModuleLiteral typeOrNamespaceLiteral, QualifierSpaceId qualifierSpaceId)
             : this(sourceFile, qualifierSpaceId)
         {
             Contract.Requires(typeOrNamespaceLiteral != null, "typeOrNamespaceLiteral != null");
@@ -48,7 +48,7 @@ namespace BuildXL.FrontEnd.Script
         }
 
         /// <nodoc />
-        public UninstantiatedModuleInfo(SourceFile sourceFile, [NotNull]FileModuleLiteral fileModuleLiteral, QualifierSpaceId qualifierSpaceId)
+        public UninstantiatedModuleInfo(SourceFile sourceFile, [JetBrains.Annotations.NotNull]FileModuleLiteral fileModuleLiteral, QualifierSpaceId qualifierSpaceId)
             : this(sourceFile, qualifierSpaceId)
         {
             Contract.Requires(fileModuleLiteral != null, "fileModuleLiteral != null");

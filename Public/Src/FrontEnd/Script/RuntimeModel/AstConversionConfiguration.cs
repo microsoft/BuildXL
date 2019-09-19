@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public IEnumerable<string> PolicyRules { get; }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         public bool PreserveFullNameSymbols { get; set; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public UnsafeConversionConfiguration UnsafeOptions { get; }
 
         /// <nodoc/>

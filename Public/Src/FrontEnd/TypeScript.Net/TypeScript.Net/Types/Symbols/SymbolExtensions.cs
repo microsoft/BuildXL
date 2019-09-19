@@ -15,7 +15,7 @@ namespace TypeScript.Net.Types
         /// Returns the first declaration of a given symbol skipping DScript injected nodes.
         /// </summary>
         [CanBeNull]
-        public static IDeclaration GetFirstDeclarationOrDefault([NotNull]this ISymbol symbol)
+        public static IDeclaration GetFirstDeclarationOrDefault([JetBrains.Annotations.NotNull]this ISymbol symbol)
         {
             foreach (var d in symbol.DeclarationList)
             {
@@ -31,8 +31,8 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns the declarations of a given symbol skipping DScript injected nodes.
         /// </summary>
-        [NotNull]
-        public static IEnumerable<IDeclaration> GetDeclarations([NotNull]this ISymbol symbol)
+        [JetBrains.Annotations.NotNull]
+        public static IEnumerable<IDeclaration> GetDeclarations([JetBrains.Annotations.NotNull]this ISymbol symbol)
         {
             foreach (var d in symbol.DeclarationList)
             {
@@ -43,7 +43,7 @@ namespace TypeScript.Net.Types
             }
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         internal static ISymbolTable GetMembers(this ISymbol symbol)
         {
             // This trick allows to leave ISymbol.Members to be readonly.
@@ -64,7 +64,7 @@ namespace TypeScript.Net.Types
             return @this.Members;
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         internal static ISymbolTable GetExports(this ISymbol symbol)
         {
             // This trick allows to leave ISymbol.Members to be readonly.
@@ -85,7 +85,7 @@ namespace TypeScript.Net.Types
             return @this.Exports;
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         internal static ISymbol GetOriginalSymbolOrSelf(this ISymbol symbol)
         {
             return symbol.OriginalSymbol ?? symbol;

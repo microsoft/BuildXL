@@ -37,6 +37,6 @@ namespace BuildXL.Ipc.Interfaces
         ///
         /// This method must not be called more than once.
         /// </remarks>
-        void Start([NotNull]IIpcOperationExecutor executor);
+        void Start([JetBrains.Annotations.NotNull]IIpcOperationExecutor executor);
     }
 }

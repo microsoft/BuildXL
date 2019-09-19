@@ -30,7 +30,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
 
         /// <nodoc />
         public FrontEndContext FrontEndContext { get; private set; }
-        
+
         /// <nodoc />
         public CommonConstants CommonConstants { get; }
 
@@ -88,16 +88,16 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public ContextTree(
-            [NotNull]FrontEndHost frontEndHost,
-            [NotNull]FrontEndContext frontEndContext,
-            [NotNull]Logger logger,
-            [NotNull]EvaluationStatistics statistics,
+            [JetBrains.Annotations.NotNull]FrontEndHost frontEndHost,
+            [JetBrains.Annotations.NotNull]FrontEndContext frontEndContext,
+            [JetBrains.Annotations.NotNull]Logger logger,
+            [JetBrains.Annotations.NotNull]EvaluationStatistics statistics,
             QualifierValueCache qualifierValueCache,
             bool isBeingDebugged,
             IDecorator<EvaluationResult> decorator,
-            [NotNull]FileModuleLiteral module,
-            [NotNull]EvaluatorConfiguration configuration,
-            [NotNull]IEvaluationScheduler evaluationScheduler,
+            [JetBrains.Annotations.NotNull]FileModuleLiteral module,
+            [JetBrains.Annotations.NotNull]EvaluatorConfiguration configuration,
+            [JetBrains.Annotations.NotNull]IEvaluationScheduler evaluationScheduler,
             FileType fileType)
         {
             Contract.Requires(frontEndHost != null);

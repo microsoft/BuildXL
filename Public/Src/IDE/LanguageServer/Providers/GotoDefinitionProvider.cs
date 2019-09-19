@@ -239,7 +239,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             return GetDefinitionFromSymbol(typeDeclaration.Symbol, typeDeclaration);
         }
 
-        private Result<ArrayOrObject<Location, Location>, ResponseError> GetDefinitionFromSymbol([NotNull]ISymbol symbol, INode node)
+        private Result<ArrayOrObject<Location, Location>, ResponseError> GetDefinitionFromSymbol([JetBrains.Annotations.NotNull]ISymbol symbol, INode node)
         {
             var result = new List<Location>();
             var declarations = symbol.GetDeclarations();

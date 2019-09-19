@@ -47,22 +47,22 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply([NotNull]Context context, EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, EvaluationStackFrame captures);
 
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply(Context context, [CanBeNull]EvaluationResult arg, [NotNull]EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply(Context context, [CanBeNull]EvaluationResult arg, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures);
 
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply([NotNull]Context context, [CanBeNull]EvaluationResult arg1, [CanBeNull]EvaluationResult arg2, [NotNull]EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, [CanBeNull]EvaluationResult arg1, [CanBeNull]EvaluationResult arg2, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures);
 
         /// <summary>
         /// Applies ambient.
         /// </summary>
-        public abstract EvaluationResult Apply([NotNull]Context context, [CanBeNull]EvaluationResult[] args, [NotNull]EvaluationStackFrame captures);
+        public abstract EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, [CanBeNull]EvaluationResult[] args, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures);
     }
 
     /// <summary>

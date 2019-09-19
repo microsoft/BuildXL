@@ -21,7 +21,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         private readonly PathTable m_pathTable;
 
         /// <nodoc />
-        public WorkspaceFilter([NotNull]PathTable pathTable)
+        public WorkspaceFilter([JetBrains.Annotations.NotNull]PathTable pathTable)
         {
             m_pathTable = pathTable;
         }
@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// This means that the list returned from this function is a subset of the result returned from <see cref="FilterForConversion"/>
         /// because latter return a transitive closure of files and modules.
         /// </remarks>
-        public List<ModuleDefinition> FilterForEvaluation([NotNull] Workspace workspace, [NotNull] EvaluationFilter evaluationFilter)
+        public List<ModuleDefinition> FilterForEvaluation([JetBrains.Annotations.NotNull] Workspace workspace, [JetBrains.Annotations.NotNull] EvaluationFilter evaluationFilter)
         {
             // First, need to get all modules that satisfy a given filter.
             var modulesToInclude = new HashSet<ModuleDefinition>();
@@ -90,9 +90,9 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// Filter a workspace definition.
         /// </summary>
         public List<ModuleDefinition> FilterWorkspaceDefinition(
-            [NotNull] WorkspaceDefinition workspace,
-            [NotNull] EvaluationFilter evaluationFilter,
-            [NotNull] ISpecDependencyProvider provider)
+            [JetBrains.Annotations.NotNull] WorkspaceDefinition workspace,
+            [JetBrains.Annotations.NotNull] EvaluationFilter evaluationFilter,
+            [JetBrains.Annotations.NotNull] ISpecDependencyProvider provider)
         {
             // Resulting list should always have a prelude.
             var modulesToInclude = new HashSet<ModuleDefinition> { workspace.PreludeModule };
@@ -150,7 +150,7 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// Filter a workspace and returns a list of parsed module that satisfy a given filter based on file-2-file dependencies.
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        public List<ParsedModule> FilterForConversion([NotNull]Workspace workspace, [NotNull]EvaluationFilter evaluationFilter)
+        public List<ParsedModule> FilterForConversion([JetBrains.Annotations.NotNull]Workspace workspace, [JetBrains.Annotations.NotNull]EvaluationFilter evaluationFilter)
         {
             // TODO: need to check that file2file map is available and skip filtering otherwise.
             var spec2SpecMapProvider = new WorkspaceBasedSpecDependencyProvider(workspace, m_pathTable);

@@ -23,7 +23,7 @@ namespace TypeScript.Net.Parsing
         private readonly PathTable m_pathTable;
 
         /// <nodoc />
-        public DScriptParser([NotNull]PathTable pathTable)
+        public DScriptParser([JetBrains.Annotations.NotNull]PathTable pathTable)
         {
             m_pathTable = pathTable;
         }

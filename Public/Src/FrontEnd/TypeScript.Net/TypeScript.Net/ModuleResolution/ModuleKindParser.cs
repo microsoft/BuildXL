@@ -13,7 +13,7 @@ namespace TypeScript.Net.ModuleResolution
     public static class ModuleKindParser
     {
         /// <nodoc/>
-        public static DscModule? ParseModuleName([NotNull] string moduleName)
+        public static DscModule? ParseModuleName([JetBrains.Annotations.NotNull] string moduleName)
         {
             Contract.Requires(!string.IsNullOrEmpty(moduleName));
 
@@ -53,7 +53,7 @@ namespace TypeScript.Net.ModuleResolution
         public ModuleKind ModuleKind { get; }
 
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string ModuleName { get; }
 
         /// <nodoc/>

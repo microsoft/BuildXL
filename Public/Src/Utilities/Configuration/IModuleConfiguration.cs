@@ -25,7 +25,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// List of file access exception rules.
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<IFileAccessWhitelistEntry> FileAccessWhiteList { get; }
 
         /// <summary>
@@ -37,19 +37,19 @@ namespace BuildXL.Utilities.Configuration
         /// separate file in a locked-down area in source control, even while exposing the (safer)
         /// do-not-cache-but-also-do-not-error whitelist to users.
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<IFileAccessWhitelistEntry> CacheableFileAccessWhitelist { get; }
 
         /// <summary>
         /// Exceptions for computing directory membership fingerprints
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<IDirectoryMembershipFingerprinterRule> DirectoryMembershipFingerprinterRules { get; }
 
         /// <summary>
         /// The set of mounts defined for the module
         /// </summary>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<IMount> Mounts { get; }
     }
 }

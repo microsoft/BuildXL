@@ -54,7 +54,7 @@ namespace TypeScript.Net.Incrementality
 
     internal static class DeclarationFlagsExtensions
     {
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public static string ToDisplayModifier(this DeclarationFlags flags)
         {
             string result = string.Empty;
@@ -82,7 +82,7 @@ namespace TypeScript.Net.Incrementality
             return result;
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public static string GetModifierAsSuffix(this DeclarationFlags flags)
         {
             var modifier = flags.ToDisplayModifier();
@@ -107,10 +107,10 @@ namespace TypeScript.Net.Incrementality
         // File under analysis
         private readonly ISourceFile m_sourceFile;
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private readonly BuildXLWriter m_referencedSymbolsWriter;
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private readonly BuildXLWriter m_declaredSymbolsWriter;
 
         // The stack of lexical scopes required for the full name computation of the symbol.
@@ -129,7 +129,7 @@ namespace TypeScript.Net.Incrementality
         private readonly bool m_keepSymbols;
 
         /// <nodoc />
-        public SpecBindingAnalyzer([NotNull]ISourceFile sourceFile, [NotNull]BuildXLWriter referencedSymbolsWriter, [NotNull]BuildXLWriter declaredSymbolsWriter, bool keepSymbols)
+        public SpecBindingAnalyzer([JetBrains.Annotations.NotNull]ISourceFile sourceFile, [JetBrains.Annotations.NotNull]BuildXLWriter referencedSymbolsWriter, [JetBrains.Annotations.NotNull]BuildXLWriter declaredSymbolsWriter, bool keepSymbols)
         {
             m_sourceFile = sourceFile;
             m_referencedSymbolsWriter = referencedSymbolsWriter;

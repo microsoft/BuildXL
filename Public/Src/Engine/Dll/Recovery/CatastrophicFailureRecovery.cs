@@ -33,7 +33,7 @@ namespace BuildXL.Engine.Recovery
         /// This is done at the end of the build during <see cref="MarkFailure(Exception)"/>, since there is no reason
         /// to defer it to <see cref="Recover"/> which runs at the beginning of the next build.
         /// </remarks>
-        public override Possible<Unit> MarkFailure([NotNull] Exception exception)
+        public override Possible<Unit> MarkFailure([JetBrains.Annotations.NotNull] Exception exception)
         {
             Logger.Log.LogAndRemoveEngineStateOnCatastrophicFailure(m_loggingContext);
             if (EngineSerializer.TryLogAndRemoveCorruptEngineState(Configuration, PathTable, m_loggingContext))
@@ -56,7 +56,7 @@ namespace BuildXL.Engine.Recovery
         /// Only run handling for failures of unknown root cause. Many of the known root causes are unrelated to the build
         /// and cannot be handled during the build.
         /// </summary>
-        public override bool ShouldMarkFailure([NotNull] Exception exception, ExceptionRootCause rootCause)
+        public override bool ShouldMarkFailure([JetBrains.Annotations.NotNull] Exception exception, ExceptionRootCause rootCause)
         {
             return rootCause == ExceptionRootCause.Unknown;
         }

@@ -158,7 +158,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Applies a function with no argument on the <paramref name="receiver"/>.
         /// </summary>
-        public virtual EvaluationResult Apply([NotNull]Context context, [NotNull]T receiver, [NotNull]EvaluationStackFrame captures)
+        public virtual EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, [JetBrains.Annotations.NotNull]T receiver, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures)
         {
             throw new InvalidOperationException("Function with no argument is not applicable.");
         }
@@ -166,7 +166,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Applies a function with one argument on the <paramref name="receiver"/>.
         /// </summary>
-        public virtual EvaluationResult Apply([NotNull]Context context, [NotNull]T receiver, EvaluationResult arg, [NotNull]EvaluationStackFrame captures)
+        public virtual EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, [JetBrains.Annotations.NotNull]T receiver, EvaluationResult arg, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures)
         {
             throw new InvalidOperationException("Function with 1 argument is not applicable.");
         }
@@ -174,7 +174,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Applies a function with two arguments on the <paramref name="receiver"/>.
         /// </summary>
-        public virtual EvaluationResult Apply([NotNull]Context context, [NotNull]T receiver, [CanBeNull]EvaluationResult arg1, [CanBeNull]EvaluationResult arg2, [NotNull]EvaluationStackFrame captures)
+        public virtual EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, [JetBrains.Annotations.NotNull]T receiver, [CanBeNull]EvaluationResult arg1, [CanBeNull]EvaluationResult arg2, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures)
         {
             throw new InvalidOperationException("Function with 2 arguments is not applicable.");
         }
@@ -182,7 +182,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Applies a function with N arguments on the <paramref name="receiver"/>
         /// </summary>
-        public virtual EvaluationResult Apply([NotNull]Context context, [NotNull]T receiver, [CanBeNull]EvaluationResult[] args, [NotNull]EvaluationStackFrame captures)
+        public virtual EvaluationResult Apply([JetBrains.Annotations.NotNull]Context context, [JetBrains.Annotations.NotNull]T receiver, [CanBeNull]EvaluationResult[] args, [JetBrains.Annotations.NotNull]EvaluationStackFrame captures)
         {
             throw new InvalidOperationException(I($"Function with {args.Length} arguments is not applicable."));
         }

@@ -13,7 +13,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public readonly struct GlobDescriptor : IEquatable<GlobDescriptor>
     {
         /// <nodoc/>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public AbsolutePath Root { get; }
 
         /// <summary>
@@ -23,7 +23,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// This does not support regular expressions. It should be a filesystem pattern --
         /// that is, it may contain a combination of valid literal path and wildcard (* and ?) characters.
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public string SearchPattern { get; }
 
         /// <summary>

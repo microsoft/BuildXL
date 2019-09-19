@@ -740,7 +740,7 @@ namespace TypeScript.Net.TypeChecking
                     Exports = FilterNonPublicNamespaceMembers(symbol.Exports),
                 },
                 originalSymbol: symbol);
-            
+
             return result;
         }
 
@@ -764,7 +764,7 @@ namespace TypeScript.Net.TypeChecking
         /// <summary>
         /// The exclusion argument in the original TypeScript code is a list of symbol names. Here we generalize it to a function.
         /// </summary>
-        public void MergeSymbolTable([NotNull]ISymbolTable target, [NotNull]ISymbolTable source)
+        public void MergeSymbolTable([JetBrains.Annotations.NotNull]ISymbolTable target, [JetBrains.Annotations.NotNull]ISymbolTable source)
         {
             foreach (var kvp in source)
             {
@@ -812,8 +812,8 @@ namespace TypeScript.Net.TypeChecking
             }
         }
 
-        [NotNull]
-        private ISymbolLinks GetSymbolLinks([NotNull]ISymbol symbol)
+        [JetBrains.Annotations.NotNull]
+        private ISymbolLinks GetSymbolLinks([JetBrains.Annotations.NotNull]ISymbol symbol)
         {
             if ((symbol.Flags & SymbolFlags.Transient) != SymbolFlags.None)
             {
@@ -825,8 +825,8 @@ namespace TypeScript.Net.TypeChecking
             return m_symbolLinks.GetOrAdd(id, () => new SymbolLinks());
         }
 
-        [NotNull]
-        private NodeLinks GetNodeLinks([NotNull]INode node)
+        [JetBrains.Annotations.NotNull]
+        private NodeLinks GetNodeLinks([JetBrains.Annotations.NotNull]INode node)
         {
             int nodeId = GetNodeId(node);
 
@@ -834,7 +834,7 @@ namespace TypeScript.Net.TypeChecking
         }
 
         [CanBeNull]
-        private NodeLinks TryGetNodeLinks([NotNull] INode node)
+        private NodeLinks TryGetNodeLinks([JetBrains.Annotations.NotNull] INode node)
         {
             int nodeId = GetNodeId(node);
             return m_nodeLinks.Get(nodeId);
@@ -1797,8 +1797,8 @@ namespace TypeScript.Net.TypeChecking
             Cycle,
         }
 
-        [NotNull]
-        private ISymbol ResolveAlias([NotNull]ISymbol symbol, bool resolveAliasRecursively = true)
+        [JetBrains.Annotations.NotNull]
+        private ISymbol ResolveAlias([JetBrains.Annotations.NotNull]ISymbol symbol, bool resolveAliasRecursively = true)
         {
             Contract.Ensures(Contract.Result<ISymbol>() != null);
             Contract.Assert((symbol.Flags & SymbolFlags.Alias) != SymbolFlags.None, "Should only get Alias here.");
@@ -1829,7 +1829,7 @@ namespace TypeScript.Net.TypeChecking
 
         private static ISymbol GetTargetOfAlias((Checker checker, ISymbol symbol) tpl, ISymbolLinks links, bool resolveAliasRecursively)
         {
-            
+
             if (tpl.checker.m_targetResolutionSet.Value.ContainsKey(links))
             {
                 tpl.checker.m_targetResolutionSet.Value[links] = AliasResolutionState.Cycle;
@@ -1858,7 +1858,7 @@ namespace TypeScript.Net.TypeChecking
             }
         }
 
-        private void MarkExportAsReferenced([NotNull] /*ImportEqualsDeclaration | ExportAssignment | ExportSpecifier*/ INode node)
+        private void MarkExportAsReferenced([JetBrains.Annotations.NotNull] /*ImportEqualsDeclaration | ExportAssignment | ExportSpecifier*/ INode node)
         {
             ISymbol symbol = GetSymbolOfNode(node);
             var target = ResolveAlias(symbol);
@@ -1878,7 +1878,7 @@ namespace TypeScript.Net.TypeChecking
         // When an alias symbol is referenced, we need to mark the entity it references as referenced and in turn repeat that until
         // we reach a non-alias or an exported entity (which is always considered referenced). We do this by checking the target of
         // the alias as an expression (which recursively takes us back here if the target references another alias).
-        private void MarkAliasSymbolAsReferenced([NotNull]ISymbol symbol)
+        private void MarkAliasSymbolAsReferenced([JetBrains.Annotations.NotNull]ISymbol symbol)
         {
             // Using thread-local cache to avoid stack overflow
             if (m_setReferenceSymbolResolutionCache.Value.Contains(symbol))
@@ -1931,7 +1931,7 @@ namespace TypeScript.Net.TypeChecking
         // TODO: Does this function need to change for DScript imports?
         // This function is only for imports with entity names
         [CanBeNull]
-        private ISymbol GetSymbolOfPartOfRightHandSideOfImportEquals([NotNull]INode entityName, IImportEqualsDeclaration importDeclaration = null)
+        private ISymbol GetSymbolOfPartOfRightHandSideOfImportEquals([JetBrains.Annotations.NotNull]INode entityName, IImportEqualsDeclaration importDeclaration = null)
         {
             if (importDeclaration == null)
             {
@@ -1967,7 +1967,7 @@ namespace TypeScript.Net.TypeChecking
         /// <summary>
         /// Returns fully qualified name of the <paramref name="symbol"/>.
         /// </summary>
-        public string GetFullyQualifiedName([NotNull]ISymbol symbol)
+        public string GetFullyQualifiedName([JetBrains.Annotations.NotNull]ISymbol symbol)
         {
             // This is DS specific change in behavior.
             // Original TS implementation will provide a filePath as a prefix for a fully-qualified name.
@@ -2484,13 +2484,13 @@ namespace TypeScript.Net.TypeChecking
         }
 
         [CanBeNull]
-        private ISymbol GetSymbolOfNode([NotNull]INode node)
+        private ISymbol GetSymbolOfNode([JetBrains.Annotations.NotNull]INode node)
         {
             return GetMergedSymbol(node.Symbol);
         }
 
         [CanBeNull]
-        private ISymbol GetParentOfSymbol([NotNull]ISymbol symbol)
+        private ISymbol GetParentOfSymbol([JetBrains.Annotations.NotNull]ISymbol symbol)
         {
             return GetMergedSymbol(symbol.Parent);
         }
@@ -2503,7 +2503,7 @@ namespace TypeScript.Net.TypeChecking
                 : symbol;
         }
 
-        private bool SymbolIsValue([NotNull]ISymbol symbol)
+        private bool SymbolIsValue([JetBrains.Annotations.NotNull]ISymbol symbol)
         {
             // If it is an instantiated symbol, then it is a value if the symbol it is an
             // instantiation of is a value.
@@ -2917,7 +2917,7 @@ namespace TypeScript.Net.TypeChecking
                         ISymbolVisibilityResult hasAccessibleDeclarations = HasVisibleDeclarations(firstSymbolInChain);
                         if (hasAccessibleDeclarations == null)
                         {
-                            // DScript-specific. If firstSymbolInChain is defined in the prelude, 
+                            // DScript-specific. If firstSymbolInChain is defined in the prelude,
                             // then it is automatically accessible to anybody
                             var symbolSourceFile = firstSymbolInChain.DeclarationList.FirstOrDefault()?.GetSourceFile();
                             if (symbolSourceFile == null || !m_host.IsPartOfPreludeModule(symbolSourceFile.FileName))
@@ -4165,7 +4165,7 @@ namespace TypeScript.Net.TypeChecking
         // Appends the type parameters given by a list of declarations to a set of type parameters and returns the resulting set.
         // The allocates a new array if the input type parameter set is null, but otherwise it modifies the set
         // in-place and returns the same array.
-        private List<ITypeParameter> AppendTypeParameters(List<ITypeParameter> typeParameters, [NotNull] NodeArray<ITypeParameterDeclaration> declarations)
+        private List<ITypeParameter> AppendTypeParameters(List<ITypeParameter> typeParameters, [JetBrains.Annotations.NotNull] NodeArray<ITypeParameterDeclaration> declarations)
         {
             foreach (var declaration in declarations)
             {
@@ -4471,7 +4471,7 @@ namespace TypeScript.Net.TypeChecking
             return true;
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private IReadOnlyList<IType> ResolveBaseTypesOfInterface(IInterfaceType type)
         {
             Contract.Requires(type != null);
@@ -5242,7 +5242,7 @@ namespace TypeScript.Net.TypeChecking
                 intIndexType);
         }
 
-        private IResolvedType ResolveAnonymousTypeMembers([NotNull]IAnonymousType type)
+        private IResolvedType ResolveAnonymousTypeMembers([JetBrains.Annotations.NotNull]IAnonymousType type)
         {
             var symbol = type.Symbol;
             if (type.Target != null)
@@ -5367,8 +5367,8 @@ namespace TypeScript.Net.TypeChecking
         /// <summary>
         /// Return properties of an object type or an empty array for other types
         /// </summary>
-        [NotNull]
-        private IReadOnlyList<ISymbol> GetPropertiesOfObjectType([NotNull]IType type)
+        [JetBrains.Annotations.NotNull]
+        private IReadOnlyList<ISymbol> GetPropertiesOfObjectType([JetBrains.Annotations.NotNull]IType type)
         {
             if ((type.Flags & TypeFlags.ObjectType) != TypeFlags.None)
             {
@@ -5671,7 +5671,7 @@ namespace TypeScript.Net.TypeChecking
         /// Return list of type parameters with duplicates removed (duplicate identifier errors are generated in the actual
         /// type checking functions).
         /// </summary>
-        private List<ITypeParameter> GetTypeParametersFromDeclaration([NotNull] NodeArray<ITypeParameterDeclaration> typeParameterDeclarations)
+        private List<ITypeParameter> GetTypeParametersFromDeclaration([JetBrains.Annotations.NotNull] NodeArray<ITypeParameterDeclaration> typeParameterDeclarations)
         {
             List<ITypeParameter> result = new List<ITypeParameter>();
             foreach (var node in typeParameterDeclarations)
@@ -5686,7 +5686,7 @@ namespace TypeScript.Net.TypeChecking
             return result;
         }
 
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         private static IReadOnlyList<ISymbol> SymbolsToArray(ISymbolTable symbols)
         {
             List<ISymbol> result = null;
@@ -5934,7 +5934,7 @@ namespace TypeScript.Net.TypeChecking
         }
 
         /// <inheritdoc/>
-        public IType GetReturnTypeOfSignature([NotNull] ISignature signatureArg)
+        public IType GetReturnTypeOfSignature([JetBrains.Annotations.NotNull] ISignature signatureArg)
         {
             return signatureArg.GetOrSetResolvedReturnType(
                 (checker: this, signatureArg),
@@ -6108,12 +6108,12 @@ namespace TypeScript.Net.TypeChecking
         }
 
         [CanBeNull]
-        private static ITypeNode GetConstraintDeclaration([NotNull]ITypeParameter type)
+        private static ITypeNode GetConstraintDeclaration([JetBrains.Annotations.NotNull]ITypeParameter type)
         {
             return GetDeclarationOfKind(type.Symbol, SyntaxKind.TypeParameter).As<ITypeParameterDeclaration>()?.Constraint;
         }
 
-        private bool HasConstraintReferenceTo([NotNull]IType type, ITypeParameter target)
+        private bool HasConstraintReferenceTo([JetBrains.Annotations.NotNull]IType type, ITypeParameter target)
         {
             var @checked = new HashSet<IType>();
             while ((type != null) && (type.Flags & TypeFlags.TypeParameter) != TypeFlags.None && !@checked.Contains(type))
@@ -6132,7 +6132,7 @@ namespace TypeScript.Net.TypeChecking
         }
 
         [CanBeNull]
-        private IType GetConstraintOfTypeParameter([NotNull]ITypeParameter typeParameter)
+        private IType GetConstraintOfTypeParameter([JetBrains.Annotations.NotNull]ITypeParameter typeParameter)
         {
             var typeConstraint = typeParameter.GetOrSetConstraint(
                 this,
@@ -6164,7 +6164,7 @@ namespace TypeScript.Net.TypeChecking
             return typeConstraint == m_noConstraintType ? null : typeParameter.Constraint;
         }
 
-        private ISymbol GetParentSymbolOfTypeParameter([NotNull]ITypeParameter typeParameter)
+        private ISymbol GetParentSymbolOfTypeParameter([JetBrains.Annotations.NotNull]ITypeParameter typeParameter)
         {
             return GetSymbolOfNode(GetDeclarationOfKind(typeParameter.Symbol, SyntaxKind.TypeParameter).Parent);
         }
@@ -6850,7 +6850,7 @@ namespace TypeScript.Net.TypeChecking
         }
 
         [CanBeNull]
-        private IType GetTypeFromTypeNode([NotNull]ITypeNode node)
+        private IType GetTypeFromTypeNode([JetBrains.Annotations.NotNull]ITypeNode node)
         {
             switch (node.Kind)
             {
@@ -7060,8 +7060,8 @@ namespace TypeScript.Net.TypeChecking
             return TypeMapper.Create(t => InstantiateType(mapper1.Mapper(t), mapper2));
         }
 
-        [NotNull]
-        private ITypeParameter CloneTypeParameter([NotNull]ITypeParameter typeParameter)
+        [JetBrains.Annotations.NotNull]
+        private ITypeParameter CloneTypeParameter([JetBrains.Annotations.NotNull]ITypeParameter typeParameter)
         {
             var result = CreateType<TypeParameter>(TypeFlags.TypeParameter, typeParameter.Symbol);
             result.Target = typeParameter;
@@ -10195,7 +10195,7 @@ namespace TypeScript.Net.TypeChecking
                                         }
 
                                         break;
-                                    
+
                                     case SyntaxKind.SwitchExpression:
                                         // In a branch of a switch expression, narrow based on controlling pattern match
                                         if (c.ResolveUnionType() != n.Cast<ISwitchExpression>().Expression.ResolveUnionType())
@@ -12318,7 +12318,7 @@ namespace TypeScript.Net.TypeChecking
             }
         }
 
-        private static bool IsFileOrNamespace([NotNull]ISymbol symbol)
+        private static bool IsFileOrNamespace([JetBrains.Annotations.NotNull]ISymbol symbol)
         {
             return (symbol.Flags & SymbolFlags.ValueModule) != SymbolFlags.None ||
                    (symbol.Flags & SymbolFlags.NamespaceModule) != SymbolFlags.None;
@@ -13184,7 +13184,7 @@ namespace TypeScript.Net.TypeChecking
                     // DS: DScript allows ambient decorators on interface properties
                     case SyntaxKind.PropertySignature:
                         return 1;
-                        
+
                     // DS: DScript allows ambient decorators on literal types
                     case SyntaxKind.StringLiteralType:
                         return 1;
@@ -14173,8 +14173,8 @@ namespace TypeScript.Net.TypeChecking
         }
 
         /// <inheritdoc/>
-        [NotNull]
-        public ISignature GetResolvedSignature([NotNull]/*HINT: CallLikeExpression*/INode nodeArg)
+        [JetBrains.Annotations.NotNull]
+        public ISignature GetResolvedSignature([JetBrains.Annotations.NotNull]/*HINT: CallLikeExpression*/INode nodeArg)
         {
             Contract.Ensures(Contract.Result<ISignature>() != null);
 

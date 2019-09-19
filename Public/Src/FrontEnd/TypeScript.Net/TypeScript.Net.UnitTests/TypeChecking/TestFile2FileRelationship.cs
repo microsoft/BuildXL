@@ -31,7 +31,7 @@ namespace Test.DScript.TypeChecking
         [Fact]
         public void QualifierDeclarationShouldIntroduceImplicitDependency()
         {
-            var spec1 = @" 
+            var spec1 = @"
 export declare const qualifier: {
     configuration: 'release' | 'debug';
     platform: 'x86' | 'x64' | 'arm32' | 'arm64';
@@ -751,7 +751,7 @@ export const root = 42";
 
             public AnalyzedSourceFile Spec3 { get; }
 
-            public ThreeFiles(PathTable pathTable, ITypeChecker checker, [NotNull]ISourceFile spec1, [NotNull]ISourceFile spec2, [CanBeNull]ISourceFile spec3, ISourceFile[] files)
+            public ThreeFiles(PathTable pathTable, ITypeChecker checker, [JetBrains.Annotations.NotNull]ISourceFile spec1, [JetBrains.Annotations.NotNull]ISourceFile spec2, [CanBeNull]ISourceFile spec3, ISourceFile[] files)
                 : this()
             {
                 Spec1 = new AnalyzedSourceFile(checker, spec1, files, pathTable);

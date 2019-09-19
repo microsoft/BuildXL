@@ -202,7 +202,7 @@ namespace TypeScript.Net.Parsing
                 return true;
             }
         }
-        
+
         /// <summary>
         /// Helper function for traversing recursive data structures in non-recursive fashion.
         /// </summary>
@@ -278,7 +278,7 @@ namespace TypeScript.Net.Parsing
             return new NodeOrNodeArray(node);
         }
 
-        private static NodeOrNodeArray Nodes([NotNull]INodeArray<INode> nodes)
+        private static NodeOrNodeArray Nodes([JetBrains.Annotations.NotNull]INodeArray<INode> nodes)
         {
             return new NodeOrNodeArray(nodes);
         }

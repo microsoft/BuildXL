@@ -18,20 +18,20 @@ namespace BuildXL.FrontEnd.Sdk
         /// Returns the supported resolvers
         /// </summary>
         /// <returns>The resulting collection is not null or empty.</returns>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyCollection<string> SupportedResolvers { get; }
 
         /// <summary>
         /// Initializes the frontend
         /// </summary>
-        void InitializeFrontEnd([NotNull]FrontEndHost host, [NotNull]FrontEndContext context, [NotNull]IConfiguration frontEndConfiguration);
+        void InitializeFrontEnd([JetBrains.Annotations.NotNull]FrontEndHost host, [JetBrains.Annotations.NotNull]FrontEndContext context, [JetBrains.Annotations.NotNull]IConfiguration frontEndConfiguration);
 
         /// <summary>
         /// Creates a resolver for a given kind. The resolver must be part of the front end
         /// supported resolvers.
         /// </summary>
-        [NotNull]
-        IResolver CreateResolver([NotNull]string kind);
+        [JetBrains.Annotations.NotNull]
+        IResolver CreateResolver([JetBrains.Annotations.NotNull]string kind);
 
         /// <summary>
         /// Allows a frontend to log its statistics after evaluation

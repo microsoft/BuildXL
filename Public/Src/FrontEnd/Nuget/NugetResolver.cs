@@ -80,7 +80,7 @@ namespace BuildXL.FrontEnd.Script
             {
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
-                string existingCgManifest = "{}";
+                string existingCgManifest = "INVALID";
 
                 if ( !Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid &&
                       Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid )
@@ -96,15 +96,18 @@ namespace BuildXL.FrontEnd.Script
                     // CgManifest FileNotFound, log error and fail build
                     catch (DirectoryNotFoundException e)
                     {
-                        throw new BuildXLException(@"Cannot read cgmanifest file from disk", e);
+                        Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
+                        return false;
                     }
                     catch (FileNotFoundException e)
                     {
-                        throw new BuildXLException(@"Cannot read cgmanifest file from disk", e);
+                        Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
+                        return false;
                     }
                     if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                     {
-                        throw new BuildXLException(@"Existing cgmanifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
+                        Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
+                        return false;
                     }
 
                     m_resolverState = State.ResolverInitialized;
@@ -138,7 +141,8 @@ namespace BuildXL.FrontEnd.Script
                         }
                         catch (BuildXLException e)
                         {
-                            throw new BuildXLException("Cannot write cgmanifest file to disk", e);
+                            Logger.ReportComponentGovernanceGenerationError(Context.LoggingContext, "Could not write Component Governance Manifest file to disk\n" + e.ToString());
+                            return false;
                         }
                     }
                 }

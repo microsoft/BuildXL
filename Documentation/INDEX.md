@@ -50,6 +50,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Server Mode](Wiki/Advanced-Features/Server-Mode.md) TODO: groom
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md) TODO: groom
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md) TODO: groom
+* [Service Pips](Wiki/Service-Pips.md)
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)
@@ -61,4 +62,6 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) TODO: groom
 * [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md) TODO: groom
 
-
+## Troubleshooting
+* [DX Error Codes](Wiki/Error-Codes)
+* [Common Issues]()

@@ -17,6 +17,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Installation Instructions](Wiki/Installation.md) TODO: groom
 * [Developer Guide](Wiki/DeveloperGuide.md) TODO: author
 * [Security](../SECURITY.md)
+* [Release Notes](Wiki/Release-Notes.md)
 
 # Product Documentation
 ## Architecture

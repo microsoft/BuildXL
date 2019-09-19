@@ -60,12 +60,12 @@ export const framework : Shared.Framework = {
 
     runtimeConfigStyle: "runtimeJson",
     runtimeFrameworkName: "Microsoft.NETCore.App",
-    runtimeConfigVersion: "3.0.0-preview5-27626-15",
+    runtimeConfigVersion: "3.0.0-rc1-19456-20",
 
     // Deployment style for .NET Core applications currently defaults to self-contained
     applicationDeploymentStyle: "selfContained",
     runtimeContentProvider: runtimeContentProvider,
-    
+
     conditionalCompileDefines: [
         "NET_CORE",
         "NET_COREAPP",
@@ -74,7 +74,7 @@ export const framework : Shared.Framework = {
 };
 
 function createDefaultAssemblies() : Shared.Assembly[] {
-    const pkgContents = importFrom("Microsoft.NETCore.App").withQualifier({targetFramework: "netcoreapp3.0"}).Contents.all;
+    const pkgContents = importFrom("Microsoft.NETCore.App.Ref").withQualifier({targetFramework: "netcoreapp3.0"}).Contents.all;
     const netcoreAppPackageContents = pkgContents.contents;
     const dlls = netcoreAppPackageContents.filter(file => file.hasExtension && file.extension === a`.dll`);
     return dlls.map(file  => Shared.Factory.createAssembly(pkgContents, file, "netcoreapp3.0", [], true));

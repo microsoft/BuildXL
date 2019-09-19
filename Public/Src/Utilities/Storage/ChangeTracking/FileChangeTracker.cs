@@ -161,9 +161,9 @@ namespace BuildXL.Storage.ChangeTracking
         /// <see cref="ResumeTrackingChanges(LoggingContext,BuildXL.Utilities.FileEnvelopeId,VolumeMap,IChangeJournalAccessor,FileChangeTrackingSet,string)"/>.
         /// </summary>
         public static FileChangeTracker StartTrackingChanges(
-            LoggingContext loggingContext, 
-            VolumeMap volumeMap, 
-            IChangeJournalAccessor journal, 
+            LoggingContext loggingContext,
+            VolumeMap volumeMap,
+            IChangeJournalAccessor journal,
             string buildEngineFingerprint,
             FileEnvelopeId? correlatedId = default)
         {
@@ -415,7 +415,7 @@ namespace BuildXL.Storage.ChangeTracking
                                         {
                                             return LoadingTrackerResult.FailPriorTrackerDisabled();
                                         }
-                                        
+
                                         var previousFingerprint = reader.ReadNullable(r => r.ReadString());
                                         // only check for fingerprints match if the supplied fingerprint is valid
                                         // this is to support special cases where we might want to load ChangeTracker
@@ -472,7 +472,7 @@ namespace BuildXL.Storage.ChangeTracking
         #region Save tracker
 
         /// <summary>
-        /// Get the file envelope id to save with.  If no change has been made, reuse existing file envelope id.  Otherwise, use overrideFileEnvelopeId or a new id if overrideFileEnvelopeId is not specified. 
+        /// Get the file envelope id to save with.  If no change has been made, reuse existing file envelope id.  Otherwise, use overrideFileEnvelopeId or a new id if overrideFileEnvelopeId is not specified.
         /// </summary>
         public FileEnvelopeId GetFileEnvelopeToSaveWith(FileEnvelopeId? overrideFileEnvelopeId = default)
         {
@@ -481,7 +481,7 @@ namespace BuildXL.Storage.ChangeTracking
                 return FileEnvelopeId;
             }
 
-            // Use override when provided, otherwise use the existing file id if we are building the initial change tracking set, 
+            // Use override when provided, otherwise use the existing file id if we are building the initial change tracking set,
             // otherwise recreate a new file id.
             return overrideFileEnvelopeId ?? (TrackingState == FileChangeTrackingState.BuildingInitialChangeTrackingSet ? FileEnvelopeId : FileEnvelopeId.Create());
         }
@@ -630,8 +630,8 @@ namespace BuildXL.Storage.ChangeTracking
                 }
 
                 return new FileChangeTrackingSet.EnumerationResult(
-                    possibleFingerprintResult.Result.Fingerprint, 
-                    possibleFingerprintResult.Result.PathExistence, 
+                    possibleFingerprintResult.Result.Fingerprint,
+                    possibleFingerprintResult.Result.PathExistence,
                     new Failure<string>("Tracking set is disabled"));
             }
 
@@ -686,7 +686,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// ADVANCED. Use with care. This should only because if the relative has been guaranteed to be non-existent
         /// because the parent path non-existent or enumerated and the child path was non-existent
         /// </summary>
-        public bool TrackAbsentRelativePath([NotNull] string trackedParentPath, [NotNull] string relativeAbsentPath)
+        public bool TrackAbsentRelativePath([JetBrains.Annotations.NotNull] string trackedParentPath, [JetBrains.Annotations.NotNull] string relativeAbsentPath)
         {
             return m_changeTrackingSet?.TrackAbsentRelativePath(trackedParentPath, relativeAbsentPath) ?? false;
         }
@@ -768,7 +768,7 @@ namespace BuildXL.Storage.ChangeTracking
                 else
                 {
                     DoDisable(path, openResult.CreateFailureForError());
-                }                    
+                }
             }
 
             void DoDisable(string p, Failure f)

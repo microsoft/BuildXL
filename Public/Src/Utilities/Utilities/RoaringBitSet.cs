@@ -91,7 +91,7 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public HashSet<int> MaterializedSet
         {
             get
@@ -102,7 +102,7 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         public HashSet<AbsolutePath> MaterializedSetOfPaths
         {
             get

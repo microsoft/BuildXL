@@ -140,7 +140,7 @@ namespace BuildXL.Utilities.Configuration
         /// - custom set of rules that could be applied only on specific code bases (like no `glob`).
         /// This list is a second one and contains a set of configurable rules that could be enabled.
         /// </remarks>
-        [NotNull]
+        [JetBrains.Annotations.NotNull]
         IReadOnlyList<string> EnabledPolicyRules { get; }
 
         /// <summary>
@@ -285,7 +285,7 @@ namespace BuildXL.Utilities.Configuration
         bool LogStatistics { get; }
 
         /// <summary>
-        /// Whether the frontend statistics should contain statistics about the slowest proccesses. 
+        /// Whether the frontend statistics should contain statistics about the slowest proccesses.
         /// </summary>
         bool ShowSlowestElementsStatistics { get; }
 

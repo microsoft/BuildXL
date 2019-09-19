@@ -33,7 +33,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Protected constructor
         /// </summary>
-        protected FileAccessWhitelistEntry([NotNull]SerializableRegex pathRegex, bool allowsCaching, string name)
+        protected FileAccessWhitelistEntry([JetBrains.Annotations.NotNull]SerializableRegex pathRegex, bool allowsCaching, string name)
         {
             Contract.Requires(pathRegex != null);
 
@@ -46,7 +46,7 @@ namespace BuildXL.Processes
         /// Determine whether a ReportedFileAccess matches the whitelist rules.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1011", Justification = "Only a Process can have unknown file accesses.")]
-        public abstract FileAccessWhitelist.MatchType Matches(ReportedFileAccess reportedFileAccess, [NotNull]Process pip, [NotNull]PathTable pathTable);
+        public abstract FileAccessWhitelist.MatchType Matches(ReportedFileAccess reportedFileAccess, [JetBrains.Annotations.NotNull]Process pip, [JetBrains.Annotations.NotNull]PathTable pathTable);
 
         #region Serialization
 

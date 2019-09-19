@@ -97,6 +97,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected readonly DistributedContentStoreSettings Settings;
 
         /// <summary>
+        /// This type is an entry point for all the operations. So it make sense to trace starts and stops.
+        /// </summary>
+        protected override bool TraceOperationStarted => true;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
         /// </summary>
         public ReadOnlyDistributedContentSession(
@@ -473,8 +478,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 "Metadata records not found in content location store"))
                         .AsIndexedTasks();
                 }
-
-                Tracer.Debug(context, $"Copying {getBulkResult.ContentHashesInfo.Count} files locally.");
 
                 // TransformBlock is supposed to return items in FIFO order, so we don't need to index the input
                 var copyFilesLocallyBlock =

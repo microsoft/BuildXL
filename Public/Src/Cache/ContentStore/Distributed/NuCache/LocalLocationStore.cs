@@ -637,9 +637,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new GetBulkLocationsResult(CollectionUtilities.EmptyArray<ContentHashWithSizeAndLocations>(), origin);
             }
 
-            var result = await GetBulkCoreAsync(context, contentHashes, origin);
-
-            context.TraceDebug($"GetBulk({origin}) => [{result.GetShortHashesTraceString()}]");
+            var result = await context.PerformOperationAsync(
+                Tracer,
+                () => GetBulkCoreAsync(context, contentHashes, origin),
+                traceOperationStarted: false,
+                extraEndMessage: r => $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]");
 
             return result;
         }
@@ -673,9 +675,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     return await ResolveLocationsAsync(context, entries.Value, contentHashes, GetBulkOrigin.Global);
-
                 },
-                Counters[ContentLocationStoreCounters.GetBulkGlobal]);
+                Counters[ContentLocationStoreCounters.GetBulkGlobal],
+                traceErrorsOnly: true); // Intentionally tracing errors only.
         }
 
         private Task<GetBulkLocationsResult> GetBulkFromLocalAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
@@ -718,6 +720,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return ResolveLocationsAsync(context, entries, contentHashes, GetBulkOrigin.Local);
                 },
+                traceErrorsOnly: true, // Intentionally tracing errors only.
                 counter: Counters[ContentLocationStoreCounters.GetBulkLocal]);
         }
 

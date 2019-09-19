@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private RocksDbContentPlacementPredictionStore _predictionStore;
         private string _buildId = null;
         private ContentHash? _buildIdHash = null;
-        private ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
+        private readonly ConcurrentBigSet<ContentHash> _pendingProactivePuts = new ConcurrentBigSet<ContentHash>();
 
         private static readonly string PredictionBlobNameFile = "blobName.txt";
 

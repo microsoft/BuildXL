@@ -703,11 +703,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
-            return _blobAdapter.PutBlobAsync(context, hash, blob);
+            return await _blobAdapter.PutBlobAsync(context, hash, blob);
         }
 
         /// <inheritdoc />

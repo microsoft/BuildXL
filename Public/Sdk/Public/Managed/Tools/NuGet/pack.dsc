@@ -304,3 +304,32 @@ export function createAssemblyLayout(assembly: Managed.Assembly) : Deployment.De
         ]
     };
 }
+
+@@public
+export function createAssemblyLayoutWithSpecificRuntime(assembly: Managed.Assembly, runtime: string, includeInRef: boolean) : Deployment.Definition {
+    // When the assembly is undefined, return empty deployment.
+    if (assembly === undefined) {
+        return {
+            contents: []
+        };
+    }
+
+    return {
+        contents: [
+            {
+                subfolder: r`runtimes/${runtime}/lib/${assembly.targetFramework}`,
+                contents: [
+                    assembly.runtime || emptyFile,
+                ]
+            },
+            ... includeInRef ? [
+                {
+                    subfolder: r`ref/${assembly.targetFramework}`,
+                    contents: [
+                        assembly.compile || emptyFile,
+                    ]
+                }
+            ] : []
+        ]
+    };
+}

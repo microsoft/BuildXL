@@ -692,7 +692,7 @@ namespace BuildXL.Scheduler.Tracing
                 defaultColumnKeyTracked: true,
                 additionalColumns: s_additionalColumns,
                 additionalKeyTrackedColumns: s_additionalKeyTrackedColumns,
-                failureHandler: failureHandler,
+                failureHandler: (f) => { failureHandler?.Invoke(f.Failure); },
                 openReadOnly: readOnly,
                 onFailureDeleteExistingStoreAndRetry: true);
 

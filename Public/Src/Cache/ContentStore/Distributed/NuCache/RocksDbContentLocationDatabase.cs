@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -197,11 +196,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
                     additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
                     rotateLogs: true,
-                    failureHandler: failure =>
+                    failureHandler: failureEvent =>
                     {
-                        Tracer.Error(context, $"RocksDb critical error caused store deprecation: {failure.DescribeIncludingInnerFailures()}");
+                        bool isUserError = failureEvent.Rethrow;
+                        failureEvent.Lockdown = !isUserError;
+                        failureEvent.Rethrow = isUserError;
                     },
-                    exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed);
+                    invalidationHandler: failure => {
+                        Tracer.Error(context, $"RocksDb critical error caused store invalidation: {failure.DescribeIncludingInnerFailures()}");
+                    });
 
                 if (possibleStore.Succeeded)
                 {

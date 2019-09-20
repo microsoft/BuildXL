@@ -1021,7 +1021,7 @@ namespace BuildXL.Scheduler.Cache
                 StoreLocation,
                 FormatVersion,
                 additionalKeyTrackedColumns: keyTrackedColumns,
-                failureHandler: (f) => HandleStoreFailure(f),
+                failureHandler: (f) => HandleStoreFailure(f.Failure),
                 onFailureDeleteExistingStoreAndRetry: true);
 
             if (possibleAccessor.Succeeded)

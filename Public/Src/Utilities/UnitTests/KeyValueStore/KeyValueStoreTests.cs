@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.KeyValueStores;
@@ -133,79 +132,99 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
-        public void PutNullValue(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
-        {
-            string key1 = "key1", value1 = null;
-
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
-            {
-                XAssert.IsTrue(accessor.Use(store =>
-                {
-                    DrowningAssertThrows<NullReferenceException>(() =>
-                    {
-                        store.Put(key1, value1);
-                    });
-                }).Succeeded);
-            }
-        }
-
-        [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
-        public void PutNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
+        [Fact]
+        public void PutNullValue()
         {
             string key1 = null, value1 = "value1";
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    DrowningAssertThrows<NullReferenceException>(() =>
+                    Exception exception = null;
+                    try
                     {
                         store.Put(key1, value1);
-                    });
+                    }
+                    catch (Exception e)
+                    {
+                        exception = e;
+                    }
+
+                    XAssert.AreNotEqual(null, exception);
                 }).Succeeded);
             }
         }
 
-        [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
-        public void RemoveNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
+        [Fact]
+        public void PutNullKey()
         {
-            string key1 = null;
+            string key1 = null, value1 = "value1";
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    DrowningAssertThrows<NullReferenceException>(() =>
+                    Exception exception = null;
+                    try
+                    {
+                        store.Put(key1, value1);
+                    }
+                    catch (Exception e)
+                    {
+                        exception = e;
+                    }
+
+                    XAssert.AreNotEqual(null, exception);
+                }).Succeeded);
+            }
+        }
+
+        [Fact]
+        public void RemoveNullKey()
+        {
+            string key1 = null;
+
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
+            {
+                XAssert.IsTrue(accessor.Use(store =>
+                {
+                    Exception exception = null;
+                    try
                     {
                         store.Remove(key1);
-                    });
+                    }
+                    catch (Exception e)
+                    {
+                        exception = e;
+                    }
+
+                    XAssert.AreNotEqual(null, exception);
                 }).Succeeded);
             }
         }
 
 
-        [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
-        public void GetNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
+        [Fact]
+        public void GetNullKey()
         {
             string key1 = null;
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
                 XAssert.IsTrue(accessor.Use(store =>
                 {
-                    DrowningAssertThrows<NullReferenceException>(() =>
+                    Exception exception = null;
+                    try
                     {
                         store.TryGetValue(key1, out var value);
-                    });
+                    }
+                    catch (Exception e)
+                    {
+                        exception = e;
+                    }
+
+                    XAssert.AreNotEqual(null, exception);
                 }).Succeeded);
             }
         }
@@ -854,32 +873,24 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
-        public void NonExistentColumnTest(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
+        [Fact]
+        public void NonExistentColumnTest()
         {
             string key1 = "key1", value1A = "value1A";
 
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, exceptionHandlingMode: exceptionHandlingMode).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory).Result)
             {
-                // Can't inline due to typing issues.
-                Action inexistentColumnAccess = () =>
-                {
-                    var result = accessor.Use(
-                            store =>
-                            {
-                                // Accessing a non-existent column causes a failure
-                                store.Put(key1, value1A, "fakeColumn");
-                            });
-
-                    // In relaxed mode, this will be considered a RocksDb exception, which won't throw.
-                    XAssert.AreEqual(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed, exceptionHandlingMode);
-                    AssertFailed(result);
-                    throw ((Failure<Exception>)result.Failure).Content;
-                };
-
-                Assert.Throws<KeyNotFoundException>(inexistentColumnAccess);
+                Assert.Throws<KeyNotFoundException>(
+                    () =>
+                    {
+                        AssertFailed(
+                            accessor.Use(
+                                store =>
+                                {
+                                    // Accessing a non-existent column causes a failure
+                                    store.Put(key1, value1A, "fakeColumn");
+                                }));
+                    });
             }
         }
 
@@ -975,11 +986,17 @@ namespace Test.BuildXL.Engine.Cache
                             store.Put(key, value, columnFamilyName: column);
                         }
 
-
-                        DrowningAssertThrows<NullReferenceException>(() =>
+                        Exception exception = null;
+                        try
                         {
                             store.TryGetValue(key, out var v, columnFamilyName: changingColumn);
-                        });
+                        }
+                        catch (Exception ex)
+                        {
+                            exception = ex;
+                        }
+
+                        XAssert.AreNotEqual(null, exception);
                     })
                 );
             }
@@ -999,10 +1016,17 @@ namespace Test.BuildXL.Engine.Cache
                             AssertEntryExists(store, key, value, column: column);
                         }
 
-                        DrowningAssertThrows<NullReferenceException>(() =>
+                        Exception exception = null;
+                        try
                         {
                             store.TryGetValue(key, out var v, columnFamilyName: changingKeyColumn);
-                        });
+                        }
+                        catch (Exception ex)
+                        {
+                            exception = ex;
+                        }
+
+                        XAssert.AreNotEqual(null, exception);
                     })
                 );
             }
@@ -1182,7 +1206,7 @@ namespace Test.BuildXL.Engine.Cache
 
             // Fail due to invalid store version
             XAssert.IsFalse(KeyValueStoreAccessor.OpenWithVersioning(StoreDirectory, version).Succeeded);
-            
+
             // Make sure a new store is created due to invalid store
             using (var accessor = KeyValueStoreAccessor.OpenWithVersioning(StoreDirectory, version, onFailureDeleteExistingStoreAndRetry: true).Result)
             {
@@ -1228,17 +1252,11 @@ namespace Test.BuildXL.Engine.Cache
             }
         }
 
-        [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
-        public void FailureHandlersHandleAccessViolationException(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
+        [Fact]
+        public void FailureHandlersSeeAccessViolationException()
         {
             bool failureHandled = false;
-            bool invalidationHandled = false;
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, 
-                failureHandler: (f) => { failureHandled = true; },
-                invalidationHandler: (f) => { invalidationHandled = true; },
-                exceptionHandlingMode: exceptionHandlingMode).Result)
+            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory, failureHandler: (f) => { failureHandled = true; }).Result)
             {
                 try
                 {
@@ -1249,45 +1267,11 @@ namespace Test.BuildXL.Engine.Cache
                 }
                 catch (AccessViolationException)
                 {
-                    // In both cases, an exception will be triggered; strict mode will lock down the DB, and relaxed
-                    // mode won't.
+                    // Will be caught by failure handler
                 }
             }
 
             XAssert.IsTrue(failureHandled);
-
-            // Since this does not trigger an invalidation in relaxed mode, the invalidation handler will only be 
-            // called in strict mode.
-            XAssert.IsTrue(invalidationHandled || exceptionHandlingMode == KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed);
-        }
-
-        [Fact]
-        public void RelaxedModeInvalidatesOnRocksDbException()
-        {
-            bool failureHandled = false;
-            bool invalidationHandled = false;
-            using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory,
-                failureHandler: (f) => { failureHandled = true; },
-                invalidationHandler: (f) => { invalidationHandled = true; },
-                exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed).Result)
-            {
-                try
-                {
-                    XAssert.IsFalse(accessor.Use(store =>
-                    {
-                        throw new SEHException("Something went really wrong");
-                    }).Succeeded);
-                }
-                catch (SEHException)
-                {
-                    // Relaxed mode won't throw, but will lock down the DB and fail the operation.
-                    XAssert.IsFalse(true);
-                }
-            }
-
-            // Relaxed mode won't call the failure handler, but the invalidation handler in this case.
-            XAssert.IsFalse(failureHandled);
-            XAssert.IsTrue(invalidationHandled);
         }
 
         private string LongRandomString()
@@ -1385,25 +1369,8 @@ namespace Test.BuildXL.Engine.Cache
             }
             finally
             {
-                base.Dispose(disposing); 
+                base.Dispose(disposing);
             }
-        }
-
-        private void DrowningAssertThrows<T>(Action action)
-            where T : class
-        {
-            Exception exception = null;
-            try
-            {
-                action.Invoke();
-            }
-            catch (Exception e)
-            {
-                exception = e;
-            }
-
-            XAssert.AreNotEqual(null, exception);
-            XAssert.AreEqual(typeof(T), exception.GetType());
         }
     }
 }

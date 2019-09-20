@@ -42,6 +42,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         private const int MaxPathUnix = 1024;
 
         /// <summary>
+        /// Returns true if paths longer than MaxShortPath are supported.
+        /// </summary>
+        public static bool LongPathsSupported { get; } = GetLongPathSupport();
+
+        /// <summary>
+        /// Maximum path length for \\?\ style paths in Windows.
+        /// </summary>
+        public const int MaxLongPathWindows = 32767;
+
+        /// <summary>
         /// Maximum path length when long paths are not supported.
         /// </summary>
         public static readonly int MaxShortPath = IsWindowsOS ? 260 : MaxPathUnix;
@@ -49,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         /// Maximum path length for \\?\ style paths.
         /// </summary>
-        public static readonly int MaxLongPath = IsWindowsOS ? 32767 : MaxPathUnix;
+        public static readonly int MaxLongPath = IsWindowsOS ? MaxLongPathWindows : MaxPathUnix;
 
         /// <summary>
         /// Maximum path length for directory.
@@ -65,11 +75,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Maximum path length.
         /// </summary>
         public static int MaxPath { get; } = LongPathsSupported ? MaxLongPath : MaxShortPath;
-
-        /// <summary>
-        /// Returns true if paths longer than MaxShortPath are supported.
-        /// </summary>
-        public static bool LongPathsSupported { get; } = GetLongPathSupport();
 
         private static bool GetLongPathSupport()
         {

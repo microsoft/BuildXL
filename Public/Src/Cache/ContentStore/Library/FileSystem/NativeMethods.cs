@@ -353,7 +353,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             /// <summary>
             ///     Allocates a constant-sized buffer for the FileName.  MAX_PATH for the path, 4 for the DosToNtPathPrefix.
             /// </summary>
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = FileSystemConstants.MaxLongPath + 4)]
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = FileSystemConstants.MaxLongPathWindows + 4)]
             private readonly string FileName;
 
             // ReSharper restore PrivateFieldCanBeConvertedToLocalVariable

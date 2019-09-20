@@ -137,7 +137,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 }
 
                 // CoreCLR's GetDirectoryName doesn't throw PathTooLongException for long paths
-                if (OperatingSystemHelper.IsWindowsOS && Path.Length > FileSystemConstants.MaxPath)
+                if (!OperatingSystemHelper.IsWindowsOS && Path.Length > FileSystemConstants.MaxPath)
                 {
                     throw new PathTooLongException(PathTooLongExceptionMessage(Path));
                 }

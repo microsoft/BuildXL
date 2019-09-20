@@ -860,7 +860,7 @@ namespace BuildXL.Engine.Tracing
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash}' reported to master.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionWorkerPipOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash);
 
         [GeneratedEvent(

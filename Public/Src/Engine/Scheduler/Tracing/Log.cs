@@ -1291,8 +1291,8 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message =
-                EventConstants.PipPrefix + "Process is going to be retried due to exiting with exit code '{exitCode}': {stdLog} (remaining retries is {remainingRetries})")]
-        public abstract void PipWillBeRetriedDueToExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, int remainingRetries, string stdLog);
+                EventConstants.PipPrefix + "Process is going to be retried due to exiting with exit code '{exitCode}' (remaining retries is {remainingRetries}). {stdErr} {stdOut}")]
+        public abstract void PipWillBeRetriedDueToExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, int remainingRetries, string stdErr, string stdOut);
 
         [GeneratedEvent(
             (ushort)LogEventId.ResumingProcessExecutionAfterSufficientResources,

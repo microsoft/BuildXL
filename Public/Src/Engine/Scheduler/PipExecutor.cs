@@ -1484,13 +1484,42 @@ namespace BuildXL.Scheduler
                                     Contract.Assert(remainingUserRetries > 0);
 
                                     --remainingUserRetries;
+
+#pragma warning disable AsyncFixer02
+                                    var stdErr = string.Empty;
+                                    if (result.EncodedStandardError != null)
+                                    {
+                                        string path = result.EncodedStandardError.Item1.ToString(context.PathTable);
+                                        if (File.Exists(path))
+                                        {
+                                            stdErr += Environment.NewLine
+                                                     + "Standard error:"
+                                                     + Environment.NewLine
+                                                     + File.ReadAllText(path, result.EncodedStandardError.Item2);
+                                        }
+                                    }
+
+                                    var stdOut = string.Empty;
+                                    if (result.EncodedStandardOutput != null)
+                                    {
+                                        string path = result.EncodedStandardOutput.Item1.ToString(context.PathTable);
+                                        if (File.Exists(path))
+                                        {
+                                            stdOut += Environment.NewLine
+                                                     + "Standard output:"
+                                                     + Environment.NewLine
+                                                     + File.ReadAllText(path, result.EncodedStandardOutput.Item2);
+                                        }
+                                    }
+#pragma warning restore AsyncFixer02
                                     Logger.Log.PipWillBeRetriedDueToExitCode(
                                         operationContext,
                                         pip.SemiStableHash,
                                         processDescription,
                                         result.ExitCode,
                                         remainingUserRetries,
-                                        result.StdLog);
+                                        stdErr,
+                                        stdOut);
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
 
                                     continue;

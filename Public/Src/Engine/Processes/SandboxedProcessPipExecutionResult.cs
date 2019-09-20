@@ -138,14 +138,15 @@ namespace BuildXL.Processes
             long processStartTime,
             long maxDetoursHeapSize,
             ContainerConfiguration containerConfiguration,
-            string stdLog)
+            Tuple<AbsolutePath, Encoding> encodedStandardError,
+            Tuple<AbsolutePath, Encoding> encodedStandardOutput)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
                 observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
                 sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
-                encodedStandardError: null,
-                encodedStandardOutput: null,
+                encodedStandardError: encodedStandardError,
+                encodedStandardOutput: encodedStandardOutput,
                 numberOfWarnings: 0,
                 unexpectedFileAccesses: null,
                 primaryProcessTimes: primaryProcessTimes,
@@ -158,8 +159,7 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: containerConfiguration,
-                stdLog: stdLog);
+                containerConfiguration: containerConfiguration);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
@@ -311,8 +311,7 @@ namespace BuildXL.Processes
             IReadOnlyList<ReportedFileAccess> allReportedFileAccesses,
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration,
-            string stdLog="")
+            ContainerConfiguration containerConfiguration)
         {
             Contract.Requires(
                 (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
@@ -344,7 +343,6 @@ namespace BuildXL.Processes
             MaxDetoursHeapSizeInBytes = maxDetoursHeapSize;
             SharedDynamicDirectoryWriteAccesses = sharedDynamicDirectoryWriteAccesses;
             ContainerConfiguration = containerConfiguration;
-            StdLog = stdLog;
         }
 
         /// <summary>
@@ -356,11 +354,6 @@ namespace BuildXL.Processes
         /// The exit code from the execution of this pip.
         /// </summary>
         public int ExitCode { get; internal set; }
-
-        /// <summary>
-        /// stdOut and stdErr message.
-        /// </summary>
-        public string StdLog { get; internal set; }
         
         /// <summary>
         /// Duration of sandbox preparation in milliseconds

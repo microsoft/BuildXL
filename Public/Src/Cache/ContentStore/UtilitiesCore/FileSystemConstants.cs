@@ -86,7 +86,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 string path = $@"{LongPathPrefix}c:\foo{longString}.txt";
                 var directoryName = Path.GetDirectoryName(path);
                 return true;
-
             }
             catch (PathTooLongException)
             {

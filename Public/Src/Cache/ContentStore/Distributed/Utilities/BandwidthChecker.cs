@@ -49,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 // Bandwidth checker expects speed in MiB/s, so convert it.
                 var bytesCopied = endPosition - startPosition;
                 var speed = bytesCopied / timer.Elapsed.TotalSeconds / (1024 * 1024);
-                await _historicalBandwidthLimitSource.AddBandwidthRecordAsync(speed, context.Token);
+                _historicalBandwidthLimitSource.AddBandwidthRecord(speed);
             }
             else
             {
@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             {
                 // This method should not fail with exceptions because the resulting task may be left unobserved causing an application to crash
                 // (given that the app is configured to fail on unobserved task exceptions).
-                var minimumSpeedInMbPerSec = await _bandwidthLimitSource.GetMinimumSpeedInMbPerSecAsync(context.Token);
+                var minimumSpeedInMbPerSec = _bandwidthLimitSource.GetMinimumSpeedInMbPerSec();
 
                 long previousPosition = 0;
                 var copyCompleted = false;

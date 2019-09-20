@@ -2,9 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
@@ -14,19 +13,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     internal interface IBandwidthLimitSource
     {
         /// <nodoc />
-        Task<double> GetMinimumSpeedInMbPerSecAsync(CancellationToken token);
+        double GetMinimumSpeedInMbPerSec();
     }
 
     /// <nodoc />
     internal class ConstantBandwidthLimit : IBandwidthLimitSource
     {
-        private readonly Task<double> _limitTask;
+        private readonly double _limit;
 
         /// <nodoc />
-        public ConstantBandwidthLimit(double limitMbPerSec) => _limitTask = Task.FromResult(limitMbPerSec);
+        public ConstantBandwidthLimit(double limitMbPerSec) => _limit = limitMbPerSec;
 
         /// <inheritdoc />
-        public Task<double> GetMinimumSpeedInMbPerSecAsync(CancellationToken token) => _limitTask;
+        public double GetMinimumSpeedInMbPerSec() => _limit;
     }
 
     /// <summary>
@@ -35,16 +34,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     internal class HistoricalBandwidthLimitSource : IBandwidthLimitSource
     {
         private readonly int _maxRecordsStored;
-        private readonly Queue<double> _bandwidthRecords = new Queue<double>();
-        private readonly SemaphoreSlim _bandwidthRecordLock = new SemaphoreSlim(1, 1);
+        private readonly double[] _bandwidthRecords;
+        private long _currentIndex = 0;
 
         /// <nodoc />
-        public HistoricalBandwidthLimitSource(int maxRecordsStored = 64) => _maxRecordsStored = maxRecordsStored;
+        public HistoricalBandwidthLimitSource(int maxRecordsStored = 64) {
+            _maxRecordsStored = maxRecordsStored;
+            _bandwidthRecords = new double[maxRecordsStored];
+        }
 
         /// <summary>
         /// Adds a record for future use.
         /// </summary>
-        public async Task AddBandwidthRecordAsync(double value, CancellationToken ct)
+        public void AddBandwidthRecord(double value)
         {
             // Do a quick check to protect ourselves against invalid data: NaN's, negative, and zero values.
             if (value <= 0.0)
@@ -52,26 +54,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 return;
             }
 
-            await _bandwidthRecordLock.WaitAsync(ct);
-            try
-            {
-                while (_bandwidthRecords.Count >= _maxRecordsStored)
-                {
-                    _bandwidthRecords.Dequeue();
-                }
+            var index = Interlocked.Increment(ref _currentIndex);
 
-                _bandwidthRecords.Enqueue(value);
-            }
-            finally
-            {
-                _bandwidthRecordLock.Release();
-            }
+            _bandwidthRecords[index % _maxRecordsStored] = value;
         }
 
         /// <inheritdoc />
-        public async Task<double> GetMinimumSpeedInMbPerSecAsync(CancellationToken token)
+        public double GetMinimumSpeedInMbPerSec()
         {
-            var statistics = await GetBandwidthRecordStatisticsAsync(token);
+            var statistics = GetBandwidthRecordStatistics();
             if (statistics.Count < _maxRecordsStored / 2)
             {
                 // If not enough records, don't impose a limit.
@@ -88,42 +79,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             }
         }
 
-        private async Task<SummaryStatistics> GetBandwidthRecordStatisticsAsync(CancellationToken token)
+        private SummaryStatistics GetBandwidthRecordStatistics()
         {
             var n = 0;
             var mean = 0.0;
-            var standardDeviation = 0.0;
+            var sumOfSquaredDelta = 0.0;
             var min = double.MaxValue;
             var max = double.MinValue;
-            await _bandwidthRecordLock.WaitAsync(token);
-            try
+
+            foreach (var value in _bandwidthRecords.Where(record => record != 0))
             {
-                // This is the standard one-pass algorithm for summary statistic computation.
-                // See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm for background.
-                foreach (var value in _bandwidthRecords)
+                n++;
+                var delta = value - mean;
+                mean += delta / n;
+                sumOfSquaredDelta += delta * (value - mean);
+
+                if (value < min)
                 {
-                    n++;
-                    var delta = value - mean;
-                    mean += delta / n;
-                    standardDeviation += delta * (value - mean);
+                    min = value;
+                }
 
-                    if (value < min)
-                    {
-                        min = value;
-                    }
-
-                    if (value > max)
-                    {
-                        max = value;
-                    }
+                if (value > max)
+                {
+                    max = value;
                 }
             }
-            finally
-            {
-                _bandwidthRecordLock.Release();
-            }
 
-            standardDeviation = Math.Sqrt(standardDeviation / (n - 1));
+            var standardDeviation = Math.Sqrt(sumOfSquaredDelta / (n - 1));
 
             return new SummaryStatistics { Count = n, Mean = mean, StandardDeviation = standardDeviation, Minimum = min, Maximum = max };
         }

@@ -310,9 +310,9 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Creates and scheduled a <see cref="PipBuilder"/> constructed process
         /// </summary>
-        public ProcessWithOutputs CreateAndSchedulePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null)
+        public ProcessWithOutputs CreateAndSchedulePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null)
         {
-            var pipBuilder = CreatePipBuilder(processOperations, tags, description);
+            var pipBuilder = CreatePipBuilder(processOperations, tags, description, environmentVariables);
             return SchedulePipBuilder(pipBuilder);
         }
 

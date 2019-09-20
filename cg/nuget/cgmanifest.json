@@ -1266,7 +1266,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Data.OData",
-          "Version": "5.8.2"
+          "Version": "5.8.4"
         }
       }
     },

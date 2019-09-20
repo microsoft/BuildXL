@@ -95,7 +95,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
         private Package CreatePackage(string version)
         {
-            AbsolutePath path = AbsolutePath.Create(m_context.PathTable, $"B:\\\\Out\\frontend\\Nuget\\pkgs\\random.package.name\\{version}\\nu.spec");
+            AbsolutePath path = AbsolutePath.Create(m_context.PathTable, TemporaryDirectory + $"\\random.package.name\\{version}\\nu.spec");
             var pathStr = path.ToString(m_context.PathTable);
             var id = PackageId.Create(StringId.Create(m_context.StringTable, pathStr));
             var desc = new PackageDescriptor();

@@ -232,7 +232,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Have RocksDb open for bulk loading.
         /// </param>
         /// <param name="onStoreReset">
-        /// Callback for when the store gets reset due to `onFailureDeleteExistingStoreAndRetry`
+        /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
         /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
             string storeDirectory,
@@ -309,7 +309,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// Have RocksDb open for bulk loading.
         /// </param>
         /// <param name="onStoreReset">
-        /// Callback for when the store gets reset due to `onFailureDeleteExistingStoreAndRetry`
+        /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
         /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
             string storeDirectory,

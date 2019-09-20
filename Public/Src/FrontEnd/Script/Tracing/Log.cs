@@ -414,6 +414,24 @@ namespace BuildXL.FrontEnd.Script.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Selector '{selector}' cannot be applied to receiver '{receiver}' in expression '{receiver}.{selector}' because receiver is of type 'any'. Values with type 'any' cannot be inspected in {ShortScriptName}.",
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
         public abstract void ReportPropertyAccessOnValueWithTypeAny(LoggingContext loggingContext, Location location, string receiver, string selector);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CGManifestValidationException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "{mesage}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
+        public abstract void ReportComponentGovernanceValidationError(LoggingContext loggingContext, string mesage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CGManifestGenerationException,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "{mesage}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
+        public abstract void ReportComponentGovernanceGenerationError(LoggingContext loggingContext, string mesage);
     }
 
     /// <summary>

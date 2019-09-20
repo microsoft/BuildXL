@@ -1734,12 +1734,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             Contract.Requires(stream != null);
 
-            var stopwatch = new Stopwatch();
-
             try
             {
-                stopwatch.Start();
-
                 ContentHash contentHash = await _hashers[hashType].GetContentHashAsync(stream);
                 return new ContentHashWithSize(contentHash, stream.Length);
             }
@@ -1747,11 +1743,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 _tracer.Error(context, e, "Error while hashing content.");
                 throw;
-            }
-            finally
-            {
-                stopwatch.Stop();
-                _tracer.HashContentFileStop(context, path, stopwatch.Elapsed);
             }
         }
 
@@ -2707,19 +2698,19 @@ namespace BuildXL.Cache.ContentStore.Stores
             var replicaPath = GetReplicaPathFor(contentHash, replicaIndex);
             if (replicaExistence == ReplicaExistence.DoesNotExist)
             {
-                    // Create a new replica
-                    using (var txn = await QuotaKeeper.ReserveAsync(info.FileSize))
-                    {
-                        await RetryOnUnexpectedReplicaAsync(
-                            context,
-                            () => SafeCopyFileAsync(
-                                        context,
-                                        contentHash,
-                                        primaryPath,
-                                        replicaPath,
-                                        FileReplacementMode.FailIfExists),
-                        contentHash,
-                        info.ReplicaCount);
+                // Create a new replica
+                using (var txn = await QuotaKeeper.ReserveAsync(info.FileSize))
+                {
+                    await RetryOnUnexpectedReplicaAsync(
+                        context,
+                        () => SafeCopyFileAsync(
+                                    context,
+                                    contentHash,
+                                    primaryPath,
+                                    replicaPath,
+                                    FileReplacementMode.FailIfExists),
+                    contentHash,
+                    info.ReplicaCount);
                     txn.Commit();
                 }
 

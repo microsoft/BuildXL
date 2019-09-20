@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Gets or sets the time period between logging incremental stats
         /// </summary>
-        public TimeSpan LogIncrementalStatsInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public TimeSpan LogIncrementalStatsInterval { get; set; } = TimeSpan.FromDays(15); // Effectively disabling incremental statistics.
 
         /// <summary>
         /// Gets or sets the duration of inactivity after which a session will be timed out.

@@ -730,7 +730,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipRequest,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Requesting pip execution of step {step} on worker {workerName}",
+            Message = "[{pipDescription}] Requesting {step} on {workerName}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
@@ -740,7 +740,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionFinishedPipRequest,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Finished pip execution of step {step} on worker {workerName}",
+            Message = "[{pipDescription}] Finished {step} on {workerName}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
@@ -753,7 +753,7 @@ namespace BuildXL.Scheduler.Tracing
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash} reported from worker '{workerName}'. {reparsePointInfo}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
@@ -3891,6 +3891,24 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{ShortProductName} API Server] Operation ReportStatistics executed; {numStatistics} statistics reported.")]
         internal abstract void ApiServerReportStatisticsExecuted(LoggingContext loggingContext, int numStatistics);
+
+        [GeneratedEvent(
+            (ushort)EventId.ApiServerReceivedMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] {message}.")]
+        internal abstract void ApiServerReceivedMessage(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
+            (ushort)EventId.ApiServerReceivedWarningMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] {message}.")]
+        internal abstract void ApiServerReceivedWarningMessage(LoggingContext loggingContext, string message);
 
         [GeneratedEvent(
             (ushort)EventId.ApiServerGetSealedDirectoryContentExecuted,

@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 {
                     return OperationStatus.Cancelled;
                 }
-                else if (resultBase.HasException)
+                else if (!resultBase.Succeeded)
                 {
                     return OperationStatus.Failure;
                 }

@@ -14,13 +14,13 @@ namespace BuildXL.FrontEnd.Script.Ambients
     /// </summary>
     public sealed class AmbientUnsafe : AmbientDefinitionBase
     {
-        private const string UnsafeName = "Unsafe";
-        private const string OutputFile = "outputFile";
-        private const string ExOutputDirectory = "exOutputDirectory";
+        private const string UnsafeNamespace = Constants.Names.UnsafeNamespace;
+        private const string OutputFile = Constants.Names.UnsafeOutputFile;
+        private const string ExOutputDirectory = Constants.Names.UnsafeExOutputDirectory;
 
         /// <nodoc />
         public AmbientUnsafe(PrimitiveTypes knownTypes)
-            : base(UnsafeName, knownTypes)
+            : base(UnsafeNamespace, knownTypes)
         {
         }
 
@@ -28,7 +28,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
         protected override AmbientNamespaceDefinition? GetNamespaceDefinition()
         {
             return new AmbientNamespaceDefinition(
-                UnsafeName,
+                UnsafeNamespace,
                 new[]
                 {
                     Function(OutputFile, UnsafeOutputFile, UnsafeOutputFileSignature),

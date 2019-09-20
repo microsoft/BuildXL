@@ -67,6 +67,14 @@ namespace Tool.SymbolDaemon
             IsRequired = true,
         });
 
+        internal static readonly StrOption DebugEntryCreateBehavior = RegisterSymbolConfigOption(new StrOption("debugEntryCreateBehavior")
+        {
+            ShortName = "de",
+            HelpText = "Debug Entry Create Behavior in case of a collision",
+            IsRequired = false,
+            DefaultValue = Microsoft.VisualStudio.Services.Symbol.WebApi.DebugEntryCreateBehavior.ThrowIfExists.ToString(),
+        });
+
         internal static readonly IntOption RetentionDays = RegisterSymbolConfigOption(new IntOption("retentionDays")
         {
             ShortName = "rt",
@@ -95,6 +103,7 @@ namespace Tool.SymbolDaemon
             return new SymbolConfig(
                 requestName: conf.Get(SymbolRequestNameOption),
                 serviceEndpoint: conf.Get(ServiceEndpoint),
+                debugEntryCreateBehaviorStr: conf.Get(DebugEntryCreateBehavior),
                 retention: TimeSpan.FromDays(conf.Get(RetentionDays)),
                 httpSendTimeout: TimeSpan.FromMilliseconds(conf.Get(HttpSendTimeoutMillis)),
                 verbose: conf.Get(Verbose),
@@ -263,7 +272,7 @@ namespace Tool.SymbolDaemon
             m_logger.Info(I($"Using {nameof(SymbolConfig)}: {JsonConvert.SerializeObject(symbolConfig)}"));
 
             // if no ISymbolServiceClient has been provided, create VsoSymbolClient using the provided SymbolConfig
-            m_symbolServiceClientTask = symbolServiceClientTask ?? Task.Run(() => (ISymbolClient)new VsoSymbolClient(m_logger, symbolConfig));
+            m_symbolServiceClientTask = symbolServiceClientTask ?? Task.Run(() => (ISymbolClient)new VsoSymbolClient(m_logger, symbolConfig, bxlClient));
 
             m_symbolIndexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
         }

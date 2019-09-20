@@ -1022,9 +1022,10 @@ namespace BuildXL.Processes
                 {
                     Contract.Assert(m_sandboxConfig.AdminRequiredProcessExecutionMode == AdminRequiredProcessExecutionMode.ExternalVM);
 
-                    Tracing.Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
-
+                    // Initialize VM once.
                     await m_vmInitializer.LazyInitVmAsync.Value;
+
+                    Tracing.Logger.Log.PipProcessStartExternalVm(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
 
                     process = await ExternalSandboxedProcess.StartAsync(
                         info,

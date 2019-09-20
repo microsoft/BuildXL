@@ -1,4 +1,2 @@
-cgmanifest.json is an auto-generated file using the /generateCgManifestForNugets:<path> agrument while using bxl.
-Any changes to this file will be over written whenever we run the bxl command.
-If you are adding additional NuGet Packages to the project, they will automatically be added in the cgmanifest.json file whenever you build the project using the bxl command.
-If you need to add custom entries into a cgmanifest.json file, please create a new file with the name cgmanifest.json in a different folder anywhere within the project, since any changes to the cgmanifest.json in this folder wil always be over-written.
+cgmanifest.json is an auto-generated file. Any changes to this file will be discarded.
+Please add/remove NuGet Packages in config.dsc, the cgmanifest.json file will be updated automatically the next time you run bxl.

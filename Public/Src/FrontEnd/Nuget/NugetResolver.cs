@@ -25,7 +25,7 @@ namespace BuildXL.FrontEnd.Script
     /// </summary>
     public sealed class NugetResolver : DScriptSourceResolver
     {
-        internal const string NugetResolverName = "CGManifestGenerator";
+        internal const string CGManifestResolverName = "CGManifestGenerator";
         private WorkspaceNugetModuleResolver m_nugetWorkspaceResolver;
 
         /// <nodoc />
@@ -91,7 +91,7 @@ namespace BuildXL.FrontEnd.Script
                         existingCgManifest = File.ReadAllText(Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
                         FrontEndHost.Engine.RecordFrontEndFile(
                             Configuration.FrontEnd.ValidateCgManifestForNugets,
-                            NugetResolverName);
+                            CGManifestResolverName);
                     }
                     // CgManifest FileNotFound, log error and fail build
                     catch (DirectoryNotFoundException e)
@@ -149,7 +149,7 @@ namespace BuildXL.FrontEnd.Script
 
                 FrontEndHost.Engine.RecordFrontEndFile(
                     Configuration.FrontEnd.GenerateCgManifestForNugets,
-                    NugetResolverName);
+                    CGManifestResolverName);
             }
 
             m_resolverState = State.ResolverInitialized;

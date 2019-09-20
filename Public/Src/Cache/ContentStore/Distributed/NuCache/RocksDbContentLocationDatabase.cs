@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     failureHandler: failureEvent =>
                     {
                         bool isUserError = failureEvent.Rethrow;
-                        failureEvent.Lockdown = !isUserError;
+                        failureEvent.Invalidate = !isUserError;
                         failureEvent.Rethrow = isUserError;
                     },
                     invalidationHandler: failure => {

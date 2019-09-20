@@ -30,9 +30,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             public Failure<Exception> Failure { get; }
 
             /// <summary>
-            /// Whether the database should be locked down after control returns
+            /// Whether the database should be invalidated after control returns
             /// </summary>
-            public bool Lockdown;
+            public bool Invalidate;
 
             /// <summary>
             /// Whether the exception should be rethrown
@@ -637,12 +637,12 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             using (m_rwl.AcquireReadLock())
             {
-                // All RocksDb usages are checked for exceptions:
-                //  - If any error happens inside RocksDb, we assume the store is permanently corrupted. All 
-                //    further calls will result in an error. The user-defined invalidation handler is called.
-                //  - If an error happens within the user-provided function, but is not RocksDb related, then we 
-                //    don't disable and throw.
-                // In all cases, the user-defined failure handler is called.
+                // All RocksDb usages are checked for exceptions and handled according to a user-provided handler.
+                // The handler decides whether the store should be permanently invalidated or not. It also has the
+                // opportunity to do whatever side-effects the user needs. If the store is invalidated, the 
+                // invalidation handler is called after the store has been invalidated.
+                // The default policy is to alwyas invalidate the store if an exception happens, as it is the safest
+                // option.
                 if (Disabled)
                 {
                     return DisposedOrDisabledFailure;
@@ -715,33 +715,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 isUserError = false;
             }
 
-            failure.Lockdown = true;
+            failure.Invalidate = true;
             failure.Rethrow = isUserError;
-        }
-
-        private (bool lockdown, bool rethrow) RelaxedErrorPolicy(Failure<Exception> failure)
-        {
-            Contract.Requires(failure != null);
-
-            var ex = failure.Content;
-
-            var isUserError = true;
-            if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException)
-            {
-                // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
-                // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
-                // class also corresponds to the HRESULT E_FAIL (0x80004005).
-                isUserError = false;
-            }
-
-            if (isUserError)
-            {
-                return (false, true);
-            }
-            else
-            {
-                return (true, false);
-            }
         }
 
         private Failure<Exception> HandleException(Exception exception, out bool rethrow)
@@ -749,11 +724,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             Contract.Requires(exception != null);
 
             var failure = new RocksDbFailureEvent(exception);
+
+            // This defaults the behavior to the safest one. This is done for backwards-compatibility with existing 
+            // code.
             StrictFailureHandler(failure);
             m_failureHandler?.Invoke(failure);
 
             rethrow = failure.Rethrow;
-            if (failure.Lockdown)
+            if (failure.Invalidate)
             {
                 InvalidateStore(failure.Failure);
             }

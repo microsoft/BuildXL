@@ -45,6 +45,21 @@ export interface OperationArguments extends Transformer.RunnerArguments {
 }
 
 /**
+ * The expected behavior when a debug entry to add already exists.
+ */
+@@public
+export const enum DebugEntryCreateBehavior {
+    /** Throw exceptions at server end. This will translate to 409 (Conflict) HTTP status code. */
+    ThrowIfExists = 0,
+
+    /** Do not add this debug entry. The rest of the batch, if any, is not affected. */
+    SkipIfExists,
+
+    /** Overwrite the existing debug entry. */
+    OverwriteIfExists,
+}
+
+/**
  * VSO Symbol settings.
  */
 @@public
@@ -63,6 +78,9 @@ export interface SymbolRequestSettings {
     
     /** Enable symbol telemetry. */
     enableTelemetry?: boolean;
+
+    /** The expected behavior when a debug entry to add already exists. */
+    debugEntryCreateBehavior?: DebugEntryCreateBehavior;
 }
 
 /**

@@ -134,8 +134,8 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
         public void PutNullValue(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = "key1", value1 = null;
@@ -153,8 +153,8 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
         public void PutNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = null, value1 = "value1";
@@ -172,8 +172,8 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
         public void RemoveNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = null;
@@ -192,8 +192,8 @@ namespace Test.BuildXL.Engine.Cache
 
 
         [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
         public void GetNullKey(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = null;
@@ -855,8 +855,8 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
         public void NonExistentColumnTest(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             string key1 = "key1", value1A = "value1A";
@@ -874,7 +874,7 @@ namespace Test.BuildXL.Engine.Cache
                             });
 
                     // In relaxed mode, this will be considered a RocksDb exception, which won't throw.
-                    XAssert.AreEqual(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED, exceptionHandlingMode);
+                    XAssert.AreEqual(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed, exceptionHandlingMode);
                     AssertFailed(result);
                     throw ((Failure<Exception>)result.Failure).Content;
                 };
@@ -1229,8 +1229,8 @@ namespace Test.BuildXL.Engine.Cache
         }
 
         [Theory]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.STRICT)]
-        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Strict)]
+        [InlineData(KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed)]
         public void FailureHandlersHandleAccessViolationException(KeyValueStoreAccessor.ExceptionHandlingMode exceptionHandlingMode)
         {
             bool failureHandled = false;
@@ -1258,7 +1258,7 @@ namespace Test.BuildXL.Engine.Cache
 
             // Since this does not trigger an invalidation in relaxed mode, the invalidation handler will only be 
             // called in strict mode.
-            XAssert.IsTrue(invalidationHandled || exceptionHandlingMode == KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED);
+            XAssert.IsTrue(invalidationHandled || exceptionHandlingMode == KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed);
         }
 
         [Fact]
@@ -1269,7 +1269,7 @@ namespace Test.BuildXL.Engine.Cache
             using (var accessor = KeyValueStoreAccessor.Open(StoreDirectory,
                 failureHandler: (f) => { failureHandled = true; },
                 invalidationHandler: (f) => { invalidationHandled = true; },
-                exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED).Result)
+                exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed).Result)
             {
                 try
                 {

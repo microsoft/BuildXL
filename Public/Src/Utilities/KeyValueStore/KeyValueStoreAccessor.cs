@@ -37,14 +37,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <remarks>
             /// This is the default due to backwards-compatibility concerns.
             /// </remarks>
-            STRICT,
+            Strict,
             /// <summary>
             /// RocksDb exceptions will cause the store to shutdown, call the invalidation handler, and return a 
             /// failure containing the exception.
             ///
             /// User exceptions will call the failure handler, and re-throw.
             /// </summary>
-            RELAXED,
+            Relaxed,
         }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool rotateLogs = false, 
             bool openBulkLoad = false,
             Action<Failure> invalidationHandler = null,
-            ExceptionHandlingMode exceptionHandlingMode = ExceptionHandlingMode.STRICT)
+            ExceptionHandlingMode exceptionHandlingMode = ExceptionHandlingMode.Strict)
         {
             return OpenWithVersioning(
                 storeDirectory,
@@ -373,7 +373,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool rotateLogs = false, 
             bool openBulkLoad = false,
             Action<Failure> invalidationHandler = null,
-            ExceptionHandlingMode exceptionHandlingMode = ExceptionHandlingMode.STRICT)
+            ExceptionHandlingMode exceptionHandlingMode = ExceptionHandlingMode.Strict)
         {
             // First attempt
             var possibleAccessor = OpenInternal(
@@ -649,10 +649,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             
             switch (exceptionHandlingMode)
             {
-                case ExceptionHandlingMode.RELAXED:
+                case ExceptionHandlingMode.Relaxed:
                     m_errorPolicy = RelaxedErrorPolicy;
                     break;
-                case ExceptionHandlingMode.STRICT:
+                case ExceptionHandlingMode.Strict:
                     m_errorPolicy = StrictErrorPolicy;
                     break;
             }

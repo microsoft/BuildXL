@@ -201,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Tracer.Error(context, $"RocksDb critical error caused store deprecation: {failure.DescribeIncludingInnerFailures()}");
                     },
-                    exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.RELAXED);
+                    exceptionHandlingMode: KeyValueStoreAccessor.ExceptionHandlingMode.Relaxed);
 
                 if (possibleStore.Succeeded)
                 {

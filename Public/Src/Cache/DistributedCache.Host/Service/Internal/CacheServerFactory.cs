@@ -25,6 +25,7 @@ namespace BuildXL.Cache.Host.Service.Internal
     /// <summary>
     /// Creates and configures cache server instances.
     /// </summary>
+    /// <remarks>Marked as public because it is used externally.<remarks/>
     public class CacheServerFactory
     {
         private readonly IAbsFileSystem _fileSystem;

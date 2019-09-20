@@ -90,10 +90,8 @@ export function install(args: Arguments) : Result {
             const nugetCredentialProviderPath = Environment.getDirectoryValue("NUGET_CREDENTIALPROVIDERS_PATH");     
             const nugetCredentialProviderArguments = {
                 arguments: [Cmd.argument(Artifact.input(f`yarnWithNugetCredentialProvider.js`))].prependWhenMerged(),
-                environmentVariables: [{name: "NUGET_CREDENTIALPROVIDERS_PATH", value: nugetCredentialProviderPath.path}],
                 unsafe: {
                     untrackedScopes: [
-                        nugetCredentialProviderPath,
                         d`${Context.getMount("ProgramData").path}/microsoft/netFramework`, // Most cred providers are managed code so need these folders... 
                         d`${Context.getMount("ProgramData").path}/Microsoft/Crypto`,
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetFlushCache`, // Windows uses this location as a certificate cache
@@ -102,6 +100,9 @@ export function install(args: Arguments) : Result {
                         d`${Context.getMount("AppData").path}/Microsoft/SystemCertificates/My/Certificates`, // Cache for certificats
                         d`${Context.getMount("AppData").path}/Microsoft/SystemCertificates/My/Keys`, // Cache for certificats
                         d`${Context.getMount("AppData").path}/Microsoft/VisualStudio Services/7.0/Cache`, // Cache for visaul studio services
+                    ],
+                    passThroughEnvironmentVariables: [
+                        "NUGET_CREDENTIALPROVIDERS_PATH"
                     ],
                 },
             };

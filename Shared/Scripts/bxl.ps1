@@ -449,7 +449,9 @@ Log -NoNewline "Building using the ";
 Log-Emphasis -NoNewline $($useDeployment.description)
 Log " version of BuildXL.";
 
-$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment)";
+$Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH");
+
+$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path";
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

@@ -61,10 +61,15 @@ In the example above, the set of search paths are `['Dir1', 'Dir2', 'Dir3', 'Dir
 * `'D'` is NOT included in `includedFileNameSet` because `'Dir1\Dir7'` is not a search path.
 
 ## Language support & API
+Tools that utilize search path enumerations are specified in the config file. Tools are specified as relative paths where all components of the relative path must match. So in the example below, lib.exe tools located outside of a parent "customTools" directory would not get search path enumeration treatment.
 
 DScript:
 ```ts
-searchPathEnumerationTools: [
-	p`Out/Objects/frontend/Nuget/pkgs/VisualCpp.Domino.Tools.14.0.23506.1/bin/x86/cl.exe`
-],
+config({
+    // ...
+    searchPathEnumerationTools: [
+        r`cl.exe`,
+        r`\customTools\lib.exe`
+    ],
+});
 ```

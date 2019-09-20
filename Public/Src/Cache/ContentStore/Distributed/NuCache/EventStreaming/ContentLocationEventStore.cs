@@ -21,6 +21,8 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
     /// <summary>
@@ -41,9 +43,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         protected override Tracer Tracer { get; }
 
         /// <nodoc />
-        protected readonly Tracer DebugOnlyTracer;
-
-        /// <nodoc />
         protected readonly IContentLocationEventHandler EventHandler;
 
         private readonly CentralStorage _storage;
@@ -60,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Nagle queue for all events send via event hub.
         /// </summary>
-        protected NagleQueue<(OperationContext context, ContentLocationEventData data)> EventNagleQueue;
+        protected NagleQueue<(OperationContext context, ContentLocationEventData data)>? EventNagleQueue;
 
         /// <inheritdoc />
         protected ContentLocationEventStore(
@@ -68,8 +67,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             string name,
             IContentLocationEventHandler eventHandler,
             CentralStorage centralStorage,
-            Interfaces.FileSystem.AbsolutePath workingDirectory,
-            bool traceOperations = true)
+            Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(name != null);
@@ -77,22 +75,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             Contract.Requires(centralStorage != null);
             Contract.Requires(workingDirectory != null);
 
-            _configuration = configuration;
+            _configuration = configuration!;
             _fileSystem = new PassThroughFileSystem();
-            _storage = centralStorage;
+            _storage = centralStorage!;
             _workingDisposableDirectory = new DisposableDirectory(_fileSystem, workingDirectory);
-            _workingDirectory = workingDirectory;
-            EventHandler = eventHandler;
-            var tracer = traceOperations ? new Tracer(name) { LogOperationStarted = false } : null;
+            _workingDirectory = workingDirectory!;
+            EventHandler = eventHandler!;
+            var tracer = new Tracer(name) { LogOperationStarted = false };
             Tracer = tracer;
 
-            ValidationMode validationMode = configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
+            ValidationMode validationMode = configuration!.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
             EventDataSerializer = new ContentLocationEventDataSerializer(validationMode);
-#if DEBUG
-            // Only initialize the debug tracer if running in debug compiled binary
-            // This is intended for tracing high volume operations that should not be traced in release
-            DebugOnlyTracer = tracer;
-#endif
         }
 
         /// <summary>
@@ -106,7 +99,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
             Contract.Requires(configuration != null);
-            return new EventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, workingDirectory);
+            return new EventHubContentLocationEventStore(configuration!, eventHandler, localMachineName, centralStorage, workingDirectory);
         }
 
         /// <summary>
@@ -158,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
                     break;
                 default:
-                    throw new InvalidOperationException($"Unknown ContentLocationEventData type '{eventData.GetType()}'.");
+                    throw new InvalidOperationException($"Unknown ContentLocationEventData type '{eventData!.GetType()}'.");
             }
         }
 
@@ -223,7 +216,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected virtual void Publish(OperationContext context, ContentLocationEventData eventData)
         {
-            EventNagleQueue.Enqueue((context, eventData));
+            EventNagleQueue?.Enqueue((context, eventData));
         }
 
         /// <nodoc />
@@ -464,13 +457,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
 
             return context.PerformOperation(
-                DebugOnlyTracer,
+                Tracer,
                 () =>
                 {
                     Publish(context, new TouchContentLocationEventData(machine, hashes.SelectList(h => new ShortHash(h)), accessTime));
                     return BoolResult.Success;
                 },
-                Counters[PublishTouchLocations]);
+                Counters[PublishTouchLocations],
+                traceErrorsOnly: true);
         }
 
         /// <nodoc />
@@ -533,7 +527,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         }
 
         /// <nodoc />
-        public abstract EventSequencePoint GetLastProcessedSequencePoint();
+        public abstract EventSequencePoint? GetLastProcessedSequencePoint();
 
         /// <summary>
         /// Gets whether the event store is currently receiving events
@@ -555,7 +549,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             public SendEventsSuspender(ContentLocationEventStore eventStore)
             {
                 _eventStore = eventStore;
-                _nagleQueueSuspender = eventStore.EventNagleQueue.Suspend();
+                _nagleQueueSuspender = eventStore.EventNagleQueue!.Suspend();
             }
 
             /// <inheritdoc />

@@ -5,14 +5,13 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Sdk;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Test.Utilities
+namespace ContentStoreTest.Utils
 {
     public class BandwidthCheckerTests
     {
@@ -31,7 +30,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Utilities
 
         private static async Task CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec)
         {
-            //System.Diagnostics.Debugger.Launch();
             var interval = TimeSpan.FromSeconds(0.1);
             var copied = 0;
             var bytesPerInterval = (int)BytesPerInterval(mbPerSec, interval);

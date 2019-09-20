@@ -16,11 +16,9 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStore.Grpc;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using Grpc.Core;
-using GrpcEnvironment = BuildXL.Cache.ContentStore.Service.Grpc.GrpcEnvironment;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Utilities
+namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
     /// An implementation of a CAS copy helper client based on GRPC.
@@ -31,7 +29,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly int _bufferSize;
-        private readonly BandwidthChecker _bandwidthCkecker;
+        private readonly BandwidthChecker _bandwidthChecker;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
@@ -46,11 +44,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
-            _bufferSize = config.ClientBufferSize ?? Grpc.CopyConstants.DefaultBufferSize;
+            _bufferSize = config.ClientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             var bandwidthSource = config.MinimumBandwidthMbPerSec == null
                 ? (IBandwidthLimitSource) new HistoricalBandwidthLimitSource()
                 : new ConstantBandwidthLimit(config.MinimumBandwidthMbPerSec.Value);
-            _bandwidthCkecker = new BandwidthChecker(bandwidthSource, config.BandwidthCheckInterval);
+            _bandwidthChecker = new BandwidthChecker(bandwidthSource, config.BandwidthCheckInterval);
             Key = key;
         }
 
@@ -234,7 +232,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
                 // Copy the content to the target stream.
                 using (targetStream)
                 {
-                    await _bandwidthCkecker.CheckBandwidthAtIntervalAsync(
+                    await _bandwidthChecker.CheckBandwidthAtIntervalAsync(
                         context,
                         copyTaskFactory: token =>
                             compression switch

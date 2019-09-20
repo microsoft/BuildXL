@@ -5,7 +5,7 @@ using System;
 using System.Linq;
 using System.Threading;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Utilities
+namespace BuildXL.Cache.ContentStore.Utils
 {
     /// <summary>
     /// Gets the bandwidth lower limit for a bandwidth checker.

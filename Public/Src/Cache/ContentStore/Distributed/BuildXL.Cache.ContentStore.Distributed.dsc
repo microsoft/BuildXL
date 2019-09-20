@@ -35,7 +35,6 @@ namespace Distributed {
             Hashing.dll,
             Interfaces.dll,
             Library.dll,
-            Grpc.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.IO.dll,
@@ -49,10 +48,7 @@ namespace Distributed {
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
-            importFrom("Grpc.Core").pkg,
-            importFrom("Google.Protobuf").pkg,
             importFrom("Sdk.Selfhost.RocksDbSharp").pkg,
-            importFrom("System.Interactive.Async").pkg,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.ContentStore.Distributed.Test",

@@ -8,7 +8,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Utilities
+namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
     /// This class is required for decompressing data streamed via grpc

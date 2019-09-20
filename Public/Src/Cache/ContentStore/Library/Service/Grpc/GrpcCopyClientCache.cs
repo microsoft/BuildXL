@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
 
-namespace BuildXL.Cache.ContentStore.Distributed.Utilities
+namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
     /// <summary>
     /// Cache for <see cref="GrpcCopyClient"/>.

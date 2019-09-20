@@ -1,0 +1,4523 @@
+{
+  "Version": 1,
+  "Registrations": [
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Antlr4.Runtime.Standard",
+          "Version": "4.7.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Aria.Cpp.SDK",
+          "Version": "8.5.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "ArtifactServices.App.Shared",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "ArtifactServices.App.Shared.Cache",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "AsyncFixer",
+          "Version": "1.1.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Bond.Core.CSharp",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Bond.CSharp",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Bond.CSharp.osx-x64",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Bond.Runtime.CSharp",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "BuildXL.DeviceMap",
+          "Version": "0.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "BuildXL.Tools.AppHostPatcher",
+          "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "BuildXL.Tools.Ninjson",
+          "Version": "0.0.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "BuildXL.Tracing.AriaTenantToken",
+          "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "CB.QTest",
+          "Version": "19.9.6.1149"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "CLAP",
+          "Version": "4.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Desktop.Analyzers",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "DotNet.Glob",
+          "Version": "2.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Dotnet-Runtime",
+          "Version": "5.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Drop.App.Core",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Drop.Client",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Drop.RemotableClient",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Drop.RemotableClient.Interfaces",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "EntityFramework",
+          "Version": "6.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "EnvDTE",
+          "Version": "8.0.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "EnvDTE100",
+          "Version": "10.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "EnvDTE80",
+          "Version": "8.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "EnvDTE90",
+          "Version": "9.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "EnvDTE90a",
+          "Version": "9.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "ErrorProne.NET.CoreAnalyzers",
+          "Version": "0.1.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "FluentAssertions",
+          "Version": "5.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Google.Protobuf",
+          "Version": "3.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Google.Protobuf.Tools",
+          "Version": "3.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc",
+          "Version": "1.18.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Core",
+          "Version": "1.18.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Grpc.Tools",
+          "Version": "1.18.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "ILRepack",
+          "Version": "2.0.16"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "ItemStore.Shared",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "JsonDiffPatch.Net",
+          "Version": "2.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AnalyzerPowerPack",
+          "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ApplicationInsights",
+          "Version": "2.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ApplicationInsights.Agent.Intercept",
+          "Version": "2.0.7"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ApplicationInsights.DependencyCollector",
+          "Version": "2.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ApplicationInsights.PerfCounterCollector",
+          "Version": "2.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ApplicationInsights.WindowsServer",
+          "Version": "2.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel",
+          "Version": "2.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNet.WebApi.Client",
+          "Version": "5.2.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNet.WebApi.Client",
+          "Version": "5.2.7"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNet.WebApi.Core",
+          "Version": "5.2.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNet.WebApi.WebHost",
+          "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Antiforgery",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Authentication.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Authentication.Core",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Authorization",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Authorization.Policy",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Connections.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Cors",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Cryptography.Internal",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.DataProtection",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.DataProtection.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Diagnostics",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Diagnostics.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.HostFiltering",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Hosting",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Hosting.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Hosting.Server.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Html.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Http",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Http.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Http.Extensions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Http.Features",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.HttpOverrides",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.HttpsPolicy",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.JsonPatch",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Localization",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Analyzers",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.ApiExplorer",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Core",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Cors",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.DataAnnotations",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Formatters.Json",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Localization",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Razor",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.Razor.Extensions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.RazorPages",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.TagHelpers",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Mvc.ViewFeatures",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Razor",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Razor.Design",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Razor.Language",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Razor.Runtime",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.ResponseCaching.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Routing",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Routing.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.IIS",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.IISIntegration",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.Kestrel",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.Kestrel.Core",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.Kestrel.Https",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.AspNetCore.WebUtilities",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Amqp",
+          "Version": "2.3.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.EventHubs",
+          "Version": "2.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.KeyVault",
+          "Version": "3.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.KeyVault.Core",
+          "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.KeyVault.WebKey",
+          "Version": "3.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Cloud.Platform.Azure.NETStandard",
+          "Version": "6.1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Cloud.Platform.NETStandard",
+          "Version": "6.1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Data",
+          "Version": "6.1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Data.NETStandard",
+          "Version": "6.1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Ingest",
+          "Version": "6.1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Ingest.NETStandard",
+          "Version": "6.1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Tools",
+          "Version": "2.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Management.Kusto",
+          "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Services.AppAuthentication",
+          "Version": "1.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Bcl",
+          "Version": "1.1.10"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Bcl.Async",
+          "Version": "1.0.168"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Bcl.Build",
+          "Version": "1.0.14"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Build",
+          "Version": "16.3.0-preview-19415-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Build.Framework",
+          "Version": "16.3.0-preview-19415-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Build.Prediction",
+          "Version": "0.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Build.Runtime",
+          "Version": "16.3.0-preview-19415-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Build.Tasks.Core",
+          "Version": "16.3.0-preview-19415-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Build.Utilities.Core",
+          "Version": "16.3.0-preview-19415-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.Analyzers",
+          "Version": "2.6.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.Common",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.CSharp",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.CSharp.Workspaces",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.FxCopAnalyzers",
+          "Version": "2.6.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.Razor",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.VisualBasic",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.VisualBasic.Workspaces",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeAnalysis.Workspaces.Common",
+          "Version": "2.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CodeQuality.Analyzers",
+          "Version": "2.3.0-beta1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Composition",
+          "Version": "1.0.30"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.CSharp",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.Edm",
+          "Version": "5.8.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.OData",
+          "Version": "5.8.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.Services.Client",
+          "Version": "5.8.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Diagnostics.Tracing.EventSource.Redist",
+          "Version": "1.1.28"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Diagnostics.Tracing.TraceEvent",
+          "Version": "2.0.30"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.DiaSymReader.Native",
+          "Version": "1.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.DotNet.PlatformAbstractions",
+          "Version": "2.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "microsoft.dotnet.xunitconsolerunner",
+          "Version": "2.5.1-beta.19270.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Caching.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Caching.Memory",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.Binder",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.CommandLine",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.FileExtensions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.Json",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Configuration.UserSecrets",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.DependencyInjection",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.DependencyModel",
+          "Version": "2.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.FileProviders.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.FileProviders.Composite",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.FileProviders.Physical",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.FileSystemGlobbing",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Globalization.CultureInfoCache",
+          "Version": "1.0.0-rc1-final"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Hosting.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Localization",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Localization.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Abstractions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Configuration",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Console",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Debug",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.EventSource",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.MemoryPool",
+          "Version": "1.0.0-rc1-final"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.ObjectPool",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Options",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Options.ConfigurationExtensions",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.PlatformAbstractions",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Primitives",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.WebEncoders",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IdentityModel.Clients.ActiveDirectory",
+          "Version": "4.5.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IdentityModel.Logging",
+          "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IdentityModel.Tokens",
+          "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IO.RecyclableMemoryStream",
+          "Version": "1.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Net.Compilers",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Net.Http",
+          "Version": "2.2.29"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Net.Http.Headers",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NetCore.Analyzers",
+          "Version": "2.3.0-beta1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App",
+          "Version": "2.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App",
+          "Version": "2.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.App",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.Compilers",
+          "Version": "3.1.0-beta3-final"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetAppHost",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetAppHost",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetHostResolver",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.Platforms",
+          "Version": "3.0.0-preview5.19224.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.Targets",
+          "Version": "2.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETCore.Windows.ApiSets",
+          "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NetFramework.Analyzers",
+          "Version": "2.3.0-beta1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETFramework.ReferenceAssemblies.net451",
+          "Version": "1.0.0-alpha-5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETFramework.ReferenceAssemblies.net461",
+          "Version": "1.0.0-alpha-5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NETFramework.ReferenceAssemblies.net472",
+          "Version": "1.0.0-alpha-5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Rest.ClientRuntime",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Rest.ClientRuntime.Azure",
+          "Version": "3.3.18"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TeamFoundation.DistributedTask.Common",
+          "Version": "15.112.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TeamFoundation.DistributedTask.Common.Contracts",
+          "Version": "16.137.0-preview"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TeamFoundation.DistributedTask.WebApi",
+          "Version": "15.122.1-preview"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TeamFoundationServer.Client",
+          "Version": "15.122.1-preview"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Tpl.Dataflow",
+          "Version": "4.5.24"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.TypeScript.Compiler",
+          "Version": "1.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.ComponentModelHost",
+          "Version": "15.8.525"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Composition",
+          "Version": "14.2.19-pre"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.CoreUtility",
+          "Version": "15.4.27004"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.ImageCatalog",
+          "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Imaging",
+          "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime",
+          "Version": "14.3.26930"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.LanguageServer.Client",
+          "Version": "1.0.62-pre"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.LanguageServer.Protocol",
+          "Version": "1.0.62-pre"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.OLE.Interop",
+          "Version": "7.10.6071"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.ProjectAggregator",
+          "Version": "8.0.50728"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.ProjectSystem",
+          "Version": "14.1.127-pre"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.SDK.EmbedInteropTypes",
+          "Version": "15.0.26"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.SDK.VsixSuppression",
+          "Version": "14.1.15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.ArtifactServices.Shared",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.BlobStore.Client",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.BlobStore.Client.Cache",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.Client",
+          "Version": "17.150.20190501.2-release"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
+          "Version": "17.150.20190501.2-release"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Setup.Configuration.Interop",
+          "Version": "1.16.30"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.14.0",
+          "Version": "14.3.25407"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.15.0",
+          "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Framework",
+          "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Immutable.10.0",
+          "Version": "15.0.25415"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Immutable.11.0",
+          "Version": "15.0.25415"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Immutable.12.0",
+          "Version": "15.0.25415"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Immutable.14.0",
+          "Version": "15.0.25405"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop",
+          "Version": "7.10.6072"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.10.0",
+          "Version": "10.0.30320"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.11.0",
+          "Version": "11.0.61031"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.12.0",
+          "Version": "12.0.30111"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.14.0.DesignTime",
+          "Version": "14.3.26929"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.15.3.DesignTime",
+          "Version": "15.0.26929"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.15.6.DesignTime",
+          "Version": "15.6.27413"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.8.0",
+          "Version": "8.0.50728"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Shell.Interop.9.0",
+          "Version": "9.0.30730"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Text.Data",
+          "Version": "15.8.525"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.TextManager.Interop",
+          "Version": "7.10.6071"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.TextManager.Interop.10.0",
+          "Version": "10.0.30320"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.TextManager.Interop.11.0",
+          "Version": "11.0.61032"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.TextManager.Interop.12.0",
+          "Version": "12.0.30112"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.TextManager.Interop.8.0",
+          "Version": "8.0.50728"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.TextManager.Interop.9.0",
+          "Version": "9.0.30730"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Threading",
+          "Version": "15.8.168"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Threading.Analyzers",
+          "Version": "15.8.168"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Utilities",
+          "Version": "15.8.28010"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.VisualStudio.Validation",
+          "Version": "15.3.32"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Win32.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Win32.Registry",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Windows.Debuggers.SymstoreInterop",
+          "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Windows.ProjFS",
+          "Version": "1.0.19079.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.WindowsAzure.ConfigurationManager",
+          "Version": "1.8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Minimatch",
+          "Version": "1.1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Nerdbank.FullDuplexStream",
+          "Version": "1.0.9"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NETStandard.Library",
+          "Version": "2.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Newtonsoft.Json",
+          "Version": "10.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Newtonsoft.Json",
+          "Version": "11.0.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Newtonsoft.Json.Bson",
+          "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NLog",
+          "Version": "4.6.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NodeJs",
+          "Version": "8.12.0-noTest"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NuGet.Commandline",
+          "Version": "4.7.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NuGet.Versioning",
+          "Version": "4.6.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "PowerShell.Core",
+          "Version": "6.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Redis-64",
+          "Version": "3.0.503"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "RocksDbNative",
+          "Version": "6.0.1-b20190426.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "RocksDbSharp",
+          "Version": "5.8.0-b20181023.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.IO.Compression",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Net.Http",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Net.Security",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Security.Cryptography.Apple",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.BuildXL",
+          "Version": "1.99.99"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.DotNet.ILCompiler",
+          "Version": "1.0.0-alpha-27527-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.App",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.App",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.DotNet.ILCompiler",
+          "Version": "1.0.0-alpha-27527-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.App",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.App",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.0.0-preview5-27626-15"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "RuntimeContracts",
+          "Version": "0.1.7.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "RuntimeContracts.Analyzer",
+          "Version": "0.1.7.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "SharpZipLib",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "StackExchange.Redis.StrongName",
+          "Version": "1.2.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "stdole",
+          "Version": "7.0.3303"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "StreamJsonRpc",
+          "Version": "1.4.128"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "StyleCop.Analyzers",
+          "Version": "1.1.0-beta004"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Symbol.App.Core",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Symbol.Client",
+          "Version": "17.150.28901-buildid9382555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.AppContext",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Buffers",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.CodeDom",
+          "Version": "4.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Collections",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Collections.Concurrent",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Collections.Immutable",
+          "Version": "1.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Collections.NonGeneric",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Collections.Specialized",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ComponentModel",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ComponentModel.Annotations",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ComponentModel.Composition",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ComponentModel.EventBasedAsync",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ComponentModel.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ComponentModel.TypeConverter",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Composition.AttributedModel",
+          "Version": "1.0.31"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Composition.Convention",
+          "Version": "1.0.31"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Composition.Hosting",
+          "Version": "1.0.31"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Composition.Runtime",
+          "Version": "1.0.31"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Composition.TypedParts",
+          "Version": "1.0.31"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Configuration.ConfigurationManager",
+          "Version": "4.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Console",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Data.Common",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Data.SqlClient",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Data.SQLite.Core",
+          "Version": "1.0.109.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.Contracts",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.Debug",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.DiagnosticSource",
+          "Version": "4.0.0-beta-23516"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.DiagnosticSource",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.FileVersionInfo",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.Process",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.StackTrace",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.TextWriterTraceListener",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.Tools",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.TraceSource",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Diagnostics.Tracing",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Drawing.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Dynamic.Runtime",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Globalization",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Globalization.Calendars",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Globalization.Extensions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IdentityModel.Tokens.Jwt",
+          "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Interactive.Async",
+          "Version": "3.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.Compression",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.Compression.ZipFile",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.FileSystem",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.FileSystem.AccessControl",
+          "Version": "4.6.0-preview5.19224.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.FileSystem.DriveInfo",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.FileSystem.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.FileSystem.Watcher",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.IsolatedStorage",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.MemoryMappedFiles",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.Pipelines",
+          "Version": "4.5.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.Pipes",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.Pipes.AccessControl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.IO.UnmanagedMemoryStream",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Linq",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Linq.Expressions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Linq.Parallel",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Linq.Queryable",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Management",
+          "Version": "4.6.0-preview5.19224.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Memory",
+          "Version": "4.5.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Memory",
+          "Version": "4.5.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.Http",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.NameResolution",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.NetworkInformation",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.Ping",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.Requests",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.Security",
+          "Version": "4.3.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.Sockets",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.WebHeaderCollection",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.WebSockets",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Net.WebSockets.Client",
+          "Version": "4.3.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Numerics.Vectors",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Numerics.Vectors",
+          "Version": "4.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ObjectModel",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Private.DataContractSerialization",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.DispatchProxy",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Emit",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Emit.ILGeneration",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Emit.Lightweight",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Extensions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Metadata",
+          "Version": "1.6.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Reflection.TypeExtensions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Resources.Extensions",
+          "Version": "4.6.0-preview9.19411.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Resources.Reader",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Resources.ResourceManager",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Resources.Writer",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Analyzers",
+          "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.CompilerServices.Unsafe",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.CompilerServices.Unsafe",
+          "Version": "4.5.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.CompilerServices.VisualC",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Extensions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Handles",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.InteropServices",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.InteropServices.Analyzers",
+          "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.InteropServices.RuntimeInformation",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.InteropServices.WindowsRuntime",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Loader",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Numerics",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Serialization.Formatters",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Serialization.Json",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Serialization.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Serialization.Xml",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.AccessControl",
+          "Version": "4.6.0-preview5.19224.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Claims",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Algorithms",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Cng",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Csp",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Encoding",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Hashing.Algorithms.Analyzers",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.OpenSsl",
+          "Version": "4.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Pkcs",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Primitives",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.ProtectedData",
+          "Version": "4.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.X509Certificates",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Cryptography.Xml",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Permissions",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Principal",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.Principal.Windows",
+          "Version": "4.6.0-preview5.19224.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Security.SecureString",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Spatial",
+          "Version": "5.8.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Text.Encoding",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Text.Encoding.CodePages",
+          "Version": "4.5.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Text.Encoding.Extensions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Text.Encodings.Web",
+          "Version": "4.5.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Text.RegularExpressions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.AccessControl",
+          "Version": "4.6.0-preview5.19224.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Overlapped",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks.Dataflow",
+          "Version": "4.5.24"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks.Dataflow",
+          "Version": "4.9.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks.Extensions",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks.Parallel",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Thread",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.ThreadPool",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Timer",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.ValueTuple",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.ReaderWriter",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XDocument",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XmlDocument",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XmlSerializer",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XPath",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XPath.XDocument",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XPath.XmlDocument",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Text.Analyzers",
+          "Version": "2.3.0-beta1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "TransientFaultHandling.Core",
+          "Version": "5.1.1209.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Validation",
+          "Version": "2.3.7"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VisualCppTools.Community.VS2017Layout",
+          "Version": "14.11.25506"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj",
+          "Version": "7.0.3301"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj100",
+          "Version": "10.0.30320"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj110",
+          "Version": "11.0.61031"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj140",
+          "Version": "14.0.25030"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj150",
+          "Version": "15.0.26229"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj157",
+          "Version": "15.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj158",
+          "Version": "15.8.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj2",
+          "Version": "7.0.5001"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj80",
+          "Version": "8.0.50728"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VSLangProj90",
+          "Version": "9.0.30730"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "WindowsAzure.Storage",
+          "Version": "9.3.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "WindowsSdk.Corext",
+          "Version": "10.0.16299.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.abstractions",
+          "Version": "2.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.analyzers",
+          "Version": "0.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.assert",
+          "Version": "2.4.1-ms"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.core",
+          "Version": "2.4.1-ms"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.extensibility.core",
+          "Version": "2.4.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.extensibility.execution",
+          "Version": "2.4.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.console",
+          "Version": "2.4.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.reporters",
+          "Version": "2.4.1-pre.build.4059"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.utility",
+          "Version": "2.4.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.visualstudio",
+          "Version": "2.4.1"
+        }
+      }
+    }
+  ]
+}

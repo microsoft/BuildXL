@@ -155,7 +155,8 @@ namespace Tool.SymbolDaemon
         /// <nodoc/>
         public override string ToString()
         {
-            return FileId.ToString(m_file);
+            return $"Path: {FullFilePath}{Environment.NewLine}" +
+                $"   {string.Join(Environment.NewLine, DebugEntries.Select(a=> $"BlobId:{a.BlobIdentifier} - ClientKey:{a.ClientKey} - InfoLevel:{a.InformationLevel}"))}";
         }
     }
 }

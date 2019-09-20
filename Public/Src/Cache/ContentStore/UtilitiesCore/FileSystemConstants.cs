@@ -39,21 +39,32 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public const string LongPathPrefix = @"\\?\";
 
-#if PLATFORM_WIN
+        private const int MaxPathUnix = 1024;
+
         /// <summary>
         /// Maximum path length when long paths are not supported.
         /// </summary>
-        public const int MaxShortPath = 260;
+        public static readonly int MaxShortPath = IsWindowsOS ? 260 : MaxPathUnix;
 
         /// <summary>
         /// Maximum path length for \\?\ style paths.
         /// </summary>
-        public const int MaxLongPath = 32767;
+        public static readonly int MaxLongPath = IsWindowsOS ? 32767 : MaxPathUnix;
 
         /// <summary>
         /// Maximum path length for directory.
         /// </summary>
-        public const int MaxDirectoryPath = 248;
+        public static readonly int MaxDirectoryPath = IsWindowsOS ? 248 : MaxPathUnix;
+
+        /// <summary>
+        /// Maximum number of hard links a single file can have.
+        /// </summary>
+        public static readonly int MaxLinks = IsWindowsOS ? 1024 : ushort.MaxValue;
+
+        /// <summary>
+        /// Maximum path length.
+        /// </summary>
+        public static int MaxPath { get; } = LongPathsSupported ? MaxLongPath : MaxShortPath;
 
         /// <summary>
         /// Returns true if paths longer then 260 characters are supported.
@@ -64,14 +75,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         {
             if (!IsWindowsOS)
             {
-                return true;
+                // There is no distinction between short paths and long paths on unix platforms.
+                // So this property returns false, because paths longer then MaxShortPath are not valid.
+                return false;
             }
 
             string longString = new string('a', MaxShortPath + 1);
             try
             {
                 string path = $@"{LongPathPrefix}c:\foo{longString}.txt";
-                var directoryName = System.IO.Path.GetDirectoryName(path);
+                var directoryName = Path.GetDirectoryName(path);
                 return true;
 
             }
@@ -80,52 +93,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
                 return false;
             }
         }
-
-        /// <summary>
-        /// Maximum path length.
-        /// </summary>
-        public static int MaxPath { get; } = LongPathsSupported ? MaxLongPath : MaxShortPath;
-
-        /// <summary>
-        /// Maximum number of hard links a single file can have.
-        /// </summary>
-        public const int MaxLinks = 1024;
-
-#else
-
-        private const int MaxPathUnix = 1024;
-
-        /// <summary>
-        /// Maximum path length.
-        /// </summary>
-        public static int MaxPath { get; } = MaxPathUnix;
-
-        /// <summary>
-        /// Maximum number of hard links a single file can have.
-        /// </summary>
-        public const int MaxLinks = (int)ushort.MaxValue;
-
-        /// <summary>
-        /// There is no distinction between short paths and long paths on unix platforms.
-        /// So this property returns false, becaus paths longer then MaxShortPath are not valid.
-        /// </summary>
-        public static bool LongPathsSupported { get; } = false;
-
-        /// <summary>
-        /// The same as MaxPathUnix for unix platform.
-        /// </summary>
-        public const int MaxDirectoryPath = MaxPathUnix;
-
-        /// <summary>
-        /// The same as MaxPathUnix for unix platform.
-        /// </summary>
-        public const int MaxLongPath = MaxPathUnix;
-
-        /// <summary>
-        /// The same as MaxPathUnix for unix platform.
-        /// </summary>
-        public const int MaxShortPath = MaxPathUnix;
-#endif
 
         // ReSharper disable once InconsistentNaming
 

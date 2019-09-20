@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 var startPosition = destinationStream.Position;
                 var timer = Stopwatch.StartNew();
-                await Impl();
+                await impl();
                 timer.Stop();
                 var endPosition = destinationStream.Position;
 
@@ -53,10 +53,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
             else
             {
-                await Impl();
+                await impl();
             }
 
-            async Task Impl()
+            async Task impl()
             {
                 // This method should not fail with exceptions because the resulting task may be left unobserved causing an application to crash
                 // (given that the app is configured to fail on unobserved task exceptions).

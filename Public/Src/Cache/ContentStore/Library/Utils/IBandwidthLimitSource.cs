@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public void AddBandwidthRecord(double value)
         {
-            // Do a quick check to protect ourselves against invalid data: NaN's, negative, and zero values.
+            // Do a quick check to protect ourselves against invalid data: negative, and zero values.
             if (value <= 0.0)
             {
                 return;
@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Utils
             if (statistics.Count < _maxRecordsStored / 2)
             {
                 // If not enough records, don't impose a limit.
-                return (0.0);
+                return 0.0;
             }
             else
             {
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 // ridiculous limit values for unusual data patterns.
                 // Then allow copies to be up to twice that slow, so we don't time out even 1% of successful transfers.
                 var limit = 0.5 * Math.Max(statistics.Mean - 2.27 * statistics.StandardDeviation, statistics.Minimum);
-                return (limit);
+                return limit;
             }
         }
 

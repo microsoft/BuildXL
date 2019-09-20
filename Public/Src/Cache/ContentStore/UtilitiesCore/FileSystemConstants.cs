@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public static int MaxPath { get; } = LongPathsSupported ? MaxLongPath : MaxShortPath;
 
         /// <summary>
-        /// Returns true if paths longer then 260 characters are supported.
+        /// Returns true if paths longer than MaxShortPath are supported.
         /// </summary>
         public static bool LongPathsSupported { get; } = GetLongPathSupport();
 

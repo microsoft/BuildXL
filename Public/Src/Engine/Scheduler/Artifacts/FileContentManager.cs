@@ -1329,6 +1329,7 @@ namespace BuildXL.Scheduler.Artifacts
 
         private async Task<Possible<Unit>> TryHashFileArtifactsAsync(PipArtifactsState state, OperationContext operationContext, bool allowUndeclaredSourceReads)
         {
+            bool failure = false;
             foreach (var artifact in state.PipArtifacts)
             {
                 if (!artifact.IsDirectory)
@@ -1341,23 +1342,38 @@ namespace BuildXL.Scheduler.Artifacts
                     {
                         // Directory artifact contents are not hashed since they will be hashed dynamically
                         // if the pip accesses them, so the file is the declared artifact
-                        state.HashTasks.Add(TryQueryContentAsync(
+                        var artifactContentInfo = await TryQueryContentAsync(
                             file,
                             operationContext,
                             declaredArtifact: file,
-                            allowUndeclaredSourceReads));
+                            allowUndeclaredSourceReads);
+
+                        if (!artifactContentInfo.HasValue)
+                        {
+                            failure = true;
+                            Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, file.Path.ToString());
+                            
+                        }
                     }
                 }
             }
+            //if (state.HashTasks.Count > 0)
+            //{
+            //    System.Diagnostics.Debugger.Launch();
+            //}
+            //FileMaterializationInfo?[] artifactContentInfos = await Task.WhenAll(state.HashTasks);
 
-            FileMaterializationInfo?[] artifactContentInfos = await Task.WhenAll(state.HashTasks);
+            //foreach (var artifactContentInfo in artifactContentInfos)
+            //{
+            //    if (!artifactContentInfo.HasValue)
+            //    {
+            //        return new Failure<string>("Could not retrieve input content for pip");
+            //    }
+            //}
 
-            foreach (var artifactContentInfo in artifactContentInfos)
+            if (failure)
             {
-                if (!artifactContentInfo.HasValue)
-                {
-                    return new Failure<string>("Could not retrieve input content for pip");
-                }
+                return new Failure<string>("Could not retrieve input content for pip");
             }
 
             return Unit.Void;

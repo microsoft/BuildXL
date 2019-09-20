@@ -4479,6 +4479,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Storage,
             Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}' (augmented: {isAugmentedFingerprint}), Visited entries: {visitedEntriesCount}, Unique pathsets: {pathsetCount}")]
         public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, bool isAugmentedFingerprint, string weakFigerprint, int visitedEntriesCount, int pathsetCount);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipSourceDependencyCannotBeHashed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipInputAssertions,
+            Message = "Source dependency for file at path: {filePath} could not be hashed while processing pip.")]
+        public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath);
     }
 }
 #pragma warning restore CA1823 // Unused field

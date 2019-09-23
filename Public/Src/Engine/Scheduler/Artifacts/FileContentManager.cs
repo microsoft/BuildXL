@@ -1329,7 +1329,6 @@ namespace BuildXL.Scheduler.Artifacts
 
         private async Task<Possible<Unit>> TryHashFileArtifactsAsync(PipArtifactsState state, OperationContext operationContext, bool allowUndeclaredSourceReads)
         {
-            bool failure = false;
             foreach (var artifact in state.PipArtifacts)
             {
                 if (!artifact.IsDirectory)
@@ -1342,28 +1341,45 @@ namespace BuildXL.Scheduler.Artifacts
                     {
                         // Directory artifact contents are not hashed since they will be hashed dynamically
                         // if the pip accesses them, so the file is the declared artifact
-                        var artifactContentInfo = await TryQueryContentAsync(
+                        state.HashTasks.Add(TryQueryContentAndLogHashFailureAsync(
                             file,
                             operationContext,
                             declaredArtifact: file,
-                            allowUndeclaredSourceReads);
-
-                        if (!artifactContentInfo.HasValue)
-                        {
-                            failure = true;
-                            Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, file.Path.ToString());
-                            
-                        }
+                            allowUndeclaredSourceReads));
                     }
                 }
             }
 
-            if (failure)
+            FileMaterializationInfo?[] artifactContentInfos = await Task.WhenAll(state.HashTasks);
+
+            foreach (var artifactContentInfo in artifactContentInfos)
             {
-                return new Failure<string>("Could not retrieve input content for pip");
+                if (!artifactContentInfo.HasValue)
+                {
+                    return new Failure<string>("Could not retrieve input content for pip");
+                }
             }
 
             return Unit.Void;
+        }
+
+        private async Task<FileMaterializationInfo?> TryQueryContentAndLogHashFailureAsync(
+            FileArtifact fileArtifact,
+            OperationContext operationContext,
+            FileOrDirectoryArtifact declaredArtifact,
+            bool allowUndeclaredSourceReads)
+        {
+            var artifactContentInfo = await TryQueryContentAsync(
+                            fileArtifact,
+                            operationContext,
+                            declaredArtifact,
+                            allowUndeclaredSourceReads);
+
+            if (!artifactContentInfo.HasValue)
+            {
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString());
+            }
+            return artifactContentInfo;
         }
 
         private async Task<FileMaterializationInfo?> TryQueryContentAsync(

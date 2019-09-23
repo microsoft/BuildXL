@@ -369,16 +369,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Parse the checkpoint info for the checkpoint being restored
                     var newCheckpointInfo = ParseCheckpointInfo(checkpointFile);
 
-                    foreach (var (key, value) in newCheckpointInfo)
-                    {
-                        await RestoreFileAsync(context, checkpointTargetDirectory, key, value).ThrowIfFailure();
-                    }
+                    await RestoreFilesAsync(context, checkpointTargetDirectory, newCheckpointInfo);
 
                     // Finalize by adding the incremental checkpoint info file to the local incremental checkpoint directory
                     await HardlinkWithFallBackAsync(context, checkpointFile, _incrementalCheckpointInfoFile);
                     UpdateIncrementalCheckpointInfo(newCheckpointInfo);
                     return BoolResult.Success;
                 });
+        }
+
+        private async Task RestoreFilesAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, Dictionary<string, string> newCheckpointInfo)
+        {
+            if (_configuration.IncrementalCheckpointDegreeOfParallelism <= 1)
+            {
+                foreach (var (key, value) in newCheckpointInfo)
+                {
+                    await RestoreFileAsync(context, checkpointTargetDirectory, key, value).ThrowIfFailure();
+                }
+
+            }
+            else
+            {
+                await ParallelAlgorithms.WhenDoneAsync(
+                    _configuration.IncrementalCheckpointDegreeOfParallelism,
+                    context.Token,
+                    action: async (addItem, kvp) =>
+                    {
+                        var key = kvp.Key;
+                        var value = kvp.Value;
+                        await RestoreFileAsync(context, checkpointTargetDirectory, key, value).ThrowIfFailure();
+                    },
+                    items: newCheckpointInfo.ToArray());
+            }
         }
 
         private Task<BoolResult> RestoreFileAsync(OperationContext context, AbsolutePath checkpointTargetDirectory, string relativePath, string storageId)

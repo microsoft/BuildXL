@@ -341,6 +341,39 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void ValidateCachingEnvVarOrderChange()
+        {
+            // Graph construction
+            var outFile = CreateOutputFileArtifact();
+            var consumerOutFile = CreateOutputFileArtifact();
+
+            Process ResetAndConstructGraph(bool modifyEnvVarOrder = false)
+            {
+                ResetPipGraphBuilder();
+
+                var envVars = !modifyEnvVarOrder ?
+                    new Dictionary<string, string>() { { "a", "A" }, { "b", "B" } } :
+                    new Dictionary<string, string>() { { "b", "B" }, { "a", "A" } };
+
+                var builder = CreatePipBuilder(new Operation[]
+                {
+                        Operation.WriteFile(outFile)
+                }, null, null, envVars);
+
+                return SchedulePipBuilder(builder).Process;
+            }
+
+            // Perform the builds
+            var firstRun = ResetAndConstructGraph();
+            RunScheduler().AssertCacheMiss(firstRun.PipId);
+
+            // Reset the graph and re-schedule the same pip to verify
+            // the generating pip Ids is stable across graphs and gets a cache hit
+            var secondRun = ResetAndConstructGraph(true);
+            RunScheduler().AssertCacheHit(secondRun.PipId);
+        }
+
+        [Fact]
         public void ValidateCachingDeletedOutput()
         {
             var outFile = CreateOutputFileArtifact();

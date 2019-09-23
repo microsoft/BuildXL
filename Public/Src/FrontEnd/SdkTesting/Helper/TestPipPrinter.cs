@@ -312,7 +312,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
 
             if (pip.EnvironmentVariables.Length > 0)
             {
-                properties.Add(new PropertyAssignment("environmentVariables", Generate(pip.EnvironmentVariables, Generate)));
+                properties.Add(new PropertyAssignment("environmentVariables", Generate(pip.EnvironmentVariables.OrderBy(kv => kv.Name, m_pathTable.StringTable.OrdinalComparer).ToArray(), Generate)));
             }
 
             if (pip.WarningRegex != null && pip.WarningRegex.Pattern.ToString(m_stringTable) != RegexDescriptor.DefaultWarningPattern)

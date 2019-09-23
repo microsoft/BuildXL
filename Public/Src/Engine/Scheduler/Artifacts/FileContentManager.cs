@@ -1357,19 +1357,6 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                 }
             }
-            //if (state.HashTasks.Count > 0)
-            //{
-            //    System.Diagnostics.Debugger.Launch();
-            //}
-            //FileMaterializationInfo?[] artifactContentInfos = await Task.WhenAll(state.HashTasks);
-
-            //foreach (var artifactContentInfo in artifactContentInfos)
-            //{
-            //    if (!artifactContentInfo.HasValue)
-            //    {
-            //        return new Failure<string>("Could not retrieve input content for pip");
-            //    }
-            //}
 
             if (failure)
             {

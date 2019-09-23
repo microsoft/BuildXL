@@ -7,7 +7,7 @@ using System.IO;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
-using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Processes
 {

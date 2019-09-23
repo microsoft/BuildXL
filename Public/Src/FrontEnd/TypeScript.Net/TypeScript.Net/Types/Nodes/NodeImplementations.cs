@@ -18,7 +18,7 @@ using TypeScript.Net.Incrementality;
 using TypeScript.Net.Reformatter;
 using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
-using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Types
 {

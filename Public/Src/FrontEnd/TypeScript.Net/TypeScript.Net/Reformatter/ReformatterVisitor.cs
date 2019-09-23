@@ -7,7 +7,7 @@ using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Reformatter
 {

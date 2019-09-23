@@ -21,7 +21,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
-using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using NsBindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.FullSymbol, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 
 // Enable below code for testing specialized dictionaries.

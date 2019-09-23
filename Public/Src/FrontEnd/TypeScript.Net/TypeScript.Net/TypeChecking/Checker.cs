@@ -32,7 +32,7 @@ using static TypeScript.Net.Types.SymbolTable;
 using static TypeScript.Net.Utils;
 using CancellationToken = TypeScript.Net.Types.CancellationToken;
 using ISymbol = TypeScript.Net.Types.ISymbol;
-using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using SymbolTable = TypeScript.Net.Types.SymbolTable;
 
 namespace TypeScript.Net.TypeChecking

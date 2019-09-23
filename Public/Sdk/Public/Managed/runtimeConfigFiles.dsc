@@ -75,17 +75,17 @@ namespace RuntimeConfigFiles {
         ): File {
 
         const specFileOutput = Context.getNewOutputDirectory("DotNetSpecFiles");
-
         const runtimeReferences = Helpers.computeTransitiveReferenceClosure(framework, references, runtimeContentToSkip, false);
 
         const dependencySpecExtension = `${assemblyName}.deps.json`;
         const dependencySpecPath = p`${specFileOutput}/${dependencySpecExtension}`;
 
+        const runtimeName = "runtimepack." + framework.runtimeFrameworkName + ".Runtime." + qualifier.targetRuntime;
+
         // we seed the target and libraries with the current assembly being compiled
         let targetsSet = {}.overrideKey(`${assemblyName}/${temporaryVersionHack}`, <Object>{
-            // Technically all entires should declare their dependencies but we temporary hack this only for the main assembly.
-            dependencies: createDependencies(references),
-            runtime: {}.overrideKey(runtimeBinary.binary.name.toString(), {}),
+            dependencies: createDependencies(references).overrideKey(runtimeName, framework.runtimeConfigVersion),
+            runtime: {}.overrideKey(runtimeBinary.binary.name.toString(), {})
         });
 
         let librariesSet = {}.overrideKey(`${assemblyName}/${temporaryVersionHack}`, {
@@ -121,7 +121,6 @@ namespace RuntimeConfigFiles {
         // In the case of self-contained deployment, we need to inject the runtime information provided by the framework
         if (framework.applicationDeploymentStyle === "selfContained" && !testRunnerDeployment)
         {
-            const runtimeName = "runtimepack." + framework.runtimeFrameworkName + "." + qualifier.targetRuntime;
             const fullyQualifiedRuntimeDescription = runtimeName + "/" + framework.runtimeConfigVersion;
 
             const runtimeContent = framework.runtimeContentProvider(qualifier.targetRuntime);

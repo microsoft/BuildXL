@@ -198,9 +198,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     rotateLogs: true,
                     failureHandler: failureEvent =>
                     {
-                        bool isUserError = failureEvent.Rethrow;
-                        failureEvent.Invalidate = !isUserError;
-                        failureEvent.Rethrow = isUserError;
+                        // By default, rethrow is true iff it is a user error. We invalidate only if it isn't
+                        failureEvent.Invalidate = !failureEvent.Rethrow;
                     },
                     invalidationHandler: failure => {
                         Tracer.Error(context, $"RocksDb critical error caused store invalidation: {failure.DescribeIncludingInnerFailures()}");

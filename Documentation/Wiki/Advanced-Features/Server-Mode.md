@@ -1,5 +1,5 @@
 # Server mode
-Server mode is an optimization to speed up back-to-back builds. It is recommended for use on dev machine builds but not in a datacenter. It is currently only available on Windows
+Server mode is an optimization to speed up back-to-back builds. It is recommended for use on dev machine builds but not in a datacenter. It is currently only available on Windows.
 
 ## How does server mode work? 
 It works by spawning a second bxl.exe 'server' process as a child process of the user initated bxl.exe process. This second process is the one that actually performs the build. It communicates back with the original bxl.exe 'client' process to send console output and results back to the user. When the build completes, the server process stays alive and keeps some state in memory to make subsequent builds faster.

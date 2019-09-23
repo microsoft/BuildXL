@@ -451,7 +451,7 @@ Log " version of BuildXL.";
 
 $Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH");
 
-$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path";
+$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH";
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

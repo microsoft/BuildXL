@@ -1254,12 +1254,12 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         [InlineData(100)]
         [InlineData(1000)]
         [Trait("Category", "WindowsOSOnly")]
-        public void HardLinkToLongDestinationFilePaths(int length)
+        public void HardLinkToLongDestinationFilePaths(int deltaMaxShortPath)
         {
             using var testDirectory = new DisposableDirectory(FileSystem);
             CreateTestTree(testDirectory);
 
-            length += FileSystemConstants.MaxShortPath;
+            var length = FileSystemConstants.MaxShortPath + deltaMaxShortPath;
             if ((testDirectory.Path.Length + length) < FileSystemConstants.MaxShortPath || AbsolutePath.LongPathsSupported)
             {
                 // Skipping if the path is a long path but the current system doesn't support it.

@@ -251,7 +251,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         {
             Contract.Requires(path != null);
 
-            if (path.Length < FileSystemConstants.MaxShortPath)
+            if (path.Length < FileSystemConstants.MaxDirectoryPath)
             {
                 return path;
             }

@@ -107,11 +107,11 @@ config({
 
                 // MEF
                 { id: "Microsoft.Composition", version: "1.0.30" },
-                { id: "System.Composition.AttributedModel", version: "1.0.31" },
-                { id: "System.Composition.Convention", version: "1.0.31" },
-                { id: "System.Composition.Hosting", version: "1.0.31" },
-                { id: "System.Composition.Runtime", version: "1.0.31" },
-                { id: "System.Composition.TypedParts", version: "1.0.31" },
+                { id: "System.Composition.AttributedModel", version: "1.3.0-rc1.19456.4" },
+                { id: "System.Composition.Convention", version: "1.3.0-rc1.19456.4" },
+                { id: "System.Composition.Hosting", version: "1.3.0-rc1.19456.4" },
+                { id: "System.Composition.Runtime", version: "1.3.0-rc1.19456.4" },
+                { id: "System.Composition.TypedParts", version: "1.3.0-rc1.19456.4" },
 
                 { id: "Microsoft.Diagnostics.Tracing.EventSource.Redist", version: "1.1.28" },
                 { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "2.0.30" },

@@ -287,7 +287,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsBandwidthCheckEnabled { get; set; } = false;
 
         [DataMember]
-        public double MinimumSpeedInMbPerSec { get; set; } = -1.0;
+        public double? MinimumSpeedInMbPerSec { get; set; } = null;
 
         [DataMember]
         public int BandwidthCheckIntervalSeconds { get; set; } = 60;
@@ -568,7 +568,7 @@ namespace BuildXL.Cache.Host.Configuration
                 ConnectionSecretNameMap.Single(kvp => Regex.IsMatch(stampId, kvp.Key, RegexOptions.IgnoreCase)).Value);
         }
 
-        public Tuple<double, int> GetBandwidthCheckSettings()
+        public Tuple<double?, int> GetBandwidthCheckSettings()
         {
             return IsDistributedContentEnabled && IsBandwidthCheckEnabled
                 ? Tuple.Create(MinimumSpeedInMbPerSec, BandwidthCheckIntervalSeconds)

@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -17,7 +17,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -41,7 +40,7 @@ namespace ContentStoreTest.Distributed.Stores
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
-            _clientCache = new GrpcCopyClientCache(_context, 65536);
+            _clientCache = new GrpcCopyClientCache(_context, GrpcCopyClient.Configuration.Default, maxClientCount: 65536);
         }
 
         [Fact]
@@ -99,7 +98,8 @@ namespace ContentStoreTest.Distributed.Stores
         {
             int maxClientCount = 10;
             var clientWrapperList = new List<(ResourceWrapper<GrpcCopyClient> Wrapper, GrpcCopyClient Client)>();
-            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30, bufferSize: 65536);
+            var clientConfig = new GrpcCopyClient.Configuration(bandwidthCheckInterval: TimeSpan.FromSeconds(30), minimumBandwidthMbPerSec: null, clientBufferSize: 65536);
+            _clientCache = new GrpcCopyClientCache(_context, clientConfig, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30);
 
             for (int i = 0; i < maxClientCount; i++)
             {

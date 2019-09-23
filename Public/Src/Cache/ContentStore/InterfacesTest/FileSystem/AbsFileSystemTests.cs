@@ -1177,39 +1177,32 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             }
         }
 
-        [Fact]
+        [Theory]
+        [InlineData(-10)]
+        [InlineData(10)]
+        [InlineData(100)]
+        [InlineData(1000)]
         [Trait("Category", "WindowsOSOnly")]
-        public void WriteAllBytesToLongFilePaths()
+        public void WriteAllBytesToLongFilePaths(int deltaMaxShortPath)
         {
-            using (var testDirectory = new DisposableDirectory(FileSystem))
-            {
-                var max = FileSystemConstants.MaxShortPath;
-                foreach (var length in new[] { max - 10, max + 10, max + 100, max + 1000 })
-                {
-                    bool succeeded = writeAllBytes(testDirectory, length);
-                    var expectedSuccess = length < FileSystemConstants.MaxShortPath || FileSystemConstants.LongPathsSupported;
+            using var testDirectory = new DisposableDirectory(FileSystem);
+            var length = FileSystemConstants.MaxShortPath + deltaMaxShortPath;
+            var expectedSuccess = length < FileSystemConstants.MaxShortPath || FileSystemConstants.LongPathsSupported;
 
-                    Assert.Equal(expectedSuccess, succeeded);
-                }
+            try
+            {
+                AbsolutePath rootPath = testDirectory.Path / @"dir";
+                FileSystem.CreateDirectory(rootPath);
+                AbsolutePath sourceFilePath = FileSystem.MakeLongPath(rootPath, length);
+
+                // Write original source bytes
+                byte[] sourceBytes = ThreadSafeRandom.GetBytes(10);
+                FileSystem.WriteAllBytes(sourceFilePath, sourceBytes);
+                Assert.True(expectedSuccess);
             }
-
-            bool writeAllBytes(DisposableDirectory testDirectory, int length)
+            catch (PathTooLongException)
             {
-                try
-                {
-                    AbsolutePath rootPath = testDirectory.Path / @"dir";
-                    FileSystem.CreateDirectory(rootPath);
-                    AbsolutePath sourceFilePath = FileSystem.MakeLongPath(rootPath, length);
-
-                    // Write original source bytes
-                    byte[] sourceBytes = ThreadSafeRandom.GetBytes(10);
-                    FileSystem.WriteAllBytes(sourceFilePath, sourceBytes);
-                    return true;
-                }
-                catch (PathTooLongException)
-                {
-                    return false;
-                }
+                Assert.False(expectedSuccess);
             }
         }
 
@@ -1255,26 +1248,25 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
             return FileSystem.CreateHardLink(sourcePath, linkPath, false);
         }
 
-        [Fact]
+        [Theory]
+        [InlineData(-10)]
+        [InlineData(10)]
+        [InlineData(100)]
+        [InlineData(1000)]
         [Trait("Category", "WindowsOSOnly")]
-        public void HardLinkToLongDestinationFilePaths()
+        public void HardLinkToLongDestinationFilePaths(int length)
         {
-            using (var testDirectory = new DisposableDirectory(FileSystem))
-            {
-                CreateTestTree(testDirectory);
+            using var testDirectory = new DisposableDirectory(FileSystem);
+            CreateTestTree(testDirectory);
 
-                var max = FileSystemConstants.MaxShortPath;
-                foreach (var length in new[] { max - 10, max + 10, max + 100, max + 1000 })
-                {
-                    if ((testDirectory.Path.Length + length) < FileSystemConstants.MaxShortPath || AbsolutePath.LongPathsSupported)
-                    {
-                        // Skipping if the path is a long path but the current system doesn't support it.
-                        // Because in this case we just can't create a directory to store the source file.
-                        var result = HardLinkToLongFileDestinationPath(testDirectory, length);
-                        var expectedCreateHardLinkResult = CreateHardLinkResult.Success;
-                        Assert.True(result == expectedCreateHardLinkResult, $"Expected {expectedCreateHardLinkResult}, found {result}. Result: {result.ToString()}, Destination path length: {length}.");
-                    }
-                }
+            length += FileSystemConstants.MaxShortPath;
+            if ((testDirectory.Path.Length + length) < FileSystemConstants.MaxShortPath || AbsolutePath.LongPathsSupported)
+            {
+                // Skipping if the path is a long path but the current system doesn't support it.
+                // Because in this case we just can't create a directory to store the source file.
+                var result = HardLinkToLongFileDestinationPath(testDirectory, length);
+                var expectedCreateHardLinkResult = CreateHardLinkResult.Success;
+                Assert.True(result == expectedCreateHardLinkResult, $"Expected {expectedCreateHardLinkResult}, found {result}. Result: {result.ToString()}, Destination path length: {length}.");
             }
         }
 

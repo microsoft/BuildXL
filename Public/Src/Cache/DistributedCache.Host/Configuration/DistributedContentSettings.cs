@@ -520,6 +520,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
+        [DataMember]
+        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
         /// </summary>

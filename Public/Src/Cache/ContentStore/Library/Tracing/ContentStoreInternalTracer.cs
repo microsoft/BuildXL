@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
+using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -13,6 +15,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stats;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Tasks;
 
 // disable 'Missing XML comment for publicly visible type' warnings.
 #pragma warning disable 1591
@@ -68,7 +72,9 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private readonly Counter _evictFilesCount;
         private readonly Counter _reconstructCallExceptionCounter;
 
-        public ContentStoreInternalTracer()
+        private readonly bool _traceDiagnosticEvents;
+
+        public ContentStoreInternalTracer(bool traceDiagnosticEvents = false)
             : base(FileSystemContentStoreInternal.Component)
         {
             CallCounters.Add(_createHardLinkCallCounter = new CallCounter(CreateHardLinkCallName));
@@ -91,6 +97,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
             _counters.Add(_evictBytesCount = new Counter(EvictBytesCountName));
             _counters.Add(_evictFilesCount = new Counter(EvictFilesCountName));
             _counters.Add(_reconstructCallExceptionCounter = new Counter(ReconstructCallExceptionName));
+
+            _traceDiagnosticEvents = traceDiagnosticEvents;
         }
 
         public override CounterSet GetCounters()
@@ -353,7 +361,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            Debug(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms");
+            DebugCore(context, $"{Name}.CreateHardLink=[{result}] [{source}] to [{destination}]. mode=[{mode}] replaceExisting=[{replace}] {ms}ms");
         }
 
         public void PlaceFileCopy(Context context, AbsolutePath path, ContentHash contentHash, TimeSpan duration)
@@ -371,7 +379,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
 
             var ms = (long)duration.TotalMilliseconds;
-            Debug(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms");
+            DebugCore(context, $"{Name}.PlaceFileCopy({path},{contentHash.ToShortString()}) {ms}ms");
         }
 
         public void ReconstructDirectory(Context context, TimeSpan duration, long contentCount, long contentSize)
@@ -425,8 +433,18 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             if (context.IsEnabled)
             {
-                TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms input=[{input.ToShortString()}] result=[{result}]");
+                TracerOperationFinished(context, result, $"{Name}.Evict() stop {result.DurationMs}ms Hash={input.ToShortString()} Size={result.EvictedSize} Replicas={result.ReplicaCount} Age={AgeAsString(result.Age)} EffAge={AgeAsString(result.EffectiveAge)}");
             }
+        }
+
+        private string AgeAsString(TimeSpan? timeSpan)
+        {
+            if (timeSpan == null)
+            {
+                return null;
+            }
+
+            return timeSpan.Value.TotalHours.ToString("#.##h");
         }
 
         public void PurgeStart(Context context)
@@ -493,10 +511,15 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
             if (context.IsEnabled)
             {
-                Debug(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms");
+                DebugCore(context, $"{Name}.{HashContentFileCallName}({path}) {duration.TotalMilliseconds}ms");
             }
 
             _hashContentFileCallCounter.Completed(duration.Ticks);
+        }
+
+        private void DebugCore(Context context, string message)
+        {
+            Trace(_traceDiagnosticEvents ? Severity.Debug : Severity.Diagnostic, context, message);
         }
 
         public void PutFileExistingHardLinkStart()

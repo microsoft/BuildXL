@@ -451,7 +451,7 @@ namespace DetoursCrossBitTests
                 }
 
                 if (selfChild != null
-                    && fileAccessDescription.Description.IndexOf("CreateFile(...", selfPrefix.Length, StringComparison.Ordinal) != -1
+                    && fileAccessDescription.Description.IndexOf("GetFileAttributesEx(...", selfPrefix.Length, StringComparison.Ordinal) != -1
                     && string.Equals(fileAccessDescription.FilePath, selfChild, StringComparison.OrdinalIgnoreCase))
                 {
                     childCreate = true;

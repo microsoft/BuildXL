@@ -226,6 +226,7 @@ namespace BuildXL.Utilities.Tracing
         ScheduleFailAddPipInvalidComposedSealDirectoryIsNotSharedOpaque = 14403,
 
         PipStaticFingerprint = 14410,
+        FailedComputingPipStaticFingerprintForGraphFragment = 14411,
 
         // Reserved = 250,
         // Reserved = 251,

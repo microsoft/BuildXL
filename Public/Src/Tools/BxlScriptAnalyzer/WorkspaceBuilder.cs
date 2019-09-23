@@ -197,7 +197,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                         }
                         else
                         {
-                            pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config);
+                            pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config, mountsTable.MountPathExpander);
                         }
 
                         // TODO: Think more if an analyzer wants to use the real pip graph builder.

@@ -2451,8 +2451,26 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
-                "Static fingerprint of {pipDescription} is '{staticFingerprint}':\r\n{fingerprintText}.")]
+                "Static fingerprint of '{pipDescription}' is '{staticFingerprint}':\r\n{fingerprintText}.")]
         public abstract void PipStaticFingerprint(LoggingContext context, string pipDescription, string staticFingerprint, string fingerprintText);
+
+        [GeneratedEvent(
+            (int)EventId.FailedComputingPipStaticFingerprintForGraphFragment,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "Failed to compute static fingerprint of '{pipDescription}': {reason}")]
+        public abstract void FailedComputingPipStaticFingerprintForGraphFragment(
+            LoggingContext context, 
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash, 
+            string pipDescription, 
+            string reason);
 
         [GeneratedEvent(
             (int)EventId.InvalidInputDueToMultipleConflictingRewriteCounts,

@@ -5,6 +5,7 @@ using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using BuildXL.Engine;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
@@ -28,6 +29,7 @@ namespace Test.BuildXL.Scheduler
         private readonly AbsolutePath m_sourceRoot;
         private readonly AbsolutePath m_objectRoot;
         private readonly LoggingContext m_loggingContext;
+        private readonly MountPathExpander m_expander;
         private readonly IPipGraph m_pipGraph;
         private readonly ModuleId m_moduleId;
         private readonly AbsolutePath m_specPath;
@@ -57,6 +59,7 @@ namespace Test.BuildXL.Scheduler
             m_loggingContext = loggingContext;
             m_sourceRoot = AbsolutePath.Create(Context.PathTable, sourceRoot);
             m_objectRoot = AbsolutePath.Create(Context.PathTable, objectRoot);
+            m_expander = new MountPathExpander(Context.PathTable);
 
             m_pipGraph = new GraphFragmentBuilder(
                 m_loggingContext,
@@ -65,9 +68,11 @@ namespace Test.BuildXL.Scheduler
                 {
                     Schedule =
                     {
-                        UseFixedApiServerMoniker = true
+                        UseFixedApiServerMoniker = true,
+                        ComputePipStaticFingerprints = true,
                     }
-                });
+                },
+                m_expander);
 
             ModuleName = moduleName;
             var specFileName = moduleName + ".dsc";

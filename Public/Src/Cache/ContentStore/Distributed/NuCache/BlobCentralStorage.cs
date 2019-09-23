@@ -106,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 AttemptResult result = await TaskUtilities.WithTimeoutAsync(async token =>
                     {
                         var blob = container.GetBlockBlobReference(blobName);
-                        var exists = await blob.ExistsAsync(DefaultBlobStorageRequestOptions, null, token);
+                        var exists = await blob.ExistsAsync(null, null, token);
 
                         if (exists)
                         {
@@ -184,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         async token =>
                         {
                             var blob = await GetBlockBlobReferenceAsync(container, shardId, blobName, token);
-                            var exists = await blob.ExistsAsync(DefaultBlobStorageRequestOptions, null, token);
+                            var exists = await blob.ExistsAsync(null, null, token);
 
                             if (exists)
                             {
@@ -194,7 +194,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     $@"Touching blob '{_configuration.ContainerName}\{blobName}' of size {blob.Properties.Length} with access time {now} for shard #{shardId}.");
                                 blob.Metadata[LastAccessedMetadataName] = now.ToReadableString();
 
-                                await blob.SetMetadataAsync(null, DefaultBlobStorageRequestOptions, null, token);
+                                await blob.SetMetadataAsync(null, null, null, token);
                             }
                             else
                             {

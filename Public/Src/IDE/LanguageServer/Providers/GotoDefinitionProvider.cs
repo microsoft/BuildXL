@@ -17,7 +17,7 @@ using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
 using ISymbol = TypeScript.Net.Types.ISymbol;
 using DScriptUtilities = TypeScript.Net.DScript.Utilities;
-using NotNull = JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {

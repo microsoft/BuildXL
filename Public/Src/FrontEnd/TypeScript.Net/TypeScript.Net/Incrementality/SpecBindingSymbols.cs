@@ -12,7 +12,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
-using NotNull = JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Incrementality
 {

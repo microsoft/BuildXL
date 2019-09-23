@@ -25,7 +25,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using CancellationToken = System.Threading.CancellationToken;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
-using NotNull = JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Core
 {

@@ -12,7 +12,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
 using ISymbol = TypeScript.Net.Types.ISymbol;
-using NotNull = JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.DScript
 {

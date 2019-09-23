@@ -13,7 +13,7 @@ using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.TypeChecking;
-using NotNull = JetBrains.Annotations.NotNullAttribute;
+using NotNullAttribute= JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 

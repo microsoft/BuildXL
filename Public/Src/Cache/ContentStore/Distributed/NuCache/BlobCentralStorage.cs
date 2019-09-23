@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
@@ -38,6 +39,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(BlobCentralStorage));
+
+        private static readonly BlobRequestOptions DefaultBlobStorageRequestOptions = new BlobRequestOptions()
+        {
+            // Compute and store the MD5 hash of the stored file, which lets us validate the contents upon download
+            StoreBlobContentMD5 = true,
+            // Ensure content validation is activated client-side
+            DisableContentMD5Validation = false,
+            RetryPolicy = new ExponentialRetry(),
+        };
 
         /// <nodoc />
         public BlobCentralStorage(BlobCentralStoreConfiguration configuration)
@@ -96,7 +106,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 AttemptResult result = await TaskUtilities.WithTimeoutAsync(async token =>
                     {
                         var blob = container.GetBlockBlobReference(blobName);
-                        var exists = await blob.ExistsAsync(null, null, token);
+                        var exists = await blob.ExistsAsync(DefaultBlobStorageRequestOptions, null, token);
 
                         if (exists)
                         {
@@ -104,7 +114,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             Tracer.Debug(context, $@"Downloading blob '{_configuration.ContainerName}\{blobName}' to {targetCheckpointFile} from shard #{shardId}.");
 
-                            await blob.DownloadToStreamAsync(fileStream, null, null, null, token);
+                            await blob.DownloadToStreamAsync(fileStream, null, DefaultBlobStorageRequestOptions, null, token);
                         }
                         else
                         {
@@ -174,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         async token =>
                         {
                             var blob = await GetBlockBlobReferenceAsync(container, shardId, blobName, token);
-                            var exists = await blob.ExistsAsync(null, null, token);
+                            var exists = await blob.ExistsAsync(DefaultBlobStorageRequestOptions, null, token);
 
                             if (exists)
                             {
@@ -184,7 +194,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     $@"Touching blob '{_configuration.ContainerName}\{blobName}' of size {blob.Properties.Length} with access time {now} for shard #{shardId}.");
                                 blob.Metadata[LastAccessedMetadataName] = now.ToReadableString();
 
-                                await blob.SetMetadataAsync(null, null, null, token);
+                                await blob.SetMetadataAsync(null, DefaultBlobStorageRequestOptions, null, token);
                             }
                             else
                             {
@@ -226,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     var blob = await GetBlockBlobReferenceAsync(container, shardId, blobName, token);
 
-                    await blob.UploadFromFileAsync(file.ToString(), null, null, null, token);
+                    await blob.UploadFromFileAsync(file.ToString(), null, DefaultBlobStorageRequestOptions, null, token);
 
                     if (garbageCollect)
                     {

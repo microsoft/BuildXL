@@ -86,6 +86,8 @@ namespace BuildXL.Pips
 
         private readonly PipTableSerializationScheduler m_serializationScheduler;
 
+        private readonly Pip m_dummyHashSourceFilePip;
+
         /// <summary>
         /// Creates a new pip table
         /// </summary>
@@ -100,6 +102,9 @@ namespace BuildXL.Pips
             m_store = new PageablePipStore(pathTable, symbolTable, initialBufferSize, debug);
             m_mutables = new ConcurrentDenseIndex<MutablePipState>(debug);
             m_serializationScheduler = new PipTableSerializationScheduler(maxDegreeOfParallelism, debug, ProcessQueueItem);
+
+            AbsolutePath dummyFilePath = AbsolutePath.Create(pathTable, PathGeneratorUtilities.GetAbsolutePath("B", "DUMMY_HASH_SOURCE_FILE"));
+            m_dummyHashSourceFilePip = new HashSourceFile(FileArtifact.CreateSourceFile(dummyFilePath));
         }
 
         /// <summary>
@@ -581,6 +586,11 @@ namespace BuildXL.Pips
             Contract.Requires(!IsDisposed);
             Contract.Requires(IsValid(pipId));
             Contract.Ensures(Contract.Result<Pip>() != null);
+
+            if (pipId == PipId.DummyHashSourceFilePipId)
+            {
+                return m_dummyHashSourceFilePip;
+            }
 
             return GetMutable(pipId)
                 .InternalGetOrSetPip(

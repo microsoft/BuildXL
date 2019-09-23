@@ -222,18 +222,28 @@ namespace BuildXL.FrontEnd.Nuget
 
         /// <summary>
         /// Returns all packages known by this resolver. This includes potentially embedded packages
+        /// 
+        /// The multi-value dictionary maps the original Nuget package name to (possibly multiple) generated DScript packages.
         /// </summary>
-        public async Task<Possible<IEnumerable<Package>>> GetAllKnownPackagesAsync()
+        public async Task<Possible<MultiValueDictionary<string, Package>>> GetAllKnownPackagesAsync()
         {
             var maybeResult = await DownloadPackagesAndGenerateSpecsIfNeededInternal();
 
             return await maybeResult.ThenAsync(
                 async result =>
-                      {
-                          var maybeDefinitions = await this.GetAllModuleDefinitionsAsync();
-                          return maybeDefinitions.Then(
-                              definitions => definitions.Select(GetPackageForGeneratedProject));
-                      });
+                {
+                    var maybeDefinitions = await this.GetAllModuleDefinitionsAsync();
+                    return maybeDefinitions.Then(
+                        definitions => definitions.Aggregate(
+                            seed: new MultiValueDictionary<string, Package>(),
+                            func: (acc, def) => AddPackage(acc, result.GetOriginalNugetPackageName(def), GetPackageForGeneratedProject(def))));
+                });
+        }
+
+        private MultiValueDictionary<string, Package> AddPackage(MultiValueDictionary<string, Package> dict, string nugetPackageName, Package package)
+        {
+            dict.Add(nugetPackageName, package);
+            return dict;
         }
 
         private Package GetPackageForGeneratedProject(ModuleDefinition moduleDefinition)
@@ -354,7 +364,7 @@ namespace BuildXL.FrontEnd.Nuget
                 m_nugetGenerationResult
                     .GetOrCreate(
                         (@this: this, possiblePackages),
-                        tpl => Task.FromResult(tpl.@this.GetNugetGenerationResultFromDownloadedPackages(tpl.possiblePackages))
+                        tpl => Task.FromResult(tpl.@this.GetNugetGenerationResultFromDownloadedPackages(tpl.possiblePackages, null))
                     )
                     .GetAwaiter()
                     .GetResult()
@@ -498,6 +508,7 @@ namespace BuildXL.FrontEnd.Nuget
                             }
                             else
                             {
+                                packageResult.Result.NugetName = nugetPackage.Package.Id;
                                 restoredPackagesById[packageResult.Result.ActualId] = packageResult.Result;
                             }
                         }
@@ -508,7 +519,7 @@ namespace BuildXL.FrontEnd.Nuget
                         return new WorkspaceModuleResolverGenericInitializationFailure(Kind);
                     }
                 }
-
+                
                 var possiblePackages = GenerateSpecsForDownloadedPackages(restoredPackagesById);
 
                 // At this point we know which are all the packages that contain embedded specs, so we can initialize the embedded resolver properly
@@ -519,7 +530,7 @@ namespace BuildXL.FrontEnd.Nuget
                     return failure;
                 }
 
-                return GetNugetGenerationResultFromDownloadedPackages(possiblePackages);
+                return GetNugetGenerationResultFromDownloadedPackages(possiblePackages, restoredPackagesById);
             }
         }
 
@@ -628,7 +639,8 @@ namespace BuildXL.FrontEnd.Nuget
         }
 
         private Possible<NugetGenerationResult> GetNugetGenerationResultFromDownloadedPackages(
-            Dictionary<string, Possible<AbsolutePath>> possiblePackages)
+            Dictionary<string, Possible<AbsolutePath>> possiblePackages,
+            Dictionary<string, NugetAnalyzedPackage> nugetPackagesByModuleName)
         {
             var generatedProjectsByPackageDescriptor = new Dictionary<ModuleDescriptor, AbsolutePath>(m_resolverSettings.Packages.Count);
             var generatedProjectsByPath = new Dictionary<AbsolutePath, ModuleDescriptor>(m_resolverSettings.Packages.Count);
@@ -653,7 +665,7 @@ namespace BuildXL.FrontEnd.Nuget
                 generatedProjectsByPackageName.Add(moduleDescriptor.Name, moduleDescriptor);
             }
 
-            return new NugetGenerationResult(generatedProjectsByPackageDescriptor, generatedProjectsByPath, generatedProjectsByPackageName);
+            return new NugetGenerationResult(generatedProjectsByPackageDescriptor, generatedProjectsByPath, generatedProjectsByPackageName, nugetPackagesByModuleName);
         }
 
         /// <summary>
@@ -1730,11 +1742,16 @@ namespace BuildXL.FrontEnd.Nuget
     /// </summary>
     internal struct NugetGenerationResult
     {
-        public NugetGenerationResult(Dictionary<ModuleDescriptor, AbsolutePath> generatedProjectsByModuleDescriptor, Dictionary<AbsolutePath, ModuleDescriptor> generatedProjectsByPath, MultiValueDictionary<string, ModuleDescriptor> generatedProjectsByModuleName)
+        public NugetGenerationResult(
+            Dictionary<ModuleDescriptor, AbsolutePath> generatedProjectsByModuleDescriptor, 
+            Dictionary<AbsolutePath, ModuleDescriptor> generatedProjectsByPath, 
+            MultiValueDictionary<string, ModuleDescriptor> generatedProjectsByModuleName,
+            Dictionary<string, NugetAnalyzedPackage> nugetPackagesByModuleName)
         {
             GeneratedProjectsByModuleDescriptor = generatedProjectsByModuleDescriptor;
             GeneratedProjectsByPath = generatedProjectsByPath;
             GeneratedProjectsByModuleName = generatedProjectsByModuleName;
+            NugetPackagesByModuleName = nugetPackagesByModuleName;
         }
 
         /// <summary>
@@ -1751,5 +1768,14 @@ namespace BuildXL.FrontEnd.Nuget
         /// All package descriptors, indexed by name.
         /// </summary>
         public MultiValueDictionary<string, ModuleDescriptor> GeneratedProjectsByModuleName { get; set; }
+
+        public Dictionary<string, NugetAnalyzedPackage> NugetPackagesByModuleName { get; }
+
+        internal string GetOriginalNugetPackageName(ModuleDefinition def)
+        {
+            return NugetPackagesByModuleName != null && NugetPackagesByModuleName.TryGetValue(def.Descriptor.Name, out var value)
+                ? value.NugetName
+                : def.Descriptor.Name;
+        }
     }
 }

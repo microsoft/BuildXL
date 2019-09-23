@@ -69,6 +69,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ReleaseWorkspaceBeforeEvaluation = template.ReleaseWorkspaceBeforeEvaluation;
             UnsafeOptimizedAstConversion = template.UnsafeOptimizedAstConversion;
             AllowUnsafeAmbient = template.AllowUnsafeAmbient;
+            GenerateCgManifestForNugets = template.GenerateCgManifestForNugets;
+            ValidateCgManifestForNugets = template.ValidateCgManifestForNugets;
         }
 
         /// <inheritdoc />
@@ -202,5 +204,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc /> 
         public bool AllowUnsafeAmbient { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath GenerateCgManifestForNugets { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath ValidateCgManifestForNugets { get; set; }
     }
 }

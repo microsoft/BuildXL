@@ -473,6 +473,12 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "forceUseEngineInfoFromCache",
                             sign => schedulingConfiguration.ForceUseEngineInfoFromCache = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "generateCgManifestForNugets",
+                            opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateOption(
+                            "validateCgManifestForNugets",
+                            opt => frontEndConfiguration.ValidateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "hardExitOnErrorInDetours",
                             sign => sandboxConfiguration.HardExitOnErrorInDetours = sign),

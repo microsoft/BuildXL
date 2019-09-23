@@ -141,19 +141,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
 
         /// <summary>
-        /// Whether proactive copies are enabled.
+        /// The mode in which proactive copy should run
         /// </summary>
-        public bool EnableProactiveCopy { get; set; } = false;
-
-        /// <summary>
-        /// Time before a proactive copy times out.
-        /// </summary>
-        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
+        public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
 
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        /// <summary>
+        /// Time before a proactive copy times out.
+        /// </summary>
+        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
         /// Defines pinning behavior

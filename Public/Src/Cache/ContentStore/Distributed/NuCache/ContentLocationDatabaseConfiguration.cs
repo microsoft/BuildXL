@@ -88,6 +88,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Default is the same as in the SQLiteMemoizationStore
         /// </remarks>
         public int MetadataGarbageCollectionMaximumNumberOfEntriesToKeep { get; set; } = 500_000;
+
+        /// <summary>
+        /// Whether to clean the DB when it is corrupted.
+        /// </summary>
+        /// <remarks>
+        /// Should be false for Content, true for Metadata.
+        /// </remarks>
+        public bool OnFailureDeleteExistingStoreAndRetry { get; set; } = false;
     }
 
     /// <summary>

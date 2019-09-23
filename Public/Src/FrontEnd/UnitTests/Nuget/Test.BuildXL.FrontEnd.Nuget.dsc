@@ -24,6 +24,7 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
+            importFrom("Newtonsoft.Json").pkg,
             ...BuildXLSdk.tplPackages,
         ],
     });

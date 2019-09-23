@@ -27,9 +27,10 @@ namespace BuildXL.Scheduler
         private readonly IServer m_server;
         private readonly PipExecutionContext m_context;
 
-        private long m_numMaterializeFile = 0;
-        private long m_numReportStatistics = 0;
-        private long m_numGetSealedDirectoryContent = 0;
+        private long m_numMaterializeFile;
+        private long m_numReportStatistics;
+        private long m_numGetSealedDirectoryContent;
+        private long m_numLogMessage;
 
         private LoggingContext m_loggingContext;
 
@@ -88,6 +89,7 @@ namespace BuildXL.Scheduler
                 [Statistics.ApiTotalMaterializeFileCalls] = Volatile.Read(ref m_numMaterializeFile),
                 [Statistics.ApiTotalReportStatisticsCalls] = Volatile.Read(ref m_numReportStatistics),
                 [Statistics.ApiTotalGetSealedDirectoryContentCalls] = Volatile.Read(ref m_numGetSealedDirectoryContent),
+                [Statistics.ApiTotalLogMessageCalls] = Volatile.Read(ref m_numLogMessage),
             });
         }
 
@@ -130,6 +132,13 @@ namespace BuildXL.Scheduler
             if(getSealedDirectoryFilesCmd != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ref m_numGetSealedDirectoryContent);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var logMessageCmd = cmd as LogMessageCommand;
+            if (logMessageCmd != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteLogMessage, logMessageCmd, ref m_numLogMessage);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -236,6 +245,25 @@ namespace BuildXL.Scheduler
             }
 
             return IpcResult.Success(cmd.RenderResult(results));
+        }
+
+        /// <summary>
+        /// Executes <see cref="LogMessageCommand"/>.
+        /// </summary>
+        private Task<IIpcResult> ExecuteLogMessage(LogMessageCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+
+            if (cmd.IsWarning)
+            {
+                Tracing.Logger.Log.ApiServerReceivedWarningMessage(m_loggingContext, cmd.Message);
+            }
+            else
+            {
+                Tracing.Logger.Log.ApiServerReceivedMessage(m_loggingContext, cmd.Message);
+            }
+
+            return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
         private Possible<Command> TryDeserialize(string operation)

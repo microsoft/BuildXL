@@ -1046,6 +1046,8 @@ namespace BuildXL.Utilities.Tracing
         ApiServerReportStatisticsExecuted = 12104,
         ApiServerGetSealedDirectoryContentExecuted = 12105,
         ErrorApiServerMaterializeFileFailed = 12106,
+        ApiServerReceivedMessage = 12107,
+        ApiServerReceivedWarningMessage = 12108,
 
         // Copy file cont'd.
         PipCopyFileSourceFileDoesNotExist = 12201,

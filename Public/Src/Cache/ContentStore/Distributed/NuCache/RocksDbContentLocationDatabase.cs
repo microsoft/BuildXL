@@ -204,6 +204,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     },
                     invalidationHandler: failure => {
                         Tracer.Error(context, $"RocksDb critical error caused store invalidation: {failure.DescribeIncludingInnerFailures()}");
+                    },
+                    onFailureDeleteExistingStoreAndRetry: _configuration.OnFailureDeleteExistingStoreAndRetry,
+                    onStoreReset: failure => {
+                        Tracer.Error(context, $"RocksDb critical error caused store to reset: {failure.DescribeIncludingInnerFailures()}");
                     });
 
                 if (possibleStore.Succeeded)

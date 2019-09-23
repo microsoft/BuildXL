@@ -263,6 +263,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="invalidationHandler">
         /// <see cref="m_invalidationHandler"/>
         /// </param>
+        /// <param name="onStoreReset">
+        /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
+        /// </param>
         public static Possible<KeyValueStoreAccessor> Open(
             string storeDirectory,
             bool defaultColumnKeyTracked = false,
@@ -274,7 +277,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool onFailureDeleteExistingStoreAndRetry = false,
             bool rotateLogs = false,
             bool openBulkLoad = false,
-            Action<Failure<Exception>> invalidationHandler = null)
+            Action<Failure<Exception>> invalidationHandler = null,
+            Action<Failure> onStoreReset = null)
         {
             return OpenWithVersioning(
                 storeDirectory,
@@ -341,6 +345,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="invalidationHandler">
         /// <see cref="m_invalidationHandler"/>
         /// </param>
+        /// <param name="onStoreReset">
+        /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
+        /// </param>
         public static Possible<KeyValueStoreAccessor> OpenWithVersioning(
             string storeDirectory,
             int storeVersion,
@@ -353,7 +360,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool onFailureDeleteExistingStoreAndRetry = false,
             bool rotateLogs = false,
             bool openBulkLoad = false,
-            Action<Failure<Exception>> invalidationHandler = null)
+            Action<Failure<Exception>> invalidationHandler = null,
+            Action<Failure> onStoreReset = null)
         {
             // First attempt
             var possibleAccessor = OpenInternal(
@@ -375,6 +383,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
                 && !openReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
             {
+                onStoreReset?.Invoke(possibleAccessor.Failure);
+
                 possibleAccessor = OpenInternal(
                     storeDirectory,
                     storeVersion,

@@ -451,6 +451,9 @@ Log " version of BuildXL.";
 
 $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment)";
 
+$GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
+# TODO (Rijul: Uncomment when changes in LKG) $AdditionalBuildXLArguments += "/generateCgManifestForNugest:$GenerateCgManifestFilePath";
+
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);

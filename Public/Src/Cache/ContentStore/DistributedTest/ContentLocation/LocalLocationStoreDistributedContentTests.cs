@@ -170,7 +170,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
-                    EnableProactiveCopy = EnableProactiveCopy
+                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.Both : ProactiveCopyMode.Disabled
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,

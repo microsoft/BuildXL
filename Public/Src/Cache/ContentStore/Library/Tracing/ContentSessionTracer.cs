@@ -135,7 +135,6 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 var pinStatus = error == null ? Success : (error.IsPinContextObjectDisposedException() ? Canceled : Error);
 
                 int count = contentHashes.Count;
-                Debug(context, $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}.");
 
                 if (pinStatus == Success)
                 {
@@ -150,7 +149,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
                 else if (pinStatus == Error)
                 {
                     // An actual failure case.
-                    this.Error(context, $"{Name}.{PinBulkCallName}() failed by {duration.TotalMilliseconds}ms for {count} hash(es). Error={error}");
+                    this.Error(context, $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Error={error}");
 
                     TraceBulk(
                         $"{Name}.{PinBulkCallName}() failed for hashes",

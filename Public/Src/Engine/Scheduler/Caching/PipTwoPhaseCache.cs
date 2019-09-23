@@ -17,6 +17,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -114,17 +115,18 @@ namespace BuildXL.Scheduler.Cache
             Counters.IncrementCounter(PipCachingCounter.StoredPathSetCount);
             Counters.AddToCounter(PipCachingCounter.StoredPathSetSize, pathSetBuffer.Length);
 
-            // First check to see if the content is already available in the cache since that's a faster noop path
-            // than storing an already existing PathSet
-            var result = await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { pathSetHash });
-            if (result.Succeeded && result.Result.AllContentAvailable)
+            if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
-                return Unit.Void;
+                // First check to see if the content is already available in the cache since that's a faster noop path
+                // than storing an already existing PathSet
+                var result = await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { pathSetHash });
+                if (result.Succeeded && result.Result.AllContentAvailable)
+                {
+                    return Unit.Void;
+                }
             }
-            else
-            {
-                return (await ArtifactContentCache.TryStoreAsync(pathSetBuffer, pathSetHash)).WithGenericFailure();
-            }
+
+            return (await ArtifactContentCache.TryStoreAsync(pathSetBuffer, pathSetHash)).WithGenericFailure();
         }
 
         /// <summary>
@@ -298,17 +300,20 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         protected virtual async Task<Possible<Stream>> TryLoadContentAndOpenStreamAsync(ContentHash contentHash)
         {
-            Possible<ContentAvailabilityBatchResult> maybeAvailable =
-                await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash });
-            if (!maybeAvailable.Succeeded)
+            if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
-                return maybeAvailable.Failure;
-            }
+                Possible<ContentAvailabilityBatchResult> maybeAvailable =
+                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash });
+                if (!maybeAvailable.Succeeded)
+                {
+                    return maybeAvailable.Failure;
+                }
 
-            bool contentIsAvailable = maybeAvailable.Result.AllContentAvailable;
-            if (!contentIsAvailable)
-            {
-                return new Failure<string>("Required content is not available in the cache");
+                bool contentIsAvailable = maybeAvailable.Result.AllContentAvailable;
+                if (!contentIsAvailable)
+                {
+                    return new Failure<string>("Required content is not available in the cache");
+                }
             }
 
             return await ArtifactContentCache.TryOpenContentStreamAsync(contentHash);

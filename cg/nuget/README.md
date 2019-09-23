@@ -1,0 +1,2 @@
+cgmanifest.json is an auto-generated file. Any changes to this file will be discarded.
+Please add/remove NuGet Packages in config.dsc, the cgmanifest.json file will be updated automatically the next time you run bxl.

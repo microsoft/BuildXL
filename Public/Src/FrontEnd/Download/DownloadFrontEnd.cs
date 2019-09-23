@@ -39,14 +39,14 @@ namespace BuildXL.FrontEnd.Download
                     { KnownResolverKind.DownloadResolverKind };
 
         /// <inheritdoc />
-        public void InitializeFrontEnd([JetBrains.Annotations.NotNull] FrontEndHost host, [JetBrains.Annotations.NotNull] FrontEndContext context, [JetBrains.Annotations.NotNull] IConfiguration configuration)
+        public void InitializeFrontEnd([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration)
         {
             m_host = host;
             m_context = context;
         }
 
         /// <inheritdoc />
-        public IResolver CreateResolver([JetBrains.Annotations.NotNull] string kind)
+        public IResolver CreateResolver([NotNull] string kind)
         {
             Contract.Requires(SupportedResolvers.Contains(kind));
 

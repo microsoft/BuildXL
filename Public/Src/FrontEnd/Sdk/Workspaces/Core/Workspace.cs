@@ -40,7 +40,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         private IReadOnlyCollection<ParsedModule> m_allModules;
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public WorkspaceConfiguration WorkspaceConfiguration { get; }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <summary>
         /// A map from an <see cref="AbsolutePath"/> to a parsed source file that excludes prelude and configuration files.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public IReadOnlyDictionary<AbsolutePath, SpecFileWithMetadata> SpecSources => m_specSources;
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public IWorkspaceProvider WorkspaceProvider { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public IReadOnlyCollection<Failure> Failures { get; }
 
         /// <summary>
@@ -320,7 +320,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ParsedModule GetModuleBySpecFileName(AbsolutePath specPath)
         {
             Contract.Requires(specPath.IsValid);
@@ -376,7 +376,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
         /// <nodoc/>
         [System.Diagnostics.Contracts.Pure]
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ISourceFile GetSourceFile(AbsolutePath specPath)
         {
             Contract.Requires(ContainsSpec(specPath), "ContainsSpec(specPath)");

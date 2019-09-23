@@ -387,7 +387,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Allocation free LINQ-like 'Where' function.
         /// </summary>
-        public static ReadOnlyListWhereEnumerable<T> Where<T>([JetBrains.Annotations.NotNull]this IReadOnlyList<T> @this, [JetBrains.Annotations.NotNull]Func<T, bool> predicate)
+        public static ReadOnlyListWhereEnumerable<T> Where<T>([NotNull]this IReadOnlyList<T> @this, [NotNull]Func<T, bool> predicate)
         {
             return new ReadOnlyListWhereEnumerable<T>(@this, predicate);
         }
@@ -416,7 +416,7 @@ namespace TypeScript.Net.Extensions
             private readonly Func<T, bool> m_predicate;
 
             /// <nodoc/>
-            public ReadOnlyListWhereEnumerable([JetBrains.Annotations.NotNull]IReadOnlyList<T> array, Func<T, bool> predicate)
+            public ReadOnlyListWhereEnumerable([NotNull]IReadOnlyList<T> array, Func<T, bool> predicate)
             {
                 m_array = array;
                 m_predicate = predicate;
@@ -440,7 +440,7 @@ namespace TypeScript.Net.Extensions
             private int m_index;
 
             /// <nodoc/>
-            public ReadOnlyListWhereEnumerator([JetBrains.Annotations.NotNull]IReadOnlyList<T> array, Func<T, bool> predicate)
+            public ReadOnlyListWhereEnumerator([NotNull]IReadOnlyList<T> array, Func<T, bool> predicate)
             {
                 m_array = array;
                 m_index = -1;

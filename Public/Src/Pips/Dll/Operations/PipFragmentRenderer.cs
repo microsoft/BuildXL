@@ -49,13 +49,13 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Function used to expand <see cref="AbsolutePath"/> to fully-qualified path as string.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private Func<AbsolutePath, string> PathExpander { get; }
 
         /// <summary>
         /// String table for looking up <see cref="StringId"/>s.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private StringTable StringTable { get; }
 
         /// <summary>

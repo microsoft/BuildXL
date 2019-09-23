@@ -22,7 +22,7 @@ namespace BuildXL.Cache.Interfaces
         /// <returns>
         /// The identifier for this cache - used for telemetry
         /// </returns>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         string CacheId { get; }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.Interfaces
         /// The scope of uniqueness refers to both inprogress sessions and sessions
         /// that have been completed relative to the backing store for this cache.
         /// </remarks>
-        Task<Possible<ICacheSession, Failure>> CreateSessionAsync([JetBrains.Annotations.NotNull]string sessionId);
+        Task<Possible<ICacheSession, Failure>> CreateSessionAsync([NotNull]string sessionId);
 
         /// <summary>
         /// Create a session without a session name - thus no

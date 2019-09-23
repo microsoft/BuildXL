@@ -18,7 +18,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <remarks>
         /// The factory implementation may decide to create a module resolver or return an already created one.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
-        Possible<T> TryGetResolver([JetBrains.Annotations.NotNull]IResolverSettings resolverSettings);
+        [NotNull]
+        Possible<T> TryGetResolver([NotNull]IResolverSettings resolverSettings);
     }
 }

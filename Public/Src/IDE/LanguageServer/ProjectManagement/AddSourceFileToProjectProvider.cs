@@ -26,7 +26,7 @@ namespace BuildXL.Ide.LanguageServer
         private readonly GetAppState m_getAppState;
 
         /// <nodoc/>
-        public AddSourceFileToProjectProvider([JetBrains.Annotations.NotNull] GetAppState getAppState)
+        public AddSourceFileToProjectProvider([NotNull] GetAppState getAppState)
         {
             m_getAppState = getAppState;
         }

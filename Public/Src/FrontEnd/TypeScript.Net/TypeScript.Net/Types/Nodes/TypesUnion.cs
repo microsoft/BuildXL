@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Reformatter;
 using static TypeScript.Net.Types.NodeUtilities;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -95,7 +96,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns current node instance.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public INode Node => m_node;
 
         /// <inheritdoc />

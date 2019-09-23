@@ -12,6 +12,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Incrementality
 {
@@ -50,7 +51,7 @@ namespace TypeScript.Net.Incrementality
         public string ReferencedSymbolsFingerprint { get; }
 
         /// <nodoc />
-        public SpecBindingSymbols([CanBeNull]IReadOnlySet<InteractionSymbol> declaredSymbols, [CanBeNull]IReadOnlySet<InteractionSymbol> referencedSymbols, [JetBrains.Annotations.NotNull]string declaredSymbolsFingerpint, [JetBrains.Annotations.NotNull]string referencedSymbolsFingerprint)
+        public SpecBindingSymbols([CanBeNull]IReadOnlySet<InteractionSymbol> declaredSymbols, [CanBeNull]IReadOnlySet<InteractionSymbol> referencedSymbols, [NotNull]string declaredSymbolsFingerpint, [NotNull]string referencedSymbolsFingerprint)
             : this(declaredSymbolsFingerpint, referencedSymbolsFingerprint)
         {
             if (declaredSymbols != null && referencedSymbols != null)
@@ -63,14 +64,14 @@ namespace TypeScript.Net.Incrementality
         }
 
         /// <nodoc />
-        public SpecBindingSymbols([JetBrains.Annotations.NotNull]string declaredSymbolsFingerpint, [JetBrains.Annotations.NotNull]string referencedSymbolsFingerprint)
+        public SpecBindingSymbols([NotNull]string declaredSymbolsFingerpint, [NotNull]string referencedSymbolsFingerprint)
         {
             DeclaredSymbolsFingerprint = declaredSymbolsFingerpint;
             ReferencedSymbolsFingerprint = referencedSymbolsFingerprint;
         }
 
         /// <nodoc />
-        public static SpecBindingSymbols Create([JetBrains.Annotations.NotNull] ISourceFile sourceFile, bool keepSymbols = false)
+        public static SpecBindingSymbols Create([NotNull] ISourceFile sourceFile, bool keepSymbols = false)
         {
             Contract.Requires(sourceFile != null, "sourceFile should not be null");
             Contract.Requires(sourceFile.State == SourceFileState.Bound, "sourceFile should be bound in order to compute fingerprint");
@@ -109,7 +110,7 @@ namespace TypeScript.Net.Incrementality
         /// <summary>
         /// Serializes the binding state to the given writer.
         /// </summary>
-        public static void SerializeAllBindingSymbols([JetBrains.Annotations.NotNull] SpecBindingSymbols bindingSymbols, [JetBrains.Annotations.NotNull] BuildXLWriter writer)
+        public static void SerializeAllBindingSymbols([NotNull] SpecBindingSymbols bindingSymbols, [NotNull] BuildXLWriter writer)
         {
             SerializeSymbols(bindingSymbols.Symbols, writer);
         }
@@ -117,7 +118,7 @@ namespace TypeScript.Net.Incrementality
         /// <summary>
         /// Serializes the binding state to the given writer.
         /// </summary>
-        public static void SerializeDeclarationSymbols([JetBrains.Annotations.NotNull] SpecBindingSymbols bindingSymbols, [JetBrains.Annotations.NotNull] BuildXLWriter writer)
+        public static void SerializeDeclarationSymbols([NotNull] SpecBindingSymbols bindingSymbols, [NotNull] BuildXLWriter writer)
         {
             SerializeSymbols(bindingSymbols.DeclaredSymbols, writer);
         }

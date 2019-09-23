@@ -387,7 +387,7 @@ namespace BuildXL.Processes
         }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         internal virtual CpuTimes GetCpuTimes()
         {
             // 'Dispatch.GetProcessResourceUsage()' doesn't work because the process has already exited

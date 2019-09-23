@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -140,7 +141,7 @@ namespace BuildXL.Utilities.Configuration
         /// - custom set of rules that could be applied only on specific code bases (like no `glob`).
         /// This list is a second one and contains a set of configurable rules that could be enabled.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<string> EnabledPolicyRules { get; }
 
         /// <summary>

@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple).
         /// (short form: /dbw)
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<IDistributionServiceLocation> BuildWorkers { get; }
 
         /// <summary>

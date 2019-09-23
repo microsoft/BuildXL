@@ -62,7 +62,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Unsafe options used to run the pip.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public readonly UnsafeOptions UnsafeOptions;
 
         /// <summary>

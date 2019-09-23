@@ -217,7 +217,7 @@ namespace Test.BuildXL.StorageTestUtilities
             }
         }
 
-        public bool TrackAbsentRelativePath([JetBrains.Annotations.NotNull] string trackedParentPath, [JetBrains.Annotations.NotNull] string relativeAbsentPath)
+        public bool TrackAbsentRelativePath([NotNull] string trackedParentPath, [NotNull] string relativeAbsentPath)
         {
             return false;
         }

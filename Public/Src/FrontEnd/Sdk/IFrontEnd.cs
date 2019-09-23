@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Configuration;
 using JetBrains.Annotations;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -18,20 +19,20 @@ namespace BuildXL.FrontEnd.Sdk
         /// Returns the supported resolvers
         /// </summary>
         /// <returns>The resulting collection is not null or empty.</returns>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyCollection<string> SupportedResolvers { get; }
 
         /// <summary>
         /// Initializes the frontend
         /// </summary>
-        void InitializeFrontEnd([JetBrains.Annotations.NotNull]FrontEndHost host, [JetBrains.Annotations.NotNull]FrontEndContext context, [JetBrains.Annotations.NotNull]IConfiguration frontEndConfiguration);
+        void InitializeFrontEnd([NotNull]FrontEndHost host, [NotNull]FrontEndContext context, [NotNull]IConfiguration frontEndConfiguration);
 
         /// <summary>
         /// Creates a resolver for a given kind. The resolver must be part of the front end
         /// supported resolvers.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
-        IResolver CreateResolver([JetBrains.Annotations.NotNull]string kind);
+        [NotNull]
+        IResolver CreateResolver([NotNull]string kind);
 
         /// <summary>
         /// Allows a frontend to log its statistics after evaluation

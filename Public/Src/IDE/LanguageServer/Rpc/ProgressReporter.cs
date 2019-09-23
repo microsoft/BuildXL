@@ -17,11 +17,11 @@ namespace BuildXL.Ide.JsonRpc
     {
         private readonly TestContext? m_testContext;
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private readonly StreamJsonRpc.JsonRpc m_mainRpcChannel;
 
         /// <nodoc />
-        public ProgressReporter([JetBrains.Annotations.NotNull]StreamJsonRpc.JsonRpc mainRpcChannel, TestContext? testContext)
+        public ProgressReporter([NotNull]StreamJsonRpc.JsonRpc mainRpcChannel, TestContext? testContext)
         {
             Contract.Requires(mainRpcChannel != null);
 

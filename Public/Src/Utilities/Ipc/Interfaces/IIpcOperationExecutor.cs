@@ -20,6 +20,6 @@ namespace BuildXL.Ipc.Interfaces
         /// because <see cref="IServer"/> is responsible for handling exceptions any thrown
         /// from here.
         /// </summary>
-        Task<IIpcResult> ExecuteAsync([JetBrains.Annotations.NotNull]IIpcOperation op);
+        Task<IIpcResult> ExecuteAsync([NotNull]IIpcOperation op);
     }
 }

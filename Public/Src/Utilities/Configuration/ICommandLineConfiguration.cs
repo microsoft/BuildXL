@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Startup configuration
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IStartupConfiguration Startup { get; }
 
         /// <summary>

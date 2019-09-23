@@ -17,6 +17,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using Microsoft.Win32.SafeHandles;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Storage.ChangeTracking
 {
@@ -686,7 +687,7 @@ namespace BuildXL.Storage.ChangeTracking
         /// ADVANCED. Use with care. This should only because if the relative has been guaranteed to be non-existent
         /// because the parent path non-existent or enumerated and the child path was non-existent
         /// </summary>
-        public bool TrackAbsentRelativePath([JetBrains.Annotations.NotNull] string trackedParentPath, [JetBrains.Annotations.NotNull] string relativeAbsentPath)
+        public bool TrackAbsentRelativePath([NotNull] string trackedParentPath, [NotNull] string relativeAbsentPath)
         {
             return m_changeTrackingSet?.TrackAbsentRelativePath(trackedParentPath, relativeAbsentPath) ?? false;
         }

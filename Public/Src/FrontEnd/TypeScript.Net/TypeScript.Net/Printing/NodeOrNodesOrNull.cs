@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Types;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Printing
 {
@@ -33,7 +34,7 @@ namespace TypeScript.Net.Printing
         public INodeArray<INode> Nodes { get; }
 
         /// <nodoc/>
-        public NodeOrNodesOrNull([JetBrains.Annotations.NotNull] INode node)
+        public NodeOrNodesOrNull([NotNull] INode node)
         {
             Contract.Requires(node != null);
 
@@ -42,7 +43,7 @@ namespace TypeScript.Net.Printing
         }
 
         /// <nodoc/>
-        public NodeOrNodesOrNull([JetBrains.Annotations.NotNull] INodeArray<INode> nodes)
+        public NodeOrNodesOrNull([NotNull] INodeArray<INode> nodes)
         {
             Contract.Requires(nodes != null);
             Node = null;

@@ -69,7 +69,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public IReadOnlyCollection<IResolverSettings> ResolverSettings { get; }
 
         /// <summary>

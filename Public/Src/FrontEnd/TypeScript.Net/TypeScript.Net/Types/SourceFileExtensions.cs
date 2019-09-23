@@ -17,7 +17,7 @@ namespace TypeScript.Net.Types
     public static class SourceFileExtensions
     {
         /// <nodoc />
-        public static bool IsScriptFile([JetBrains.Annotations.NotNull] this ISourceFile sourceFile)
+        public static bool IsScriptFile([NotNull] this ISourceFile sourceFile)
         {
             Contract.Requires(sourceFile != null);
 
@@ -25,7 +25,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        public static bool IsProjectFileExtension([JetBrains.Annotations.NotNull] this ISourceFile sourceFile)
+        public static bool IsProjectFileExtension([NotNull] this ISourceFile sourceFile)
         {
             Contract.Requires(sourceFile != null);
 
@@ -33,7 +33,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        public static bool IsBuildListFile([JetBrains.Annotations.NotNull] this ISourceFile sourceFile)
+        public static bool IsBuildListFile([NotNull] this ISourceFile sourceFile)
         {
             Contract.Requires(sourceFile != null);
 
@@ -41,32 +41,32 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        public static bool IsExternalModule([JetBrains.Annotations.NotNull] ISourceFile file)
+        public static bool IsExternalModule([NotNull] ISourceFile file)
         {
             return file.ExternalModuleIndicator != null;
         }
 
         /// <nodoc />
-        public static bool IsExternalOrCommonJsModule([JetBrains.Annotations.NotNull] ISourceFile file)
+        public static bool IsExternalOrCommonJsModule([NotNull] ISourceFile file)
         {
             return (file.ExternalModuleIndicator ?? file.CommonJsModuleIndicator) != null;
         }
 
         /// <nodoc />
-        public static bool IsDeclarationFile([JetBrains.Annotations.NotNull] ISourceFile file)
+        public static bool IsDeclarationFile([NotNull] ISourceFile file)
         {
             return (file.Flags & NodeFlags.DeclarationFile) != 0;
         }
 
         /// <nodoc />
-        public static bool HasResolvedModule([JetBrains.Annotations.NotNull]ISourceFile sourceFile, string moduleNameText)
+        public static bool HasResolvedModule([NotNull]ISourceFile sourceFile, string moduleNameText)
         {
             return (sourceFile.ResolvedModules != null) && sourceFile.ResolvedModules.ContainsKey(moduleNameText);
         }
 
         /// <nodoc />
         [CanBeNull]
-        public static IResolvedModule GetResolvedModule([JetBrains.Annotations.NotNull]ISourceFile sourceFile, string moduleNameText)
+        public static IResolvedModule GetResolvedModule([NotNull]ISourceFile sourceFile, string moduleNameText)
         {
             return HasResolvedModule(sourceFile, moduleNameText) ? sourceFile.ResolvedModules[moduleNameText] : null;
         }
@@ -77,7 +77,7 @@ namespace TypeScript.Net.Types
         /// <remarks>
         /// This function won't return diagnostic from the checker because they're not stored on the source file level.
         /// </remarks>
-        public static IEnumerable<Diagnostic> GetAllDiagnostics([JetBrains.Annotations.NotNull] this ISourceFile sourceFile)
+        public static IEnumerable<Diagnostic> GetAllDiagnostics([NotNull] this ISourceFile sourceFile)
         {
             return sourceFile.ParseDiagnostics.Concat(sourceFile.BindDiagnostics);
         }
@@ -85,7 +85,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns true if a given file has parse or bind diagnostics.
         /// </summary>
-        public static bool HasDiagnostics([JetBrains.Annotations.NotNull]this ISourceFile sourceFile)
+        public static bool HasDiagnostics([NotNull]this ISourceFile sourceFile)
         {
             // TODO: here we need to add checker diagnostics as well.
             return sourceFile.ParseDiagnostics.Count != 0 || sourceFile.BindDiagnostics.Count != 0;

@@ -81,7 +81,7 @@ public partial class JPathLexer : Lexer {
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 
-	[JetBrains.Annotations.NotNull]
+	[NotNull]
 	public override IVocabulary Vocabulary
 	{
 		get

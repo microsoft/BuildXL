@@ -79,8 +79,8 @@ namespace BuildXL.Utilities
             ///     but such heuristic would be unsound).
             /// </para>
             /// </remarks>
-            [JetBrains.Annotations.NotNull]
-            IBuildParameters Select([JetBrains.Annotations.NotNull]IEnumerable<string> keys);
+            [NotNull]
+            IBuildParameters Select([NotNull]IEnumerable<string> keys);
 
             /// <summary>
             ///     Returns a new <see cref="IBuildParameters"/> instance that retains all parameters from this
@@ -97,8 +97,8 @@ namespace BuildXL.Utilities
             ///     appropriate for the target OS (see remarks for <see cref="IBuildParameters.Select"/>).
             /// </para>
             /// </remarks>
-            [JetBrains.Annotations.NotNull]
-            IBuildParameters Override([JetBrains.Annotations.NotNull]IEnumerable<KeyValuePair<string, string>> parameters);
+            [NotNull]
+            IBuildParameters Override([NotNull]IEnumerable<KeyValuePair<string, string>> parameters);
 
             /// <summary>
             ///     Returns the content of this instance as a dictionary from parameter name to variable value. The
@@ -110,19 +110,19 @@ namespace BuildXL.Utilities
             ///     returned dictionary; different implementations of this interface (e.g., for different target
             ///     operating systems) may choose to use either a case-sensitive or case-insensitive implementation).
             /// </remarks>
-            [JetBrains.Annotations.NotNull]
+            [NotNull]
             IReadOnlyDictionary<string, string> ToDictionary();
 
             /// <summary>
             ///     Retrieves the value of a parameter named <paramref name="key"/>, if one is found;
             ///     otherwise throws <see cref="KeyNotFoundException"/>.
             /// </summary>
-            string this[[JetBrains.Annotations.NotNull]string key] { get; }
+            string this[[NotNull]string key] { get; }
 
             /// <summary>
             ///     Returns whether this instance contains a parameter with a given name.
             /// </summary>
-            bool ContainsKey([JetBrains.Annotations.NotNull]string key);
+            bool ContainsKey([NotNull]string key);
         }
 
         // ==================================================================================

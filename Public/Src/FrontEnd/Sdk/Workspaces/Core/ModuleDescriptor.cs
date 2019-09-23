@@ -21,11 +21,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public ModuleId Id { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public string Name { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public string DisplayName { get; }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// <remarks>
         /// If the module does not have a version, this will be string.Empty
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public string Version { get; }
 
         /// <summary>

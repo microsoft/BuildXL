@@ -31,7 +31,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Task for performing 'drop addfile'.
         /// </summary>
-        Task<AddFileResult> AddFileAsync([JetBrains.Annotations.NotNull]IDropItem dropItem);
+        Task<AddFileResult> AddFileAsync([NotNull]IDropItem dropItem);
 
         /// <summary>
         /// Task for performing 'drop finalize'.
@@ -41,7 +41,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// Arbitrary statistics to report;
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IDictionary<string, long> GetStats();
     }
 

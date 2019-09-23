@@ -233,7 +233,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
                 ...(runtimeContent || []),
                 // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
                 ...frameworkRuntimeFiles,
-                patchResult.binary,
+                ...patchResult.contents,
             ];
 
             // When deploying self-contained dotNetCore executables we prefer to deploy the binaries that come with
@@ -333,10 +333,10 @@ export interface Arguments {
 
     /** Specify nullable context option enable|disable. */
     nullable?: boolean;
-    
+
     /** Specify nullable context option enable|disable|safeonly|warnings|safeonlywarnings.*/
     nullabilityContext?: Csc.NullabilityContext;
-    
+
     noConfig?: boolean;
 
     /** Extra content/files to be deployed with the assembly when running. i.e. native dlls that are p-invoked, config files etc. */

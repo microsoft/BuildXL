@@ -290,7 +290,7 @@ namespace TypeScript.Net.Binding
         /// <param name="node">The declaration to be added to the symbol table</param>
         /// <param name="includes">The SymbolFlags that node has in addition to its declaration type (export eg, ambient, etc.)</param>
         /// <param name="excludes">The flags which node cannot be declared alongside in a symbol table. Used to report forbidden declarations.</param>
-        private ISymbol DeclareSymbol([JetBrains.Annotations.NotNull]ISymbolTable symbolTable, ISymbol parent, IDeclaration node, SymbolFlags includes, SymbolFlags excludes)
+        private ISymbol DeclareSymbol([NotNull]ISymbolTable symbolTable, ISymbol parent, IDeclaration node, SymbolFlags includes, SymbolFlags excludes)
         {
             // Disable relatively heavy-weight check in release mode
             Contract.AssertDebug(!HasDynamicName(node));

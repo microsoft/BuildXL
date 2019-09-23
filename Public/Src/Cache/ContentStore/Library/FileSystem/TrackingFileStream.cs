@@ -32,28 +32,28 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] string path, FileMode mode)
+        public TrackingFileStream([NotNull] string path, FileMode mode)
             : base(path, mode)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] string path, FileMode mode, FileAccess access)
+        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access)
             : base(path, mode, access)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] string path, FileMode mode, FileAccess access, FileShare share)
+        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access, FileShare share)
             : base(path, mode, access, share)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] string path, FileMode mode, FileAccess access, FileShare share, int bufferSize)
+        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access, FileShare share, int bufferSize)
             : base(path, mode, access, share, bufferSize)
         {
             Path = path;
@@ -67,28 +67,28 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, bool useAsync)
+        public TrackingFileStream([NotNull] string path, FileMode mode, FileAccess access, FileShare share, int bufferSize, bool useAsync)
             : base(path, mode, access, share, bufferSize, useAsync)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] SafeFileHandle handle, FileAccess access, string path)
+        public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, string path)
             : base(handle, access)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] SafeFileHandle handle, FileAccess access, int bufferSize, string path)
+        public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, int bufferSize, string path)
             : base(handle, access, bufferSize)
         {
             Path = path;
         }
 
         /// <inheritdoc />
-        public TrackingFileStream([JetBrains.Annotations.NotNull] SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync, string path)
+        public TrackingFileStream([NotNull] SafeFileHandle handle, FileAccess access, int bufferSize, bool isAsync, string path)
             : base(handle, access, bufferSize, isAsync)
         {
             Path = path;

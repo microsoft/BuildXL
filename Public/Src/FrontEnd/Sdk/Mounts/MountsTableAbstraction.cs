@@ -16,7 +16,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Returns the list of mount names available in the current package
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public abstract IEnumerable<string> GetMountNames(ModuleId currentPackage);
 
         /// <summary>

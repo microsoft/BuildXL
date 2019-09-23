@@ -29,6 +29,7 @@ using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.CMake
 {
@@ -352,7 +353,7 @@ namespace BuildXL.FrontEnd.CMake
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([JetBrains.Annotations.NotNull] FrontEndHost host, [JetBrains.Annotations.NotNull] FrontEndContext context, [JetBrains.Annotations.NotNull] IConfiguration configuration, [JetBrains.Annotations.NotNull] IResolverSettings resolverSettings, [JetBrains.Annotations.NotNull] QualifierId[] requestedQualifiers)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
             m_host = host;
             m_context = context;

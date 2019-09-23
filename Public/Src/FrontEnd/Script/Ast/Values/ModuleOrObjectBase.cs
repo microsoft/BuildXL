@@ -27,10 +27,10 @@ namespace BuildXL.FrontEnd.Script.Values
         /// Fields may need to be evaluated. This happens in the case of module fields that have thunked expressions.
         /// </remarks>
         public abstract EvaluationResult GetOrEvalField(
-            [JetBrains.Annotations.NotNull]Context context,
+            [NotNull]Context context,
             SymbolAtom name,
             bool recurs,
-            [JetBrains.Annotations.NotNull]ModuleLiteral origin,
+            [NotNull]ModuleLiteral origin,
             LineInfo location);
     }
 }

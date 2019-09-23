@@ -18,16 +18,16 @@ namespace BuildXL.Engine
     /// </summary>
     public sealed class HistoricTableSizes : IReadOnlyList<HistoricDataPoint>
     {
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private readonly HistoricDataPoint[] m_historicData;
 
-        private HistoricTableSizes([JetBrains.Annotations.NotNull] HistoricDataPoint[] historicData)
+        private HistoricTableSizes([NotNull] HistoricDataPoint[] historicData)
         {
             m_historicData = historicData;
         }
 
         /// <nodoc/>
-        public HistoricTableSizes([JetBrains.Annotations.NotNull] IEnumerable<HistoricDataPoint> historicData)
+        public HistoricTableSizes([NotNull] IEnumerable<HistoricDataPoint> historicData)
             : this(historicData.ToArray()) { }
 
         /// <inheritdoc/>
@@ -64,7 +64,7 @@ namespace BuildXL.Engine
         /// Serializes this object to a given writer.
         /// <seealso cref="HistoricDataPoint.Serialize(BuildXLWriter)"/>.
         /// </summary>
-        public void Serialize([JetBrains.Annotations.NotNull] BuildXLWriter writer)
+        public void Serialize([NotNull] BuildXLWriter writer)
         {
             writer.Write(m_historicData, (w, item) => item.Serialize(w));
         }
@@ -73,7 +73,7 @@ namespace BuildXL.Engine
         /// Deserializes an object of this type from a given reader.
         /// <seealso cref="HistoricDataPoint.Deserialize(BuildXLReader)"/>.
         /// </summary>
-        public static HistoricTableSizes Deserialize([JetBrains.Annotations.NotNull] BuildXLReader reader)
+        public static HistoricTableSizes Deserialize([NotNull] BuildXLReader reader)
         {
             return new HistoricTableSizes(reader.ReadArray(HistoricDataPoint.Deserialize));
         }

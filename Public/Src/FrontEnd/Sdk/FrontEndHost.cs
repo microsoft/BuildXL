@@ -107,12 +107,12 @@ namespace BuildXL.FrontEnd.Sdk
         /// Gets a unique folder in the object root with the given attempted friendly name.
         /// </summary>
         /// <returns>The result is a valid <see cref="AbsolutePath"/></returns>
-        public abstract AbsolutePath GetFolderForFrontEnd([JetBrains.Annotations.NotNull]string friendlyName);
+        public abstract AbsolutePath GetFolderForFrontEnd([NotNull]string friendlyName);
 
         /// <summary>
         /// Downloads a file for frontends with cache support.
         /// </summary>
-        public abstract Task<Possible<ContentHash>> DownloadFile([JetBrains.Annotations.NotNull]string url, AbsolutePath targetLocation, ContentHash? expectedContentHash, [JetBrains.Annotations.NotNull]string friendlyName);
+        public abstract Task<Possible<ContentHash>> DownloadFile([NotNull]string url, AbsolutePath targetLocation, ContentHash? expectedContentHash, [NotNull]string friendlyName);
 
         /// <summary>
         /// Downloads a package for frontends with cache support.

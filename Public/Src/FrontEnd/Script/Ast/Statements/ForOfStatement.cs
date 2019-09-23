@@ -18,15 +18,15 @@ namespace BuildXL.FrontEnd.Script.Statements
     public class ForOfStatement : Statement
     {
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public VarStatement Name { get; }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public Expression Expression { get; }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public Statement Body { get; }
 
         /// <nodoc />

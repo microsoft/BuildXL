@@ -38,12 +38,12 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             private readonly Stack<ParserRuleContext> m_ruleStack = new Stack<ParserRuleContext>();
 
-            public override void EnterEveryRule([JetBrains.Annotations.NotNull] ParserRuleContext context)
+            public override void EnterEveryRule([NotNull] ParserRuleContext context)
             {
                 m_ruleStack.Push(context);
             }
 
-            public override void ExitEveryRule([JetBrains.Annotations.NotNull] ParserRuleContext context)
+            public override void ExitEveryRule([NotNull] ParserRuleContext context)
             {
                 m_ruleStack.Pop();
             }

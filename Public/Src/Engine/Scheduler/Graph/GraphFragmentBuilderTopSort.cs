@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public override bool AddCopyFile([JetBrains.Annotations.NotNull] CopyFile copyFile, PipId valuePip)
+        public override bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip)
         {
             var result = base.AddCopyFile(copyFile, valuePip);
             AddFileDependent(copyFile.Source, copyFile);
@@ -90,7 +90,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public override bool AddProcess([JetBrains.Annotations.NotNull] Process process, PipId valuePip)
+        public override bool AddProcess([NotNull] Process process, PipId valuePip)
         {
             var result = base.AddProcess(process, valuePip);
             AddFileDependents(process.Dependencies, process);
@@ -112,7 +112,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public override DirectoryArtifact AddSealDirectory([JetBrains.Annotations.NotNull] SealDirectory sealDirectory, PipId valuePip)
+        public override DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
         {
             base.AddSealDirectory(sealDirectory, valuePip);
             AddFileDependents(sealDirectory.Contents, sealDirectory);
@@ -122,7 +122,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public override bool AddWriteFile([JetBrains.Annotations.NotNull] WriteFile writeFile, PipId valuePip)
+        public override bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip)
         {
             var result = base.AddWriteFile(writeFile, valuePip);
             m_fileProducers[writeFile.Destination] = writeFile.PipId;

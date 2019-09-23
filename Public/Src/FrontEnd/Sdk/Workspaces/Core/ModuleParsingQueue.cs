@@ -16,6 +16,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Binding;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -66,7 +67,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// </summary>
         protected System.Threading.CancellationToken CancellationToken => m_cancellationTokenSource.Token;
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private readonly ParsingOptions m_parsingOptions;
 
         // Set to true when no more module may come.
@@ -86,7 +87,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Creates a module parsing queue. The queue options are specified by the provided queueOptions.
         /// </summary>
         public ModuleParsingQueue(
-            [JetBrains.Annotations.NotNull] WorkspaceProvider workspaceProvider,
+            [NotNull] WorkspaceProvider workspaceProvider,
             WorkspaceConfiguration workspaceConfiguration,
             IModuleReferenceResolver moduleReferenceResolver,
             ModuleDefinition designatedPrelude,
@@ -169,9 +170,9 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Creates a parsing queue for parsing specs in a regular BuildXL invocation.
         /// </summary>
         public static ModuleParsingQueue Create(
-            [JetBrains.Annotations.NotNull]WorkspaceProvider workspaceProvider,
-            [JetBrains.Annotations.NotNull]WorkspaceConfiguration workspaceConfiguration,
-            [JetBrains.Annotations.NotNull]IModuleReferenceResolver moduleReferenceResolver,
+            [NotNull]WorkspaceProvider workspaceProvider,
+            [NotNull]WorkspaceConfiguration workspaceConfiguration,
+            [NotNull]IModuleReferenceResolver moduleReferenceResolver,
             [CanBeNull]ModuleDefinition designatedPrelude,
             [CanBeNull]ParsedModule configurationModule)
         {

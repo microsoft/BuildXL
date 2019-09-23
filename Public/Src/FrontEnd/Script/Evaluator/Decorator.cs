@@ -34,17 +34,17 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <param name="args">Evaluation arguments.</param>
         /// <param name="continuation">Continuation function to be called by the decorator.</param>
         /// <returns>Up for the decorator to decide; typically it is whatever <paramref name="continuation" /> returns.</returns>
-        T EvalWrapper([JetBrains.Annotations.NotNull]Node node, [JetBrains.Annotations.NotNull]Context context, [JetBrains.Annotations.NotNull]ModuleLiteral env, [JetBrains.Annotations.NotNull]EvaluationStackFrame args, [JetBrains.Annotations.NotNull]Func<T> continuation);
+        T EvalWrapper([NotNull]Node node, [NotNull]Context context, [NotNull]ModuleLiteral env, [NotNull]EvaluationStackFrame args, [NotNull]Func<T> continuation);
 
         /// <summary>
         ///     The interpreter calls this method to notify the decorator that a diagnostic message has been logged.
         /// </summary>
-        void NotifyDiagnostics([JetBrains.Annotations.NotNull]Context context, Diagnostic diagnostic);
+        void NotifyDiagnostics([NotNull]Context context, Diagnostic diagnostic);
 
         /// <summary>
         ///     The interpreter calls this method to notify the decorator that the evaluation has finished.
         /// </summary>
-        void NotifyEvaluationFinished(bool success, [JetBrains.Annotations.NotNull]IEnumerable<IModuleAndContext> contexts);
+        void NotifyEvaluationFinished(bool success, [NotNull]IEnumerable<IModuleAndContext> contexts);
     }
 
     /// <summary>

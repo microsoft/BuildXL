@@ -21,22 +21,22 @@ namespace BuildXL.Pips
         /// <summary>
         /// Schedules a process Pip. The return value indicate whether this was a valid Pip.
         /// </summary>
-        bool AddProcess([JetBrains.Annotations.NotNull]Process process, PipId valuePip);
+        bool AddProcess([NotNull]Process process, PipId valuePip);
 
         /// <summary>
         /// Schedules an IPC Pip. The return value indicate whether this was a valid Pip.
         /// </summary>
-        bool AddIpcPip([JetBrains.Annotations.NotNull]IpcPip ipcPip, PipId valuePip);
+        bool AddIpcPip([NotNull]IpcPip ipcPip, PipId valuePip);
 
         /// <summary>
         /// Schedules a copy file Pip. The return value indicate whether this was a valid Pip.
         /// </summary>
-        bool AddCopyFile([JetBrains.Annotations.NotNull]CopyFile copyFile, PipId valuePip);
+        bool AddCopyFile([NotNull]CopyFile copyFile, PipId valuePip);
 
         /// <summary>
         /// Schedules a write file Pip. The return value indicate whether this was a valid Pip.
         /// </summary>
-        bool AddWriteFile([JetBrains.Annotations.NotNull]WriteFile writeFile, PipId valuePip);
+        bool AddWriteFile([NotNull]WriteFile writeFile, PipId valuePip);
 
         /// <summary>
         /// Schedules a directory or partial view of a directory to be sealed (made immutable) once its specified contents are satisfied.
@@ -45,12 +45,12 @@ namespace BuildXL.Pips
         /// An artifact representing the directory once it is sealed with final contents.
         /// If scheduling the seal fails, <see cref="DirectoryArtifact.Invalid"/> is returned.
         /// </returns>
-        DirectoryArtifact AddSealDirectory([JetBrains.Annotations.NotNull]SealDirectory sealDirectory, PipId valuePip);
+        DirectoryArtifact AddSealDirectory([NotNull]SealDirectory sealDirectory, PipId valuePip);
 
         /// <summary>
         /// Adds a value pip representing a value. The return value indicates whether this was a valid Pip.
         /// </summary>
-        bool AddOutputValue([JetBrains.Annotations.NotNull]ValuePip value);
+        bool AddOutputValue([NotNull]ValuePip value);
 
         /// <summary>
         /// Adds a value to value dependency. Also creates a value pip for each pip if one does not already exists.
@@ -65,12 +65,12 @@ namespace BuildXL.Pips
         /// <summary>
         /// Adds a specFile pip. The return value indicates whether this was a valid Pip.
         /// </summary>
-        bool AddSpecFile([JetBrains.Annotations.NotNull]SpecFilePip specFile);
+        bool AddSpecFile([NotNull]SpecFilePip specFile);
 
         /// <summary>
         /// Adds a module pip. The return value indicates whether this was a valid Pip.
         /// </summary>
-        bool AddModule([JetBrains.Annotations.NotNull]ModulePip module);
+        bool AddModule([NotNull]ModulePip module);
 
         /// <summary>
         /// Add a dependency between 2 modules
@@ -103,7 +103,7 @@ namespace BuildXL.Pips
         ///     partial front end evaluation which is always spec-based (a spec is evaluated entirely or not at all).
         /// </remarks>
         /// <param name="affectedSpecs">Affected spec files---pips originating from these specs will not be reloaded.</param>
-        GraphPatchingStatistics PartiallyReloadGraph([JetBrains.Annotations.NotNull]HashSet<AbsolutePath> affectedSpecs);
+        GraphPatchingStatistics PartiallyReloadGraph([NotNull]HashSet<AbsolutePath> affectedSpecs);
 
         /// <summary>
         /// If set, this builder will ignore requests to add pips originating from one of these specs.

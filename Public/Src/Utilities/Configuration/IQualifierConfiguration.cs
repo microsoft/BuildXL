@@ -14,13 +14,13 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The command line default qualifier to use in the build
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyDictionary<string, string> DefaultQualifier { get; }
 
         /// <summary>
         /// A set of named qualifiers as convenient for the commandline build.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NamedQualifiers { get; }
     }
 }

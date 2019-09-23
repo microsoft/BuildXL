@@ -89,7 +89,7 @@ namespace BuildXL.FrontEnd.Script
         /// Creates a frame from an array of evaluated values.
         /// Used only by the debugger.
         /// </summary>
-        public static EvaluationStackFrame UnsafeFrom([JetBrains.Annotations.NotNull]EvaluationResult[] args)
+        public static EvaluationStackFrame UnsafeFrom([NotNull]EvaluationResult[] args)
         {
             var result = new EvaluationStackFrame(args.Length, fromPool:false);
             result.Initialize(default(PooledObjectWrapper<EvaluationStackFrame>), args.Length, args.Length, args);

@@ -13,6 +13,7 @@ using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.TypeChecking;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -203,7 +204,7 @@ namespace TypeScript.Net.Types
         }
 
         /// <nodoc />
-        public static INodeArray<ITemplateSpan> Create(int pos, int end, [JetBrains.Annotations.NotNull]ITemplateSpan firstElement, [JetBrains.Annotations.NotNull]ITemplateSpan secondElement)
+        public static INodeArray<ITemplateSpan> Create(int pos, int end, [NotNull]ITemplateSpan firstElement, [NotNull]ITemplateSpan secondElement)
         {
             return new TemplateSpanNodeArray(firstElement, secondElement, pos, end);
         }
@@ -783,7 +784,7 @@ namespace TypeScript.Net.Types
         private readonly IModifier m_modifier;
 
         /// <nodoc />
-        public SingleModifiersNodeArray(int pos, int end, [JetBrains.Annotations.NotNull]IModifier modifier)
+        public SingleModifiersNodeArray(int pos, int end, [NotNull]IModifier modifier)
         {
             Pos = pos;
             End = end;
@@ -1886,7 +1887,7 @@ namespace TypeScript.Net.Types
         /// This method not only changes the flags property but also
         /// mutates some other properties based on a <paramref name="symbolFlags"/> value.
         /// </remarks>
-        void SetDeclaration(SymbolFlags symbolFlags, [JetBrains.Annotations.NotNull] IDeclaration declaration);
+        void SetDeclaration(SymbolFlags symbolFlags, [NotNull] IDeclaration declaration);
 
         /// <summary>
         /// Name of symbol
@@ -2475,8 +2476,8 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Resolve object type.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
-        IResolvedType Resolve([JetBrains.Annotations.NotNull]ResolvedTypeData resolvedTypeData);
+        [NotNull]
+        IResolvedType Resolve([NotNull]ResolvedTypeData resolvedTypeData);
     }
 
     /// <summary>
@@ -2707,13 +2708,13 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Call signatures of type
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<ISignature> CallSignatures { get; }
 
         /// <summary>
         /// Construct signatures of type
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<ISignature> ConstructSignatures { get; }
 
         /// <summary>

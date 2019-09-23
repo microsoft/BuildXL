@@ -64,7 +64,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public UninstantiatedModuleInfo GetUninstantiatedModuleInfoByModuleId(ModuleLiteralId moduleId)
         {
             Contract.Requires(moduleId.IsValid);
@@ -130,7 +130,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public UninstantiatedModuleInfo GetUninstantiatedModuleInfoByPath(AbsolutePath path)
         {
             Contract.Requires(path.IsValid, "path.IsValid");

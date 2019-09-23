@@ -34,7 +34,7 @@ namespace BuildXL.Cache.Interfaces
         /// Adding to the CAS is how the CASHash is obtained for a file.
         /// </remarks>
         Task<Possible<CasHash, Failure>> AddToCasAsync(
-            [JetBrains.Annotations.NotNull]string filename,
+            [NotNull]string filename,
             FileState fileState,
             CasHash? hash = null,
             UrgencyHint urgencyHint = UrgencyHint.Nominal,
@@ -52,7 +52,7 @@ namespace BuildXL.Cache.Interfaces
         /// Adding to the CAS is how the CASHash is obtained for the data.
         /// </remarks>
         Task<Possible<CasHash, Failure>> AddToCasAsync(
-            [JetBrains.Annotations.NotNull]Stream filestream,
+            [NotNull]Stream filestream,
             CasHash? hash = null,
             UrgencyHint urgencyHint = UrgencyHint.Nominal,
             Guid activityId = default(Guid));
@@ -120,7 +120,7 @@ namespace BuildXL.Cache.Interfaces
         ///
         /// A failure would be returned if records can not be read.
         /// </remarks>
-        Task<Possible<int, Failure>> IncorporateRecordsAsync([JetBrains.Annotations.NotNull]IEnumerable<Task<StrongFingerprint>> strongFingerprints, Guid activityId = default(Guid));
+        Task<Possible<int, Failure>> IncorporateRecordsAsync([NotNull]IEnumerable<Task<StrongFingerprint>> strongFingerprints, Guid activityId = default(Guid));
 
         /// <summary>
         /// Returns the set of strong fingerprints that belong to this cache

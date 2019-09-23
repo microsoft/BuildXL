@@ -14,40 +14,40 @@ namespace BuildXL.Ide.LanguageServer.Providers
     public sealed class ProviderContext
     {
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public StreamJsonRpc.JsonRpc JsonRpc { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public IncrementalWorkspaceProvider IncrementalWorkspaceProvider { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public PathTable PathTable { get; }
 
         /// <nodoc/>
         public TestContext? TestContext { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public Logger Logger { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public LoggingContext LoggingContext { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public GetAppState GetAppState { get; }
 
         /// <nodoc/>
         public ProviderContext(
-            [JetBrains.Annotations.NotNull] StreamJsonRpc.JsonRpc jsonRpc,
-            [JetBrains.Annotations.NotNull] IncrementalWorkspaceProvider incrementalWorkspaceProvider,
-            [JetBrains.Annotations.NotNull] PathTable pathTable,
-            [JetBrains.Annotations.NotNull] Logger logger,
-            [JetBrains.Annotations.NotNull] LoggingContext loggingContext,
-            [JetBrains.Annotations.NotNull] GetAppState getAppState,
+            [NotNull] StreamJsonRpc.JsonRpc jsonRpc,
+            [NotNull] IncrementalWorkspaceProvider incrementalWorkspaceProvider,
+            [NotNull] PathTable pathTable,
+            [NotNull] Logger logger,
+            [NotNull] LoggingContext loggingContext,
+            [NotNull] GetAppState getAppState,
             TestContext? testContext = null)
         {
             JsonRpc = jsonRpc;

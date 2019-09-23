@@ -5004,7 +5004,7 @@ namespace TypeScript.Net.Parsing
             SetContextFlag(val, ParserContextFlags.Decorator);
         }
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private static T AllowInAnd<T>(Parser parser, Func<Parser, T> func)
         {
             return parser.DoOutsideOfContext(parser, ParserContextFlags.DisallowIn, func);

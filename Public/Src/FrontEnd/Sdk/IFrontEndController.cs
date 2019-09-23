@@ -25,13 +25,13 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Initialize the host
         /// </summary>
-        void InitializeHost([JetBrains.Annotations.NotNull]FrontEndContext context, [JetBrains.Annotations.NotNull]IConfiguration configuration);
+        void InitializeHost([NotNull]FrontEndContext context, [NotNull]IConfiguration configuration);
 
         /// <summary>
         /// Parses the configuration
         /// </summary>
         [CanBeNull]
-        IConfiguration ParseConfig([JetBrains.Annotations.NotNull]ICommandLineConfiguration configuration);
+        IConfiguration ParseConfig([NotNull]ICommandLineConfiguration configuration);
 
         /// <summary>
         /// Asks the frontEndController to parse and evaluate any specs, definition to construct the pipGraph.
@@ -41,12 +41,12 @@ namespace BuildXL.FrontEnd.Sdk
         /// the cache is ridiculously a function because we only want to block on the cache being initialized if we need it since it is slow sometimes.
         /// </remarks>
         bool PopulateGraph(
-            [JetBrains.Annotations.NotNull]Task<Possible<EngineCache>> cache,
+            [NotNull]Task<Possible<EngineCache>> cache,
             [CanBeNull]IPipGraph graph,
-            [JetBrains.Annotations.NotNull]FrontEndEngineAbstraction engineAbstraction,
-            [JetBrains.Annotations.NotNull]EvaluationFilter evaluationFilter,
-            [JetBrains.Annotations.NotNull]IConfiguration configuration,
-            [JetBrains.Annotations.NotNull]IStartupConfiguration startupConfiguration);
+            [NotNull]FrontEndEngineAbstraction engineAbstraction,
+            [NotNull]EvaluationFilter evaluationFilter,
+            [NotNull]IConfiguration configuration,
+            [NotNull]IStartupConfiguration startupConfiguration);
 
         /// <summary>
         /// Log some statistics with an option to show statistcs about the slowest procceses. The defaul is false.
@@ -57,7 +57,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Returns the list of paths that shouldn't be scrubbed by the engine
         /// </summary>
         /// <remarks>This method is assumed to be called after InitializeHost and ParseConfig</remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<string> GetNonScrubbablePaths();
     }
 

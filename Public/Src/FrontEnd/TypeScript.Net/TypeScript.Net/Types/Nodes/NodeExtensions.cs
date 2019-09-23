@@ -293,8 +293,8 @@ namespace TypeScript.Net.Types
         /// regular conversion from it to target type.
         /// </remarks>
         [DebuggerStepThrough]
-        [JetBrains.Annotations.NotNull]
-        public static T Cast<T>([JetBrains.Annotations.NotNull]this INode node) where T : class, INode
+        [NotNull]
+        public static T Cast<T>([NotNull]this INode node) where T : class, INode
         {
             // Even that this method is very small, it won't be inlined by the CLR,
             // because of generics: generic method that calls another generic
@@ -337,7 +337,7 @@ namespace TypeScript.Net.Types
         /// Returns module specifier (i.e. the right most part of the import/export declaration) or null for 'export {a}' case.
         /// </returns>
         [CanBeNull]
-        public static IExpression GetModuleSpecifier([JetBrains.Annotations.NotNull]this INode node)
+        public static IExpression GetModuleSpecifier([NotNull]this INode node)
         {
             var importDeclaration = node.As<IImportDeclaration>();
             if (importDeclaration != null)
@@ -526,7 +526,7 @@ namespace TypeScript.Net.Types
         /// Namespace declaration like 'namespace A.B {}' has two nested declaration, first of it
         /// will have another declaration inside.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static IModuleBlock GetModuleBlock(this IModuleDeclaration moduleDeclaration)
         {
             var resultCandidate = moduleDeclaration.Body.AsModuleBlock();
@@ -558,7 +558,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns whether this is a predefined type.
         /// </summary>
-        public static bool IsPredefinedType([JetBrains.Annotations.NotNull]this ITypeNode type)
+        public static bool IsPredefinedType([NotNull]this ITypeNode type)
         {
             switch (type.Kind)
             {
@@ -576,7 +576,7 @@ namespace TypeScript.Net.Types
         /// <summary>
         /// Returns type arguments of a given type, if any.  The result is never null;
         /// </summary>
-        public static INodeArray<ITypeNode> GetTypeArguments([JetBrains.Annotations.NotNull] this ITypeNode type)
+        public static INodeArray<ITypeNode> GetTypeArguments([NotNull] this ITypeNode type)
         {
             return type is ITypeReferenceNode typeReference
                 ? typeReference.TypeArguments ?? NodeArray.Empty<ITypeNode>()

@@ -57,13 +57,13 @@ namespace BuildXL.Engine.Recovery
         }
 
         /// <inheritdoc />
-        public override bool ShouldMarkFailure([JetBrains.Annotations.NotNull] Exception exception, ExceptionRootCause rootCause)
+        public override bool ShouldMarkFailure([NotNull] Exception exception, ExceptionRootCause rootCause)
         {
             return rootCause == ExceptionRootCause.CorruptedCache;
         }
 
         /// <inheritdoc />
-        public override Possible<Unit> MarkFailure([JetBrains.Annotations.NotNull] Exception exception)
+        public override Possible<Unit> MarkFailure([NotNull] Exception exception)
         {
             if (!m_mayBeCacheRoot.Succeeded)
             {

@@ -28,7 +28,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// Unfortunately we have to use object for the workspace resolver for now
         /// untill we untangle workspace and runtime resolvers.
         /// </remarks>
-        Task<bool> InitResolverAsync([JetBrains.Annotations.NotNull]IResolverSettings resolverSettings, object workspaceResolver);
+        Task<bool> InitResolverAsync([NotNull]IResolverSettings resolverSettings, object workspaceResolver);
 
         /// <summary>
         /// If this resolver owns the module, returns a task
@@ -39,13 +39,13 @@ namespace BuildXL.FrontEnd.Sdk
         /// and logs the errors.
         /// </summary>
         /// TODO: This is an intermediate step. An actual solution can store 'resolver' into the parsed module itself
-        Task<bool?> TryConvertModuleToEvaluationAsync([JetBrains.Annotations.NotNull]IModuleRegistry moduleRegistry, [JetBrains.Annotations.NotNull]ParsedModule module, [JetBrains.Annotations.NotNull]IWorkspace workspace);
+        Task<bool?> TryConvertModuleToEvaluationAsync([NotNull]IModuleRegistry moduleRegistry, [NotNull]ParsedModule module, [NotNull]IWorkspace workspace);
 
         /// <summary>
         /// If the resolver owns the module, returns a task
         /// that evaluates all the specs of the module for the given qualifier. Null otherwise.
         /// </summary>
-        Task<bool?> TryEvaluateModuleAsync([JetBrains.Annotations.NotNull]IEvaluationScheduler scheduler, [JetBrains.Annotations.NotNull]ModuleDefinition module, QualifierId qualifierId);
+        Task<bool?> TryEvaluateModuleAsync([NotNull]IEvaluationScheduler scheduler, [NotNull]ModuleDefinition module, QualifierId qualifierId);
 
         /// <summary>
         /// The host calls this method to notify a resolver that evaluation is finished

@@ -53,7 +53,7 @@ namespace BuildXL.FrontEnd.Download
         }
 
         /// <inheritdoc />
-        public bool TryInitialize([JetBrains.Annotations.NotNull] FrontEndHost host, [JetBrains.Annotations.NotNull] FrontEndContext context, [JetBrains.Annotations.NotNull] IConfiguration configuration, [JetBrains.Annotations.NotNull] IResolverSettings resolverSettings, [JetBrains.Annotations.NotNull] QualifierId[] requestedQualifiers)
+        public bool TryInitialize([NotNull] FrontEndHost host, [NotNull] FrontEndContext context, [NotNull] IConfiguration configuration, [NotNull] IResolverSettings resolverSettings, [NotNull] QualifierId[] requestedQualifiers)
         {
             Contract.Requires(context != null);
             Contract.Requires(host != null);

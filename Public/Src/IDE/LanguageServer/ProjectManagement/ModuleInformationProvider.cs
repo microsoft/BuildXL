@@ -22,7 +22,7 @@ namespace BuildXL.Ide.LanguageServer
         private readonly GetAppState m_getAppState;
 
         /// <nodoc/>
-        public ModuleInformationProvider([JetBrains.Annotations.NotNull] GetAppState getAppState)
+        public ModuleInformationProvider([NotNull] GetAppState getAppState)
         {
             m_getAppState = getAppState;
         }

@@ -161,7 +161,7 @@ namespace TypeScript.Net.Parsing
         /// Whether the <paramref name="node"/> is an <code>importFrom(...)</code> or <code>importFile(...)</code> with the required number of arguments (i.e. with 1 argument).
         /// </summary>
         public static bool IsImportCall(
-            [JetBrains.Annotations.NotNull] this INode node,
+            [NotNull] this INode node,
             out ICallExpression callExpression,
             out DScriptImportFunctionKind importKind,
             out IExpression argumentAsExpression,

@@ -45,6 +45,7 @@ using ISymbol = TypeScript.Net.Types.ISymbol;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using ModuleDeclaration = BuildXL.FrontEnd.Script.Declarations.ModuleDeclaration;
 using NamespaceImport = BuildXL.FrontEnd.Script.Declarations.NamespaceImport;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 using ObjectType = BuildXL.FrontEnd.Script.Types.ObjectType;
 using PropertySignature = BuildXL.FrontEnd.Script.Types.PropertySignature;
 using ReturnStatement = BuildXL.FrontEnd.Script.Statements.ReturnStatement;
@@ -92,7 +93,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private readonly Binder m_binder;
         private readonly InterpolationConverter m_interpolationConverter;
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private readonly Workspace m_workspace;
 
         // Set of properties that simplify conversion process
@@ -994,7 +995,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// This code is invalid: for (let x, y of [1, 2]) {}
         /// This is being checked by a lint rule already
         /// </summary>
-        private VarStatement ConvertVarStatement([JetBrains.Annotations.NotNull]VariableDeclarationListOrExpression source, ConversionContext context)
+        private VarStatement ConvertVarStatement([NotNull]VariableDeclarationListOrExpression source, ConversionContext context)
         {
             Contract.Assert(source.AsVariableDeclarationList() != null);
             Contract.Assert(source.AsVariableDeclarationList().Declarations.Count == 1);
@@ -1324,7 +1325,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             return ParameterKind.Required;
         }
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private IReadOnlyList<TypeParameter> ConvertTypeParameters(NodeArray<ITypeParameterDeclaration> typeParameters, QualifierSpaceId currentQualifierSpaceId)
         {
             // This method is useful because typeParameters in most cases are empty, so this special case could be covered in one place!
@@ -2078,7 +2079,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Converts expression from TypeScript AST to evaluation AST.
         /// </summary>
-        internal Expression ConvertExpression([JetBrains.Annotations.NotNull] IExpression expression, FunctionScope escapes, QualifierSpaceId currentQualifierSpaceId)
+        internal Expression ConvertExpression([NotNull] IExpression expression, FunctionScope escapes, QualifierSpaceId currentQualifierSpaceId)
         {
             var context = new ConversionContext(escapes, currentQualifierSpaceId);
             return ConvertExpression(expression, context);
@@ -2087,7 +2088,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <summary>
         /// Converts expression from TypeScript AST to evaluation AST.
         /// </summary>
-        private Expression ConvertExpression([JetBrains.Annotations.NotNull]IExpression expression, ConversionContext context)
+        private Expression ConvertExpression([NotNull]IExpression expression, ConversionContext context)
         {
             var literal = expression.As<ILiteralExpression>();
             if (literal != null)
@@ -3203,7 +3204,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// </summary>
         private readonly struct ConversionContext
         {
-            [JetBrains.Annotations.NotNull]
+            [NotNull]
             public FunctionScope Scope { get; }
 
             public QualifierSpaceId CurrentQualifierSpaceId { get; }

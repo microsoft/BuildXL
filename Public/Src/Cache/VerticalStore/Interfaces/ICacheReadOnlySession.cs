@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Interfaces
         /// <summary>
         /// Returns the CacheId of the cache this session is connected to
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         string CacheId { get; }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace BuildXL.Cache.Interfaces
         /// This may fail for various reasons but likely due to cache misses or
         /// cache connectivity problems
         /// </remarks>
-        Task<Possible<CasEntries, Failure>> GetCacheEntryAsync([JetBrains.Annotations.NotNull]StrongFingerprint strong, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
+        Task<Possible<CasEntries, Failure>> GetCacheEntryAsync([NotNull]StrongFingerprint strong, UrgencyHint urgencyHint = UrgencyHint.Nominal, Guid activityId = default(Guid));
 
         /// <summary>
         /// Given a CAS Hash, ensure that the entry is available and kept available
@@ -163,7 +163,7 @@ namespace BuildXL.Cache.Interfaces
         /// </remarks>
         Task<Possible<string, Failure>> ProduceFileAsync(
             CasHash hash,
-            [JetBrains.Annotations.NotNull]string filename,
+            [NotNull]string filename,
             FileState fileState,
             UrgencyHint urgencyHint = UrgencyHint.Nominal,
             Guid activityId = default(Guid));

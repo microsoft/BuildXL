@@ -278,7 +278,7 @@ namespace TypeScript.Net.Parsing
             return new NodeOrNodeArray(node);
         }
 
-        private static NodeOrNodeArray Nodes([JetBrains.Annotations.NotNull]INodeArray<INode> nodes)
+        private static NodeOrNodeArray Nodes([NotNull]INodeArray<INode> nodes)
         {
             return new NodeOrNodeArray(nodes);
         }

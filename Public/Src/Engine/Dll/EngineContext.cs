@@ -14,6 +14,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Engine
 {
@@ -42,7 +43,7 @@ namespace BuildXL.Engine
         /// keeps values of the 'Count' and 'SizeInBytes' properties of the following
         /// tables from this context: PathTable, SymbolTable, and StringTable.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public HistoricTableSizes HistoricTableSizes { get; }
 
         /// <summary>
@@ -50,7 +51,7 @@ namespace BuildXL.Engine
         /// all data points from <see cref="HistoricTableSizes"/> plus a new <see cref="HistoricDataPoint"/>
         /// corresponding to the current table sizes of this context.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public HistoricTableSizes NextHistoricTableSizes => HistoricTableSizes.ConcatDataPoint(GetHistoricDataPoint());
 
         /// <summary>

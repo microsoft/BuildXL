@@ -17,14 +17,14 @@ namespace BuildXL.Scheduler.Graph
         /// Gets edges pointing to successor nodes.
         /// </summary>
         /// <remarks>This method returns an empty enumerable if node doesn't exist</remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IEnumerable<Edge> GetOutgoingEdges(NodeId node);
 
         /// <summary>
         /// Gets edges pointing to predecessor nodes.
         /// </summary>
         /// <remarks>This method returns an empty enumerable if node doesn't exist</remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IEnumerable<Edge> GetIncomingEdges(NodeId node);
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Saves this graph on a given binary stream.
         /// </summary>
-        void Serialize([JetBrains.Annotations.NotNull]BuildXLWriter writer);
+        void Serialize([NotNull]BuildXLWriter writer);
 
         /// <summary>
         /// Checks if a node is valid.

@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -51,7 +52,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// A simple cycle is induced by a simple (cyclic) chain.
         /// A deadlock is detected if the sum of multiple active chains form a cycle in the induced directed graph.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
-        IDisposable AddValuePromiseChain([JetBrains.Annotations.NotNull]Func<IValuePromise[]> valuePromiseChainGetter, [JetBrains.Annotations.NotNull]Action cycleAnnouncer);
+        [NotNull]
+        IDisposable AddValuePromiseChain([NotNull]Func<IValuePromise[]> valuePromiseChainGetter, [NotNull]Action cycleAnnouncer);
     }
 }

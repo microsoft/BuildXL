@@ -26,6 +26,7 @@ using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
 using ISymbol = TypeScript.Net.Types.ISymbol;
 using DScriptUtilities = TypeScript.Net.DScript.Utilities;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Ide.LanguageServer.Providers
 {
@@ -445,7 +446,7 @@ namespace BuildXL.Ide.LanguageServer.Providers
             throw new NotImplementedException();
         }
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private static List<int> GetPossibleSymbolReferencePositions(
             ISourceFile sourceFile,
             string symbolName,

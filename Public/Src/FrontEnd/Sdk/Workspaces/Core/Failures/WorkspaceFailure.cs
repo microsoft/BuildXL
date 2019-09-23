@@ -13,6 +13,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 // TODO: this file is becoming too big, consider splitting into multiple files based on logical grouping.
 namespace BuildXL.FrontEnd.Workspaces.Core
@@ -85,11 +86,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public class ParsingFailure : WorkspaceFailure
     {
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ISourceFile SourceFile { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ModuleDescriptor OwningModule { get; }
 
         /// <nodoc/>
@@ -102,7 +103,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public virtual IReadOnlyList<Diagnostic> ParseDiagnostics => SourceFile.ParseDiagnostics;
 
         /// <inheritdoc/>
@@ -193,11 +194,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
     public sealed class BindingFailure : WorkspaceFailure
     {
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ISourceFile SourceFile { get; }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ModuleDescriptor OwningModule { get; }
 
         /// <nodoc/>
@@ -211,7 +212,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         }
 
         /// <nodoc/>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public IReadOnlyList<Diagnostic> BindingDiagnostics => SourceFile.BindDiagnostics;
 
         /// <inheritdoc/>
@@ -228,7 +229,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Returns a list of parsing or binding diagnostics, or empty list if the <paramref name="failure"/> is not a binding or parsing failure.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1800:DoNotCastUnnecessarily")]
-        public static IReadOnlyList<Diagnostic> TryGetDiagnostics([JetBrains.Annotations.NotNull] this Failure failure)
+        public static IReadOnlyList<Diagnostic> TryGetDiagnostics([NotNull] this Failure failure)
         {
             Contract.Requires(failure != null, "failure != null");
 

@@ -25,6 +25,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using CancellationToken = System.Threading.CancellationToken;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Core
 {
@@ -672,13 +673,13 @@ namespace BuildXL.FrontEnd.Core
             /// <summary>
             /// List of dirty specs, i.e. changed specs with unchanged declaration fingerprint.
             /// </summary>
-            [JetBrains.Annotations.NotNull]
+            [NotNull]
             public List<ISourceFile> SpecsWithTheSamePublicSurface { get; }
 
             /// <summary>
             /// List of incompatible specs, i.e. changed specs with different declaration fingerprint.
             /// </summary>
-            [JetBrains.Annotations.NotNull]
+            [NotNull]
             public List<ISourceFile> SpecsWithIncompatiblePublicSurface { get; }
 
             /// <nodoc />

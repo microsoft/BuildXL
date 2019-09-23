@@ -12,6 +12,7 @@ using BuildXL.Utilities;
 using JetBrains.Annotations;
 using TypeScript.Net.Incrementality;
 using TypeScript.Net.Types;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -80,11 +81,11 @@ namespace BuildXL.FrontEnd.Core.Incrementality
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public ISpecBindingState[] Specs { get; }
 
         /// <nodoc />
-        public WorkspaceBindingSnapshot([JetBrains.Annotations.NotNull]ISpecBindingState[] specs, PathTable pathTable)
+        public WorkspaceBindingSnapshot([NotNull]ISpecBindingState[] specs, PathTable pathTable)
         {
             Contract.Requires(specs != null, "specs != null");
 

@@ -19,7 +19,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// <remarks>
         /// can return an invalid path. In that case one wasn't found a default one should be used.
         /// </remarks>
-        AbsolutePath FindPrimaryConfiguration([JetBrains.Annotations.NotNull]IStartupConfiguration startupConfiguration);
+        AbsolutePath FindPrimaryConfiguration([NotNull]IStartupConfiguration startupConfiguration);
 
         /// <summary>
         /// Interprets the configuration file.
@@ -31,12 +31,12 @@ namespace BuildXL.FrontEnd.Sdk
         [CanBeNull]
         IConfiguration InterpretConfiguration(
             AbsolutePath primaryConfiguration,
-            [JetBrains.Annotations.NotNull] ICommandLineConfiguration startupConfiguration);
+            [NotNull] ICommandLineConfiguration startupConfiguration);
 
         /// <summary>
         /// Initializes the frontend for configuraiont parsing
         /// </summary>
-        void Initialize([JetBrains.Annotations.NotNull]FrontEndHost host, [JetBrains.Annotations.NotNull]FrontEndContext context);
+        void Initialize([NotNull]FrontEndHost host, [NotNull]FrontEndContext context);
 
         /// <summary>
         /// Gets a workspace computed during main configuration parsing.

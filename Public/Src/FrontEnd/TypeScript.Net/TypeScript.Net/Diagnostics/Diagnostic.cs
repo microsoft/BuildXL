@@ -30,7 +30,7 @@ namespace TypeScript.Net.Diagnostics
     public sealed class Diagnostic
     {
         /// <nodoc />
-        public Diagnostic([JetBrains.Annotations.NotNull]ISourceFile file, int start, int length, [JetBrains.Annotations.NotNull]Message messageText, DiagnosticCategory category, int code)
+        public Diagnostic([NotNull]ISourceFile file, int start, int length, [NotNull]Message messageText, DiagnosticCategory category, int code)
         {
             File = file;
             Start = start;
@@ -41,7 +41,7 @@ namespace TypeScript.Net.Diagnostics
         }
 
         /// <nodoc />
-        public Diagnostic([JetBrains.Annotations.NotNull]string text, DiagnosticCategory category, int code)
+        public Diagnostic([NotNull]string text, DiagnosticCategory category, int code)
         {
             MessageText = text;
             Category = category;
@@ -51,7 +51,7 @@ namespace TypeScript.Net.Diagnostics
         /// <summary>
         /// Creates diagnostic instance for the file.
         /// </summary>
-        public static Diagnostic CreateFileDiagnostic([JetBrains.Annotations.NotNull]ISourceFile file, int start, int length, IDiagnosticMessage message, params object[] args)
+        public static Diagnostic CreateFileDiagnostic([NotNull]ISourceFile file, int start, int length, IDiagnosticMessage message, params object[] args)
         {
             Contract.Requires(start >= 0, "start must be non-negative");
             Contract.Requires(length >= 0, "length must be non-negative");
@@ -85,7 +85,7 @@ namespace TypeScript.Net.Diagnostics
         /// <summary>
         /// Creates diagnostic for specific node.
         /// </summary>
-        public static Diagnostic CreateDiagnosticForNode([JetBrains.Annotations.NotNull]INode node, [JetBrains.Annotations.NotNull]IDiagnosticMessage message, params object[] args)
+        public static Diagnostic CreateDiagnosticForNode([NotNull]INode node, [NotNull]IDiagnosticMessage message, params object[] args)
         {
             var sourceFile = NodeStructureExtensions.GetSourceFile(node);
             var span = DiagnosticUtilities.GetErrorSpanForNode(sourceFile, node);
@@ -96,7 +96,7 @@ namespace TypeScript.Net.Diagnostics
         /// <summary>
         /// Creates diagnostic for specific location
         /// </summary>
-        public static Diagnostic CreateDiagnosticAtLocation([JetBrains.Annotations.NotNull]ISourceFile sourceFile, Location location, int length, [JetBrains.Annotations.NotNull]IDiagnosticMessage message, params object[] args)
+        public static Diagnostic CreateDiagnosticAtLocation([NotNull]ISourceFile sourceFile, Location location, int length, [NotNull]IDiagnosticMessage message, params object[] args)
         {
             var position = location.GetAbsolutePosition(sourceFile);
 
@@ -104,7 +104,7 @@ namespace TypeScript.Net.Diagnostics
         }
 
         /// <nodoc />
-        public static Diagnostic CreateDiagnosticForNode([JetBrains.Annotations.NotNull]INode node, [JetBrains.Annotations.NotNull]IDiagnosticMessage message)
+        public static Diagnostic CreateDiagnosticForNode([NotNull]INode node, [NotNull]IDiagnosticMessage message)
         {
             var sourceFile = NodeStructureExtensions.GetSourceFile(node);
             var span = DiagnosticUtilities.GetErrorSpanForNode(sourceFile, node);
@@ -115,7 +115,7 @@ namespace TypeScript.Net.Diagnostics
         /// <summary>
         /// Creates diagnostic for specific node with a message chain.
         /// </summary>
-        public static Diagnostic CreateDiagnosticForNodeFromMessageChain([JetBrains.Annotations.NotNull]INode node, [JetBrains.Annotations.NotNull]DiagnosticMessageChain messageChain)
+        public static Diagnostic CreateDiagnosticForNodeFromMessageChain([NotNull]INode node, [NotNull]DiagnosticMessageChain messageChain)
         {
             var sourceFile = NodeStructureExtensions.GetSourceFile(node);
             var span = DiagnosticUtilities.GetErrorSpanForNode(sourceFile, node);
@@ -142,7 +142,7 @@ namespace TypeScript.Net.Diagnostics
         public int? Length { get; }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public Message MessageText { get; }
 
         /// <nodoc />

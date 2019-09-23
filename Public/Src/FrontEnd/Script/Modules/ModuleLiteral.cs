@@ -21,6 +21,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 using NsBindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.FullSymbol, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 
 // Enable below code for testing specialized dictionaries.
@@ -138,7 +139,7 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <remarks>
         /// Qualifier should be the Unqualified for all uninstantiated modules, and all non-top-level modules.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public QualifierValue Qualifier => m_qualifier;
 
         /// <summary>

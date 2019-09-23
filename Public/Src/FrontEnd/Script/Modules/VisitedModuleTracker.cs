@@ -28,7 +28,7 @@ namespace BuildXL.FrontEnd.Script.Values
         [CanBeNull]
         private ConcurrentDictionary<ModuleLiteral, ImmutableContextBase> m_visitedModules;
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         private ConcurrentDictionary<ModuleLiteral, ImmutableContextBase> VisitedModules
         {
             get { return LazyInitializer.EnsureInitialized(ref m_visitedModules, () => new ConcurrentDictionary<ModuleLiteral, ImmutableContextBase>()); }

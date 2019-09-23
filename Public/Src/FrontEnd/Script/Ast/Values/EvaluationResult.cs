@@ -24,14 +24,14 @@ namespace BuildXL.FrontEnd.Script.Values
         /// <summary>
         /// Result of the evaluation.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public readonly object Value;
 
         /// <nodoc />
         public bool IsValid => Value != null;
 
         /// <nodoc />
-        public EvaluationResult([JetBrains.Annotations.NotNull] object value)
+        public EvaluationResult([NotNull] object value)
         {
 #if DEBUG
             Contract.Requires(value != null);
@@ -59,10 +59,10 @@ namespace BuildXL.FrontEnd.Script.Values
 
         /// <nodoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static EvaluationResult Create([JetBrains.Annotations.NotNull]string result) => new EvaluationResult(result);
+        public static EvaluationResult Create([NotNull]string result) => new EvaluationResult(result);
 
         /// <nodoc />
-        public static EvaluationResult Create([JetBrains.Annotations.NotNull]object result) => new EvaluationResult(result);
+        public static EvaluationResult Create([NotNull]object result) => new EvaluationResult(result);
 
         /// <nodoc />
         public static EvaluationResult Create(int result) => Create(BoxedNumber.Box(result));

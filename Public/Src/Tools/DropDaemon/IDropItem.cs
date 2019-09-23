@@ -19,14 +19,14 @@ namespace Tool.DropDaemon
         /// Full path of the file on disk to be added to drop.  The file need not be
         /// physically present on disk before <see cref="EnsureMaterialized"/> is called.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         [Pure]
         string FullFilePath { get; }
 
         /// <summary>
         /// Relative path under which to associate the file with a drop.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         [Pure]
         string RelativeDropPath { get; }
 
@@ -48,7 +48,7 @@ namespace Tool.DropDaemon
         /// of the returned task, the file must exist on disk.  The returned file info must also
         /// match the full file path returned by the <see cref="FullFilePath"/> property.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         Task<FileInfo> EnsureMaterialized();
     }
 }

@@ -17,6 +17,6 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         /// Parses <see cref="IResolverSettings"/> from an object literal of resolver settings in configuration file.
         /// </summary>
         /// <param name="resolverConfigurationLiteral">Object literal that represents the resolver settings in the configuration file.</param>
-        Possible<IResolverSettings> TryGetResolverSettings([JetBrains.Annotations.NotNull]IObjectLiteralExpression resolverConfigurationLiteral);
+        Possible<IResolverSettings> TryGetResolverSettings([NotNull]IObjectLiteralExpression resolverConfigurationLiteral);
     }
 }

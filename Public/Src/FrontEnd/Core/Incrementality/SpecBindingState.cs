@@ -55,10 +55,10 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         /// <nodoc />
         public SpecBindingState(
             AbsolutePath fullPath,
-            [JetBrains.Annotations.NotNull] string referencedSymbolsFingerprint,
-            [JetBrains.Annotations.NotNull] string declaredSymbolsFingerprint,
-            [JetBrains.Annotations.NotNull] RoaringBitSet fileDependencies,
-            [JetBrains.Annotations.NotNull] RoaringBitSet fileDependents)
+            [NotNull] string referencedSymbolsFingerprint,
+            [NotNull] string declaredSymbolsFingerprint,
+            [NotNull] RoaringBitSet fileDependencies,
+            [NotNull] RoaringBitSet fileDependents)
         {
             Contract.Requires(fullPath.IsValid, "fullPath.IsValid");
             Contract.Requires(referencedSymbolsFingerprint != null, "referencedSymbolsFingerprint != null");

@@ -52,7 +52,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
 
         public override RuleAnalysisScope AnalysisScope => RuleAnalysisScope.RootConfig;
 
-        private static void CheckAmbientCall([JetBrains.Annotations.NotNull]INode node, [JetBrains.Annotations.NotNull]DiagnosticContext context)
+        private static void CheckAmbientCall([NotNull]INode node, [NotNull]DiagnosticContext context)
         {
             // Semantic information is not available here, so validation must inspect literals
             // PropertyAccessExpression: x.y

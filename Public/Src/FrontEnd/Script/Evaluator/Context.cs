@@ -102,7 +102,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
             TopLevelValueInfo topLevelValueInfo,
             FileType fileType,
             EvaluatorConfiguration configuration,
-            [JetBrains.Annotations.NotNull]IEvaluationScheduler evaluationScheduler)
+            [NotNull]IEvaluationScheduler evaluationScheduler)
             : base(contextTree, parent, module, topLevelValueInfo, fileType, configuration, evaluationScheduler)
         {
             Contract.Requires(contextTree.IsValid);

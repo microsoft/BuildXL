@@ -31,25 +31,25 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Context used for executing pips.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         PipExecutionContext Context { get; }
 
         /// <summary>
         /// Pip table holding all known pips.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         PipTable PipTable { get; }
 
         /// <summary>
         /// Gets the state/context required for pip execution
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         PipExecutionState State { get; }
 
         /// <summary>
         /// Counters for pips executed in this environment. These counters include aggregate pip and caching performance information.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         CounterCollection<PipExecutorCounter> Counters { get; }
 
         /// <summary>
@@ -58,13 +58,13 @@ namespace BuildXL.Scheduler
         /// <remarks>
         /// Ideally this is only ISandBoxConfiguration, but have to expose a larger config object for now due to existing tangling.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IConfiguration Configuration { get; }
 
         /// <summary>
         /// Gets the root mappings for the build
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyDictionary<string, string> RootMappings { get; }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace BuildXL.Scheduler
         /// File monitoring violation analyzer is needed both for correctness and for reliability.
         /// Without this analyzer, builds can be incorrect and can also lead to catastrophic failure due to contract violation.
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IFileMonitoringViolationAnalyzer FileMonitoringViolationAnalyzer { get; }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace BuildXL.Scheduler
         /// - Cache of artifact content, used to address artifact content by hash.
         /// - Cache of prior pip executions (either one or two phases).
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         EngineCache Cache { get; }
 
         /// <summary>
@@ -90,19 +90,19 @@ namespace BuildXL.Scheduler
         /// This store is responsible for tracking changes to paths that are accessed (including remembering
         /// their hashes to avoid re-hashing or re-materializing them).
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         LocalDiskContentStore LocalDiskContentStore { get; }
 
         /// <summary>
         /// The PipGraph
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IPipGraphFileSystemView PipGraphView { get; }
 
         /// <summary>
         /// Computes content-based fingerprints given a pip.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         PipContentFingerprinter ContentFingerprinter { get; }
 
         /// <summary>
@@ -124,12 +124,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Reports that a pip had had a cache descriptor hit.
         /// </summary>
-        void ReportCacheDescriptorHit([JetBrains.Annotations.NotNull]string sourceCache);
+        void ReportCacheDescriptorHit([NotNull]string sourceCache);
 
         /// <summary>
         /// Whether the execution environment should treat this pip as an artificial cache miss.
         /// </summary>
-        bool ShouldHaveArtificialMiss([JetBrains.Annotations.NotNull]Pip pip);
+        bool ShouldHaveArtificialMiss([NotNull]Pip pip);
 
         /// <summary>
         /// Gets the priority of the given pip
@@ -151,13 +151,13 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Renderer used for converting <see cref="PipData"/> to string (<see cref="PipData.ToString(PipFragmentRenderer)"/>).
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         PipFragmentRenderer PipFragmentRenderer { get; }
 
         /// <summary>
         /// IpcProvider, used by PipExecutor to execute Ipc pips.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IIpcProvider IpcProvider { get; }
 
         /// <summary>
@@ -183,7 +183,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Responsible for managing processes running in containers
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         ProcessInContainerManager ProcessInContainerManager { get; }
 
         /// <summary>

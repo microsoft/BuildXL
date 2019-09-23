@@ -11,8 +11,8 @@ const pkgContents = isMacOS
     : importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all;
 
 const netcoreAppPkgContents = isMacOS
-    ? importFrom("runtime.osx-x64.Microsoft.NETCore.App").Contents.all
-    : importFrom("runtime.win-x64.Microsoft.NETCore.App").Contents.all;
+    ? importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all
+    : importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all;
 
 const ilcToolPackagePath = isMacOS
     ? r`tools/ilc`

@@ -54,7 +54,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Returns the package alias if it is not null or empty, otherwise the package ID
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static string GetPackageIdentity(this INugetPackage nugetPackage)
         {
             Contract.Requires(!string.IsNullOrEmpty(nugetPackage.Id), "Every package should have an ID");

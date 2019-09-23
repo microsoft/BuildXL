@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// <remarks>
         /// The path must point to an existing file
         /// </remarks>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         StreamReader OpenText(AbsolutePath path);
 
         /// <summary>
@@ -52,14 +52,14 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// The path must point to an existing file or directory.
         /// </remarks>
         [System.Diagnostics.Contracts.Pure]
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         string GetBaseName(AbsolutePath path);
 
         /// <summary>
         /// Path table where the AbsolutePaths handled by this file system are based on
         /// </summary>
         [System.Diagnostics.Contracts.Pure]
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         PathTable GetPathTable();
 
         /// <summary>
@@ -68,8 +68,8 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// <param name="path">Path to the directory to search.</param>
         /// <param name="pattern">The search string to match against the names of directories (allows path literals, wildcards * and ?, but not regexes).</param>
         /// <param name="recursive">Whether to search recursively.</param>
-        [JetBrains.Annotations.NotNull]
-        IEnumerable<AbsolutePath> EnumerateDirectories(AbsolutePath path, [JetBrains.Annotations.NotNull]string pattern = "*", bool recursive = false);
+        [NotNull]
+        IEnumerable<AbsolutePath> EnumerateDirectories(AbsolutePath path, [NotNull]string pattern = "*", bool recursive = false);
 
         /// <summary>
         /// Returns an enumerable collection of files that match a specified pattern in the specified path.
@@ -77,8 +77,8 @@ namespace BuildXL.FrontEnd.Sdk.FileSystem
         /// <param name="path">Path to the directory to search.</param>
         /// <param name="pattern">The search string to match against the names of files (allows path literals, wildcards * and ?, but not regexes).</param>
         /// <param name="recursive">Whether to search recursively.</param>
-        [JetBrains.Annotations.NotNull]
-        IEnumerable<AbsolutePath> EnumerateFiles(AbsolutePath path, [JetBrains.Annotations.NotNull]string pattern = "*", bool recursive = false);
+        [NotNull]
+        IEnumerable<AbsolutePath> EnumerateFiles(AbsolutePath path, [NotNull]string pattern = "*", bool recursive = false);
 
         /// <nodoc/>
         EnumerateDirectoryResult EnumerateDirectoryEntries(

@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Utilities
 {
@@ -91,7 +92,7 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public HashSet<int> MaterializedSet
         {
             get
@@ -102,7 +103,7 @@ namespace BuildXL.Utilities
         }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public HashSet<AbsolutePath> MaterializedSetOfPaths
         {
             get

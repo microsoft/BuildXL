@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Reformatter
 {
@@ -1171,7 +1172,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
-        protected void AppendSourceFileStatements(ISourceFile sourceFile, [JetBrains.Annotations.NotNull] INodeArray<IStatement> statements)
+        protected void AppendSourceFileStatements(ISourceFile sourceFile, [NotNull] INodeArray<IStatement> statements)
         {
             for (int i = 0; i < statements.Count; i++)
             {
@@ -1244,7 +1245,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
-        protected virtual void AppendNode([JetBrains.Annotations.NotNull] INode node, bool skipTrailingComments = false)
+        protected virtual void AppendNode([NotNull] INode node, bool skipTrailingComments = false)
         {
             // If cancellation was requested, then we don't visit nodes anymore
             if (CancellationRequested)
@@ -1452,7 +1453,7 @@ namespace TypeScript.Net.Reformatter
             bool placeSeparatorOnLastElement,
             int minimumCountBeforeNewLines,
             bool printTrailingComments,
-            [JetBrains.Annotations.NotNull] Action<INode> visitItem)
+            [NotNull] Action<INode> visitItem)
         {
             var useNewLine = true;
             if (members != null && members.Count <= minimumCountBeforeNewLines)
@@ -1468,7 +1469,7 @@ namespace TypeScript.Net.Reformatter
         }
 
         [SuppressMessage("Microsoft.Performance", "CA1801")]
-        private void AppendListMembers(INodeArray<INode> members, string separatorToken, bool placeSeparatorOnLastElement, bool useNewLine, bool printTrailingComments, [JetBrains.Annotations.NotNull] Action<INode> visitItem)
+        private void AppendListMembers(INodeArray<INode> members, string separatorToken, bool placeSeparatorOnLastElement, bool useNewLine, bool printTrailingComments, [NotNull] Action<INode> visitItem)
         {
             if (!members.IsNullOrEmpty())
             {

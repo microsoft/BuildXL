@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
+using NotNull = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Scheduler
 {
@@ -77,7 +78,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Enqueues the given <see cref="RunnablePip"/>
         /// </summary>
-        void Enqueue([JetBrains.Annotations.NotNull]RunnablePip runnablePip);
+        void Enqueue([NotNull]RunnablePip runnablePip);
 
         /// <summary>
         /// Finalizes the dispatcher so that external work will not be scheduled

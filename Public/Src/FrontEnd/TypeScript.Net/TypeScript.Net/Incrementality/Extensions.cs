@@ -9,7 +9,7 @@ namespace TypeScript.Net.Incrementality
 {
     internal static class Extensions
     {
-        public static List<string> GetAtomsFromQualifiedName([JetBrains.Annotations.NotNull]this EntityName entityName)
+        public static List<string> GetAtomsFromQualifiedName([NotNull]this EntityName entityName)
         {
             if (entityName.Kind == TypeScript.Net.Types.SyntaxKind.Identifier)
             {

@@ -280,7 +280,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static IReadOnlyList<TResult> ToList<TSource, TResult>(this NodeArray.NodeArraySelectorEnumerable<TSource, TResult> selectEnumerable)
         {
             var result = new List<TResult>(selectEnumerable.ArraySize);
@@ -309,7 +309,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static IReadOnlyList<TResult> ToList<TSource, TResult>(this NodeArray.NodeArraySelectorEnumerable<TSource, TResult>? selectEnumerable)
         {
             if (selectEnumerable == null)
@@ -369,7 +369,7 @@ namespace TypeScript.Net.Extensions
         }
 
         /// <nodoc />
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static T First<T>(this INodeArray<T> @this)
         {
             if (@this.Count == 0)

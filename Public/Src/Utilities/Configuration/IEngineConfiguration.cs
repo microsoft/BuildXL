@@ -46,7 +46,7 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies a drive mapping applied during this build. Paths under specified letters will be mapped to the corresponding paths at the system level for the build process and the
         /// tools launched as a part of the build. (short form: /rm)
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyDictionary<string, AbsolutePath> RootMap { get; }
 
         /// <summary>

@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Configuration settings for Qualifiers
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IQualifierConfiguration Qualifiers { get; }
 
         /// <summary>
@@ -39,61 +39,61 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The environment variables that are accessible in the build.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<string> AllowedEnvironmentVariables { get; }
 
         /// <summary>
         /// Layout configuration
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         ILayoutConfiguration Layout { get; }
 
         /// <summary>
         /// Engine configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IEngineConfiguration Engine { get; }
 
         /// <summary>
         /// Scheduling configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IScheduleConfiguration Schedule { get; }
 
         /// <summary>
         /// Process sandbox configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         ISandboxConfiguration Sandbox { get; }
 
         /// <summary>
         /// Cache configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         ICacheConfiguration Cache { get; }
 
         /// <summary>
         /// Logging configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         ILoggingConfiguration Logging { get; }
 
         /// <summary>
         /// Export configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IExportConfiguration Export { get; }
 
         /// <summary>
         /// Experimental settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IExperimentalConfiguration Experiment { get; }
 
         /// <summary>
         /// Distribution configuration settings
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IDistributionConfiguration Distribution { get; }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// The unsafe options that are explicitly enabled by command line
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         IReadOnlyList<string> CommandLineEnabledUnsafeOptions { get; }
 
         /// <summary>

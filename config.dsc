@@ -80,29 +80,30 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "3.0.0" },
-                { id: "Microsoft.NETCore.Compilers", version: "3.1.0-beta3-final" },
-                { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "2.10.0",
+                { id: "Microsoft.Net.Compilers", version: "3.3.1-beta3-final" },
+                { id: "Microsoft.NETCore.Compilers", version: "3.3.1-beta3-final" },
+                { id: "Microsoft.CodeAnalysis.Common", version: "3.3.1-beta3-final" },
+                { id: "Microsoft.CodeAnalysis.CSharp", version: "3.3.1-beta3-final" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.3.1-beta3-final" },
+                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.3.1-beta3-final",
                     dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                     dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                 },
-                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "2.10.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic.Workspaces", version: "2.10.0" },
+                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.3.1-beta3-final" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic.Workspaces", version: "3.3.1-beta3-final" },
 
                 // Roslyn Analyzers
-                { id: "Microsoft.CodeAnalysis.Analyzers", version: "2.6.3" },
-                { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.6.3" },
-                { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
-                { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
-                { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
+                { id: "Microsoft.CodeAnalysis.Analyzers", version: "2.9.5-beta1.final" },
+                { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.9.5-beta1.final" },
+                { id: "Microsoft.CodeAnalysis.VersionCheckAnalyzer", version: "2.9.5-beta1.final" },
+                { id: "Microsoft.CodeQuality.Analyzers", version: "2.9.5-beta1.final" },
+                { id: "Microsoft.NetFramework.Analyzers", version: "2.9.5-beta1.final" },
+                { id: "Microsoft.NetCore.Analyzers", version: "2.9.5-beta1.final" },
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
                 { id: "RuntimeContracts.Analyzer", version: "0.1.7.1" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
-                { id: "Text.Analyzers", version: "2.3.0-beta1" },
+                { id: "Text.Analyzers", version: "2.6.4" },
 
                 // MEF
                 { id: "Microsoft.Composition", version: "1.0.30" },
@@ -234,40 +235,37 @@ config({
 
                 { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "Microsoft.NETCore.Platforms", version: "3.0.0-rc1.19456.4" },
-                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-rc1-19456-20"},
                 { id: "System.Security.Claims", version: "4.3.0" },
 
                 // .NET Core Self-Contained Deployment
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-rc1-19456-20" },
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "Microsoft.NETCore.DotNetHostResolver.220" },
 
+                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-rc1-19456-20" },
+
                 { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0-rc1-19456-20" },
                 { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
                 // .NET Core win-x64 runtime deps
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-rc1-19456-20" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
-
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "3.0.0-rc1-19456-20" },
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.App.220" },
-
+                { id: "Microsoft.NETCore.App.Host.win-x64", version: "3.0.0-rc1-19456-20" },
+                { id: "Microsoft.NETCore.App.Runtime.win-x64", version: "3.0.0-rc1-19456-20" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-rc1-19456-20" },
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
-
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-rc1-19456-20" },
+
+                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.App.220" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
                 // .NET Core osx-x64 runtime deps
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-rc1-19456-20" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
-
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "3.0.0-rc1-19456-20" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.App.220" },
-
+                { id: "Microsoft.NETCore.App.Host.osx-x64", version: "3.0.0-rc1-19456-20" },
+                { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: "3.0.0-rc1-19456-20" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-rc1-19456-20" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
-
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-rc1-19456-20" },
+
+                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.App.220"},
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
                 // DotNetCore related deps

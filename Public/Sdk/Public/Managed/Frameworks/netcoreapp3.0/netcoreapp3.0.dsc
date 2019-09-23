@@ -23,13 +23,13 @@ function ignoredAssembly(file: File): boolean {
 }
 
 const windowsRuntimeFiles = [
-    ...importFrom("runtime.win-x64.Microsoft.NETCore.App").Contents.all.getContent().filter(f => f.extension === a`.dll` && !ignoredAssembly(f)),
+    ...importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all.getContent().filter(f => f.extension === a`.dll` && !ignoredAssembly(f)),
     ...importFrom("runtime.win-x64.Microsoft.NETCore.DotNetHostResolver").Contents.all.getContent().filter(f => f.extension === a`.dll`),
     ...importFrom("runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy").Contents.all.getContent().filter(f => f.extension === a`.dll`),
 ];
 
 const osxRuntimeFiles = [
-    ...importFrom("runtime.osx-x64.Microsoft.NETCore.App").Contents.all.getContent().filter(f => macOSRuntimeExtensions(f) && !ignoredAssembly(f)),
+    ...importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all.getContent().filter(f => macOSRuntimeExtensions(f) && !ignoredAssembly(f)),
     ...importFrom("runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver").Contents.all.getContent().filter(f => macOSRuntimeExtensions(f)),
     ...importFrom("runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy").Contents.all.getContent().filter(f => macOSRuntimeExtensions(f)),
 ];
@@ -59,7 +59,7 @@ export const framework : Shared.Framework = {
     requiresPortablePdb: true,
 
     runtimeConfigStyle: "runtimeJson",
-    runtimeFrameworkName: "Microsoft.NETCore.App",
+    runtimeFrameworkName: "Microsoft.NETCore.App.Runtime",
     runtimeConfigVersion: "3.0.0-rc1-19456-20",
 
     // Deployment style for .NET Core applications currently defaults to self-contained

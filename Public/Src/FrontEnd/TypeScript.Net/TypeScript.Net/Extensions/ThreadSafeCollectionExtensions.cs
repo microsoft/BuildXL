@@ -21,7 +21,7 @@ namespace TypeScript.Net.Extensions
         /// <summary>
         /// Adds or updates a value in the list at a given index.
         /// </summary>
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static List<T> AddOrUpdateAtomic<T>(this List<T> list, T value, int index)
         {
             lock (list)
@@ -33,7 +33,7 @@ namespace TypeScript.Net.Extensions
             return list;
         }
 
-        [JetBrains.Annotations.NotNull]
+        [NotNull]
         public static List<T> AddAtomic<T>(this List<T> list, T value)
         {
             lock (list)
@@ -137,8 +137,8 @@ namespace TypeScript.Net.Extensions
             }
         }
 
-        [JetBrains.Annotations.NotNull]
-        public static ISymbolTable GetOrCreateSymbolTable([JetBrains.Annotations.NotNull]this Map<ISymbolTable> map, [JetBrains.Annotations.NotNull]string key)
+        [NotNull]
+        public static ISymbolTable GetOrCreateSymbolTable([NotNull]this Map<ISymbolTable> map, [NotNull]string key)
         {
             ISymbolTable result;
 

@@ -29,7 +29,7 @@ namespace BuildXL.FrontEnd.Sdk
         void MaterializeDependencies();
 
         /// <nodoc/>
-        void UpdateBindingFingerprint(AbsolutePath fullPath, [JetBrains.Annotations.NotNull]string referencedSymbolsFingerprint, [JetBrains.Annotations.NotNull]string declaredSymbolsFingerprint);
+        void UpdateBindingFingerprint(AbsolutePath fullPath, [NotNull]string referencedSymbolsFingerprint, [NotNull]string declaredSymbolsFingerprint);
 
         /// <nodoc/>
         ISpecBindingState TryGetSpecState(AbsolutePath fullPath);

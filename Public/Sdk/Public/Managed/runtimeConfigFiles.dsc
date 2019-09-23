@@ -15,12 +15,12 @@ namespace RuntimeConfigFiles {
 
     @@public
     export function createFiles(
-        framework: Shared.Framework, 
-        assemblyName: string, 
+        framework: Shared.Framework,
+        assemblyName: string,
         runtimeBinary: Shared.Binary,
-        references: Shared.Reference[], 
-        runtimeContentToSkip: Deployment.DeployableItem[], 
-        appConfig: File, 
+        references: Shared.Reference[],
+        runtimeContentToSkip: Deployment.DeployableItem[],
+        appConfig: File,
         testRunnerDeployment?: boolean
         ) : File[] {
 
@@ -66,11 +66,11 @@ namespace RuntimeConfigFiles {
      * deps.json file parametrized on the passed assembly.
      */
     function createDependenciesJson(
-        framework: Shared.Framework, 
+        framework: Shared.Framework,
         assemblyName: string,
         runtimeBinary: Shared.Binary,
-        references: Shared.Reference[], 
-        runtimeContentToSkip: Deployment.DeployableItem[], 
+        references: Shared.Reference[],
+        runtimeContentToSkip: Deployment.DeployableItem[],
         testRunnerDeployment?: boolean
         ): File {
 
@@ -121,25 +121,33 @@ namespace RuntimeConfigFiles {
         // In the case of self-contained deployment, we need to inject the runtime information provided by the framework
         if (framework.applicationDeploymentStyle === "selfContained" && !testRunnerDeployment)
         {
-            const runtimeName = "runtime." + qualifier.targetRuntime + "." + framework.runtimeFrameworkName;
+            const runtimeName = "runtimepack." + framework.runtimeFrameworkName + "." + qualifier.targetRuntime;
             const fullyQualifiedRuntimeDescription = runtimeName + "/" + framework.runtimeConfigVersion;
 
-            const runtimeContent = framework.runtimeContentProvider(qualifier.targetRuntime).filter(file => file.path.toString().contains(runtimeName));
+            const runtimeContent = framework.runtimeContentProvider(qualifier.targetRuntime);
             const runtimeContentLibraries = runtimeContent.filter(file => file.path.toString().contains("/lib/"));
             const runtimeContentNative = runtimeContent.filter(file => file.path.toString().contains("/native/"));
+            const libMarker = "lib/" + qualifier.targetFramework;
+            const runtimeMarker = "native/";
 
             let runtimeInfo = {};
             for (let i = 0; i < runtimeContentLibraries.length; i++) {
                 let relativeRuntimePath = runtimeContentLibraries[i].path.toString();
-                relativeRuntimePath = relativeRuntimePath.slice(relativeRuntimePath.indexOf("runtimes/" + qualifier.targetRuntime), relativeRuntimePath.length - 1);
-                runtimeInfo = runtimeInfo.overrideKey(relativeRuntimePath, {});
+
+                relativeRuntimePath = relativeRuntimePath.slice(relativeRuntimePath.indexOf(libMarker) + libMarker.length + 1, relativeRuntimePath.length - 1);
+                runtimeInfo = runtimeInfo.overrideKey(relativeRuntimePath, {
+                    "assemblyVersion": "1.0.0.0",
+                    "fileVersion": "1.0.0.0"
+                });
             }
 
             let nativeInfo = {};
             for (let i = 0; i < runtimeContentNative.length; i++) {
                 let relativeRuntimePath = runtimeContentNative[i].path.toString();
-                relativeRuntimePath = relativeRuntimePath.slice(relativeRuntimePath.indexOf("runtimes/" + qualifier.targetRuntime), relativeRuntimePath.length - 1);
-                nativeInfo = nativeInfo.overrideKey(relativeRuntimePath, {});
+                relativeRuntimePath = relativeRuntimePath.slice(relativeRuntimePath.indexOf(runtimeMarker) + runtimeMarker.length, relativeRuntimePath.length - 1);
+                nativeInfo = nativeInfo.overrideKey(relativeRuntimePath, {
+                    "fileVersion": "0.0.0.0"
+                });
             }
 
             targetsSet = targetsSet.overrideKey(fullyQualifiedRuntimeDescription, {
@@ -148,20 +156,18 @@ namespace RuntimeConfigFiles {
             });
 
             librariesSet = librariesSet.overrideKey(fullyQualifiedRuntimeDescription, {
-                type: "package",
-                serviceable: true,
-                sha512: "",
-                path: fullyQualifiedRuntimeDescription,
-                hashPath: ""
+                type: "runtimepack",
+                serviceable: false,
+                sha512: ""
             });
         }
 
         let runtimeDependencies = {
             runtimeTarget: {
                 name: framework.assemblyInfoTargetFramework,
+                signature: ""
             },
-            compilationOptions: {
-            },
+            compilationOptions: {},
             targets: {}.overrideKey(framework.assemblyInfoTargetFramework, targetsSet),
             libraries: librariesSet,
         };
@@ -206,7 +212,7 @@ namespace RuntimeConfigFiles {
             }
         } : {};
 
-        // when not using Server GC, in large builds the front end is likely to get completely bogged 
+        // when not using Server GC, in large builds the front end is likely to get completely bogged
         const gcRuntimeOptions = {
             configProperties: {
                 "System.GC.Server": true,
@@ -229,7 +235,7 @@ namespace RuntimeConfigFiles {
                 createAppConfig(assemblyName, appConfig, runtimeConfigFolder, "dll"),
             ];
         }
-    
+
         return undefined;
     }
 }

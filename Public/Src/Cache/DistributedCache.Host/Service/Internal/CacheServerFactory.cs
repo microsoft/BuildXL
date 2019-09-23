@@ -187,6 +187,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                     Database = new RocksDbContentLocationDatabaseConfiguration(path / "RocksDbMemoizationStore")
                     {
                         MetadataGarbageCollectionEnabled = true,
+                        OnFailureDeleteExistingStoreAndRetry = true,
                     },
                 };
 

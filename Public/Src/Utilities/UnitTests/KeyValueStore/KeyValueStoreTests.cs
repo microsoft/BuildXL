@@ -1373,7 +1373,7 @@ namespace Test.BuildXL.Engine.Cache
             }
             finally
             {
-                base.Dispose(disposing); 
+                base.Dispose(disposing);
             }
         }
     }

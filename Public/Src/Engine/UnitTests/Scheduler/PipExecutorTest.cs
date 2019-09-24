@@ -2006,6 +2006,7 @@ EXIT /b 3
                           }
                           // Redirect standard out to a file
                           var stdOutFile = FileArtifact.CreateOutputFile(AbsolutePath.Create(pathTable, GetFullPath("stdout.txt")));
+                          var stdErrFile = FileArtifact.CreateOutputFile(AbsolutePath.Create(pathTable, GetFullPath("stderr.txt")));
 
                           // Build arguments.
                           var pipDataBuilder = new PipDataBuilder(stringTable);
@@ -2036,7 +2037,7 @@ EXIT /b 3
                                       environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
                                       standardInput: FileArtifact.Invalid,
                                       standardOutput: stdOutFile,
-                                      standardError: FileArtifact.Invalid,
+                                      standardError: stdErrFile,
                                       standardDirectory: stdOutFile.Path.GetParent(pathTable),
                                       warningTimeout: null,
                                       timeout: null,
@@ -2058,6 +2059,8 @@ EXIT /b 3
 
                           await VerifyPipResult(PipResultStatus.Failed, env, p);
                           AssertVerboseEventLogged(EventId.PipWillBeRetriedDueToExitCode, count: RetryCount);
+                          AssertLogContains(false, "Standard error:");
+                          AssertLogContains(false, "Standard output:");
                       });
 
             SetExpectedFailures(1, 0);

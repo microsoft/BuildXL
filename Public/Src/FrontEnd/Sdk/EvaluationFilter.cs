@@ -205,8 +205,8 @@ namespace BuildXL.FrontEnd.Sdk
         {
             var thisFilter = this as IEvaluationFilter;
             return new DeserializedEvaluationFilter(
-                thisFilter.ValueNamesToResolveAsStrings, 
-                thisFilter.ValueDefinitionRootsToResolveAsStrings, 
+                thisFilter.ValueNamesToResolveAsStrings,
+                thisFilter.ValueDefinitionRootsToResolveAsStrings,
                 thisFilter.ModulesToResolveAsStrings);
         }
 

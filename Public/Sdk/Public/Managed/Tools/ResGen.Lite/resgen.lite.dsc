@@ -14,13 +14,13 @@ namespace Tool {
         assemblyName: "ResGen.Lite",
         sources: globR(d`.`, "*.cs"),
         references: [
-            ...(qualifier.targetFramework === "net472" ? [
+            ...addIfLazy(qualifier.targetFramework === "net472", () => [
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll,
                 importFrom("System.Collections.Immutable").pkg,
                 importFrom("System.Reflection.Metadata").pkg,
                 importFrom("System.Threading.Tasks.Extensions").pkg
-            ] : []),
+            ]),
 
             // CodeAnalysis packages come with .NETStandard assemblies only. Force netstandard2.0 here as .NET 4.7.2 is
             // compatible and the x-plat builds need that flavor anyway

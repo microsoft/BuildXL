@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Security.Cryptography;
-using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -22,6 +21,32 @@ namespace BuildXL.Engine.Cache.KeyValueStores
     /// </summary>
     public partial class KeyValueStoreAccessor : IDisposable
     {
+        /// <nodoc />
+        public class RocksDbFailureEvent
+        {
+            /// <summary>
+            /// The exception that caused this failure to trigger
+            /// </summary>
+            public Failure<Exception> Failure { get; }
+
+            /// <summary>
+            /// Whether the database should be invalidated after control returns
+            /// </summary>
+            public bool Invalidate;
+
+            /// <summary>
+            /// Whether the exception should be rethrown
+            /// </summary>
+            public bool Rethrow;
+
+            /// <nodoc />
+            public RocksDbFailureEvent(Exception exception)
+            {
+                Contract.Requires(exception != null);
+                Failure = new Failure<Exception>(exception);
+            }
+        }
+
         /// <summary>
         /// The file type extension used to denote storage files by the underlying <see cref="IBuildXLKeyValueStore"/>.
         /// Currently, a <see cref="RocksDbStore"/>.
@@ -89,9 +114,14 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         public bool ReadOnly { get; }
 
         /// <summary>
-        /// Called when an exception is thrown, allows for custom exception handling.
+        /// Allows handling of exceptions, and deciding the store's behavior for each one of them.
         /// </summary>
-        private readonly Action<Failure> m_failureHandler;
+        private readonly Action<RocksDbFailureEvent> m_failureHandler;
+
+        /// <summary>
+        /// Allows handling of exceptions that cause the store to be invalidated. This is for user-side effects only.
+        /// </summary>
+        private readonly Action<Failure<Exception>> m_invalidationHandler;
 
         /// <summary>
         /// If true, the store was newly created when open was called; if false, an existing store was opened.
@@ -121,7 +151,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         private static string AccessorVersionString => nameof(RocksDbStore) + RocksDbStore.Version.ToString();
 
         private static int? s_accessorVersionHash = null;
-        
+
         /// <summary>
         /// Used for version comparisons, a hash of <see cref="AccessorVersionString"/> truncated to an int32 by taking the last 4 bytes.
         /// </summary>
@@ -162,8 +192,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             /// <summary>
             /// Value that indicates the store has no versioning or the versioning should be ignored when opening the store.
-            /// Note that in addition to any versioning passed during <see cref="KeyValueStoreAccessor.OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool, Action{Failure})"/>,
-            /// all stores using <see cref="KeyValueStoreAccessor"/> are also inherently versioned on <see cref="AccessorVersionHash"/>.
+            /// Note that in addition to any versioning passed during `OpenWithVersioning`, all stores using 
+            /// <see cref="KeyValueStoreAccessor"/> are also inherently versioned on <see cref="AccessorVersionHash"/>.
             /// </summary>
             public const int IgnoreStore = -1;
 
@@ -187,8 +217,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
         /// <summary>
         /// Opens or creates a key value store and returns a <see cref="KeyValueStoreAccessor"/> to the store.
-        /// <see cref="OpenWithVersioning(string, int, bool, IEnumerable{string}, IEnumerable{string}, Action{Failure}, bool, bool, bool, bool, bool, Action{Failure})"/>
-        /// to open or create a versioned key value store.
+        /// `OpenWithVersioning` to open or create a versioned key value store.
         /// </summary>
         /// <param name="storeDirectory">
         /// The directory containing the key-value store.
@@ -231,6 +260,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="openBulkLoad">
         /// Have RocksDb open for bulk loading.
         /// </param>
+        /// <param name="invalidationHandler">
+        /// <see cref="m_invalidationHandler"/>
+        /// </param>
         /// <param name="onStoreReset">
         /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
         /// </param>
@@ -239,12 +271,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool defaultColumnKeyTracked = false,
             IEnumerable<string> additionalColumns = null,
             IEnumerable<string> additionalKeyTrackedColumns = null,
-            Action<Failure> failureHandler = null,
+            Action<RocksDbFailureEvent> failureHandler = null,
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
-            bool rotateLogs = false, 
+            bool rotateLogs = false,
             bool openBulkLoad = false,
+            Action<Failure<Exception>> invalidationHandler = null,
             Action<Failure> onStoreReset = null)
         {
             return OpenWithVersioning(
@@ -257,8 +290,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 openReadOnly,
                 dropMismatchingColumns,
                 onFailureDeleteExistingStoreAndRetry,
-                rotateLogs, 
-                openBulkLoad);
+                rotateLogs,
+                openBulkLoad,
+                invalidationHandler);
         }
 
         /// <summary>
@@ -308,6 +342,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         /// <param name="openBulkLoad">
         /// Have RocksDb open for bulk loading.
         /// </param>
+        /// <param name="invalidationHandler">
+        /// <see cref="m_invalidationHandler"/>
+        /// </param>
         /// <param name="onStoreReset">
         /// Callback for when the store gets reset due to <paramref name="onFailureDeleteExistingStoreAndRetry"/>
         /// </param>
@@ -317,12 +354,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool defaultColumnKeyTracked = false,
             IEnumerable<string> additionalColumns = null,
             IEnumerable<string> additionalKeyTrackedColumns = null,
-            Action<Failure> failureHandler = null,
+            Action<RocksDbFailureEvent> failureHandler = null,
             bool openReadOnly = false,
             bool dropMismatchingColumns = false,
             bool onFailureDeleteExistingStoreAndRetry = false,
-            bool rotateLogs = false, 
+            bool rotateLogs = false,
             bool openBulkLoad = false,
+            Action<Failure<Exception>> invalidationHandler = null,
             Action<Failure> onStoreReset = null)
         {
             // First attempt
@@ -337,9 +375,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     dropMismatchingColumns,
                     createNew: !FileUtilities.DirectoryExistsNoFollow(storeDirectory),
                     rotateLogs: rotateLogs,
-                    openBulkLoad: openBulkLoad);
+                    openBulkLoad: openBulkLoad,
+                    invalidationHandler: invalidationHandler
+                    );
 
-            if (!possibleAccessor.Succeeded 
+            if (!possibleAccessor.Succeeded
                 && onFailureDeleteExistingStoreAndRetry /* Fall-back on deleting the store and creating a new one */
                 && !openReadOnly /* But only if there's write permissions (no point in reading from an empty store) */)
             {
@@ -356,7 +396,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     dropMismatchingColumns,
                     createNew: true,
                     rotateLogs: rotateLogs,
-                    openBulkLoad: openBulkLoad);
+                    openBulkLoad: openBulkLoad,
+                    invalidationHandler: invalidationHandler
+                    );
             }
 
             return possibleAccessor;
@@ -368,12 +410,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool defaultColumnKeyTracked,
             IEnumerable<string> additionalColumns,
             IEnumerable<string> additionalKeyTrackedColumns,
-            Action<Failure> failureHandler,
+            Action<RocksDbFailureEvent> failureHandler,
             bool openReadOnly,
             bool dropMismatchingColumns,
             bool createNew,
             bool rotateLogs,
-            bool openBulkLoad)
+            bool openBulkLoad,
+            Action<Failure<Exception>> invalidationHandler)
         {
             KeyValueStoreAccessor accessor = null;
             bool useVersioning = storeVersion != VersionConstants.IgnoreStore;
@@ -438,7 +481,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     dropMismatchingColumns,
                     createNew,
                     rotateLogs,
-                    openBulkLoad);
+                    openBulkLoad,
+                    invalidationHandler);
             }
             catch (Exception ex)
             {
@@ -537,8 +581,21 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             StoreVersion = accessor.StoreVersion;
             CreatedNewStore = false;
 
-            m_store = accessor.m_store.CreateSnapshot();
+            m_invalidateStoreOnDispose = accessor.m_invalidateStoreOnDispose;
             m_failureHandler = accessor.m_failureHandler;
+            m_disabledFailure = accessor.m_disabledFailure;
+            m_disposed = accessor.m_disposed;
+            m_invalidationHandler = accessor.m_invalidationHandler;
+
+            if (accessor.Disabled)
+            {
+                // Creating a snapshot of a disabled store will carry the error along, so it should never be accessed.
+                m_store = null;
+            }
+            else
+            {
+                m_store = accessor.m_store.CreateSnapshot();
+            }
         }
 
         private KeyValueStoreAccessor(
@@ -547,12 +604,13 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             bool defaultColumnKeyTracked,
             IEnumerable<string> additionalColumns,
             IEnumerable<string> additionalKeyTrackedColumns,
-            Action<Failure> failureHandler,
+            Action<RocksDbFailureEvent> failureHandler,
             bool openReadOnly,
             bool dropColumns,
             bool createdNewStore,
             bool rotateLogs,
-            bool openBulkLoad)
+            bool openBulkLoad,
+            Action<Failure<Exception>> invalidationHandler)
         {
             Contract.Assert(storeVersion != VersionConstants.InvalidStore, "No store should pass the invalid store version since it is not safe to open an invalid store.");
             StoreDirectory = storeDirectory;
@@ -571,11 +629,15 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 openBulkLoad);
 
             m_failureHandler = failureHandler;
+            m_invalidationHandler = invalidationHandler;
         }
 
         /// <summary>
         /// Provides access to the underlying store.
         /// </summary>
+        /// <remarks>
+        /// Use `state` to avoid lambda capture.
+        /// </remarks>
         /// <returns>
         /// On success, <see cref="Unit.Void"/>;
         /// on failure, a <see cref="Failure"/>.
@@ -585,30 +647,30 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             using (m_rwl.AcquireReadLock())
             {
+                // All RocksDb usages are checked for exceptions and handled according to a user-provided handler.
+                // The handler decides whether the store should be permanently invalidated or not. It also has the
+                // opportunity to do whatever side-effects the user needs. If the store is invalidated, the 
+                // invalidation handler is called after the store has been invalidated.
+                // The default policy is to alwyas invalidate the store if an exception happens, as it is the safest
+                // option.
+                if (Disabled)
+                {
+                    return DisposedOrDisabledFailure;
+                }
+
                 try
                 {
-                    if (Disabled)
-                    {
-                        return DisposedOrDisabledFailure;
-                    }
-
                     return use(m_store, state);
                 }
-                catch (RocksDbSharpException ex)
-                {
-                    return HandleException(ex);
-                }
-                // The SEHException class handles SEH (structured exception handling) errors that are thrown from unmanaged code, 
-                // but that have not been mapped to another .NET Framework exception. The SEHException class also corresponds to the HRESULT E_FAIL (0x80004005).
-                catch (System.Runtime.InteropServices.SEHException ex)
-                {
-                    return HandleException(ex);
-                }
-                // Provide an opportunity for caller to handle any unknown exception type, including unmanaged ones, then rethrow
                 catch (Exception ex)
                 {
-                    HandleException(ex);
-                    throw;
+                    var result = HandleException(ex, out var rethrow);
+                    if (rethrow)
+                    {
+                        throw;
+                    }
+
+                    return result;
                 }
             }
         }
@@ -649,16 +711,52 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 }, use);
         }
 
-        private Failure<Exception> HandleException(Exception ex, string additionalMessage = null)
+        private void StrictFailureHandler(RocksDbFailureEvent failure)
         {
-            var failure = new Failure<Exception>(ex);
+            Contract.Requires(failure != null);
+
+            var ex = failure.Failure.Content;
+            var isUserError = true;
+            if (ex is RocksDbSharpException || ex is System.Runtime.InteropServices.SEHException)
+            {
+                // The SEHException class handles SEH (structured exception handling) errors that are thrown from 
+                // unmanaged code, but that have not been mapped to another .NET Framework exception. The SEHException
+                // class also corresponds to the HRESULT E_FAIL (0x80004005).
+                isUserError = false;
+            }
+
+            failure.Invalidate = true;
+            failure.Rethrow = isUserError;
+        }
+
+        private Failure<Exception> HandleException(Exception exception, out bool rethrow)
+        {
+            Contract.Requires(exception != null);
+
+            var failure = new RocksDbFailureEvent(exception);
+
+            // This defaults the behavior to the safest one. This is done for backwards-compatibility with existing 
+            // code.
+            StrictFailureHandler(failure);
+            m_failureHandler?.Invoke(failure);
+
+            rethrow = failure.Rethrow;
+            if (failure.Invalidate)
+            {
+                InvalidateStore(failure.Failure);
+            }
+
+            return failure.Failure;
+        }
+
+        private void InvalidateStore(Failure<Exception> failure)
+        {
             m_disabledFailure = new Failure<string>("Access to the key-value store has been disabled because of the error.", failure);
+
             // Any store-implementation related exceptions are conservatively assumed to indicate an invalid or corrupted store
             m_invalidateStoreOnDispose = true;
 
-            m_failureHandler?.Invoke(failure);
-
-            return failure;
+            m_invalidationHandler?.Invoke(failure);
         }
 
         /// <summary>
@@ -695,7 +793,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     {
                         InvalidateStore();
                     }
-                    ((RocksDbStore)m_store).Dispose();
+
+                    if (m_store is IDisposable disposableStore)
+                    {
+                        disposableStore.Dispose();
+                    }
                 }
             }
         }
@@ -712,7 +814,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             get
             {
                 Contract.Requires(Disabled);
-                
+
                 // First check the error
                 if (m_disabledFailure != null)
                 {

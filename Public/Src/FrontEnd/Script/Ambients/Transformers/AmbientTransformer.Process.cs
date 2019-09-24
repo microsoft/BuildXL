@@ -307,7 +307,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_versionMinor = Symbol("minor");
             m_versionRevision = Symbol("revision");
 
-
             // Unsafe.
             m_unsafeUntrackedPaths = Symbol("untrackedPaths");
             m_unsafeUntrackedScopes = Symbol("untrackedScopes");
@@ -321,9 +320,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_semaphoreInfoLimit = Symbol("limit");
             m_semaphoreInfoName = Symbol("name");
             m_semaphoreInfoIncrementBy = Symbol("incrementBy");
-
         }
-
 
         private bool TryScheduleProcessPip(Context context, ObjectLiteral obj, ServicePipKind serviceKind, out ProcessOutputs processOutputs, out Process pip)
         {
@@ -627,8 +624,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // Container isolation level
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
             var containerIsolationLevel = Converter.ExtractEnumValue<ContainerIsolationLevel>(obj, m_executeContainerIsolationLevel, allowUndefined: true);
-            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue? 
-                    containerIsolationLevel.Value : 
+            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue?
+                    containerIsolationLevel.Value :
                     context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.ContainerIsolationLevel();
 
             // Container double write policy
@@ -637,7 +634,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             processBuilder.DoubleWritePolicy = doubleWritePolicy != null?
                     s_doubleWritePolicyMap[doubleWritePolicy] :
                     context.FrontEndHost.Configuration.Sandbox.UnsafeSandboxConfiguration.DoubleWritePolicy();
-    
+
             // Allow undeclared source reads flag
             if (Converter.ExtractOptionalBoolean(obj, m_executeAllowUndeclaredSourceReads) == true)
             {

@@ -156,7 +156,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (hash != null)
             {
                 // First attempt to place file from content store
-                var placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, FileAccessMode.Write, FileReplacementMode.ReplaceExisting, FileRealizationMode.CopyNoVerify, pinRequest: null);
+                var placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, FileAccessMode.Write, FileReplacementMode.ReplaceExisting, FileRealizationMode.Copy, pinRequest: null);
                 if (placeResult.IsPlaced())
                 {
                     return Result.Success(new ContentHashWithSize(hash.Value, placeResult.FileSize));
@@ -167,7 +167,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (putResult.Succeeded)
                 {
                     // Lastly, try to place again now that file is copied to CAS
-                    placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, FileAccessMode.Write, FileReplacementMode.ReplaceExisting, FileRealizationMode.CopyNoVerify, pinRequest: null).ThrowIfFailure();
+                    placeResult = await _privateCas.PlaceFileAsync(context, hash.Value, targetFilePath, FileAccessMode.Write, FileReplacementMode.ReplaceExisting, FileRealizationMode.Copy, pinRequest: null).ThrowIfFailure();
 
                     Counters[CentralStorageCounters.TryGetFileFromPeerSucceeded].Increment();
                     return Result.Success(new ContentHashWithSize(hash.Value, placeResult.FileSize));

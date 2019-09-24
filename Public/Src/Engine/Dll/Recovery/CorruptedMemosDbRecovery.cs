@@ -107,7 +107,7 @@ namespace BuildXL.Engine.Recovery
             //
             //     var cacheIntegrityResult = Cache.RunIntegrityCheck();
             //     if (cacheIntegrityResult == Success) return;
-            //     else { 
+            //     else {
             //         Assert(cacheIntegrityResult == NoIssueFound);
             //         RenameMemoDb();
             //     }

@@ -45,6 +45,7 @@ using ISymbol = TypeScript.Net.Types.ISymbol;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using ModuleDeclaration = BuildXL.FrontEnd.Script.Declarations.ModuleDeclaration;
 using NamespaceImport = BuildXL.FrontEnd.Script.Declarations.NamespaceImport;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using ObjectType = BuildXL.FrontEnd.Script.Types.ObjectType;
 using PropertySignature = BuildXL.FrontEnd.Script.Types.PropertySignature;
 using ReturnStatement = BuildXL.FrontEnd.Script.Statements.ReturnStatement;
@@ -2260,7 +2261,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             {
                 return expression;
             }
-            
+
             Type type = ConvertType(source.Type, context.CurrentQualifierSpaceId);
             CastExpression.TypeAssertionKind castKind = CastExpression.TypeAssertionKind.AsCast;
 
@@ -3214,7 +3215,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             string text = isNegative ? ($"-{literal.Text}") : literal.Text;
-            
+
             switch (literal.Kind)
             {
                 case TypeScript.Net.Types.SyntaxKind.NumericLiteral:

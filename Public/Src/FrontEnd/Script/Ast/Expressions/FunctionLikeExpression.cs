@@ -191,7 +191,7 @@ namespace BuildXL.FrontEnd.Script.Expressions
         {
             return new FunctionLikeExpression(SymbolAtom.Invalid, callSignature, body, toCapture, locals, fun: null, location: location, statistic: FunctionStatistic.Empty);
         }
-        
+
         /// <summary>
         /// Creates user-defined function.
         /// </summary>

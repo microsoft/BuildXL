@@ -1492,7 +1492,7 @@ namespace BuildXL.Processes
             bool shouldPersistStandardOutput = errorOrWarnings || m_pip.StandardOutput.IsValid;
             if (shouldPersistStandardOutput)
             {
-                if (!await TrySaveAndLogStandardOutputAsync(result))
+                if (!await TrySaveStandardOutputAsync(result))
                 {
                     loggingSuccess = false;
                 }
@@ -1501,7 +1501,7 @@ namespace BuildXL.Processes
             bool shouldPersistStandardError = errorOrWarnings || m_pip.StandardError.IsValid;
             if (shouldPersistStandardError)
             {
-                if (!await TrySaveAndLogStandardErrorAsync(result))
+                if (!await TrySaveStandardErrorAsync(result))
                 {
                     loggingSuccess = false;
                 }
@@ -3535,6 +3535,18 @@ namespace BuildXL.Processes
 
         private async Task<bool> TrySaveAndLogStandardErrorAsync(SandboxedProcessResult result)
         {
+            if (!await TrySaveStandardErrorAsync(result))
+            {
+                return false;
+            }
+
+            string standardErrorPath = result.StandardError.FileName;
+            Tracing.Logger.Log.PipProcessStandardError(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardErrorPath);
+            return true;
+        }
+
+        private async Task<bool> TrySaveStandardErrorAsync(SandboxedProcessResult result)
+        {
             try
             {
                 await result.StandardError.SaveAsync();
@@ -3544,13 +3556,22 @@ namespace BuildXL.Processes
                 PipStandardIOFailed(GetFileName(SandboxedProcessFile.StandardError), ex);
                 return false;
             }
-
-            string standardErrorPath = result.StandardError.FileName;
-            Tracing.Logger.Log.PipProcessStandardError(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardErrorPath);
             return true;
         }
 
         private async Task<bool> TrySaveAndLogStandardOutputAsync(SandboxedProcessResult result)
+        {
+            if (!await TrySaveStandardOutputAsync(result))
+            {
+                return false;
+            }
+
+            string standardOutputPath = result.StandardOutput.FileName;
+            Tracing.Logger.Log.PipProcessStandardOutput(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardOutputPath);
+            return true;
+        }
+
+        private async Task<bool> TrySaveStandardOutputAsync(SandboxedProcessResult result)
         {
             try
             {
@@ -3561,9 +3582,6 @@ namespace BuildXL.Processes
                 PipStandardIOFailed(GetFileName(SandboxedProcessFile.StandardOutput), ex);
                 return false;
             }
-
-            string standardOutputPath = result.StandardOutput.FileName;
-            Tracing.Logger.Log.PipProcessStandardOutput(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), standardOutputPath);
             return true;
         }
 

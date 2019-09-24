@@ -217,11 +217,6 @@ namespace BuildXL.Utilities.Configuration
         bool StoreOutputsToCache { get; }
 
         /// <summary>
-        /// Indicates whether to pin before placing files
-        /// </summary>
-        bool PinBeforePlace { get; }
-
-        /// <summary>
         /// Infers the non-existence of a path based on the parent path when checking the real file system in file system view.
         /// </summary>
         bool InferNonExistenceBasedOnParentPathInRealFileSystem { get; }

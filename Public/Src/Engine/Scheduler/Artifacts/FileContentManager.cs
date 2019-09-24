@@ -2244,7 +2244,7 @@ namespace BuildXL.Scheduler.Artifacts
             Possible<ContentAvailabilityBatchResult, Failure> possibleResults;
             using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerTryLoadAvailableContentDuration))
             {
-                if (state != null && !Configuration.Schedule.PinBeforePlace)
+                if (state != null && EngineEnvironmentSettings.SkipExtraneousPins.Value)
                 {
                     // When actually materializing files, skip the pin and place directly.
                     possibleResults = await PlaceFilesPinAsync(

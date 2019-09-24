@@ -72,7 +72,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
             InputChanges = AbsolutePath.Invalid;
-            // PinBeforePlace = false;
         }
 
         /// <nodoc />
@@ -138,7 +137,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
             UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
             InputChanges = pathRemapper.Remap(template.InputChanges);
-            PinBeforePlace = template.PinBeforePlace;
         }
 
         /// <inheritdoc />
@@ -170,9 +168,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool DisableProcessRetryOnResourceExhaustion { get; set; }
-
-        /// <inheritdoc />
-        public bool PinBeforePlace { get; set; }
 
         /// <inheritdoc />
         public bool EnableLazyOutputMaterialization

@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
@@ -32,6 +33,7 @@ namespace Tool.SymbolDaemon
     {
         private const string LogFileName = "SymbolDaemon";
         private const int s_servicePointParallelism = 200;
+        private const char s_debugEntryDataFieldSeparator = '|';
 
         /// <nodoc/>
         public const string SymbolDLogPrefix = "(SymbolD) ";
@@ -173,7 +175,7 @@ namespace Tool.SymbolDaemon
                    symbolServiceClientTask: null,
                    bxlClient: client))
                {
-                   daemon.Start();                   
+                   daemon.Start();
                    // We are blocking the thread here and waiting for the SymbolDaemon to process all the requests.
                    // Once the daemon receives 'stop' command, GetResult will return, and we'll leave this method
                    // (i.e., ServicePip will finish).
@@ -238,12 +240,12 @@ namespace Tool.SymbolDaemon
             {
                 var files = File.GetValues(conf.Config).ToArray();
 
-                // hashes are sent from BXL by serializing FileContentInfo's
-                var hashesWithLength = HashOptional.GetValues(conf.Config);                
+                // hashes are sent from BXL by serializing FileContentInfo
+                var hashesWithLength = HashOptional.GetValues(conf.Config);
                 var hashesOnly = hashesWithLength.Select(h => FileContentInfo.Parse(h).Hash).ToArray();
-                
+
                 var outputFile = SymbolMetadataFile.GetValue(conf.Config);
-                
+
                 IndexFilesAndStoreMetadataToFile(files, hashesOnly, outputFile);
 
                 return 0;
@@ -257,7 +259,7 @@ namespace Tool.SymbolDaemon
             Contract.Assert(!hashes.Any(hash => hash.HashType != HashType.Vso0), "Unsupported hash type");
 
             var indexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
-            var symbolsMetadata = new Dictionary<ContentHash, HashSet<DebugEntryData>>();
+            var symbolsMetadata = new Dictionary<ContentHash, HashSet<DebugEntryData>>(files.Length);
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -266,12 +268,12 @@ namespace Tool.SymbolDaemon
                 {
                     symbols = new HashSet<DebugEntryData>(DebugEntryDataComparer.Instance);
                     symbolsMetadata.Add(hashes[i], symbols);
-                }               
+                }
 
                 // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
-                symbols.UnionWith(indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false));               
+                symbols.UnionWith(indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false));
             }
-            
+
             SerializeSymbolsMetadata(symbolsMetadata, outputFile);
         }
 
@@ -287,9 +289,9 @@ namespace Tool.SymbolDaemon
                     <number of debug entries>
                     [<debug entry>]
              */
-             
+
             using (var writer = new StreamWriter(outputFile))
-            {                
+            {
                 writer.WriteLine(symbolsMetadata.Count);
 
                 foreach (var kvp in symbolsMetadata)
@@ -299,7 +301,7 @@ namespace Tool.SymbolDaemon
 
                     foreach (var debugEntry in kvp.Value)
                     {
-                        writer.WriteLine(JsonConvert.SerializeObject(debugEntry));
+                        writer.WriteLine(SerializeDebugEntryData(debugEntry));
                     }
                 }
             }
@@ -310,26 +312,59 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public static Dictionary<ContentHash, HashSet<DebugEntryData>> DeserializeSymbolsMetadata(string fileName)
         {
-            var result = new Dictionary<ContentHash, HashSet<DebugEntryData>>();
+            Dictionary<ContentHash, HashSet<DebugEntryData>> result;
             using (var reader = new StreamReader(fileName))
             {
                 int hashCount = int.Parse(reader.ReadLine());
+                result = new Dictionary<ContentHash, HashSet<DebugEntryData>>(hashCount);
 
                 for (int i = 0; i < hashCount; i++)
                 {
                     ContentHash.TryParse(reader.ReadLine(), out var hash);
-
-                    var symbols = new HashSet<DebugEntryData>(DebugEntryDataComparer.Instance);
-                    result.Add(hash, symbols);
-
                     int debugEntryCount = int.Parse(reader.ReadLine());
+
+                    var symbols = new HashSet<DebugEntryData>(debugEntryCount, DebugEntryDataComparer.Instance);
+                    result.Add(hash, symbols);
 
                     for (int j = 0; j < debugEntryCount; j++)
                     {
-                        symbols.Add(JsonConvert.DeserializeObject<DebugEntryData>(reader.ReadLine()));
+                        symbols.Add(DeserializeDebugEntryData(reader.ReadLine()));
                     }
                 }
             }
+
+            return result;
+        }
+
+        private static string SerializeDebugEntryData(DebugEntryData entry)
+        {
+            var sb = new StringBuilder(entry.ClientKey.Length * 2);
+
+            sb.Append(entry.BlobIdentifier == null ? "" : entry.BlobIdentifier.ValueString);
+            sb.Append(s_debugEntryDataFieldSeparator);
+            sb.Append(entry.ClientKey);
+            sb.Append(s_debugEntryDataFieldSeparator);
+            sb.Append((int)entry.InformationLevel);
+
+            return sb.ToString();
+        }
+
+        private static DebugEntryData DeserializeDebugEntryData(string serializedEntry)
+        {
+            const int DebugEntryFieldCount = 3;
+
+            var blocks = serializedEntry.Split(s_debugEntryDataFieldSeparator);
+            if (blocks.Length != DebugEntryFieldCount)
+            {
+                Contract.Assert(false, I($"Expected to find {DebugEntryFieldCount} fields in the serialized string, but found {blocks.Length}."));
+            }
+
+            var result = new DebugEntryData()
+            {
+                BlobIdentifier = blocks[0].Length == 0 ? null : Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier.Deserialize(blocks[0]),
+                ClientKey = string.IsNullOrEmpty(blocks[1]) ? null : blocks[1],
+                InformationLevel = (DebugInformationLevel)int.Parse(blocks[2])
+            };
 
             return result;
         }
@@ -355,7 +390,7 @@ namespace Tool.SymbolDaemon
                     "Invalid path to symbol metadata file.");
             }
 
-            Dictionary < ContentHash, HashSet < DebugEntryData >> symbolMetadata;
+            Dictionary<ContentHash, HashSet<DebugEntryData>> symbolMetadata;
 
             try
             {
@@ -370,7 +405,7 @@ namespace Tool.SymbolDaemon
 
             var symbolFiles = Enumerable
                 .Range(0, files.Length)
-                .Select(i => 
+                .Select(i =>
                 {
                     var hash = FileContentInfo.Parse(hashes[i]).Hash;
                     return new SymbolFile(

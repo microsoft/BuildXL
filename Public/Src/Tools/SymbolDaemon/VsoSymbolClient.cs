@@ -128,10 +128,11 @@ namespace Tool.SymbolDaemon
         public async Task<AddDebugEntryResult> AddFileAsync(SymbolFile symbolFile)
         {
             Contract.Requires(symbolFile.IsIndexed, "File has not been indexed.");
-            
+
             if (symbolFile.DebugEntries.Count == 0)
             {
-                // early return if there are no debug entries.
+                // If there are no debug entries, ask bxl to log a message and return early.
+                Analysis.IgnoreResult(await m_apiClient.LogMessage(I($"File '{symbolFile.FullFilePath}' does not contain symbols and will not be added to '{RequestName}'."), isWarning: false));
                 return AddDebugEntryResult.NoSymbolData;
             }
 
@@ -144,19 +145,20 @@ namespace Tool.SymbolDaemon
                 result = await m_symbolClient.CreateRequestDebugEntriesAsync(
                     RequestId,
                     symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                    // First, we create debug entries with ThrowIfExists behavior not to silence the collision errors.
                     DebugEntryCreateBehavior.ThrowIfExists,
                     CancellationToken);
             }
             catch (DebugEntryExistsException)
             {
                 string message = $"[SymbolDaemon] File: '{symbolFile.FullFilePath}' caused collision. " +
-                    (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists 
-                        ? string.Empty 
+                    (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists
+                        ? string.Empty
                         : $"SymbolDaemon will retry creating debug entry with {m_debugEntryCreateBehavior} behavior");
 
                 // Log a warning message in BuildXL log file
                 Analysis.IgnoreResult(await m_apiClient.LogMessage(message, isWarning: true));
- 
+
                 if (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists)
                 {
                     // Log an error message in SymbolDaemon log file

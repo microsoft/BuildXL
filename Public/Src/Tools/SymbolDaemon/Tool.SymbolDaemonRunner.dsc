@@ -192,12 +192,12 @@ function indexSymbolFiles(files: File[]) : DerivedFile {
     // the result of indexing
     const outputPath = p`${outDir.path}/${symbolDataFileName}`;
 
-    const executeArgumetns = <Transformer.ExecuteArguments>{
+    const executeArguments = <Transformer.ExecuteArguments>{
         tool: tool,
         workingDirectory: outDir,
         arguments: [
             Cmd.argument("indexFiles"),
-            Cmd.options("--file ", files.map(f => Artifact.none(f))),
+            Cmd.options("--file ", files.map(f => Artifact.input(f))),
             Cmd.options("--hash ", files.map(f => Artifact.vsoHash(f))),
             Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),
         ],
@@ -210,7 +210,7 @@ function indexSymbolFiles(files: File[]) : DerivedFile {
     }; 
 
     // run the tool
-    const result = Transformer.execute(executeArgumetns);
+    const result = Transformer.execute(executeArguments);
 
     const outputResult = result.getOutputFile(outputPath);
 

@@ -81,15 +81,12 @@ namespace BuildXL.FrontEnd.Script
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
 
-                if ( Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid )
+                if (Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid &&
+                    // Skip validation when generate and validate file path is the same, since the newly generated file will always be valid
+                    !Configuration.FrontEnd.ValidateCgManifestForNugets.Equals(Configuration.FrontEnd.GenerateCgManifestForNugets))
                 {
-                    if (    Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid
-                        &&  Configuration.FrontEnd.ValidateCgManifestForNugets.Equals(Configuration.FrontEnd.GenerateCgManifestForNugets))
-                    {
-                        // Skip validation since the newly generated file will always be valid
-                    }
                     // Validate existing CG Manifest with newly generated CG Manifest
-                    else if (!ValidateCgManifestFile(generatedCgManifest))
+                    if (!ValidateCgManifestFile(generatedCgManifest))
                     {
                         return false;
                     }
@@ -113,13 +110,17 @@ namespace BuildXL.FrontEnd.Script
         private bool ValidateCgManifestFile(string generatedCgManifest)
         {
             // Validation of existing cgmainfest.json results in failure due to mismatch. Should fail the build in this case.
-            string existingCgManifest;
             try
             {
-                existingCgManifest = File.ReadAllText(Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
+                string existingCgManifest = File.ReadAllText(Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
                 FrontEndHost.Engine.RecordFrontEndFile(
                     Configuration.FrontEnd.ValidateCgManifestForNugets,
                     CGManifestResolverName);
+                if (!NugetCgManifestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
+                {
+                    Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
+                    return false;
+                }
             }
             // CgManifest FileNotFound, log error and fail build
             catch (DirectoryNotFoundException e)
@@ -130,12 +131,6 @@ namespace BuildXL.FrontEnd.Script
             catch (FileNotFoundException e)
             {
                 Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
-                return false;
-            }
-
-            if (!NugetCgManifestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
-            {
-                Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
                 return false;
             }
 

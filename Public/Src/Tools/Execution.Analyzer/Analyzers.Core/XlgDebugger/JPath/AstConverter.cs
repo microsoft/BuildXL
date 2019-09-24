@@ -20,7 +20,7 @@ namespace BuildXL.Execution.Analyzer.JPath
 
     /// <summary>
     /// Converts from CST to AST (<see cref="Expr"/>).
-    /// 
+    ///
     /// Throws <see cref="AstException"/> in case of an error
     /// (e.g., when a regular expression literal is an invalid regular expression)
     /// </summary>
@@ -88,12 +88,12 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         public override Expr VisitPropertyId([NotNull] JPathParser.PropertyIdContext context)
         {
-            return new Selector(context.PropertyName.Text); 
+            return new Selector(context.PropertyName.Text);
         }
 
         public override Expr VisitEscId([NotNull] JPathParser.EscIdContext context)
         {
-            return new Selector(context.PropertyName.Text.Trim('`')); 
+            return new Selector(context.PropertyName.Text.Trim('`'));
         }
 
         public override Expr VisitVarExpr([NotNull] JPathParser.VarExprContext context)
@@ -190,7 +190,7 @@ namespace BuildXL.Execution.Analyzer.JPath
             return new FuncAppExpr(
                 func: context.Func.Accept(this),
                 opts: new FuncOpt(
-                    name: context.OptName.Text, 
+                    name: context.OptName.Text,
                     value: context.OptValue?.Accept(this)));
         }
 

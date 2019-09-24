@@ -11,14 +11,14 @@ export declare const qualifier: Managed.TargetFrameworks.CurrentMachineQualifier
 
 const pkgContents = importFrom("BuildXL.Tools.AppHostPatcher").Contents.all;
 
+function contentFilter(file: File): boolean {
+    return Context.getCurrentHost().os === "macOS"
+        ? file.extension === a`.dylib` || file.extension === a`.a` || file.extension === a`.h`
+        : file.extension === a`.dll` || file.extension === a`.lib` || file.extension === a`.h`;
+}
+
 const patcherExecutable = Context.getCurrentHost().os === "macOS"
-    ? CoreRT.compileToNative(Managed.executable({ 
-        assemblyName: "NativeAppHostPatcher",
-        sources: globR(d`.`, "*.cs"),
-        framework: Frameworks.framework.override<Shared.Framework>({
-            applicationDeploymentStyle: "frameworkDependent"
-        })
-      })).getExecutable()
+    ? pkgContents.getFile(r`tools/osx-x64/AppHostPatcher`)
     : pkgContents.getFile(r`tools/win-x64/AppHostPatcher.exe`);
 
 const patcher: Transformer.ToolDefinition = {
@@ -33,10 +33,14 @@ const patcher: Transformer.ToolDefinition = {
 export function patchBinary(args: Arguments) : Result {
     const targetsWindows = args.targetRuntimeVersion === "win-x64";
 
+    const contents = targetsWindows
+        ? importFrom("Microsoft.NETCore.App.Host.win-x64").Contents.all
+        : importFrom("Microsoft.NETCore.App.Host.osx-x64").Contents.all;
+
     // Pick the apphost based on the target OS, not the current OS
     const apphostBinary = targetsWindows
-        ? importFrom("runtime.win-x64.Microsoft.NETCore.DotNetAppHost").Contents.all.getFile(r`/runtimes/win-x64/native/apphost.exe`)
-        : importFrom("runtime.osx-x64.Microsoft.NETCore.DotNetAppHost").Contents.all.getFile(r`/runtimes/osx-x64/native/apphost`);
+        ? contents.getFile(r`/runtimes/win-x64/native/apphost.exe`)
+        : contents.getFile(r`/runtimes/osx-x64/native/apphost`);
 
     const arguments : Argument[] = [
         Cmd.argument(Artifact.input(apphostBinary)),
@@ -54,10 +58,16 @@ export function patchBinary(args: Arguments) : Result {
         outputs: [
             outputPath,
         ],
+        environmentVariables: [
+            { name: "COMPlus_EnableDiagnostics", value: "0" }, // Disables debug pipe creation
+        ],
     });
 
     return {
-        binary: result.getOutputFile(outputPath)
+        contents: [
+            result.getOutputFile(outputPath),
+            ...contents.getContent().filter(f => contentFilter(f)),
+        ]
     };
 }
 
@@ -68,6 +78,6 @@ export interface Arguments {
 }
 
 export interface Result {
-    binary: File,
+    contents: File[],
 }
 

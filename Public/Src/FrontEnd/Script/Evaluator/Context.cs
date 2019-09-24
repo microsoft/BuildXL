@@ -149,7 +149,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                     // issues with execution time prediction and user confusions in the logs. The right fix here is to include the spec relative
                     // path for private values, but that still needs to be plumbed through.
                     RelativePath.Invalid,
-                    
+
                     TopLevelValueInfo.ValueName,
                     new LocationData(
                         TopLevelValueInfo.SpecFile,

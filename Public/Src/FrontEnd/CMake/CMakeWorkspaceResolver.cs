@@ -29,6 +29,7 @@ using Newtonsoft.Json;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.CMake
 {
@@ -385,7 +386,7 @@ namespace BuildXL.FrontEnd.CMake
                 m_resolverSettings.ProjectRoot.Combine(m_context.PathTable, ".git"),
                 FileAccessPolicy.MaskAll,
                 FileAccessPolicy.AllowAllButSymlinkCreation);
-            
+
             return fileAccessManifest;
         }
     }

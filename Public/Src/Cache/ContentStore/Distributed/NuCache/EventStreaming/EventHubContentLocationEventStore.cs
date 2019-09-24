@@ -50,11 +50,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         private int _updatingPendingEventProcessingStates = 0;
 
         /// <summary>
-        /// We use a queue to ensure that <see cref="_lastProcessedSequencePoint"/> is updated in such a way that 
+        /// We use a queue to ensure that <see cref="_lastProcessedSequencePoint"/> is updated in such a way that
         /// it is never set to a value where messages prior to that sequence number have not been processed. Naively,
         /// setting this value, as messages are processed could break this criteria because of concurrent event processing.
         /// Given that, message batch state (with associated sequence number) are put into queue in order messages are received,
-        /// and only dequeued (and used to update <see cref="_lastProcessedSequencePoint"/>) when all messages associated with the 
+        /// and only dequeued (and used to update <see cref="_lastProcessedSequencePoint"/>) when all messages associated with the
         /// batch have been processed. Thereby, ensuring <see cref="_lastProcessedSequencePoint"/> is updated in correct order.
         /// </summary>
         private ConcurrentQueue<SharedEventProcessingState> _pendingEventProcessingStates = new ConcurrentQueue<SharedEventProcessingState>();
@@ -268,7 +268,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                     }
                     bool success = await sendAsyncTask;
-                    
+
                     if (!success)
                     {
                         // NOTE: This case should not actually occur.
@@ -409,7 +409,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         Contract.Assert(found, "There should be no concurrent access to _pendingEventProcessingStates, so after peek a state should be dequeued.");
                         Contract.Assert(peekPendingEventProcessingState == pendingEventProcessingState, "There should be no concurrent access to _pendingEventProcessingStates, so the state for peek and dequeue should be the same.");
 
-                        _lastProcessedSequencePoint = new EventSequencePoint(pendingEventProcessingState.SequenceNumber);
+                        _lastProcessedSequencePoint = new EventSequencePoint(pendingEventProcessingState!.SequenceNumber);
                     }
                     else
                     {

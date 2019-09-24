@@ -55,7 +55,7 @@ namespace BuildXL.Utilities.Configuration
         int MinimumWorkers { get; }
 
         /// <summary>
-        /// Indicates whether the remote workers should be released early in case of insufficient amount of work. 
+        /// Indicates whether the remote workers should be released early in case of insufficient amount of work.
         /// </summary>
         bool EarlyWorkerRelease { get; }
 

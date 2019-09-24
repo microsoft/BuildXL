@@ -244,7 +244,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
 
-            _tracer = new ContentStoreInternalTracer(settings.TraceFileSystemContentStoreDiagnosticMessages);
+            _tracer = new ContentStoreInternalTracer(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? false);
             _hashers = HashInfoLookup.CreateAll();
             int maxContentPathLengthRelativeToCacheRoot = GetMaxContentPathLengthRelativeToCacheRoot();
 

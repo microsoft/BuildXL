@@ -42,11 +42,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         private const int MaxPathUnix = 1024;
 
         /// <summary>
-        /// Returns true if paths longer than MaxShortPath are supported.
-        /// </summary>
-        public static bool LongPathsSupported { get; } = GetLongPathSupport();
-
-        /// <summary>
         /// Maximum path length for \\?\ style paths in Windows.
         /// </summary>
         public const int MaxLongPathWindows = 32767;
@@ -70,6 +65,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Maximum number of hard links a single file can have.
         /// </summary>
         public static readonly int MaxLinks = IsWindowsOS ? 1024 : ushort.MaxValue;
+
+        /// <summary>
+        /// Returns true if paths longer than MaxShortPath are supported.
+        /// </summary>
+        public static bool LongPathsSupported { get; } = GetLongPathSupport();
 
         /// <summary>
         /// Maximum path length.

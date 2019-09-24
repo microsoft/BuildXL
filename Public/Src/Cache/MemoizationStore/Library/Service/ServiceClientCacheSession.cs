@@ -5,6 +5,7 @@ extern alias Async;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -61,7 +62,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             return new GrpcCacheClient(sessionTracer, fileSystem, rpcConfiguration.GrpcPort, configuration.Scenario, rpcConfiguration.HeartbeatInterval);
         }
 
-        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null) where TResult : ResultBase
+        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false) where TResult : ResultBase
         {
             return WithOperationContext(context, cts,
                 operationContext =>
@@ -73,7 +74,9 @@ namespace BuildXL.Cache.MemoizationStore.Service
                                 () => func(operationContext, _rpcCacheClient),
                                 retryCounter: retryCounter),
                         caller: caller,
-                        counter: counter);
+                        counter: counter,
+                        traceOperationStarted: false,
+                        traceErrorsOnly: traceErrorsOnly);
                 });
         }
 
@@ -114,7 +117,8 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 cts,
                 (ctx, client) => client.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
                 counter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectors],
-                retryCounter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectorsRetries]);
+                retryCounter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectorsRetries],
+                traceErrorsOnly: true);
         }
 
         /// <inheritdoc />

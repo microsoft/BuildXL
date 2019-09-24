@@ -19,9 +19,9 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         ///     Run the call.
         /// </summary>
         public static async Task<GetContentHashListResult> RunAsync(
-            MemoizationStoreTracer tracer, Context context, StrongFingerprint fingerprint, Func<Task<GetContentHashListResult>> asyncFunc)
+            MemoizationStoreTracer tracer, Context context, StrongFingerprint fingerprint, Func<Task<GetContentHashListResult>> asyncFunc, bool traceStart = true)
         {
-            using (var call = new GetContentHashListCall(tracer, context, fingerprint))
+            using (var call = new GetContentHashListCall(tracer, context, fingerprint, traceStart))
             {
                 return await call.RunAsync(asyncFunc).ConfigureAwait(false);
             }
@@ -30,10 +30,13 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="GetContentHashListCall"/> class.
         /// </summary>
-        private GetContentHashListCall(MemoizationStoreTracer tracer, Context context, StrongFingerprint fingerprint)
+        private GetContentHashListCall(MemoizationStoreTracer tracer, Context context, StrongFingerprint fingerprint, bool traceStart)
             : base(tracer, context)
         {
-            Tracer.GetContentHashListStart(context, fingerprint);
+            if (traceStart)
+            {
+                Tracer.GetContentHashListStart(context, fingerprint);
+            }
         }
 
         /// <inheritdoc />

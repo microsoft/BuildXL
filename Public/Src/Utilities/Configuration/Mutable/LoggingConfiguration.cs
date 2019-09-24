@@ -22,6 +22,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileVerbosity = VerbosityLevel.Verbose;
             LogCounters = true;
             TraceInfo = new Dictionary<string, string>();
+            ABTestingArgs = new Dictionary<string, string>();
             Color = true;
             AnimateTaskbar = true;
             LogStats = true;
@@ -98,6 +99,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
             foreach (var kv in template.TraceInfo)
             {
                 TraceInfo.Add(kv.Key, kv.Value);
+            }
+
+            ABTestingArgs = new Dictionary<string, string>();
+            foreach (var kv in template.ABTestingArgs)
+            {
+                ABTestingArgs.Add(kv.Key, kv.Value);
             }
 
             Color = template.Color;
@@ -254,6 +261,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public Dictionary<string, string> TraceInfo { get; set; }
 
         IReadOnlyDictionary<string, string> ILoggingConfiguration.TraceInfo => TraceInfo;
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public Dictionary<string, string> ABTestingArgs { get; set; }
+
+        IReadOnlyDictionary<string, string> ILoggingConfiguration.ABTestingArgs => ABTestingArgs;
 
         /// <inheritdoc />
         public bool Color { get; set; }

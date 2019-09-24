@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Linq;
 using BuildXL;
 using BuildXL.Engine;
 using BuildXL.Utilities;
@@ -145,6 +146,23 @@ namespace Test.BuildXL
         {
             HelpText.DisplayHelp(global::BuildXL.ToolSupport.HelpLevel.Standard);
             HelpText.DisplayHelp(global::BuildXL.ToolSupport.HelpLevel.Verbose);
+        }
+
+        [Fact]
+        public void ABTestingOption()
+        {
+            ICommandLineConfiguration config;
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            string abTestingArg = "/incrementalScheduling+ /maxIO:1";
+
+            System.Diagnostics.Debugger.Launch();
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, $"/abTesting:Id1=\"{abTestingArg}\"" }, pt, out config));
+            XAssert.IsTrue(config.Schedule.IncrementalScheduling);
+            XAssert.IsTrue(config.Schedule.MaxIO == 1);
+            XAssert.IsTrue(config.Logging.TraceInfo.ContainsKey(TraceInfoExtensions.ABTesting));
+            XAssert.IsTrue(config.Logging.TraceInfo.Values.Contains($"Id1;{abTestingArg.GetHashCode()}"));
         }
     }
 }

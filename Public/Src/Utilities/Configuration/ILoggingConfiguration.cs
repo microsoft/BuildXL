@@ -206,6 +206,12 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyDictionary<string, string> TraceInfo { get; }
 
         /// <summary>
+        /// AB testing arguments
+        /// </summary>
+        [NotNull]
+        IReadOnlyDictionary<string, string> ABTestingArgs { get; }
+
+        /// <summary>
         /// Use colors for warnings and errors. Defaults to using colors.
         /// </summary>
         bool Color { get; }

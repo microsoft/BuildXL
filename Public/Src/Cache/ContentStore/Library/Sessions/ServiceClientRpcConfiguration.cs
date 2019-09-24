@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
@@ -19,7 +20,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// Gets the GRPC port.
         /// </summary>
         public int GrpcPort { get; }
-        
+
+        /// <summary>
+        /// Gets the GRPC host name. 
+        /// NOTE: Leaving unspecified equates to using localhost
+        /// </summary>
+        public string GrpcHost { get; set; } = GrpcEnvironment.Localhost;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ServiceClientRpcConfiguration"/> class.

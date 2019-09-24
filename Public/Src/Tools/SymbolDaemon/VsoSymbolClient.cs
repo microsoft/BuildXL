@@ -128,7 +128,12 @@ namespace Tool.SymbolDaemon
         public async Task<AddDebugEntryResult> AddFileAsync(SymbolFile symbolFile)
         {
             Contract.Requires(symbolFile.IsIndexed, "File has not been indexed.");
-            Contract.Requires(symbolFile.DebugEntries.Count > 0, "File contains no symbol data.");
+            
+            if (symbolFile.DebugEntries.Count == 0)
+            {
+                // early return if there are no debug entries.
+                return AddDebugEntryResult.NoSymbolData;
+            }
 
             await EnsureRequestIdInitalizedAsync();
 
@@ -175,7 +180,7 @@ namespace Tool.SymbolDaemon
             {
                 // All the entries are based on the same file, so we need to call upload only once.
 
-                // make sure that the file is on disk
+                // make sure that the file is on disk (it might not be on disk if we got DebugEntries from cache/metadata file)
                 var file = await symbolFile.EnsureMaterializedAsync();
 
                 var uploadResult = await m_symbolClient.UploadFileAsync(

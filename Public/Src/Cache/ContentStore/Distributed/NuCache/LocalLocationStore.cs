@@ -1268,7 +1268,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // restores, avoids redundant logging.
             using (_databaseInvalidationGate.AcquireSemaphore(0))
             {
-                Tracer.Error(e.Context, "Content location database has been invalidated. Forcing a restore from the last checkpoint.");
+                Tracer.Error(e.Context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {e.Failure.DescribeIncludingInnerFailures()}");
 
                 // There is nothing we can do from here if the checkpoint fails to restore. We will just wait until the
                 // next heartbeat.

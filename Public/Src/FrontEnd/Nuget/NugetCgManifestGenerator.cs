@@ -53,8 +53,13 @@ namespace BuildXL.FrontEnd.Nuget
         /// 
         /// This equality check is case-insensitive and white space agnostic.
         /// </summary>
-        public bool CompareForEquality(string lhsManifest, string rhsManifest)
+        public static bool CompareForEquality(string lhsManifest, string rhsManifest)
         {
+            if (lhsManifest == null || rhsManifest == null)
+            {
+                return false;
+            }
+
             try
             {
                 return JToken.DeepEquals(JObject.Parse(lhsManifest), JObject.Parse(rhsManifest));
@@ -70,6 +75,7 @@ namespace BuildXL.FrontEnd.Nuget
 
         private string ExtractNugetVersion(Package p)
         {
+            // Relies on the folder structure created by the Nuget resolver.
             return p.Path.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable);
         }
 

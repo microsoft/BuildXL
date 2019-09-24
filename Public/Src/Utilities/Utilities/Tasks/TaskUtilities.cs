@@ -208,7 +208,8 @@ namespace BuildXL.Utilities.Tasks
         /// Synchronously acquire a semaphore
         /// </summary>
         /// <param name="semaphore">The semaphore to acquire</param>
-        public static SemaphoreReleaser AcquireSemaphore(this SemaphoreSlim semaphore)
+        /// <param name="millisecondsTimeout">Time to wait to acquire the semaphore</param>
+        public static SemaphoreReleaser AcquireSemaphore(this SemaphoreSlim semaphore, int millisecondsTimeout = Timeout.Infinite)
         {
             Contract.Requires(semaphore != null);
             semaphore.Wait();

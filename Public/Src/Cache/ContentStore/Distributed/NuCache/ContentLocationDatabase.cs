@@ -88,6 +88,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _cacheFlushTimerLock = new object();
 
+        /// <summary>
+        /// Event callback that's triggered when the database is permanently invalidated. 
+        /// </summary>
+        public event EventHandler<DatabaseInvalidatedEventArgs> DatabaseInvalidated;
+
+        /// <nodoc />
+        public class DatabaseInvalidatedEventArgs : EventArgs
+        {
+            /// <nodoc />
+            public OperationContext Context { get; }
+
+            /// <nodoc />
+            public Failure<Exception> Failure { get; }
+
+            /// <nodoc />
+            public DatabaseInvalidatedEventArgs(OperationContext context, Failure<Exception> failure)
+            {
+                Contract.Requires(failure != null);
+                Context = context;
+                Failure = failure;
+            }
+        }   
+
+        /// <nodoc />
+        protected void OnDatabaseInvalidated(OperationContext context, Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
+            // Notice that no update to the internal state is required when invalidation happens. By definition,
+            // nothing can be done to this instance after invalidation: all incoming and ongoing operations should fail
+            // (because it is triggered by RocksDb). The only way to resume operation is to reload from a checkpoint,
+            // which resets the internal state correctly.
+            DatabaseInvalidated?.Invoke(this, new DatabaseInvalidatedEventArgs(context, failure));
+        }
+
         /// <nodoc />
         protected ContentLocationDatabase(IClock clock, ContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
         {

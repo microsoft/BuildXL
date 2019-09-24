@@ -30,6 +30,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -104,6 +105,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private DateTime _lastRestoreTime;
         private string _lastCheckpointId;
         private bool _reconciled;
+
+        private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
 
         /// <summary>
         /// Initialization for local location store may take too long if we restore the first checkpoint in there.
@@ -304,6 +307,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
             }
 
+            Database.DatabaseInvalidated += OnContentLocationDatabaseInvalidationAsync;
+
             return BoolResult.Success;
         }
 
@@ -464,7 +469,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 });
         }
 
-        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline)
+        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
         {
             var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
@@ -493,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return checkpointState;
                     }
 
-                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline);
+                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline, forceRestore);
                 }
                 finally
                 {
@@ -1255,6 +1260,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             return GlobalStore.GetBlobAsync(context, hash);
+        }
+
+        private async void OnContentLocationDatabaseInvalidationAsync(object sender, ContentLocationDatabase.DatabaseInvalidatedEventArgs e)
+        {
+            // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
+            // restores, avoids redundant logging.
+            using (_databaseInvalidationGate.AcquireSemaphore(0))
+            {
+                Tracer.Error(e.Context, "Content location database has been invalidated. Forcing a restore from the last checkpoint.");
+
+                // There is nothing we can do from here if the checkpoint fails to restore. We will just wait until the
+                // next heartbeat.
+                await ProcessStateAsync(e.Context, inline: false, forceRestore: true).IgnoreFailure();
+            }
         }
 
         /// <summary>

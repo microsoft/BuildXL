@@ -47,6 +47,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public const int MaxLongPathWindows = 32767;
 
         /// <summary>
+        /// To prevent a change in ordering of static fields to cause bugs, order-dependent field initializations are
+        /// done inside the static constructor.
+        /// </summary>
+        static FileSystemConstants()
+        {
+            // GetLongPathSupport uses some of the readonly static fields. Because of this, it should be run after
+            //  the field initializers have been run. Otherwise, it will malfunction.
+            LongPathsSupported = GetLongPathSupport();
+
+            MaxPath = LongPathsSupported ? MaxLongPath : MaxShortPath;
+        }
+
+        /// <summary>
         /// Maximum path length when long paths are not supported.
         /// </summary>
         public static readonly int MaxShortPath = IsWindowsOS ? 260 : MaxPathUnix;
@@ -69,12 +82,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         /// Returns true if paths longer than MaxShortPath are supported.
         /// </summary>
-        public static bool LongPathsSupported { get; } = GetLongPathSupport();
+        public static bool LongPathsSupported { get; }
 
         /// <summary>
         /// Maximum path length.
         /// </summary>
-        public static int MaxPath { get; } = LongPathsSupported ? MaxLongPath : MaxShortPath;
+        public static int MaxPath { get; }
 
         private static bool GetLongPathSupport()
         {

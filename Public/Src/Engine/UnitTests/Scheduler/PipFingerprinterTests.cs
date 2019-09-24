@@ -98,12 +98,13 @@ namespace Test.BuildXL.Scheduler
             var pathTable = m_context.PathTable;
             var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
 
-            Func<FileArtifact[], FileArtifactWithAttributes[], Process> createProcess = (deps, outputs) =>
+            Func<FileArtifact[], FileArtifactWithAttributes[], EnvironmentVariable[], Process> createProcess = (deps, outputs, envs) =>
             {
                 var dependencies = new HashSet<FileArtifact>(deps) { executable };
                 return GetDefaultProcessBuilder(pathTable, executable)
                     .WithDependencies(dependencies)
                     .WithOutputs(outputs)
+                    .WithEnvironmentVariables(envs)
                     .Build();
             };
 
@@ -113,8 +114,14 @@ namespace Test.BuildXL.Scheduler
             FileArtifactWithAttributes output1 = FileArtifactWithAttributes.Create(FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/obj/working/out1.bin"))), FileExistence.Temporary).CreateNextWrittenVersion();
             FileArtifactWithAttributes output2 = FileArtifactWithAttributes.Create(FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/obj/working/out2.bin"))), FileExistence.Temporary).CreateNextWrittenVersion();
 
-            var processA = createProcess(new[] { input1, input2 }, new[] { output1, output2 });
-            var processB = createProcess(new[] { input2, input1 }, new[] { output2, output1 });
+            PipData dataE1 = PipDataBuilder.CreatePipData(m_context.StringTable, string.Empty, PipDataFragmentEscaping.CRuntimeArgumentRules, PipDataAtom.FromString("E1"));
+            PipData dataE2 = PipDataBuilder.CreatePipData(m_context.StringTable, string.Empty, PipDataFragmentEscaping.CRuntimeArgumentRules, PipDataAtom.FromString("E2"));
+
+            EnvironmentVariable env1 = new EnvironmentVariable(StringId.Create(m_context.StringTable, "E1"), dataE1);
+            EnvironmentVariable env2 = new EnvironmentVariable(StringId.Create(m_context.StringTable, "E2"), dataE2);
+
+            var processA = createProcess(new[] { input1, input2 }, new[] { output1, output2 }, new[] { env1, env2 });
+            var processB = createProcess(new[] { input2, input1 }, new[] { output2, output1 }, new[] { env2, env1 });
 
             PipFragmentRenderer.ContentHashLookup contentHashLookupFunc = file =>
             {

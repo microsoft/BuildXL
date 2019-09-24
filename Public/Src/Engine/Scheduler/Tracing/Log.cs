@@ -3893,6 +3893,24 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerReportStatisticsExecuted(LoggingContext loggingContext, int numStatistics);
 
         [GeneratedEvent(
+            (ushort)EventId.ApiServerReceivedMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] {message}.")]
+        internal abstract void ApiServerReceivedMessage(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
+            (ushort)EventId.ApiServerReceivedWarningMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] {message}.")]
+        internal abstract void ApiServerReceivedWarningMessage(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
             (ushort)EventId.ApiServerGetSealedDirectoryContentExecuted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

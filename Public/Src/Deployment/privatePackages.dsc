@@ -27,6 +27,7 @@ namespace PrivatePackages {
                 // Net 472
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Engine").withQualifier(net472Qualifier).Processes.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Pips").withQualifier(net472Qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).ImplementationSupport.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).InMemory.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).Interfaces.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472Qualifier).BasicFilesystem.dll),
@@ -67,6 +68,7 @@ namespace PrivatePackages {
                 // Net Core App 3.0
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Engine").withQualifier(winx64Qualifier).Processes.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Pips").withQualifier(winx64Qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).ImplementationSupport.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).InMemory.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).Interfaces.dll),
                 Nuget.createAssemblyLayout(importFrom("BuildXL.Cache.VerticalStore").withQualifier(winx64Qualifier).BasicFilesystem.dll),

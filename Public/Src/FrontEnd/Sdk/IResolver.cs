@@ -29,7 +29,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// untill we untangle workspace and runtime resolvers.
         /// </remarks>
         Task<bool> InitResolverAsync([NotNull]IResolverSettings resolverSettings, object workspaceResolver);
-        
+
         /// <summary>
         /// If this resolver owns the module, returns a task
         /// that converts the module to evaluation model.

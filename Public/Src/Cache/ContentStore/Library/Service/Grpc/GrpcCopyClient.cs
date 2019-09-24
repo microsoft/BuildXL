@@ -29,6 +29,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly int _bufferSize;
+        private readonly BandwidthChecker _bandwidthChecker;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
@@ -38,13 +39,41 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize = null)
+        internal GrpcCopyClient(GrpcCopyClientKey key, Configuration config)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
-            _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _bufferSize = config.ClientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            var bandwidthSource = config.MinimumBandwidthMbPerSec == null
+                ? (IBandwidthLimitSource) new HistoricalBandwidthLimitSource()
+                : new ConstantBandwidthLimit(config.MinimumBandwidthMbPerSec.Value);
+            _bandwidthChecker = new BandwidthChecker(bandwidthSource, config.BandwidthCheckInterval);
             Key = key;
+        }
+
+        /// <nodoc />
+        public struct Configuration
+        {
+            /// <nodoc />
+            public Configuration(TimeSpan bandwidthCheckInterval, double? minimumBandwidthMbPerSec, int? clientBufferSize)
+            {
+                BandwidthCheckInterval = bandwidthCheckInterval;
+                MinimumBandwidthMbPerSec = minimumBandwidthMbPerSec;
+                ClientBufferSize = clientBufferSize;
+            }
+
+            /// <nodoc />
+            public static readonly Configuration Default = new Configuration(TimeSpan.FromSeconds(30), null, null);
+
+            /// <nodoc />
+            public TimeSpan BandwidthCheckInterval { get; }
+
+            /// <nodoc />
+            public double? MinimumBandwidthMbPerSec { get; }
+
+            /// <nodoc />
+            public int? ClientBufferSize { get; }
         }
 
         /// <inheritdoc />
@@ -61,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                ExistenceRequest request = new ExistenceRequest()
+                var request = new ExistenceRequest()
                 {
                     TraceId = context.Id.ToString(),
                     HashType = (int)hash.HashType,
@@ -103,7 +132,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return await CopyToCoreAsync(operationContext, hash, streamFactory);
             }
         }
-        
+
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
@@ -160,7 +189,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 string exception = null;
                 string message = null;
                 CopyCompression compression = CopyCompression.None;
-                foreach(Metadata.Entry header in headers)
+                foreach (Metadata.Entry header in headers)
                 {
                     switch (header.Key)
                     {
@@ -203,15 +232,16 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // Copy the content to the target stream.
                 using (targetStream)
                 {
-                    switch (compression)
-                    {
-                        case CopyCompression.None:
-                            await StreamContentAsync(targetStream, response.ResponseStream, context.Token);
-                            break;
-                        case CopyCompression.Gzip:
-                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, context.Token);
-                            break;
-                    }
+                    await _bandwidthChecker.CheckBandwidthAtIntervalAsync(
+                        context,
+                        copyTaskFactory: token =>
+                            compression switch
+                            {
+                                CopyCompression.None => StreamContentAsync(targetStream, response.ResponseStream, token),
+                                CopyCompression.Gzip => StreamContentWithCompressionAsync(targetStream, response.ResponseStream, token),
+                                _ => throw new NotSupportedException($"CopyCompression {compression} is not supported.")
+                            },
+                        destinationStream: targetStream);
                 }
 
                 return CopyFileResult.Success;
@@ -279,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             long chunks = 0L;
             long bytes = 0L;
-            using (BufferedReadStream grpcStream = new BufferedReadStream(async () =>
+            using (var grpcStream = new BufferedReadStream(async () =>
             {
                 if (await replyStream.MoveNext(ct))
                 {
@@ -300,23 +330,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return (chunks, bytes);
-        }
-        
-        private async Task<T> RunClientActionAndThrowIfFailedAsync<T>(Context context, Func<Task<T>> clientAction)
-        {
-            try
-            {
-                return await clientAction();
-            }
-            catch (RpcException ex)
-            {
-                if (ex.Status.StatusCode == StatusCode.Unavailable)
-                {
-                    throw new ClientCanRetryException(context, $"{nameof(GrpcCopyClient)} failed to detect running service");
-                }
-
-                throw new ClientCanRetryException(context, ex.ToString(), ex);
-            }
         }
 
         /// <inheritdoc />

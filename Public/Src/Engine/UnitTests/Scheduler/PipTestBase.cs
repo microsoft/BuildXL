@@ -178,7 +178,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null)
+        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null)
         {
             var builder = ProcessBuilder.CreateForTesting(Context.PathTable);
             builder.Executable = TestProcessExecutable;
@@ -212,6 +212,16 @@ namespace Test.BuildXL.Scheduler
             if (description != null)
             {
                 builder.ToolDescription = StringId.Create(Context.StringTable, description);
+            }
+
+            if (environmentVariables != null)
+            {
+                foreach (var envVar in environmentVariables)
+                {
+                    builder.SetEnvironmentVariable(
+                        StringId.Create(Context.StringTable, envVar.Key),
+                        StringId.Create(Context.StringTable, envVar.Value));
+                }
             }
 
             if (OperatingSystemHelper.IsUnixOS)

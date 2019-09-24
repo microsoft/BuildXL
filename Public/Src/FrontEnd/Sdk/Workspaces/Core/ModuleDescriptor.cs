@@ -124,7 +124,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 id: ModuleId.Create(table, moduleName, version),
                 name: moduleName,
                 displayName: moduleName,
-                version: version, 
+                version: version,
                 resolverKind: resolver.Kind,
                 resolverName: resolver.Name);
         }
@@ -143,8 +143,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 id: id,
                 name: moduleName,
                 displayName: moduleName,
-                version: version, 
-                resolverKind: KnownResolverKind.DScriptResolverKind, 
+                version: version,
+                resolverKind: KnownResolverKind.DScriptResolverKind,
                 resolverName: resolverName ?? "DScriptTestModule");
         }
     }

@@ -238,6 +238,7 @@ function getExecuteArguments(command: string, args: UberArguments, ...additional
             Cmd.option("--connectRetryDelayMillis ", args.connectRetryDelayMillis),
             Cmd.flag("--enableCloudBuildIntegration", args.enableCloudBuildIntegration),
             Cmd.flag("--enableTelemetry", args.enableTelemetry),
+            (args.debugEntryCreateBehavior !== undefined) ? Cmd.option("--debugEntryCreateBehavior ", debugEntryCreateBehaviorToString(args.debugEntryCreateBehavior)) : undefined,
             Cmd.flag("--verbose", true),
             Cmd.option("--logDir ", symbolLogDirectory.path),
             ...additionalCmdArgs,
@@ -292,4 +293,17 @@ function getIpcArguments(serviceStartInfo: ServiceStartResult, command: string, 
         outputFile: args.consoleOutput || exeArgs.consoleOutput,
     };
     return overrideIpcArgs !== undefined ? overrideIpcArgs(ipcArgs) : ipcArgs;
+}
+
+function debugEntryCreateBehaviorToString(arg: DebugEntryCreateBehavior) {
+    switch (arg) {
+        case DebugEntryCreateBehavior.ThrowIfExists:
+            return "ThrowIfExists";
+        case DebugEntryCreateBehavior.SkipIfExists:
+            return "SkipIfExists";
+        case DebugEntryCreateBehavior.OverwriteIfExists:
+            return "OverwriteIfExists";
+        default:
+            return "Unspecified";
+    };
 }

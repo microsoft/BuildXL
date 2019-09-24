@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using Microsoft.VisualStudio.Services.Symbol.WebApi;
 
 namespace Tool.SymbolDaemon
 {
@@ -45,6 +46,11 @@ namespace Tool.SymbolDaemon
         /// </summary>
         public bool Verbose { get; }
 
+        /// <summary>
+        /// The expected behavior when a debug entry to add already exists.
+        /// </summary>
+        public DebugEntryCreateBehavior DebugEntryCreateBehavior { get; }
+
         /// <nodoc/>
         public static TimeSpan DefaultRetention { get; } = TimeSpan.FromDays(10);
 
@@ -61,6 +67,7 @@ namespace Tool.SymbolDaemon
         public SymbolConfig(
             string requestName,
             Uri serviceEndpoint,
+            string debugEntryCreateBehaviorStr = null,
             TimeSpan? retention = null,
             TimeSpan? httpSendTimeout = null,
             bool? verbose = null,
@@ -74,6 +81,19 @@ namespace Tool.SymbolDaemon
             Verbose = verbose ?? DefaultVerbose;
             EnableTelemetry = enableTelemetry ?? DefaultEnableTelemetry;
             LogDir = logDir;
+
+            if (debugEntryCreateBehaviorStr == null)
+            {
+                DebugEntryCreateBehavior = DebugEntryCreateBehavior.ThrowIfExists;
+            }
+            else if (Enum.TryParse(debugEntryCreateBehaviorStr, out DebugEntryCreateBehavior value))
+            {
+                DebugEntryCreateBehavior = value;
+            }
+            else
+            {
+                DebugEntryCreateBehavior = DebugEntryCreateBehavior.ThrowIfExists;
+            }
         }
     }
 }

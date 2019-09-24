@@ -48,7 +48,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "PowerShell.Core", version: "6.1.0" },
 
     // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.0" },
+    { id: "Dotnet-Runtime", version: "5.0.2" },
 
 ] : [
 

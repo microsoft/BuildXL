@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Script
         /// True if the instance is came from the object's pool.
         /// </summary>
         private bool m_fromThePool;
-        
+
         /// <summary>
         /// Offset in the evaluation stack frame that separates captured variables from the arguments of the function.
         /// </summary>

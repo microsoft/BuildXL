@@ -93,14 +93,14 @@ namespace BuildXL.Ide.LanguageServer
 
             var workspace = appState.IncrementalWorkspaceProvider.WaitForRecomputationToFinish();
 
-            var moduleDescriptor = 
+            var moduleDescriptor =
 
             workspace.TryGetModuleByModuleDescriptor(
                 new BuildXLModuleDescriptor(
                     id: ModuleId.UnsafeCreate(getSpecsForModuleParams.ModuleDescriptor.Id),
                     name: getSpecsForModuleParams.ModuleDescriptor.Name,
                     displayName: getSpecsForModuleParams.ModuleDescriptor.Name,
-                    version: getSpecsForModuleParams.ModuleDescriptor.Version, 
+                    version: getSpecsForModuleParams.ModuleDescriptor.Version,
                     resolverKind: getSpecsForModuleParams.ModuleDescriptor.ResolverKind,
                     resolverName: getSpecsForModuleParams.ModuleDescriptor.ResolverName),
                 out var specificModule);

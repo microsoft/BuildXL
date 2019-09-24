@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -285,7 +286,7 @@ namespace BuildXL.Utilities.Configuration
         bool LogStatistics { get; }
 
         /// <summary>
-        /// Whether the frontend statistics should contain statistics about the slowest proccesses. 
+        /// Whether the frontend statistics should contain statistics about the slowest proccesses.
         /// </summary>
         bool ShowSlowestElementsStatistics { get; }
 

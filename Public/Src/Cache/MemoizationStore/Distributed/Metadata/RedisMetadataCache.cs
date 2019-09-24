@@ -201,10 +201,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
 
                 var strongDeleted = await deleteStrongFingerprint;
                 var weakDeleted = await deleteWeakFingerprint;
-                if (!strongDeleted || !weakDeleted)
-                {
-                    _tracer.Warning(context, $"Unable to delete some keys. Strong deleted: {strongDeleted}. Weak deleted: {weakDeleted}.");
-                }
 
                 return BoolResult.Success;
             }

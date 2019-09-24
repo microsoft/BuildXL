@@ -5,9 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
@@ -15,6 +18,7 @@ using BuildXL.Storage;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Symbol.App.Core.Tracing;
+using Microsoft.VisualStudio.Services.Symbol.Common;
 using Microsoft.VisualStudio.Services.Symbol.WebApi;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
@@ -29,6 +33,7 @@ namespace Tool.SymbolDaemon
     {
         private const string LogFileName = "SymbolDaemon";
         private const int s_servicePointParallelism = 200;
+        private const char s_debugEntryDataFieldSeparator = '|';
 
         /// <nodoc/>
         public const string SymbolDLogPrefix = "(SymbolD) ";
@@ -98,6 +103,14 @@ namespace Tool.SymbolDaemon
             DefaultValue = SymbolConfig.DefaultEnableTelemetry,
         });
 
+        internal static readonly StrOption SymbolMetadataFile = new StrOption("symbolMetadata")
+        {
+            ShortName = "sm",
+            HelpText = "Path to file with symbols metadata.",
+            IsRequired = false,
+            IsMultiValue = false,
+        };
+
         internal static SymbolConfig CreateSymbolConfig(ConfiguredCommand conf)
         {
             return new SymbolConfig(
@@ -162,7 +175,7 @@ namespace Tool.SymbolDaemon
                    symbolServiceClientTask: null,
                    bxlClient: client))
                {
-                   daemon.Start();                   
+                   daemon.Start();
                    // We are blocking the thread here and waiting for the SymbolDaemon to process all the requests.
                    // Once the daemon receives 'stop' command, GetResult will return, and we'll leave this method
                    // (i.e., ServicePip will finish).
@@ -207,7 +220,7 @@ namespace Tool.SymbolDaemon
         internal static readonly Command AddSymbolFilesCmd = RegisterCommand(
             name: "addsymbolfiles",
             description: "[RPC] invokes the 'addsymbolfiles' operation.",
-            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional },
+            options: new Option[] { IpcServerMonikerRequired, File, FileId, HashOptional, SymbolMetadataFile },
             clientAction: SyncRPCSend,
             serverAction: async (conf, daemon) =>
             {
@@ -218,11 +231,150 @@ namespace Tool.SymbolDaemon
                 return result;
             });
 
+        internal static readonly Command IndexFilesCmd = RegisterCommand(
+            name: "indexFiles",
+            description: "Indexes the specified files and saves SymbolData into a file.",
+            options: new Option[] { File, HashOptional, SymbolMetadataFile },
+            needsIpcClient: false,
+            clientAction: (ConfiguredCommand conf, IClient rpc) =>
+            {
+                var files = File.GetValues(conf.Config).ToArray();
+
+                // hashes are sent from BXL by serializing FileContentInfo
+                var hashesWithLength = HashOptional.GetValues(conf.Config);
+                var hashesOnly = hashesWithLength.Select(h => FileContentInfo.Parse(h).Hash).ToArray();
+
+                var outputFile = SymbolMetadataFile.GetValue(conf.Config);
+
+                IndexFilesAndStoreMetadataToFile(files, hashesOnly, outputFile);
+
+                return 0;
+            });
+
+        private static void IndexFilesAndStoreMetadataToFile(string[] files, ContentHash[] hashes, string outputFile)
+        {
+            Contract.Assert(files.Length == hashes.Length);
+            Contract.Assert(files.Length > 0);
+            Contract.Assert(!string.IsNullOrEmpty(outputFile));
+            Contract.Assert(!hashes.Any(hash => hash.HashType != HashType.Vso0), "Unsupported hash type");
+
+            var indexer = new SymbolIndexer(SymbolAppTraceSource.SingleInstance);
+            var symbolsMetadata = new Dictionary<ContentHash, HashSet<DebugEntryData>>(files.Length);
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                HashSet<DebugEntryData> symbols;
+                if (!symbolsMetadata.TryGetValue(hashes[i], out symbols))
+                {
+                    symbols = new HashSet<DebugEntryData>(DebugEntryDataComparer.Instance);
+                    symbolsMetadata.Add(hashes[i], symbols);
+                }
+
+                // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
+                symbols.UnionWith(indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false));
+            }
+
+            SerializeSymbolsMetadata(symbolsMetadata, outputFile);
+        }
+
+        /// <summary>
+        /// Serializes DebugEntryData's into a file.
+        /// </summary>        
+        public static void SerializeSymbolsMetadata(Dictionary<ContentHash, HashSet<DebugEntryData>> symbolsMetadata, string outputFile)
+        {
+            /*                
+                <number of hashes>
+                for each hash:
+                    <hash>
+                    <number of debug entries>
+                    [<debug entry>]
+             */
+
+            using (var writer = new StreamWriter(outputFile))
+            {
+                writer.WriteLine(symbolsMetadata.Count);
+
+                foreach (var kvp in symbolsMetadata)
+                {
+                    writer.WriteLine(kvp.Key.Serialize());
+                    writer.WriteLine(kvp.Value.Count);
+
+                    foreach (var debugEntry in kvp.Value)
+                    {
+                        writer.WriteLine(SerializeDebugEntryData(debugEntry));
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deserializes DebugEntryData's from a file.
+        /// </summary>
+        public static Dictionary<ContentHash, HashSet<DebugEntryData>> DeserializeSymbolsMetadata(string fileName)
+        {
+            Dictionary<ContentHash, HashSet<DebugEntryData>> result;
+            using (var reader = new StreamReader(fileName))
+            {
+                int hashCount = int.Parse(reader.ReadLine());
+                result = new Dictionary<ContentHash, HashSet<DebugEntryData>>(hashCount);
+
+                for (int i = 0; i < hashCount; i++)
+                {
+                    ContentHash.TryParse(reader.ReadLine(), out var hash);
+                    int debugEntryCount = int.Parse(reader.ReadLine());
+
+                    var symbols = new HashSet<DebugEntryData>(debugEntryCount, DebugEntryDataComparer.Instance);
+                    result.Add(hash, symbols);
+
+                    for (int j = 0; j < debugEntryCount; j++)
+                    {
+                        symbols.Add(DeserializeDebugEntryData(reader.ReadLine()));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static string SerializeDebugEntryData(DebugEntryData entry)
+        {
+            var sb = new StringBuilder(entry.ClientKey.Length * 2);
+
+            sb.Append(entry.BlobIdentifier == null ? "" : entry.BlobIdentifier.ValueString);
+            sb.Append(s_debugEntryDataFieldSeparator);
+            sb.Append(entry.ClientKey);
+            sb.Append(s_debugEntryDataFieldSeparator);
+            sb.Append((int)entry.InformationLevel);
+
+            return sb.ToString();
+        }
+
+        private static DebugEntryData DeserializeDebugEntryData(string serializedEntry)
+        {
+            const int DebugEntryFieldCount = 3;
+
+            var blocks = serializedEntry.Split(s_debugEntryDataFieldSeparator);
+            if (blocks.Length != DebugEntryFieldCount)
+            {
+                Contract.Assert(false, I($"Expected to find {DebugEntryFieldCount} fields in the serialized string, but found {blocks.Length}."));
+            }
+
+            var result = new DebugEntryData()
+            {
+                BlobIdentifier = blocks[0].Length == 0 ? null : Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier.Deserialize(blocks[0]),
+                ClientKey = string.IsNullOrEmpty(blocks[1]) ? null : blocks[1],
+                InformationLevel = (DebugInformationLevel)int.Parse(blocks[2])
+            };
+
+            return result;
+        }
+
         private static async Task<IIpcResult> AddSymbolFilesInternalAsync(ConfiguredCommand conf, SymbolDaemon daemon)
         {
             var files = File.GetValues(conf.Config).ToArray();
             var fileIds = FileId.GetValues(conf.Config).ToArray();
             var hashes = HashOptional.GetValues(conf.Config).ToArray();
+            var symbolMetadataFile = SymbolMetadataFile.GetValue(conf.Config);
 
             if (files.Length != fileIds.Length || files.Length != hashes.Length)
             {
@@ -231,13 +383,38 @@ namespace Tool.SymbolDaemon
                     I($"File counts don't match: #files = {files.Length}, #fileIds = {fileIds.Length}, #hashes = {hashes.Length}"));
             }
 
+            if (string.IsNullOrEmpty(symbolMetadataFile))
+            {
+                return new IpcResult(
+                    IpcResultStatus.GenericError,
+                    "Invalid path to symbol metadata file.");
+            }
+
+            Dictionary<ContentHash, HashSet<DebugEntryData>> symbolMetadata;
+
+            try
+            {
+                symbolMetadata = DeserializeSymbolsMetadata(symbolMetadataFile);
+            }
+            catch (Exception e)
+            {
+                return new IpcResult(
+                   IpcResultStatus.GenericError,
+                   I($"Failed to deserialize symbol metadata file: {e.DemystifyToString()}"));
+            }
+
             var symbolFiles = Enumerable
                 .Range(0, files.Length)
-                .Select(i => new SymbolFile(
-                    daemon.ApiClient,
-                    files[i],
-                    fileIds[i],
-                    FileContentInfo.Parse(hashes[i]).Hash)).ToList();
+                .Select(i =>
+                {
+                    var hash = FileContentInfo.Parse(hashes[i]).Hash;
+                    return new SymbolFile(
+                        daemon.ApiClient,
+                        files[i],
+                        fileIds[i],
+                        hash,
+                        symbolMetadata[hash]);
+                }).ToList();
 
             var result = await daemon.AddSymbolFilesAsync(symbolFiles);
 
@@ -325,38 +502,10 @@ namespace Tool.SymbolDaemon
         /// </summary>       
         public async Task<IIpcResult> AddSymbolFilesAsync(List<SymbolFile> files)
         {
-            var result = await EnsureFilesAreIndexedAsync(files);
-
-            if (!result.Success)
-            {
-                return new IpcResult(IpcResultStatus.ExecutionError, result.Exception.DemystifyToString());
-            }
-
             var addFileTasks = files.Select(f => AddSymbolFileAsync(f));
             var ipcResults = await TaskUtilities.SafeWhenAll(addFileTasks);
 
             return IpcResult.Merge(ipcResults);
-        }
-
-        private async Task<(bool Success, Exception Exception)> EnsureFilesAreIndexedAsync(List<SymbolFile> files)
-        {
-            try
-            {
-                foreach (var symbolFile in files)
-                {
-                    var fi = await symbolFile.EnsureMaterializedAsync();
-
-                    var debugEntries = m_symbolIndexer.GetDebugEntries(fi, calculateBlobId: true).ToList();
-
-                    symbolFile.SetDebugEntries(debugEntries);
-                }
-
-                return (true, null);
-            }
-            catch (Exception e)
-            {
-                return (false, e);
-            }
         }
 
         private async Task<IIpcResult> AddSymbolFileAsync(SymbolFile file)

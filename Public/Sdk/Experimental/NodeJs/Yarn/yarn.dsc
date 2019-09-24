@@ -86,8 +86,7 @@ export function install(args: Arguments) : Result {
 
     if (useAuthenticatedPackageFeed && Context.getCurrentHost().os === "win") {
 
-        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {  
-            const nugetCredentialProviderPath = Environment.getDirectoryValue("NUGET_CREDENTIALPROVIDERS_PATH");     
+        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {     
             const nugetCredentialProviderArguments = {
                 arguments: [Cmd.argument(Artifact.input(f`yarnWithNugetCredentialProvider.js`))].prependWhenMerged(),
                 unsafe: {

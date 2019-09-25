@@ -31,6 +31,7 @@ using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -107,6 +108,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private bool _reconciled;
 
         private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
+
+        private readonly SemaphoreSlim _heartbeatGate = new SemaphoreSlim(0);
 
         /// <summary>
         /// Initialization for local location store may take too long if we restore the first checkpoint in there.
@@ -307,7 +310,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
             }
 
-            Database.DatabaseInvalidated += OnContentLocationDatabaseInvalidationAsync;
+            Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
             return BoolResult.Success;
         }
@@ -506,6 +509,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         // Reseting the timer at the end to avoid multiple calls if it at the same time.
                         _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
+
+                        // Release all threads waiting for a heartbeat to complete
+                        _heartbeatGate.Release(-_heartbeatGate.CurrentCount);
                     }
                 }
             }
@@ -1262,17 +1268,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return GlobalStore.GetBlobAsync(context, hash);
         }
 
-        private async void OnContentLocationDatabaseInvalidationAsync(object sender, ContentLocationDatabase.DatabaseInvalidatedEventArgs e)
+        private void OnContentLocationDatabaseInvalidation(OperationContext context, Failure<Exception> failure)
         {
+            OnContentLocationDatabaseInvalidationAsync(context, failure).FireAndForget(context);
+        }
+
+        private async Task OnContentLocationDatabaseInvalidationAsync(OperationContext context, Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
             // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
             // restores, avoids redundant logging.
-            using (_databaseInvalidationGate.AcquireSemaphore(0))
+            if (!_databaseInvalidationGate.Wait(0))
             {
-                Tracer.Error(e.Context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {e.Failure.DescribeIncludingInnerFailures()}");
+                return;
+            }
 
-                // There is nothing we can do from here if the checkpoint fails to restore. We will just wait until the
-                // next heartbeat.
-                await ProcessStateAsync(e.Context, inline: false, forceRestore: true).IgnoreFailure();
+            try
+            {
+                Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
+
+                if (!ShutdownStarted)
+                {
+                    _heartbeatTimer.Change(TimeSpan.FromSeconds(0), Timeout.InfiniteTimeSpan);
+
+                    // Wait until the next heartbeat completes
+                    await _heartbeatGate.WaitAsync();
+                }
+            }
+            finally
+            {
+                _databaseInvalidationGate.Release();
             }
         }
 

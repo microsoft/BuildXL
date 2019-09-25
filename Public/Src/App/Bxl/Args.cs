@@ -171,11 +171,6 @@ namespace BuildXL
         [SuppressMessage("Microsoft.Performance", "CA1809")]
         public bool TryParse(string[] args, PathTable pathTable, out ICommandLineConfiguration arguments)
         {
-            foreach (var a in args)
-            {
-                Console.WriteLine("***    " + a);
-            }
-
             try
             {
                 var cl = new CommandLineUtilities(args);
@@ -216,7 +211,7 @@ namespace BuildXL
                     {
                         OptionHandlerFactory.CreateOption(
                             "abTesting",
-                            opt => CommandLineUtilities.ParsePropertyOption(opt, loggingConfiguration.ABTestingArgs)),
+                            opt => CommandLineUtilities.ParsePropertyOption(opt, startupConfiguration.ABTestingArgs)),
                         OptionHandlerFactory.CreateOption2(
                             "additionalConfigFile",
                             "ac",
@@ -1215,7 +1210,7 @@ namespace BuildXL
                 // Iterate through each argument, looking each argument up in the table.
                 IterateArgs(cl, configuration, specialCaseUnsafeOptions);
 
-                int numABTestingOptions = loggingConfiguration.ABTestingArgs.Count;
+                int numABTestingOptions = startupConfiguration.ABTestingArgs.Count;
                 if (numABTestingOptions > 0)
                 {
                     // If RelatedActivityId is populated, use it as a seed for random number generation
@@ -1225,8 +1220,8 @@ namespace BuildXL
                         new Random(loggingConfiguration.RelatedActivityId.GetHashCode());
 
                     int randomNum = randomGen.Next(numABTestingOptions);
-                    var randomOption = loggingConfiguration.ABTestingArgs.ToList()[randomNum];
-                    string abTestingId = randomOption.Key;
+                    var randomOption = startupConfiguration.ABTestingArgs.ToList()[randomNum];
+                    string abTestingKey = randomOption.Key;
                     string abTestingArgs = randomOption.Value;
 
                     // Add key and the hash code of the arguments to traceInfo for telemetry purposes. 
@@ -1235,10 +1230,12 @@ namespace BuildXL
                     // the arguments to traceInfo.
                     loggingConfiguration.TraceInfo.Add(
                         TraceInfoExtensions.ABTesting, 
-                        $"{abTestingId};{abTestingArgs.GetHashCode().ToString()}");
+                        $"{abTestingKey};{abTestingArgs.GetHashCode().ToString()}");
 
-                    var cl2 = new CommandLineUtilities(abTestingArgs.Split(' '));
+                    string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
+                    var cl2 = new CommandLineUtilities(splittedABTestingArgs);
                     IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
+                    startupConfiguration.ChosenABTestingKey = abTestingKey;
                 }
 
                 foreach (string arg in cl.Arguments)

@@ -157,12 +157,36 @@ namespace Test.BuildXL
 
             string abTestingArg = "/incrementalScheduling+ /maxIO:1";
 
-            System.Diagnostics.Debugger.Launch();
-            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, $"/abTesting:Id1=\"{abTestingArg}\"" }, pt, out config));
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, $"/abTesting:Id1={abTestingArg}" }, pt, out config));
             XAssert.IsTrue(config.Schedule.IncrementalScheduling);
             XAssert.IsTrue(config.Schedule.MaxIO == 1);
             XAssert.IsTrue(config.Logging.TraceInfo.ContainsKey(TraceInfoExtensions.ABTesting));
             XAssert.IsTrue(config.Logging.TraceInfo.Values.Contains($"Id1;{abTestingArg.GetHashCode()}"));
+        }
+
+        [Fact]
+        public void ABTestingOptionRelatedActivityIdSeed()
+        {
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            string relatedActivityArg = "/relatedActivityId:cd0adef6-abef-4990-8cde-32441a54f747";
+            string abTestingArg1 = "/abTesting:Id1=\"/maxProc:5\"";
+            string abTestingArg2 = "/abTesting:Id2=\"/maxProc:10\"";
+            string[] args = new[] { @"/c:" + m_specFilePath, relatedActivityArg, abTestingArg1, abTestingArg2 };
+            XAssert.IsTrue(argsParser.TryParse(args, pt, out var config1));
+
+            var chosen = config1.Startup.ChosenABTestingKey;
+            XAssert.IsNotNull(chosen);
+
+            XAssert.IsTrue(argsParser.TryParse(args, pt, out var config2));
+            XAssert.Equals(chosen, config2.Startup.ChosenABTestingKey);
+
+            XAssert.IsTrue(argsParser.TryParse(args, pt, out var config3));
+            XAssert.Equals(chosen, config3.Startup.ChosenABTestingKey);
+
+            XAssert.IsTrue(argsParser.TryParse(args, pt, out var config4));
+            XAssert.Equals(chosen, config4.Startup.ChosenABTestingKey);
         }
     }
 }

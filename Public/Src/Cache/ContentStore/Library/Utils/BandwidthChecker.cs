@@ -46,14 +46,21 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 var startPosition = destinationStream.Position;
                 var timer = Stopwatch.StartNew();
-                await impl();
-                timer.Stop();
-                var endPosition = destinationStream.Position;
 
-                // Bandwidth checker expects speed in MiB/s, so convert it.
-                var bytesCopied = endPosition - startPosition;
-                var speed = bytesCopied / timer.Elapsed.TotalSeconds / (1024 * 1024);
-                _historicalBandwidthLimitSource.AddBandwidthRecord(speed);
+                try
+                {
+                    await impl();
+                }
+                finally
+                {
+                    timer.Stop();
+                    var endPosition = destinationStream.Position;
+
+                    // Bandwidth checker expects speed in MiB/s, so convert it.
+                    var bytesCopied = endPosition - startPosition;
+                    var speed = bytesCopied / timer.Elapsed.TotalSeconds / (1024 * 1024);
+                    _historicalBandwidthLimitSource.AddBandwidthRecord(speed);
+                }
             }
             else
             {

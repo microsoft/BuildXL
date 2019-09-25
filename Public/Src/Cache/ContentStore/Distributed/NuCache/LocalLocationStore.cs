@@ -32,6 +32,7 @@ using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -368,24 +369,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         internal async Task<BoolResult> HeartbeatAsync(OperationContext context)
         {
-            // This makes sure that the heartbeat is only run once for each call to this function. It is non-blocking
-            // wait, so no need to use the async version.
-#pragma warning disable AsyncFixer02
-            if (!_heartbeatGate.Wait(0))
-#pragma warning restore AsyncFixer02
+            using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
             {
-                return BoolResult.Success;
-            }
+                // This makes sure that the heartbeat is only run once for each call to this function. It is a
+                // non-blocking check.
+                if (!acquired)
+                {
+                    return BoolResult.Success;
+                }
 
-            try
-            {
                 return await context.PerformOperationAsync(
                     Tracer,
                     () => ProcessStateAsync(context, inline: false));
-            }
-            finally
-            {
-                _heartbeatGate.Release();
             }
         }
 
@@ -1290,25 +1285,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Requires(failure != null);
 
-            // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
-            // restores, avoids redundant logging. This is a non-blocking check, so there is no need to WaitAsync.
-#pragma warning disable AsyncFixer02
-            if (!_databaseInvalidationGate.Wait(0))
-#pragma warning restore AsyncFixer02
+            using (SemaphoreSlimToken.TryWait(_databaseInvalidationGate, 0, out var acquired))
             {
-                return;
-            }
+                // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
+                // restores, avoids redundant logging. This is a non-blocking check.
+                if (!acquired)
+                {
+                    return;
+                }
 
-            try
-            {
                 Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
 
                 // We can safely ignore errors, because there is nothing more we can do here.
                 await HeartbeatAsync(context).IgnoreErrors();
-            }
-            finally
-            {
-                _databaseInvalidationGate.Release();
             }
         }
 

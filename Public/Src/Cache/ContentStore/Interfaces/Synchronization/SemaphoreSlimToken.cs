@@ -42,6 +42,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
             return new SemaphoreSlimToken(semaphore);
         }
 
+        /// <summary>
+        ///     Wait on a SemaphoreSlim and return a token that, when disposed, calls Release() on the SemaphoreSlim.
+        ///     If the deadline is reached, the token is not acquired and a fake disposable is returned.
+        /// </summary>
+        /// <param name="semaphore">The semaphore to wait on</param>
+        /// <param name="millisecondsTimeout">Maximum time to wait for the semaphore, in milliseconds</param>
+        /// <param name="acquired">Whether the semaphore was obtained or not</param>
+        /// <returns>A token that, when disposed, calls Release() on the SemaphoreSlim</returns>
+        public static SemaphoreSlimToken TryWait(SemaphoreSlim semaphore, int millisecondsTimeout, out bool acquired)
+        {
+            acquired = semaphore.Wait(millisecondsTimeout);
+            return new SemaphoreSlimToken(acquired ? semaphore : null);
+        }
+
         /// <inheritdoc />
         public void Dispose()
         {

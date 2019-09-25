@@ -285,6 +285,15 @@ namespace BuildXL.Engine
                 (int)GrpcSettings.CallTimeout.TotalMinutes,
                 (int)GrpcSettings.InactiveTimeout.TotalMinutes);
 
+            if (!string.IsNullOrEmpty(initialConfig.Startup.ChosenABTestingKey))
+            {
+                string chosenABTestingArgs = initialConfig.Startup.ABTestingArgs[initialConfig.Startup.ChosenABTestingKey];
+                Logger.Log.ChosenABTesting(
+                    loggingContext,
+                    initialConfig.Startup.ChosenABTestingKey,
+                    chosenABTestingArgs);
+            }
+
             Context = context;
             Configuration = configuration;
 

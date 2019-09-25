@@ -325,14 +325,14 @@ namespace BuildXL.Processes
         /// The callers must make sure that when they call this method no concurrent modifications are
         /// being done to <see cref="m_reports"/>.
         /// </summary>
-        private IReadOnlyList<ReportedProcess> GetCurrentlyActiveProcesses()
+        private IReadOnlyList<ReportedProcess> GetCurrentlyActiveChildProcesses()
         {
-            return m_reports.GetActiveProcesses();
+            return m_reports.GetActiveProcesses().Where(p => p.ProcessId != ProcessId).ToList();
         }
 
         private void KillAllChildProcesses()
         {
-            NotifyPipTerminated(PipId, CoalesceProcesses(GetCurrentlyActiveProcesses()));
+            NotifyPipTerminated(PipId, CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
         }
 
         private bool ShouldWaitForSurvivingChildProcesses()
@@ -344,7 +344,7 @@ namespace BuildXL.Processes
             }
 
             // Otherwise, wait if there are any alive processes that are not explicitly allowed to survivie
-            var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveProcesses()).Select(p => Path.GetFileName(p.Path));
+            var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveChildProcesses()).Select(p => Path.GetFileName(p.Path));
             return aliveProcessesNames
                 .Except(AllowedSurvivingChildProcessNames)
                 .Any();
@@ -472,7 +472,7 @@ namespace BuildXL.Processes
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
 
                         m_pendingReports.Complete();
-                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
+                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveChildProcesses());
 
                         await KillAsync();
                         processTreeTimeoutSource.SetResult(Unit.Void);
@@ -491,7 +491,7 @@ namespace BuildXL.Processes
                             }
 
                             LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
-                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
+                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveChildProcesses());
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }

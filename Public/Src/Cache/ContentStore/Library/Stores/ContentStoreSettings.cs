@@ -82,6 +82,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
+        /// <summary>
+        /// Whether to trace diagnostic-level messages emitted by <see cref="FileSystemContentStore"/> and <see cref="FileSystemContentStoreInternal"/> like hashing or placing files.
+        /// </summary>
+        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();
     }

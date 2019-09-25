@@ -293,7 +293,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return Result.Success<IReadOnlyList<ContentLocationEntry>>(results);
                 },
-                Counters[GlobalStoreCounters.GetBulk]);
+                Counters[GlobalStoreCounters.GetBulk],
+                traceErrorsOnly: true);
         }
 
         private ContentLocationEntry MergeEntries(ContentLocationEntry entry, ContentLocationEntry originalEntry)

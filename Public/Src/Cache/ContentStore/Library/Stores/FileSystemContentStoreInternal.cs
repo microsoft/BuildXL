@@ -152,7 +152,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         protected SerializedDataValue SerializedDataVersion { get; }
 
-        private readonly ContentStoreInternalTracer _tracer = new ContentStoreInternalTracer();
+        private readonly ContentStoreInternalTracer _tracer;
 
         private readonly ConfigurationModel _configurationModel;
         private readonly CounterCollection<Counter> _counters = new CounterCollection<Counter>();
@@ -246,6 +246,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
 
+            _tracer = new ContentStoreInternalTracer(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? false);
             _hashers = HashInfoLookup.CreateAll();
             int maxContentPathLengthRelativeToCacheRoot = GetMaxContentPathLengthRelativeToCacheRoot();
 
@@ -397,19 +398,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
-            using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+            using var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+            if (stream == null)
             {
-                if (stream == null)
-                {
-                    return null;
-                }
-
-                using (var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream))
-                {
-                    // Hash the file in  place
-                    return await HashContentAsync(context, wrappedStream, hashType, path);
-                }
+                return null;
             }
+
+            using var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream);
+            // Hash the file in  place
+            return await HashContentAsync(context, wrappedStream, hashType, path);
         }
 
         /// <summary>

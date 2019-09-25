@@ -116,11 +116,17 @@ namespace BuildXL.Cache.ContentStore.Tracing
             return new DeleteResult(DeleteResult.ResultCode.ContentNotDeleted, contentHash, EvictedSize, PinnedSize);
         }
 
+        /// <nodoc />
+        public TimeSpan Age => CreationTime - LastAccessTime;
+
+        /// <nodoc />
+        public TimeSpan? EffectiveAge => CreationTime - EffectiveLastAccessTime;
+
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={CreationTime - LastAccessTime} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={CreationTime - EffectiveLastAccessTime}"
+                ? $"Success Size={EvictedSize} Files={EvictedFiles} Pinned={PinnedSize} LastAccessTime={LastAccessTime} Age={Age} ReplicaCount={ReplicaCount} EffectiveLastAccessTime={EffectiveLastAccessTime} EffectiveAge={EffectiveAge}"
                 : GetErrorString();
         }
     }

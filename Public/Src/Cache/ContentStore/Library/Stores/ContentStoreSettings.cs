@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// An interval for tracing self check progress.
         /// </summary>
-        public TimeSpan SelfCheckProgressReportingInterval { get; set; } = TimeSpan.FromSeconds(5);
+        public TimeSpan SelfCheckProgressReportingInterval { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
         /// A number of invalid hashes that the checker will process in one attempt.

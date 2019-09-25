@@ -161,6 +161,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int SelfCheckFrequencyInMinutes { get; set; } = (int)TimeSpan.FromDays(1).TotalMinutes;
 
+        [DataMember]
+        public int? SelfCheckProgressReportingIntervalInMinutes { get; set; }
+
         /// <summary>
         /// An epoch used for reseting self check of a content directory.
         /// </summary>

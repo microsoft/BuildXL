@@ -109,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
 
-        private readonly SemaphoreSlim _heartbeatGate = new SemaphoreSlim(0);
+        private readonly SemaphoreSlim _heartbeatGate = new SemaphoreSlim(1);
 
         /// <summary>
         /// Initialization for local location store may take too long if we restore the first checkpoint in there.
@@ -366,11 +366,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        internal Task<BoolResult> HeartbeatAsync(OperationContext context)
+        internal async Task<BoolResult> HeartbeatAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(
-                Tracer,
-                () => ProcessStateAsync(context, inline: false));
+            // This makes sure that the heartbeat is only run once for each call to this function. It is non-blocking
+            // wait, so no need to use the async version.
+#pragma warning disable AsyncFixer02
+            if (!_heartbeatGate.Wait(0))
+#pragma warning restore AsyncFixer02
+            {
+                return BoolResult.Success;
+            }
+
+            try
+            {
+                return await context.PerformOperationAsync(
+                    Tracer,
+                    () => ProcessStateAsync(context, inline: false));
+            }
+            finally
+            {
+                _heartbeatGate.Release();
+            }
         }
 
         /// <summary>
@@ -509,9 +525,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         // Reseting the timer at the end to avoid multiple calls if it at the same time.
                         _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
-
-                        // Release all threads waiting for a heartbeat to complete
-                        _heartbeatGate.Release(-_heartbeatGate.CurrentCount);
                     }
                 }
             }
@@ -1278,8 +1291,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Contract.Requires(failure != null);
 
             // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
-            // restores, avoids redundant logging.
+            // restores, avoids redundant logging. This is a non-blocking check, so there is no need to WaitAsync.
+#pragma warning disable AsyncFixer02
             if (!_databaseInvalidationGate.Wait(0))
+#pragma warning restore AsyncFixer02
             {
                 return;
             }
@@ -1288,13 +1303,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
 
-                if (!ShutdownStarted)
-                {
-                    _heartbeatTimer.Change(TimeSpan.FromSeconds(0), Timeout.InfiniteTimeSpan);
-
-                    // Wait until the next heartbeat completes
-                    await _heartbeatGate.WaitAsync();
-                }
+                // We can safely ignore errors, because there is nothing more we can do here.
+                await HeartbeatAsync(context).IgnoreErrors();
             }
             finally
             {

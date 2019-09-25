@@ -54,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.App
             {
                 var bandwidthCheckConfig = bandwidthCheckIntervalSeconds > 0
                     ? new BandwidthChecker.Configuration(TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds), minimumBandwidthMbPerSec, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null)
-                    : BandwidthChecker.Configuration.Default;
+                    : BandwidthChecker.Configuration.Disabled;
 
                 using (var clientCache = new GrpcCopyClientCache(context, bandwidthCheckConfig))
                 using (var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompressionForCopies).GetAwaiter().GetResult())

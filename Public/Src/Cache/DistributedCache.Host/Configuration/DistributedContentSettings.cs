@@ -293,13 +293,13 @@ namespace BuildXL.Cache.Host.Configuration
         public int BandwidthCheckIntervalSeconds { get; set; } = 60;
 
         [DataMember]
-        public double? MaxBandwidthLimit { get; } = null;
+        public double MaxBandwidthLimit { get; } = double.MaxValue;
 
         [DataMember]
-        public double? BandwidthLimitMultiplier { get; } = null;
+        public double BandwidthLimitMultiplier { get; } = 1;
 
         [DataMember]
-        public int? HistoricalBandwidthRecordsStored { get; } = null;
+        public int HistoricalBandwidthRecordsStored { get; } = 64;
         #endregion
 
         #region Pin Better

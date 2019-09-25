@@ -42,6 +42,39 @@ namespace Npm {
     }
 
     @@public
+    export function installFromPackageJson(workingDirectory : Directory, nodeModulesPath : Directory) : Directory {
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.input(Node.npmCli)),
+            Cmd.argument("install")
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            outputs: [
+                nodeModulesPath
+            ]
+        });
+    }
+
+    @@public
+    export function runCompile(folder : Directory, outPath : Directory) : void {
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.input(Node.npmCli)),
+            Cmd.argument("run"),
+            Cmd.argument("compile")
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: folder,
+            outputs: [
+                outPath
+            ]
+        });
+    }
+
+    @@public
     export interface Arguments {
         name: string,
         version: string,

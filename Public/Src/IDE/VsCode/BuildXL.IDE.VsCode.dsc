@@ -8,6 +8,7 @@ import * as Transformers from "Sdk.Transformers";
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Branding from "BuildXL.Branding";
 import * as VSIntegration from "BuildXL.Ide.VsIntegration";
+import {Node, Npm} from "Sdk.NodeJs";
 
 namespace LanguageService.Server {
 
@@ -55,6 +56,10 @@ namespace LanguageService.Server {
         let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`);
         let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
 
+        const extensionSourceFolder = Context.getNewOutputDirectory(`VsixTemp`);
+        Npm.installFromPackageJson(d`client`, d`${extensionSourceFolder}/node_modules`);
+        Npm.runCompile(d`client`, d`${extensionSourceFolder}/out`);
+
         const vsixDeployment: Deployment.Definition = {
             contents: [
                 {
@@ -96,11 +101,9 @@ namespace LanguageService.Server {
                         Branding.pngFile,
                         json,
 
-                        // This contains the actual extension source as well as the
-                        // node_modules that it depends on.
                         Transformer.sealDirectory({
-                            root: d`pluginTemplate/extension`, 
-                            files: globR(d`pluginTemplate/extension`)
+                            root: extensionSourceFolder, 
+                            files: globR(extensionSourceFolder)
                         }),
                     ]
                 },

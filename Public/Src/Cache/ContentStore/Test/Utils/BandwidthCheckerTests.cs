@@ -60,7 +60,8 @@ namespace ContentStoreTest.Utils
             var actualBandwidth = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec);
             var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec / 2); // Lower limit is half actual bandwidth
             var totalBytes = actualBandwidthBytesPerSec * 2;
-            var checker = new BandwidthChecker(new ConstantBandwidthLimit(bandwidthLimit), checkInterval);
+            var checkerConfig = new BandwidthChecker.Configuration(checkInterval, bandwidthLimit, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null);
+            var checker = new BandwidthChecker(checkerConfig);
 
             using (var stream = new MemoryStream())
             {
@@ -76,7 +77,8 @@ namespace ContentStoreTest.Utils
             var actualBandwidth = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec);
             var bandwidthLimit = MbPerSec(bytesPerSec: actualBandwidthBytesPerSec * 2); // Lower limit is twice actual bandwidth
             var totalBytes = actualBandwidthBytesPerSec * 2;
-            var checker = new BandwidthChecker(new ConstantBandwidthLimit(bandwidthLimit), checkInterval);
+            var checkerConfig = new BandwidthChecker.Configuration(checkInterval, bandwidthLimit, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null);
+            var checker = new BandwidthChecker(checkerConfig);
 
             using (var stream = new MemoryStream())
             {

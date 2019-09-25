@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
@@ -67,15 +68,9 @@ namespace BuildXL.Cache.ContentStore.App
                     grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
                 }
 
-                var (minimumSpeedInMbPerSec, bandwidthCheckIntervalSeconds) = dcs.GetBandwidthCheckSettings();
-                var copyClientConfig = new GrpcCopyClient.Configuration(
-                    bandwidthCheckInterval: TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds),
-                    minimumBandwidthMbPerSec: minimumSpeedInMbPerSec,
-                    clientBufferSize: bufferSizeForGrpcCopies);
-
                 var grpcCopier = new GrpcFileCopier(
                             context: new Interfaces.Tracing.Context(_logger),
-                            clientConfig: copyClientConfig,
+                            bandwidthCheckConfig: BandwidthChecker.Configuration.FromDistributedContentSettings(dcs),
                             grpcPort: grpcPort,
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,

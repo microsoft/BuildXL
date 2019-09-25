@@ -16,12 +16,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// Cache for <see cref="GrpcCopyClient"/>.
         /// </summary>
         /// <param name="context">Content.</param>
-        /// <param name="clientConfig">Configuration for created clients.</param>
+        /// <param name="bandwidthCheckConfig">Bandwidth check configuration for created clients.</param>
         /// <param name="maxClientCount">Maximum number of clients to cache.</param>
         /// <param name="maxClientAgeMinutes">Maximum age of cached clients.</param>
         /// <param name="waitBetweenCleanupMinutes">Minutes to wait between cache purges.</param>
-        public GrpcCopyClientCache(Context context, GrpcCopyClient.Configuration clientConfig, int maxClientCount = 512, int maxClientAgeMinutes = 55, int waitBetweenCleanupMinutes = 17)
-            : base(context, maxClientCount, maxClientAgeMinutes, waitBetweenCleanupMinutes, (key) => new GrpcCopyClient(key, clientConfig))
+        /// <param name="bufferSize">Buffer size used to read files from disk.</param>
+        public GrpcCopyClientCache(Context context, BandwidthChecker.Configuration bandwidthCheckConfig, int maxClientCount = 512, int maxClientAgeMinutes = 55, int waitBetweenCleanupMinutes = 17, int? bufferSize = null)
+            : base(context, maxClientCount, maxClientAgeMinutes, waitBetweenCleanupMinutes, (key) => new GrpcCopyClient(key, bufferSize, bandwidthCheckConfig))
         {
         }
 

@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -40,7 +39,7 @@ namespace ContentStoreTest.Distributed.Stores
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
-            _clientCache = new GrpcCopyClientCache(_context, GrpcCopyClient.Configuration.Default, maxClientCount: 65536);
+            _clientCache = new GrpcCopyClientCache(_context, BandwidthChecker.Configuration.Disabled, maxClientCount: 65536);
         }
 
         [Fact]
@@ -98,8 +97,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             int maxClientCount = 10;
             var clientWrapperList = new List<(ResourceWrapper<GrpcCopyClient> Wrapper, GrpcCopyClient Client)>();
-            var clientConfig = new GrpcCopyClient.Configuration(bandwidthCheckInterval: TimeSpan.FromSeconds(30), minimumBandwidthMbPerSec: null, clientBufferSize: 65536);
-            _clientCache = new GrpcCopyClientCache(_context, clientConfig, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30);
+            _clientCache = new GrpcCopyClientCache(_context, BandwidthChecker.Configuration.Disabled, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30, bufferSize: 65536);
 
             for (int i = 0; i < maxClientCount; i++)
             {

@@ -39,41 +39,14 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, Configuration config)
+        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize, BandwidthChecker.Configuration config)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
-            _bufferSize = config.ClientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
-            var bandwidthSource = config.MinimumBandwidthMbPerSec == null
-                ? (IBandwidthLimitSource) new HistoricalBandwidthLimitSource()
-                : new ConstantBandwidthLimit(config.MinimumBandwidthMbPerSec.Value);
-            _bandwidthChecker = new BandwidthChecker(bandwidthSource, config.BandwidthCheckInterval);
+            _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
+            _bandwidthChecker = new BandwidthChecker(config);
             Key = key;
-        }
-
-        /// <nodoc />
-        public struct Configuration
-        {
-            /// <nodoc />
-            public Configuration(TimeSpan bandwidthCheckInterval, double? minimumBandwidthMbPerSec, int? clientBufferSize)
-            {
-                BandwidthCheckInterval = bandwidthCheckInterval;
-                MinimumBandwidthMbPerSec = minimumBandwidthMbPerSec;
-                ClientBufferSize = clientBufferSize;
-            }
-
-            /// <nodoc />
-            public static readonly Configuration Default = new Configuration(TimeSpan.FromSeconds(30), null, null);
-
-            /// <nodoc />
-            public TimeSpan BandwidthCheckInterval { get; }
-
-            /// <nodoc />
-            public double? MinimumBandwidthMbPerSec { get; }
-
-            /// <nodoc />
-            public int? ClientBufferSize { get; }
         }
 
         /// <inheritdoc />

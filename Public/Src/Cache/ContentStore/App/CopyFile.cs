@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
 using Microsoft.Practices.TransientFaultHandling;
 
@@ -51,11 +52,11 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                var copyClientConfig = bandwidthCheckIntervalSeconds > 0
-                    ? new GrpcCopyClient.Configuration(TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds), minimumBandwidthMbPerSec, clientBufferSize: null)
-                    : GrpcCopyClient.Configuration.Default;
+                var bandwidthCheckConfig = bandwidthCheckIntervalSeconds > 0
+                    ? new BandwidthChecker.Configuration(TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds), minimumBandwidthMbPerSec, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null)
+                    : BandwidthChecker.Configuration.Default;
 
-                using (var clientCache = new GrpcCopyClientCache(context, copyClientConfig))
+                using (var clientCache = new GrpcCopyClientCache(context, bandwidthCheckConfig))
                 using (var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompressionForCopies).GetAwaiter().GetResult())
                 {
                     var rpcClient = rpcClientWrapper.Value;

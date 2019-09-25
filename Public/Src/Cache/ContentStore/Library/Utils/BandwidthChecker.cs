@@ -89,32 +89,18 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                         // Copy is not completed and operation has not been canceled, perform
                         // bandwidth check 
-                        try
-                        {
-                            var position = destinationStream.Position;
 
-                            var receivedMiB = (position - previousPosition) / BytesInMb;
-                            var currentSpeed = receivedMiB / _checkInterval.TotalSeconds;
-                            if (currentSpeed < minimumSpeedInMbPerSec)
-                            {
-                                throw new TimeoutException($"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied]");
-                            }
+                        // Capture how many bytes have been copied total
+                        long position = destinationStream.Position;
 
-                            previousPosition = position;
-                        }
-                        catch (ObjectDisposedException)
+                        string checkResult = CheckSufficientBandwidth(position, previousPosition, minimumSpeedInMbPerSec, _checkInterval.TotalSeconds);
+                        if (checkResult != null)
                         {
-                            // If the check task races with the copy completing, it might attempt to check the position of a disposed stream.
-                            // Don't bother logging because the copy completed successfully.
+                            throw new TimeoutException(checkResult); // checkResult set when insufficient bandwidth found
                         }
-                        catch (Exception ex)
-                        {
-                            var errorMessage = $"Exception thrown while checking bandwidth: {ex}";
 
-                            // Erring on the side of caution; if something went wrong with the copy, return to avoid spin-logging the same exception.
-                            // Converting TaskCanceledException to TimeoutException because the clients should know that the operation was cancelled due to timeout.
-                            throw new TimeoutException(errorMessage, ex);
-                        }
+                        // New starting point for the next time interval
+                        previousPosition = position;
                     }
                 }
                 finally
@@ -127,6 +113,31 @@ namespace BuildXL.Cache.ContentStore.Utils
                     }
                 }
             }
+        }
+
+        private static string CheckSufficientBandwidth(long position, long previousPosition, double minimumSpeedInMbPerSec, double bandwidthCheckIntervalSeconds)
+        {
+            double receivedMiB = (position - previousPosition) / BytesInMb;             // Calculate the total bytes of throughput in the last time interval
+            double averageSpeed = receivedMiB / bandwidthCheckIntervalSeconds;          // Calculate the rate of transfer in the last time interval
+
+            // Check whether the transfer has kept up with the minimal acceptable rate
+            if (averageSpeed < minimumSpeedInMbPerSec)
+            {
+                string errorMessage =
+                    $"Received {receivedMiB}MiB in {bandwidthCheckIntervalSeconds}s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied]";
+                return errorMessage;
+            }
+
+            // minimumSpeedInBmPerSec can be 0.
+            // To prevent hangs in this case we check that the position has moved forward.
+            if (previousPosition == position)
+            {
+                string errorMessage =
+                    $"Received 0 bytes in {bandwidthCheckIntervalSeconds}s. Aborting copy with {position} copied]";
+                return errorMessage;
+            }
+
+            return null;
         }
     }
 }

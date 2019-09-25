@@ -5,7 +5,6 @@ extern alias Async;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,7 +61,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             return new GrpcCacheClient(sessionTracer, fileSystem, rpcConfiguration.GrpcPort, configuration.Scenario, rpcConfiguration.HeartbeatInterval);
         }
 
-        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false) where TResult : ResultBase
+        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false, string additionalStopMessage = null) where TResult : ResultBase
         {
             return WithOperationContext(context, cts,
                 operationContext =>
@@ -76,7 +75,8 @@ namespace BuildXL.Cache.MemoizationStore.Service
                         caller: caller,
                         counter: counter,
                         traceOperationStarted: false,
-                        traceErrorsOnly: traceErrorsOnly);
+                        traceErrorsOnly: traceErrorsOnly,
+                        extraEndMessage: additionalStopMessage == null ? (Func<TResult, string>)null : _ => additionalStopMessage);
                 });
         }
 
@@ -118,7 +118,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 (ctx, client) => client.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
                 counter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectors],
                 retryCounter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectorsRetries],
-                traceErrorsOnly: true);
+                additionalStopMessage: $"WeakFingerprint=[{weakFingerprint}]");
         }
 
         /// <inheritdoc />

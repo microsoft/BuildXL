@@ -29,9 +29,7 @@ namespace BuildXL.Cache.ContentStore.App
             [Required, Description("Path to destination file")] string destinationPath,
             [Description("Whether or not GZip is enabled"), DefaultValue(false)] bool useCompressionForCopies,
             [Description("File name where the GRPC port can be found when using cache service. 'CASaaS GRPC port' if not specified")] string grpcPortFileName,
-            [Description("The GRPC port"), DefaultValue(0)] int grpcPort,
-            [Description("Interval at which to check the bandwidth. 0 will disable bandwidth checks"), DefaultValue(0)] int bandwidthCheckIntervalSeconds,
-            [Description("Minimum bandwidth required. Null will enable historical bandwidth check."), DefaultValue(null)] double? minimumBandwidthMbPerSec)
+            [Description("The GRPC port"), DefaultValue(0)] int grpcPort)
         {
             Initialize();
 
@@ -52,11 +50,7 @@ namespace BuildXL.Cache.ContentStore.App
 
             try
             {
-                var bandwidthCheckConfig = bandwidthCheckIntervalSeconds > 0
-                    ? new BandwidthChecker.Configuration(TimeSpan.FromSeconds(bandwidthCheckIntervalSeconds), minimumBandwidthMbPerSec, maxBandwidthLimit: null, bandwidthLimitMultiplier: null, historicalBandwidthRecordsStored: null)
-                    : BandwidthChecker.Configuration.Disabled;
-
-                using (var clientCache = new GrpcCopyClientCache(context, bandwidthCheckConfig))
+                using (var clientCache = new GrpcCopyClientCache(context))
                 using (var rpcClientWrapper = clientCache.CreateAsync(host, grpcPort, useCompressionForCopies).GetAwaiter().GetResult())
                 {
                     var rpcClient = rpcClientWrapper.Value;

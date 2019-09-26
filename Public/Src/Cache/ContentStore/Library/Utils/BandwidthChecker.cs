@@ -109,7 +109,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                             var currentSpeed = receivedMiB / _config.BandwidthCheckInterval.TotalSeconds;
                             if (currentSpeed == 0 || currentSpeed < minimumSpeedInMbPerSec)
                             {
-                                throw new TimeoutException($"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied]");
+                                throw new BandwidthTooLowException($"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied]");
                             }
 
                             previousPosition = position;
@@ -134,7 +134,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <nodoc />
-        public struct Configuration
+        public class Configuration
         {
             /// <nodoc />
             public Configuration(TimeSpan bandwidthCheckInterval, double? minimumBandwidthMbPerSec, double? maxBandwidthLimit, double? bandwidthLimitMultiplier, int? historicalBandwidthRecordsStored)
@@ -186,6 +186,16 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             /// <nodoc />
             public int HistoricalBandwidthRecordsStored { get; }
+        }
+    }
+
+    /// <nodoc />
+    public class BandwidthTooLowException : Exception
+    {
+        /// <nodoc />
+        public BandwidthTooLowException(string message)
+            : base(message)
+        {
         }
     }
 }

@@ -32,13 +32,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         /// <summary>
         /// Constructor for <see cref="GrpcFileCopier"/>.
         /// </summary>
-        public GrpcFileCopier(Context context, BandwidthChecker.Configuration bandwidthCheckConfig, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, int grpcClientCleanupDelayMinutes, bool useCompression = false, int? bufferSize = null)
+        public GrpcFileCopier(Context context, int grpcPort, int maxGrpcClientCount, int maxGrpcClientAgeMinutes, int grpcClientCleanupDelayMinutes, bool useCompression = false, int? bufferSize = null)
         {
             _context = context;
             _grpcPort = grpcPort;
             _useCompression = useCompression;
 
-            _clientCache = new GrpcCopyClientCache(context, bandwidthCheckConfig, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize);
+            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize);
         }
 
         /// <inheritdoc />
@@ -50,19 +50,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
                 return await clientWrapper.Value.CheckFileExistsAsync(_context, contentHash);
-            }
-        }
-
-        /// <inheritdoc />
-        public async Task<CopyFileResult> CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-        {
-            // Extract host and contentHash from sourcePath
-            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
-
-            // Contact hard-coded port on source
-            using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
-            {
-                return await clientWrapper.Value.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
         }
 

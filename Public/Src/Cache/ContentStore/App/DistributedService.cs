@@ -70,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.App
 
                 var grpcCopier = new GrpcFileCopier(
                             context: new Interfaces.Tracing.Context(_logger),
-                            bandwidthCheckConfig: BandwidthChecker.Configuration.FromDistributedContentSettings(dcs),
                             grpcPort: grpcPort,
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,

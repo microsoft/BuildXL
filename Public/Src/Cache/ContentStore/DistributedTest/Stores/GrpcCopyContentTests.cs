@@ -39,7 +39,7 @@ namespace ContentStoreTest.Distributed.Stores
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
-            _clientCache = new GrpcCopyClientCache(_context, BandwidthChecker.Configuration.Disabled, maxClientCount: 65536);
+            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: 65536);
         }
 
         [Fact]
@@ -97,7 +97,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             int maxClientCount = 10;
             var clientWrapperList = new List<(ResourceWrapper<GrpcCopyClient> Wrapper, GrpcCopyClient Client)>();
-            _clientCache = new GrpcCopyClientCache(_context, BandwidthChecker.Configuration.Disabled, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30, bufferSize: 65536);
+            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: maxClientCount, maxClientAgeMinutes: 63, waitBetweenCleanupMinutes: 30, bufferSize: 65536);
 
             for (int i = 0; i < maxClientCount; i++)
             {

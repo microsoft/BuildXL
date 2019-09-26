@@ -83,7 +83,7 @@ namespace ContentStoreTest.Utils
             using (var stream = new MemoryStream())
             {
                 await Assert.ThrowsAsync(
-                    typeof(TimeoutException),
+                    typeof(BandwidthTooLowException),
                     async () => await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream));
             }
         }

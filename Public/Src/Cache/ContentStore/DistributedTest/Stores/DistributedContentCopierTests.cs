@@ -50,7 +50,7 @@ namespace ContentStoreTest.Distributed.Stores
                     size: 42,
                     new MachineLocation[] {new MachineLocation("")});
 
-                mockFileCopier.CopyFileAsyncResult = CopyFileResult.SuccessWithSize(41);
+                mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(41);
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
@@ -78,7 +78,7 @@ namespace ContentStoreTest.Distributed.Stores
                     size: 42,
                     new MachineLocation[] {new MachineLocation("")});
 
-                mockFileCopier.CopyFileAsyncResult = CopyFileResult.SuccessWithSize(42);
+                mockFileCopier.CopyToAsyncResult = CopyFileResult.SuccessWithSize(42);
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
@@ -107,7 +107,7 @@ namespace ContentStoreTest.Distributed.Stores
                     size: 99,
                     new MachineLocation[] { new MachineLocation("") });
 
-                mockFileCopier.CopyFileAsyncResult = new CopyFileResult(CopyFileResult.ResultCode.SourcePathError);
+                mockFileCopier.CopyToAsyncResult = new CopyFileResult(CopyFileResult.ResultCode.SourcePathError);
                 var result = await distributedCopier.TryCopyAndPutAsync(
                     new OperationContext(context),
                     hashWithLocations,
@@ -122,7 +122,7 @@ namespace ContentStoreTest.Distributed.Stores
         {
             var mockFileCopier = new MockFileCopier();
             var existenceChecker = new TestFileCopier();
-            var contentCopier = new DistributedContentCopier<AbsolutePath>(
+            var contentCopier = new TestDistributedContentCopier(
                 rootDirectory,
                 // Need to use exactly one retry.
                 new DistributedContentStoreSettings() { RetryIntervalForCopies = Enumerable.Range(0, retries).Select(r => TimeSpan.Zero).ToArray() },
@@ -134,6 +134,27 @@ namespace ContentStoreTest.Distributed.Stores
                 new MockContentLocationStore());
             await contentCopier.StartupAsync(context).ThrowIfFailure();
             return (contentCopier, mockFileCopier);
+        }
+
+        private class TestDistributedContentCopier : DistributedContentCopier<AbsolutePath>
+        {
+            public TestDistributedContentCopier(
+            AbsolutePath workingDirectory,
+            DistributedContentStoreSettings settings,
+            IAbsFileSystem fileSystem,
+            IFileCopier<AbsolutePath> fileCopier,
+            IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
+            ICopyRequester copyRequester,
+            IPathTransformer<AbsolutePath> pathTransformer,
+            IContentLocationStore contentLocationStore)
+                : base(workingDirectory, settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, contentLocationStore)
+            {
+            }
+
+            protected override Task<CopyFileResult> CopyFileAsync(IFileCopier<AbsolutePath> copier, AbsolutePath sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
+            {
+                return copier.CopyToAsync(sourcePath, null, expectedContentSize, cancellationToken);
+            }
         }
 
         private class NoOpPathTransformer : TestPathTransformer
@@ -250,24 +271,17 @@ namespace ContentStoreTest.Distributed.Stores
 
         private class MockFileCopier : IFileCopier
         {
-            public CopyFileResult CopyFileAsyncResult;
             public int CopyAttempts = 0;
-
-            /// <inheritdoc />
-            public Task<CopyFileResult> CopyFileAsync(PathBase path, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-            {
-                CopyAttempts += 1;
-
-                return Task.FromResult(CopyFileAsyncResult);
-            }
-
 #pragma warning disable 649
             public CopyFileResult CopyToAsyncResult;
 #pragma warning restore 649
 
             /// <inheritdoc />
             public Task<CopyFileResult> CopyToAsync(PathBase sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
-                => Task.FromResult(CopyToAsyncResult);
+            {
+                CopyAttempts++;
+                return Task.FromResult(CopyToAsyncResult);
+            }
 
 #pragma warning disable 649
             public FileExistenceResult CheckFileExistsAsyncResult;

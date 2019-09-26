@@ -20,20 +20,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         where T : PathBase
     {
         /// <summary>
-        /// Copies a file represented by the path into the destination absolute path
-        /// specified. Overwrites the destination if required.
-        /// </summary>
-        /// <exception cref="CopyFileResult">
-        /// throws the exception if the copy fails because the source path is not available.
-        /// </exception>
-        /// <param name="path">the source opaque path to copy from</param>
-        /// <param name="destinationPath">the destination absolute path to copy into</param>
-        /// <param name="contentSize">size of content</param>
-        /// <param name="overwrite">whether or not to overwrite the destination path if it exists.</param>
-        /// <param name="cancellationToken">the cancellation token</param>
-        Task<CopyFileResult> CopyFileAsync(T path, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken);
-
-        /// <summary>
         /// Copies a file represented by the path into the stream specified.
         /// </summary>
         /// <param name="sourcePath">The source opaque path to copy from.</param>

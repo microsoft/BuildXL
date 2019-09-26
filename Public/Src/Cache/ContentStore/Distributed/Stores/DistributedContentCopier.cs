@@ -47,7 +47,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly DistributedContentStoreSettings _settings;
         private readonly IAbsFileSystem _fileSystem;
-        private readonly Dictionary<HashType, IContentHasher> _hashers;
 
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
 
@@ -83,9 +82,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _fileSystem = fileSystem;
 
             _workingDirectory = _tempFolderForCopies.Path;
-
-            // TODO: Use hashers from IContentStoreInternal instead?
-            _hashers = HashInfoLookup.CreateAll();
 
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
@@ -513,7 +509,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
                     using (Stream fileStream = await _fileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
                     using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)new RecordingStream(fileStream, hashInfo.Size) : fileStream)
-                    using (HashingStream hashingStream = _hashers[hashInfo.ContentHash.HashType].CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
+                    using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
                         var copyFileResult = await _remoteFileCopier.CopyToAsync(location, hashingStream, hashInfo.Size, cts);
                         copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;

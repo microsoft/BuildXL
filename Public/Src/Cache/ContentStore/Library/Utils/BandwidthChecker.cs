@@ -127,8 +127,26 @@ namespace BuildXL.Cache.ContentStore.Utils
                     {
                         // Ensure that we signal the copy to cancel
                         copyCancellation.Cancel();
-                        copyTask.FireAndForget(context);
+                        traceCopyTaskFailures(copyTask);
                     }
+                }
+
+                void traceCopyTaskFailures(Task task)
+                {
+                    // When the operation is cancelled, it is possible for the copy operation to fail.
+                    // In this case we still want to trace the failure (but just with the debug severity and not with the error),
+                    // but we should exclude ObjectDisposedException completely.
+                    // That's why we don't use task.FireAndForget but tracing inside the task's continuation.
+                    copyTask.ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                        {
+                            if (!(t.Exception?.InnerException is ObjectDisposedException))
+                            {
+                                context.TraceDebug($"Checked copy failed. {t.Exception}");
+                            }
+                        }
+                    });
                 }
             }
         }

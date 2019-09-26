@@ -5,10 +5,12 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
 
 namespace ContentStoreTest.Utils
@@ -28,7 +30,7 @@ namespace ContentStoreTest.Utils
 
         private static double MbPerSec(double bytesPerSec) => bytesPerSec / (1024 * 1024);
 
-        private static async Task CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec)
+        private static async Task<CopyFileResult> CopyRandomToStreamAtSpeed(CancellationToken token, Stream stream, long totalBytes, double mbPerSec)
         {
             var interval = TimeSpan.FromSeconds(0.1);
             var copied = 0;
@@ -50,6 +52,8 @@ namespace ContentStoreTest.Utils
 
                 await intervalTask;
             }
+
+            return new CopyFileResult();
         }
 
         [Fact]
@@ -65,7 +69,8 @@ namespace ContentStoreTest.Utils
 
             using (var stream = new MemoryStream())
             {
-                await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream);
+                var result = await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream);
+                Assert.True(result.Succeeded);
             }
         }
 
@@ -82,9 +87,8 @@ namespace ContentStoreTest.Utils
 
             using (var stream = new MemoryStream())
             {
-                await Assert.ThrowsAsync(
-                    typeof(BandwidthTooLowException),
-                    async () => await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream));
+                var result = await checker.CheckBandwidthAtIntervalAsync(_context, token => CopyRandomToStreamAtSpeed(token, stream, totalBytes, actualBandwidth), stream);
+                Assert.Equal(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, result.Code);
             }
         }
     }

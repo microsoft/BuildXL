@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
 
@@ -40,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// <param name="context">The context of the operation.</param>
         /// <param name="copyTaskFactory">Function that will trigger the copy.</param>
         /// <param name="destinationStream">Stream into which the copy is being made. Used to meassure bandwidth.</param>
-        public async Task CheckBandwidthAtIntervalAsync(OperationContext context, Func<CancellationToken, Task> copyTaskFactory, Stream destinationStream)
+        public async Task<CopyFileResult> CheckBandwidthAtIntervalAsync(OperationContext context, Func<CancellationToken, Task<CopyFileResult>> copyTaskFactory, Stream destinationStream)
         {
             if (_historicalBandwidthLimitSource != null)
             {
@@ -49,7 +50,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
                 try
                 {
-                    await impl();
+                    return await impl();
                 }
                 finally
                 {
@@ -64,10 +65,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
             else
             {
-                await impl();
+                return await impl();
             }
 
-            async Task impl()
+            async Task<CopyFileResult> impl()
             {
                 // This method should not fail with exceptions because the resulting task may be left unobserved causing an application to crash
                 // (given that the app is configured to fail on unobserved task exceptions).
@@ -90,13 +91,11 @@ namespace BuildXL.Cache.ContentStore.Utils
                         copyCompleted = firstCompletedTask == copyTask;
                         if (copyCompleted)
                         {
-                            await copyTask;
-                            return;
+                            return await copyTask;
                         }
                         else if (context.Token.IsCancellationRequested)
                         {
                             context.Token.ThrowIfCancellationRequested();
-                            return;
                         }
 
                         // Copy is not completed and operation has not been canceled, perform
@@ -109,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                             var currentSpeed = receivedMiB / _config.BandwidthCheckInterval.TotalSeconds;
                             if (currentSpeed == 0 || currentSpeed < minimumSpeedInMbPerSec)
                             {
-                                throw new BandwidthTooLowException($"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied]");
+                                return new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied");
                             }
 
                             previousPosition = position;
@@ -120,6 +119,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                             // Don't bother logging because the copy completed successfully.
                         }
                     }
+
+                    return await copyTask;
                 }
                 finally
                 {

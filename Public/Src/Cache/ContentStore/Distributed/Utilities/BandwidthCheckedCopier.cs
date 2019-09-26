@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,24 +31,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<CopyFileResult> CopyToAsync(T sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
+        public Task<CopyFileResult> CopyToAsync(T sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
-            try
-            {
-                var context = new OperationContext(new Context(_logger), cancellationToken); 
-                CopyFileResult result = null;
-                await _checker.CheckBandwidthAtIntervalAsync(context, async token =>
-                {
-                    result = await _inner.CopyToAsync(sourcePath, destinationStream, expectedContentSize, token);
-                }, destinationStream);
-
-                Contract.Assert(result != null);
-                return result;
-            }
-            catch (BandwidthTooLowException e)
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, e);
-            }
+            var context = new OperationContext(new Context(_logger), cancellationToken);
+            return _checker.CheckBandwidthAtIntervalAsync(context, token => _inner.CopyToAsync(sourcePath, destinationStream, expectedContentSize, token), destinationStream);
         }
     }
 }

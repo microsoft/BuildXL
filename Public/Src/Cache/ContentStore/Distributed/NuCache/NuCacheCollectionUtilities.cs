@@ -237,29 +237,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// process, adding them to the same priority queue. This process repeats until the original enumerable has no
         /// more elements.
         /// </summary>
-        public static IEnumerable<T> QueryAndOrderInPages<T>(this IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query)
+        public static IEnumerable<T> QueryAndOrderInPages<T>(this IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query, float? takeoutFraction = null, int poolMultiplier = 2)
         {
+            Contract.Assert(pageSize > 0);
+            Contract.Assert(takeoutFraction == null || (takeoutFraction > 0 && takeoutFraction <= 1));
+            Contract.Assert(poolMultiplier > 0);
+
+            var poolSize = Math.Max(pageSize * poolMultiplier, pageSize);
+
+            // We either take the fraction given, or a single page at a time
+            var removalFraction = takeoutFraction ?? (1 / poolMultiplier);
+
             var source = original.GetEnumerator();
-            var queue = new PriorityQueue<T>(pageSize * 2, comparer);
+            var pool = new PriorityQueue<T>(poolSize, comparer);
             var sourceHasItems = true;
 
             while (true)
             {
-                if (sourceHasItems && queue.Count < pageSize)
+                if (sourceHasItems && pool.Count < poolSize)
                 {
-                    var itemsToQuery = new List<T>(pageSize);
-                    for (var i = 0; i < pageSize && source.MoveNext(); i++)
+                    // In this branch, we fill the queue up to maximum capacity by querying in batches of size at most
+                    // `pageSize`. Notice that this may be run up to `poolMultiplier` times in a row before producing
+                    // any results.
+                    var batchSize = Math.Min(poolSize - pool.Count, pageSize);
+
+                    var batch = new List<T>(batchSize);
+                    while (batch.Count < batch.Capacity && source.MoveNext())
                     {
-                        itemsToQuery.Add(source.Current);
+                        batch.Add(source.Current);
                     }
 
-                    if (itemsToQuery.Count > 0)
+                    if (batch.Count > 0)
                     {
-                        var results = query(itemsToQuery);
-
-                        foreach (var result in results)
+                        foreach (var candidate in query(batch))
                         {
-                            queue.Push(result);
+                            pool.Push(candidate);
                         }
                     }
                     else
@@ -268,14 +280,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         sourceHasItems = false;
                     }
                 }
-
-                if (queue.Count == 0)
+                else if (pool.Count == 0)
                 {
+                    Contract.Assert(!sourceHasItems);
                     yield break;
                 }
+                else
+                {
+                    Contract.Assert(pool.Count > 0);
 
-                yield return queue.Top;
-                queue.Pop();
+                    int minimumYieldSize;
+                    if (!sourceHasItems)
+                    {
+                        // If the enumerator has no elements left, we know that the queue has the best order possible,
+                        // so we yield everything.
+                        minimumYieldSize = pool.Count;
+                    }
+                    else
+                    {
+                        minimumYieldSize = (int)Math.Floor(removalFraction * pool.Count);
+                        // To guarantee termination, we always yield at least one element
+                        minimumYieldSize = Math.Max(minimumYieldSize, 1);
+                        // Never yield more than one page of results. This is about maintaining baseline accuracy for very large fractions.
+                        minimumYieldSize = Math.Min(minimumYieldSize, pageSize);
+                    }
+
+                    Contract.Assert(minimumYieldSize <= pool.Count);
+                    for (var i = 0; i < minimumYieldSize; ++i) {
+                        yield return pool.Top;
+                        pool.Pop();
+                    }
+                }
             }
         }
 

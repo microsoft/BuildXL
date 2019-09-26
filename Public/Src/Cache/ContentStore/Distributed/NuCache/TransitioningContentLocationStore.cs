@@ -261,6 +261,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
+            // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove
+            // content until we are within quota; however, it is too slow to do that in a non-batched manner, so we
+            // return batches here, trying to do the minimum amount of work we can.
+
+            // NOTE(jubayard, 09/25/2019): workload is 600k to 12M entries, avg of 2M, stdev of 800k.
+            // contentHashesWithInfo is sorted by (local) LastAccessTime in descending order (Least Recently Used).
             if (contentHashesWithInfo.Count != 0)
             {
                 var first = contentHashesWithInfo[0];
@@ -271,21 +277,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var operationContext = new OperationContext(context);
 
+            // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
+            // information, so we instead have an evictability metric. Here we obtain and sort by that evictability
+            // metric.
             var pageSize = _configuration.EvictionWindowSize;
+            var poolMultiplier = _configuration.MaximumEvictionPoolMultiplier;
+
+            float? takeoutFraction = null;
+            if (contentHashesWithInfo.Count > 0)
+            {
+                // We want to remove roughly the size of the pool divided by the amount of content at each iteration
+                takeoutFraction = 1 / contentHashesWithInfo.Count;
+            }
 
             // Assume that EffectiveLastAccessTime will always have a value.
             var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
 
-            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> query =
-                page => _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
+            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> intoEffectiveLastAccessTimes =
+                page => _localLocationStore.GetEffectiveLastAccessTimes(
+                            operationContext,
+                            page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
 
             // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var localOldest = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
-            var localMid = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
+            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, intoEffectiveLastAccessTimes, takeoutFraction, poolMultiplier);
+            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, intoEffectiveLastAccessTimes, takeoutFraction, poolMultiplier);
 
-            var mergedEnumerables = NuCacheCollectionUtilities.MergeOrdered(localOldest, localMid, comparer);
-            return mergedEnumerables.GetPages(pageSize);
+            var sorted = NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer);
+            return sorted.GetPages(pageSize);
         }
 
         /// <inheritdoc />

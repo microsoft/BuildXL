@@ -201,10 +201,22 @@ namespace BuildXL.Cache.Host.Configuration
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
         /// <summary>
-        /// Indicates the window size for executing eviction.
+        /// Number of records to compute evictability at once for. This determines -and delimits- how much we hit LLS
+        /// at once. The larger this number is, the more taxing eviction is to LLS, but also the more accurate it is.
         /// </summary>
         [DataMember]
         public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
+        /// Amount of pages to compute evictability metric for before determining eviction order. The larger this is,
+        /// the slower and more resources eviction takes, but also the more accurate it becomes.
+        /// </summary>
+        /// <remarks>
+        /// When running eviction, up to <see cref="EvictionWindowSize"/> * <see cref="MaximumEvictionPoolMultiplier"/>
+        /// may be kept in memory at any time.
+        /// </remarks>
+        [DataMember]
+        public int MaximumEvictionPoolMultiplier { get; set; } = 2;
 
         private int[] _retryIntervalForCopiesMs =
             new int[]

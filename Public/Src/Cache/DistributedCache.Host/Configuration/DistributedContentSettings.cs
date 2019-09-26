@@ -141,7 +141,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// Whether to use old (original) implementation of QuotaKeeper or to use the new one.
         /// </summary>
         [DataMember]
-        public bool UseLegacyQuotaKeeperImplementation { get; set; } = true;
+        public bool UseLegacyQuotaKeeperImplementation { get; set; } = false;
 
         /// <summary>
         /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.

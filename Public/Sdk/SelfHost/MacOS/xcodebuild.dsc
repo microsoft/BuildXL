@@ -92,9 +92,6 @@ export namespace XCode {
                 Cmd.option("-derivedDataPath ", Artifact.output(args.derivedDataPath)),
                 Cmd.option("-xcconfig ", Artifact.input(args.xcconfig)),
                 Cmd.flag("-allTargets ", args.allTargets),
-                // Currently the xcbuild engine (new build system) has problems parsing conditional variable annotations from xcconfig files.
-                // We force the old build system until that bug has been addressed by Apple, once fixed the next line can be removed!
-                Cmd.rawArgument("-UseModernBuildSystem=NO"),
                 Cmd.args(args.actions)
             ],
             acquireSemaphores: (args.semaphores || []).map(name => <Transformer.SemaphoreInfo>{

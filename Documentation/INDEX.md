@@ -46,7 +46,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Incremental Scheduling](Wiki/Advanced-Features/Incremental-Scheduling.md) TODO: groom
 * [Cancellation](Wiki/How-To-Run-BuildXL/Cancellation-(CtrlC).md)
 * [Resource tuning](Wiki/How-To-Run-BuildXL/Resource-Usage-Configuration.md) todo: groom
-* [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md) TODO: groom
+* [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md)
 * [Scheduler Prioritization](Wiki/Advanced-Features/Scheduler-Prioritization.md) TODO: groom
 * [Server Mode](Wiki/Advanced-Features/Server-Mode.md) TODO: groom
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md) TODO: groom

@@ -441,7 +441,7 @@
 		3C1D7C7A20C025F10069CF65 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1110;
 				ORGANIZATIONNAME = Microsoft;
 				TargetAttributes = {
 					3C1D7C8120C025F10069CF65 = {
@@ -464,6 +464,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 3C1D7C7920C025F10069CF65;
 			productRefGroup = 3C1D7C8320C025F10069CF65 /* Products */;
@@ -696,6 +697,7 @@
 		3C245101219C565400EBC811 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -707,6 +709,7 @@
 		3C245102219C565400EBC811 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_FAST_MATH = YES;

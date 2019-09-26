@@ -44,13 +44,6 @@ static mode_t get_mode(const char *path, int *error)
     return path_stat.st_mode;
 }
 
-static bool exists(const char *path)
-{
-    int error = NO_ERROR;
-    get_mode(path, &error);
-    return error == NO_ERROR;
-}
-
 #pragma mark Process life cycle
 
 void IOHandler::HandleProcessFork(const es_message_t *msg)
@@ -269,31 +262,34 @@ void IOHandler::HandleExchange(const es_message_t *msg)
 void IOHandler::HandleCreate(const es_message_t *msg)
 {
     es_event_create_t create = msg->event.create;
-    
-    PathExtractor ext = PathExtractor(create.target->path.data, create.target->path.length);
+
+    PathExtractor ext = create.destination_type == ES_DESTINATION_TYPE_EXISTING_FILE
+        ? PathExtractor(create.destination.existing_file->path.data, create.destination.existing_file->path.length)
+        : PathExtractor(create.destination.new_path.dir->path.data, create.destination.new_path.dir->path.length);
+
     int error = NO_ERROR;
-    
+
     if (error == NO_ERROR)
     {
         mode_t mode = get_mode(ext.Path(), &error);
-        
+
         bool enforceDirectoryCreation = CheckDirectoryCreationAccessEnforcement(GetFamFlags());
         CheckFunc checker =
             S_ISLNK(mode) ? Checkers::CheckCreateSymlink :
             S_ISREG(mode) ? Checkers::CheckWrite :
             enforceDirectoryCreation ? Checkers::CheckCreateDirectory :
                                        Checkers::CheckProbe;
-        
+
         AccessCheckResult result = CheckAndReport(kOpMacVNodeCreate, ext.Path(), checker, msg, !S_ISREG(mode));
 
         if (result.ShouldDenyAccess())
         {
             // TODO: Deny access
         }
-        
+
         return;
     }
-        
+
     log_error("Failed to report HandleCreate: Error %d\n", error);
 }
 

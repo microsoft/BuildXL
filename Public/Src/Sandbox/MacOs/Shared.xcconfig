@@ -1,4 +1,15 @@
 BUILDXL_CATALINA_BUILD = 0
-BUILDXL_CATALINA_BUILD[sdk=macosx10.15] = 1
+
+// Even on Mojave, XCode 11 comes with SDK 10.15. 
+//
+// Attempting to compile our ES implementation on Mojave fails with 
+//
+//   error: no member named 'target' in 'es_event_create_t'
+//
+// TODO: we need to find a better conditional that is true only
+//       when using SDK 10.15 and running on Catalina
+//
+// BUILDXL_CATALINA_BUILD[sdk=macosx10.15] = 1 
+
 BUILDXL_CATALINA_LIBS[sdk=macosx10.15] = -lEndpointSecurity -lbsm
 OTHER_LDFLAGS = $(inherited) $(BUILDXL_CATALINA_LIBS)

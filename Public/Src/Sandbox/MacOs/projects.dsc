@@ -156,8 +156,8 @@ namespace Sandbox {
             ],
             // For as long as we support the sandbox kernel extension for macOS 10.14, we have to build it with the
             // 10.3 version of Xcode, obtainable from https://developer.apple.com/download/more/. After downloading,
-            // either adjust this path to where you have placed the tool or put everything into your /Applications folder,
-            // renaming the app to 'Xcode_10.3' so the xcodebuild executable can be found!
+            // either adjust this path to where you have placed the tool or put everything into your /Applications
+            // folder, renaming the app to 'Xcode_10.3' so the xcodebuild executable can be found!
             overrideXcodeBuildPath: f`/Applications/Xcode_10.3.app/Contents/Developer/usr/bin/xcodebuild`
         });
         return {

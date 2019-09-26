@@ -4,8 +4,6 @@
 #ifndef IOHandler_hpp
 #define IOHandler_hpp
 
-#if ES_SANDBOX
-
 #include "AccessHandler.hpp"
 
 #define NO_ERROR 0
@@ -48,7 +46,5 @@ public:
     
     void HandleWrite(const es_message_t *msg);
 };
-
-#endif /* ES_SANDBOX */
 
 #endif /* IOHandler_hpp */

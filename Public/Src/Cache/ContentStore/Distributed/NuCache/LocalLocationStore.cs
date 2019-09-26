@@ -1130,7 +1130,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         int replicaCount = 1;
                         DateTime? effectiveLastAccessTime = null;
 
-                        if (TryGetContentLocations(context, contentHash.ContentHash, out var entry))
+                        if (TryGetContentLocations(context, contentHash.Hash, out var entry))
                         {
                             // Use the latest last access time between LLS and local last access time
                             DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
@@ -1157,7 +1157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
                         }
 
-                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.ContentHash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
+                        effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
                     }
 
                     return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);

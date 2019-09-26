@@ -13,14 +13,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <nodoc />
         public ContentHashWithLastAccessTime(ContentHash contentHash, DateTime lastAccessTime)
         {
-            ContentHash = contentHash;
+            Hash = contentHash;
             LastAccessTime = lastAccessTime;
         }
 
         /// <summary>
         ///     Gets the content hash member.
         /// </summary>
-        public ContentHash ContentHash { get; }
+        public ContentHash Hash { get; }
 
         /// <summary>
         ///     Gets the last time the content was accessed.
@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash} LastAccessTime={LastAccessTime}]";
+            return $"[ContentHash={Hash} LastAccessTime={LastAccessTime}]";
         }
     }
 }

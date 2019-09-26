@@ -239,9 +239,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public static IEnumerable<T> QueryAndOrderInPages<T>(this IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query, float? takeoutFraction = null, int poolMultiplier = 2)
         {
-            Contract.Assert(pageSize > 0);
-            Contract.Assert(takeoutFraction == null || (takeoutFraction > 0 && takeoutFraction <= 1));
-            Contract.Assert(poolMultiplier > 0);
+            Contract.Requires(pageSize > 0);
+            Contract.Requires(takeoutFraction == null || (takeoutFraction > 0 && takeoutFraction <= 1));
+            Contract.Requires(poolMultiplier > 0);
 
             var poolSize = Math.Max(pageSize * poolMultiplier, pageSize);
 

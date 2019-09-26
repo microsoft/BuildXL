@@ -238,29 +238,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
         {
-            context.TraceDebug("Waiting on IOGate for RequestCopyFileAsync: " +
-                            $"ContentHash={hash.ToShortString()} " +
-                            $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} ");
-
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
                     var cts = new CancellationTokenSource();
                     cts.CancelAfter(_timeoutForPoractiveCopies);
-                    var innerContext = context.CreateNested(cts.Token);
+                    // Creating new operation context with a new token, but the newly created context 
+                    // still would have the same tracing context to simplify proactive copy trace analysis.
+                    var innerContext = context.WithCancellationToken(cts.Token);
                     return context.PerformOperationAsync(
                         Tracer,
-                        operation: () =>
-                        {
-                            return _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation);
-                        },
+                        operation: () => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
                         traceOperationStarted: false,
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                             $"IOGate.Wait={ts.TotalMilliseconds}ms." +
-                            $"Timeout={cts.Token.IsCancellationRequested}"
+                            $"Timeout={_timeoutForPoractiveCopies}" +
+                            $"TimedOut={cts.Token.IsCancellationRequested}"
                         );
                 },
                 context.Token);

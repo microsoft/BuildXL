@@ -241,7 +241,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
-            return new ContentStoreSettings()
+            var result = new ContentStoreSettings()
             {
                 UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
                 CheckFiles = settings.CheckLocalFiles,
@@ -255,6 +255,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
                 TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
             };
+
+            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => result.SelfCheckProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+
+            return result;
         }
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)

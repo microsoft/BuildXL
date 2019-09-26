@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#if ES_SANDBOX
-
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -342,5 +340,3 @@ void IOHandler::HandleWrite(const es_message_t *msg)
     
     if (path != nullptr) CheckAndReport(kOpKAuthVNodeWrite, path, Checkers::CheckWrite, msg);
 }
-
-#endif /* ES_SANDBOX */

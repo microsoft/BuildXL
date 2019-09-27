@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
 using BuildXL.Utilities;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler
 {
@@ -176,23 +177,30 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipHistoricPerfData Merge(PipHistoricPerfData other)
         {
-            return new PipHistoricPerfData(
-                DefaultTimeToLive,
-                GetMergeResult(DurationInMs, other.DurationInMs),
-                GetMergeResult(PeakMemoryInKB, other.PeakMemoryInKB),
-                (ushort)GetMergeResult(ProcessorsInPercents, other.ProcessorsInPercents),
-                GetMergeResult(DiskIOInKB, other.DiskIOInKB));
+            var durationResult = GetMergeResult(DurationInMs, other.DurationInMs);
+            var peakMemoryResult = GetMergeResult(PeakMemoryInKB, other.PeakMemoryInKB);
+            var processorInPercentResult = GetMergeResult(ProcessorsInPercents, other.ProcessorsInPercents);
+            var diskIOResult = GetMergeResult(DiskIOInKB, other.DiskIOInKB);
+
+            return new PipHistoricPerfData(DefaultTimeToLive, durationResult, peakMemoryResult, (ushort)processorInPercentResult, diskIOResult);
         }
 
         private static uint GetMergeResult(uint oldData, uint newData)
         {
-            // An asymmetric merge that goes up fast but decreases slowly.
-            if (newData > oldData)
+            try
             {
-                return (uint)(newData + (ulong) oldData) / 2;
-            }
+                // An asymmetric merge that goes up fast but decreases slowly.
+                if (newData > oldData)
+                {
+                    return (uint)(newData + (ulong) oldData) / 2;
+                }
 
-            return (uint)((((ulong)oldData * 9) + ((ulong)newData * 1)) / 10);
+                return (uint)((((ulong)oldData * 9) + ((ulong)newData * 1)) / 10);
+            }
+            catch(System.OverflowException ex)
+            {
+                throw new BuildXLException(I($"Failed to merge historic perf data result with old '{oldData} and new {newData}' data values!"), ex);
+            }
         }
     }
 }

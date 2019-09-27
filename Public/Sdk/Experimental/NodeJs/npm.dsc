@@ -42,7 +42,7 @@ namespace Npm {
     }
 
     @@public
-    export function installFromPackageJson(workingStaticDirectory : StaticDirectory) : StaticDirectory {
+    export function installFromPackageJson(workingStaticDirectory : StaticDirectory) : OpaqueDirectory {
         const workingDirectory = workingStaticDirectory.root;
         const nodeModulesPath = d`${workingDirectory}/node_modules`;
         const arguments: Argument[] = [
@@ -63,7 +63,7 @@ namespace Npm {
     }
 
     @@public
-    export function runCompile(workingStaticDirectory : StaticDirectory) : StaticDirectory {
+    export function runCompile(workingStaticDirectory : StaticDirectory) : OpaqueDirectory {
         const workingDirectory = workingStaticDirectory.root;
         const outPath = d`${workingDirectory}/out`;
         const arguments: Argument[] = [

@@ -17,7 +17,6 @@ namespace LanguageService.Server {
      * as well as client resources
      */
     export function buildVsix(serverAssembly: ManagedSdk.Assembly) : DerivedFile {
-
         const vsixDeploymentDefinition = buildVsixDeploymentDefinition(serverAssembly);
 
         // Special "scrubbable" mount should be use for deploying vsix package content.
@@ -35,7 +34,8 @@ namespace LanguageService.Server {
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,
-            fixUnixPermissions: qualifier.targetRuntime === "osx-x64"
+            fixUnixPermissions: qualifier.targetRuntime === "osx-x64",
+            additionalDependencies: vsixDeployment.targetOpaques
         });
 
         return vsix;
@@ -98,27 +98,31 @@ namespace LanguageService.Server {
                             subfolder: a`projectManagement`,
                             contents: globR(d`client/projectManagement`)
                         },
+                        {
+                            subfolder: a`node_modules`,
+                            contents: [ nodeModulesPath ]
+                        },
+                        {
+                            subfolder: a`out`,
+                            contents: [ outPath ]
+                        },
                         f`client/License.txt`,
                         f`client/package.nls.json`,
                         readme,
                         f`client/ThirdPartyNotices.txt`,
                         Branding.pngFile,
                         json,
-
-                        // nodeModulesPath // This one has different errors, need to fix outer ones first
                     ]
                 },
                 f`pluginTemplate/[Content_Types].xml`,
                 manifest,
-                nodeModulesPath,
-                // outPath
             ]
         };
 
         return vsixDeployment;
     }
 
-    function copyDirectory(fromDirectory : Directory, toDirectory : Directory){
+    function copyDirectory(fromDirectory : Directory, toDirectory : Directory): StaticDirectory {
         const onDiskDeployment = Deployment.deployToDisk({
             definition: Deployment.createFromDisk(fromDirectory),
             targetDirectory: toDirectory

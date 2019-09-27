@@ -241,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {contentHash.ToShortString()}: directory query failed with error {lookup.ErrorMessage}");
+                    Tracer.Warning(operationContext, $"Pin failed for hash {contentHash.ToShortString()}: directory query failed with error {lookup.ErrorMessage}");
                     return new PinResult(lookup);
                 }
             }
@@ -299,7 +299,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         return new BoolResult(checkBulkResult);
                     }
 
-                    var copyResult = await TryCopyAndPutAsync(operationContext, hashInfo, operationContext.Token, urgencyHint);
+                    var copyResult = await TryCopyAndPutAsync(operationContext, hashInfo, operationContext.Token, urgencyHint, trace: false);
                     if (!copyResult)
                     {
                         return new BoolResult(copyResult);
@@ -488,14 +488,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             PlaceFileResult result;
                             if (contentHashWithSizeAndLocations.Locations == null)
                             {
-                                Tracer.Debug(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
+                                Tracer.Warning(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
                                 result = new PlaceFileResult(
                                     PlaceFileResult.ResultCode.NotPlacedContentNotFound,
                                     $"No replicas ever registered for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
                             }
                             else if (contentHashWithSizeAndLocations.Locations.Count == 0)
                             {
-                                Tracer.Debug(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
+                                Tracer.Warning(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
                                 result = new PlaceFileResult(
                                     PlaceFileResult.ResultCode.NotPlacedContentNotFound,
                                     $"No remaining replicas for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
@@ -557,7 +557,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (log)
                 {
-                    Tracer.Debug(context, $"No replicas found in content tracker for hash {result.ContentHash.ToShortString()}");
+                    Tracer.Warning(context, $"No replicas found in content tracker for hash {result.ContentHash.ToShortString()}");
                 }
 
                 return new BoolResult($"No replicas registered for hash");
@@ -567,7 +567,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (log)
                 {
-                    Tracer.Debug(context, $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}");
+                    Tracer.Warning(context, $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}");
                 }
 
                 return new BoolResult($"Content for hash is missing from all replicas");
@@ -714,8 +714,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Create an action block to process all the requested remote pins while limiting the number of simultaneously executed.
             var pinnings = new List<RemotePinning>(hashes.Count);
             var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
-            var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local), pinningOptions);
-
+            var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false), pinningOptions);
+            
             // Process the requests in pages so we can make bulk calls, but not too big bulk calls, to the content location store.
             foreach (IReadOnlyList<ContentHash> pageHashes in hashes.GetPages(ContentLocationStore.PageSize))
             {
@@ -738,7 +738,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     foreach (ContentHash hash in pageHashes)
                     {
-                        Tracer.Info(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
+                        Tracer.Warning(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
                         RemotePinning pinning = new RemotePinning() { Record = new ContentHashWithSizeAndLocations(hash, -1L), Result = new PinResult(pageLookup) };
                         pinnings.Add(pinning);
                     }
@@ -760,6 +760,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Ignoring the exception in this case.
             }
 
+            // Inform the content directory that we copied the files.
+            // Looking for distributed pin results that were successful by copying the content locally.
+            var localCopies = pinnings.Select((rp, index) => (result: rp, index)).Where(x => x.result.Result is DistributedPinResult dpr && dpr.CopyLocally).ToList();
+
+            BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, localCopies.Select(lc => new ContentHashWithSize(lc.result.Record.ContentHash, lc.result.Record.Size)).ToList(), cancel, UrgencyHint.Nominal);
+            if (!updated.Succeeded)
+            {
+                // We failed to update the tracker. Need to update the results.
+                string hashesAsString = string.Join(", ", localCopies.Select(lc => lc.result.Record.ContentHash.ToShortString()));
+                Tracer.Warning(operationContext, $"Pin failed for hashes {hashesAsString}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
+                foreach (var (_, index) in localCopies)
+                {
+                    pinnings[index].Result = new PinResult(updated);
+                }
+            }
+
             // The return type should probably be just Task<IList<PinResult>>, but higher callers require the Indexed wrapper and that the PinResults be encased in Tasks.
             return pinnings.Select(x => x.Result ?? createCanceledPutResult()).AsIndexed().AsTasks();
 
@@ -776,14 +792,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         // This method processes each remote pinning, setting the output when the operation is completed.
-        private async Task PinRemoteAsync(OperationContext context, RemotePinning pinning, CancellationToken cancel, bool isLocal)
+        private async Task PinRemoteAsync(
+            OperationContext context,
+            RemotePinning pinning,
+            CancellationToken cancel,
+            bool isLocal,
+            bool updateContentTracker = true)
         {
-            PinResult result = await PinRemoteAsync(context, pinning.Record, cancel, isLocal);
+            PinResult result = await PinRemoteAsync(context, pinning.Record, cancel, isLocal, updateContentTracker);
             pinning.Result = result;
         }
 
         // This method processes a single content location record set for pinning.
-        private async Task<PinResult> PinRemoteAsync(OperationContext operationContext, ContentHashWithSizeAndLocations remote, CancellationToken cancel, bool isLocal)
+        private async Task<PinResult> PinRemoteAsync(
+            OperationContext operationContext,
+            ContentHashWithSizeAndLocations remote,
+            CancellationToken cancel,
+            bool isLocal,
+            bool updateContentTracker = true)
         {
             Contract.Requires(remote != null);
 
@@ -794,7 +820,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (!isLocal)
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
+                    // Trace only when pin failed based on the data from the global store.
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
                 }
 
                 return PinResult.ContentNotFound;
@@ -832,8 +859,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (locations.Count >= minUnverifiedCount)
             {
                 _pinCache?.SetPinInfo(remote.ContentHash, pinCacheTimeToLive);
-                Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: {locations.Count} remote records >= {minUnverifiedCount} required. PinCacheTTL={pinCacheTimeToLive}");
-                return PinResult.Success;
+                return DistributedPinResult.Success($"{locations.Count} replicas");
             }
 
             // If we have enough records that we would be satisfied if they were verified, verify them.
@@ -841,17 +867,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (locations.Count >= minVerifiedCount && DistributedCopier.CurrentIoGateCount > 0)
             {
                 var verify = await VerifyAsync(operationContext, remote, cancel);
-                Tracer.Info(operationContext, $"For hash {remote.ContentHash.ToShortString()}, of {locations.Count} remote records, verified {verify.Present.Count} remote copies present and {verify.Absent.Count} remote copies absent.");
 
                 if (verify.Present.Count >= minVerifiedCount)
                 {
-                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: {verify.Present.Count} verified remote copies >= {minVerifiedCount} required.");
-                    return PinResult.Success;
+                    return DistributedPinResult.Success($"{verify.Present.Count} verified remote copies >= {minVerifiedCount} required");
                 }
 
                 if (verify.Present.Count == 0 && verify.Unknown.Count == 0)
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
                     return PinResult.ContentNotFound;
                 }
 
@@ -871,28 +895,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             // Previous checks were not sufficient, so copy the file locally.
-            PutResult copy = await TryCopyAndPutAsync(operationContext, remote, cancel, UrgencyHint.Nominal);
+            PutResult copy = await TryCopyAndPutAsync(operationContext, remote, cancel, UrgencyHint.Nominal, trace: false);
             if (copy)
             {
+                if (!updateContentTracker)
+                {
+                    return DistributedPinResult.SuccessByLocalCopy();
+                }
+
                 // Inform the content directory that we have the file.
                 // We wait for this to complete, rather than doing it fire-and-forget, because another machine in the ring may need the pinned content immediately.
-                // It would be better to do this in bulk; that would require moving the list of remote pins which completed via this path up to the bulk-pcocessing
-                // methods. Eventually, we should do this.
                 BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, cancel, UrgencyHint.Nominal);
                 if (updated.Succeeded)
                 {
-                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: local copy succeeded.");
-                    return PinResult.Success;
+                    return DistributedPinResult.SuccessByLocalCopy();
                 }
                 else
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
+                    // Tracing the error separately.
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
                     return new PinResult(updated);
                 }
             }
             else
             {
-                Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
+                // Tracing the error separately.
+                Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
                 return PinResult.ContentNotFound;
             }
         }

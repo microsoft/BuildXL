@@ -15,6 +15,11 @@ When a BuildXL developer implements a feature, fixes an important bug, solves an
 - Removed old Microsoft.ContentStoreApp.exe from deployment (replaced with ContentStoreApp.exe)
 - ...
 
+# 0.1.0-20190919.1.4  (Release [41538](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=41538&_a=release-pipeline-progress)). Released 09/26/2019
+- Resource based cancelling with shared opaque output producers.
+- Less data to Kusto telemetry.
+- Reduce the amount of tracing produced by BuildXL’s cache client.
+
 # 0.1.0-20190913.9  (Release [40498](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=40498)). Released 09/19/2019
 - Use proper pip data support for directory id.
 - Augment (strengthen) weak fingerprint with common paths from observed path sets when a certain threshold of path sets is reached.

@@ -238,29 +238,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
         {
-            context.TraceDebug("Waiting on IOGate for RequestCopyFileAsync: " +
-                            $"ContentHash={hash.ToShortString()} " +
-                            $"TargetLocation=[{targetLocation}] " +
-                            $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} ");
-
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
                     var cts = new CancellationTokenSource();
                     cts.CancelAfter(_timeoutForPoractiveCopies);
-                    var innerContext = context.CreateNested(cts.Token);
+                    // Creating new operation context with a new token, but the newly created context 
+                    // still would have the same tracing context to simplify proactive copy trace analysis.
+                    var innerContext = context.WithCancellationToken(cts.Token);
                     return context.PerformOperationAsync(
                         Tracer,
-                        operation: () =>
-                        {
-                            return _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation);
-                        },
+                        operation: () => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
                         traceOperationStarted: false,
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                             $"IOGate.Wait={ts.TotalMilliseconds}ms." +
-                            $"Timeout={cts.Token.IsCancellationRequested}"
+                            $"Timeout={_timeoutForPoractiveCopies}" +
+                            $"TimedOut={cts.Token.IsCancellationRequested}"
                         );
                 },
                 context.Token);
@@ -548,7 +543,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 else
                 {
-                    return await _remoteFileCopier.CopyFileAsync(location, tempDestinationPath, hashInfo.Size, overwrite: true, cancellationToken: cts);
+                    return await CopyFileAsync(_remoteFileCopier, location, tempDestinationPath, hashInfo.Size, overwrite: true, cancellationToken: cts);
                 }
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is IOException)
@@ -562,6 +557,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // any other exceptions are assumed to be bad remote files.
                 return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, ex, ex.ToString());
             }
+        }
+
+        /// <summary>
+        /// Override for testing.
+        /// </summary>
+        protected virtual async Task<CopyFileResult> CopyFileAsync(IFileCopier<T> copier, T sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
+        {
+            const int DefaultBuffersize = 1024 * 80;
+
+            if (!overwrite && File.Exists(destinationPath.Path))
+            {
+                return new CopyFileResult(
+                        CopyFileResult.ResultCode.DestinationPathError,
+                        $"Destination file {destinationPath} exists but overwrite not specified.");
+            }
+
+            var directoryPath = destinationPath.Parent.Path;
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            using var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, DefaultBuffersize, FileOptions.SequentialScan);
+            return await copier.CopyToAsync(sourcePath, stream, expectedContentSize, cancellationToken);
         }
 
         private static int GetBufferSize(ContentHashWithSizeAndLocations hashInfo)

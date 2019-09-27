@@ -158,6 +158,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PlaceFileCoreAsync(operationContext, contentHash, path, accessMode, replacementMode, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PlaceFileRetries]),
+                    extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: (_) => $"input=({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceErrorsOnly: TraceErrorsOnly,
@@ -222,6 +223,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, hashType, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
+                    extraStartMessage: $"({path},{realizationMode},{hashType}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
                     {
@@ -265,6 +267,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutFileCoreAsync(operationContext, contentHash, path, realizationMode, urgencyHint, _counters[ContentSessionBaseCounters.PutFileRetries]),
+                    extraStartMessage: $"({path},{realizationMode},{contentHash.ToShortString()}) trusted=false",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: _ => $"({path},{realizationMode}) trusted=false",
                     traceErrorsOnly: TraceErrorsOnly,
@@ -298,6 +301,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutStreamCoreAsync(operationContext, hashType, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
+                    extraStartMessage: $"({hashType})",
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: _counters[ContentSessionBaseCounters.PutStream]));
@@ -329,6 +333,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
                     () => PutStreamCoreAsync(operationContext, contentHash, stream, urgencyHint, _counters[ContentSessionBaseCounters.PutStreamRetries]),
+                    extraStartMessage: $"({contentHash.ToShortString()})",
                     traceOperationStarted: TraceOperationStarted,
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: _counters[ContentSessionBaseCounters.PutStream]));

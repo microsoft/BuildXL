@@ -42,7 +42,9 @@ namespace Npm {
     }
 
     @@public
-    export function installFromPackageJson(workingDirectory : Directory, nodeModulesPath : Directory) : Directory {
+    export function installFromPackageJson(workingDirectory : Directory) : OpaqueDirectory {
+        const nodeModulesPath = d`${workingDirectory}/node_modules`;
+        Debug.writeLine("Working files Inside: \n" + globR(workingDirectory));
         const arguments: Argument[] = [
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("install")
@@ -52,13 +54,19 @@ namespace Npm {
             arguments: arguments,
             workingDirectory: workingDirectory,
             outputs: [
-                nodeModulesPath
+                {directory: nodeModulesPath, kind: "shared"}
             ]
         });
+        
+        Debug.writeLine("opfile: " + result.getOutputFiles().length);
+        Debug.writeLine("Inside nodeModulesPath: " + result.getOutputDirectory(nodeModulesPath).getContent().length);
+
+        return result.getOutputDirectory(nodeModulesPath);
     }
 
     @@public
-    export function runCompile(folder : Directory, outPath : Directory) : void {
+    export function runCompile(workingDirectory : Directory) : void {
+        const outPath = d`${workingDirectory}/out`;
         const arguments: Argument[] = [
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("run"),
@@ -67,9 +75,9 @@ namespace Npm {
 
         const result = Node.run({
             arguments: arguments,
-            workingDirectory: folder,
+            workingDirectory: workingDirectory,
             outputs: [
-                outPath
+                {directory: outPath, kind: "shared"}
             ]
         });
     }

@@ -230,26 +230,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        /// <summary>
-        /// Takes an enumerable and takes n=pageSize elements from it. Processess the elements with a query, and inserts
-        /// them into a priority queue. It will then continue yielding elements of the queue, until it has less than
-        /// n elements, at which point it will take another n elements from the original enumerable and repeat the
-        /// process, adding them to the same priority queue. This process repeats until the original enumerable has no
-        /// more elements.
-        /// </summary>
-        public static IEnumerable<T> QueryAndOrderInPages<T>(this IEnumerable<T> original, int pageSize, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query, float? takeoutFraction = null, int poolMultiplier = 2)
+
+        /// <nodoc />
+        /// <remarks>
+        /// If <paramref name="poolSize"/> = <paramref name="pageSize"/>, the algorithm fills up the entire pool and
+        /// evicts a fraction of it in every iteration.
+        /// </remarks>
+        public static IEnumerable<T> ApproximateSort<T>(this IEnumerable<T> original, Comparer<T> comparer, Func<List<T>, IEnumerable<T>> query, int poolSize, int pageSize, float removalFraction)
         {
-            Contract.Requires(pageSize > 0);
-            Contract.Requires(takeoutFraction == null || (takeoutFraction > 0 && takeoutFraction <= 1));
-            Contract.Requires(poolMultiplier > 0);
+            Contract.Requires(poolSize > 0);
+            Contract.Requires(pageSize > 0 && pageSize <= poolSize);
+            Contract.Requires(removalFraction > 0 && removalFraction <= 1);
 
-            var poolSize = Math.Max(pageSize * poolMultiplier, pageSize);
-
-            // We either take the fraction given, or a single page at a time
-            var removalFraction = takeoutFraction ?? (1 / poolMultiplier);
+            // The pool holds up to `poolSize` candidates sorted by the comparer
+            var pool = new PriorityQueue<T>(poolSize, comparer);
 
             var source = original.GetEnumerator();
-            var pool = new PriorityQueue<T>(poolSize, comparer);
             var sourceHasItems = true;
 
             while (true)
@@ -257,9 +253,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (sourceHasItems && pool.Count < poolSize)
                 {
                     // In this branch, we fill the queue up to maximum capacity by querying in batches of size at most
-                    // `pageSize`. Notice that this may be run up to `poolMultiplier` times in a row before producing
-                    // any results.
-                    var batchSize = Math.Min(poolSize - pool.Count, pageSize);
+                    // `pageSize`.
+                    int batchSize = Math.Min(poolSize - pool.Count, pageSize);
 
                     var batch = new List<T>(batchSize);
                     while (batch.Count < batch.Capacity && source.MoveNext())
@@ -280,36 +275,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         sourceHasItems = false;
                     }
                 }
-                else if (pool.Count == 0)
+
+                if (pool.Count == 0)
                 {
                     Contract.Assert(!sourceHasItems);
                     yield break;
                 }
+
+                int minimumYieldSize;
+                if (sourceHasItems)
+                {
+                    minimumYieldSize = (int)Math.Floor(removalFraction * pool.Count);
+                    // To guarantee termination, we always yield at least one element
+                    minimumYieldSize = Math.Max(minimumYieldSize, 1);
+                }
                 else
                 {
-                    Contract.Assert(pool.Count > 0);
+                    // If the enumerator has no elements left, we know that the queue has the best order possible,
+                    // so we yield everything.
+                    minimumYieldSize = pool.Count;
+                }
 
-                    int minimumYieldSize;
-                    if (!sourceHasItems)
-                    {
-                        // If the enumerator has no elements left, we know that the queue has the best order possible,
-                        // so we yield everything.
-                        minimumYieldSize = pool.Count;
-                    }
-                    else
-                    {
-                        minimumYieldSize = (int)Math.Floor(removalFraction * pool.Count);
-                        // To guarantee termination, we always yield at least one element
-                        minimumYieldSize = Math.Max(minimumYieldSize, 1);
-                        // Never yield more than one page of results. This is about maintaining baseline accuracy for very large fractions.
-                        minimumYieldSize = Math.Min(minimumYieldSize, pageSize);
-                    }
-
-                    Contract.Assert(minimumYieldSize <= pool.Count);
-                    for (var i = 0; i < minimumYieldSize; ++i) {
-                        yield return pool.Top;
-                        pool.Pop();
-                    }
+                for (var i = 0; i < minimumYieldSize; ++i)
+                {
+                    yield return pool.Top;
+                    pool.Pop();
                 }
             }
         }

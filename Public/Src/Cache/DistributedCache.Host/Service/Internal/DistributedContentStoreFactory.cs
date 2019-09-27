@@ -68,7 +68,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
-                MaximumEvictionPoolMultiplier = _distributedSettings.MaximumEvictionPoolMultiplier,
+                EvictionPoolSize = _distributedSettings.EvictionPoolSize,
+                EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
             };
 

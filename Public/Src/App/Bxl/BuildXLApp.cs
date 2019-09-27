@@ -1439,7 +1439,8 @@ namespace BuildXL
                     Events.Log,
                     m_console,
                     m_baseTime,
-                    buildViewModel
+                    buildViewModel,
+                    m_configuration.UseCustomPipDescriptionOnConsole
                 );
 
                 AddListener(listener);

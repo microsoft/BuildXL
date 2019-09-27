@@ -342,26 +342,34 @@ namespace BuildXL.Utilities.Tracing
                 }
             }
 
+            ProcessCustomPipDescription(ref full, args.Length, useCustomPipDescription);
+
+            return full;
+        }
+
+        /// <summary>
+        /// Removes BuildXL generated pip description if custom privides its own one
+        /// </summary>
+        protected static void ProcessCustomPipDescription(ref string message, int numberOfArgs, bool useCustomPipDescription)
+        {
             // if args is empty, there is no pip description in the final string
-            if (args.Length > 0 && useCustomPipDescription)
+            if (numberOfArgs > 0 && useCustomPipDescription)
             {
                 // check whether there is a pip description in the constructed message
-                int descriptionStartIndex = full.IndexOf("[Pip");
+                int descriptionStartIndex = message.IndexOf("[Pip");
                 if (descriptionStartIndex >= 0)
                 {
-                    int customDescriptionStartIndex = full.IndexOf(CustomPipDescriptionMarker, descriptionStartIndex);
+                    int customDescriptionStartIndex = message.IndexOf(CustomPipDescriptionMarker, descriptionStartIndex);
                     if (customDescriptionStartIndex > descriptionStartIndex)
                     {
-                        int commaAfterPipDescIndex = full.IndexOf(',', descriptionStartIndex);
+                        int commaAfterPipDescIndex = message.IndexOf(',', descriptionStartIndex);
                         // full : "... [PipXXX, <Middle part><Marker><Custom description>..."
                         // remove "<Midle part><Marker>"
                         // full : "... [PipXXX, <Custom description>..."
-                        full = full.Remove(commaAfterPipDescIndex + 2, customDescriptionStartIndex + CustomPipDescriptionMarker.Length - commaAfterPipDescIndex - 2);
+                        message = message.Remove(commaAfterPipDescIndex + 2, customDescriptionStartIndex + CustomPipDescriptionMarker.Length - commaAfterPipDescIndex - 2);
                     }
                 }
             }
-
-            return full;
         }
 
         /// <inheritdoc />

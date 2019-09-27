@@ -179,7 +179,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private static readonly byte[] EmptyByteArray = new byte[0];
             private static readonly Task<bool> TrueTask = Task.FromResult(true);
 
-            private static readonly Stopwatch Stopwatch = Stopwatch.StartNew();
+            private static readonly Stopwatch Timer = Stopwatch.StartNew();
 
             private readonly ActionBlock<Pool<Buffer>.PoolHandle> _hashingBufferBlock;
 
@@ -393,9 +393,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void TransformBlock(byte[] buffer, int offset, int count, byte[] outputBuffer, int outputOffset)
             {
-                var start = Stopwatch.Elapsed;
+                var start = Timer.Elapsed;
                 _hashAlgorithm.TransformBlock(buffer, offset, count, outputBuffer, outputOffset);
-                var elapsed = Stopwatch.Elapsed - start;
+                var elapsed = Timer.Elapsed - start;
                 Interlocked.Add(ref _ticksSpentHashing, elapsed.Ticks);
             }
 

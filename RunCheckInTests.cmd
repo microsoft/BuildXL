@@ -17,7 +17,7 @@ set MINIMAL_LAB=0
 REM These are provided to bxl.cmd only when /lab is specified (automated builds).
 REM For lab builds, log full outputs.
 REM For lab builds, retry unit tests automatically.
-set LAB_SPECIFIC_ARGS=-DisableInteractive /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /ado
+set LAB_SPECIFIC_ARGS=-DisableInteractive /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /ado /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json
 set INTERNAL_BUILD_ARGS=/p:[Sdk.BuildXL]microsoftInternal=1
 
 if not defined [BuildXL.Branding]SemanticVersion (

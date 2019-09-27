@@ -1022,10 +1022,10 @@ namespace BuildXL
             #region Component Governance Manifest 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_CgManifestBanner);
 
-            hw.WriteOption("/generateCgManifestForNugest:<file>",
+            hw.WriteOption("/generateCgManifestForNugets:<file>",
                 Strings.HelpText_DisplayHelp_GenerateCgManifest);
 
-            hw.WriteOption("/validateCgManifestForNugest:<file>",
+            hw.WriteOption("/validateCgManifestForNugets:<file>",
                 Strings.HelpText_DisplayHelp_ValidateCgManifest);
 
             #endregion

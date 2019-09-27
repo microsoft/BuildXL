@@ -81,9 +81,7 @@ namespace BuildXL.FrontEnd.Script
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
 
-                if (Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid &&
-                    // Skip validation when generate and validate file path is the same, since the newly generated file will always be valid
-                    !Configuration.FrontEnd.ValidateCgManifestForNugets.Equals(Configuration.FrontEnd.GenerateCgManifestForNugets))
+                if (Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
                 {
                     // Validate existing CG Manifest with newly generated CG Manifest
                     if (!ValidateCgManifestFile(generatedCgManifest))
@@ -118,7 +116,7 @@ namespace BuildXL.FrontEnd.Script
                     CGManifestResolverName);
                 if (!NugetCgManifestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
                 {
-                    Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
+                    Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:" + Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
                     return false;
                 }
             }

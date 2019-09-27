@@ -2543,6 +2543,7 @@ namespace BuildXL.Scheduler.Artifacts
                     if (result.Succeeded)
                     {
                         state.SetMaterializationSuccess(fileAndIndex.index, result.Result.Origin, operationContext);
+                        m_host.ReportFileArtifactPlaced(fileAndIndex.materializationFile.Artifact);
                         results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
                     }
                     else

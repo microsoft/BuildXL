@@ -42,7 +42,9 @@ namespace Npm {
     }
 
     @@public
-    export function installFromPackageJson(workingDirectory : Directory, nodeModulesPath : Directory) : Directory {
+    export function installFromPackageJson(workingStaticDirectory : StaticDirectory) : StaticDirectory {
+        const workingDirectory = workingStaticDirectory.root;
+        const nodeModulesPath = d`${workingDirectory}/node_modules`;
         const arguments: Argument[] = [
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("install")
@@ -51,14 +53,19 @@ namespace Npm {
         const result = Node.run({
             arguments: arguments,
             workingDirectory: workingDirectory,
+            dependencies : [workingStaticDirectory],
             outputs: [
-                nodeModulesPath
+                {directory: nodeModulesPath, kind: "shared"}
             ]
         });
+        
+        return result.getOutputDirectory(nodeModulesPath);
     }
 
     @@public
-    export function runCompile(folder : Directory, outPath : Directory) : void {
+    export function runCompile(workingStaticDirectory : StaticDirectory) : StaticDirectory {
+        const workingDirectory = workingStaticDirectory.root;
+        const outPath = d`${workingDirectory}/out`;
         const arguments: Argument[] = [
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("run"),
@@ -67,11 +74,14 @@ namespace Npm {
 
         const result = Node.run({
             arguments: arguments,
-            workingDirectory: folder,
+            workingDirectory: workingDirectory,
+            dependencies : [workingStaticDirectory],
             outputs: [
-                outPath
+                {directory: outPath, kind: "shared"}
             ]
         });
+
+        return result.getOutputDirectory(outPath);
     }
 
     @@public

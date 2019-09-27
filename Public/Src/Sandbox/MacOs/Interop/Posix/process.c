@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include <assert.h>
 #include <dispatch/dispatch.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -232,15 +233,34 @@ bool SetupProcessDumps(const char *logsDirectory, /*out*/ char *buffer, size_t b
 
 void RegisterSignalHandlers()
 {
-    // Ignore default signal handlers for the signals we are interested in
-    struct sigaction action = { 0 };
-    action.sa_handler = SIG_IGN;
+    int signals[] =
+    {
+        SIGBUS,
+        SIGILL,
+        SIGHUP,
+        SIGABRT,
+        SIGSEGV
+    };
 
-    int signals[] = { SIGBUS, SIGILL, SIGHUP, SIGABRT, SIGSEGV };
+    void *handler_defaults[] = {
+        SIG_IGN,  // SIGBUS
+        SIG_HOLD, // SIGILL: Can't be ignored, hence we add it to the calling process signal mask
+        SIG_IGN,  // SIGHUP
+        SIG_IGN,  // SIGABRT
+        SIG_IGN   // SIGSEGV
+    };
+
     int signalsLength = sizeof(signals) / sizeof(signals[0]);
+    int defaultsLength = sizeof(handler_defaults) / sizeof(handler_defaults[0]);
+
+    // Make sure we provide default handler behavior for every signal we hijack
+    assert(signalsLength == defaultsLength);
 
     for (int i = 0; i < signalsLength; i++)
     {
+        struct sigaction action = { 0 };
+        action.sa_handler = handler_defaults[i];
+
         int sig = signals[i];
         sigaction(sig, &action, NULL);
 

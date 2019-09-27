@@ -294,6 +294,15 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int BandwidthCheckIntervalSeconds { get; set; } = 60;
+
+        [DataMember]
+        public double MaxBandwidthLimit { get; set; } = double.MaxValue;
+
+        [DataMember]
+        public double BandwidthLimitMultiplier { get; set; } = 1;
+
+        [DataMember]
+        public int HistoricalBandwidthRecordsStored { get; set; } = 64;
         #endregion
 
         #region Pin Better
@@ -572,13 +581,6 @@ namespace BuildXL.Cache.Host.Configuration
 
             return new RedisContentSecretNames(
                 ConnectionSecretNameMap.Single(kvp => Regex.IsMatch(stampId, kvp.Key, RegexOptions.IgnoreCase)).Value);
-        }
-
-        public Tuple<double?, int> GetBandwidthCheckSettings()
-        {
-            return IsDistributedContentEnabled && IsBandwidthCheckEnabled
-                ? Tuple.Create(MinimumSpeedInMbPerSec, BandwidthCheckIntervalSeconds)
-                : null;
         }
 
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()

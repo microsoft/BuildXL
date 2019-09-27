@@ -47,7 +47,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly DistributedContentStoreSettings _settings;
         private readonly IAbsFileSystem _fileSystem;
-        private readonly Dictionary<HashType, IContentHasher> _hashers;
 
         private readonly CounterCollection<DistributedContentCopierCounters> _counters = new CounterCollection<DistributedContentCopierCounters>();
 
@@ -83,9 +82,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _fileSystem = fileSystem;
 
             _workingDirectory = _tempFolderForCopies.Path;
-
-            // TODO: Use hashers from IContentStoreInternal instead?
-            _hashers = HashInfoLookup.CreateAll();
 
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
@@ -513,7 +509,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
                     using (Stream fileStream = await _fileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
                     using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)new RecordingStream(fileStream, hashInfo.Size) : fileStream)
-                    using (HashingStream hashingStream = _hashers[hashInfo.ContentHash.HashType].CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
+                    using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
                         var copyFileResult = await _remoteFileCopier.CopyToAsync(location, hashingStream, hashInfo.Size, cts);
                         copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
@@ -543,7 +539,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 else
                 {
-                    return await _remoteFileCopier.CopyFileAsync(location, tempDestinationPath, hashInfo.Size, overwrite: true, cancellationToken: cts);
+                    return await CopyFileAsync(_remoteFileCopier, location, tempDestinationPath, hashInfo.Size, overwrite: true, cancellationToken: cts);
                 }
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is IOException)
@@ -557,6 +553,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // any other exceptions are assumed to be bad remote files.
                 return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, ex, ex.ToString());
             }
+        }
+
+        /// <summary>
+        /// Override for testing.
+        /// </summary>
+        protected virtual async Task<CopyFileResult> CopyFileAsync(IFileCopier<T> copier, T sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
+        {
+            const int DefaultBuffersize = 1024 * 80;
+
+            if (!overwrite && File.Exists(destinationPath.Path))
+            {
+                return new CopyFileResult(
+                        CopyFileResult.ResultCode.DestinationPathError,
+                        $"Destination file {destinationPath} exists but overwrite not specified.");
+            }
+
+            var directoryPath = destinationPath.Parent.Path;
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            using var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, DefaultBuffersize, FileOptions.SequentialScan);
+            return await copier.CopyToAsync(sourcePath, stream, expectedContentSize, cancellationToken);
         }
 
         private static int GetBufferSize(ContentHashWithSizeAndLocations hashInfo)

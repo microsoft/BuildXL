@@ -172,7 +172,7 @@ namespace BuildXL.Processes
             proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
 
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            if (!proc.Process.HasExited)
+            if (!proc.Process.HasExited) 
             {
                 proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
             }

@@ -56,10 +56,9 @@ namespace LanguageService.Server {
         let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`);
         let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
 
-        // const copyOfSourceFolder = Context.getNewOutputDirectory(`ClientTemp`);
         const copyOfSourceFolder = copyDirectory(d`client`, Context.getNewOutputDirectory(`ClientTemp`));
         const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder);
-        // Npm.runCompile(copyOfSourceFolder);
+        const outPath = Npm.runCompile(copyOfSourceFolder);
 
         // Debug.writeLine("nodeModulesPath: " + nodeModulesPath.getContent().length);
 
@@ -106,20 +105,13 @@ namespace LanguageService.Server {
                         Branding.pngFile,
                         json,
 
-                        // nodeModulesPath,
-                        // Transformer.sealDirectory({
-                        //     root: nodeModulesPath, 
-                        //     files: globR(nodeModulesPath)
-                        // }),
-
-                        // Transformer.sealDirectory({
-                        //     root: d`${copyOfSourceFolder}/out`, 
-                        //     files: globR(d`${copyOfSourceFolder}/out`)
-                        // }),
+                        // nodeModulesPath // This one has different errors, need to fix outer ones first
                     ]
                 },
                 f`pluginTemplate/[Content_Types].xml`,
-                manifest
+                manifest,
+                nodeModulesPath,
+                // outPath
             ]
         };
 
@@ -131,7 +123,7 @@ namespace LanguageService.Server {
             definition: Deployment.createFromDisk(fromDirectory),
             targetDirectory: toDirectory
         });
-        return onDiskDeployment.contents.root;
+        return onDiskDeployment.contents;
         // Debug.writeLine("Deployment: " + Deployment.createFromDisk(fromDirectory));
         // Debug.writeLine(`=== ${onDiskDeployment.contents.root}: ${onDiskDeployment.contents.getContent().length}`);
     }

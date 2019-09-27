@@ -37,8 +37,8 @@ namespace BuildXL.Scheduler.Graph
 
         private readonly ConcurrentBigMap<long, Lazy<bool>> m_pipUnify = new ConcurrentBigMap<long, Lazy<bool>>();
 
-        private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
-        private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
+        private readonly ConcurrentBigMap<long, PipId> m_hashToPipId = new ConcurrentBigMap<long, PipId>();
+        private readonly ConcurrentBigMap<long, DirectoryArtifact> m_hashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
 
         private readonly Lazy<TaskFactory> m_taskFactory;
 
@@ -165,10 +165,12 @@ namespace BuildXL.Scheduler.Graph
                         (added, _) = AddProcessPip(fragmentContext, provenance, pipId, pip as Process);
                         break;
                     case PipType.CopyFile:
-                        (added, _) = AddPip(pip as CopyFile, c => m_pipGraph.AddCopyFile(c, default));
+                        var copyFile = pip as CopyFile;
+                        (added, _) = AddPip(copyFile, GetOutputHash(copyFile), c => m_pipGraph.AddCopyFile(c, default));
                         break;
                     case PipType.WriteFile:
-                        (added, _) = AddPip(pip as WriteFile, w => m_pipGraph.AddWriteFile(w, default));
+                        var writeFile = pip as WriteFile;
+                        (added, _) = AddPip(writeFile, GetOutputHash(writeFile), w => m_pipGraph.AddWriteFile(w, default));
                         break;
                     case PipType.SealDirectory:
                         (added, _) = AddSealDirectory(fragmentContext, pip as SealDirectory);
@@ -224,7 +226,7 @@ namespace BuildXL.Scheduler.Graph
             Contract.Requires(process != null);
             Analysis.IgnoreArgument(provenance, "Debugging purpose");
 
-            var result = AddPip(process, p => m_pipGraph.AddProcess(p, default));
+            var result = AddPip(process, GetOutputHash(process), p => m_pipGraph.AddProcess(p, default));
 
             if (process.ServiceInfo != null)
             {
@@ -246,7 +248,7 @@ namespace BuildXL.Scheduler.Graph
             Contract.Requires(ipcPip != null);
             Analysis.IgnoreArgument(provenance, "Debugging purpose");
 
-            var result = AddPip(ipcPip, i => m_pipGraph.AddIpcPip(i, default));
+            var result = AddPip(ipcPip, GetOutputHash(ipcPip), i => m_pipGraph.AddIpcPip(i, default));
 
             if (ipcPip.IsServiceFinalization)
             {
@@ -280,24 +282,24 @@ namespace BuildXL.Scheduler.Graph
                 false,
                 (file, data) => new Lazy<bool>(() => m_pipGraph.AddOutputValue(valuePip))).Item.Value.Value;
 
-        private (bool added, PipId newPipId) AddPip<T>(T pip, Func<T, bool> addPip) where T : Pip
+        private (bool added, PipId newPipId) AddPip<T>(T pip, long outputHash, Func<T, bool> addPip) where T : Pip
         {
-            if (pip.SemiStableHash == 0)
+            if (outputHash == 0)
             {
                 return (addPip(pip), pip.PipId);
             }
 
             bool added = m_pipUnify.GetOrAdd(
-                pip.SemiStableHash,
+                outputHash,
                 0,
                 (ssh, data) => new Lazy<bool>(() =>
                 {
                     bool addInner = addPip(pip);
-                    m_semiStableHashToPipId[pip.SemiStableHash] = pip.PipId; // PipId is set by addPip.
+                    m_hashToPipId[outputHash] = pip.PipId; // PipId is set by addPip.
                     return addInner;
                 })).Item.Value.Value;
 
-            return (added, m_semiStableHashToPipId[pip.SemiStableHash]);
+            return (added, m_hashToPipId[outputHash]);
         }
 
         private (bool added, PipId newPipId, DirectoryArtifact newDirectoryArtifact) AddSealDirectory(SealDirectory sealDirectory, Func<SealDirectory, DirectoryArtifact> addSealDirectory)
@@ -314,12 +316,42 @@ namespace BuildXL.Scheduler.Graph
                 (ssh, data) => new Lazy<bool>(() =>
                 {
                     DirectoryArtifact directory = addSealDirectory(sealDirectory);
-                    m_semiStableHashToPipId[sealDirectory.SemiStableHash] = sealDirectory.PipId;
-                    m_semiStableHashToDirectory[sealDirectory.SemiStableHash] = sealDirectory.Directory; // New directory artifact is set when adding seal directory.
+                    m_hashToPipId[sealDirectory.SemiStableHash] = sealDirectory.PipId;
+                    m_hashToDirectory[sealDirectory.SemiStableHash] = sealDirectory.Directory; // New directory artifact is set when adding seal directory.
                     return directory.IsValid;
                 })).Item.Value.Value;
 
-            return (added, m_semiStableHashToPipId[sealDirectory.SemiStableHash], m_semiStableHashToDirectory[sealDirectory.SemiStableHash]);
+            return (added, m_hashToPipId[sealDirectory.SemiStableHash], m_hashToDirectory[sealDirectory.SemiStableHash]);
+        }
+
+        private long GetOutputHash(Process pip)
+        {
+            if (pip.FileOutputs.Any())
+            {
+                return (pip.FileOutputs[0].RewriteCount << 32) + pip.FileOutputs[0].Path.RawValue;
+            }
+            else if (pip.DirectoryOutputs.Any(directory => !directory.IsSharedOpaque))
+            {
+                var firstNonSharedOpaque = pip.DirectoryOutputs.First(directory => !directory.IsSharedOpaque);
+                return firstNonSharedOpaque.Path.RawValue;
+            }
+
+            return pip.SemiStableHash;
+        }
+
+        private long GetOutputHash(IpcPip pip)
+        {
+            return (pip.OutputFile.RewriteCount << 32) + pip.OutputFile.Path.RawValue;
+        }
+
+        private long GetOutputHash(CopyFile pip)
+        {
+            return (pip.Destination.RewriteCount << 32) + pip.Destination.Path.RawValue;
+        }
+
+        private long GetOutputHash(WriteFile pip)
+        {
+            return (pip.Destination.RewriteCount << 32) + pip.Destination.Path.RawValue;
         }
     }
 }

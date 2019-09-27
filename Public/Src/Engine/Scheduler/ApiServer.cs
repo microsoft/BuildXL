@@ -129,7 +129,7 @@ namespace BuildXL.Scheduler
             }
 
             var getSealedDirectoryFilesCmd = cmd as GetSealedDirectoryContentCommand;
-            if(getSealedDirectoryFilesCmd != null)
+            if (getSealedDirectoryFilesCmd != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ref m_numGetSealedDirectoryContent);
                 return new Possible<IIpcResult>(result);
@@ -211,7 +211,7 @@ namespace BuildXL.Scheduler
 
             var files = m_fileContentManager.ListSealedDirectoryContents(cmd.Directory);
 
-            Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable));
+            Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable), files.Length);
 
             var inputContentsTasks = files
                 .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(f.Path, nameof(ApiServer), false))
@@ -239,9 +239,14 @@ namespace BuildXL.Scheduler
 
             if (failedResults.Count > 0)
             {
-                new IpcResult(
+                return new IpcResult(
                     IpcResultStatus.ExecutionError,
-                    "could not find content information for the files: " + string.Join("; ", failedResults));
+                    string.Format("Could not find content information for {0} out of {1} files inside of '{4}':{2}{3}",
+                        failedResults.Count,
+                        files.Length,
+                        Environment.NewLine,
+                        string.Join("; ", failedResults),
+                        cmd.Directory.Path.ToString(m_context.PathTable)));
             }
 
             return IpcResult.Success(cmd.RenderResult(results));

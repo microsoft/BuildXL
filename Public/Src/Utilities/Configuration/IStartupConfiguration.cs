@@ -46,5 +46,17 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         [NotNull]
         IHost CurrentHost { get; }
+
+        /// <summary>
+        /// AB testing arguments
+        /// </summary>
+        [NotNull]
+        IReadOnlyDictionary<string, string> ABTestingArgs { get; }
+
+        /// <summary>
+        /// The key of the ABTesting arg that is chosen. 
+        /// It is empty if there is no ABTestingArgs provided.
+        /// </summary>
+        string ChosenABTestingKey { get; }
     }
 }

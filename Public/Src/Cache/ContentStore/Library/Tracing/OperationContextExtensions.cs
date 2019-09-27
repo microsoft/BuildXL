@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         private readonly Func<TResult, ResultBase>? _resultBaseFactory;
 
         /// <nodoc />
-        protected PerformOperationBuilderBase(OperationContext context, Tracer tracer, Func<TResult, ResultBase>? resultBaseFactory = null)
+        protected PerformOperationBuilderBase(OperationContext context, Tracer tracer, Func<TResult, ResultBase>? resultBaseFactory)
         {
             _context = context;
             _tracer = tracer;
@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
         /// <nodoc />
         public PerformAsyncOperationBuilder(OperationContext context, Tracer tracer, Func<Task<TResult>> operation)
-        : base(context, tracer)
+        : base(context, tracer, r => r)
         {
             _asyncOperation = operation;
         }
@@ -231,7 +231,7 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
         /// <nodoc />
         public PerformOperationBuilder(OperationContext context, Tracer tracer, Func<TResult> operation)
-            : base(context, tracer)
+            : base(context, tracer, r => r)
         {
             _operation = operation;
         }

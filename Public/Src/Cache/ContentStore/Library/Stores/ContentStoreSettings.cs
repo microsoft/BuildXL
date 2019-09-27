@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <remarks>
         /// This flag should go away after the validation of the new logic.
         /// </remarks>
-        public bool UseLegacyQuotaKeeperImplementation { get; set; } = true;
+        public bool UseLegacyQuotaKeeperImplementation { get; set; } = false;
 
         /// <summary>
         /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// An interval for tracing self check progress.
         /// </summary>
-        public TimeSpan SelfCheckProgressReportingInterval { get; set; } = TimeSpan.FromSeconds(5);
+        public TimeSpan SelfCheckProgressReportingInterval { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
         /// A number of invalid hashes that the checker will process in one attempt.

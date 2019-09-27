@@ -29,7 +29,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly Channel _channel;
         private readonly ContentServer.ContentServerClient _client;
         private readonly int _bufferSize;
-        private readonly BandwidthChecker _bandwidthChecker;
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(GrpcCopyClient));
@@ -39,41 +38,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, Configuration config)
+        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _client = new ContentServer.ContentServerClient(_channel);
-            _bufferSize = config.ClientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
-            var bandwidthSource = config.MinimumBandwidthMbPerSec == null
-                ? (IBandwidthLimitSource) new HistoricalBandwidthLimitSource()
-                : new ConstantBandwidthLimit(config.MinimumBandwidthMbPerSec.Value);
-            _bandwidthChecker = new BandwidthChecker(bandwidthSource, config.BandwidthCheckInterval);
+            _bufferSize = clientBufferSize ?? ContentStore.Grpc.CopyConstants.DefaultBufferSize;
             Key = key;
-        }
-
-        /// <nodoc />
-        public struct Configuration
-        {
-            /// <nodoc />
-            public Configuration(TimeSpan bandwidthCheckInterval, double? minimumBandwidthMbPerSec, int? clientBufferSize)
-            {
-                BandwidthCheckInterval = bandwidthCheckInterval;
-                MinimumBandwidthMbPerSec = minimumBandwidthMbPerSec;
-                ClientBufferSize = clientBufferSize;
-            }
-
-            /// <nodoc />
-            public static readonly Configuration Default = new Configuration(TimeSpan.FromSeconds(30), null, null);
-
-            /// <nodoc />
-            public TimeSpan BandwidthCheckInterval { get; }
-
-            /// <nodoc />
-            public double? MinimumBandwidthMbPerSec { get; }
-
-            /// <nodoc />
-            public int? ClientBufferSize { get; }
         }
 
         /// <inheritdoc />
@@ -232,16 +203,17 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // Copy the content to the target stream.
                 using (targetStream)
                 {
-                    await _bandwidthChecker.CheckBandwidthAtIntervalAsync(
-                        context,
-                        copyTaskFactory: token =>
-                            compression switch
-                            {
-                                CopyCompression.None => StreamContentAsync(targetStream, response.ResponseStream, token),
-                                CopyCompression.Gzip => StreamContentWithCompressionAsync(targetStream, response.ResponseStream, token),
-                                _ => throw new NotSupportedException($"CopyCompression {compression} is not supported.")
-                            },
-                        destinationStream: targetStream);
+                    switch(compression)
+                    {
+                        case CopyCompression.None:
+                            await StreamContentAsync(targetStream, response.ResponseStream, context.Token);
+                            break;
+                        case CopyCompression.Gzip:
+                            await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, context.Token);
+                            break;
+                        default:
+                            throw new NotSupportedException($"CopyCompression {compression} is not supported.");
+                    }
                 }
 
                 return CopyFileResult.Success;

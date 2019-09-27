@@ -26,37 +26,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<CopyFileResult> CopyFileAsync(AbsolutePath path, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-        {
-            // NOTE: Assumes both source and destination are local
-            Contract.Assert(path.IsLocal);
-            Contract.Assert(destinationPath.IsLocal);
-
-            if (!FileUtilities.Exists(path.Path))
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.FileNotFoundError, $"Source file {path} doesn't exist.");
-            }
-
-            if (FileUtilities.Exists(destinationPath.Path))
-            {
-                if (!overwrite)
-                {
-                    return new CopyFileResult(
-                        CopyFileResult.ResultCode.DestinationPathError,
-                        $"Destination file {destinationPath} exists but overwrite not specified.");
-                }
-            }
-
-            if (!await FileUtilities.CopyFileAsync(path.Path, destinationPath.Path))
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Failed to copy {destinationPath} from {path}");
-            }
-
-            return CopyFileResult.SuccessWithSize(new System.IO.FileInfo(destinationPath.Path).Length);
-
-        }
-
-        /// <inheritdoc />
         public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
             // NOTE: Assumes source is local

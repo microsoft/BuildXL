@@ -17,6 +17,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
+using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -172,7 +173,7 @@ namespace BuildXL.Processes
             proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
 
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            if (!proc.Killed)
+            if (!proc.Process.HasExited)
             {
                 proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
             }
@@ -300,6 +301,15 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
+            m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
+            // Any scheduled callback may occur even after Dispose has been called; here we explicitly wait until they all complete
+            // NOTE: we unregister callbacks as soon as the process exits, and since this method is never called before the process 
+            //       exits, in practice this dance is probably not necessary.
+            var allCallbacksCompleted = new EventWaitHandle(initialState: false, mode: EventResetMode.ManualReset);
+            m_perfTimer.Dispose(allCallbacksCompleted);
+            allCallbacksCompleted.WaitOne();
+
             m_perfTimer.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 

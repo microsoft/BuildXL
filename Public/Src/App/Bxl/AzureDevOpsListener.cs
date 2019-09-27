@@ -203,7 +203,11 @@ namespace BuildXL
             // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
             body = string.Format(CultureInfo.CurrentCulture, message, args);
 
-            ProcessCustomPipDescription(ref body, args.Length, UseCustomPipDescription);
+            // pip description in the final string only exist when args is not empty
+            if (args.Length > 0)
+            {
+                ProcessCustomPipDescription(ref body, UseCustomPipDescription);
+            }
 
             builder.Append(";]");
 

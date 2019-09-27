@@ -342,7 +342,11 @@ namespace BuildXL.Utilities.Tracing
                 }
             }
 
-            ProcessCustomPipDescription(ref full, args.Length, useCustomPipDescription);
+            // pip description in the final string only exist when args is not empty
+            if (args.Length > 0)
+            {
+                ProcessCustomPipDescription(ref full, useCustomPipDescription);
+            }
 
             return full;
         }
@@ -350,10 +354,9 @@ namespace BuildXL.Utilities.Tracing
         /// <summary>
         /// Removes BuildXL generated pip description if custom privides its own one
         /// </summary>
-        protected static void ProcessCustomPipDescription(ref string message, int numberOfArgs, bool useCustomPipDescription)
+        protected static void ProcessCustomPipDescription(ref string message, bool useCustomPipDescription)
         {
-            // if args is empty, there is no pip description in the final string
-            if (numberOfArgs > 0 && useCustomPipDescription)
+            if (useCustomPipDescription)
             {
                 // check whether there is a pip description in the constructed message
                 int descriptionStartIndex = message.IndexOf("[Pip");

@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import {Transformer} from "Sdk.Transformers";
+import {Artifact, Transformer} from "Sdk.Transformers";
 import * as ManagedSdk from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import * as Transformers from "Sdk.Transformers";
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Branding from "BuildXL.Branding";
 import * as VSIntegration from "BuildXL.Ide.VsIntegration";
+import {Node, Npm} from "Sdk.NodeJs";
 
 namespace LanguageService.Server {
 
@@ -55,6 +56,14 @@ namespace LanguageService.Server {
         let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`);
         let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
 
+        const copyOfSourceFolder = copyDirectory(d`client`, Context.getNewOutputDirectory(`ClientTemp`));
+        const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder);
+        const outPath = Npm.runCompile(copyOfSourceFolder);
+
+        // Debug.writeLine("nodeModulesPath: " + nodeModulesPath.getContent().length);
+
+        // TODO: package-lock.json to cg folder
+
         const vsixDeployment: Deployment.Definition = {
             contents: [
                 {
@@ -96,19 +105,26 @@ namespace LanguageService.Server {
                         Branding.pngFile,
                         json,
 
-                        // This contains the actual extension source as well as the
-                        // node_modules that it depends on.
-                        Transformer.sealDirectory({
-                            root: d`pluginTemplate/extension`, 
-                            files: globR(d`pluginTemplate/extension`)
-                        }),
+                        // nodeModulesPath // This one has different errors, need to fix outer ones first
                     ]
                 },
                 f`pluginTemplate/[Content_Types].xml`,
-                manifest
+                manifest,
+                nodeModulesPath,
+                // outPath
             ]
         };
 
         return vsixDeployment;
+    }
+
+    function copyDirectory(fromDirectory : Directory, toDirectory : Directory){
+        const onDiskDeployment = Deployment.deployToDisk({
+            definition: Deployment.createFromDisk(fromDirectory),
+            targetDirectory: toDirectory
+        });
+        return onDiskDeployment.contents;
+        // Debug.writeLine("Deployment: " + Deployment.createFromDisk(fromDirectory));
+        // Debug.writeLine(`=== ${onDiskDeployment.contents.root}: ${onDiskDeployment.contents.getContent().length}`);
     }
 }

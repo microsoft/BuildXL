@@ -42,6 +42,49 @@ namespace Npm {
     }
 
     @@public
+    export function installFromPackageJson(workingStaticDirectory : StaticDirectory) : StaticDirectory {
+        const workingDirectory = workingStaticDirectory.root;
+        const nodeModulesPath = d`${workingDirectory}/node_modules`;
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.input(Node.npmCli)),
+            Cmd.argument("install")
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            dependencies : [workingStaticDirectory],
+            outputs: [
+                {directory: nodeModulesPath, kind: "shared"}
+            ]
+        });
+        
+        return result.getOutputDirectory(nodeModulesPath);
+    }
+
+    @@public
+    export function runCompile(workingStaticDirectory : StaticDirectory) : StaticDirectory {
+        const workingDirectory = workingStaticDirectory.root;
+        const outPath = d`${workingDirectory}/out`;
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.input(Node.npmCli)),
+            Cmd.argument("run"),
+            Cmd.argument("compile")
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            dependencies : [workingStaticDirectory],
+            outputs: [
+                {directory: outPath, kind: "shared"}
+            ]
+        });
+
+        return result.getOutputDirectory(outPath);
+    }
+
+    @@public
     export interface Arguments {
         name: string,
         version: string,

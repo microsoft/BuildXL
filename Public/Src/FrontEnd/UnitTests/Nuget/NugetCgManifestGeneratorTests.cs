@@ -157,13 +157,33 @@ namespace Test.BuildXL.FrontEnd.Nuget
                 { "test.package.a", CreatePackage("5.1.1") },
                 { "test.package.z", CreatePackage("1.0.0") },
                 { "test.package.name", CreatePackage("1.0.1") },
-                { "test.a.name", CreatePackage("10.0.1") }
+                { "test.a.name", CreatePackage("10.0.1") },
+                { "Dotnet-Runtime", CreatePackage("1.1.1") },
+                { "DotNet.Glob", CreatePackage("1.1.1") },
             };
 
             string expectedMainifest = @"
 {
   ""Version"": 1,
   ""Registrations"": [
+    {
+      ""Component"": {
+        ""Type"": ""NuGet"",
+        ""NuGet"": {
+          ""Name"": ""DotNet.Glob"",
+          ""Version"": ""1.1.1""
+        }
+      }
+    },
+    {
+      ""Component"": {
+        ""Type"": ""NuGet"",
+        ""NuGet"": {
+          ""Name"": ""Dotnet-Runtime"",
+          ""Version"": ""1.1.1""
+        }
+      }
+    },
     {
       ""Component"": {
         ""Type"": ""NuGet"",

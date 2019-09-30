@@ -72,7 +72,6 @@ export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub:
                 return result;
             }
             else {
-                // TODO: Validate if there is a flattenedFile already under this OpaqueDirectory. To implement this we'll need IsWithin on RelativePath
                 return {
                     flattenedFiles: result.flattenedFiles,
                     flattenedOpaques: result.flattenedOpaques.add(targetFolder, [<OpaqueDirectory>opaque, sub]),

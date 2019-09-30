@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import {Transformer} from "Sdk.Transformers";
+import {Artifact, Transformer} from "Sdk.Transformers";
 import * as ManagedSdk from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import * as Transformers from "Sdk.Transformers";
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Branding from "BuildXL.Branding";
 import * as VSIntegration from "BuildXL.Ide.VsIntegration";
+import {Node, Npm} from "Sdk.NodeJs";
 
 namespace LanguageService.Server {
 
@@ -16,7 +17,6 @@ namespace LanguageService.Server {
      * as well as client resources
      */
     export function buildVsix(serverAssembly: ManagedSdk.Assembly) : DerivedFile {
-
         const vsixDeploymentDefinition = buildVsixDeploymentDefinition(serverAssembly);
 
         // Special "scrubbable" mount should be use for deploying vsix package content.
@@ -34,7 +34,8 @@ namespace LanguageService.Server {
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,
-            fixUnixPermissions: qualifier.targetRuntime === "osx-x64"
+            fixUnixPermissions: qualifier.targetRuntime === "osx-x64",
+            additionalDependencies: vsixDeployment.targetOpaques
         });
 
         return vsix;
@@ -54,6 +55,14 @@ namespace LanguageService.Server {
         let manifest = IDE.VersionUtilities.updateVersion(version, f`pluginTemplate/extension.vsixmanifest`);
         let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`);
         let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
+
+        const copyOfSourceFolder = copyDirectory(d`client`, Context.getNewOutputDirectory(`ClientTemp`));
+        const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder).nodeModules;
+        const outPath = Npm.runCompile(copyOfSourceFolder, nodeModulesPath);
+
+        // Debug.writeLine("nodeModulesPath: " + nodeModulesPath.getContent().length);
+
+        // TODO: package-lock.json to cg folder
 
         const vsixDeployment: Deployment.Definition = {
             contents: [
@@ -89,26 +98,37 @@ namespace LanguageService.Server {
                             subfolder: a`projectManagement`,
                             contents: globR(d`client/projectManagement`)
                         },
+                        {
+                            subfolder: a`node_modules`,
+                            contents: [ nodeModulesPath ]
+                        },
+                        {
+                            subfolder: a`out`,
+                            contents: [ outPath ]
+                        },
                         f`client/License.txt`,
                         f`client/package.nls.json`,
                         readme,
                         f`client/ThirdPartyNotices.txt`,
                         Branding.pngFile,
                         json,
-
-                        // This contains the actual extension source as well as the
-                        // node_modules that it depends on.
-                        Transformer.sealDirectory({
-                            root: d`pluginTemplate/extension`, 
-                            files: globR(d`pluginTemplate/extension`)
-                        }),
                     ]
                 },
                 f`pluginTemplate/[Content_Types].xml`,
-                manifest
+                manifest,
             ]
         };
 
         return vsixDeployment;
+    }
+
+    function copyDirectory(fromDirectory : Directory, toDirectory : Directory): StaticDirectory {
+        const onDiskDeployment = Deployment.deployToDisk({
+            definition: Deployment.createFromDisk(fromDirectory),
+            targetDirectory: toDirectory
+        });
+        return onDiskDeployment.contents;
+        // Debug.writeLine("Deployment: " + Deployment.createFromDisk(fromDirectory));
+        // Debug.writeLine(`=== ${onDiskDeployment.contents.root}: ${onDiskDeployment.contents.getContent().length}`);
     }
 }

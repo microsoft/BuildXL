@@ -37,6 +37,7 @@ namespace Node {
             args
         );
 
+        Debug.writeLine(`=== ${execArgs.tool.exe} ${Debug.dumpArgs(execArgs.arguments)}`);
         return Transformer.execute(execArgs);
     }
 
@@ -71,7 +72,7 @@ namespace Node {
                 pkgContents,
             ],
             prepareTempDirectory: true,
-            dependsOnWindowsDirectories: true,
+            dependsOnCurrentHostOSDirectories: true,
             dependsOnAppDataDirectory: true,
         };
     }

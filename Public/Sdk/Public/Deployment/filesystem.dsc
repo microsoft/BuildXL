@@ -16,6 +16,9 @@ export interface OnDiskDeployment {
 
     /** Optional primary file, i.e. an executable or test dll */
     primaryFile?: File;
+
+    /** Optional opaque directories robocopied/rsynced into this deployment */
+    targetOpaques?: OpaqueDirectory[];
 }
 
 /**
@@ -57,66 +60,68 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
         return Transformer.copyFile(data.file, targetPath, args.tags);
     });
 
-    if (flattened.flattenedOpaques.count() > 0) {
-        const targetOpaques = flattened.flattenedOpaques.forEach(tuple => {
-            const relativeTarget = tuple[0];
-            const opaque = tuple[1];
+    const targetOpaques = flattened.flattenedOpaques.toArray().map(tuple => {
+        const relativeTarget = tuple[0];
+        const opaque = tuple[1];
 
-            const targetDir = d`${rootDir}/${relativeTarget}`;
+        const targetDir = d`${rootDir}/${relativeTarget}`;
 
-            const result = Context.getCurrentHost().os === "win"
-                ? Transformer.execute({
-                    tool: {
-                        exe: f`${Context.getMount("Windows").path}/System32/Robocopy.exe`,
-                        dependsOnWindowsDirectories: true,
-                        description: "Copy Directory",
-                    },
-                    workingDirectory: targetDir,
-                    successExitCodes: [
-                        0,
-                        1,
-                        2,
-                        4,
-                    ],
-                    arguments: [
-                        Cmd.argument(Artifact.input(opaque)),
-                        Cmd.argument(Artifact.output(targetDir)),
-                        Cmd.argument("*.*"),
-                        Cmd.argument("/MIR"), // Mirror the directory
-                        Cmd.argument("/NJH"), // No Job Header
-                        Cmd.argument("/NFL"), // No File list reducing stdout processing
-                        Cmd.argument("/NP"),  // Don't show per-file progress counter
-                        Cmd.argument("/MT"),  // Multi threaded
-                    ]
-                })
-                : Transformer.execute({
-                    tool: {
-                        exe: f`/usr/bin/rsync`,
-                        description: "Copy Directory",
-                    },
-                    workingDirectory: targetDir,
-                    arguments: [
-                        Cmd.argument("-arvh"),
-                        Cmd.argument(Cmd.join("", [ Artifact.input(opaque), '/' ])),
-                        Cmd.argument(Artifact.output(targetDir)),
-                        Cmd.argument("--delete"),
-                    ]
-                });
+        const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
+            ? <Transformer.ExecuteArguments>{
+                tool: {
+                    exe: f`${Context.getMount("Windows").path}/System32/Robocopy.exe`,
+                    dependsOnWindowsDirectories: true,
+                    description: "Copy Directory",
+                },
+                workingDirectory: targetDir,
+                successExitCodes: [
+                    0,
+                    1,
+                    2,
+                    4,
+                ],
+                arguments: [
+                    Cmd.argument(Artifact.input(opaque)),
+                    Cmd.argument(Artifact.output(targetDir)),
+                    Cmd.argument("*.*"),
+                    Cmd.argument("/MIR"), // Mirror the directory
+                    Cmd.argument("/NJH"), // No Job Header
+                    Cmd.argument("/NFL"), // No File list reducing stdout processing
+                    Cmd.argument("/NP"),  // Don't show per-file progress counter
+                    Cmd.argument("/MT"),  // Multi threaded
+                ]
+            }
+            : <Transformer.ExecuteArguments>{
+                tool: {
+                    exe: f`/usr/bin/rsync`,
+                    description: "Copy Directory",
+                    dependsOnCurrentHostOSDirectories: true,
+                    prepareTempDirectory: true
+                },
+                workingDirectory: targetDir,
+                arguments: [
+                    Cmd.argument("-arvh"),
+                    Cmd.argument(Cmd.join("", [ Artifact.input(opaque), '/' ])),
+                    Cmd.argument(Artifact.output(targetDir)),
+                    Cmd.argument("--delete"),
+                ]
+            };
 
-            return result.getOutputDirectory(targetDir);
-        });;
-    }
+        const result = Transformer.execute(args);
+        return result.getOutputDirectory(targetDir);
+    });
 
-
-    // TODO: We lack the ability to combine files and OpagueDuirecties into a new OpaqueDirectory (unless we write a single process that would do all the copies)
-    // Therefore for now we'll just copy the opaques but don't make it part of the output StaticDirectory field contents
-    // There is a hole here for consumers but today we only use this in selfhost in the final deployment.
+    // TODO: We lack the ability to combine files and OpaqueDirectories into a new OpaqueDirectory (unless we write a single process that would do all the copies)
+    // Therefore for now we'll just copy the opaques but don't make it part of the output StaticDirectory field contents;
+    // we do, however, pass those additional opaque directories along (via the 'targetOpaques' property)
+    // so the caller can appropriately take dependencies on them.
     const contents = Transformer.sealPartialDirectory(rootDir, targetFiles, args.tags);
 
     return {
         deployedDefinition: args.definition,
         contents: contents,
         primaryFile : args.primaryFile ? contents.getFile(args.primaryFile) : undefined,
+        targetOpaques: targetOpaques
     };
 }
 

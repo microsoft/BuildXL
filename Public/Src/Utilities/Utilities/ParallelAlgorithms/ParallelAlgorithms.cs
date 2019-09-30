@@ -68,27 +68,17 @@ namespace BuildXL.Utilities.ParallelAlgorithms
         /// <summary>
         /// Process the <paramref name="source"/> in parallel by calling <paramref name="mapFn"/> for each element.
         /// </summary>
-        /// <remarks>
-        /// If <paramref name="cancellationToken"/> is cancelled during this operation
-        /// the elements of the returned list are unspecified.
-        /// </remarks>
         public static IReadOnlyList<TResult> ParallelSelect<TElement, TResult>(IList<TElement> source, Func<TElement, TResult> mapFn, int degreeOfParallelism, CancellationToken cancellationToken)
         {
             var results = new TResult[source.Count];
 
-            try
-            {
-                Parallel.ForEach(
-                    source.Select((elem, idx) => Tuple.Create(elem, idx)).ToList(),
-                    new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism, CancellationToken = cancellationToken },
-                    body: (tuple) =>
-                    {
-                        results[tuple.Item2] = mapFn(tuple.Item1);
-                    });
-            }
-            catch (OperationCanceledException)
-            {
-            }
+            Parallel.ForEach(
+                source.Select((elem, idx) => Tuple.Create(elem, idx)).ToList(),
+                new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism, CancellationToken = cancellationToken },
+                body: (tuple) =>
+                {
+                    results[tuple.Item2] = mapFn(tuple.Item1);
+                });
 
             return results;
         }
@@ -163,14 +153,7 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     {
                         while (!cancellationToken.IsCancellationRequested)
                         {
-                            try
-                            {
-                                await semaphore.WaitAsync(cancellationToken);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                break;
-                            }
+                            await semaphore.WaitAsync(cancellationToken);
 
                             try
                             {

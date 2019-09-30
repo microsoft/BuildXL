@@ -1326,6 +1326,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return new Result<MachineLocation>("Could not select a machine location.");
         }
 
+
+        /// <inheritdoc />
+        public bool IsMachineActive(MachineLocation machine) => _idsByLocation.Keys.Contains(machine);
+
         /// <summary>
         /// Gets the page size used in bulk Redis queries.
         /// </summary>

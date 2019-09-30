@@ -251,6 +251,9 @@ namespace ContentStoreTest.Distributed.Stores
             public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except) => default;
 
             /// <inheritdoc />
+            public bool IsMachineActive(MachineLocation machine) => false;
+
+            /// <inheritdoc />
             public bool AreBlobsSupported => false;
 
             /// <inheritdoc />

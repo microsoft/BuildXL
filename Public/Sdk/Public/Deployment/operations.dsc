@@ -4,7 +4,7 @@
 @@public
 export const emptyFlattenedResult : FlattenedResult = {
     flattenedFiles: Map.empty<RelativePath, { file: File, disambiguationData: any }>(),
-    flattenedOpaques: Map.empty<RelativePath, OpaqueDirectory>(),
+    flattenedOpaques: Map.empty<RelativePath, [OpaqueDirectory, RelativePath]>(),
     visitedItems: Set.empty<Object>(),
 };
 
@@ -230,7 +230,7 @@ function flattenStaticDirectory(staticDirectory: StaticDirectory, targetFolder: 
 
             // TODO: Improve error logging and disambiguation
             if (existingOpaque !== undefined) {
-                if (existingOpaque !== staticDirectory) {
+                if (existingOpaque[0] !== staticDirectory) {
                     Contract.fail(`Duplicate opaque directory. Can't deploy both '{existingOpaque.root}' and '{staticDirectory.root}' to '{targetFolder}'`);
                 }
 
@@ -240,7 +240,7 @@ function flattenStaticDirectory(staticDirectory: StaticDirectory, targetFolder: 
                 // TODO: Validate if there is a flattenedFile already under this OpaqueDirectory. To implement this we'll need IsWithin on RelativePath
                 return {
                     flattenedFiles: result.flattenedFiles,
-                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, <OpaqueDirectory>staticDirectory),
+                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, [<OpaqueDirectory>staticDirectory, r`.`]),
                     visitedItems: result.visitedItems.add(staticDirectory),
                 };
             }

@@ -53,7 +53,7 @@ export interface DeployedFileWithProvenance {
 @@public
 export interface FlattenedResult {
     flattenedFiles: Map<RelativePath, DeployedFileWithProvenance>,
-    flattenedOpaques: Map<RelativePath, OpaqueDirectory>,
+    flattenedOpaques: Map<RelativePath, [OpaqueDirectory, RelativePath]>,
     visitedItems: Set<Object>,
 }
 

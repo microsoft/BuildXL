@@ -301,10 +301,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "node_modules/typescript/bin/tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "update-vscode": "node ./node_modules/vscode/bin/install",
-    "postinstall": "node ./node_modules/vscode/bin/install",
     "package": "vsce package"
   },
   "devDependencies": {

@@ -57,7 +57,7 @@ namespace LanguageService.Server {
         let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
 
         const copyOfSourceFolder = copyDirectory(d`client`, Context.getNewOutputDirectory(`ClientTemp`));
-        const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder);
+        const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder).nodeModules;
         const outPath = Npm.runCompile(copyOfSourceFolder);
 
         // Debug.writeLine("nodeModulesPath: " + nodeModulesPath.getContent().length);

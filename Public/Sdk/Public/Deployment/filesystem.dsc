@@ -66,8 +66,8 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
 
         const targetDir = d`${rootDir}/${relativeTarget}`;
 
-        const args = Context.getCurrentHost().os === "win"
-            ? {
+        const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
+            ? <Transformer.ExecuteArguments>{
                 tool: {
                     exe: f`${Context.getMount("Windows").path}/System32/Robocopy.exe`,
                     dependsOnWindowsDirectories: true,
@@ -91,10 +91,12 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
                     Cmd.argument("/MT"),  // Multi threaded
                 ]
             }
-            : {
+            : <Transformer.ExecuteArguments>{
                 tool: {
                     exe: f`/usr/bin/rsync`,
                     description: "Copy Directory",
+                    dependsOnCurrentHostOSDirectories: true,
+                    prepareTempDirectory: true
                 },
                 workingDirectory: targetDir,
                 arguments: [
@@ -105,14 +107,14 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
                 ]
             };
 
-        Debug.writeLine(`=== ${args.tool.exe} ${Debug.dumpArgs(args.arguments)}`);
         const result = Transformer.execute(args);
         return result.getOutputDirectory(targetDir);
     });
 
-    // TODO: We lack the ability to combine files and OpagueDuirecties into a new OpaqueDirectory (unless we write a single process that would do all the copies)
-    // Therefore for now we'll just copy the opaques but don't make it part of the output StaticDirectory field contents
-    // There is a hole here for consumers but today we only use this in selfhost in the final deployment.
+    // TODO: We lack the ability to combine files and OpaqueDirectories into a new OpaqueDirectory (unless we write a single process that would do all the copies)
+    // Therefore for now we'll just copy the opaques but don't make it part of the output StaticDirectory field contents;
+    // we do, however, pass those additional opaque directories along (via the 'targetOpaques' property)
+    // so the caller can appropriately take dependencies on them.
     const contents = Transformer.sealPartialDirectory(rootDir, targetFiles, args.tags);
 
     return {

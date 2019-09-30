@@ -410,6 +410,12 @@ namespace BuildXL
         protected override void OnError(EventWrittenEventArgs eventData)
         {
             Interlocked.Increment(ref m_errorsLogged);
+
+            // AzureDevOpsListener has alreday write the event to console, avoid duplication
+            if (m_optimizeForAzureDevOps)
+            {
+                return;
+            }
             
             if (eventData.EventId == (int)EventId.PipProcessError)
             {
@@ -440,6 +446,12 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
         {
+            // AzureDevOpsListener has alreday write the event to console, avoid duplication
+            if (m_optimizeForAzureDevOps)
+            {
+                return;
+            }
+
             if (eventData.EventId == (int)EventId.PipProcessWarning)
             {
                 string warnings = (string)eventData.Payload[5];

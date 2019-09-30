@@ -252,8 +252,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return result;
             }
 
-            // Only perform proactive copy to other machines if we didn't put the blob into Redis
-            if (!putBlob && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
+            var registerResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
+
+            // Only perform proactive copy to other machines if we didn't put the blob into Redis and we succeeded in registering our location.
+            if (!putBlob && registerResult && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
             {
                 // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
                 WithOperationContext(
@@ -263,7 +265,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 ).FireAndForget(context);
             }
 
-            return await RegisterPutAsync(context, UrgencyHint.Nominal, result);
+            return registerResult;
         }
 
         private async Task<PutResult> RegisterPutAsync(OperationContext context, UrgencyHint urgencyHint, PutResult putResult)

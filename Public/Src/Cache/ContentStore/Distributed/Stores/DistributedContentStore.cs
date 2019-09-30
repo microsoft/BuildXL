@@ -564,7 +564,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     return BoolResult.Success;
-                });
+                },
+                traceOperationStarted: false,
+                extraEndMessage: _ => $"Hash=[{hash.ToShortString()}]");
         }
     }
 }

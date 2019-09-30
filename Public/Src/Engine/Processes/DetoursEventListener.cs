@@ -184,7 +184,7 @@ namespace BuildXL.Processes
         /// <remarks>By default the handling is set store the data in the SandboxedProcessReports collection only.</remarks>
         public void SetMessageHandlingFlags(MessageHandlingFlags flags)
         {
-            m_messageHandlingFlags = flags;
+            m_messageHandlingFlags = 
         }
     }
 }

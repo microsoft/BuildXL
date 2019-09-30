@@ -328,10 +328,5 @@ namespace BuildXL.Utilities.Configuration
         /// Whether Vso annotations should be optimized for Azure DevOps output.
         /// </summary>
         bool OptimizeVsoAnnotationsForAzureDevOps { get; }
-
-        /// <summary>
-        /// Whether Warning/Error annotations should be optimized for Azure DevOps output.
-        /// </summary>
-        bool OptimizeWarningOrErrorAnnotationsForAzureDevOps { get; }
     }
 }

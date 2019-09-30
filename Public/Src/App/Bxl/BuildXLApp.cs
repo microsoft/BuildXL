@@ -1426,7 +1426,7 @@ namespace BuildXL
                     m_noLogMask,
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                     maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
-                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeWarningOrErrorAnnotationsForAzureDevOps);
+                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeVsoAnnotationsForAzureDevOps);
 
                 listener.SetBuildViewModel(buildViewModel);
 
@@ -2100,8 +2100,7 @@ namespace BuildXL
 
             if (loggingConfiguration.OptimizeConsoleOutputForAzureDevOps
                 || loggingConfiguration.OptimizeProgressUpdatingForAzureDevOps
-                || loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps
-                || loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps)
+                || loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps)
             {
                 // Use a very simple logger for azure devops
                 return new StandardConsole(colorize: false, animateTaskbar: false, supportsOverwriting: false, pathTranslator: translator);

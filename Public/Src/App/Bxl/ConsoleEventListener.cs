@@ -524,23 +524,7 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
         {
-            var outputText = text.TrimEnd(s_newLineCharArray);
-
-            if (m_optimizeForAzureDevOps)
-            {
-                switch  (level)
-                {
-                    case EventLevel.Critical:
-                    case EventLevel.Error:
-                        outputText = "##[error]" + outputText.Replace("\n", "\n##[error]");
-                        break;
-                    case EventLevel.Warning:
-                        outputText = "##[warning]" + outputText.Replace("\n", "\n##[warning]");
-                        break;
-                }
-            }
-
-            m_console.WriteOutputLine(ConvertLevel(level), outputText);
+            m_console.WriteOutputLine(ConvertLevel(level), text.TrimEnd(s_newLineCharArray));
         }
 
         private void OutputUpdatable(EventLevel level, string standardText, string updatableText, bool onlyIfOverwriteIsSupported)

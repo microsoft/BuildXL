@@ -137,14 +137,16 @@ namespace BuildXL.Processes
             long processSandboxedProcessResultMs,
             long processStartTime,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            Tuple<AbsolutePath, Encoding> encodedStandardError,
+            Tuple<AbsolutePath, Encoding> encodedStandardOutput)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
                 observedFileAccesses: default(SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>),
                 sharedDynamicDirectoryWriteAccesses: default(Dictionary<AbsolutePath, IReadOnlyCollection<AbsolutePath>>),
-                encodedStandardError: null,
-                encodedStandardOutput: null,
+                encodedStandardError: encodedStandardError,
+                encodedStandardOutput: encodedStandardOutput,
                 numberOfWarnings: 0,
                 unexpectedFileAccesses: null,
                 primaryProcessTimes: primaryProcessTimes,
@@ -352,7 +354,7 @@ namespace BuildXL.Processes
         /// The exit code from the execution of this pip.
         /// </summary>
         public int ExitCode { get; internal set; }
-
+        
         /// <summary>
         /// Duration of sandbox preparation in milliseconds
         /// </summary>

@@ -86,14 +86,11 @@ export function install(args: Arguments) : Result {
 
     if (useAuthenticatedPackageFeed && Context.getCurrentHost().os === "win") {
 
-        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {  
-            const nugetCredentialProviderPath = Environment.getDirectoryValue("NUGET_CREDENTIALPROVIDERS_PATH");     
+        if (Environment.hasVariable("NUGET_CREDENTIALPROVIDERS_PATH")) {     
             const nugetCredentialProviderArguments = {
                 arguments: [Cmd.argument(Artifact.input(f`yarnWithNugetCredentialProvider.js`))].prependWhenMerged(),
-                environmentVariables: [{name: "NUGET_CREDENTIALPROVIDERS_PATH", value: nugetCredentialProviderPath.path}],
                 unsafe: {
                     untrackedScopes: [
-                        nugetCredentialProviderPath,
                         d`${Context.getMount("ProgramData").path}/microsoft/netFramework`, // Most cred providers are managed code so need these folders... 
                         d`${Context.getMount("ProgramData").path}/Microsoft/Crypto`,
                         d`${Context.getMount("LocalLow").path}/Microsoft/CryptnetFlushCache`, // Windows uses this location as a certificate cache

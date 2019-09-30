@@ -43,6 +43,16 @@ namespace BuildXL.FrontEnd.Script.Literals
             Value = FileArtifact.CreateSourceFile(value);
         }
 
+        /// <summary>
+        /// Constructor that takes path literal and rewrite count.
+        /// </summary>
+        public FileLiteral(AbsolutePath value, int rewriteCount, LineInfo location)
+            : base(location)
+        {
+            Contract.Requires(value.IsValid);
+            Value = new FileArtifact(value, rewriteCount);
+        }
+
         /// <nodoc />
         public FileLiteral(DeserializationContext context, LineInfo location)
             : base(location)

@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using BuildXL.Scheduler.WorkDispatcher;
 
 namespace BuildXL.Scheduler
@@ -63,7 +64,7 @@ namespace BuildXL.Scheduler
             QueueRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
             SendRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
             QueueDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)DispatcherKind.Materialize + 1], isThreadSafe: false);
-            Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
+            Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
         }
 
         internal void Enqueued(DispatcherKind kind)

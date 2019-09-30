@@ -64,21 +64,21 @@ namespace BuildXL.Processes
             m_baseEnvironmentVariables = FullEnvironmentVariables
                 .Select(new[]
                 {
-                            "NUMBER_OF_PROCESSORS",
-                            "OS",
-                            "PROCESSOR_ARCHITECTURE",
-                            "PROCESSOR_IDENTIFIER",
-                            "PROCESSOR_LEVEL",
-                            "PROCESSOR_REVISION",
-                            "SystemDrive",
-                            "SystemRoot",
-                            "SYSTEMTYPE",
+                    "NUMBER_OF_PROCESSORS",
+                    "OS",
+                    "PROCESSOR_ARCHITECTURE",
+                    "PROCESSOR_IDENTIFIER",
+                    "PROCESSOR_LEVEL",
+                    "PROCESSOR_REVISION",
+                    "SystemDrive",
+                    "SystemRoot",
+                    "SYSTEMTYPE",
                 })
                 .Override(new Dictionary<string, string>()
                 {
-                            { "ComSpec", comspec },
-                            { "PATH", path },
-                            { "PATHEXT", pathExt }
+                    { "ComSpec", comspec },
+                    { "PATH", path },
+                    { "PATHEXT", pathExt }
                 })
                 .Override(DisallowedTempVariables
                     .Select(tmp => new KeyValuePair<string, string>(tmp, RestrictedTemp)));

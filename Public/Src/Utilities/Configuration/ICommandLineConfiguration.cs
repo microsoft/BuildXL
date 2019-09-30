@@ -26,7 +26,7 @@ namespace BuildXL.Utilities.Configuration
         bool NoLogo { get; }
 
         /// <summary>
-        /// Whether to launch the debugger on start. This is useful when either a) you already have a server which 
+        /// Whether to launch the debugger on start. This is useful when either a) you already have a server which
         /// doesn't respect new environment variables set in the client exe or b) you have many uses of bxl.exe
         /// and only want to debug one specific process of BuildXL.
         /// </summary>

@@ -1341,7 +1341,7 @@ namespace BuildXL.Scheduler.Artifacts
                     {
                         // Directory artifact contents are not hashed since they will be hashed dynamically
                         // if the pip accesses them, so the file is the declared artifact
-                        state.HashTasks.Add(TryQueryContentAsync(
+                        state.HashTasks.Add(TryQueryContentAndLogHashFailureAsync(
                             file,
                             operationContext,
                             declaredArtifact: file,
@@ -1361,6 +1361,25 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             return Unit.Void;
+        }
+
+        private async Task<FileMaterializationInfo?> TryQueryContentAndLogHashFailureAsync(
+            FileArtifact fileArtifact,
+            OperationContext operationContext,
+            FileOrDirectoryArtifact declaredArtifact,
+            bool allowUndeclaredSourceReads)
+        {
+            var artifactContentInfo = await TryQueryContentAsync(
+                            fileArtifact,
+                            operationContext,
+                            declaredArtifact,
+                            allowUndeclaredSourceReads);
+
+            if (!artifactContentInfo.HasValue)
+            {
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString());
+            }
+            return artifactContentInfo;
         }
 
         private async Task<FileMaterializationInfo?> TryQueryContentAsync(

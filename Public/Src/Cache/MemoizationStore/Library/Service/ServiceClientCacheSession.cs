@@ -61,7 +61,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
             return new GrpcCacheClient(sessionTracer, fileSystem, rpcConfiguration.GrpcPort, configuration.Scenario, rpcConfiguration.HeartbeatInterval);
         }
 
-        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null) where TResult : ResultBase
+        private Task<TResult> PerformOperationAsync<TResult>(Context context, CancellationToken cts, Func<OperationContext, GrpcCacheClient, Task<TResult>> func, [CallerMemberName]string caller = null, Counter? counter = null, Counter? retryCounter = null, bool traceErrorsOnly = false, string additionalStopMessage = null) where TResult : ResultBase
         {
             return WithOperationContext(context, cts,
                 operationContext =>
@@ -73,7 +73,10 @@ namespace BuildXL.Cache.MemoizationStore.Service
                                 () => func(operationContext, _rpcCacheClient),
                                 retryCounter: retryCounter),
                         caller: caller,
-                        counter: counter);
+                        counter: counter,
+                        traceOperationStarted: false,
+                        traceErrorsOnly: traceErrorsOnly,
+                        extraEndMessage: additionalStopMessage == null ? (Func<TResult, string>)null : _ => additionalStopMessage);
                 });
         }
 
@@ -114,7 +117,8 @@ namespace BuildXL.Cache.MemoizationStore.Service
                 cts,
                 (ctx, client) => client.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
                 counter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectors],
-                retryCounter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectorsRetries]);
+                retryCounter: _memoizationCounters[MemoizationStoreCounters.GetLevelSelectorsRetries],
+                additionalStopMessage: $"WeakFingerprint=[{weakFingerprint}]");
         }
 
         /// <inheritdoc />

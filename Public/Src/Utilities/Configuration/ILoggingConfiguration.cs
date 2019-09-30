@@ -71,7 +71,7 @@ namespace BuildXL.Utilities.Configuration
         /// This contains any EngineCache files that were deemed to be corrupt or incorrect during the build.
         /// </summary>
         AbsolutePath EngineCacheCorruptFilesLogDirectory { get; }
-        
+
         /// <summary>
         /// Specifies whether fingerprint computation inputs are stored on disk in the fingerprint store.
         /// The fingerprint store is stored under the <see cref="ILayoutConfiguration.EngineCacheDirectory"/>

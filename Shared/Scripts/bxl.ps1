@@ -449,7 +449,12 @@ Log -NoNewline "Building using the ";
 Log-Emphasis -NoNewline $($useDeployment.description)
 Log " version of BuildXL.";
 
-$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment)";
+$Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH");
+
+$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH";
+
+$GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
+# TODO (Rijul: Uncomment when changes in LKG) $AdditionalBuildXLArguments += "/generateCgManifestForNugest:$GenerateCgManifestFilePath";
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 

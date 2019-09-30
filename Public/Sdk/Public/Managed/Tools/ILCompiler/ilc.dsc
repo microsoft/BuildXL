@@ -11,8 +11,8 @@ const pkgContents = isMacOS
     : importFrom("runtime.win-x64.Microsoft.DotNet.ILCompiler").Contents.all;
 
 const netcoreAppPkgContents = isMacOS
-    ? importFrom("runtime.osx-x64.Microsoft.NETCore.App").Contents.all
-    : importFrom("runtime.win-x64.Microsoft.NETCore.App").Contents.all;
+    ? importFrom("Microsoft.NETCore.App.Runtime.osx-x64").Contents.all
+    : importFrom("Microsoft.NETCore.App.Runtime.win-x64").Contents.all;
 
 const ilcToolPackagePath = isMacOS
     ? r`tools/ilc`
@@ -45,7 +45,6 @@ export const linkTimeLibraries: File[] =
 export const compileTimeReferences: File[] = [
     ...pkgContents.contents.filter(f => f.name.extension === a`.dll` && f.path.parent.name !== a`tools`),
     ...(isMacOS ? netcoreAppPkgContents.getFiles([
-        r`runtimes/osx-x64/lib/netcoreapp3.0/SOS.NETCore.dll`,
         r`runtimes/osx-x64/lib/netcoreapp3.0/System.Runtime.InteropServices.WindowsRuntime.dll`
     ]) : [
         // TODO: references for Windows

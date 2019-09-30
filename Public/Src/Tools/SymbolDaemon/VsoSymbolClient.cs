@@ -2,12 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
+using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Utilities;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
@@ -27,14 +30,17 @@ namespace Tool.SymbolDaemon
     /// </summary>
     public sealed class VsoSymbolClient : ISymbolClient
     {
-        private const DebugEntryCreateBehavior DefaultDebugEntryCreateBehavior = DebugEntryCreateBehavior.ThrowIfExists;
 
         private static IAppTraceSource Tracer => SymbolAppTraceSource.SingleInstance;
+
+        private readonly Client m_apiClient;
 
         private readonly ILogger m_logger;
         private readonly SymbolConfig m_config;
         private readonly ISymbolServiceClient m_symbolClient;
         private readonly CancellationTokenSource m_cancellationSource;
+        private readonly DebugEntryCreateBehavior m_debugEntryCreateBehavior;
+
         private CancellationToken CancellationToken => m_cancellationSource.Token;
         private string m_requestId;
 
@@ -63,10 +69,12 @@ namespace Tool.SymbolDaemon
         }
 
         /// <nodoc />
-        public VsoSymbolClient(ILogger logger, SymbolConfig config)
+        public VsoSymbolClient(ILogger logger, SymbolConfig config, Client apiClient)
         {
             m_logger = logger;
+            m_apiClient = apiClient;
             m_config = config;
+            m_debugEntryCreateBehavior = config.DebugEntryCreateBehavior;
             m_cancellationSource = new CancellationTokenSource();
 
             m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using drop config: {JsonConvert.SerializeObject(m_config)}"));
@@ -120,15 +128,53 @@ namespace Tool.SymbolDaemon
         public async Task<AddDebugEntryResult> AddFileAsync(SymbolFile symbolFile)
         {
             Contract.Requires(symbolFile.IsIndexed, "File has not been indexed.");
-            Contract.Requires(symbolFile.DebugEntries.Count > 0, "File contains no symbol data.");
+
+            if (symbolFile.DebugEntries.Count == 0)
+            {
+                // If there are no debug entries, ask bxl to log a message and return early.
+                Analysis.IgnoreResult(await m_apiClient.LogMessage(I($"File '{symbolFile.FullFilePath}' does not contain symbols and will not be added to '{RequestName}'."), isWarning: false));
+                return AddDebugEntryResult.NoSymbolData;
+            }
 
             await EnsureRequestIdInitalizedAsync();
 
-            var result = await m_symbolClient.CreateRequestDebugEntriesAsync(
-                RequestId,
-                symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
-                DefaultDebugEntryCreateBehavior,
-                CancellationToken);
+            List<DebugEntry> result;
+
+            try
+            {
+                result = await m_symbolClient.CreateRequestDebugEntriesAsync(
+                    RequestId,
+                    symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                    // First, we create debug entries with ThrowIfExists behavior not to silence the collision errors.
+                    DebugEntryCreateBehavior.ThrowIfExists,
+                    CancellationToken);
+            }
+            catch (DebugEntryExistsException)
+            {
+                string message = $"[SymbolDaemon] File: '{symbolFile.FullFilePath}' caused collision. " +
+                    (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists
+                        ? string.Empty
+                        : $"SymbolDaemon will retry creating debug entry with {m_debugEntryCreateBehavior} behavior");
+
+                // Log a warning message in BuildXL log file
+                Analysis.IgnoreResult(await m_apiClient.LogMessage(message, isWarning: true));
+
+                if (m_debugEntryCreateBehavior == DebugEntryCreateBehavior.ThrowIfExists)
+                {
+                    // Log an error message in SymbolDaemon log file
+                    m_logger.Error(message);
+                    throw new DebugEntryExistsException(message);
+                }
+
+                // Log a warning message in SymbolDaemon log file
+                m_logger.Warning(message);
+
+                result = await m_symbolClient.CreateRequestDebugEntriesAsync(
+                    RequestId,
+                    symbolFile.DebugEntries.Select(e => CreateDebugEntry(e)),
+                    m_debugEntryCreateBehavior,
+                    CancellationToken);
+            }
 
             var entriesWithMissingBlobs = result.Where(e => e.Status == DebugEntryStatus.BlobMissing).ToList();
 
@@ -136,7 +182,7 @@ namespace Tool.SymbolDaemon
             {
                 // All the entries are based on the same file, so we need to call upload only once.
 
-                // make sure that the file is on disk
+                // make sure that the file is on disk (it might not be on disk if we got DebugEntries from cache/metadata file)
                 var file = await symbolFile.EnsureMaterializedAsync();
 
                 var uploadResult = await m_symbolClient.UploadFileAsync(
@@ -154,7 +200,7 @@ namespace Tool.SymbolDaemon
                 entriesWithMissingBlobs = await m_symbolClient.CreateRequestDebugEntriesAsync(
                     RequestId,
                     entriesWithMissingBlobs,
-                    DefaultDebugEntryCreateBehavior,
+                    m_debugEntryCreateBehavior,
                     CancellationToken);
 
                 Contract.Assert(entriesWithMissingBlobs.All(e => e.Status != DebugEntryStatus.BlobMissing), "Entries with non-success code are present.");

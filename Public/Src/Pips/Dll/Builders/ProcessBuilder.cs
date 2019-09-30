@@ -483,7 +483,7 @@ namespace BuildXL.Pips.Builders
 
             EnvironmentVariable[] envVars = new EnvironmentVariable[m_environmentVariables.Count];
             int idx = 0;
-            foreach (var kvp in m_environmentVariables.OrderBy(kv => kv.Key, m_pathTable.StringTable.OrdinalComparer))
+            foreach (var kvp in m_environmentVariables)
             {
                 // if the value is invalid, then it is a pass through env variable.
                 var isPassThrough = !kvp.Value.IsValid;

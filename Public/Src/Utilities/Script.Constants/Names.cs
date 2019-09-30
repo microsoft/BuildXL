@@ -288,5 +288,24 @@ namespace BuildXL.FrontEnd.Script.Constants
         public const string ConfigModuleName = "__ConfigModule__";
 
         #endregion Packages
+
+        #region Unsafe
+
+        /// <summary>
+        /// Unsafe namespace.
+        /// </summary>
+        public const string UnsafeNamespace = "Unsafe";
+
+        /// <summary>
+        /// Unsafe output file.
+        /// </summary>
+        public const string UnsafeOutputFile = "outputFile";
+
+        /// <summary>
+        /// Unsafe exclusive output directory.
+        /// </summary>
+        public const string UnsafeExOutputDirectory = "exOutputDirectory";
+
+        #endregion
     }
 }

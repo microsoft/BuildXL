@@ -15,8 +15,9 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Contributing](../CONTRIBUTING.md) TODO: groom
 * [Code of Conduct](../CODE_OF_CONDUCT.md)
 * [Installation Instructions](Wiki/Installation.md) TODO: groom
-* [Developer Guide](Wiki/DeveloperGuide.md) TODO: author
+* [Developer Guide](Wiki/DeveloperGuide.md)
 * [Security](../SECURITY.md)
+* [Release Notes](Wiki/Release-Notes.md)
 
 # Product Documentation
 ## Architecture
@@ -32,9 +33,9 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Unsafe Flags](Wiki/How-To-Run-BuildXL/Unsafe-flags.md) todo: groom
 * [Incremental Tools](Wiki/Advanced-Features/Incremental-tools.md) TODO: groom
 * [Preserve Outputs](Wiki/Advanced-Features/Preserving-outputs.md) TODO: groom
-* [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md) TODO: groom
+* [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md)
 * [Sealed Directories](Wiki/Advanced-Features/Sealed-Directories.md) TODO: groom
-* [Search Path Enumeration](Wiki/Advanced-Features/Search-Path-Enumeration.md) TODO: groom
+* [Search Path Enumeration](Wiki/Advanced-Features/Search-Path-Enumeration.md)
 
 ## Build Execution
 * [Filtering](Wiki/How-To-Run-BuildXL/Filtering.md) TODO: groom
@@ -50,6 +51,8 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Server Mode](Wiki/Advanced-Features/Server-Mode.md) TODO: groom
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md) TODO: groom
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md) TODO: groom
+* [Service Pips](Wiki/Service-Pips.md)
+* [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)
@@ -61,4 +64,6 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) TODO: groom
 * [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md) TODO: groom
 
-
+## Troubleshooting
+* [DX Error Codes](Wiki/Error-Codes)
+* [Common Issues]()

@@ -860,7 +860,7 @@ namespace BuildXL.Engine.Tracing
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash}' reported to master.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionWorkerPipOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash);
 
         [GeneratedEvent(
@@ -2689,6 +2689,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Tasks.Distribution,
             Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ChosenABTesting,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "Chosen AB testing arguments: {key} = {args}")]
+        internal abstract void ChosenABTesting(LoggingContext context, string key, string args);
 
         [GeneratedEvent(
             (ushort)LogEventId.FailedToGetJournalAccessor,

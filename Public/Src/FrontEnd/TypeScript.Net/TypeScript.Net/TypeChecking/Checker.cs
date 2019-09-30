@@ -32,6 +32,7 @@ using static TypeScript.Net.Types.SymbolTable;
 using static TypeScript.Net.Utils;
 using CancellationToken = TypeScript.Net.Types.CancellationToken;
 using ISymbol = TypeScript.Net.Types.ISymbol;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using SymbolTable = TypeScript.Net.Types.SymbolTable;
 
 namespace TypeScript.Net.TypeChecking
@@ -740,7 +741,7 @@ namespace TypeScript.Net.TypeChecking
                     Exports = FilterNonPublicNamespaceMembers(symbol.Exports),
                 },
                 originalSymbol: symbol);
-            
+
             return result;
         }
 
@@ -1829,7 +1830,7 @@ namespace TypeScript.Net.TypeChecking
 
         private static ISymbol GetTargetOfAlias((Checker checker, ISymbol symbol) tpl, ISymbolLinks links, bool resolveAliasRecursively)
         {
-            
+
             if (tpl.checker.m_targetResolutionSet.Value.ContainsKey(links))
             {
                 tpl.checker.m_targetResolutionSet.Value[links] = AliasResolutionState.Cycle;
@@ -2917,7 +2918,7 @@ namespace TypeScript.Net.TypeChecking
                         ISymbolVisibilityResult hasAccessibleDeclarations = HasVisibleDeclarations(firstSymbolInChain);
                         if (hasAccessibleDeclarations == null)
                         {
-                            // DScript-specific. If firstSymbolInChain is defined in the prelude, 
+                            // DScript-specific. If firstSymbolInChain is defined in the prelude,
                             // then it is automatically accessible to anybody
                             var symbolSourceFile = firstSymbolInChain.DeclarationList.FirstOrDefault()?.GetSourceFile();
                             if (symbolSourceFile == null || !m_host.IsPartOfPreludeModule(symbolSourceFile.FileName))
@@ -10195,7 +10196,7 @@ namespace TypeScript.Net.TypeChecking
                                         }
 
                                         break;
-                                    
+
                                     case SyntaxKind.SwitchExpression:
                                         // In a branch of a switch expression, narrow based on controlling pattern match
                                         if (c.ResolveUnionType() != n.Cast<ISwitchExpression>().Expression.ResolveUnionType())
@@ -13184,7 +13185,7 @@ namespace TypeScript.Net.TypeChecking
                     // DS: DScript allows ambient decorators on interface properties
                     case SyntaxKind.PropertySignature:
                         return 1;
-                        
+
                     // DS: DScript allows ambient decorators on literal types
                     case SyntaxKind.StringLiteralType:
                         return 1;

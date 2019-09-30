@@ -119,7 +119,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// </summary>
         public static Task ExecuteWithTimeoutAsync(Context context, string operationName, Func<CancellationToken, Task> taskFunc, CancellationToken ct, TimeSpan? timeout = null)
         {
-            return ExecuteWithTimeoutAsync<Object>(
+            return ExecuteWithTimeoutAsync<object>(
                 context,
                 operationName,
                 async (innerCt) =>
@@ -142,6 +142,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             if (ex is HttpRequestException)
             {
                 if (ex.InnerException is WebException ||
+                    // The following error is relatively common and can happen due to some transient networking issues.
                     (ex.InnerException is IOException && ex.InnerException.Message.Contains("Unable to read data from the transport connection")))
                 {
                     return true;

@@ -238,7 +238,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (result && recorder != null)
                 {
                     // Fire and forget since this step is optional.
-                    var putBlobResult = await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).FireAndForgetAndReturnTask(context);
+                    var putBlobResult = await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
                     putBlob = putBlobResult.Succeeded;
                 }
             }

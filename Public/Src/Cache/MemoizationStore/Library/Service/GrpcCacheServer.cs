@@ -153,7 +153,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions.Grpc
                     result.Header = ResponseHeader.Success(startTime);
                 }
 
-                Logger.Info($"GRPC server operation '{operation}' succeeded by {stopwatch.Elapsed.TotalMilliseconds}ms.");
                 return result;
             }
             catch (TaskCanceledException)

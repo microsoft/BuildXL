@@ -1273,7 +1273,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             var context = new PipFilterContext(this);
-            var pipFilter = canonicalizeFilter ? filter.PipFilter.Canonicalize(new FilterCanonicalizer()) : filter.PipFilter;
+            var pipFilter = canonicalizeFilter ? filter.PipFilter : filter.RawPipFilter;
             return pipFilter.FilterOutputs(context);
         }
 

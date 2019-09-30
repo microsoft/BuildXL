@@ -99,18 +99,25 @@ namespace BuildXL.Pips.Operations
         {
             using (var reader = new PipRemapReader(m_pipExecutionContext, m_pipGraphFragmentContext, stream))
             {
-                string serializedDescription = reader.ReadNullableString();
-                FragmentDescription = fragmentDescriptionOverride ?? serializedDescription;
-                var provenance = new PipGraphFragmentProvenance(filePathOrigin, FragmentDescription);
-                bool serializedUsingTopSort = reader.ReadBoolean();
-                Func<PipId, Pip, Task<bool>> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
-                if (serializedUsingTopSort)
+                try
                 {
-                    return await DeserializeTopSortAsync(handleDeserializedPipInFragment, reader);
+                    string serializedDescription = reader.ReadNullableString();
+                    FragmentDescription = fragmentDescriptionOverride ?? serializedDescription;
+                    var provenance = new PipGraphFragmentProvenance(filePathOrigin, FragmentDescription);
+                    bool serializedUsingTopSort = reader.ReadBoolean();
+                    Func<PipId, Pip, Task<bool>> handleDeserializedPipInFragment = (pipId, pip) => handleDeserializedPip(m_pipGraphFragmentContext, provenance, pipId, pip);
+                    if (serializedUsingTopSort)
+                    {
+                        return await DeserializeTopSortAsync(handleDeserializedPipInFragment, reader);
+                    }
+                    else
+                    {
+                        return await DeserializeSeriallyAsync(handleDeserializedPipInFragment, reader);
+                    }
                 }
-                else
+                finally
                 {
-                    return await DeserializeSeriallyAsync(handleDeserializedPipInFragment, reader);
+                    Interlocked.Add(ref Stats.OptimizedSymbols, reader.OptimizedSymbols);
                 }
             }
         }
@@ -249,7 +256,8 @@ namespace BuildXL.Pips.Operations
 
         private PipRemapWriter GetRemapWriter(Stream stream)
         {
-            return new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream);
+            // Specify alternate symbol separator to reduce full strings in symbol table for value names which are split by '_' character
+            return new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream, alternateSymbolSeparator: '_');
         }
 
         private void SerializeHeader(PipRemapWriter writer, string fragmentDescription, bool topSort)
@@ -277,6 +285,11 @@ namespace BuildXL.Pips.Operations
             /// Number of deserialized pips.
             /// </summary>
             public int PipsDeserialized => Volatile.Read(ref m_deserializedPipCount);
+
+            /// <summary>
+            /// The number of optimized symbols
+            /// </summary>
+            public int OptimizedSymbols;
 
             /// <summary>
             /// Creates an instance of <see cref="SerializeStats"/>.
@@ -320,6 +333,7 @@ namespace BuildXL.Pips.Operations
                 builder.AppendLine();
                 builder.AppendLine($"    Serialized pips: {PipsSerialized}");
                 builder.AppendLine($"    Deserialized pips: {PipsDeserialized}");
+                builder.AppendLine($"    Optimized symbols: {OptimizedSymbols}");
                 for (int i = 0; i < m_pips.Length; ++i)
                 {
                     PipType pipType = (PipType)i;

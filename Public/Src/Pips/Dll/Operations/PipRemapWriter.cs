@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Serialization;
 
 namespace BuildXL.Pips.Operations
@@ -18,12 +19,15 @@ namespace BuildXL.Pips.Operations
         private readonly PipDataEntriesPointerInlineWriter m_pipDataEntriesPointerInlineWriter;
         private readonly PipGraphFragmentContext m_pipGraphFragmentContext;
         private readonly PipExecutionContext m_pipExecutionContext;
+        private readonly char m_alternateSymbolSeparator;
+        private readonly char[] m_alternateSymbolSeparatorAsArray;
+        private readonly string m_alternateSymbolSeparatorAsString;
 
         /// <summary>
         /// Creates an instance of <see cref="PipRemapWriter"/>.
         /// </summary>
-        public PipRemapWriter(PipExecutionContext pipExecutionContext, PipGraphFragmentContext pipGraphFragmentContext, Stream stream, bool debug = false, bool leaveOpen = true, bool logStats = false)
-            : base(debug, stream, leaveOpen, logStats)
+        public PipRemapWriter(PipExecutionContext pipExecutionContext, PipGraphFragmentContext pipGraphFragmentContext, Stream stream, bool leaveOpen = true, char alternateSymbolSeparator = char.MinValue)
+            : base(debug: false, stream, leaveOpen, logStats: false)
         {
             Contract.Requires(pipExecutionContext != null);
             Contract.Requires(pipGraphFragmentContext != null);
@@ -31,8 +35,12 @@ namespace BuildXL.Pips.Operations
 
             m_pipExecutionContext = pipExecutionContext;
             m_pipGraphFragmentContext = pipGraphFragmentContext;
-            m_inliningWriter = new InliningWriter(stream, pipExecutionContext.PathTable, debug, leaveOpen, logStats);
-            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(this, stream, pipExecutionContext.PathTable, debug, leaveOpen, logStats);
+            m_inliningWriter = new InliningWriter(stream, pipExecutionContext.PathTable, debug: false, leaveOpen, logStats: false);
+            m_pipDataEntriesPointerInlineWriter = new PipDataEntriesPointerInlineWriter(this, stream, pipExecutionContext.PathTable, debug: false, leaveOpen, logStats: false);
+
+            m_alternateSymbolSeparator = alternateSymbolSeparator;
+            m_alternateSymbolSeparatorAsArray = alternateSymbolSeparator != default ? new char[] { alternateSymbolSeparator } : new char[0];
+            m_alternateSymbolSeparatorAsString = alternateSymbolSeparator != default ? alternateSymbolSeparator.ToString() : string.Empty;
         }
 
         /// <inheritdoc />
@@ -48,7 +56,30 @@ namespace BuildXL.Pips.Operations
         public override void WritePipDataEntriesPointer(in StringId value) => m_pipDataEntriesPointerInlineWriter.Write(value);
 
         /// <inheritdoc />
-        public override void Write(FullSymbol value) => Write(value.ToString(m_pipExecutionContext.SymbolTable));
+        public override void Write(FullSymbol value)
+        {
+            var symbolTable = m_pipExecutionContext.SymbolTable;
+            var depth = symbolTable.GetDepth(value.Value);
+            var stringValue = value.ToString(symbolTable);
+
+            // Use alternate symbol separator to 
+            if (m_alternateSymbolSeparator != default && stringValue.Contains(m_alternateSymbolSeparatorAsString))
+            {
+                var segments = stringValue.Split(m_alternateSymbolSeparatorAsArray, System.StringSplitOptions.None);
+
+                if (segments.Length > depth)
+                {
+                    // Alternate symbol separator results in more splits of the string. Use it instead.
+                    var stringTable = m_pipExecutionContext.StringTable;
+                    Write(m_alternateSymbolSeparator);
+                    Write(segments, (w, s) => w.Write(stringTable.AddString(s)));
+                    return;
+                }
+            }
+
+            Write(default(char));
+            Write(stringValue);
+        }
 
         private class PipDataEntriesPointerInlineWriter : InliningWriter
         {

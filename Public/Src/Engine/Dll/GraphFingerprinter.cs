@@ -135,20 +135,9 @@ namespace BuildXL.Engine
                 {
                     using (var evaluationFilterHasher = new CoreHashingHelper(recordFingerprintString: false))
                     {
-                        foreach (string value in partialEvaluationData.ValueNamesToResolveAsStrings.OrderBy(v => v))
-                        {
-                            AddText(evaluationFilterHasher, "valueName", value);
-                        }
-
-                        foreach (string value in partialEvaluationData.ValueDefinitionRootsToResolveAsStrings.OrderBy(v => v))
-                        {
-                            AddText(evaluationFilterHasher, "valuePath", value);
-                        }
-
-                        foreach (string value in partialEvaluationData.ModulesToResolveAsStrings.OrderBy(v => v))
-                        {
-                            AddText(evaluationFilterHasher, "moduleName", value);
-                        }
+                        AddOrderedTextValues(evaluationFilterHasher, "valueName", partialEvaluationData.ValueNamesToResolveAsStrings);
+                        AddOrderedTextValues(evaluationFilterHasher, "valuePath", partialEvaluationData.ValueDefinitionRootsToResolveAsStrings);
+                        AddOrderedTextValues(evaluationFilterHasher, "moduleName", partialEvaluationData.ModulesToResolveAsStrings);
 
                         fingerprint.FilterHash = evaluationFilterHasher.GenerateHash();
                         AddFingerprint(hasher, "Values", fingerprint.FilterHash);
@@ -289,6 +278,29 @@ namespace BuildXL.Engine
                 hasher.Add(key, value);
                 fingerprintTextElements.Add(
                    (key, value.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            void AddOrderedTextValues(CoreHashingHelper hasher, string key, IReadOnlyList<string> values)
+            {
+                const int maxValuesToPrint = 50;
+                var unprintedValueCount = values.Count - maxValuesToPrint;
+
+                int i = 0;
+                foreach (var value in values.OrderBy(s => s))
+                {
+                    hasher.Add(key, value);
+
+                    if (i < maxValuesToPrint)
+                    {
+                        fingerprintTextElements.Add((key, value));
+                    }
+                    else if (i == maxValuesToPrint)
+                    {
+                        fingerprintTextElements.Add((key, $"[+{unprintedValueCount} more]"));
+                    }
+
+                    i++;
+                }
             }
 
             void AddText(CoreHashingHelper hasher, string key, string value)

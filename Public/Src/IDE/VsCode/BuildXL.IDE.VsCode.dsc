@@ -11,6 +11,7 @@ import * as VSIntegration from "BuildXL.Ide.VsIntegration";
 import {Node, Npm} from "Sdk.NodeJs";
 
 namespace VsCode.Client {
+    //A new namespace with empty qualifier space to ensure the values inside are evaluated only once
     export declare const qualifier: {};
 
     const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
@@ -18,26 +19,21 @@ namespace VsCode.Client {
     const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
 
     @public
-    export const installRootDir: OpaqueDirectory = Npm.installFromPackageJson(clientCopy);
+    export const installRootDir: OpaqueDirectory = Npm.npmInstallRoot(clientCopy);
 
     @@public
-    export const compileOutDir: OpaqueDirectory = Npm.runCompile(clientCopy.root, clientCopy, installRootDir);
+    export const compileOutDir: OpaqueDirectory = Node.tscCompileOut(clientCopy.root, clientCopy, installRootDir);
 
     @@public
     export const deployedNpmPackageLockFile = Deployment.copyFileFromOpaqueDirectory(
+        // Here we want to copy a file from inside an opaque output directory. 
+        // If done using Transformer.copyFile we would have no way of specifying a dependency of that copy pip to the pip producing this opaque directory, so we wouldn't be able to ensure that the copy operation runs after the opaque directory is produced.
         p`${installRootDir}/package-lock.json`,
         p`${Context.getMount("CgNpmRoot").path}/package-lock.json`,
         installRootDir);
 }
 
 namespace LanguageService.Server {
-    function copyDirectory(fromDirectory : Directory, toDirectory : Directory): StaticDirectory {
-        const onDiskDeployment = Deployment.deployToDisk({
-            definition: Deployment.createFromDisk(fromDirectory),
-            targetDirectory: toDirectory
-        });
-        return onDiskDeployment.contents;
-    }
     /**
      * Builds a VSIX for given version that packages the server assembly (with closure of its references)
      * as well as client resources

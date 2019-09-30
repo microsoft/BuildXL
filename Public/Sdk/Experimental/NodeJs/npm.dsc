@@ -42,7 +42,7 @@ namespace Npm {
     }
 
     @@public
-    export function installFromPackageJson(workingDirectory: StaticDirectory): OpaqueDirectory {
+    export function npmInstallRoot(workingDirectory: StaticDirectory): OpaqueDirectory {
         const wd = workingDirectory.root;
         const nodeModulesPath = d`${wd}/node_modules`;
         const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
@@ -69,29 +69,6 @@ namespace Npm {
         });
 
         return result.getOutputDirectory(wd);
-    }
-
-    @@public
-    export function runCompile(workingDirectory: Directory, ...dependencies: StaticDirectory[]) : OpaqueDirectory {
-        const outPath = d`${workingDirectory}/out`;
-        const arguments: Argument[] = [
-            Cmd.argument(Artifact.none(f`${workingDirectory}/node_modules/typescript/lib/tsc.js`)),
-            Cmd.argument("-p"),
-            Cmd.argument("."),
-        ];
-
-        const result = Node.run({
-            arguments: arguments,
-            workingDirectory: workingDirectory,
-            dependencies : [
-                ...dependencies
-            ],
-            outputs: [
-                { directory: outPath, kind: "shared" }
-            ]
-        });
-
-        return result.getOutputDirectory(outPath);
     }
 
     @@public

@@ -103,4 +103,27 @@ namespace Node {
 
         return pkgContents.getFile(executable);
     }
+
+    @@public
+    export function tscCompileOut(workingDirectory: Directory, ...dependencies: StaticDirectory[]) : OpaqueDirectory {
+        const outPath = d`${workingDirectory}/out`;
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.none(f`${workingDirectory}/node_modules/typescript/lib/tsc.js`)),
+            Cmd.argument("-p"),
+            Cmd.argument("."),
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            dependencies : [
+                ...dependencies
+            ],
+            outputs: [
+                { directory: outPath, kind: "shared" }
+            ]
+        });
+
+        return result.getOutputDirectory(outPath);
+    }
 }

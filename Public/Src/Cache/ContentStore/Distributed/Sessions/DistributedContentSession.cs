@@ -252,6 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 return result;
             }
 
+            // It is important to register location before requesting the proactive copy; otherwise, we can fail the proactive copy.
             var registerResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
 
             // Only perform proactive copy to other machines if we didn't put the blob into Redis and we succeeded in registering our location.

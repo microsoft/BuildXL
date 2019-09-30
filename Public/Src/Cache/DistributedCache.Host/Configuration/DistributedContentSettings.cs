@@ -222,7 +222,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// Fraction of the pool considered trusted to be in the accurate order.
         /// </summary>
         [DataMember]
-        public float EvictionRemovalFraction { get; set; } = 1.0f / 30.0f;
+        public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         private int[] _retryIntervalForCopiesMs =
             new int[]

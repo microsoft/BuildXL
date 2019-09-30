@@ -158,8 +158,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
                 { "test.package.z", CreatePackage("1.0.0") },
                 { "test.package.name", CreatePackage("1.0.1") },
                 { "test.a.name", CreatePackage("10.0.1") },
-                { "Dotnet-Runtime", CreatePackage("1.1.1") },
                 { "DotNet.Glob", CreatePackage("1.1.1") },
+                { "Dotnet-Runtime", CreatePackage("1.1.1") },
             };
 
             string expectedMainifest = @"
@@ -170,7 +170,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
       ""Component"": {
         ""Type"": ""NuGet"",
         ""NuGet"": {
-          ""Name"": ""DotNet.Glob"",
+          ""Name"": ""Dotnet-Runtime"",
           ""Version"": ""1.1.1""
         }
       }
@@ -179,7 +179,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
       ""Component"": {
         ""Type"": ""NuGet"",
         ""NuGet"": {
-          ""Name"": ""Dotnet-Runtime"",
+          ""Name"": ""DotNet.Glob"",
           ""Version"": ""1.1.1""
         }
       }
@@ -241,7 +241,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
   ]
 }";
 
-            XAssert.IsTrue(NugetCgManifestGenerator.CompareForEquality(expectedMainifest, m_generator.GenerateCgManifestForPackages(packages)));
+            var generated = m_generator.GenerateCgManifestForPackages(packages);
+            XAssert.IsTrue(NugetCgManifestGenerator.CompareForEquality(expectedMainifest, generated), "Actual: " + generated);
         }
     }
 }

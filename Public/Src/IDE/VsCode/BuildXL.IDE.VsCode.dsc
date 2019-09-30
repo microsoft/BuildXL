@@ -128,7 +128,5 @@ namespace LanguageService.Server {
             targetDirectory: toDirectory
         });
         return onDiskDeployment.contents;
-        // Debug.writeLine("Deployment: " + Deployment.createFromDisk(fromDirectory));
-        // Debug.writeLine(`=== ${onDiskDeployment.contents.root}: ${onDiskDeployment.contents.getContent().length}`);
     }
 }

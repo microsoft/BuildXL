@@ -37,7 +37,6 @@ namespace Node {
             args
         );
 
-        Debug.writeLine(`=== ${execArgs.tool.exe} ${Debug.dumpArgs(execArgs.arguments)}`);
         return Transformer.execute(execArgs);
     }
 

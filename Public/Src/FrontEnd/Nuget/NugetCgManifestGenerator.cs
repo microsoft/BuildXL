@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Linq;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Collections;
@@ -30,11 +31,14 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public string GenerateCgManifestForPackages(MultiValueDictionary<string, Package> packages)
         {
+            // NOTE: don't use a case-insensitive comparer because they may have different behaviors on different platforms
+            //       (e.g., "DotNet.Glob" and "Dotnet-Runtime" have different orders on Windows and Mac)
+            var stringComparer = StringComparer.Ordinal;
             var components = packages
                 .Keys
                 .SelectMany(nugetName => packages[nugetName].Select(package => new NugetPackageAndVersionStore(nugetName, ExtractNugetVersion(package))))
-                .OrderBy(c => c.Name)
-                .ThenBy(c => c.Version)
+                .OrderBy(c => c.Name, stringComparer)
+                .ThenBy(c => c.Version, stringComparer)
                 .Select(c => ToNugetComponent(c.Name, c.Version))
                 .ToList();
 
@@ -44,7 +48,15 @@ namespace BuildXL.FrontEnd.Nuget
                 Registrations = components
             };
 
-            return JsonConvert.SerializeObject(cgmanifest, Formatting.Indented);
+            var formatted = JsonConvert.SerializeObject(cgmanifest, Formatting.Indented);
+
+            // It's not easy to tell JsonConvert what to use for Newline.  By default, it uses Environment.Newline,
+            // which means "\r\n" on Windows and "\n" on Mac.  We need this to be consistent across platforms.
+            // We use Windows new line separator across the board for backward compatibility reasons.
+            const string WindowsNewline = "\r\n";
+            return Environment.NewLine != WindowsNewline
+                ? formatted.Replace(Environment.NewLine, WindowsNewline)
+                : formatted;
         }
 
         /// <summary>

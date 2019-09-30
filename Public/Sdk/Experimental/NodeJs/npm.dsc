@@ -50,25 +50,25 @@ namespace Npm {
 
     @@public
     export function installFromPackageJson(workingStaticDirectory : StaticDirectory) : Result {
-        //return _install(workingStaticDirectory, "install");
+        return _install(workingStaticDirectory, "install");
 
-        const workingDirectory = workingStaticDirectory.root;
-        const nodeModulesPath = d`${workingDirectory}/node_modules`;
-        const arguments: Argument[] = [
-            Cmd.argument(Artifact.input(Node.npmCli)),
-            Cmd.argument("install")
-        ];
+        // const workingDirectory = workingStaticDirectory.root;
+        // const nodeModulesPath = d`${workingDirectory}/node_modules`;
+        // const arguments: Argument[] = [
+        //     Cmd.argument(Artifact.input(Node.npmCli)),
+        //     Cmd.argument("install")
+        // ];
 
-        const result = Node.run({
-            arguments: arguments,
-            workingDirectory: workingDirectory,
-            dependencies : [workingStaticDirectory],
-            outputs: [
-                {directory: nodeModulesPath, kind: "shared"}
-            ]
-        });
+        // const result = Node.run({
+        //     arguments: arguments,
+        //     workingDirectory: workingDirectory,
+        //     dependencies : [workingStaticDirectory],
+        //     outputs: [
+        //         {directory: nodeModulesPath, kind: "shared"}
+        //     ]
+        // });
         
-        return { nodeModules: result.getOutputDirectory(nodeModulesPath) };
+        // return { nodeModules: result.getOutputDirectory(nodeModulesPath) };
     }
 
     @@public

@@ -58,7 +58,7 @@ namespace LanguageService.Server {
 
         const copyOfSourceFolder = copyDirectory(d`client`, Context.getNewOutputDirectory(`ClientTemp`));
         const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder).nodeModules;
-        const outPath = Npm.runCompile(copyOfSourceFolder);
+        //const outPath = Npm.runCompile(copyOfSourceFolder);
 
         // Debug.writeLine("nodeModulesPath: " + nodeModulesPath.getContent().length);
 
@@ -102,10 +102,10 @@ namespace LanguageService.Server {
                             subfolder: a`node_modules`,
                             contents: [ nodeModulesPath ]
                         },
-                        {
-                            subfolder: a`out`,
-                            contents: [ outPath ]
-                        },
+                        // {
+                        //     subfolder: a`out`,
+                        //     contents: [ outPath ]
+                        // },
                         f`client/License.txt`,
                         f`client/package.nls.json`,
                         readme,

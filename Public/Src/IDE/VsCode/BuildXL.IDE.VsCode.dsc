@@ -10,8 +10,34 @@ import * as Branding from "BuildXL.Branding";
 import * as VSIntegration from "BuildXL.Ide.VsIntegration";
 import {Node, Npm} from "Sdk.NodeJs";
 
-namespace LanguageService.Server {
+namespace VsCode.Client {
+    export declare const qualifier: {};
 
+    const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
+
+    const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
+
+    @public
+    export const installRootDir: OpaqueDirectory = Npm.installFromPackageJson(clientCopy);
+
+    @@public
+    export const compileOutDir: OpaqueDirectory = Npm.runCompile(clientCopy.root, clientCopy, installRootDir);
+
+    @@public
+    export const deployedNpmPackageLockFile = Deployment.copyFileFromOpaqueDirectory(
+        p`${installRootDir}/package-lock.json`,
+        p`${Context.getMount("CgNpmRoot").path}/package-lock.json`,
+        installRootDir);
+}
+
+namespace LanguageService.Server {
+    function copyDirectory(fromDirectory : Directory, toDirectory : Directory): StaticDirectory {
+        const onDiskDeployment = Deployment.deployToDisk({
+            definition: Deployment.createFromDisk(fromDirectory),
+            targetDirectory: toDirectory
+        });
+        return onDiskDeployment.contents;
+    }
     /**
      * Builds a VSIX for given version that packages the server assembly (with closure of its references)
      * as well as client resources
@@ -49,20 +75,11 @@ namespace LanguageService.Server {
      * means that any change to client/src/extension.ts needs to be recompiled and the checked-in file updated.
      */
     export function buildVsixDeploymentDefinition(serverAssembly: ManagedSdk.Assembly) : Deployment.Definition {
-
         // We have to publish the vsix to the Visual Studio MarketPlace which doesn't handle prerelease tags. 
         let version = Branding.versionNumberForToolsThatDontSupportPreReleaseTag;
         let manifest = IDE.VersionUtilities.updateVersion(version, f`pluginTemplate/extension.vsixmanifest`);
         let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`);
         let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
-
-        const copyOfSourceFolder = copyDirectory(d`client`, Context.getNewOutputDirectory(`ClientTemp`));
-        const nodeModulesPath = Npm.installFromPackageJson(copyOfSourceFolder).nodeModules;
-        const outPath = Npm.runCompile(copyOfSourceFolder, nodeModulesPath);
-
-        // Debug.writeLine("nodeModulesPath: " + nodeModulesPath.getContent().length);
-
-        // TODO: package-lock.json to cg folder
 
         const vsixDeployment: Deployment.Definition = {
             contents: [
@@ -100,11 +117,11 @@ namespace LanguageService.Server {
                         },
                         {
                             subfolder: a`node_modules`,
-                            contents: [ nodeModulesPath ]
+                            contents: [ Deployment.createDeployableOpaqueSubDirectory(VsCode.Client.installRootDir, r`node_modules`) ]
                         },
                         {
                             subfolder: a`out`,
-                            contents: [ outPath ]
+                            contents: [ VsCode.Client.compileOutDir ]
                         },
                         f`client/License.txt`,
                         f`client/package.nls.json`,
@@ -120,13 +137,5 @@ namespace LanguageService.Server {
         };
 
         return vsixDeployment;
-    }
-
-    function copyDirectory(fromDirectory : Directory, toDirectory : Directory): StaticDirectory {
-        const onDiskDeployment = Deployment.deployToDisk({
-            definition: Deployment.createFromDisk(fromDirectory),
-            targetDirectory: toDirectory
-        });
-        return onDiskDeployment.contents;
     }
 }

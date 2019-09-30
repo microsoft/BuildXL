@@ -21,6 +21,13 @@ export interface OnDiskDeployment {
     targetOpaques?: OpaqueDirectory[];
 }
 
+@@public
+export interface OpaqueSubDirectory extends Deployable {
+    opaque: OpaqueDirectory,
+    subDirectory: RelativePath,
+    deploy: FlattenForDeploymentFunction
+}
+
 /**
  * Arguments to fine tune how things are deployed to disk
  */
@@ -40,6 +47,145 @@ export interface DeployToDiskArguments {
 
     /** A set of options specific to the deployment. deployToDisk just dumbly passes it along to the flatten method of the Deployable interface. */
     deploymentOptions?: DeploymentOptions;
+}
+
+@@public
+export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub: RelativePath): OpaqueSubDirectory {
+    return <OpaqueSubDirectory> {
+        opaque: opaque,
+        subDirectory: sub,
+        deploy: (
+            item: Object, 
+            targetFolder: RelativePath,
+            handleDuplicateFile: HandleDuplicateFileDeployment, 
+            result: FlattenedResult,
+            deploymentOptions?: Object,
+            provenance?: Diagnostics.Provenance) => 
+        {
+            const existingOpaque = result.flattenedOpaques.get(targetFolder);
+
+            if (existingOpaque !== undefined) {
+                if (!(existingOpaque[0] === opaque && existingOpaque[1] === sub)) {
+                    Contract.fail(`Duplicate opaque directory. Can't deploy both '${existingOpaque[0].root}/${existingOpaque[1]}' and '${opaque.root}/${sub}' to '${targetFolder}'`);
+                }
+
+                return result;
+            }
+            else {
+                // TODO: Validate if there is a flattenedFile already under this OpaqueDirectory. To implement this we'll need IsWithin on RelativePath
+                return {
+                    flattenedFiles: result.flattenedFiles,
+                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, [<OpaqueDirectory>opaque, sub]),
+                    visitedItems: result.visitedItems.add(d`{opaque.root}/${sub}`),
+                };
+            }
+        }
+    };
+}
+
+@@public
+export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOpaqueDir: OpaqueDirectory): DerivedFile {
+    const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
+        ? <Transformer.ExecuteArguments>{
+            tool: {
+                exe: f`${Context.getMount("Windows").path}/System32/cmd.exe`,
+                dependsOnWindowsDirectories: true,
+                description: "Copy File",
+            },
+            workingDirectory: d`${source.parent}`,
+            arguments: [
+                Cmd.argument("copy"),
+                Cmd.argument("/Y"),
+                Cmd.argument("/V"),
+                Cmd.argument(Artifact.none(source)),
+                Cmd.argument(Artifact.output(target))
+            ],
+            dependencies: [
+                sourceOpaqueDir
+            ]
+        }
+        : <Transformer.ExecuteArguments>{
+            tool: {
+                exe: f`/bin/cp`,
+                description: "Copy File",
+                dependsOnCurrentHostOSDirectories: true,
+                prepareTempDirectory: true
+            },
+            workingDirectory: d`${source.parent}`,
+            arguments: [
+                Cmd.argument("-f"),
+                Cmd.argument(Artifact.none(source)),
+                Cmd.argument(Artifact.output(target))
+            ],
+            dependencies: [
+                sourceOpaqueDir
+            ]
+        };
+
+    const result = Transformer.execute(args);
+    return result.getOutputFile(target);
+}
+
+/**
+ * Based on the current platform schedules either a robocopy.exe or rsync pip to copy 'sourceDir' to 'targetDir'
+ */
+@@public
+export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory): OpaqueDirectory {
+    const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
+        ? <Transformer.ExecuteArguments>{
+            tool: {
+                exe: f`${Context.getMount("Windows").path}/System32/Robocopy.exe`,
+                dependsOnWindowsDirectories: true,
+                description: "Copy Directory",
+            },
+            workingDirectory: targetDir,
+            successExitCodes: [
+                0,
+                1,
+                2,
+                4,
+            ],
+            arguments: [
+                Cmd.argument(Artifact.none(sourceDir)),
+                Cmd.argument(Artifact.none(targetDir)),
+                Cmd.argument("*.*"),
+                Cmd.argument("/MIR"), // Mirror the directory
+                Cmd.argument("/NJH"), // No Job Header
+                Cmd.argument("/NFL"), // No File list reducing stdout processing
+                Cmd.argument("/NP"),  // Don't show per-file progress counter
+                Cmd.argument("/MT"),  // Multi threaded
+            ],
+            dependencies: [
+                sourceDirDep
+            ],
+            outputs: [
+                { directory: targetDir, kind: "shared" }
+            ]
+        }
+        : <Transformer.ExecuteArguments>{
+            tool: {
+                exe: f`/usr/bin/rsync`,
+                description: "Copy Directory",
+                dependsOnCurrentHostOSDirectories: true,
+                prepareTempDirectory: true
+            },
+            workingDirectory: targetDir,
+            arguments: [
+                Cmd.argument("-arvh"),
+                Cmd.argument(Cmd.join("", [ Artifact.none(sourceDir), '/' ])),
+                Cmd.argument(Artifact.none(targetDir)),
+                Cmd.argument("--delete"),
+            ],
+            dependencies: [
+                sourceDirDep
+            ],
+            outputs: [
+                { directory: targetDir, kind: "shared" }
+            ]
+        };
+
+    const result = Transformer.execute(args);
+    return result.getOutputDirectory(targetDir);
 }
 
 /**
@@ -62,53 +208,11 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
 
     const targetOpaques = flattened.flattenedOpaques.toArray().map(tuple => {
         const relativeTarget = tuple[0];
-        const opaque = tuple[1];
+        const opaque = tuple[1][0];
+        const opaqueSub = tuple[1][1];
 
         const targetDir = d`${rootDir}/${relativeTarget}`;
-
-        const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"
-            ? <Transformer.ExecuteArguments>{
-                tool: {
-                    exe: f`${Context.getMount("Windows").path}/System32/Robocopy.exe`,
-                    dependsOnWindowsDirectories: true,
-                    description: "Copy Directory",
-                },
-                workingDirectory: targetDir,
-                successExitCodes: [
-                    0,
-                    1,
-                    2,
-                    4,
-                ],
-                arguments: [
-                    Cmd.argument(Artifact.input(opaque)),
-                    Cmd.argument(Artifact.output(targetDir)),
-                    Cmd.argument("*.*"),
-                    Cmd.argument("/MIR"), // Mirror the directory
-                    Cmd.argument("/NJH"), // No Job Header
-                    Cmd.argument("/NFL"), // No File list reducing stdout processing
-                    Cmd.argument("/NP"),  // Don't show per-file progress counter
-                    Cmd.argument("/MT"),  // Multi threaded
-                ]
-            }
-            : <Transformer.ExecuteArguments>{
-                tool: {
-                    exe: f`/usr/bin/rsync`,
-                    description: "Copy Directory",
-                    dependsOnCurrentHostOSDirectories: true,
-                    prepareTempDirectory: true
-                },
-                workingDirectory: targetDir,
-                arguments: [
-                    Cmd.argument("-arvh"),
-                    Cmd.argument(Cmd.join("", [ Artifact.input(opaque), '/' ])),
-                    Cmd.argument(Artifact.output(targetDir)),
-                    Cmd.argument("--delete"),
-                ]
-            };
-
-        const result = Transformer.execute(args);
-        return result.getOutputDirectory(targetDir);
+        return copyDirectory(d`${opaque}/${opaqueSub}`, targetDir, opaque);
     });
 
     // TODO: We lack the ability to combine files and OpaqueDirectories into a new OpaqueDirectory (unless we write a single process that would do all the copies)

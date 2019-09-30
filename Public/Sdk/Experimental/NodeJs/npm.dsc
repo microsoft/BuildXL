@@ -5,35 +5,33 @@ import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 
 namespace Npm {
 
-    function _install(workingDirectory: StaticDirectory, command: string, ...cmdArgs: Argument[]) : Result {
-        const wd = workingDirectory !== undefined
-            ? workingDirectory.root
-            : Context.getNewOutputDirectory(`npm-${command}`);
-        const nodeModulesPath = d`${wd}/node_modules`;
-        const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
+    @@public
+    export function install(args: Arguments) : Result {
+        const folder = Context.getNewOutputDirectory(`npm-${args.name}`);
+        const nodeModulesPath = d`${folder}/node_modules`;
+        const npmCachePath = d`${folder}/npm-cache`;
 
         const arguments: Argument[] = [
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("install"),
-            ...cmdArgs,
+            Cmd.argument(`${args.name}@${args.version}`),
             Cmd.argument("--no-save"), // Prevents writing json files
             Cmd.argument("--no-package-lock"), // Prevents writing json files
             Cmd.argument("--no-bin-links"), // Prevents symlinks
-            Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
+            Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so taht it doesn't write to user folder
         ];
 
         const result = Node.run({
             arguments: arguments,
-            workingDirectory: wd,
-            dependencies: [ workingDirectory ].filter(x => x !== undefined),
+            workingDirectory: folder,
             outputs: [
                 nodeModulesPath,
                 npmCachePath, // Place the cache path as an output directory so it is cleaned each time.
             ],
 
             environmentVariables: [
-                { name: "NPM_CONFIG_USERCONFIG", value: f`${wd}/.npmrc` }, // Prevents user configuration to change behavior
-                { name: "NPM_CONFIG_GLOBALCONFIG", value: f`${wd}/global.npmrc` }, // Prevent machine installed configuration file to change behavior.
+                { name: "NPM_CONFIG_USERCONFIG", value: f`${folder}/.npmrc` }, // Prevents user configuration to change behavior
+                { name: "NPM_CONFIG_GLOBALCONFIG", value: f`${folder}/global.npmrc` }, // Prevent machine installed configuration file to change behavior.
                 { name: "NO_UPDATE_NOTIFIER", value: "1" }, // Prevent npm from checking for the latest version online and write to the user folder with the check information
             ],
         });
@@ -44,33 +42,52 @@ namespace Npm {
     }
 
     @@public
-    export function install(args: Arguments) : Result {
-        return _install(undefined, "install", Cmd.argument(`${args.name}@${args.version}`));
-    }
+    export function installFromPackageJson(workingDirectory: StaticDirectory): OpaqueDirectory {
+        const wd = workingDirectory.root;
+        const nodeModulesPath = d`${wd}/node_modules`;
+        const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
 
-    @@public
-    export function installFromPackageJson(workingStaticDirectory : StaticDirectory) : Result {
-        return _install(workingStaticDirectory, "install");
-    }
-
-    @@public
-    export function runCompile(workingStaticDirectory: StaticDirectory, nodeModulesDir: StaticDirectory) : OpaqueDirectory {
-        const wd = workingStaticDirectory.root;
-        const outPath = d`${wd}/out`;
-        const npmCachePath = Context.getNewOutputDirectory('npm-compile-cache');
         const arguments: Argument[] = [
-            Cmd.argument(Artifact.none(f`${wd}/node_modules/typescript/lib/tsc.js`)),
+            Cmd.argument(Artifact.input(Node.npmCli)),
+            Cmd.argument("install"),
+            Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: wd,
+            dependencies: [ workingDirectory ].filter(x => x !== undefined),
+            outputs: [
+                { directory: wd, kind: "shared" },
+                npmCachePath, // Place the cache path as an output directory so it is cleaned each time.
+            ],
+            environmentVariables: [
+                { name: "NPM_CONFIG_USERCONFIG", value: f`${wd}/.npmrc` }, // Prevents user configuration to change behavior
+                { name: "NPM_CONFIG_GLOBALCONFIG", value: f`${wd}/global.npmrc` }, // Prevent machine installed configuration file to change behavior.
+                { name: "NO_UPDATE_NOTIFIER", value: "1" }, // Prevent npm from checking for the latest version online and write to the user folder with the check information
+            ],
+        });
+
+        return result.getOutputDirectory(wd);
+    }
+
+    @@public
+    export function runCompile(workingDirectory: Directory, ...dependencies: StaticDirectory[]) : OpaqueDirectory {
+        const outPath = d`${workingDirectory}/out`;
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.none(f`${workingDirectory}/node_modules/typescript/lib/tsc.js`)),
             Cmd.argument("-p"),
             Cmd.argument("."),
         ];
 
         const result = Node.run({
             arguments: arguments,
-            workingDirectory: wd,
-            dependencies : [workingStaticDirectory, nodeModulesDir],
+            workingDirectory: workingDirectory,
+            dependencies : [
+                ...dependencies
+            ],
             outputs: [
-                outPath,
-                npmCachePath
+                { directory: outPath, kind: "shared" }
             ]
         });
 
@@ -84,6 +101,6 @@ namespace Npm {
     }
 
     export interface Result {
-        nodeModules: OpaqueDirectory,
+        nodeModules: OpaqueDirectory
     }
 }

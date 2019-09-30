@@ -170,7 +170,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
       ""Component"": {
         ""Type"": ""NuGet"",
         ""NuGet"": {
-          ""Name"": ""Dotnet-Runtime"",
+          ""Name"": ""DotNet.Glob"",
           ""Version"": ""1.1.1""
         }
       }
@@ -179,7 +179,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
       ""Component"": {
         ""Type"": ""NuGet"",
         ""NuGet"": {
-          ""Name"": ""DotNet.Glob"",
+          ""Name"": ""Dotnet-Runtime"",
           ""Version"": ""1.1.1""
         }
       }

@@ -93,6 +93,8 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
             },
             workingDirectory: d`${source.parent}`,
             arguments: [
+                Cmd.argument("/D"),
+                Cmd.argument("/C"),
                 Cmd.argument("copy"),
                 Cmd.argument("/Y"),
                 Cmd.argument("/V"),
@@ -122,6 +124,7 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
         };
 
     const result = Transformer.execute(args);
+
     return result.getOutputFile(target);
 }
 

@@ -31,11 +31,14 @@ namespace BuildXL.FrontEnd.Nuget
         /// </summary>
         public string GenerateCgManifestForPackages(MultiValueDictionary<string, Package> packages)
         {
+            // NOTE: don't use a case-insensitive comparer because they may have different behaviors on different platforms
+            //       (e.g., "DotNet.Glob" and "Dotnet-Runtime" have different orders on Windows and Mac)
+            var stringComparer = StringComparer.Ordinal;
             var components = packages
                 .Keys
                 .SelectMany(nugetName => packages[nugetName].Select(package => new NugetPackageAndVersionStore(nugetName, ExtractNugetVersion(package))))
-                .OrderBy(c => c.Name, StringComparer.Ordinal)
-                .ThenBy(c => c.Version, StringComparer.Ordinal)
+                .OrderBy(c => c.Name, stringComparer)
+                .ThenBy(c => c.Version, stringComparer)
                 .Select(c => ToNugetComponent(c.Name, c.Version))
                 .ToList();
 

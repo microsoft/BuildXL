@@ -34,8 +34,8 @@ namespace BuildXL.FrontEnd.Nuget
             var components = packages
                 .Keys
                 .SelectMany(nugetName => packages[nugetName].Select(package => new NugetPackageAndVersionStore(nugetName, ExtractNugetVersion(package))))
-                .OrderBy(c => c.Name, StringComparer.Ordinal)
-                .ThenBy(c => c.Version, StringComparer.Ordinal)
+                .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.Version, StringComparer.OrdinalIgnoreCase)
                 .Select(c => ToNugetComponent(c.Name, c.Version))
                 .ToList();
 

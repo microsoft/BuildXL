@@ -50,6 +50,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Bond.Core.CSharp",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Bond.CSharp",
           "Version": "8.0.0"
         }
@@ -60,15 +69,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Bond.CSharp.osx-x64",
-          "Version": "8.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Bond.Core.CSharp",
           "Version": "8.0.0"
         }
       }
@@ -149,8 +149,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "DotNet.Glob",
-          "Version": "2.0.3"
+          "Name": "Dotnet-Runtime",
+          "Version": "5.0.2"
         }
       }
     },
@@ -158,8 +158,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Dotnet-Runtime",
-          "Version": "5.0.2"
+          "Name": "DotNet.Glob",
+          "Version": "2.0.3"
         }
       }
     },
@@ -1148,8 +1148,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.CSharp",
-          "Version": "4.3.0"
+          "Name": "Microsoft.CodeAnalysis.Analyzers",
+          "Version": "2.6.3"
         }
       }
     },
@@ -1157,8 +1157,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.Analyzers",
-          "Version": "2.6.3"
+          "Name": "Microsoft.CodeAnalysis.Common",
+          "Version": "2.10.0"
         }
       }
     },
@@ -1176,15 +1176,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.CodeAnalysis.CSharp.Workspaces",
-          "Version": "2.10.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.Common",
           "Version": "2.10.0"
         }
       }
@@ -1256,6 +1247,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.CSharp",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Data.Edm",
           "Version": "5.8.2"
         }
@@ -1283,15 +1283,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.DiaSymReader.Native",
-          "Version": "1.7.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Diagnostics.Tracing.EventSource.Redist",
           "Version": "1.1.28"
         }
@@ -1310,8 +1301,26 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.DiaSymReader.Native",
+          "Version": "1.7.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.DotNet.PlatformAbstractions",
           "Version": "2.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "microsoft.dotnet.xunitconsolerunner",
+          "Version": "2.5.1-beta.19270.4"
         }
       }
     },
@@ -1625,15 +1634,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.IO.RecyclableMemoryStream",
-          "Version": "1.2.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.IdentityModel.Clients.ActiveDirectory",
           "Version": "4.5.1"
         }
@@ -1654,6 +1654,51 @@
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Tokens",
           "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IO.RecyclableMemoryStream",
+          "Version": "1.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Net.Compilers",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Net.Http",
+          "Version": "2.2.29"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Net.Http.Headers",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.NetCore.Analyzers",
+          "Version": "2.3.0-beta1"
         }
       }
     },
@@ -1805,6 +1850,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.NetFramework.Analyzers",
+          "Version": "2.3.0-beta1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.NETFramework.ReferenceAssemblies.net451",
           "Version": "1.0.0-alpha-5"
         }
@@ -1825,51 +1879,6 @@
         "NuGet": {
           "Name": "Microsoft.NETFramework.ReferenceAssemblies.net472",
           "Version": "1.0.0-alpha-5"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Net.Compilers",
-          "Version": "3.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Net.Http",
-          "Version": "2.2.29"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Net.Http.Headers",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NetCore.Analyzers",
-          "Version": "2.3.0-beta1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NetFramework.Analyzers",
-          "Version": "2.3.0-beta1"
         }
       }
     },
@@ -2417,26 +2426,17 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "NETStandard.Library",
-          "Version": "2.0.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "NLog",
-          "Version": "4.6.6"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Nerdbank.FullDuplexStream",
           "Version": "1.0.9"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NETStandard.Library",
+          "Version": "2.0.3"
         }
       }
     },
@@ -2464,6 +2464,15 @@
         "NuGet": {
           "Name": "Newtonsoft.Json.Bson",
           "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "NLog",
+          "Version": "4.6.6"
         }
       }
     },
@@ -2534,6 +2543,321 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.IO.Compression",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Net.Http",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Net.Security",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Security.Cryptography.Apple",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.BuildXL",
+          "Version": "2.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.DotNet.ILCompiler",
+          "Version": "1.0.0-alpha-27527-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.App",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.DotNet.ILCompiler",
+          "Version": "1.0.0-alpha-27527-01"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.App",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "2.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
+          "Version": "3.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "RuntimeContracts",
           "Version": "0.1.7.1"
         }
@@ -2563,6 +2887,15 @@
         "NuGet": {
           "Name": "StackExchange.Redis.StrongName",
           "Version": "1.2.6"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "stdole",
+          "Version": "7.0.3303"
         }
       }
     },
@@ -2804,8 +3137,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "System.Data.SQLite.Core",
-          "Version": "1.0.109.2"
+          "Name": "System.Data.SqlClient",
+          "Version": "4.3.0"
         }
       }
     },
@@ -2813,8 +3146,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "System.Data.SqlClient",
-          "Version": "4.3.0"
+          "Name": "System.Data.SQLite.Core",
+          "Version": "1.0.109.2"
         }
       }
     },
@@ -2966,6 +3299,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.IdentityModel.Tokens.Jwt",
+          "Version": "5.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Interactive.Async",
+          "Version": "3.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.IO",
           "Version": "4.3.0"
         }
@@ -3085,24 +3436,6 @@
         "NuGet": {
           "Name": "System.IO.UnmanagedMemoryStream",
           "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.IdentityModel.Tokens.Jwt",
-          "Version": "5.2.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Interactive.Async",
-          "Version": "3.1.1"
         }
       }
     },
@@ -3911,6 +4244,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "System.Xml.XmlDocument",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Xml.XmlSerializer",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "System.Xml.XPath",
           "Version": "4.3.0"
         }
@@ -3938,24 +4289,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "System.Xml.XmlDocument",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Xml.XmlSerializer",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Text.Analyzers",
           "Version": "2.3.0-beta1"
         }
@@ -3967,6 +4300,24 @@
         "NuGet": {
           "Name": "TransientFaultHandling.Core",
           "Version": "5.1.1209.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Validation",
+          "Version": "2.3.7"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "VisualCppTools.Community.VS2017Layout",
+          "Version": "14.11.25506"
         }
       }
     },
@@ -4064,24 +4415,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Validation",
-          "Version": "2.3.7"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "VisualCppTools.Community.VS2017Layout",
-          "Version": "14.11.25506"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "WindowsAzure.Storage",
           "Version": "9.3.3"
         }
@@ -4093,339 +4426,6 @@
         "NuGet": {
           "Name": "WindowsSdk.Corext",
           "Version": "10.0.16299.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "microsoft.dotnet.xunitconsolerunner",
-          "Version": "2.5.1-beta.19270.4"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System.Data.SqlClient.sni",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System.IO.Compression",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System.Net.Http",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System.Net.Security",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System.Security.Cryptography.Apple",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.BuildXL",
-          "Version": "2.0.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.DotNet.ILCompiler",
-          "Version": "1.0.0-alpha-27527-01"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.App",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "3.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "3.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.DotNet.ILCompiler",
-          "Version": "1.0.0-alpha-27527-01"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.App",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetAppHost",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy",
-          "Version": "3.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
-          "Version": "3.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "stdole",
-          "Version": "7.0.3303"
         }
       }
     },

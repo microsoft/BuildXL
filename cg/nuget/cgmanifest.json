@@ -149,8 +149,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Dotnet-Runtime",
-          "Version": "5.0.2"
+          "Name": "DotNet.Glob",
+          "Version": "2.0.3"
         }
       }
     },
@@ -158,8 +158,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "DotNet.Glob",
-          "Version": "2.0.3"
+          "Name": "Dotnet-Runtime",
+          "Version": "5.0.2"
         }
       }
     },
@@ -2651,6 +2651,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "runtime.osx-x64.BuildXL",
           "Version": "2.0.1"
         }
@@ -2723,24 +2741,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl",
           "Version": "4.3.0"
         }
@@ -2769,6 +2769,24 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni",
+          "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni",
           "Version": "4.3.0"
         }
       }
@@ -2833,24 +2851,6 @@
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver",
           "Version": "3.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni",
-          "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni",
-          "Version": "4.3.0"
         }
       }
     },

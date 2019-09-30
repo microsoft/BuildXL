@@ -62,10 +62,6 @@ namespace BuildXL.Cache.ContentStore.Hashing
         }
 
         /// <inheritdoc />
-        [SuppressMessage(
-            "Microsoft.Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "Code is designed to reuse and not dispose of the HashAlgorithm")]
         public HasherToken CreateToken() => new HasherToken(_algorithmsPool.Get());
 
         /// <inheritdoc />
@@ -183,12 +179,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
             private static readonly byte[] EmptyByteArray = new byte[0];
             private static readonly Task<bool> TrueTask = Task.FromResult(true);
 
-            private static readonly Stopwatch _sw = Stopwatch.StartNew();
+            private static readonly Stopwatch Timer = Stopwatch.StartNew();
 
             private readonly ActionBlock<Pool<Buffer>.PoolHandle> _hashingBufferBlock;
 
             private readonly Stream _baseStream;
             private readonly ContentHasher<T> _hasher;
+
             private readonly CryptoStreamMode _streamMode;
             private readonly long _parallelHashingFileSizeBoundary;
             private readonly bool _useParallelHashing;
@@ -275,7 +272,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
                     FinishHash();
                 }
 
-                _hasherHandle.Dispose();
+                if (disposing)
+                {
+                    // Disposing the owning resources only during disposal and not during the finalization.
+                    _hasherHandle.Dispose();
+                }
 
                 Interlocked.Increment(ref _hasher._calls);
             }
@@ -308,24 +309,28 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc />
             public override void Flush()
             {
+                ThrowIfDisposed();
                 _baseStream.Flush();
             }
 
             /// <inheritdoc />
             public override long Seek(long offset, SeekOrigin origin)
             {
+                ThrowIfDisposed();
                 return _baseStream.Seek(offset, origin);
             }
 
             /// <inheritdoc />
             public override void SetLength(long value)
             {
+                ThrowIfDisposed();
                 _baseStream.SetLength(value);
             }
 
             /// <inheritdoc />
             public override int Read(byte[] buffer, int offset, int count)
             {
+                ThrowIfDisposed();
                 var bytesRead = _baseStream.Read(buffer, offset, count);
 
                 if (_streamMode == CryptoStreamMode.Read)
@@ -339,6 +344,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc />
             public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             {
+                ThrowIfDisposed();
                 var bytesRead = await _baseStream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
 
                 if (_streamMode == CryptoStreamMode.Read)
@@ -387,15 +393,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private void TransformBlock(byte[] buffer, int offset, int count, byte[] outputBuffer, int outputOffset)
             {
-                var start = _sw.Elapsed;
+                var start = Timer.Elapsed;
                 _hashAlgorithm.TransformBlock(buffer, offset, count, outputBuffer, outputOffset);
-                var elapsed = _sw.Elapsed - start;
+                var elapsed = Timer.Elapsed - start;
                 Interlocked.Add(ref _ticksSpentHashing, elapsed.Ticks);
             }
 
             /// <inheritdoc />
             public override void Write(byte[] buffer, int offset, int count)
             {
+                ThrowIfDisposed();
                 _baseStream.Write(buffer, offset, count);
 
                 if (_streamMode == CryptoStreamMode.Write)
@@ -407,6 +414,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc />
             public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             {
+                ThrowIfDisposed();
                 await _baseStream.WriteAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
 
                 if (_streamMode == CryptoStreamMode.Write)
@@ -437,15 +445,23 @@ namespace BuildXL.Cache.ContentStore.Hashing
             /// <inheritdoc />
             public override TimeSpan TimeSpentHashing => TimeSpan.FromTicks(_ticksSpentHashing);
 
+            private void ThrowIfDisposed()
+            {
+                if (_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HashingStreamImpl));
+                }
+            }
+
             private sealed class Buffer
             {
-                private static readonly Pool<Buffer> _bufferPool = new Pool<Buffer>(() => new Buffer());
+                private static readonly Pool<Buffer> BufferPool = new Pool<Buffer>(() => new Buffer());
 
                 public byte[] Data { get; private set; } = new byte[0];
 
                 public int Count { get; private set; } = 0;
 
-                public static Pool<Buffer>.PoolHandle GetBuffer() => _bufferPool.Get();
+                public static Pool<Buffer>.PoolHandle GetBuffer() => BufferPool.Get();
 
                 public void CopyFrom(byte[] buffer, int offset, int count)
                 {

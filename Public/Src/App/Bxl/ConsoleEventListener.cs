@@ -411,7 +411,7 @@ namespace BuildXL
         {
             Interlocked.Increment(ref m_errorsLogged);
 
-            // AzureDevOpsListener has alreday write the event to console, avoid duplication
+            // AzureDevOpsListener has alreday written the event to console, avoid duplication
             if (m_optimizeForAzureDevOps)
             {
                 return;

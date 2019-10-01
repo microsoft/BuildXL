@@ -232,7 +232,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Requests another machine to copy from the current machine.
         /// </summary>
-        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation)
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing)
         {
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
@@ -248,6 +248,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         extraEndMessage: result =>
                             $"ContentHash={hash.ToShortString()} " +
                             $"TargetLocation=[{targetLocation}] " +
+                            $"InsideRing={isInsideRing} " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
                             $"IOGate.Wait={ts.TotalMilliseconds}ms." +
                             $"Timeout={_timeoutForPoractiveCopies}" +

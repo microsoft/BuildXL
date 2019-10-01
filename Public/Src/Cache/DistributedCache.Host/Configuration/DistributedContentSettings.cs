@@ -378,7 +378,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool StoreClusterStateInDatabase { get; set; } = true;
 
         [DataMember]
-        public bool IsMachineReputationEnabled { get; set; } = false;
+        public bool IsMachineReputationEnabled { get; set; } = true;
 
         [DataMember]
         public bool? UseIncrementalCheckpointing { get; set; }

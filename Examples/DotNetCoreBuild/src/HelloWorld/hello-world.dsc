@@ -33,7 +33,7 @@ export const scriptWithChildProcesses = (() => {
         arguments: [
             Cmd.argument("-c"),
             Cmd.rawArgument('"('), // () creates a subshell, i.e., child process
-            Cmd.argument(Artifact.input(f`/a/b/d`)),
+            Cmd.argument(Artifact.input(f`/usr/bin/touch`)),
             Cmd.argument(Artifact.output(outFile)),
             Cmd.rawArgument(')"')
         ],

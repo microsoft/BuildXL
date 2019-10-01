@@ -6,7 +6,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Antlr4.Runtime.Standard",
-          "Version": "4.7.2"
+          "Version": "4.7.5"
         }
       }
     },

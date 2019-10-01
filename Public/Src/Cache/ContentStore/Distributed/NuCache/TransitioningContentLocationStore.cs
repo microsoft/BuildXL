@@ -322,6 +322,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     return _localLocationStore.GetBlobAsync(context, hash);
                 }
+
                 return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
             }
 
@@ -329,6 +330,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return _redisContentLocationStore.GetBlobAsync(context, hash);
             }
+
             return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
         }
 

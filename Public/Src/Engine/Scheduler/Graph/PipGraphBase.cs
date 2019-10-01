@@ -53,7 +53,7 @@ namespace BuildXL.Scheduler.Graph
         /// <remarks>
         /// Maintained by <see cref="PipGraph.Builder.AddOutputValue" />, <see cref="PipGraph.Builder.AddValueDependency" />, and <see cref="PipGraph.Builder.AddValueValueDependency" />
         /// </remarks>
-        protected readonly ConcurrentBigMap<(FullSymbol, QualifierId, AbsolutePath), NodeId> Values;
+        public readonly ConcurrentBigMap<(FullSymbol, QualifierId, AbsolutePath), NodeId> Values;
 
         /// <summary>
         /// Mapping from spec fileartifact to specfile nodes.

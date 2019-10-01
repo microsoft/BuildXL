@@ -42,7 +42,7 @@ namespace Npm {
     }
 
     @@public
-    export function npmInstallRoot(workingDirectory: StaticDirectory): OpaqueDirectory {
+    export function npmInstall(workingDirectory: StaticDirectory): OpaqueDirectory {
         const wd = workingDirectory.root;
         const nodeModulesPath = d`${wd}/node_modules`;
         const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');

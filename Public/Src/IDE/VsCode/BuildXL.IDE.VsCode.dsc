@@ -19,15 +19,17 @@ namespace VsCode.Client {
     const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
 
     @public
-    export const installRootDir: OpaqueDirectory = Npm.npmInstallRoot(clientCopy);
+    export const installRootDir: OpaqueDirectory = Npm.npmInstall(clientCopy);
 
     @@public
-    export const compileOutDir: OpaqueDirectory = Node.tscCompileOut(clientCopy.root, clientCopy, installRootDir);
+    export const compileOutDir: OpaqueDirectory = Node.tscCompile(clientCopy.root, clientCopy, installRootDir);
 
     @@public
     export const deployedNpmPackageLockFile = Deployment.copyFileFromOpaqueDirectory(
         // Here we want to copy a file from inside an opaque output directory. 
-        // If done using Transformer.copyFile we would have no way of specifying a dependency of that copy pip to the pip producing this opaque directory, so we wouldn't be able to ensure that the copy operation runs after the opaque directory is produced.
+        // If done using Transformer.copyFile we would have no way of specifying a dependency 
+        // of that copy pip to the pip producing this opaque directory, so we wouldn't be able to
+        // ensure that the copy operation runs after the opaque directory is produced.
         p`${installRootDir}/package-lock.json`,
         p`${Context.getMount("CgNpmRoot").path}/package-lock.json`,
         installRootDir);

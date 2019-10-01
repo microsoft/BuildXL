@@ -23,8 +23,9 @@ export interface OnDiskDeployment {
 
 @@public
 export interface OpaqueSubDirectory extends Deployable {
+    // To enable access to a sub directory of an OpaqueDirectory created by one pip from another pip 
     opaque: OpaqueDirectory,
-    subDirectory: RelativePath,
+    subDirectory: RelativePath,     // a path relative to that opaque directory designating a subdirectory to be added to the deployment
     deploy: FlattenForDeploymentFunction
 }
 
@@ -124,12 +125,13 @@ export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOp
         };
 
     const result = Transformer.execute(args);
-
     return result.getOutputFile(target);
 }
 
 /**
- * Based on the current platform schedules either a robocopy.exe or rsync pip to copy 'sourceDir' to 'targetDir'
+ * Based on the current platform schedules either a robocopy.exe or rsync pip to copy 'sourceDir' to 'targetDir'.
+ * That pip takes a dependency on `sourceDirDep`.  If 'sourceDir' is not within `sourceDirDep.root`, disallowed
+ * file accesses are almost certain to happen.
  */
 @@public
 export function copyDirectory(sourceDir: Directory, targetDir: Directory, sourceDirDep: StaticDirectory): OpaqueDirectory {

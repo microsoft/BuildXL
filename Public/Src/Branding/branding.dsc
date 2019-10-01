@@ -118,13 +118,13 @@ function computeVersionNumberForToolsThatDontSupportPreReleaseTag()
         }
     }
 
-    if (parts.length > 2)
-    {
-        preReleasePatch = Number.parseInt(parts[2]);
-        if (!preReleasePatch || preReleasePatch > 5) {
-            Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where patch is a number not expected to go beyond 5");
-        }
-    }
+    //if (parts.length > 2)
+    //{
+    //    preReleasePatch = Number.parseInt(parts[2]);
+    //    if (!preReleasePatch || preReleasePatch > 5) {
+    //        Contract.fail("Expected prerelease tag for BuildXL to be <yyymmdd>.<seq>?.<patch>? Where patch is a number not expected to go beyond 5");
+    //    }
+    //}
 
     let semVerParts = semanticVersion.split(".");
     

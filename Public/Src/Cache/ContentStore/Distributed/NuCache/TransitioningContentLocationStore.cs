@@ -149,6 +149,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint)
+        {
+            if (_redisContentLocationStore == null)
+            {
+                return BoolResult.SuccessTask;
+            }
+
+            return _redisContentLocationStore.TrimBulkAsync(context, contentHashToLocationMap, cts, urgencyHint);
+        }
+
+        /// <inheritdoc />
         public Task<BoolResult> TouchBulkAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
         {
             var operationContext = new OperationContext(context, cts);
@@ -200,17 +211,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             Contract.Assert(_redisContentLocationStore != null, "Read or Write mode should support ContentLocationMode.Redis.");
             return _redisContentLocationStore.UpdateBulkAsync(context, contentHashesWithSizeAndLocations, cts, urgencyHint, locationStoreOption);
-        }
-
-        /// <inheritdoc />
-        public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint)
-        {
-            if (_redisContentLocationStore == null)
-            {
-                return BoolResult.SuccessTask;
-            }
-
-            return _redisContentLocationStore.TrimBulkAsync(context, contentHashToLocationMap, cts, urgencyHint);
         }
 
         /// <inheritdoc />

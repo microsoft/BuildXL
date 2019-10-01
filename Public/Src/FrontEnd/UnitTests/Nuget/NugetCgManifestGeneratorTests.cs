@@ -82,7 +82,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 ""Version"":""17.150.28901-buildid9382555""
 }}}]}
 ";
-            XAssert.IsTrue(m_generator.CompareForEquality(noSpaceManifest, intendedManifest));
+            XAssert.IsTrue(NugetCgManifestGenerator.CompareForEquality(noSpaceManifest, intendedManifest));
         }
 
         [Fact]
@@ -90,7 +90,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
         {
             string validJson = "{ }";
             string inValidJson = "{ ";
-            XAssert.IsFalse(m_generator.CompareForEquality(validJson, inValidJson));
+            XAssert.IsFalse(NugetCgManifestGenerator.CompareForEquality(validJson, inValidJson));
         }
 
         private Package CreatePackage(string version)
@@ -117,7 +117,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
             };
             string expectedManifest = JsonConvert.SerializeObject(cgmanifest, Formatting.Indented);
 
-            XAssert.IsTrue(m_generator.CompareForEquality(manifest, expectedManifest));
+            XAssert.IsTrue(NugetCgManifestGenerator.CompareForEquality(manifest, expectedManifest));
         }
 
         [Fact]
@@ -144,7 +144,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
   ]
 }";
 
-            XAssert.IsTrue(m_generator.CompareForEquality(expectedMainifest, m_generator.GenerateCgManifestForPackages(packages)));
+            XAssert.IsTrue(NugetCgManifestGenerator.CompareForEquality(expectedMainifest, m_generator.GenerateCgManifestForPackages(packages)));
         }
 
         [Fact]
@@ -152,18 +152,38 @@ namespace Test.BuildXL.FrontEnd.Nuget
         {
             MultiValueDictionary<string, Package> packages = new MultiValueDictionary<string, Package>
             {
-                { "test.package.name", CreatePackage("1.0.1") },
-                { "test.package.name", CreatePackage("1.0.2") },
                 { "test.package.name", CreatePackage("2.0.1") },
+                { "test.package.name", CreatePackage("1.0.2") },
                 { "test.package.a", CreatePackage("5.1.1") },
                 { "test.package.z", CreatePackage("1.0.0") },
-                { "test.a.name", CreatePackage("10.0.1") }
+                { "test.package.name", CreatePackage("1.0.1") },
+                { "test.a.name", CreatePackage("10.0.1") },
+                { "DotNet.Glob", CreatePackage("1.1.1") },
+                { "Dotnet-Runtime", CreatePackage("1.1.1") },
             };
 
             string expectedMainifest = @"
 {
   ""Version"": 1,
   ""Registrations"": [
+    {
+      ""Component"": {
+        ""Type"": ""NuGet"",
+        ""NuGet"": {
+          ""Name"": ""DotNet.Glob"",
+          ""Version"": ""1.1.1""
+        }
+      }
+    },
+    {
+      ""Component"": {
+        ""Type"": ""NuGet"",
+        ""NuGet"": {
+          ""Name"": ""Dotnet-Runtime"",
+          ""Version"": ""1.1.1""
+        }
+      }
+    },
     {
       ""Component"": {
         ""Type"": ""NuGet"",
@@ -221,7 +241,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
   ]
 }";
 
-            XAssert.IsTrue(m_generator.CompareForEquality(expectedMainifest, m_generator.GenerateCgManifestForPackages(packages)));
+            var generated = m_generator.GenerateCgManifestForPackages(packages);
+            XAssert.IsTrue(NugetCgManifestGenerator.CompareForEquality(expectedMainifest, generated), "Actual: " + generated);
         }
     }
 }

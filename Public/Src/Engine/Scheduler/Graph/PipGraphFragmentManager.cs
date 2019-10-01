@@ -33,7 +33,7 @@ namespace BuildXL.Scheduler.Graph
 
         private readonly ConcurrentBigMap<FileArtifact, Lazy<bool>> m_specFilePipUnify = new ConcurrentBigMap<FileArtifact, Lazy<bool>>();
 
-        private readonly ConcurrentBigMap<(FullSymbol, QualifierId), Lazy<bool>> m_valuePipUnify = new ConcurrentBigMap<(FullSymbol, QualifierId), Lazy<bool>>();
+        private readonly ConcurrentBigMap<(FullSymbol symbol, QualifierId qualifier, AbsolutePath path), Lazy<bool>> m_valuePipUnify = new ConcurrentBigMap<(FullSymbol, QualifierId, AbsolutePath), Lazy<bool>>();
 
         private readonly ConcurrentBigMap<long, Lazy<bool>> m_pipUnify = new ConcurrentBigMap<long, Lazy<bool>>();
 
@@ -276,7 +276,7 @@ namespace BuildXL.Scheduler.Graph
 
         private bool AddValuePip(ValuePip valuePip) =>
             m_valuePipUnify.GetOrAdd(
-                (valuePip.Symbol, valuePip.Qualifier),
+                valuePip.Key,
                 false,
                 (file, data) => new Lazy<bool>(() => m_pipGraph.AddOutputValue(valuePip))).Item.Value.Value;
 

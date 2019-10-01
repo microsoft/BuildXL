@@ -3,18 +3,13 @@
 
 extern alias Async;
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -33,7 +28,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class DatabaseMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
-        private MemoizationDatabase _database;
+        private readonly MemoizationDatabase _database;
 
         /// <summary>
         ///     Store tracer.
@@ -111,22 +106,19 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => _database.EnumerateStrongFingerprintsAsync(ctx));
         }
 
-        internal Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
+        internal async Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            return GetContentHashListCall.RunAsync(_tracer, ctx, strongFingerprint, async () => {
-                var result = await _database.GetContentHashListAsync(ctx, strongFingerprint);
-                return result.Succeeded
-                    ? new GetContentHashListResult(result.Value.contentHashListInfo)
-                    : new GetContentHashListResult(result);
-            });
+            var result = await _database.GetContentHashListAsync(ctx, strongFingerprint);
+            return result.Succeeded
+                ? new GetContentHashListResult(result.Value.contentHashListInfo)
+                : new GetContentHashListResult(result);
         }
 
         internal Task<AddOrGetContentHashListResult> AddOrGetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, ContentHashListWithDeterminism contentHashListWithDeterminism, IContentSession contentSession, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            return AddOrGetContentHashListCall.RunAsync(_tracer, ctx, strongFingerprint, async () => {
-                return await ctx.PerformOperationAsync(
+            return ctx.PerformOperationAsync(
                _tracer,
                async () =>
                {
@@ -151,14 +143,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                        var oldDeterminism = oldContentHashListInfo.Determinism;
 
                        // Make sure we're not mixing SinglePhaseNonDeterminism records
-                       if (!(oldContentHashList is null) &&
-                                  oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
+                       if (!(oldContentHashList is null) && oldDeterminism.IsSinglePhaseNonDeterministic != determinism.IsSinglePhaseNonDeterministic)
                        {
                            return AddOrGetContentHashListResult.SinglePhaseMixingError;
                        }
 
-                       if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                                   !(await contentSession.EnsureContentIsAvailableAsync(ctx, oldContentHashList, ctx.Token).ConfigureAwait(false)))
+                       if (oldContentHashList is null ||
+                           oldDeterminism.ShouldBeReplacedWith(determinism) ||
+                           !(await contentSession.EnsureContentIsAvailableAsync(ctx, oldContentHashList, ctx.Token).ConfigureAwait(false)))
                        {
                            // Replace if incoming has better determinism or some content for the existing
                            // entry is missing. The entry could have changed since we fetched the old value
@@ -199,31 +191,17 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                    return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
                });
-            });
         }
 
-        internal async Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
+        internal Task<Result<LevelSelectors>> GetLevelSelectorsAsync(Context context, Fingerprint weakFingerprint, CancellationToken cts, int level)
         {
             var ctx = new OperationContext(context);
 
-            var stopwatch = new Stopwatch();
-            try
-            {
-                _tracer.GetSelectorsStart(ctx, weakFingerprint);
-                stopwatch.Start();
-
-                return await _database.GetLevelSelectorsAsync(ctx, weakFingerprint, level);
-            }
-            catch (Exception exception)
-            {
-                _tracer.Debug(ctx, $"{Component}.GetSelectors() error=[{exception}]");
-                return Result.FromException<LevelSelectors>(exception);
-            }
-            finally
-            {
-                stopwatch.Stop();
-                _tracer.GetSelectorsStop(ctx, stopwatch.Elapsed);
-            }
+            return ctx.PerformOperationAsync(
+                _tracer,
+                () => _database.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
+                extraEndMessage: r => $"WeakFingerprint=[{weakFingerprint}], Level={level}",
+                traceOperationStarted: false);
         }
     }
 }

@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var rpcConfiguration = Configuration.RpcConfiguration;
             if (result.Succeeded)
             {
-                _grpcClient = new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration.GrpcPort, Configuration.Scenario, rpcConfiguration.HeartbeatInterval);
+                _grpcClient = new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
                 result = await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.StartupAsync(context, waitMs: 0));
 
                 if (!result)

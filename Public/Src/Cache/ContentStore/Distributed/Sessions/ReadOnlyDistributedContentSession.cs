@@ -403,7 +403,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // The fallback is invoked for cache misses only. This preserves existing behavior of
             // bubbling up errors with Inner store instead of trying remote.
 
-            Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(IReadOnlyList<ContentHashWithPath> fetchedContentInfo)
+            return Workflows.RunWithFallback(
+                hashesWithPaths,
+                args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
+                args => fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(args),
+                result => IsPlaceFileSuccess(result),
+                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Select(x => new ContentHashWithSizeAndLastAccessTime(hashesWithPaths[x.Index].Hash, x.Item.FileSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+
+            Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(IReadOnlyList<ContentHashWithPath> fetchedContentInfo)
             {
                 return MultiLevelUtilities.RunMultiLevelAsync(
                     fetchedContentInfo,
@@ -413,13 +420,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     // content will not have been put into the local CAS
                     useFirstLevelResult: result => !IsPlaceFileSuccess(result));
             }
-
-            return Workflows.RunWithFallback(
-                hashesWithPaths,
-                args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
-                args => FetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(args),
-                result => IsPlaceFileSuccess(result),
-                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Select(x => new ContentHashWithSizeAndLastAccessTime(hashesWithPaths[x.Index].Hash, x.Item.FileSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
         }
 
         private static bool IsPlaceFileSuccess(PlaceFileResult result)

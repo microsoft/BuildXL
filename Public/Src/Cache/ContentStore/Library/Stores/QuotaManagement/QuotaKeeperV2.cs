@@ -201,7 +201,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     return emptyRequest.CompletionAsync();
                 },
-                extraStartMessage: $"Requesting purge due to '{reason}'.");
+                traceErrorsOnly: true);
         }
 
         private Task<BoolResult> SendSyncRequest(OperationContext context, bool purge)
@@ -554,7 +554,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     finalPurgeResult.CurrentContentSize = CurrentSize;
                     return finalPurgeResult;
                 },
-                _counters[QuotaKeeperCounters.PurgeCall]);
+                _counters[QuotaKeeperCounters.PurgeCall],
+                traceErrorsOnly: true); // the results are traced explicitely by contentStoreTracer
 
             // Tests rely on the PurgeCount to be non-0.
             _contentStoreTracer.PurgeStop(context, operationResult);
@@ -628,18 +629,25 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             context.Debug($"{Component}: Starting reservation processing loop. Current content size={CurrentSize}");
             var operationContext = new OperationContext(context);
+            long requestCount = 0;
 
             foreach (var request in _reserveQueue.GetConsumingEnumerable())
             {
+                requestCount++;
+
                 try
                 {
+                    // To avoid too many trace messages, we trace only every 1 request out of 1000
+                    bool traceRequest = (requestCount % 1000) == 0;
+
                     var result = await operationContext.PerformOperationAsync(
                         _tracer,
                         () => ProcessQuotaRequestAsync(context, request),
-                        extraStartMessage: $"Request='{request}'.",
-                        extraEndMessage: r => $"Request='{request}'. CurrentContentSize={CurrentSize}.",
+                        extraEndMessage: r => $"Request='{request}'. CurrentContentSize={CurrentSize}. Request#={requestCount}",
                         caller: nameof(ProcessQuotaRequestAsync),
-                        counter: _counters[QuotaKeeperCounters.ProcessQuotaRequest]);
+                        counter: _counters[QuotaKeeperCounters.ProcessQuotaRequest],
+                        traceOperationStarted: false,
+                        traceOperationFinished: traceRequest);
 
                     if (result)
                     {

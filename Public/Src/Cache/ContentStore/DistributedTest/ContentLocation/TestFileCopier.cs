@@ -31,41 +31,6 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
-        public async Task<CopyFileResult> CopyFileAsync(AbsolutePath path, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-        {
-            FilesCopied.AddOrUpdate(destinationPath, p => path, (dest, prevPath) => overwrite ? path : prevPath);
-
-            if (!File.Exists(path.Path))
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Source file {path} doesn't exist.");
-            }
-
-            if (File.Exists(destinationPath.Path))
-            {
-                if (!overwrite)
-                {
-                    return new CopyFileResult(
-                        CopyFileResult.ResultCode.DestinationPathError,
-                        $"Destination file {destinationPath} exists but overwrite not specified.");
-                }
-            }
-
-            if (FilesToCorrupt.ContainsKey(path))
-            {
-                TestGlobal.Logger.Debug($"Corrupting file {path}");
-#pragma warning disable AsyncFixer02 // WriteAllBytesAsync should be used instead of File.WriteAllBytes
-                await Task.Run(
-                    () => File.WriteAllBytes(destinationPath.Path, ThreadSafeRandom.GetBytes(150)));
-#pragma warning restore AsyncFixer02 // WriteAllBytesAsync should be used instead of File.WriteAllBytes
-            }
-            else
-            {
-                await Task.Run(() => File.Copy(path.Path, destinationPath.Path), cancellationToken);
-            }
-
-            return CopyFileResult.SuccessWithSize(new System.IO.FileInfo(destinationPath.Path).Length);
-        }
-
         public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
             long startPosition = destinationStream.Position;

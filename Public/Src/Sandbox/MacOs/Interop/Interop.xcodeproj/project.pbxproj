@@ -41,6 +41,8 @@
 		3C6495E421A6E3E70083FD3A /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C6495E321A6E3E60083FD3A /* libz.tbd */; };
 		3C80E70821347B9700ECBD6E /* io.h in Headers */ = {isa = PBXBuildFile; fileRef = 3C80E70621347B9700ECBD6E /* io.h */; };
 		3C80E70921347B9700ECBD6E /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C80E70721347B9700ECBD6E /* io.c */; };
+		3CC386B5233CE7C200F2D969 /* libbsm.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C85C77422F0594800BC3989 /* libbsm.tbd */; };
+		3CC386B6233CE7C600F2D969 /* libEndpointSecurity.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C85C77622F0595900BC3989 /* libEndpointSecurity.tbd */; };
 		3CD0BB4022F2E035008C0AC9 /* AccessHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C44208122F1F5B1000E1003 /* AccessHandler.cpp */; };
 		3CD0BB4122F2E035008C0AC9 /* AccessHandler.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 3C44208822F1F5B2000E1003 /* AccessHandler.hpp */; };
 		3CD0BB4222F2E84A008C0AC9 /* IOHandler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C44208022F1F5B1000E1003 /* IOHandler.cpp */; };
@@ -143,8 +145,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3CC386B5233CE7C200F2D969 /* libbsm.tbd in Frameworks */,
 				3C5C178E212EF6E900F4100F /* CoreFoundation.framework in Frameworks */,
 				3C05DAEA20E3740100488EF5 /* IOKit.framework in Frameworks */,
+				3CC386B6233CE7C600F2D969 /* libEndpointSecurity.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -441,7 +445,7 @@
 		3C1D7C7A20C025F10069CF65 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1110;
 				ORGANIZATIONNAME = Microsoft;
 				TargetAttributes = {
 					3C1D7C8120C025F10069CF65 = {
@@ -464,6 +468,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 3C1D7C7920C025F10069CF65;
 			productRefGroup = 3C1D7C8320C025F10069CF65 /* Products */;
@@ -573,7 +578,6 @@
 					"_DEBUG=1",
 					"BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
 					"BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
-					"ES_SANDBOX=$(BUILDXL_CATALINA_BUILD)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -633,7 +637,6 @@
 					"NDEBUG=1",
 					"BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
 					"BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
-					"ES_SANDBOX=$(BUILDXL_CATALINA_BUILD)",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -660,7 +663,6 @@
 					"BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
 					"BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
 					"MAC_OS_LIBRARY=1",
-					"ES_SANDBOX=$(BUILDXL_CATALINA_BUILD)",
 				);
 				HEADER_SEARCH_PATHS = "";
 				INSTALL_PATH = "@executable_path";
@@ -683,7 +685,6 @@
 					"BUILDXL_BUNDLE_IDENTIFIER=$(BUILDXL_BUNDLE_IDENTIFIER)",
 					"BUILDXL_CLASS_PREFIX=$(BUILDXL_CLASS_PREFIX)",
 					"MAC_OS_LIBRARY=1",
-					"ES_SANDBOX=$(BUILDXL_CATALINA_BUILD)",
 				);
 				HEADER_SEARCH_PATHS = "";
 				INSTALL_PATH = "@executable_path";
@@ -696,6 +697,7 @@
 		3C245101219C565400EBC811 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -707,6 +709,7 @@
 		3C245102219C565400EBC811 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_FAST_MATH = YES;

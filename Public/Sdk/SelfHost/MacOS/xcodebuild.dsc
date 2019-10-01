@@ -7,15 +7,6 @@ export namespace XCode {
     const userName = Environment.getStringValue("USER") || "";
 
     @@public
-    export const tool: Transformer.ToolDefinition = {
-        exe: f`/usr/bin/xcodebuild`,
-        dependsOnCurrentHostOSDirectories: true,
-        untrackedFiles: [
-            f`/Users/${userName}/Library/Developer/Xcode/UserData/IDEEditorInteractivityHistory`
-        ]
-    };
-
-    @@public
     export type Action =
         "build"
         | "build-for-testing"
@@ -70,6 +61,9 @@ export namespace XCode {
 
         /** override xcconfig */
         xcconfig?: File;
+
+         /** override xcodebuild default location */
+        overrideXcodeBuildPath?: File;
     }
 
     @@public
@@ -79,7 +73,13 @@ export namespace XCode {
         const wd = Context.getNewOutputDirectory("xcodebuild");
 
         const exeArgs: Transformer.ExecuteArguments = {
-            tool: args.tool || tool,
+            tool: args.tool || {
+                exe: args.overrideXcodeBuildPath || f`/usr/bin/xcodebuild`,
+                dependsOnCurrentHostOSDirectories: true,
+                untrackedFiles: [
+                    f`/Users/${userName}/Library/Developer/Xcode/UserData/IDEEditorInteractivityHistory`
+                ]
+            },
             workingDirectory: wd,
             consoleOutput: p`${wd}/stdout.txt`,
             arguments: [
@@ -92,9 +92,6 @@ export namespace XCode {
                 Cmd.option("-derivedDataPath ", Artifact.output(args.derivedDataPath)),
                 Cmd.option("-xcconfig ", Artifact.input(args.xcconfig)),
                 Cmd.flag("-allTargets ", args.allTargets),
-                // Currently the xcbuild engine (new build system) has problems parsing conditional variable annotations from xcconfig files.
-                // We force the old build system until that bug has been addressed by Apple, once fixed the next line can be removed!
-                Cmd.rawArgument("-UseModernBuildSystem=NO"),
                 Cmd.args(args.actions)
             ],
             acquireSemaphores: (args.semaphores || []).map(name => <Transformer.SemaphoreInfo>{

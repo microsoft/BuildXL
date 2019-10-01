@@ -13,7 +13,8 @@ namespace Sandbox {
         outFiles?: PathFragment[],
         semaphores?: string[],
         xcconfig?: File,
-        dependencies?: StaticDirectory[]
+        dependencies?: StaticDirectory[],
+        overrideXcodeBuildPath?: File
     }
 
     interface Result {
@@ -56,7 +57,8 @@ namespace Sandbox {
             dependencies: [
                 ...(args.dependencies || []),
                 ...sourceFileDependencies
-            ]
+            ],
+            overrideXcodeBuildPath: args.overrideXcodeBuildPath
         });
 
         return {
@@ -151,7 +153,12 @@ namespace Sandbox {
                     r`BuildXLSandbox.kext.dSYM/Contents/Info.plist`,
                     r`BuildXLSandbox.kext.dSYM/Contents/Resources/DWARF/BuildXLSandbox`
                 ])
-            ]
+            ],
+            // For as long as we support the sandbox kernel extension for macOS 10.14, we have to build it with the
+            // 10.3 version of Xcode, obtainable from https://developer.apple.com/download/more/. After downloading,
+            // either adjust this path to where you have placed the tool or put everything into your /Applications
+            // folder, renaming the app to 'Xcode_10.3' so the xcodebuild executable can be found!
+            overrideXcodeBuildPath: f`/Applications/Xcode_10.3.app/Contents/Developer/usr/bin/xcodebuild`
         });
         return {
             plist: result.outFiles[0],

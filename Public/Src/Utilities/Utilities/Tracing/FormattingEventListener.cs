@@ -342,26 +342,37 @@ namespace BuildXL.Utilities.Tracing
                 }
             }
 
-            // if args is empty, there is no pip description in the final string
-            if (args.Length > 0 && useCustomPipDescription)
+            // pip description in the final string only exist when args is not empty
+            if (args.Length > 0)
             {
-                // check whether there is a pip description in the constructed message
-                int descriptionStartIndex = full.IndexOf("[Pip");
-                if (descriptionStartIndex >= 0)
-                {
-                    int customDescriptionStartIndex = full.IndexOf(CustomPipDescriptionMarker, descriptionStartIndex);
-                    if (customDescriptionStartIndex > descriptionStartIndex)
-                    {
-                        int commaAfterPipDescIndex = full.IndexOf(',', descriptionStartIndex);
-                        // full : "... [PipXXX, <Middle part><Marker><Custom description>..."
-                        // remove "<Midle part><Marker>"
-                        // full : "... [PipXXX, <Custom description>..."
-                        full = full.Remove(commaAfterPipDescIndex + 2, customDescriptionStartIndex + CustomPipDescriptionMarker.Length - commaAfterPipDescIndex - 2);
-                    }
-                }
+                ProcessCustomPipDescription(ref full, useCustomPipDescription);
             }
 
             return full;
+        }
+
+        /// <summary>
+        /// Removes BuildXL generated pip description if custom privides its own one
+        /// </summary>
+        protected static void ProcessCustomPipDescription(ref string message, bool useCustomPipDescription)
+        {
+            if (useCustomPipDescription)
+            {
+                // check whether there is a pip description in the constructed message
+                int descriptionStartIndex = message.IndexOf("[Pip");
+                if (descriptionStartIndex >= 0)
+                {
+                    int customDescriptionStartIndex = message.IndexOf(CustomPipDescriptionMarker, descriptionStartIndex);
+                    if (customDescriptionStartIndex > descriptionStartIndex)
+                    {
+                        int commaAfterPipDescIndex = message.IndexOf(',', descriptionStartIndex);
+                        // full : "... [PipXXX, <Middle part><Marker><Custom description>..."
+                        // remove "<Midle part><Marker>"
+                        // full : "... [PipXXX, <Custom description>..."
+                        message = message.Remove(commaAfterPipDescIndex + 2, customDescriptionStartIndex + CustomPipDescriptionMarker.Length - commaAfterPipDescIndex - 2);
+                    }
+                }
+            }
         }
 
         /// <inheritdoc />

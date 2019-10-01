@@ -220,7 +220,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                context.Always($"Starting up GRPC client against service on port {_configuration.GrpcPort} with timeout {waitMs}.");
+                var targetMachine = _configuration.GrpcHost ?? GrpcEnvironment.Localhost;
+                context.Always($"Starting up GRPC client against service on '{targetMachine}' on port {_configuration.GrpcPort} with timeout {waitMs}.");
 
                 if (!LocalContentServer.EnsureRunning(context, Scenario, waitMs))
                 {

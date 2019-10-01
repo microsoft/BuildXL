@@ -352,7 +352,7 @@ namespace BuildXL.Scheduler.Artifacts
                 // Get inputs
                 PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true);
 
-                var maybeInputsHashed = await TryHashFileArtifactsAsync(state, operationContext, pip.ProcessAllowsUndeclaredSourceReads);
+                var maybeInputsHashed = await TryHashFileArtifactsAsync(state, operationContext, pip.ProcessAllowsUndeclaredSourceReads, pip.GetDescription(Context));
 
                 if (!maybeInputsHashed.Succeeded)
                 {
@@ -1327,7 +1327,11 @@ namespace BuildXL.Scheduler.Artifacts
             return file;
         }
 
-        private async Task<Possible<Unit>> TryHashFileArtifactsAsync(PipArtifactsState state, OperationContext operationContext, bool allowUndeclaredSourceReads)
+        private async Task<Possible<Unit>> TryHashFileArtifactsAsync(
+            PipArtifactsState state, 
+            OperationContext operationContext, 
+            bool allowUndeclaredSourceReads, 
+            string pipDecription = null)
         {
             foreach (var artifact in state.PipArtifacts)
             {
@@ -1346,7 +1350,7 @@ namespace BuildXL.Scheduler.Artifacts
                             operationContext,
                             declaredArtifact: file,
                             allowUndeclaredSourceReads,
-                            null));
+                            pipDecription));
                     }
                 }
             }

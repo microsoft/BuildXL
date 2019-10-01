@@ -6166,8 +6166,7 @@ namespace BuildXL.Scheduler
             else if (!PipGraph.FilterNodesToBuild(
                 loggingContext,
                 filter,
-                out filterPassingNodesNotYetScheduled,
-                m_scheduleConfiguration.CanonicalizeFilterOutputs))
+                out filterPassingNodesNotYetScheduled))
             {
                 // Find which nodes are in the set.
                 Contract.Assume(loggingContext.ErrorWasLogged, "PipGraph.FilterNodesToBuild returned false but didn't log an error");

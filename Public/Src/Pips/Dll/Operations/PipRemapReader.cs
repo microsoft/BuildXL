@@ -20,6 +20,11 @@ namespace BuildXL.Pips.Operations
         private readonly PipDataEntriesPointerInlineReader m_pipDataEntriesPointerInlineReader;
 
         /// <summary>
+        /// Gets the number of deserialized full symbols which were split by the a separator 
+        /// </summary>
+        public int OptimizedSymbols { get; private set; }
+
+        /// <summary>
         /// Create a new RemapReader
         /// </summary>
         public PipRemapReader(PipExecutionContext pipExecutionContext, PipGraphFragmentContext pipGraphFragmentContext, Stream stream, bool debug = false, bool leaveOpen = true)
@@ -54,7 +59,21 @@ namespace BuildXL.Pips.Operations
         public override PathAtom ReadPathAtom() => m_inliningReader.ReadPathAtom();
 
         /// <inheritdoc />
-        public override FullSymbol ReadFullSymbol() => FullSymbol.Create(m_pipExecutionContext.SymbolTable, ReadString());
+        public override FullSymbol ReadFullSymbol()
+        {
+            var alternateSymbolSeparator = ReadChar();
+            if (alternateSymbolSeparator == default)
+            {
+                return FullSymbol.Create(m_pipExecutionContext.SymbolTable, ReadString());
+            }
+            else
+            {
+                OptimizedSymbols++;
+                var segments = ReadArray(r => r.ReadStringId());
+                var id = m_pipExecutionContext.SymbolTable.AddComponents(HierarchicalNameId.Invalid, segments);
+                return new FullSymbol(id, alternateSymbolSeparator);
+            }
+        }
 
         /// <inheritdoc />
         public override StringId ReadPipDataEntriesPointer() => m_pipDataEntriesPointerInlineReader.ReadStringId();

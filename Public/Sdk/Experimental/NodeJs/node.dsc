@@ -105,7 +105,7 @@ namespace Node {
     }
 
     @@public
-    export function tscCompile(workingDirectory: Directory, ...dependencies: StaticDirectory[]) : OpaqueDirectory {
+    export function tscCompile(workingDirectory: Directory, dependencies: StaticDirectory[]) : OpaqueDirectory {
         const outPath = d`${workingDirectory}/out`;
         const arguments: Argument[] = [
             Cmd.argument(Artifact.none(f`${workingDirectory}/node_modules/typescript/lib/tsc.js`)),
@@ -116,9 +116,7 @@ namespace Node {
         const result = Node.run({
             arguments: arguments,
             workingDirectory: workingDirectory,
-            dependencies : [
-                ...dependencies
-            ],
+            dependencies : dependencies,
             outputs: [
                 { directory: outPath, kind: "shared" }
             ]

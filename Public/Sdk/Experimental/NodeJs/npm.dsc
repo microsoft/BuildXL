@@ -42,8 +42,8 @@ namespace Npm {
     }
 
     @@public
-    export function npmInstall(workingDirectory: StaticDirectory): OpaqueDirectory {
-        const wd = workingDirectory.root;
+    export function npmInstall(rootDir: StaticDirectory): OpaqueDirectory {
+        const wd = rootDir.root;
         const nodeModulesPath = d`${wd}/node_modules`;
         const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
 
@@ -56,7 +56,7 @@ namespace Npm {
         const result = Node.run({
             arguments: arguments,
             workingDirectory: wd,
-            dependencies: [ workingDirectory ].filter(x => x !== undefined),
+            dependencies: [ rootDir ],
             outputs: [
                 { directory: wd, kind: "shared" },
                 npmCachePath, // Place the cache path as an output directory so it is cleaned each time.

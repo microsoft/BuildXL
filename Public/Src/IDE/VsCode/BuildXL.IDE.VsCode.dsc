@@ -11,7 +11,7 @@ import * as VSIntegration from "BuildXL.Ide.VsIntegration";
 import {Node, Npm} from "Sdk.NodeJs";
 
 namespace VsCode.Client {
-    //A new namespace with empty qualifier space to ensure the values inside are evaluated only once
+    // A new namespace with empty qualifier space to ensure the values inside are evaluated only once
     export declare const qualifier: {};
 
     const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
@@ -22,7 +22,7 @@ namespace VsCode.Client {
     export const installRootDir: OpaqueDirectory = Npm.npmInstall(clientCopy);
 
     @@public
-    export const compileOutDir: OpaqueDirectory = Node.tscCompile(clientCopy.root, clientCopy, installRootDir);
+    export const compileOutDir: OpaqueDirectory = Node.tscCompile(clientCopy.root, [clientCopy, installRootDir]);
 
     @@public
     export const deployedNpmPackageLockFile = Deployment.copyFileFromOpaqueDirectory(

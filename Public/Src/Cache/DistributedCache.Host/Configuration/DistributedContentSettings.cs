@@ -287,7 +287,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         #region Bandwidth Check
         [DataMember]
-        public bool IsBandwidthCheckEnabled { get; set; } = false;
+        public bool IsBandwidthCheckEnabled { get; set; } = true;
 
         [DataMember]
         public double? MinimumSpeedInMbPerSec { get; set; } = null;

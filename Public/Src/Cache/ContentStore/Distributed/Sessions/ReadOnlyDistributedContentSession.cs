@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// A read only content location based content session with an inner session for storage.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession
+    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession, ILightweightPin
         where T : PathBase
     {
         /// <summary>
@@ -359,18 +359,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return await results.SingleAwaitIndexed();
         }
 
-        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinWithoutPlace(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> LightweightPinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint)
         {
-            return PinHelperAsync(operationContext, contentHashes, urgencyHint, retryCounter, fileCounter, false);
+            return PinHelperAsync(operationContext, contentHashes, urgencyHint, false);
         }
 
         /// <inheritdoc />
         protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
         {
-            return PinHelperAsync(operationContext, contentHashes, urgencyHint, retryCounter, fileCounter, true);
+            return PinHelperAsync(operationContext, contentHashes, urgencyHint, true);
         }
 
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinHelperAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter, bool pinWithPlace)
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinHelperAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, bool pinWithPlace)
         {
             Contract.Requires(contentHashes != null);
 

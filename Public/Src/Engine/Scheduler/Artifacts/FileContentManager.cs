@@ -1345,7 +1345,8 @@ namespace BuildXL.Scheduler.Artifacts
                             file,
                             operationContext,
                             declaredArtifact: file,
-                            allowUndeclaredSourceReads));
+                            allowUndeclaredSourceReads,
+                            null));
                     }
                 }
             }
@@ -1367,7 +1368,8 @@ namespace BuildXL.Scheduler.Artifacts
             FileArtifact fileArtifact,
             OperationContext operationContext,
             FileOrDirectoryArtifact declaredArtifact,
-            bool allowUndeclaredSourceReads)
+            bool allowUndeclaredSourceReads,
+            string consumerDescription)
         {
             var artifactContentInfo = await TryQueryContentAsync(
                             fileArtifact,
@@ -1377,7 +1379,7 @@ namespace BuildXL.Scheduler.Artifacts
 
             if (!artifactContentInfo.HasValue)
             {
-                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString());
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString(), consumerDescription);
             }
             return artifactContentInfo;
         }

@@ -173,7 +173,15 @@ namespace BuildXL.Processes
         /// </summary>
         private ISandboxedProcess m_activeProcess;
 
-        IReadOnlyList<string> m_incrementalToolFragments;
+        /// <summary>
+        /// Fragments of incremental tools.
+        /// </summary>
+        private readonly IReadOnlyList<string> m_incrementalToolFragments;
+
+        /// <summary>
+        /// Inputs affected by file/source changes.
+        /// </summary>
+        private readonly IReadOnlyList<AbsolutePath> m_changeAffectedInputs;
 
         /// <summary>
         /// Whether the process invokes an incremental tool with preserveOutputs mode.
@@ -222,7 +230,8 @@ namespace BuildXL.Processes
             bool isQbuildIntegrated = false,
             VmInitializer vmInitializer = null,
             SubstituteProcessExecutionInfo shimInfo = null,
-            IReadOnlyList<RelativePath> incrementalTools = null)
+            IReadOnlyList<RelativePath> incrementalTools = null,
+            IReadOnlyList<AbsolutePath> changeAffectedInputs = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -340,14 +349,16 @@ namespace BuildXL.Processes
             if (incrementalTools != null)
             {
                 m_incrementalToolFragments = new List<string>(
-                            incrementalTools.Select(toolSuffix =>
-                                // Append leading separator to ensure suffix only matches valid relative path fragments
-                                Path.DirectorySeparatorChar + toolSuffix.ToString(context.StringTable)));
+                    incrementalTools.Select(toolSuffix =>
+                        // Append leading separator to ensure suffix only matches valid relative path fragments
+                        Path.DirectorySeparatorChar + toolSuffix.ToString(context.StringTable)));
             }
             else
             {
                 m_incrementalToolFragments = new List<string>(Enumerable.Empty<string>());
             }
+
+            m_changeAffectedInputs = changeAffectedInputs;
         }
 
         /// <inheritdoc />
@@ -706,7 +717,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null, IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
         {
             try
             {
@@ -725,7 +736,12 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                if (!await PrepareResponseFile())
+                if (!await PrepareResponseFileAsync())
+                {
+                    return SandboxedProcessPipExecutionResult.PreparationFailure();
+                }
+
+                if (!await PrepareChangeAffectedInputListFileAsync(m_changeAffectedInputs))
                 {
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
@@ -751,11 +767,6 @@ namespace BuildXL.Processes
                     }
 
                     if (!await PrepareOutputsAsync())
-                    {
-                        return SandboxedProcessPipExecutionResult.PreparationFailure();
-                    }
-
-                    if (!await PrepareChangeAffectedInputListFile(changeAffectedInputs))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
@@ -2626,80 +2637,61 @@ namespace BuildXL.Processes
         /// <summary>
         /// If used, response files must be created before executing pips that consume them
         /// </summary>
-        private async Task<bool> PrepareResponseFile()
-        {
-            if (m_pip.ResponseFile.IsValid)
-            {
-                Contract.Assume(m_pip.ResponseFileData.IsValid, "ResponseFile path requires having ResponseFile data");
-                string destination = m_pip.ResponseFile.Path.ToString(m_context.PathTable);
-                string contents = m_pip.ResponseFileData.ToString(m_context.PathTable);
-
-                try
+        private Task<bool> PrepareResponseFileAsync() =>
+            WritePipAuxiliaryFileAsync(
+                m_pip.ResponseFile,
+                () =>
                 {
-                    string directoryName = ExceptionUtilities.HandleRecoverableIOException(
-                        () => Path.GetDirectoryName(destination),
-                        ex => { throw new BuildXLException("Cannot get directory name", ex); });
-
-                    PreparePathForOutputFile(m_pip.ResponseFile.Path);
-                    FileUtilities.CreateDirectory(directoryName);
-
-                    // The target is always overwritten
-                    await FileUtilities.WriteAllTextAsync(destination, contents, Encoding.UTF8);
-                }
-                catch (BuildXLException ex)
-                {
-                    Tracing.Logger.Log.PipProcessResponseFileCreationFailed(
-                        m_loggingContext,
-                        m_pip.SemiStableHash,
-                        m_pip.GetDescription(m_context),
-                        destination,
-                        ex.LogEventErrorCode,
-                        ex.LogEventMessage);
-
-                    return false;
-                }
-            }
-
-            return true;
-        }
+                    Contract.Assume(m_pip.ResponseFileData.IsValid, "ResponseFile path requires having ResponseFile data");
+                    return m_pip.ResponseFileData.ToString(m_context.PathTable);
+                },
+                Tracing.Logger.Log.PipProcessResponseFileCreationFailed);
 
         /// <summary>
         /// ChangeAffectedInputListFile file is created before executing pips that consume it
         /// </summary>
-        private async Task<bool> PrepareChangeAffectedInputListFile(IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null)
+        private Task<bool> PrepareChangeAffectedInputListFileAsync(IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null) =>
+            changeAffectedInputs == null
+                ? Task.FromResult(true)
+                : WritePipAuxiliaryFileAsync(
+                    m_pip.ChangeAffectedInputListWrittenFilePath,
+                    () => string.Join(
+                        Environment.NewLine,
+                        changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).Distinct().OrderBy(n => n)),
+                    Tracing.Logger.Log.PipProcessChangeAffectedInputsWrittenFileCreationFailed);
+
+        private async Task<bool> WritePipAuxiliaryFileAsync(
+            FileArtifact fileArtifact, 
+            Func<string> createContent, 
+            Action<LoggingContext, long, string, string, int, string> logException)
         {
-            // If ChangeAffectedInputListWrittenFilePath is set, write the change affected inputs of the pip to the file.
-            if (changeAffectedInputs != null)
+            if (!fileArtifact.IsValid)
             {
-                string destination = m_pip.ChangeAffectedInputListWrittenFilePath.Path.ToString(m_context.PathTable);
-                try
-                {
-                    string directoryName = ExceptionUtilities.HandleRecoverableIOException(
+                return true;
+            }
+
+            string destination = fileArtifact.Path.ToString(m_context.PathTable);
+
+            try
+            {
+                string directoryName = ExceptionUtilities.HandleRecoverableIOException(
                         () => Path.GetDirectoryName(destination),
                         ex => { throw new BuildXLException("Cannot get directory name", ex); });
+                PreparePathForOutputFile(fileArtifact);
+                FileUtilities.CreateDirectory(directoryName);
+                await FileUtilities.WriteAllTextAsync(destination, createContent(), Encoding.UTF8);
+            }
+            catch (BuildXLException ex)
+            {
+                logException(
+                    m_loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pip.GetDescription(m_context),
+                    destination,
+                    ex.LogEventErrorCode,
+                    ex.LogEventMessage);
 
-                    PreparePathForOutputFile(m_pip.ChangeAffectedInputListWrittenFilePath);
-                    FileUtilities.CreateDirectory(directoryName);
-                    await FileUtilities.WriteAllTextAsync(
-                       destination,
-                       string.Join(
-                           Environment.NewLine,
-                           changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).ToHashSet().OrderBy(n=>n)
-                       ),
-                    System.Text.Encoding.UTF8);
-                }
-                catch (BuildXLException ex)
-                {
-                    Tracing.Logger.Log.PipProcessChangeAffectedInputsWrittenFileCreationFailed(
-                        m_loggingContext,
-                        m_pip.SemiStableHash,
-                        m_pip.GetDescription(m_context),
-                        destination,
-                        ex.LogEventErrorCode,
-                        ex.LogEventMessage);
-
-                    return false;
-                }
+                return false;
             }
 
             return true;

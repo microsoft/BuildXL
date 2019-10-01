@@ -419,8 +419,8 @@ namespace BuildXL.Pips.Builders
             Contract.Requires(path.IsValid);
             Contract.Assert(!m_changeAffectedInputListWrittenFile.IsValid, "Value already set");
 
-            AddOutputFile(path, FileExistence.Optional);
-            m_changeAffectedInputListWrittenFile = FileArtifact.CreateOutputFile(path);
+            m_changeAffectedInputListWrittenFile = FileArtifact.CreateSourceFile(path);
+            AddUntrackedFile(path);
         }
 
         /// <nodoc />
@@ -511,14 +511,6 @@ namespace BuildXL.Pips.Builders
         public void SetResponseFileSpecification(ResponseFileSpecification specification)
         {
             m_responseFileSpecification = specification;
-        }
-
-        /// <summary>
-        /// Set the file path that will be used to write the change affected inputs
-        /// </summary>
-        public void SetChangeAffectedInputListWrittenFilePath(FileArtifact path)
-        {
-            m_changeAffectedInputListWrittenFile = path;
         }
 
         private PipData FinishArgumentsAndCreateResponseFileIfNeeded(DirectoryArtifact defaultDirectory)

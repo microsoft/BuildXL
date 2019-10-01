@@ -11,7 +11,7 @@ namespace BuildXL.Scheduler.Fingerprints
     /// <summary>
     /// Source seal directory path with list of wildcard patterns
     /// </summary>
-    internal readonly struct SourceSealWithPatterns
+    public readonly struct SourceSealWithPatterns
     {
         /// <summary>
         /// Source seal directory path
@@ -24,20 +24,26 @@ namespace BuildXL.Scheduler.Fingerprints
         public readonly ReadOnlyArray<StringId> Patterns;
 
         /// <summary>
+        /// Whether the source seal directory is top-level directory only or not.
+        /// </summary>
+        public readonly bool IsTopDirectoryOnly;
+
+        /// <summary>
         /// Constructor
         /// </summary>
-        public SourceSealWithPatterns(AbsolutePath path, ReadOnlyArray<StringId> patterns)
+        public SourceSealWithPatterns(AbsolutePath path, ReadOnlyArray<StringId> patterns, bool isTopDirectoryOnly)
         {
             Contract.Requires(path.IsValid);
 
             Path = path;
             Patterns = patterns;
+            IsTopDirectoryOnly = isTopDirectoryOnly;
         }
 
         /// <summary>
         /// Check whether the source seal directory contains the given child path based on the wildcard patterns
         /// </summary>
-        public bool Contains(PathTable pathTable, AbsolutePath childPath, bool isTopDirectoryOnly = true)
+        public bool Contains(PathTable pathTable, AbsolutePath childPath, bool? isTopDirectoryOnlyOverride = default)
         {
 #if PLATFORM_WIN
             Contract.Requires(pathTable != null);
@@ -48,14 +54,15 @@ namespace BuildXL.Scheduler.Fingerprints
                 return false;
             }
 #endif
-
+            bool checkIsTopDirectoryOnly = isTopDirectoryOnlyOverride ?? IsTopDirectoryOnly;
             bool checkPatterns = false;
-            if (isTopDirectoryOnly && childPath.GetParent(pathTable) == Path)
+
+            if (checkIsTopDirectoryOnly && childPath.GetParent(pathTable) == Path)
             {
                 checkPatterns = true;
             }
 
-            if (!isTopDirectoryOnly && childPath != Path && childPath.IsWithin(pathTable, Path))
+            if (!checkIsTopDirectoryOnly && childPath != Path && childPath.IsWithin(pathTable, Path))
             {
                 checkPatterns = true;
             }

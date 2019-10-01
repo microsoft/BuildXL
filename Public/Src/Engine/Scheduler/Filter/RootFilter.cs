@@ -22,11 +22,6 @@ namespace BuildXL.Scheduler.Filter
         public readonly PipFilter PipFilter;
 
         /// <summary>
-        /// The raw pip filter expression (i.e. not canonicalized and reduced)
-        /// </summary>
-        public readonly PipFilter RawPipFilter;
-
-        /// <summary>
         /// Whether ValuesToResolve should allow value short circuiting
         /// </summary>
         private bool m_allowValueShortCircuiting = true;
@@ -55,9 +50,7 @@ namespace BuildXL.Scheduler.Filter
         {
             Contract.Requires(filter != null);
 
-            var canonicalizer = new FilterCanonicalizer();
-            PipFilter = filter.Canonicalize(canonicalizer);
-            RawPipFilter = filter;
+            PipFilter = filter;
 
             if (filterExpression != null)
             {

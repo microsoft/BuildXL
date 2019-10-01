@@ -282,6 +282,8 @@ namespace BuildXL.Engine
 
             void AddOrderedTextValues(CoreHashingHelper hasher, string key, IReadOnlyList<string> values)
             {
+                // Limit the number of printed values to 50 to make logging more manageable. NOTE:
+                // values still go into fingerprint even if they are not printed.
                 const int maxValuesToPrint = 50;
                 var unprintedValueCount = values.Count - maxValuesToPrint;
 

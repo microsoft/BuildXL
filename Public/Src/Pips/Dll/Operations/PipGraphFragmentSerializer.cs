@@ -43,6 +43,11 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public string FragmentDescription { get; private set; }
 
+        /// <summary>
+        /// The alternate symbol separator for use when serializing <see cref="FullSymbol"/>s.
+        /// </summary>
+        public char AlternateSymbolSeparator { get; set; }
+
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly PipGraphFragmentContext m_pipGraphFragmentContext;
 
@@ -256,8 +261,8 @@ namespace BuildXL.Pips.Operations
 
         private PipRemapWriter GetRemapWriter(Stream stream)
         {
-            // Specify alternate symbol separator to reduce full strings in symbol table for value names which are split by '_' character
-            return new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream, alternateSymbolSeparator: '_');
+            // Specify alternate symbol separator to reduce full strings in symbol table for value names which are split by the specified character
+            return new PipRemapWriter(m_pipExecutionContext, m_pipGraphFragmentContext, stream, alternateSymbolSeparator: AlternateSymbolSeparator);
         }
 
         private void SerializeHeader(PipRemapWriter writer, string fragmentDescription, bool topSort)

@@ -1331,7 +1331,7 @@ namespace BuildXL.Scheduler.Artifacts
             PipArtifactsState state, 
             OperationContext operationContext, 
             bool allowUndeclaredSourceReads, 
-            string pipDecription = null)
+            string pipDescription = null)
         {
             foreach (var artifact in state.PipArtifacts)
             {
@@ -1350,7 +1350,7 @@ namespace BuildXL.Scheduler.Artifacts
                             operationContext,
                             declaredArtifact: file,
                             allowUndeclaredSourceReads,
-                            pipDecription));
+                            pipDescription));
                     }
                 }
             }

@@ -128,7 +128,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             InvocationExpandedCommandLineArguments = template.InvocationExpandedCommandLineArguments;
             OptimizeProgressUpdatingForAzureDevOps = template.OptimizeProgressUpdatingForAzureDevOps;
             OptimizeVsoAnnotationsForAzureDevOps = template.OptimizeVsoAnnotationsForAzureDevOps;
-            OptimizeWarningOrErrorAnnotationsForAzureDevOps = template.OptimizeWarningOrErrorAnnotationsForAzureDevOps;
         }
 
         /// <inheritdoc />

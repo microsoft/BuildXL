@@ -499,11 +499,11 @@ namespace BuildXL.Cache.Host.Configuration
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
         [DataMember]
-        public bool UseTrustedHash { get; set; } = false;
+        public bool UseTrustedHash { get; set; } = true;
 
         // Files smaller than this will use the untrusted hash
         [DataMember]
-        public int TrustedHashFileSizeBoundary = -1;
+        public int TrustedHashFileSizeBoundary = 100000;
 
         [DataMember]
         public long ParallelHashingFileSizeBoundary { get; set; } = -1;
@@ -515,7 +515,7 @@ namespace BuildXL.Cache.Host.Configuration
         public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
         [DataMember]
-        public bool EmptyFileHashShortcutEnabled { get; set; } = false;
+        public bool EmptyFileHashShortcutEnabled { get; set; } = true;
 
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;

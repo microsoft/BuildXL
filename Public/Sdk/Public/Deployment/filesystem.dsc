@@ -23,7 +23,7 @@ export interface OnDiskDeployment {
 
 @@public
 export interface OpaqueSubDirectory extends Deployable {
-    // To enable access to a sub directory of an OpaqueDirectory created by one pip from another pip 
+    // Used to represent deployment of a subdirectory of an opaque directory
     opaque: OpaqueDirectory,
     subDirectory: RelativePath,     // a path relative to that opaque directory designating a subdirectory to be added to the deployment
     deploy: FlattenForDeploymentFunction

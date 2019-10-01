@@ -21,11 +21,18 @@ export interface OnDiskDeployment {
     targetOpaques?: OpaqueDirectory[];
 }
 
+/**
+ * Used to represent deployment of a subdirectory of an opaque directory.
+ *
+ * Call the 'createDeployableOpaqueSubDirectory' function below to create an instance of this type.
+ */
 @@public
 export interface OpaqueSubDirectory extends Deployable {
-    // Used to represent deployment of a subdirectory of an opaque directory
+    /** Parent opaque directory */
     opaque: OpaqueDirectory,
-    subDirectory: RelativePath,     // a path relative to that opaque directory designating a subdirectory to be added to the deployment
+    /** A path relative to that opaque directory designating a subdirectory to be added to the deployment */
+    subDirectory: RelativePath,
+    /** This property is set automatically by the 'createDeployableOpaqueSubDirectory' function below */
     deploy: FlattenForDeploymentFunction
 }
 
@@ -83,6 +90,10 @@ export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub:
     };
 }
 
+/**
+ * Schedules a platform-specific process to copy file from 'source' to 'target'.  This process takes a dependency 
+ * on 'sourceOpaqueDir`, which should be the parent opaque directory containing the file 'source'.
+ */
 @@public
 export function copyFileFromOpaqueDirectory(source: Path, target: Path, sourceOpaqueDir: OpaqueDirectory): DerivedFile {
     const args: Transformer.ExecuteArguments = Context.getCurrentHost().os === "win"

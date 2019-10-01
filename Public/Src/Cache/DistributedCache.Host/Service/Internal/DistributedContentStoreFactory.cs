@@ -301,7 +301,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.SafeToLazilyUpdateMachineCountThreshold,
                 value => configuration.SafeToLazilyUpdateMachineCountThreshold = value);
-            ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
+
+            configuration.EnableReconciliation = !_distributedSettings.Unsafe_DisableReconciliation;
+
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 

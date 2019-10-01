@@ -144,6 +144,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Indicates whether content is reconciled between local machine and local db once a checkpoint is restored.
         /// </summary>
+        /// <remarks>
+        /// Reconciliation is a very critical feature and disabling it can cause build failures because machine's state can be out of sync with LLS's data.
+        /// </remarks>
         public bool EnableReconciliation { get; set; } = true;
 
         /// <summary>

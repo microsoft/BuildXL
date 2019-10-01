@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -1053,24 +1054,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<BoolResult> TrimBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
+        public Task<BoolResult> TrimBulkAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
         {
             Contract.Requires(contentHashes != null);
 
+            var currentMachine = new[] { ResolveMachineLocation(LocalMachineId) };
+            var contentHashesWithLocation = contentHashes.SelectList(ch => new ContentHashAndLocations(ch, currentMachine));
+
+            return TrimBulkAsync(context, contentHashesWithLocation);
+        }
+
+        /// <nodoc />
+        public async Task<BoolResult> TrimBulkAsync(OperationContext context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap)
+        {
             var postInitializationResult = await EnsureInitializedAsync();
             if (!postInitializationResult)
             {
                 return postInitializationResult;
             }
 
-            if (contentHashes.Count == 0)
+            if (contentHashToLocationMap.Count == 0)
             {
                 return BoolResult.Success;
             }
 
-            foreach (var contentHashesPage in contentHashes.GetPages(100))
+            foreach (var contentHashesPage in contentHashToLocationMap.GetPages(100))
             {
-                context.TraceDebug($"LocalLocationStore.TrimBulk({contentHashesPage.GetShortHashesTraceString()})");
+                context.TraceDebug($"LocalLocationStore.TrimBulk({contentHashesPage.Select(ch => ch.ContentHash).GetShortHashesTraceString()})");
             }
 
             return context.PerformOperation(
@@ -1079,16 +1089,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     if (_configuration.SkipRedundantContentLocationAdd)
                     {
-                        foreach (var hash in contentHashes)
+                        foreach (var hashAndLocations in contentHashToLocationMap)
                         {
                             // Content has been removed. Ensure that subsequent additions will not be skipped
-                            _recentlyAddedHashes.Invalidate(hash);
-                            _recentlyRemovedHashes.Add(hash, _configuration.TouchFrequency);
+                            _recentlyAddedHashes.Invalidate(hashAndLocations.ContentHash);
+                            _recentlyRemovedHashes.Add(hashAndLocations.ContentHash, _configuration.TouchFrequency);
                         }
                     }
 
-                    // Send remove event for hashes
-                    return EventStore.RemoveLocations(context, LocalMachineId, contentHashes);
+                    foreach (var hashAndLocations in contentHashToLocationMap)
+                    {
+                        var hashes = new[] {hashAndLocations.ContentHash};
+                        foreach (var location in hashAndLocations.Locations.AsStructEnumerable())
+                        {
+                            if (ClusterState.TryResolveMachineId(location, out var machineId))
+                            {
+                                EventStore.RemoveLocations(context, machineId, hashes).ThrowIfFailure();
+                            }
+                        }
+                    }
+
+                    return BoolResult.Success;
                 },
                 Counters[ContentLocationStoreCounters.TrimBulkLocal]);
         }

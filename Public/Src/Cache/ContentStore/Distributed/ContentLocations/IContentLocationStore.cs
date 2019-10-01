@@ -44,6 +44,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Task<GetBulkLocationsResult> GetBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, GetBulkOrigin origin);
 
         /// <summary>
+        /// Removes local content location for a set of content hashes.
+        /// </summary>
+        Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
+
+        /// <summary>
         /// Removes bad content locations from a particular set of content hashes.
         /// </summary>
         Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint);
@@ -57,11 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Runs garbage collection on the content location store
         /// </summary>
         Task<BoolResult> GarbageCollectAsync(OperationContext context);
-
-        /// <summary>
-        /// Removes local content location for a set of content hashes.
-        /// </summary>
-        Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
 
         /// <summary>
         /// Unregisters the local location from the content tracker for each hash if provided last-access time and remote last-access time are in sync.

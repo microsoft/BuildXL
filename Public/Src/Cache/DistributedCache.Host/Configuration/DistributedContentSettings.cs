@@ -373,7 +373,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// Please do not set this property for long period of time. 
         /// </summary>
         [DataMember]
-        public bool? Unsafe_DisableReconciliation { get; set; }
+        public bool Unsafe_DisableReconciliation { get; set; } = false;
 
         [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;

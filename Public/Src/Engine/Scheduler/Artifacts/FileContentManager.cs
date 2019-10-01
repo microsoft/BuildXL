@@ -1375,7 +1375,8 @@ namespace BuildXL.Scheduler.Artifacts
                             fileArtifact,
                             operationContext,
                             declaredArtifact,
-                            allowUndeclaredSourceReads);
+                            allowUndeclaredSourceReads,
+                            consumerDescription);
 
             if (!artifactContentInfo.HasValue)
             {

@@ -479,7 +479,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return GetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, context, strongFingerprint, async () =>
+            return GetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, context, strongFingerprint, traceStart: false, asyncFunc: async () =>
             {
                 // Check for pre-fetched data
                 ContentHashListWithDeterminism contentHashListWithDeterminism;

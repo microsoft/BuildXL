@@ -32,15 +32,21 @@ namespace BuildXL.Utilities
         public readonly HierarchicalNameId Value;
 
         /// <summary>
+        /// The alternate separator character used when expanding the full symbol
+        /// </summary>
+        public readonly char AlternateSeparator;
+
+        /// <summary>
         /// Creates an absolute identifier for some underlying HierchicalNameId value.
         /// </summary>
         /// <remarks>
         /// Since the value must have some meaning to a identifier table, this constructor should primarily be called by SymbolTables.
         /// The only other reasonable usage would be for temporary serialization (e.g. to a child process).
         /// </remarks>
-        public FullSymbol(HierarchicalNameId value)
+        public FullSymbol(HierarchicalNameId value, char separator = default)
         {
             Value = value;
+            AlternateSeparator = separator;
         }
 
         /// <summary>
@@ -50,9 +56,10 @@ namespace BuildXL.Utilities
         /// Since the value must have some meaning to a identifier table, this constructor should primarily be called by SymbolTables.
         /// The only other reasonable usage would be for temporary serialization (e.g. to a child process).
         /// </remarks>
-        public FullSymbol(int value)
+        public FullSymbol(int value, char separator = default)
         {
             Value = new HierarchicalNameId(value);
+            AlternateSeparator = separator;
         }
 
         /// <summary>
@@ -586,7 +593,7 @@ namespace BuildXL.Utilities
                 return "{Invalid}";
             }
 
-            string result = symbolTable.ExpandName(Value);
+            string result = symbolTable.ExpandName(Value, separator: AlternateSeparator);
             return result;
         }
 

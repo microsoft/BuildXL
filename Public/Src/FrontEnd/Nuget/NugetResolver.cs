@@ -80,79 +80,78 @@ namespace BuildXL.FrontEnd.Script
             {
                 var cgManfiestGenerator = new NugetCgManifestGenerator(Context);
                 string generatedCgManifest = cgManfiestGenerator.GenerateCgManifestForPackages(maybePackages.Result);
-                string existingCgManifest = "INVALID";
 
-                if ( !Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid &&
-                      Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid )
+                if (Configuration.FrontEnd.ValidateCgManifestForNugets.IsValid)
                 {
-                    // Validation of existing cgmainfest.json results in failure due to mismatch. Should fail the build in this case.
-                    try
+                    // Validate existing CG Manifest with newly generated CG Manifest
+                    if (!ValidateCgManifestFile(generatedCgManifest))
                     {
-                        existingCgManifest = File.ReadAllText(Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
-                        FrontEndHost.Engine.RecordFrontEndFile(
-                            Configuration.FrontEnd.ValidateCgManifestForNugets,
-                            CGManifestResolverName);
-                    }
-                    // CgManifest FileNotFound, log error and fail build
-                    catch (DirectoryNotFoundException e)
-                    {
-                        Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
                         return false;
-                    }
-                    catch (FileNotFoundException e)
-                    {
-                        Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
-                        return false;
-                    }
-                    if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
-                    {
-                        Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:<path>");
-                        return false;
-                    }
-
-                    m_resolverState = State.ResolverInitialized;
-                    return true;
-                }
-
-                // GenerateCgManifestForNugets writes a new file when the old file does not match, hence it will always be valid and does not need validation
-
-                try
-                {
-                    // We are calling FrontEndHost.Engine.RecordFrontEndFile towards the end of this function because we may update this file after the read below
-                    // Updating the file will cause a hash mismatch and the build to fail if this file is read again downstream
-                    existingCgManifest = File.ReadAllText(Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable));
-                }
-                // CgManifest FileNotFound, continue to write the new file
-                // No operations required as the empty existingCgManifest will not match with the newly generated cgManifest
-                catch (DirectoryNotFoundException) { }
-                catch (FileNotFoundException) { }
-
-                if (!cgManfiestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
-                {
-                    if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
-                    {
-                        // Overwrite or create new cgmanifest.json file with updated nuget package and version info
-                        string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
-
-                        try
-                        {
-                            FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
-                            await FileUtilities.WriteAllTextAsync(targetFilePath, generatedCgManifest, Encoding.UTF8);
-                        }
-                        catch (BuildXLException e)
-                        {
-                            Logger.ReportComponentGovernanceGenerationError(Context.LoggingContext, "Could not write Component Governance Manifest file to disk\n" + e.ToString());
-                            return false;
-                        }
                     }
                 }
 
+                if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
+                {
+                    // Save the generated CG Manifets to File
+                    if (!(await SaveCgManifetsFileAsync(generatedCgManifest)))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            m_resolverState = State.ResolverInitialized;
+
+            return true;
+        }
+
+        private bool ValidateCgManifestFile(string generatedCgManifest)
+        {
+            // Validation of existing cgmainfest.json results in failure due to mismatch. Should fail the build in this case.
+            try
+            {
+                string existingCgManifest = File.ReadAllText(Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
+                FrontEndHost.Engine.RecordFrontEndFile(
+                    Configuration.FrontEnd.ValidateCgManifestForNugets,
+                    CGManifestResolverName);
+                if (!NugetCgManifestGenerator.CompareForEquality(generatedCgManifest, existingCgManifest))
+                {
+                    Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, @"Existing Component Governance Manifest file is outdated, please generate a new one using the argument /generateCgManifestForNugets:" + Configuration.FrontEnd.ValidateCgManifestForNugets.ToString(Context.PathTable));
+                    return false;
+                }
+            }
+            // CgManifest FileNotFound, log error and fail build
+            catch (DirectoryNotFoundException e)
+            {
+                Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
+                return false;
+            }
+            catch (FileNotFoundException e)
+            {
+                Logger.ReportComponentGovernanceValidationError(Context.LoggingContext, "Cannot read Component Governance Manifest file from disk\n" + e.ToString());
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> SaveCgManifetsFileAsync(string generatedCgManifest)
+        {
+            // Overwrite or create new cgmanifest.json file with updated nuget package and version info
+            try
+            {
+                string targetFilePath = Configuration.FrontEnd.GenerateCgManifestForNugets.ToString(Context.PathTable);
+                FileUtilities.CreateDirectory(Path.GetDirectoryName(targetFilePath));
+                await FileUtilities.WriteAllTextAsync(targetFilePath, generatedCgManifest, Encoding.UTF8);
                 FrontEndHost.Engine.RecordFrontEndFile(
                     Configuration.FrontEnd.GenerateCgManifestForNugets,
                     CGManifestResolverName);
             }
-
-            m_resolverState = State.ResolverInitialized;
+            catch (BuildXLException e)
+            {
+                Logger.ReportComponentGovernanceGenerationError(Context.LoggingContext, "Could not write Component Governance Manifest file to disk\n" + e.ToString());
+                return false;
+            }
 
             return true;
         }

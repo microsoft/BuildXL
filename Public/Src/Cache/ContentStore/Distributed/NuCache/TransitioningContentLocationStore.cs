@@ -243,6 +243,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _localLocationStore.ClusterState.GetRandomMachineLocation(except);
         }
 
+        /// <inheritdoc />
+        public bool IsMachineActive(MachineLocation machine)
+        {
+            if (_configuration.HasReadMode(ContentLocationMode.Redis))
+            {
+                return _redisContentLocationStore.IsMachineActive(machine);
+            }
+
+            return _localLocationStore.ClusterState.TryResolveMachineId(machine, out var machineId)
+                ? !_localLocationStore.ClusterState.InactiveMachines.Contains(machineId)
+                : false;
+        }
+
         #region IDistributedLocationStore Members
 
         /// <inheritdoc />

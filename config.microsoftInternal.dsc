@@ -11,7 +11,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.99.99" },
+    { id: "runtime.osx-x64.BuildXL", version: "2.0.1" },
     { id: "Aria.Cpp.SDK", version: "8.5.6" },
 
     { id: "CB.QTest", version: "19.9.6.1149" },
@@ -48,7 +48,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "PowerShell.Core", version: "6.1.0" },
 
     // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.0" },
+    { id: "Dotnet-Runtime", version: "5.0.2" },
 
 ] : [
 

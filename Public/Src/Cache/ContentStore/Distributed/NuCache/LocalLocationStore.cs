@@ -30,6 +30,9 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -104,6 +107,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private DateTime _lastRestoreTime;
         private string _lastCheckpointId;
         private bool _reconciled;
+
+        private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
+
+        private readonly SemaphoreSlim _heartbeatGate = new SemaphoreSlim(1);
 
         /// <summary>
         /// Initialization for local location store may take too long if we restore the first checkpoint in there.
@@ -304,6 +311,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
             }
 
+            Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
+
             return BoolResult.Success;
         }
 
@@ -358,11 +367,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        internal Task<BoolResult> HeartbeatAsync(OperationContext context)
+        internal async Task<BoolResult> HeartbeatAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(
-                Tracer,
-                () => ProcessStateAsync(context, inline: false));
+            using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
+            {
+                // This makes sure that the heartbeat is only run once for each call to this function. It is a
+                // non-blocking check.
+                if (!acquired)
+                {
+                    return BoolResult.Success;
+                }
+
+                return await context.PerformOperationAsync(
+                    Tracer,
+                    () => ProcessStateAsync(context, inline: false));
+            }
         }
 
         /// <summary>
@@ -464,7 +483,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 });
         }
 
-        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline)
+        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
         {
             var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
@@ -493,7 +512,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         return checkpointState;
                     }
 
-                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline);
+                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline, forceRestore);
                 }
                 finally
                 {
@@ -1255,6 +1274,31 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<Result<byte[]>> GetBlobAsync(OperationContext context, ContentHash hash)
         {
             return GlobalStore.GetBlobAsync(context, hash);
+        }
+
+        private void OnContentLocationDatabaseInvalidation(OperationContext context, Failure<Exception> failure)
+        {
+            OnContentLocationDatabaseInvalidationAsync(context, failure).FireAndForget(context);
+        }
+
+        private async Task OnContentLocationDatabaseInvalidationAsync(OperationContext context, Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
+            using (SemaphoreSlimToken.TryWait(_databaseInvalidationGate, 0, out var acquired))
+            {
+                // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
+                // restores, avoids redundant logging. This is a non-blocking check.
+                if (!acquired)
+                {
+                    return;
+                }
+
+                Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
+
+                // We can safely ignore errors, because there is nothing more we can do here.
+                await HeartbeatAsync(context).IgnoreErrors();
+            }
         }
 
         /// <summary>

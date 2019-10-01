@@ -2198,8 +2198,7 @@ namespace BuildXL.Scheduler.Graph
                             "before any value to value dependencies. Therefore adding a ValuePip for an output should never collide");
                     }
 
-                    var tupleKey = (value.Symbol, value.Qualifier, value.SpecFile.Path);
-                    NodeId valueNode = Values.GetOrAdd(tupleKey, (value, this), (key, data) => CreateValuePip(data)).Item.Value;
+                    NodeId valueNode = Values.GetOrAdd(value.Key, (value, this), (key, data) => CreateValuePip(data)).Item.Value;
 
                     // Find parent specfile node
                     NodeId specFileNode;

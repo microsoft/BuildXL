@@ -1439,7 +1439,8 @@ namespace BuildXL
                     Events.Log,
                     m_console,
                     m_baseTime,
-                    buildViewModel
+                    buildViewModel,
+                    m_configuration.UseCustomPipDescriptionOnConsole
                 );
 
                 AddListener(listener);
@@ -2075,8 +2076,11 @@ namespace BuildXL
 
             // Cache stats
             var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
-            summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
-            summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+            if (schedulerInfo != null)
+            {
+                summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+                summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+            }
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]

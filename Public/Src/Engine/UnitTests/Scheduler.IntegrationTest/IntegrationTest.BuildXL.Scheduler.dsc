@@ -30,8 +30,8 @@ namespace Scheduler.IntegrationTest {
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
-            parallelGroups: categoriesToRunInParallel
-        },
+                parallelBucketCount: 20,
+            },
         references: [
             Scheduler.dll,
             EngineTestUtilities.dll,

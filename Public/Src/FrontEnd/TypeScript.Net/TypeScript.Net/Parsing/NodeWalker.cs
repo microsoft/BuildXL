@@ -202,7 +202,7 @@ namespace TypeScript.Net.Parsing
                 return true;
             }
         }
-        
+
         /// <summary>
         /// Helper function for traversing recursive data structures in non-recursive fashion.
         /// </summary>

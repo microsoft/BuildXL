@@ -12,7 +12,7 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.FrontEnd.Sdk.FileSystem
 {
     /// <summary>
-    /// Provides layer around File System (System.IO.File, System.IO.Directory) 
+    /// Provides layer around File System (System.IO.File, System.IO.Directory)
     /// </summary>
     public class PassThroughFileSystem : IFileSystem
     {

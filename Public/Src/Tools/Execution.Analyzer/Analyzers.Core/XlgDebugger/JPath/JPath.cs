@@ -13,7 +13,7 @@ using BuildXL.Utilities;
 [assembly: CLSCompliant(false)]
 
 namespace BuildXL.Execution.Analyzer.JPath
-{ 
+{
     /// <summary>
     /// Static helper methods for parsing/evaluating JPath expressions
     /// </summary>

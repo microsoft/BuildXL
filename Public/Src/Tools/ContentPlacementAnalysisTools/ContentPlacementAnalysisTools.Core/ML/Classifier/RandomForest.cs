@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 
 namespace ContentPlacementAnalysisTools.Core.ML.Classifier
 {
-    
+
     /// <summary>
     /// A random forest, which is a collection of decision trees
     /// </summary>
@@ -35,7 +35,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         public RandomForest(HashSet<string> classes) : this()
         {
             Classes = classes;
-        } 
+        }
         /// <summary>
         /// Constructor
         /// </summary>
@@ -65,7 +65,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         }
 
         /// <summary>
-        /// Returns the class with most votes among all the trees. It uses multiple threads to evaluate 
+        /// Returns the class with most votes among all the trees. It uses multiple threads to evaluate
         /// </summary>
         public Result<string> Classify(RandomForestInstance instance, int parallelism)
         {
@@ -81,8 +81,8 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                 }
             });
             votes[RandomTreeNode.NoClass] = 0;
-            var predictedClass = votes.Count > 0 
-                ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key 
+            var predictedClass = votes.Count > 0
+                ? votes.Aggregate((l, r) => l.Value > r.Value ? l : r).Key
                 : RandomTreeNode.NoClass;
             return new Result<string>(predictedClass);
         }
@@ -138,7 +138,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             timer.Stop();
             var elapsedEvaluationMillis = timer.ElapsedMilliseconds;
             var perInstanceTime = elapsedEvaluationMillis * 1.0 / instances.Count * 1.0;
-            s_logger.Info($"Times: Total={elapsedEvaluationMillis}ms, PerInstanceAvg={perInstanceTime}ms");          
+            s_logger.Info($"Times: Total={elapsedEvaluationMillis}ms, PerInstanceAvg={perInstanceTime}ms");
             var correctlyClassified = 0.0;
             var errors = 0.0;
             foreach (var entry in confusion)
@@ -348,7 +348,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
                     // we could not read, so we are in the line after we finished.. how do we know? cause we could not build a predicate
                     break;
                 }
-                #pragma warning enable ERP022
+                #pragma warning disable ERP022
             }
             // done...
             return output;
@@ -409,7 +409,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             // parse predicate. They look like: |   AvgDepsForOutputPips < 3446.5
             // or: AvgTagCountForOutputPips < 10.13 : Shared (4/1)
             var predicateText = predicateLine.Substring(predicateLine.Contains("|") ? predicateLine.LastIndexOf("|") + 1 : 0).Trim();
-            // now, split by spaces 
+            // now, split by spaces
             var pieces = predicateText.Split(' ');
             // here, 0 is the name, 1 is the op and 2 is the value
             node.EvaluationPredicate = PredicateBuilder.BuildPredicate(pieces[0], pieces[1], pieces[2], precision);
@@ -436,7 +436,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
             return predicateLine.Count(e => e == '|');
         }
 
-        
+
     }
 
     /// <summary>
@@ -497,7 +497,7 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
     }
 
     /// <summary>
-    ///  A random forest should only classify this kind of instances. 
+    ///  A random forest should only classify this kind of instances.
     /// </summary>
     public class RandomForestInstance
     {
@@ -509,10 +509,10 @@ namespace ContentPlacementAnalysisTools.Core.ML.Classifier
         ///  Constructor with arguments, one for each attribute
         /// </summary>
         public RandomForestInstance(
-            double sizeInBytes, double inputPipCount, double outputPipCount, 
-            double avgPositionInputPips, double avgPositionOutputPips, double avgDepsInputPips, double avgDepsOutputPips, 
-            double avgInputsInputPips, double avgInputsOutputPips, double avgOutputsInputPips, double avgOutputsOutputPips, 
-            double avgPriorityInputPips, double avgPriorityOutputPips, double avgWeightInputPips, double avgWeightOutputPips, 
+            double sizeInBytes, double inputPipCount, double outputPipCount,
+            double avgPositionInputPips, double avgPositionOutputPips, double avgDepsInputPips, double avgDepsOutputPips,
+            double avgInputsInputPips, double avgInputsOutputPips, double avgOutputsInputPips, double avgOutputsOutputPips,
+            double avgPriorityInputPips, double avgPriorityOutputPips, double avgWeightInputPips, double avgWeightOutputPips,
             double avgTagCountInputPips, double avgTagCountOutputPips, double avgSemaphoreCountInputPips, double avgSemaphoreCountOutputPips) : this()
         {
             Attributes["SizeBytes"] = sizeInBytes;

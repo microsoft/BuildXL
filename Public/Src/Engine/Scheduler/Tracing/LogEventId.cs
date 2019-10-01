@@ -146,6 +146,8 @@ namespace BuildXL.Scheduler.Tracing
         DeserializationStatsPipGraphFragment = 5051,
         DebugFragment = 5052,
 
+        PipSourceDependencyCannotBeHashed = 5053,
+
         ProblematicWorkerExit = 5070,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,

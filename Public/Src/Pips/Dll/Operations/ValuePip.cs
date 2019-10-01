@@ -28,6 +28,11 @@ namespace BuildXL.Pips.Operations
         public LocationData LocationData { get; }
 
         /// <summary>
+        /// Get the key used to compare the value pip
+        /// </summary>
+        public (FullSymbol symbol, QualifierId qualifier, AbsolutePath path) Key => (Symbol, Qualifier, LocationData.Path);
+
+        /// <summary>
         /// Constructs a new Value pip
         /// </summary>
         public ValuePip(

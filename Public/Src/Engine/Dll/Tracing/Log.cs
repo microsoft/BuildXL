@@ -2691,6 +2691,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ChosenABTesting,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "Chosen AB testing arguments: {key} = {args}")]
+        internal abstract void ChosenABTesting(LoggingContext context, string key, string args);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FailedToGetJournalAccessor,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

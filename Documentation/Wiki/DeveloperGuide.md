@@ -39,3 +39,13 @@ By default the `bxl` command at the root of the repo will use a pre-build versio
 
 ### Running specific tests
 You may want to build only a specific project or test if you are iterating on a single component. This can be achieved with filtering. See the [filtering](How-To-Run-BuildXL/Filtering.md) doc for full details, but a useful shorthand is to specify the spec file that you want to target. For example `bxl IntegrationTest.BuildXL.Scheduler.dsc`
+
+You can take this a step farther and specify a specific test method. This example sets a property which is consumed by the DScript test SDK. It causes a test case filter to be passd down to the test runner to run a specific test method based on a fully qualified method name.
+
+`bxl IntegrationTest.BuildXL.Scheduler.dsc /p:[UnitTest]Filter.testMethod=IntegrationTest.BuildXL.Scheduler.BaselineTests.VerifyGracefulTeardownOnPipFailure`
+
+Be careful with typos in the method name. If the filter doesn't match any test cases the run will still pass. For a sense of security it can help to make the unit test fail the first time you use a filter to make sure your filter is correct.
+
+You can also filter by test class. Again, be careful to make sure you don't inadvertantly filter out all tests. For example specifying both a testClass and a testMethod will cause no tests to match
+
+`bxl IntegrationTest.BuildXL.Scheduler.dsc /p:[UnitTest]Filter.testClass=IntegrationTest.BuildXL.Scheduler.BaselineTests`

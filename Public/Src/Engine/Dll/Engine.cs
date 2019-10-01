@@ -285,6 +285,15 @@ namespace BuildXL.Engine
                 (int)GrpcSettings.CallTimeout.TotalMinutes,
                 (int)GrpcSettings.InactiveTimeout.TotalMinutes);
 
+            if (!string.IsNullOrEmpty(initialConfig.Startup.ChosenABTestingKey))
+            {
+                string chosenABTestingArgs = initialConfig.Startup.ABTestingArgs[initialConfig.Startup.ChosenABTestingKey];
+                Logger.Log.ChosenABTesting(
+                    loggingContext,
+                    initialConfig.Startup.ChosenABTestingKey,
+                    chosenABTestingArgs);
+            }
+
             Context = context;
             Configuration = configuration;
 
@@ -1835,8 +1844,7 @@ namespace BuildXL.Engine
                                         pm.LoggingContext,
                                         isOutputDir,
                                         engineSchedule.Scheduler.PipGraph.FilterOutputsForClean(
-                                            rootFilter,
-                                            Configuration.Schedule.CanonicalizeFilterOutputs).ToArray(),
+                                            rootFilter).ToArray(),
                                         Context.PathTable,
                                         m_tempCleaner);
                                     ValidateSuccessMatches(success, pm.LoggingContext);

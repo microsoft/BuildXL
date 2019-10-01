@@ -440,10 +440,7 @@ namespace BuildXL.Scheduler.Artifacts
             using (PipArtifactsState state = GetPipArtifactsState())
             {
                 // Get inputs
-                PopulateDependencies(pip, state.PipArtifacts);
-
-                // Register the seal file contents of the directory dependencies
-                RegisterDirectoryContents(state.PipArtifacts);
+                PopulateDependencies(pip, state.PipArtifacts, registerDirectories: true);
             }
         }
 
@@ -455,10 +452,7 @@ namespace BuildXL.Scheduler.Artifacts
             using (PipArtifactsState state = GetPipArtifactsState())
             {
                 // Get inputs
-                PopulateDependencies(pip, state.PipArtifacts);
-
-                // Register the seal file contents of the directory dependencies
-                RegisterDirectoryContents(state.PipArtifacts);
+                PopulateDependencies(pip, state.PipArtifacts, registerDirectories: true);
 
                 // Materialize inputs
                 var result = await TryMaterializeArtifactsCore(new PipInfo(pip, Context), operationContext, state, materializatingOutputs: false, isDeclaredProducer: false);
@@ -1107,7 +1101,7 @@ namespace BuildXL.Scheduler.Artifacts
             return state;
         }
 
-        private static void PopulateDependencies(Pip pip, HashSet<FileOrDirectoryArtifact> dependencies, bool includeLazyInputs = false, bool onlySourceFiles = false)
+        private void PopulateDependencies(Pip pip, HashSet<FileOrDirectoryArtifact> dependencies, bool includeLazyInputs = false, bool onlySourceFiles = false, bool registerDirectories = false)
         {
             if (pip.PipType == PipType.SealDirectory)
             {
@@ -1117,6 +1111,12 @@ namespace BuildXL.Scheduler.Artifacts
 
             Func<FileOrDirectoryArtifact, bool> action = (input) =>
             {
+                if (registerDirectories && input.IsDirectory)
+                {
+                    // Register the seal file contents of the directory dependencies
+                    RegisterDirectoryContents(input.DirectoryArtifact);
+                }
+
                 if (!onlySourceFiles || (input.IsFile && input.FileArtifact.IsSourceFile))
                 {
                     dependencies.Add(input);
@@ -1341,7 +1341,7 @@ namespace BuildXL.Scheduler.Artifacts
                     {
                         // Directory artifact contents are not hashed since they will be hashed dynamically
                         // if the pip accesses them, so the file is the declared artifact
-                        state.HashTasks.Add(TryQueryContentAsync(
+                        state.HashTasks.Add(TryQueryContentAndLogHashFailureAsync(
                             file,
                             operationContext,
                             declaredArtifact: file,
@@ -1361,6 +1361,25 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             return Unit.Void;
+        }
+
+        private async Task<FileMaterializationInfo?> TryQueryContentAndLogHashFailureAsync(
+            FileArtifact fileArtifact,
+            OperationContext operationContext,
+            FileOrDirectoryArtifact declaredArtifact,
+            bool allowUndeclaredSourceReads)
+        {
+            var artifactContentInfo = await TryQueryContentAsync(
+                            fileArtifact,
+                            operationContext,
+                            declaredArtifact,
+                            allowUndeclaredSourceReads);
+
+            if (!artifactContentInfo.HasValue)
+            {
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString());
+            }
+            return artifactContentInfo;
         }
 
         private async Task<FileMaterializationInfo?> TryQueryContentAsync(

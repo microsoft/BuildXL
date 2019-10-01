@@ -64,7 +64,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// A macOS kernel extension connection.
         /// </summary>
-        public ISandboxConnection SandboxConnection;
+        public ISandboxConnection SandboxConnection { get; private set; }
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
@@ -399,6 +399,11 @@ namespace BuildXL.Processes
         /// Provenance description.
         /// </summary>
         public string Provenance => $"[Pip{PipSemiStableHash:X16} -- {PipDescription}] ";
+
+        /// <summary>
+        /// Overrides <see cref="SandboxedProcessMac.ReportQueueProcessTimeout"/> when running tests.
+        /// </summary>
+        public TimeSpan? ReportQueueProcessTimeoutForTests { get; internal set; }
 
         #region Serialization
 

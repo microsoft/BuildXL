@@ -607,9 +607,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                 DateTime.Now + TimeSpan.FromSeconds(2 * c.delay)))
                         .ToList();
 
-                    var pages = master.GetLruPages(context, hashes).ToList();
-
-                    var lruHashes = pages.SelectMany(p => p).ToList();
+                    var lruHashes = master.GetHashesInEvictionOrder(context, hashes).ToList();
 
                     var visitedHashes = new HashSet<ContentHash>();
                     // All the hashes should be unique
@@ -1563,22 +1561,14 @@ namespace ContentStoreTest.Distributed.Sessions
                     var tracer = context.Context;
 
                     tracer.Debug($"LRU content count = {lruContent.Count}");
-                    int pageNumber = 0;
-                    int cumulativeCount = 0;
                     long lastTime = 0;
                     HashSet<ContentHash> hashes = new HashSet<ContentHash>();
-                    foreach (var page in master.GetLruPages(context, lruContent))
+                    foreach (var item in master.GetHashesInEvictionOrder(context, lruContent))
                     {
-                        cumulativeCount += page.Count;
-                        tracer.Debug($"Page {pageNumber++}: {page.Count} / {cumulativeCount}");
+                        tracer.Debug($"{item}");
+                        tracer.Debug($"LTO: {item.LastAccessTime.Ticks - lastTime}, LOTO: {item.LastAccessTime.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
 
-                        foreach (var item in page)
-                        {
-                            tracer.Debug($"{item}");
-                            tracer.Debug($"LTO: {item.LastAccessTime.Ticks - lastTime}, LOTO: {item.LastAccessTime.Ticks - lastTime}, IsDupe: {!hashes.Add(item.ContentHash)}");
-
-                            lastTime = item.LastAccessTime.Ticks;
-                        }
+                        lastTime = item.LastAccessTime.Ticks;
                     }
 
                     await Task.Yield();

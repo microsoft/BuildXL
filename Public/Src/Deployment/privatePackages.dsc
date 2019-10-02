@@ -127,7 +127,7 @@ namespace PrivatePackages {
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Collections.dll.runtime,
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Configuration.dll.runtime,
-                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.dll.runtime,
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.dll.runtimeContent,
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Interop.dll.runtime,
                         importFrom("BuildXL.Utilities.Instrumentation").withQualifier(osxx64Qualifier).Common.dll.runtime,
                     ],

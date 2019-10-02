@@ -45,14 +45,12 @@ namespace BuildXL.Cache.ContentStore.Utils
         {
             if (_historicalBandwidthLimitSource != null)
             {
-                var startPosition = tryGetPosition(destinationStream, out var pos) ? pos : 0;
                 var timer = Stopwatch.StartNew();
-                var (result, lastPosition) = await impl();
+                var (result, bytesCopied) = await impl();
                 timer.Stop();
 
                 // Bandwidth checker expects speed in MiB/s, so convert it.
-                var bytesCopied = lastPosition - startPosition;
-                var speed = bytesCopied / timer.Elapsed.TotalSeconds / (1024 * 1024);
+                var speed = bytesCopied / timer.Elapsed.TotalSeconds / BytesInMb;
                 _historicalBandwidthLimitSource.AddBandwidthRecord(speed);
 
                 return result;
@@ -62,15 +60,15 @@ namespace BuildXL.Cache.ContentStore.Utils
                 return (await impl()).result;
             }
 
-            async Task<(CopyFileResult result, long lastPosition)> impl()
+            async Task<(CopyFileResult result, long bytesCopied)> impl()
             {
                 // This method should not fail with exceptions because the resulting task may be left unobserved causing an application to crash
                 // (given that the app is configured to fail on unobserved task exceptions).
                 var minimumSpeedInMbPerSec = _bandwidthLimitSource.GetMinimumSpeedInMbPerSec() * _config.BandwidthLimitMultiplier;
                 minimumSpeedInMbPerSec = Math.Min(minimumSpeedInMbPerSec, _config.MaxBandwidthLimit);
 
-                long firstPosition = tryGetPosition(destinationStream, out var pos) ? pos : 0;
-                long previousPosition = firstPosition;
+                var startPosition = tryGetPosition(destinationStream, out var pos) ? pos : 0;
+                long previousPosition = startPosition;
                 var copyCompleted = false;
                 using var copyCancellation = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
                 var copyTask = copyTaskFactory(copyCancellation.Token);
@@ -85,11 +83,9 @@ namespace BuildXL.Cache.ContentStore.Utils
                     if (copyCompleted)
                     {
                         var result = await copyTask;
-                        var lastPosition = result.Size.HasValue
-                            ? firstPosition + result.Size.Value
-                            : previousPosition;
+                        var bytesCopied = result.Size ?? previousPosition - startPosition;
 
-                        return (await copyTask, lastPosition);
+                        return (result, bytesCopied);
                     }
                     else if (context.Token.IsCancellationRequested)
                     {
@@ -108,14 +104,16 @@ namespace BuildXL.Cache.ContentStore.Utils
                             copyCancellation.Cancel();
                             traceCopyTaskFailures(copyTask);
 
-                            return (new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied"), position);
+                            var result = new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied");
+                            var bytesCopied = position - startPosition;
+                            return (result, bytesCopied);
                         }
 
                         previousPosition = position;
                     }
                 }
 
-                return (await copyTask, previousPosition);
+                return (await copyTask, previousPosition - startPosition);
 
                 void traceCopyTaskFailures(Task task)
                 {

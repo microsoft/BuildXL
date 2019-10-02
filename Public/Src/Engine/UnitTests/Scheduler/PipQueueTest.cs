@@ -532,6 +532,19 @@ namespace Test.BuildXL.Scheduler
                 return SealDirectoryKind.Partial;
             }
 
+            bool IFileContentManagerHost.TryGetSourceSealDirectory(DirectoryArtifact directory, out SourceSealWithPatterns sourceSealWithPatterns)
+            {
+                sourceSealWithPatterns = default;
+
+                if (IsSourceSealedDirectory(directory, out bool allDirectories, out ReadOnlyArray<StringId> patterns))
+                {
+                    sourceSealWithPatterns = new SourceSealWithPatterns(directory.Path, patterns, !allDirectories);
+                    return true;
+                }
+
+                return false;
+            }
+
             PipId IFileContentManagerHost.TryGetProducerId(in FileOrDirectoryArtifact artifact)
             {
                 return PipId.Invalid;

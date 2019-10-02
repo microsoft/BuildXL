@@ -607,6 +607,19 @@ namespace Test.BuildXL.Scheduler.Utils
             return SealDirectoryKind.Partial;
         }
 
+        public bool TryGetSourceSealDirectory(DirectoryArtifact directory, out SourceSealWithPatterns sourceSealWithPatterns)
+        {
+            sourceSealWithPatterns = default;
+
+            if (IsSourceSealedDirectory(directory, out bool allDirectories, out ReadOnlyArray<StringId> patterns))
+            {
+                sourceSealWithPatterns = new SourceSealWithPatterns(directory.Path, patterns, !allDirectories);
+                return true;
+            }
+
+            return false;
+        }
+
         public bool ShouldScrubFullSealDirectory(DirectoryArtifact directory)
         {           
             return false;

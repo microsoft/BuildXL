@@ -203,10 +203,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 else
                 {
+                    Tracer.TrackMetric(operationContext, "RemoteCopyFileSucceeded", 1);
                     Tracer.TrackMetric(operationContext, "RemoteBytesCount", putResult.ContentSize);
                     _counters[DistributedContentCopierCounters.RemoteBytes].Add(putResult.ContentSize);
                     _counters[DistributedContentCopierCounters.RemoteFilesCopied].Increment();
                 }
+
+                Tracer.TrackMetric(operationContext, "RemoteCopyFile", 1);
 
                 return putResult;
             }

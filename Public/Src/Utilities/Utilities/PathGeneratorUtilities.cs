@@ -1,12 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using BuildXL.Utilities;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Test.BuildXL.TestUtilities.Xunit
+namespace BuildXL.Utilities
 {
     /// <summary>
     /// This class is used to generate paths that can be used in unit tests. 

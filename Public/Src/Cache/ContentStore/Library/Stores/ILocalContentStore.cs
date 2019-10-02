@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     public interface IDistributedLocationStore
     {
         /// <summary>
-        /// Returns true if the instance supports <see cref="GetLruPages"/>.
+        /// Returns true if the instance supports <see cref="GetHashesInEvictionOrder"/>.
         /// </summary>
         bool CanComputeLru { get; }
 
@@ -45,7 +45,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Computes content hashes with effective last access time sorted in LRU manner.
         /// </summary>
-        IEnumerable<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruPages(
+        IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
             Context context,
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo);
     }

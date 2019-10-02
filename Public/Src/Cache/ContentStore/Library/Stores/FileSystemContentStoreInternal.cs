@@ -725,11 +725,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 GetPinnedSize,
                 _nagleQueue);
 
-            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(
-                Configuration,
-                _distributedEvictionSettings,
-                _settings,
-                size);
+            var quotaKeeperConfiguration = QuotaKeeperConfiguration.Create(Configuration, _distributedEvictionSettings, size);
             QuotaKeeper = QuotaKeeper.Create(
                 FileSystem,
                 _tracer,

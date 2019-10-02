@@ -247,8 +247,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             {
                 UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
                 CheckFiles = settings.CheckLocalFiles,
-                UseLegacyQuotaKeeperImplementation = settings.UseLegacyQuotaKeeperImplementation,
-                StartPurgingAtStartup = settings.StartPurgingAtStartup,
                 UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
                 SelfCheckEpoch = settings.SelfCheckEpoch,
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,

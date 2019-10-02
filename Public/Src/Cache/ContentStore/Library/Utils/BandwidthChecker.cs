@@ -104,8 +104,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                             copyCancellation.Cancel();
                             traceCopyTaskFailures(copyTask);
 
-                            var result = new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {position} copied");
                             var bytesCopied = position - startPosition;
+                            var result = new CopyFileResult(CopyFileResult.ResultCode.CopyBandwidthTimeoutError, $"Average speed was {currentSpeed}MiB/s - under {minimumSpeedInMbPerSec}MiB/s requirement. Aborting copy with {bytesCopied} bytes copied");
                             return (result, bytesCopied);
                         }
 

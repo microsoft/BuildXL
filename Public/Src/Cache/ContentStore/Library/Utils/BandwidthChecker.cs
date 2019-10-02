@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     if (copyCompleted)
                     {
                         var result = await copyTask;
-                        var bytesCopied = result.Size ?? previousPosition - startPosition;
+                        var bytesCopied = result.Size ?? (previousPosition - startPosition);
 
                         return (result, bytesCopied);
                     }

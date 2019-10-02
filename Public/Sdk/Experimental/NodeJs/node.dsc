@@ -116,7 +116,7 @@ namespace Node {
         const result = Node.run({
             arguments: arguments,
             workingDirectory: workingDirectory,
-            dependencies : dependencies,
+            dependencies: dependencies,
             outputs: [
                 { directory: outPath, kind: "shared" }
             ]

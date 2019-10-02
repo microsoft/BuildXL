@@ -268,7 +268,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     await LoadHibernatedSessionsAsync(context);
 
-                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue);
+                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue, Config.GrpcPoolSize);
 
                     _serviceReadinessChecker.Ready(context);
 
@@ -290,10 +290,10 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue)
+        private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue, int grpcPoolSize = 70)
         {
             Contract.Requires(definitions.Length != 0);
-            GrpcEnvironment.InitializeIfNeeded();
+            GrpcEnvironment.InitializeIfNeeded(numThreads: grpcPoolSize);
             _grpcServer = new Server(GrpcEnvironment.DefaultConfiguration)
             {
                 Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },

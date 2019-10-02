@@ -55,7 +55,7 @@ export const pkgs = [
     { id: "Microsoft.AspNetCore.ResponseCaching.Abstractions", version: "2.2.0" },
     { id: "Microsoft.AspNetCore.Routing.Abstractions", version: "2.2.0" },
     { id: "Microsoft.AspNetCore.Routing", version: "2.2.0" },
-    { id: "Microsoft.AspNetCore.Server.IIS", version: "2.2.0" },
+    { id: "Microsoft.AspNetCore.Server.IIS", version: "2.2.6" },
     { id: "Microsoft.AspNetCore.Server.IISIntegration", version: "2.2.0" },
     { id: "Microsoft.AspNetCore.Server.Kestrel.Core", version: "2.2.0" },
     { id: "Microsoft.AspNetCore.Server.Kestrel.Https", version: "2.2.0" },

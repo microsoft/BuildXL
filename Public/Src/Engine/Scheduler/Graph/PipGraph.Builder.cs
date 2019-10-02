@@ -1092,26 +1092,24 @@ namespace BuildXL.Scheduler.Graph
                                     Contract.Assume(false, "Should have found a producer for the referenced path.");
                                 }
 
-                                if (pipReferencingUnsealedFile.IsValid)
+                                if (pipReferencingUnsealedFile.IsValid
+                                    // Ignore this for Source files, they should be okay.
+                                    && PipTable.GetPipType(pipReferencingUnsealedFile.ToPipId()) != PipType.HashSourceFile)
                                 {
                                     var pip = PipTable.HydratePip(
                                         pipReferencingUnsealedFile.ToPipId(),
                                         PipQueryContext.PipGraphPostValidation);
 
-                                    // Ignore this for Source files, they should be okay.
-                                    if (pip.PipType != PipType.HashSourceFile)
-                                    {
-                                        Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
-                                            LoggingContext,
-                                            sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
-                                            sealDirectoryProvenance.Token.Line,
-                                            sealDirectoryProvenance.Token.Position,
-                                            directory.Path.ToString(Context.PathTable),
-                                            pip.GetDescription(Context),
-                                            childAsPath.ToString(Context.PathTable));
+                                    Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
+                                        LoggingContext,
+                                        sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
+                                        sealDirectoryProvenance.Token.Line,
+                                        sealDirectoryProvenance.Token.Position,
+                                        directory.Path.ToString(Context.PathTable),
+                                        pip.GetDescription(Context),
+                                        childAsPath.ToString(Context.PathTable));
 
-                                        childError = true;
-                                    }
+                                    childError = true;
                                 }
                             }
 

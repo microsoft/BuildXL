@@ -21,17 +21,22 @@ export interface OnDiskDeployment {
     targetOpaques?: OpaqueDirectory[];
 }
 
+@@public
+export interface OpaqueSubDirectory {
+    /** Parent opaque directory */
+    opaque: OpaqueDirectory,
+
+    /** A path relative to that opaque directory designating a subdirectory to be added to the deployment */
+    subDirectory?: RelativePath,
+}
+
 /**
  * Used to represent deployment of a subdirectory of an opaque directory.
  *
  * Call the 'createDeployableOpaqueSubDirectory' function below to create an instance of this type.
  */
 @@public
-export interface OpaqueSubDirectory extends Deployable {
-    /** Parent opaque directory */
-    opaque: OpaqueDirectory,
-    /** A path relative to that opaque directory designating a subdirectory to be added to the deployment */
-    subDirectory: RelativePath,
+export interface DeployableOpaqueSubDirectory extends Deployable, OpaqueSubDirectory {
     /** This property is set automatically by the 'createDeployableOpaqueSubDirectory' function below */
     deploy: FlattenForDeploymentFunction
 }
@@ -58,8 +63,8 @@ export interface DeployToDiskArguments {
 }
 
 @@public
-export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub: RelativePath): OpaqueSubDirectory {
-    return <OpaqueSubDirectory> {
+export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub?: RelativePath): Deployable {
+    return <DeployableOpaqueSubDirectory> {
         opaque: opaque,
         subDirectory: sub,
         deploy: (
@@ -73,8 +78,9 @@ export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub:
             const existingOpaque = result.flattenedOpaques.get(targetFolder);
 
             if (existingOpaque !== undefined) {
-                if (!(existingOpaque[0] === opaque && existingOpaque[1] === sub)) {
-                    Contract.fail(`Duplicate opaque directory. Can't deploy both '${existingOpaque[0].root}/${existingOpaque[1]}' and '${opaque.root}/${sub}' to '${targetFolder}'`);
+                if (!(existingOpaque.opaque === opaque && existingOpaque.subDirectory === sub)) {
+                    let subDir = sub || r`.`;
+                    Contract.fail(`Duplicate opaque directory. Can't deploy both '${existingOpaque.opaque.root}/${subDir}' and '${opaque.root}/${subDir}' to '${targetFolder}'`);
                 }
 
                 return result;
@@ -82,7 +88,7 @@ export function createDeployableOpaqueSubDirectory(opaque: OpaqueDirectory, sub:
             else {
                 return {
                     flattenedFiles: result.flattenedFiles,
-                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, [<OpaqueDirectory>opaque, sub]),
+                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, {opaque: <OpaqueDirectory>opaque, subDirectory: sub}),
                     visitedItems: result.visitedItems.add(d`{opaque.root}/${sub}`),
                 };
             }
@@ -223,8 +229,8 @@ export function deployToDisk(args: DeployToDiskArguments): OnDiskDeployment {
 
     const targetOpaques = flattened.flattenedOpaques.toArray().map(tuple => {
         const relativeTarget = tuple[0];
-        const opaque = tuple[1][0];
-        const opaqueSub = tuple[1][1];
+        const opaque = tuple[1].opaque;
+        const opaqueSub = tuple[1].subDirectory || r`.`;
 
         const targetDir = d`${rootDir}/${relativeTarget}`;
         return copyDirectory(d`${opaque}/${opaqueSub}`, targetDir, opaque);

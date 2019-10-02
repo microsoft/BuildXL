@@ -4,7 +4,7 @@
 @@public
 export const emptyFlattenedResult : FlattenedResult = {
     flattenedFiles: Map.empty<RelativePath, { file: File, disambiguationData: any }>(),
-    flattenedOpaques: Map.empty<RelativePath, [OpaqueDirectory, RelativePath]>(),
+    flattenedOpaques: Map.empty<RelativePath, OpaqueSubDirectory>(),
     visitedItems: Set.empty<Object>(),
 };
 
@@ -240,7 +240,7 @@ function flattenStaticDirectory(staticDirectory: StaticDirectory, targetFolder: 
                 // TODO: Validate if there is a flattenedFile already under this OpaqueDirectory. To implement this we'll need IsWithin on RelativePath
                 return {
                     flattenedFiles: result.flattenedFiles,
-                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, [<OpaqueDirectory>staticDirectory, r`.`]),
+                    flattenedOpaques: result.flattenedOpaques.add(targetFolder, {opaque: <OpaqueDirectory>staticDirectory}),
                     visitedItems: result.visitedItems.add(staticDirectory),
                 };
             }

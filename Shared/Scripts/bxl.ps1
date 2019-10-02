@@ -122,7 +122,10 @@ param(
     [string]$CacheNamespace = "BuildXLSelfhost",
 
     [Parameter(Mandatory=$false)]
-	[switch]$Vs = $false,
+    [switch]$Vs = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$VsNew = $false,
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$DominoArguments
@@ -242,6 +245,10 @@ if ($DeployStandaloneTest) {
 
 if ($Vs) {
     $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs";
+}
+
+if ($VsNew) {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs /vsnew /solutionName:BuildXLNew";
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 

@@ -80,7 +80,8 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                         return task;
                     }, RedisOperation.CompareExchange);
                     return new Result<bool>(result);
-                });
+                },
+                traceOperationStarted: false);
         }
 
         /// <inheritdoc />

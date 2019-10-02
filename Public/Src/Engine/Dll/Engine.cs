@@ -1844,8 +1844,7 @@ namespace BuildXL.Engine
                                         pm.LoggingContext,
                                         isOutputDir,
                                         engineSchedule.Scheduler.PipGraph.FilterOutputsForClean(
-                                            rootFilter,
-                                            Configuration.Schedule.CanonicalizeFilterOutputs).ToArray(),
+                                            rootFilter).ToArray(),
                                         Context.PathTable,
                                         m_tempCleaner);
                                     ValidateSuccessMatches(success, pm.LoggingContext);

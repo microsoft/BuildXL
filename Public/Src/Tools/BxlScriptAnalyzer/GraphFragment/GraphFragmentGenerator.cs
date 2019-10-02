@@ -24,7 +24,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         private readonly OptionName m_outputFileOption = new OptionName("OutputFile", "o");
         private readonly OptionName m_descriptionOption = new OptionName("Description", "d");
         private readonly OptionName m_topSortOption = new OptionName("TopSort", "t");
+        private readonly OptionName m_alternateSymbolSeparatorOption = new OptionName("AlternateSymbolSeparator", "sep");
         private readonly OptionName m_outputDirectoryForEvaluationOption = new OptionName("OutputDirectoryForEvaluation");
+
+        // Temporarily default to '_' for office mularchy builds until explicitly specified
+        private char m_alternateSymbolSeparator = '_';
 
         private AbsolutePath m_absoluteOutputPath;
 
@@ -46,6 +50,15 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             if (m_descriptionOption.Match(opt.Name))
             {
                 m_description = opt.Value;
+                return true;
+            }
+
+            if (m_alternateSymbolSeparatorOption.Match(opt.Name))
+            {
+                var alternateSymbolSeparatorString = CommandLineUtilities.ParseStringOption(opt);
+                m_alternateSymbolSeparator = alternateSymbolSeparatorString.Length != 0 
+                    ? alternateSymbolSeparatorString[0]
+                    : default;
                 return true;
             }
 
@@ -102,7 +115,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
             try
             {
-                var serializer = new PipGraphFragmentSerializer(Context, new PipGraphFragmentContext());
+                var serializer = new PipGraphFragmentSerializer(Context, new PipGraphFragmentContext())
+                {
+                    AlternateSymbolSeparator = m_alternateSymbolSeparator
+                };
+
                 var pips = PipGraph.RetrieveScheduledPips().ToList();
                 if (SerializeUsingTopSort)
                 {

@@ -1029,6 +1029,7 @@ namespace BuildXL.Engine
             rootFilter = null;
             FilterParserError error;
 
+            var canonicalize = configuration.Schedule.CanonicalizeFilterOutputs;
             var filterUnParsed = commandLineConfiguration.Filter;
             var defaultFilter = configuration.Engine.DefaultFilter;
             var implicitFilters = commandLineConfiguration.Startup.ImplicitFilters;
@@ -1052,7 +1053,7 @@ namespace BuildXL.Engine
                 }
 
                 // Otherwise we parse the actual filter
-                FilterParser parser = new FilterParser(context, mountResolver, filterUnParsed);
+                FilterParser parser = new FilterParser(context, mountResolver, filterUnParsed, canonicalize: canonicalize);
                 if (!parser.TryParse(out rootFilter, out error))
                 {
                     Logger.Log.ConfigFailedParsingCommandLinePipFilter(
@@ -1088,7 +1089,7 @@ namespace BuildXL.Engine
                     }
                 }
 
-                FilterParser parser = new FilterParser(context, mountResolver, sb.ToString());
+                FilterParser parser = new FilterParser(context, mountResolver, sb.ToString(), canonicalize: canonicalize);
 
                 if (!parser.TryParse(out rootFilter, out error))
                 {
@@ -1104,7 +1105,7 @@ namespace BuildXL.Engine
             else if (!string.IsNullOrWhiteSpace(defaultFilter))
             {
                 // Then fall back to the default filter
-                FilterParser parser = new FilterParser(context, mountResolver, defaultFilter);
+                FilterParser parser = new FilterParser(context, mountResolver, defaultFilter, canonicalize: canonicalize);
                 RootFilter parsedFilter;
                 if (!parser.TryParse(out parsedFilter, out error))
                 {

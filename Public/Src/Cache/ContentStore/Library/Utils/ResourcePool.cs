@@ -9,9 +9,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -169,7 +171,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         public async Task<ResourceWrapper<TObject>> CreateAsync(TKey key)
         {
             ResourceWrapper<TObject> returnWrapper;
-            using (var sw = Counter[ResourcePoolCounters.CreationTime].Start())
+            using (Counter[ResourcePoolCounters.CreationTime].Start())
             {
                 // Attempt to reuse an existing resource if it has been instantiated.
                 if (_resourceDict.TryGetValue(key, out ResourceWrapper<TObject> existingWrappedResource) && existingWrappedResource.IsValueCreated && existingWrappedResource.TryAcquire(out var reused))
@@ -181,10 +183,10 @@ namespace BuildXL.Cache.ContentStore.Utils
                     // Start resource "GC" if the cache is full and it isn't already running
                     await EnsureCapacityAsync();
 
-                    returnWrapper = _resourceDict.GetOrAdd(key, k =>
-                    {
-                        return new ResourceWrapper<TObject>(() => _resourceFactory(k));
-                    });
+                    returnWrapper = _resourceDict.GetOrAdd(
+                        key,
+                        (k, resourceFactory) => { return new ResourceWrapper<TObject>(() => resourceFactory(k)); },
+                        _resourceFactory);
 
                     if (_resourceDict.Count > _maxResourceCount)
                     {
@@ -201,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                 ResourcePoolCounters counter = reused ? ResourcePoolCounters.Reused : ResourcePoolCounters.Created;
                 Counter[counter].Increment();
 
-                _context.Debug($"{nameof(ResourcePool<TKey, TObject>)}.{nameof(CreateAsync)} {(reused ? "reused" : "created")} a resource with {returnWrapper.Uses} from a pool of {_resourceDict.Count}");
+                _context.TraceMessage(Severity.Diagnostic, $"{nameof(ResourcePool<TKey, TObject>)}.{nameof(CreateAsync)} {(reused ? "reused" : "created")} a resource with {returnWrapper.Uses} from a pool of {_resourceDict.Count}");
             }
 
             return returnWrapper;

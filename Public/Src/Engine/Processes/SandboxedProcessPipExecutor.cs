@@ -711,7 +711,7 @@ namespace BuildXL.Processes
             try
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
-                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables);
+                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_pip.RequireCbDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
 
                 if (!PrepareWorkingDirectory())
                 {
@@ -1752,25 +1752,29 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration
-            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
+            if (m_pip.RequireCbDependencies)
             {
-                // Translate the path and untrack the translated one
-                if (m_fileAccessManifest.DirectoryTranslator != null)
+                foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
                 {
-                    var pathString = path.ToString(m_pathTable);
-                    var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
-                    var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
-
-                    if (path != translatedPath)
+                    // Translate the path and untrack the translated one
+                    if (m_fileAccessManifest.DirectoryTranslator != null)
                     {
-                        AddUntrackedScopeToManifest(translatedPath);
-                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
-                    }
-                }
+                        var pathString = path.ToString(m_pathTable);
+                        var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
+                        var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
 
-                // Untrack the original path
-                AddUntrackedScopeToManifest(path);
+                        if (path != translatedPath)
+                        {
+                            AddUntrackedScopeToManifest(translatedPath);
+                            Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
+                        }
+                    }
+
+                    // Untrack the original path
+                    AddUntrackedScopeToManifest(path);
+                }
             }
+
 
             if (!OperatingSystemHelper.IsUnixOS)
             {

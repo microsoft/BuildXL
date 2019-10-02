@@ -133,6 +133,7 @@ export function install(args: Arguments) : Result {
                         ]),
                     ],
                 },
+                requireCbDependencies: true,
             },
             credentialProviderArguments
         )

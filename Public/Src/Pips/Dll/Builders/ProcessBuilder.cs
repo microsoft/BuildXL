@@ -102,6 +102,11 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public int? Priority { get; set; } = null;
 
+        /// <summary>
+        /// If true, take the unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes and set them to the pip
+        /// </summary>
+        public bool RequireCbDependencies { get; set; } = false;
+
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }
 
@@ -675,7 +680,8 @@ namespace BuildXL.Pips.Builders
                 weight: Weight,
                 priority: Priority,
                 preserveOutputWhitelist: PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
+                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile,
+                requireCbDependencies: RequireCbDependencies);
 
             return true;
         }

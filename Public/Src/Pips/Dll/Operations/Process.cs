@@ -361,6 +361,13 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; }
 
         /// <summary>
+        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool RequireCbDependencies { get; }
+
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -407,7 +414,8 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact changeAffectedInputListWrittenFilePath = default)
+            FileArtifact changeAffectedInputListWrittenFilePath = default,
+            bool requireCbDependencies = false)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -510,6 +518,7 @@ namespace BuildXL.Pips.Operations
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
             ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
+            RequireCbDependencies = requireCbDependencies;
 
             if (PreserveOutputWhitelist.Length != 0)
             {
@@ -566,7 +575,8 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact? changeAffectedInputListWrittenFilePath = default)
+            FileArtifact? changeAffectedInputListWrittenFilePath = default,
+            bool requireCbDependencies = false)
         {
             return new Process(
                 executable ?? Executable,
@@ -612,7 +622,8 @@ namespace BuildXL.Pips.Operations
                 weight,
                 priority,
                 preserveOutputWhitelist ?? PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath);
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
+                requireCbDependencies);
         }
 
         /// <inheritdoc />

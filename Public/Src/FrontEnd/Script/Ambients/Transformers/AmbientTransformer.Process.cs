@@ -135,8 +135,10 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_toolDependsOnAppDataDirectory;
         private SymbolAtom m_toolPrepareTempDirectory;
         private SymbolAtom m_toolDescription;
+        private SymbolAtom m_toolRequireCbDependencies;
         private SymbolAtom m_weight;
         private SymbolAtom m_changeAffectedInputListWrittenFile;
+
 
         private SymbolAtom m_runtimeEnvironmentMinimumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMaximumOSVersion;
@@ -279,6 +281,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_toolTimeoutInMilliseconds = Symbol("timeoutInMilliseconds");
             m_toolWarningTimeoutInMilliseconds = Symbol("warningTimeoutInMilliseconds");
             m_toolDescription = Symbol("description");
+            m_toolRequireCbDependencies = Symbol("requireCbDependencies");
 
             // Runtime environment.
             m_runtimeEnvironmentMinimumOSVersion = Symbol("minimumOSVersion");
@@ -476,6 +479,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (priority != null)
             {
                 processBuilder.Priority = priority.Value;
+            }
+
+            var requireCbDependencies = Converter.ExtractOptionalBoolean(obj, m_toolRequireCbDependencies);
+            if (requireCbDependencies != null)
+            {
+                processBuilder.RequireCbDependencies = requireCbDependencies.Value;
             }
 
             // Acquired semaphores.

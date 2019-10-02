@@ -209,6 +209,12 @@ namespace Transformer {
          * File to write the change affected input list of the pip before it execute.
          */
         changeAffectedInputListWrittenFile?: Path;
+
+        /**
+         * Set unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes for this process.
+         */
+        requireCbDependencies?: boolean;
+        
     }
 
     @@public

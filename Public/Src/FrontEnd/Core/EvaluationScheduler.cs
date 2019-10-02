@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Core
 {
@@ -25,9 +26,9 @@ namespace BuildXL.FrontEnd.Core
     public sealed class EvaluationScheduler : IEvaluationScheduler
     {
         private readonly int m_degreeOfParallelism;
+        private bool m_enableEvaluationThrottling;
         private readonly CancellationTokenSource m_cancellationSource;
 
-#if FEATURE_THROTTLE_EVAL_SCHEDULER
         private readonly ActionBlock<QueueItem> m_queue;
 
         private class QueueItem
@@ -57,13 +58,12 @@ namespace BuildXL.FrontEnd.Core
                 }
             }
         }
-#endif
 
         /// <summary>
-        /// Creates a scheduler without cancellation support (<seealso cref="EvaluationScheduler(int, CancellationToken)"/>)
+        /// Creates a scheduler without cancellation support (<seealso cref="EvaluationScheduler(int, bool, CancellationToken)"/>)
         /// </summary>
         public EvaluationScheduler(int degreeOfParallelism)
-            : this(degreeOfParallelism, CancellationToken.None) { }
+            : this(degreeOfParallelism, FrontEndConfigurationExtensions.DefaultEnableEvaluationThrottling, CancellationToken.None) { }
 
         /// <summary>
         /// Creates a scheduler.
@@ -72,28 +72,29 @@ namespace BuildXL.FrontEnd.Core
         /// If <paramref name="degreeOfParallelism"/> is greater than 1, then tasks provided to
         /// <see cref="EvaluateValue"/> methods are wrapped in <code>Task.Run</code>.
         /// </remarks>
-        public EvaluationScheduler(int degreeOfParallelism, CancellationToken cancellationToken)
+        public EvaluationScheduler(int degreeOfParallelism, bool enableEvaluationThrottling, CancellationToken cancellationToken)
         {
             Contract.Requires(degreeOfParallelism >= 1);
 
             m_degreeOfParallelism = degreeOfParallelism;
+            m_enableEvaluationThrottling = enableEvaluationThrottling;
             m_cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-#if FEATURE_THROTTLE_EVAL_SCHEDULER
-            m_queue = new ActionBlock<QueueItem>(
-                item => item.Execute(),
-                new ExecutionDataflowBlockOptions
-                {
-                    BoundedCapacity = DataflowBlockOptions.Unbounded,
-                    MaxDegreeOfParallelism = m_degreeOfParallelism,
-                    CancellationToken = m_cancellationSource.Token
-                }
-            );
-#endif
+            if (m_enableEvaluationThrottling)
+            {
+                m_queue = new ActionBlock<QueueItem>(
+                    item => item.Execute(),
+                    new ExecutionDataflowBlockOptions
+                    {
+                        BoundedCapacity = DataflowBlockOptions.Unbounded,
+                        MaxDegreeOfParallelism = m_degreeOfParallelism,
+                        CancellationToken = m_cancellationSource.Token
+                    }
+                );
+            }
         }
 
         /// <inheritdoc/>
-#if FEATURE_THROTTLE_EVAL_SCHEDULER
         public async Task<object> EvaluateValue(Func<Task<object>> evaluateValueFunction)
         {
             if (m_degreeOfParallelism == 1)
@@ -101,24 +102,23 @@ namespace BuildXL.FrontEnd.Core
                 return await evaluateValueFunction();
             }
 
-            var queueItem = new QueueItem(evaluateValueFunction);
-            m_queue.Post(queueItem);
+            if (m_enableEvaluationThrottling)
+            {
+                var queueItem = new QueueItem(evaluateValueFunction);
+                m_queue.Post(queueItem);
 
-            // wait on either queueItem.Completion or m_queue.Completion to account for cancellation token
-            // (the cancellation token only cancels m_queue.Completion)
-            var finishedTask = await Task.WhenAny(queueItem.Completion, m_queue.Completion);
-            return finishedTask == queueItem.Completion
-                ? await queueItem.Completion // evaluation task completed
-                : null;                      // cancelled
-        }
-#else
-        public Task<object> EvaluateValue(Func<Task<object>> evaluateValueFunction)
-        {
+                // wait on either queueItem.Completion or m_queue.Completion to account for cancellation token
+                // (the cancellation token only cancels m_queue.Completion)
+                var finishedTask = await Task.WhenAny(queueItem.Completion, m_queue.Completion);
+                return finishedTask == queueItem.Completion
+                    ? await queueItem.Completion // evaluation task completed
+                    : null;                      // cancelled
+            }
+
             return m_degreeOfParallelism > 1
-                ? Task.Run(evaluateValueFunction)
+                ? await Task.Run(evaluateValueFunction)
                 : evaluateValueFunction();
         }
-#endif
 
         /// <inheritdoc/>
         public CancellationToken CancellationToken => m_cancellationSource.Token;
@@ -127,6 +127,6 @@ namespace BuildXL.FrontEnd.Core
         public void Cancel() => m_cancellationSource.Cancel();
 
         /// <nodoc />
-        public static EvaluationScheduler Default { get; } = new EvaluationScheduler(Environment.ProcessorCount, CancellationToken.None);
+        public static EvaluationScheduler Default { get; } = new EvaluationScheduler(Environment.ProcessorCount, FrontEndConfigurationExtensions.DefaultEnableEvaluationThrottling, CancellationToken.None);
     }
 }

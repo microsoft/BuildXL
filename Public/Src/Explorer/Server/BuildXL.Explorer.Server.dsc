@@ -19,7 +19,7 @@ namespace Server {
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
               // TODO: revisit this!
-              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App").Contents.all, r`ref/netcoreapp3.0/netstandard.dll`)
+              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App.Ref").Contents.all, r`ref/netcoreapp3.0/netstandard.dll`)
             ),
 
             importFrom("BuildXL.Pips").dll,
@@ -112,7 +112,7 @@ namespace Server {
             importFrom("Microsoft.Extensions.Logging.Console").pkg,
             importFrom("Microsoft.Extensions.Logging.Debug").pkg,
             importFrom("Microsoft.Extensions.Logging.EventSource").pkg,
-            
+
             importFrom("Microsoft.Extensions.Logging").pkg,
             importFrom("Microsoft.Extensions.ObjectPool").pkg,
             importFrom("Microsoft.Extensions.Options.ConfigurationExtensions").pkg,

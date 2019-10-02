@@ -1,11 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Text;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Ipc.Interfaces;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 
@@ -27,6 +30,11 @@ namespace BuildXL.Pips.Operations
         public const string SemiStableHashPrefix = "Pip";
 
         private PipId m_pipId;
+
+        /// <summary>
+        /// Static fingerprint
+        /// </summary>
+        public Fingerprint StaticFingerprint { get; set; }
 
         /// <summary>
         /// Tags used to enable pip-level filtering of the schedule.
@@ -91,6 +99,31 @@ namespace BuildXL.Pips.Operations
         /// Format the semistable hash for display 
         /// </summary>
         public static string FormatSemiStableHash(long hash) => string.Format(CultureInfo.InvariantCulture, "{0}{1:X16}", SemiStableHashPrefix, hash);
+
+        /// <summary>
+        /// Inverse of <see cref="FormatSemiStableHash"/>
+        /// </summary>
+        public static bool TryParseSemiStableHash(string formattedSemiStableHash, out long hash)
+        {
+            if (!formattedSemiStableHash.StartsWith(SemiStableHashPrefix))
+            {
+                hash = -1;
+                return false;
+            }
+
+            try
+            {
+                hash = Convert.ToInt64(formattedSemiStableHash.Substring(SemiStableHashPrefix.Length), 16);
+                return true;
+            }
+            catch
+            {
+                hash = -1;
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                return false;
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+            }
+        }
 
         /// <summary>
         /// Whether this is a process pip that <see cref="Process.AllowUndeclaredSourceReads"/>
@@ -158,6 +191,10 @@ namespace BuildXL.Pips.Operations
                     break;
             }
 
+            if (reader.ReadBoolean())
+            {
+                pip.StaticFingerprint = FingerprintUtilities.CreateFrom(reader);
+            }
             reader.End();
             Contract.Assume(pip != null);
             return pip;
@@ -169,6 +206,16 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)PipType);
             writer.Start(GetType());
             InternalSerialize(writer);
+            if (StaticFingerprint.Length >0)
+            {
+                writer.Write(true);
+                StaticFingerprint.WriteTo(writer);
+            }
+            else
+            {
+                writer.Write(false);
+            }
+
             writer.End();
         }
 
@@ -365,7 +412,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public string GetShortDescription(PipExecutionContext context)
         {
-            if(Provenance == null)
+            if (Provenance == null)
             {
                 return "";
             }
@@ -375,7 +422,10 @@ namespace BuildXL.Pips.Operations
                 return Provenance.Usage.ToString(context.PathTable);
             }
 
-            var moduleName = Provenance.ModuleName.ToString(context.StringTable);
+            var maybeModuleName = Provenance.ModuleName.IsValid
+                ? Provenance.ModuleName.ToString(context.StringTable) + " - "
+                : string.Empty;
+
             var valueName = Provenance.OutputValueSymbol.ToString(context.SymbolTable);
 
             var toolName = string.Empty;
@@ -386,7 +436,7 @@ namespace BuildXL.Pips.Operations
 
             var qualifierName = context.QualifierTable.GetFriendlyUserString(Provenance.QualifierId);
 
-            return $"{moduleName} - {valueName}{toolName} [{qualifierName}]";
+            return $"{maybeModuleName}{valueName}{toolName} [{qualifierName}]";
         }
     }
 }

@@ -71,7 +71,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// FileArtifact for generic TestProcess.exe
         /// </summary>
-        protected readonly FileArtifact TestProcessExecutable;
+        protected FileArtifact TestProcessExecutable { get; set; }
 
         protected readonly AbsolutePath[] TestProcessDependencies;
 
@@ -178,7 +178,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null)
+        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null)
         {
             var builder = ProcessBuilder.CreateForTesting(Context.PathTable);
             builder.Executable = TestProcessExecutable;
@@ -212,6 +212,16 @@ namespace Test.BuildXL.Scheduler
             if (description != null)
             {
                 builder.ToolDescription = StringId.Create(Context.StringTable, description);
+            }
+
+            if (environmentVariables != null)
+            {
+                foreach (var envVar in environmentVariables)
+                {
+                    builder.SetEnvironmentVariable(
+                        StringId.Create(Context.StringTable, envVar.Key),
+                        StringId.Create(Context.StringTable, envVar.Value));
+                }
             }
 
             if (OperatingSystemHelper.IsUnixOS)
@@ -1184,6 +1194,12 @@ namespace Test.BuildXL.Scheduler
 
             PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
 
+        }
+
+        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(moduleName));
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName);
         }
 
         #region IO Helpers

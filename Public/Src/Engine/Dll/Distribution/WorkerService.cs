@@ -75,7 +75,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Returns a task representing the completion of the exit operation
         /// </summary>
-        public Task<bool> ExitCompletion => m_exitCompletionSource.Task;
+        private Task<bool> ExitCompletion => m_exitCompletionSource.Task;
 
         /// <summary>
         /// Returns a task representing the completion of the attach operation
@@ -103,7 +103,8 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         public uint WorkerId { get; private set; }
 
-        private bool m_hasFailures = false;
+        private volatile bool m_hasFailures = false;
+        private volatile string m_masterFailureMessage; 
 
         /// <summary>
         /// Whether master is done with the worker by sending a message to worker.
@@ -128,14 +129,8 @@ namespace BuildXL.Engine.Distribution
         private readonly BlockingCollection<ExtendedPipCompletionData> m_buildResults = new BlockingCollection<ExtendedPipCompletionData> ();
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
 
-        private readonly bool m_isGrpcEnabled;
         private IMasterClient m_masterClient;
         private readonly IServer m_workerServer;
-
-#if !DISABLE_FEATURE_BOND_RPC
-        private InternalBond.BondMasterClient m_bondMasterClient;
-        private readonly InternalBond.BondWorkerServer m_bondWorkerService;
-#endif
 
         /// <summary>
         /// Class constructor
@@ -146,23 +141,11 @@ namespace BuildXL.Engine.Distribution
         /// <param name="buildId">the build id</param>
         public WorkerService(LoggingContext appLoggingContext, int maxProcesses, IDistributionConfiguration config, string buildId)
         {
-            m_isGrpcEnabled = config.IsGrpcEnabled;
-
             m_appLoggingContext = appLoggingContext;
             m_maxProcesses = maxProcesses;
             m_port = config.BuildServicePort;
             m_services = new DistributionServices(buildId);
-            if (m_isGrpcEnabled)
-            {
-                m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
-            }
-            else
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_bondWorkerService = new InternalBond.BondWorkerServer(appLoggingContext, this, m_port, m_services);
-                m_workerServer = m_bondWorkerService;
-#endif
-            }
+            m_workerServer = new Grpc.GrpcWorkerServer(this, appLoggingContext, buildId);
 
             m_attachCompletionSource = TaskSourceSlim.Create<bool>();
             m_exitCompletionSource = TaskSourceSlim.Create<bool>();
@@ -278,6 +261,10 @@ namespace BuildXL.Engine.Distribution
             success &= await ExitCompletion;
 
             success &= !m_hasFailures;
+            if (m_masterFailureMessage != null)
+            {
+                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, m_masterFailureMessage);
+            }
 
             m_pipQueue.SetAsFinalized();
 
@@ -296,6 +283,7 @@ namespace BuildXL.Engine.Distribution
                 if ((TimestampUtilities.Timestamp - m_lastHeartbeatTimestamp) > EngineEnvironmentSettings.WorkerAttachTimeout)
                 {
                     Exit(failure: "Timed out waiting for attach request from master", isUnexpected: true);
+                    Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext);
                     return false;
                 }
             }
@@ -357,8 +345,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!reportSuccess)
             {
-                // Only log the error, if this thread set exit response
-                Logger.Log.DistributionWorkerExitFailure(m_appLoggingContext, failure);
+                m_masterFailureMessage = failure;
                 m_hasFailures = true;
             }
 
@@ -400,20 +387,8 @@ namespace BuildXL.Engine.Distribution
                 new LoggingContext.SessionInfo(buildStartData.SessionId, m_appLoggingContext.Session.Environment, m_appLoggingContext.Session.RelatedActivityId),
                 m_appLoggingContext);
 
-
-            if (m_isGrpcEnabled)
-            {
-                m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
-            }
-            else
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_bondWorkerService.UpdateLoggingContext(m_appLoggingContext);
-                m_bondMasterClient = new InternalBond.BondMasterClient(m_appLoggingContext, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port);
-                m_masterClient = m_bondMasterClient;
-#endif
-            }
-
+            m_masterClient = new Grpc.GrpcMasterClient(m_appLoggingContext, m_services.BuildId, buildStartData.MasterLocation.IpAddress, buildStartData.MasterLocation.Port, OnConnectionTimeOutAsync);
+            
             WorkerId = BuildStartData.WorkerId;
 
             m_attachCompletionSource.TrySetResult(true);
@@ -422,13 +397,6 @@ namespace BuildXL.Engine.Distribution
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]
         private async Task<bool> SendAttachCompletedAfterProcessBuildRequestStartedAsync()
         {
-            if (!m_isGrpcEnabled)
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_bondMasterClient.Start(m_services, OnConnectionTimeOutAsync);
-#endif
-            }
-
             var cacheValidationContent = Guid.NewGuid().ToByteArray();
             var cacheValidationContentHash = ContentHashingUtilities.HashBytes(cacheValidationContent);
 
@@ -779,6 +747,11 @@ namespace BuildXL.Engine.Distribution
                     file = fileArtifactKeyedHash.File;
                 }
 
+                if(fileArtifactKeyedHash.IsSourceAffected)
+                {
+                    fileContentManager.SourceChangeAffectedContents.ReportSourceChangedAffectedFile(file.Path);
+                }
+
                 var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable);
                 if (!fileContentManager.ReportWorkerPipInputContent(
                     m_appLoggingContext,
@@ -828,10 +801,6 @@ namespace BuildXL.Engine.Distribution
             m_workerPipStateManager?.Dispose();
 
             m_workerServer.Dispose();
-
-#if !DISABLE_FEATURE_BOND_RPC
-            m_bondMasterClient?.Dispose();
-#endif
         }
 
         bool IDistributionService.Initialize()

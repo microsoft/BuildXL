@@ -522,7 +522,7 @@ namespace BuildXL.Processes.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Unexpected child processes survived: {2} process(es){3}")]
-        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count,  string paths);
+        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count, string paths);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessChildrenSurvivedTooMany,
@@ -822,6 +822,21 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipSpecPrefix + "Process response file could not be prepared, path '{2}', error code {3:X8}: {4}")]
         public abstract void PipProcessResponseFileCreationFailed(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            int errorCode,
+            string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessChangeAffectedInputsWrittenFileCreationFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "File containing change affected inputs could not be prepared, path '{2}', error code {3:X8}: {4}")]
+        public abstract void PipProcessChangeAffectedInputsWrittenFileCreationFailed(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,

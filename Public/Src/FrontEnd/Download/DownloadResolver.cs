@@ -246,8 +246,8 @@ namespace BuildXL.FrontEnd.Download
                 // Check if the file already exists and matches the exected hash.
                 if (File.Exists(downloadFilePath))
                 {
-                    var expectedHashType = downloadData.ContentHash.HasValue 
-                        ? downloadData.ContentHash.Value.HashType 
+                    var expectedHashType = downloadData.ContentHash.HasValue
+                        ? downloadData.ContentHash.Value.HashType
                         : HashType.Unknown;
 
                     // Compare actual hash to compare if we need to download again.

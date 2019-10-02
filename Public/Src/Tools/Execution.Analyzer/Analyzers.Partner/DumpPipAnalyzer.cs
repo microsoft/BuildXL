@@ -85,7 +85,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly Dictionary<ModuleId, string> m_moduleIdToFriendlyName = new Dictionary<ModuleId, string>();
         private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
 
-        private DominoInvocationEventData m_invocationData;
+        private BxlInvocationEventData m_invocationData;
         private readonly bool m_useOriginalPaths;
 
         public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, bool useOriginalPaths, bool logProgress = false)
@@ -217,7 +217,7 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
-        public override void DominoInvocation(DominoInvocationEventData data)
+        public override void BxlInvocation(BxlInvocationEventData data)
         {
             m_invocationData = data;
         }

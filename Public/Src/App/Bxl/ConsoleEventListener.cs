@@ -17,7 +17,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Visualization.Models;
+using BuildXL.ViewModel;
 using Strings = bxl.Strings;
 
 namespace BuildXL
@@ -46,14 +46,14 @@ namespace BuildXL
         private readonly string m_logsDirectory;
 
         /// <summary>
-        /// Wheter the console output should be optimized for Azure devops output
+        /// Whether the console output should be optimized for Azure devops output
         /// </summary>
         private readonly bool m_optimizeForAzureDevOps;
 
         /// <summary>
-        /// The last reported percentage. To avoid double reporting the same percentage over and over
+        /// This provides access to viewmodel data of the build for instance to get the list of running pips in fancy console mode.
         /// </summary>
-        private int m_lastReportedProgress = -1;
+        private BuildViewModel m_buildViewModel;
 
         /// <summary>
         /// Creates a new instance with optional colorization.
@@ -200,6 +200,14 @@ namespace BuildXL
             m_optimizeForAzureDevOps = optimizeForAzureDevOps;
         }
 
+        /// <summary>
+        /// Sets the build view model that when set this class can use to print the current running pips.
+        /// </summary>
+        public void SetBuildViewModel(BuildViewModel buildViewModel)
+        {
+            m_buildViewModel = buildViewModel;
+        }
+
         /// <inheritdoc />
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly")]
         public override void Dispose()
@@ -338,22 +346,11 @@ namespace BuildXL
                         if (m_notWorker)
                         {
                             m_console.ReportProgress((ulong)done, (ulong)total);
-
-                            if (m_optimizeForAzureDevOps)
-                            {
-                                double processPercent = (100.0 * procsDone) / (procsTotal * 1.0);
-                                int currentProgress = Convert.ToInt32(Math.Floor(processPercent));
-                                if (m_lastReportedProgress != currentProgress)
-                                {
-                                    m_lastReportedProgress = currentProgress;
-                                    m_console.WriteOutputLine(MessageLevel.Info, $"##vso[task.setprogress value={currentProgress};]Pip Execution phase");
-                                }
-                            }
                         }
 
                         break;
                     }
-                    
+
                 case (int)EventId.DisplayHelpLink:
                     {
                         m_console.WriteOutputLine(MessageLevel.Info, Strings.DX_Help_Link_Prefix + " " + Strings.DX_Help_Link);
@@ -414,8 +411,12 @@ namespace BuildXL
         {
             Interlocked.Increment(ref m_errorsLogged);
 
-            TryLogAzureDevOpsIssue(eventData, "error");
-
+            // AzureDevOpsListener has alreday written the event to console, avoid duplication
+            if (m_optimizeForAzureDevOps)
+            {
+                return;
+            }
+            
             if (eventData.EventId == (int)EventId.PipProcessError)
             {
                 // Try to be a bit fancy and only show the tool errors in red. The pip name and log file will stay in
@@ -445,7 +446,11 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void OnWarning(EventWrittenEventArgs eventData)
         {
-            TryLogAzureDevOpsIssue(eventData, "warning");
+            // AzureDevOpsListener has alreday write the event to console, avoid duplication
+            if (m_optimizeForAzureDevOps)
+            {
+                return;
+            }
 
             if (eventData.EventId == (int)EventId.PipProcessWarning)
             {
@@ -470,56 +475,6 @@ namespace BuildXL
 
             // We couldn't do the fancy formatting
             base.OnWarning(eventData);
-        }
-
-        private void TryLogAzureDevOpsIssue(EventWrittenEventArgs eventData, string eventType)
-        {
-            if (!m_optimizeForAzureDevOps)
-            {
-                return;
-            }
-
-            var builder = new StringBuilder();
-            builder.Append("##vso[task.logIssue type=");
-            builder.Append(eventType);
-
-            var message = eventData.Message;
-            var args = eventData.Payload == null ? CollectionUtilities.EmptyArray<object>() : eventData.Payload.ToArray();
-            string body;
-
-            // see if this event provides provenance info
-            if (message.StartsWith(EventConstants.ProvenancePrefix, StringComparison.Ordinal))
-            {
-                Contract.Assume(args.Length >= 3, "Provenance prefix contains 3 formatting tokens.");
-
-                // file
-                builder.Append(";sourcepath=");
-                builder.Append(args[0]);
-
-                //line
-                builder.Append(";linenumber=");
-                builder.Append(args[1]);
-
-                //column
-                builder.Append(";columnnumber=");
-                builder.Append(args[2]);
-
-                //code
-                builder.Append(";code=DX");
-                builder.Append(eventData.EventId.ToString("D4"));
-            }
-            
-            // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
-            body = string.Format(CultureInfo.CurrentCulture, message, args);
-
-            builder.Append(";]");
-
-            // substitute newlines in the message
-            const string newLineAlternative = " ### ";
-            builder.Append(body.Replace("\r\n", newLineAlternative).Replace("\n", newLineAlternative));
-
-
-            m_console.WriteOutputLine(MessageLevel.Info, builder.ToString());
         }
 
         private static string FinalizeFormatStringLayout(StringBuilder buffer, string statusLine, long maxNum)
@@ -569,23 +524,7 @@ namespace BuildXL
         /// <inheritdoc />
         protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
         {
-            var outputText = text.TrimEnd(s_newLineCharArray);
-
-            if (m_optimizeForAzureDevOps)
-            {
-                switch  (level)
-                {
-                    case EventLevel.Critical:
-                    case EventLevel.Error:
-                        outputText = "##[error]" + outputText.Replace("\n", "\n##[error]");
-                        break;
-                    case EventLevel.Warning:
-                        outputText = "##[warning]" + outputText.Replace("\n", "\n##[warning]");
-                        break;
-                }
-            }
-
-            m_console.WriteOutputLine(ConvertLevel(level), outputText);
+            m_console.WriteOutputLine(ConvertLevel(level), text.TrimEnd(s_newLineCharArray));
         }
 
         private void OutputUpdatable(EventLevel level, string standardText, string updatableText, bool onlyIfOverwriteIsSupported)
@@ -641,19 +580,13 @@ namespace BuildXL
         {
             lock (m_runningPipsLock)
             {
-                // First, bail out if the visualizer data isn't available
-                if (EngineModel.VisualizationInformation == null ||
-                    EngineModel.VisualizationInformation.Scheduler.State != Engine.Visualization.VisualizationValueState.Available ||
-                    EngineModel.VisualizationInformation.Context.State != Engine.Visualization.VisualizationValueState.Available ||
-                    EngineModel.VisualizationInformation.PipGraph.State != Engine.Visualization.VisualizationValueState.Available)
+                if (m_buildViewModel == null)
                 {
                     return null;
                 }
 
-                var context = EngineModel.VisualizationInformation.Context.Value;
-                var stringTable = context.StringTable;
-                var pathTable = context.PathTable;
-                var symbolTable = context.SymbolTable;
+                var context = m_buildViewModel.Context;
+                Contract.Assert(context != null);
 
                 if (m_runningPips == null)
                 {
@@ -663,7 +596,7 @@ namespace BuildXL
                 DateTime thisCollection = DateTime.UtcNow;
 
                 // Use the viewer's interface to fetch the info about which pips are currently running.
-                foreach (var pip in EngineModel.VisualizationInformation.Scheduler.Value.RetrieveExecutingProcessPips())
+                foreach (var pip in m_buildViewModel.RetrieveExecutingProcessPips())
                 {
                     PipInfo runningInfo;
                     if (!m_runningPips.TryGetValue(pip.PipId, out runningInfo))

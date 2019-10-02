@@ -30,6 +30,9 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using DateTimeUtilities = BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
+using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities;
+using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -104,6 +107,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private DateTime _lastRestoreTime;
         private string _lastCheckpointId;
         private bool _reconciled;
+
+        private readonly SemaphoreSlim _databaseInvalidationGate = new SemaphoreSlim(1);
+
+        private readonly SemaphoreSlim _heartbeatGate = new SemaphoreSlim(1);
 
         /// <summary>
         /// Initialization for local location store may take too long if we restore the first checkpoint in there.
@@ -280,7 +287,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             await EventStore.StartupAsync(context).ThrowIfFailure();
 
-            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation);
+            MachineReputationTracker = new MachineReputationTracker(context, _clock, _configuration.ReputationTrackerConfiguration, ResolveMachineLocation, ClusterState);
 
             // Configuring a heartbeat timer. The timer is used differently by a master and by a worker.
             _heartbeatTimer = new Timer(
@@ -303,6 +310,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
                 _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
             }
+
+            Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
 
             return BoolResult.Success;
         }
@@ -358,11 +367,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        internal Task<BoolResult> HeartbeatAsync(OperationContext context)
+        internal async Task<BoolResult> HeartbeatAsync(OperationContext context)
         {
-            return context.PerformOperationAsync(
-                Tracer,
-                () => ProcessStateAsync(context, inline: false));
+            using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
+            {
+                // This makes sure that the heartbeat is only run once for each call to this function. It is a
+                // non-blocking check.
+                if (!acquired)
+                {
+                    return BoolResult.Success;
+                }
+
+                return await context.PerformOperationAsync(
+                    Tracer,
+                    () => ProcessStateAsync(context, inline: false));
+            }
         }
 
         /// <summary>
@@ -464,29 +483,48 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 });
         }
 
-        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline)
+        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
         {
-            try
-            {
-                var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
-                
-                if (!checkpointState)
-                {
-                    // The error is already logged.
-                    return checkpointState;
-                }
+            var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
-                return await RestoreCheckpointAsync(context, checkpointState.Value, inline);
-            }
-            finally
+            if (result.Succeeded)
             {
-                if (!ShutdownStarted)
+                // A post initialization process may fail due to a transient issue, like a storage failure or an inconsistent checkpoint's state.
+                // The transient error can go away and the system may recover itself by calling this method again.
+
+                // In this case we need to reset _postInitializationTask and move its state from "failure" to "success"
+                // and unblock all the public operations that will fail if post-initialization task is unsuccessful.
+
+                _postInitializationTask = BoolResult.SuccessTask;
+            }
+
+            return result;
+
+            async Task<BoolResult> processStateCoreAsync()
+            {
+                try
                 {
-                    // Reseting the timer at the end to avoid multiple calls if it at the same time.
-                    _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
+                    var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+
+                    if (!checkpointState)
+                    {
+                        // The error is already logged.
+                        return checkpointState;
+                    }
+
+                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline, forceRestore);
+                }
+                finally
+                {
+                    if (!ShutdownStarted)
+                    {
+                        // Reseting the timer at the end to avoid multiple calls if it at the same time.
+                        _heartbeatTimer.Change(_configuration.Checkpoint.HeartbeatInterval, Timeout.InfiniteTimeSpan);
+                    }
                 }
             }
         }
+        
 
         internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
         {
@@ -618,9 +656,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new GetBulkLocationsResult(CollectionUtilities.EmptyArray<ContentHashWithSizeAndLocations>(), origin);
             }
 
-            var result = await GetBulkCoreAsync(context, contentHashes, origin);
-
-            context.TraceDebug($"GetBulk({origin}) => [{result.GetShortHashesTraceString()}]");
+            var result = await context.PerformOperationAsync(
+                Tracer,
+                () => GetBulkCoreAsync(context, contentHashes, origin),
+                traceOperationStarted: false,
+                extraEndMessage: r => $"GetBulk({origin}) => [{r.GetShortHashesTraceString()}]");
 
             return result;
         }
@@ -654,9 +694,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     return await ResolveLocationsAsync(context, entries.Value, contentHashes, GetBulkOrigin.Global);
-
                 },
-                Counters[ContentLocationStoreCounters.GetBulkGlobal]);
+                Counters[ContentLocationStoreCounters.GetBulkGlobal],
+                traceErrorsOnly: true); // Intentionally tracing errors only.
         }
 
         private Task<GetBulkLocationsResult> GetBulkFromLocalAsync(OperationContext context, IReadOnlyList<ContentHash> contentHashes)
@@ -699,6 +739,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     return ResolveLocationsAsync(context, entries, contentHashes, GetBulkOrigin.Local);
                 },
+                traceErrorsOnly: true, // Intentionally tracing errors only.
                 counter: Counters[ContentLocationStoreCounters.GetBulkLocal]);
         }
 
@@ -1235,10 +1276,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return GlobalStore.GetBlobAsync(context, hash);
         }
 
-        /// <summary>
-        /// Gets a random machine location, excluding a specified location.
-        /// </summary>
-        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except) => ClusterState.GetRandomMachineLocation(except);
+        private void OnContentLocationDatabaseInvalidation(OperationContext context, Failure<Exception> failure)
+        {
+            OnContentLocationDatabaseInvalidationAsync(context, failure).FireAndForget(context);
+        }
+
+        private async Task OnContentLocationDatabaseInvalidationAsync(OperationContext context, Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
+            using (SemaphoreSlimToken.TryWait(_databaseInvalidationGate, 0, out var acquired))
+            {
+                // If multiple threads fail at the same time (i.e. corruption error), this cheaply deduplicates the
+                // restores, avoids redundant logging. This is a non-blocking check.
+                if (!acquired)
+                {
+                    return;
+                }
+
+                Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
+
+                // We can safely ignore errors, because there is nothing more we can do here.
+                await HeartbeatAsync(context).IgnoreErrors();
+            }
+        }
 
         /// <summary>
         /// Adapts <see cref="LocalLocationStore"/> to interface needed for content locations (<see cref="DistributedCentralStorage.ILocationStore"/>) by

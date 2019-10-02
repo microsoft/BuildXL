@@ -167,7 +167,7 @@ namespace BuildXL.FrontEnd.Core
             Engine = engine;
             FrontEndArtifactManager = CreateFrontEndArtifactManager();
             PipGraph = pipGraph;
-            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph);
+            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph, configuration.FrontEnd.MaxFrontEndConcurrency);
 
             // TODO: The EngineBasedFileSystem should be replaced with a tracking file system that wraps the passed in filesystem
             // so that the speccache, engine caching/tracking all work for the real and for the fake filesystem.s
@@ -263,7 +263,8 @@ namespace BuildXL.FrontEnd.Core
             }
 
             var frontEndConcurrency = resultingConfiguration.FrontEnd.MaxFrontEndConcurrency();
-            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, FrontEndContext.CancellationToken);
+            var enableEvaluationThrottling = resultingConfiguration.FrontEnd.EnableEvaluationThrottling();
+            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, enableEvaluationThrottling, FrontEndContext.CancellationToken);
 
             HostState = State.ConfigInterpreted;
 
@@ -980,42 +981,49 @@ namespace BuildXL.FrontEnd.Core
             PhaseLogicHandler<TStatistics> phaseLogicHandler)
             where TStatistics : IHasEndTime
         {
-            var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());
-            if (configuration.Engine.Phase.HasFlag(phase))
+            try
             {
-                var statistics = default(TStatistics);
-
-                using (var aggregator = m_collector?.CreateAggregator())
+                var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());
+                if (configuration.Engine.Phase.HasFlag(phase))
                 {
-                    var stopwatch = Stopwatch.StartNew();
-                    startPhaseLogMessage(loggingContext);
+                    var statistics = default(TStatistics);
 
-                    m_frontEndFactory.GetPhaseStartHook(phase)();
-                    var success = phaseLogicHandler(loggingContext, ref statistics);
-                    m_frontEndFactory.GetPhaseEndHook(phase)();
-
-                    LaunchDebuggerIfConfigured(phase);
-
-                    statistics.ElapsedMilliseconds = (int)stopwatch.ElapsedMilliseconds;
-
-                    // Call the endPhase handler for both: error and successful cases,
-                    // but not if the unhandled exception will occur.
-                    endPhaseLogMessage(loggingContext, statistics);
-
-                    if (aggregator != null)
+                    using (var aggregator = m_collector?.CreateAggregator())
                     {
-                        LoggingHelpers.LogPerformanceCollector(aggregator, loggingContext, loggingContext.LoggerComponentInfo, statistics.ElapsedMilliseconds);
-                    }
+                        var stopwatch = Stopwatch.StartNew();
+                        startPhaseLogMessage(loggingContext);
 
-                    if (!success)
-                    {
-                        Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after frontend phase: " + phase.ToString());
-                        return false;
+                        m_frontEndFactory.GetPhaseStartHook(phase)();
+                        var success = phaseLogicHandler(loggingContext, ref statistics);
+                        m_frontEndFactory.GetPhaseEndHook(phase)();
+
+                        LaunchDebuggerIfConfigured(phase);
+
+                        statistics.ElapsedMilliseconds = (int)stopwatch.ElapsedMilliseconds;
+
+                        // Call the endPhase handler for both: error and successful cases,
+                        // but not if the unhandled exception will occur.
+                        endPhaseLogMessage(loggingContext, statistics);
+
+                        if (aggregator != null)
+                        {
+                            LoggingHelpers.LogPerformanceCollector(aggregator, loggingContext, loggingContext.LoggerComponentInfo, statistics.ElapsedMilliseconds);
+                        }
+
+                        if (!success)
+                        {
+                            Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after frontend phase: " + phase.ToString());
+                            return false;
+                        }
                     }
                 }
-            }
 
-            return true;
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
         }
 
         private static void LaunchDebuggerIfConfigured(EnginePhases phase)
@@ -1070,7 +1078,7 @@ namespace BuildXL.FrontEnd.Core
             var frontEndHost = new FrontEndHostController(
                 frontEndFactory,
                 new DScriptWorkspaceResolverFactory(),
-                new EvaluationScheduler(degreeOfParallelism: 1, cancellationToken: frontEndContext.CancellationToken),
+                new EvaluationScheduler(degreeOfParallelism: 1, false, cancellationToken: frontEndContext.CancellationToken),
                 moduleRegistry,
                 new FrontEndStatistics(),
                 logger ?? Logger.CreateLogger(),
@@ -1488,16 +1496,12 @@ namespace BuildXL.FrontEnd.Core
                 remaining: remainingMessage);
         }
 
-        private string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
+        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
         {
-            if (Configuration.Logging.OptimizeConsoleOutputForAzureDevOps)
-            {
-                return remainingItems.Count.ToString(CultureInfo.InvariantCulture);
-            }
-
             var progressMessages = remainingItems
+                .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, item.Module.Descriptor.DisplayName))
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 
@@ -1506,12 +1510,16 @@ namespace BuildXL.FrontEnd.Core
                 : "0";
         }
 
-        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
+        private string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
         {
+            if (Configuration.Logging.OptimizeConsoleOutputForAzureDevOps || Configuration.Logging.OptimizeProgressUpdatingForAzureDevOps)
+            {
+                return remainingItems.Count.ToString(CultureInfo.InvariantCulture);
+            }
+
             var progressMessages = remainingItems
-                .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
+                .Select(item => FormatProgressMessage(elapsed, item.Module.Descriptor.DisplayName))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

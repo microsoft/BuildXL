@@ -3,18 +3,21 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Distributed;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Test;
 
 namespace ContentStoreTest.Distributed.ContentLocation
 {
-    public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>
+    public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, ICopyRequester
     {
         public ConcurrentDictionary<AbsolutePath, AbsolutePath> FilesCopied { get; } = new ConcurrentDictionary<AbsolutePath, AbsolutePath>();
 
@@ -24,42 +27,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public ConcurrentDictionary<AbsolutePath, ConcurrentQueue<TimeSpan>> FileExistenceTimespans { get; } = new ConcurrentDictionary<AbsolutePath, ConcurrentQueue<TimeSpan>>();
 
+        public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
+
         public int FilesCopyAttemptCount => FilesCopied.Count;
-
-        public async Task<CopyFileResult> CopyFileAsync(AbsolutePath path, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-        {
-            FilesCopied.AddOrUpdate(destinationPath, p => path, (dest, prevPath) => overwrite ? path : prevPath);
-
-            if (!File.Exists(path.Path))
-            {
-                return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Source file {path} doesn't exist.");
-            }
-
-            if (File.Exists(destinationPath.Path))
-            {
-                if (!overwrite)
-                {
-                    return new CopyFileResult(
-                        CopyFileResult.ResultCode.DestinationPathError,
-                        $"Destination file {destinationPath} exists but overwrite not specified.");
-                }
-            }
-
-            if (FilesToCorrupt.ContainsKey(path))
-            {
-                TestGlobal.Logger.Debug($"Corrupting file {path}");
-#pragma warning disable AsyncFixer02 // WriteAllBytesAsync should be used instead of File.WriteAllBytes
-                await Task.Run(
-                    () => File.WriteAllBytes(destinationPath.Path, ThreadSafeRandom.GetBytes(150)));
-#pragma warning restore AsyncFixer02 // WriteAllBytesAsync should be used instead of File.WriteAllBytes
-            }
-            else
-            {
-                await Task.Run(() => File.Copy(path.Path, destinationPath.Path), cancellationToken);
-            }
-
-            return CopyFileResult.SuccessWithSize(new System.IO.FileInfo(destinationPath.Path).Length);
-        }
 
         public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
         {
@@ -128,6 +98,11 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
 
             return 0;
+        }
+
+        public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
+        {
+            return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
         }
     }
 }

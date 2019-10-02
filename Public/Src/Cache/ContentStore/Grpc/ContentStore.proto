@@ -2,7 +2,14 @@
 
 package ContentStore.Grpc;
 
-// Defines an interface of a content server
+// NOTE(jubayard, 09/10/2019): the naming required for backwards-compatibility. Since the service name is part of the
+// wire format for gRPC calls, we can't simply remove old services yet, or:
+//  - Clients using the old bits won't connect to a new server (i.e. partial deployment)
+//  - Clients using the new bits won't connect to an old server (i.e. CI validation, partial deployment)
+// Will fail claiming that methods are undefined. This can and will fail builds, because the build won't connect to
+// CASaaS at all.
+
+// Defines an interface of a cache server
 service ContentServer {
     rpc Hello(HelloRequest) returns (HelloResponse) {}
 
@@ -31,10 +38,7 @@ service ContentServer {
     rpc Delete(DeleteContentRequest) returns (DeleteContentResponse) {}
     
     rpc RequestCopyFile(RequestCopyFileRequest) returns (RequestCopyFileResponse) {}
-}
 
-// Defines an interface of a cache server
-service CacheServer {
     rpc AddOrGetContentHashList(AddOrGetContentHashListRequest) returns (AddOrGetContentHashListResponse) {}
 
     rpc GetContentHashList(GetContentHashListRequest) returns (GetContentHashListResponse) {}

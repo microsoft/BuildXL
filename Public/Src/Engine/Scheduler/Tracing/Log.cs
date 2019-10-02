@@ -304,6 +304,25 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ScheduleProcessPipCacheHit(LoggingContext loggingContext, string pipDescription, string fingerprint, ulong uniqueId);
 
         [GeneratedEvent(
+            (ushort)LogEventId.AugmentedWeakFingerprint,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] Augmented weak fingerprint '{weakFingerprint}' -> '{augmentedWeakFingerprint}' using path set '{pathSetHash}' with {pathCount} paths. Keep augmenting path set alive result={keepAliveResult}.")]
+        internal abstract void AugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string augmentedWeakFingerprint, string pathSetHash, int pathCount, string keepAliveResult);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.AddAugmentingPathSet,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "[{pipDescription}] Adding augmenting path set '{pathSetHash}' with '{pathCount}' (from {pathSetCount} path sets with min {minPathCount} and max {maxPathCount} paths). Weak fingerprint={weakFingerprint}. Result={result}.")]
+        internal abstract void AddAugmentingPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, int pathCount, int pathSetCount, int minPathCount, int maxPathCount, string result);
+
+
+        [GeneratedEvent(
             (ushort)EventId.PipFailedDueToServicesFailedToRun,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -329,6 +348,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{pipDescription}] Failed to materialize pip dependencies content from cache: {errorMessage}")]
         internal abstract void PipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)EventId.DetailedPipMaterializeDependenciesFromCacheFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] Failed to materialize pip dependencies content from cache: {errorMessage}")]
+        internal abstract void DetailedPipMaterializeDependenciesFromCacheFailure(LoggingContext loggingContext, string pipDescription, string errorMessage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipFailedDueToDependenciesCannotBeHashed,
@@ -702,7 +730,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExecutePipRequest,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Requesting pip execution of step {step} on worker {workerName}",
+            Message = "[{pipDescription}] Requesting {step} on {workerName}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
@@ -712,7 +740,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.DistributionFinishedPipRequest,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "[{pipDescription}] Finished pip execution of step {step} on worker {workerName}",
+            Message = "[{pipDescription}] Finished {step} on {workerName}",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             EventOpcode = (byte)EventOpcode.Info,
@@ -725,7 +753,7 @@ namespace BuildXL.Scheduler.Tracing
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash} reported from worker '{workerName}'. {reparsePointInfo}.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionMasterWorkerProcessOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash, string reparsePointInfo, string workerName);
 
         [GeneratedEvent(
@@ -794,7 +822,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage | (int)Keywords.Performance,
             EventTask = (int)Tasks.Storage,
-            Message = "[{pipDescription}] Ensured pip input (hash: '{contentHash}') is available for local materialization: Result: {result} | Target location up-to-date: {targetLocationUpToDate} | Remotely copied bytes: {remotelyCopyBytes}")]
+            Message = "[{pipDescription}] Ensured input '{contentHash}' available materialization: Result: {result} | Up-to-date: {targetLocationUpToDate} | Remote bytes: {remotelyCopyBytes}")]
         public abstract void ScheduleCopyingPipInputToLocalStorage(
             LoggingContext context,
             long pipSemiStableHash,
@@ -1263,8 +1291,8 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message =
-                EventConstants.PipPrefix + "Process is going to be retried due to exiting with exit code '{exitCode}' (remaining retries is {remainingRetries})")]
-        public abstract void PipWillBeRetriedDueToExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, int remainingRetries);
+                EventConstants.PipPrefix + "Process is going to be retried due to exiting with exit code '{exitCode}' (remaining retries is {remainingRetries}). {stdErr} {stdOut}")]
+        public abstract void PipWillBeRetriedDueToExitCode(LoggingContext context, long pipSemiStableHash, string pipDescription, int exitCode, int remainingRetries, string stdErr, string stdOut);
 
         [GeneratedEvent(
             (ushort)LogEventId.ResumingProcessExecutionAfterSufficientResources,
@@ -3865,13 +3893,31 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ApiServerReportStatisticsExecuted(LoggingContext loggingContext, int numStatistics);
 
         [GeneratedEvent(
+            (ushort)EventId.ApiServerReceivedMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] {message}.")]
+        internal abstract void ApiServerReceivedMessage(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
+            (ushort)EventId.ApiServerReceivedWarningMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{ShortProductName} API Server] {message}.")]
+        internal abstract void ApiServerReceivedWarningMessage(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
             (ushort)EventId.ApiServerGetSealedDirectoryContentExecuted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{ShortProductName} API Server] Operation GetSealedDirectoryContent('{directory}') executed.")]
-        internal abstract void ApiServerGetSealedDirectoryContentExecuted(LoggingContext loggingContext, string directory);
+            Message = "[{ShortProductName} API Server] Operation GetSealedDirectoryContent('{directory}') executed (files: {filesCount}).")]
+        internal abstract void ApiServerGetSealedDirectoryContentExecuted(LoggingContext loggingContext, string directory, int filesCount);
 
         [GeneratedEvent(
             (ushort)LogEventId.UnexpectedlySmallObservedInputCount,
@@ -4442,6 +4488,24 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Engine,
             Message = "{message}")]
         public abstract void DebugFragment(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)EventId.PipCacheLookupStats,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Storage,
+            Message = "Cache lookup for {formattedSemistableHash} - WP: '{weakFigerprint}' (augmented: {isAugmentedFingerprint}), Visited entries: {visitedEntriesCount}, Unique pathsets: {pathsetCount}")]
+        public abstract void PipCacheLookupStats(LoggingContext context, string formattedSemistableHash, bool isAugmentedFingerprint, string weakFigerprint, int visitedEntriesCount, int pathsetCount);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PipSourceDependencyCannotBeHashed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipInputAssertions,
+            Message = "Source dependency for file at path: {filePath} could not be hashed while processing pip.")]
+        public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath);
     }
 }
 #pragma warning restore CA1823 // Unused field

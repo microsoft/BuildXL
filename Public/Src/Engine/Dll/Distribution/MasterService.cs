@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -49,9 +50,9 @@ namespace BuildXL.Engine.Distribution
         private ExecutionResultSerializer m_resultSerializer;
         private PipGraphCacheDescriptor m_cachedGraphDescriptor;
         private readonly ushort m_buildServicePort;
-        private readonly bool m_isGrpcEnabled;
-
         private readonly IServer m_masterServer;
+
+        internal readonly SemaphoreSlim WorkerAttachSemaphore = new SemaphoreSlim(EngineEnvironmentSettings.MaxConcurrentWorkersAttachLimit);
 
         internal readonly DistributionServices DistributionServices;
 
@@ -63,8 +64,6 @@ namespace BuildXL.Engine.Distribution
         {
             Contract.Requires(config != null && config.BuildRole == DistributedBuildRoles.Master);
             Contract.Ensures(m_remoteWorkers != null);
-
-            m_isGrpcEnabled = config.IsGrpcEnabled;
 
             // Create all remote workers
             m_buildServicePort = config.BuildServicePort;
@@ -78,19 +77,10 @@ namespace BuildXL.Engine.Distribution
                 var configWorker = config.BuildWorkers[i];
                 var workerId = i + 1; // 0 represents the local worker.
                 var serviceLocation = new ServiceLocation { IpAddress = configWorker.IpAddress, Port = configWorker.BuildServicePort };
-                m_remoteWorkers[i] = new RemoteWorker(m_isGrpcEnabled, loggingContext, (uint)workerId, this, serviceLocation);
+                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation);
             }
 
-            if (m_isGrpcEnabled)
-            {
-                m_masterServer = new Grpc.GrpcMasterServer(loggingContext, this, buildId);
-            }
-            else
-            {
-#if !DISABLE_FEATURE_BOND_RPC
-                m_masterServer = new InternalBond.BondMasterServer(loggingContext, this);
-#endif
-            }
+            m_masterServer = new Grpc.GrpcMasterServer(loggingContext, this, buildId);
         }
 
         /// <summary>

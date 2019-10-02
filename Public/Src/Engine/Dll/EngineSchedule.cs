@@ -35,6 +35,7 @@ using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
@@ -1028,6 +1029,7 @@ namespace BuildXL.Engine
             rootFilter = null;
             FilterParserError error;
 
+            var canonicalize = configuration.Schedule.CanonicalizeFilterOutputs;
             var filterUnParsed = commandLineConfiguration.Filter;
             var defaultFilter = configuration.Engine.DefaultFilter;
             var implicitFilters = commandLineConfiguration.Startup.ImplicitFilters;
@@ -1051,7 +1053,7 @@ namespace BuildXL.Engine
                 }
 
                 // Otherwise we parse the actual filter
-                FilterParser parser = new FilterParser(context, mountResolver, filterUnParsed);
+                FilterParser parser = new FilterParser(context, mountResolver, filterUnParsed, canonicalize: canonicalize);
                 if (!parser.TryParse(out rootFilter, out error))
                 {
                     Logger.Log.ConfigFailedParsingCommandLinePipFilter(
@@ -1087,7 +1089,7 @@ namespace BuildXL.Engine
                     }
                 }
 
-                FilterParser parser = new FilterParser(context, mountResolver, sb.ToString());
+                FilterParser parser = new FilterParser(context, mountResolver, sb.ToString(), canonicalize: canonicalize);
 
                 if (!parser.TryParse(out rootFilter, out error))
                 {
@@ -1103,7 +1105,7 @@ namespace BuildXL.Engine
             else if (!string.IsNullOrWhiteSpace(defaultFilter))
             {
                 // Then fall back to the default filter
-                FilterParser parser = new FilterParser(context, mountResolver, defaultFilter);
+                FilterParser parser = new FilterParser(context, mountResolver, defaultFilter, canonicalize: canonicalize);
                 RootFilter parsedFilter;
                 if (!parser.TryParse(out parsedFilter, out error))
                 {
@@ -1421,7 +1423,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// At the end of the build this logs some important stats about the build
         /// </summary>
-        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext)
+        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 
@@ -1446,7 +1448,7 @@ namespace BuildXL.Engine
 #pragma warning restore SA1114 // Parameter list must follow declaration
             }
 
-            var schedulerPerformance = Scheduler.LogStats(loggingContext);
+            var schedulerPerformance = Scheduler.LogStats(loggingContext, buildSummary);
 
             // Log whitelist file statistics
             if (m_configFileState.FileAccessWhitelist != null && m_configFileState.FileAccessWhitelist.MatchedEntryCounts.Count > 0)

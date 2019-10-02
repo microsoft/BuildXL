@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -35,6 +36,13 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// Base implementation of IPC to a file system content cache.
     /// </summary>
+    /// <typeparam name="TStore">
+    ///     Type of underlying store. This is kept to inherit from <see cref="IStartupShutdown"/> instead of, for
+    ///     example, <see cref="IContentStore"/>, because if that were the case it couldn't be used with ICache
+    /// </typeparam>
+    /// <typeparam name="TSession">
+    ///     Type of sessions that will be created. Must match the store.
+    /// </typeparam>
     public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>
         where TSession : IContentSession
         where TStore : IStartupShutdown
@@ -76,7 +84,10 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        internal readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
+        /// <remarks>
+        /// This is only supposed to be used by this class and inheritors, do not make internal or public.
+        /// </remarks>
+        protected readonly IReadOnlyDictionary<string, TStore> StoresByName;
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -101,12 +112,14 @@ namespace BuildXL.Cache.ContentStore.Service
             _serviceReadinessChecker = new ServiceReadinessChecker(Tracer, logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, SessionHandle<TSession>>();
 
+            var storesByName = new Dictionary<string, TStore>();
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
                 fileSystem.CreateDirectory(kvp.Value);
                 var store = contentStoreFactory(kvp.Value);
-                StoresByName.Add(kvp.Key, store);
+                storesByName.Add(kvp.Key, store);
             }
+            StoresByName = new ReadOnlyDictionary<string, TStore>(storesByName);
 
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
@@ -670,31 +683,16 @@ namespace BuildXL.Cache.ContentStore.Service
         private void TrySetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out var buildId))
+            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
             {
                 operationLogger.RegisterBuildId(buildId);
             }
         }
 
-        private static bool TryExtractBuildId(string sessionName, out string buildId)
-        {
-            if (sessionName?.Contains(Context.BuildIdPrefix) == true)
-            {
-                var index = sessionName.IndexOf(Context.BuildIdPrefix) + Context.BuildIdPrefix.Length;
-                buildId = sessionName.Substring(index);
-
-                // Return true only if buildId is actually a guid.
-                return Guid.TryParse(buildId, out _);
-            }
-
-            buildId = null;
-            return false;
-        }
-
         private void TryUnsetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out _))
+            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out _))
             {
                 operationLogger.UnregisterBuildId();
             }

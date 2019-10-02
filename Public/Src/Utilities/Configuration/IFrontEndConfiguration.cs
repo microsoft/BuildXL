@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Utilities.Configuration
 {
@@ -98,6 +99,11 @@ namespace BuildXL.Utilities.Configuration
         /// The max concurrency to use for frontend evaluation
         /// </summary>
         int? MaxFrontEndConcurrency { get; }
+
+        /// <summary>
+        /// If true, spawn unlimited tasks at once in the front end
+        /// </summary>
+        bool? EnableEvaluationThrottling { get; }
 
         /// <summary>
         /// The max concurrency to use for restoring nuget packages.
@@ -280,7 +286,7 @@ namespace BuildXL.Utilities.Configuration
         bool LogStatistics { get; }
 
         /// <summary>
-        /// Whether the frontend statistics should contain statistics about the slowest proccesses. 
+        /// Whether the frontend statistics should contain statistics about the slowest proccesses.
         /// </summary>
         bool ShowSlowestElementsStatistics { get; }
 
@@ -288,16 +294,6 @@ namespace BuildXL.Utilities.Configuration
         /// Whether the frontend statistics should contain statistics about the largest files.
         /// </summary>
         bool ShowLargestFilesStatistics { get; }
-
-        /// <summary> 
-        /// Environment Variables which should be passed through for all processes 
-        /// </summary> 
-        /// <remarks>
-        /// This is an unsafe configuration.
-        /// This global configuration from cammand line will bypass cache,
-        /// which means pips and graph will be cached ignoring environment variables specified in this configure
-        /// </remarks>
-        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
 
         /// <summary>
         /// Wheather or not to release workspace before evaluation.
@@ -317,5 +313,21 @@ namespace BuildXL.Utilities.Configuration
         /// Whether or not the frontend is allowed to evaluate methods in the unsafe ambient.
         /// </summary>
         bool AllowUnsafeAmbient { get; }
+
+        /// <summary>
+        /// Generates a new cgmaiifest file and overwrites the existing cgmanifest file if it is outdated
+        /// </summary>
+        /// <remarks>
+        /// cgmanifest.json is used for Component Governance in CloudBuild
+        /// </remarks>
+        AbsolutePath GenerateCgManifestForNugets { get; }
+
+        /// <summary>
+        /// Validates the existing cgmaiifest file and throws error on mismatch
+        /// </summary>
+        /// <remarks>
+        /// cgmanifest.json is used for Component Governance in CloudBuild
+        /// </remarks>
+        AbsolutePath ValidateCgManifestForNugets { get; }
     }
 }

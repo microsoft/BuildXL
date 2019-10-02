@@ -46,7 +46,7 @@ namespace BuildXL.Pips
         /// If scheduling the seal fails, <see cref="DirectoryArtifact.Invalid"/> is returned.
         /// </returns>
         DirectoryArtifact AddSealDirectory([NotNull]SealDirectory sealDirectory, PipId valuePip);
-        
+
         /// <summary>
         /// Adds a value pip representing a value. The return value indicates whether this was a valid Pip.
         /// </summary>

@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -98,8 +99,15 @@ namespace BuildXL.Scheduler.Fingerprints
             {
                 if (index >= m_bitset.Length)
                 {
-                    var newSize = BitSet.RoundToValidBitCount(pathTable.Count);
+                    // under unknown conditions, index might be larger than pathTable.Count
+                    // let's just select the largest one, so there is enough space in the bitset
+                    var newSize = BitSet.RoundToValidBitCount(Math.Max(pathTable.Count, index));
                     m_bitset.SetLength(newSize);
+
+                    if (index < 0 || index >= m_bitset.Length)
+                    {
+                        Contract.Assert(false, $"The size of BitSet was increased, yet index={index} is still outside [0, {m_bitset.Length}) range. NewSize = {newSize}. PathTable.Count={pathTable.Count}");
+                    }
                 }
 
                 if (m_bitset.Contains(index))

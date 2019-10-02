@@ -42,7 +42,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected readonly TempFileStreamFactory TempFileStreamFactory;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer("ServiceClientContentSession");
+        protected override Tracer Tracer { get; } = new Tracer(nameof(ReadOnlyServiceClientContentSession));
 
         /// <summary>
         ///     Request to server retry policy.
@@ -97,8 +97,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
         protected IRpcClient GetRpcClient()
         {
             var rpcConfiguration = Configuration.RpcConfiguration;
-
-            return new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration.GrpcPort, Configuration.Scenario, rpcConfiguration.HeartbeatInterval);
+            
+            return new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
         }
 
         /// <inheritdoc />

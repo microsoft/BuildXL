@@ -93,7 +93,7 @@ namespace BuildXL.Processes
 
                 if (compress)
                 {
-                    uncompressedDumpPath = dumpPath + ".tmp";
+                    uncompressedDumpPath = dumpPath + ".dmp.tmp";
                     Analysis.IgnoreResult(FileUtilities.TryDeleteFile(uncompressedDumpPath));
                 }
 
@@ -125,7 +125,7 @@ namespace BuildXL.Processes
                     using (FileStream compressedDumpStream = new FileStream(dumpPath, FileMode.Create))
                     using (var archive = new ZipArchive(compressedDumpStream, ZipArchiveMode.Create))
                     {
-                        var entry = archive.CreateEntry(Path.GetFileNameWithoutExtension(dumpPath) + ".dmp");
+                        var entry = archive.CreateEntry(Path.GetFileNameWithoutExtension(dumpPath) + ".dmp", CompressionLevel.Fastest);
 
                         using (FileStream uncompressedDumpStream = File.Open(uncompressedDumpPath, FileMode.Open))
                         using (var entryStream = entry.Open())

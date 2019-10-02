@@ -1291,11 +1291,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
+        public async Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash hash, byte[] blob)
         {
             Contract.Assert(AreBlobsSupported, "PutBlobAsync was called and blobs are not supported.");
 
-            return _blobAdapter.PutBlobAsync(context, hash, blob);
+            return await _blobAdapter.PutBlobAsync(context, hash, blob);
         }
 
         /// <inheritdoc />
@@ -1307,24 +1307,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
+        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)
         {
             // ConcurrentDictionary.Keys is an expensive operation, so make sure to only call it once.
             var locations = _idsByLocation.Keys;
-            if (locations.Any(location => !location.Equals(except)))
+            if (locations.Except(except).Any())
             {
                 MachineLocation location;
                 do
                 {
                     location = locations.ElementAt(ThreadSafeRandom.Generator.Next(locations.Count));
                 }
-                while (location.Equals(except));
+                while (except.Contains(location));
 
                 return new Result<MachineLocation>(location);
             }
 
             return new Result<MachineLocation>("Could not select a machine location.");
         }
+
+        /// <inheritdoc />
+        public bool IsMachineActive(MachineLocation machine) => _idsByLocation.ContainsKey(machine);
 
         /// <summary>
         /// Gets the page size used in bulk Redis queries.

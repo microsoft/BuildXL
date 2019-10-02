@@ -1,0 +1,5 @@
+module({
+    name: "Sdk.SymbolDaemon",
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [ p`Tool.SymbolDaemonInterfaces.dsc`, p`Tool.SymbolDaemonRunner.dsc`, p`Tool.SymbolDaemonTool.dsc`]
+});

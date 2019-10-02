@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifdef ES_SANDBOX
-
 #include "AccessHandler.hpp"
 #include "OpNames.hpp"
 
@@ -128,6 +126,31 @@ PolicyResult AccessHandler::PolicyForPath(const char *absolutePath)
     return PolicyResult(GetPip()->getFamFlags(), absolutePath, cursor);
 }
 
+static bool is_prefix(const char *s1, const char *s2)
+{
+    int c;
+    while ((c = *s2++) != '\0')
+    {
+        if (c != *s1++)
+        {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+const char* AccessHandler::IgnoreDataPartitionPrefix(const char* path)
+{
+    const char *marker = path;
+    if (is_prefix(marker, kDataPartitionPrefix))
+    {
+        marker += kAdjustedPrefixLength;
+    }
+
+    return marker;
+}
+
 AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
                                                         const char *path,
                                                         CheckFunc checker,
@@ -135,7 +158,7 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
                                                         bool isDir)
 {    
     // 1: check operation against given policy
-    PolicyResult policy = PolicyForPath(path);
+    PolicyResult policy = PolicyForPath(IgnoreDataPartitionPrefix(path));
     AccessCheckResult result = AccessCheckResult::Invalid();
     checker(policy, isDir, &result);
         
@@ -148,5 +171,3 @@ AccessCheckResult AccessHandler::CheckAndReportInternal(FileOperation operation,
     ReportFileOpAccess(operation, policy, result, audit_token_to_pid(msg->process->audit_token));
     return result;
 }
-
-#endif

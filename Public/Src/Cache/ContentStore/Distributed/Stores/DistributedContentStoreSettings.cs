@@ -126,6 +126,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaxConcurrentCopyOperations { get; set; } = 512;
 
         /// <summary>
+        /// Maximum number of concurrent proactive copies.
+        /// </summary>
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = 512;
+
+        /// <summary>
         /// Maximum number of files to copy locally in parallel for a given operation
         /// </summary>
         public int ParallelCopyFilesLimit { get; set; } = DefaultParallelCopyFilesLimit;
@@ -136,14 +141,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
 
         /// <summary>
-        /// Whether proactive copies are enabled.
+        /// The mode in which proactive copy should run
         /// </summary>
-        public bool EnableProactiveCopy { get; set; } = false;
+        public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
 
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        /// <summary>
+        /// Time before a proactive copy times out.
+        /// </summary>
+        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
 
         /// <summary>
         /// Defines pinning behavior
@@ -159,8 +169,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
 
         /// <summary>
-        /// Maximum amount of time we can wait for an operation to pass the PutFile gate without emitting a warning.
+        /// Name of the blob with the snapshot of the content placement predictions.
         /// </summary>
-        public TimeSpan PutFileWaitWarning { get; set; } = TimeSpan.FromSeconds(5);
+        public string ContentPlacementPredictionsBlob { get; set; } // Can be null.
     }
 }

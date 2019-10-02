@@ -4,9 +4,9 @@
 #ifndef IOHandler_hpp
 #define IOHandler_hpp
 
-#ifdef ES_SANDBOX
-
 #include "AccessHandler.hpp"
+
+#define NO_ERROR 0
 
 struct IOHandler : public AccessHandler
 {
@@ -46,7 +46,5 @@ public:
     
     void HandleWrite(const es_message_t *msg);
 };
-
-#endif /* ES_SANDBOX */
 
 #endif /* IOHandler_hpp */

@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(template != null);
 
             IsEnabled = template.IsEnabled;
+            IsNewEnabled = template.IsNewEnabled;
             CanWriteToSrc = template.CanWriteToSrc;
             SolutionName = pathRemapper.Remap(template.SolutionName);
             SolutionRoot = pathRemapper.Remap(template.SolutionRoot);
@@ -28,6 +29,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IsEnabled { get; set; }
+
+        /// <inheritdoc />
+        public bool IsNewEnabled { get; set; }
 
         /// <inheritdoc />
         public PathAtom SolutionName { get; set; }

@@ -2175,7 +2175,9 @@ HANDLE WINAPI Detoured_CreateFileW(
     // FILE_FLAG_BACKUP_SEMANTICS and so get INVALID_HANDLE_VALUE / ERROR_ACCESS_DENIED. In that kind of
     // case we have a fallback to re-probe. See function remarks.
     // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
-    readContext.OpenedDirectory = (readContext.FileExistence == FileExistence::Existent) && IsHandleOrPathToDirectory(handle, lpFileName, false);
+    readContext.OpenedDirectory = 
+        (readContext.FileExistence == FileExistence::Existent) 
+        && IsHandleOrPathToDirectory(error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE, lpFileName, false);
 
     if (WantsReadAccess(dwDesiredAccess)) 
     {
@@ -5516,7 +5518,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         readContext.OpenedDirectory = 
             (readContext.FileExistence == FileExistence::Existent) 
             && ((CreateOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-                || IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), false));
+                || IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false));
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorNtCreateFile())
@@ -5787,7 +5789,7 @@ NTSTATUS NTAPI Detoured_ZwOpenFile(
         readContext.OpenedDirectory = 
             (readContext.FileExistence == FileExistence::Existent) 
             && ((OpenOptions & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE)) == FILE_DIRECTORY_FILE 
-                || IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), false));
+                || IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), false));
 
         // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
         if (MonitorZwCreateOpenQueryFile())

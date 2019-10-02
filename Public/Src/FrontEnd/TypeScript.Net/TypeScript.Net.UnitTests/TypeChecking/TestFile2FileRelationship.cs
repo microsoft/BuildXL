@@ -31,7 +31,7 @@ namespace Test.DScript.TypeChecking
         [Fact]
         public void QualifierDeclarationShouldIntroduceImplicitDependency()
         {
-            var spec1 = @" 
+            var spec1 = @"
 export declare const qualifier: {
     configuration: 'release' | 'debug';
     platform: 'x86' | 'x64' | 'arm32' | 'arm64';

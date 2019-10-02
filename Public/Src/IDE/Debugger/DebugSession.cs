@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
@@ -21,7 +23,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     /// thread.  Thus, all the private state of this class (e.g., (<code cref="m_scopeHandles"/>)
     /// needs not be thread-safe, nor is any synchronization needed when accessing it.
     ///
-    /// The constructor of this class receives a shared debugger state (<code cref="m_state"/>),
+    /// The constructor of this class receives a shared debugger state (<code cref="State"/>),
     /// which is assumed to be thread-safe.
     ///
     /// A debug session, representing a single client debugger issuing requests to the DScript back end.
@@ -33,28 +35,36 @@ namespace BuildXL.FrontEnd.Script.Debugger
         // private state that no one outside of this class can access
         private readonly Handles<FrameContext> m_scopeHandles = new Handles<FrameContext>();
         private readonly Barrier m_sessionInitializedBarrier = new Barrier();
-        private readonly Renderer m_renderer;
-        private readonly ExpressionEvaluator m_expressionEvaluator;
+        private readonly TaskCompletionSource<Unit> m_taskSource;
 
         // shared state, received via the constructor.
-        private readonly DebuggerState m_state;
         private readonly PathTranslator m_buildXLToUserPathTranslator;
         private readonly PathTranslator m_userToBuildXLPathTranslator;
 
-        internal DebuggerState State => m_state;
+        private IExpressionEvaluator ExpressionEvaluator => State.ExpressionEvaluator;
+
+        /// <summary>
+        /// Task that completes when this debug session is disconnected.
+        /// </summary>
+        public Task Completion => m_taskSource.Task;
+
+        internal DebuggerState State { get; }
 
         /// <summary>Connected debugger.</summary>
         public IDebugger Debugger { get; }
 
+        /// <nodoc />
+        public Renderer Renderer { get; }
+
         /// <nodoc/>
         public DebugSession(DebuggerState state, PathTranslator buildXLToUserPathTranslator, IDebugger debugger)
         {
-            m_state = state;
+            State = state;
+            m_taskSource = new TaskCompletionSource<Unit>();
             m_buildXLToUserPathTranslator = buildXLToUserPathTranslator;
             m_userToBuildXLPathTranslator = buildXLToUserPathTranslator?.GetInverse();
             Debugger = debugger;
-            m_renderer = new Renderer(state);
-            m_expressionEvaluator = new ExpressionEvaluator(state);
+            Renderer = new Renderer(state.LoggingContext, state.PathTable, state.CustomRenderer);
         }
 
         /// <summary>
@@ -65,6 +75,12 @@ namespace BuildXL.FrontEnd.Script.Debugger
         {
             m_sessionInitializedBarrier.Wait();
         }
+
+        /// <nodoc />
+        public string TranslateUserPath(string path) => m_userToBuildXLPathTranslator != null ? m_userToBuildXLPathTranslator.Translate(path) : path;
+
+        /// <nodoc />
+        public string TranslateBuildXLPath(string path) => m_buildXLToUserPathTranslator != null ? m_buildXLToUserPathTranslator.Translate(path) : path;
 
         // ===========================================================================================
         // === DEBUG PROTOCOL METHODS ================================================================
@@ -91,8 +107,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
             var sourceBreakpoints = cmd.Breakpoints;
             var source = TranslateUserPath(Path.GetFullPath(cmd.Source.Path));
 
-            var sourcePath = AbsolutePath.Create(m_state.PathTable, source);
-            var breakpoints = m_state.MasterBreakpoints.Set(sourcePath, sourceBreakpoints);
+            var sourcePath = AbsolutePath.Create(State.PathTable, source);
+            var breakpoints = State.MasterBreakpoints.Set(sourcePath, sourceBreakpoints);
 
             cmd.SendResult(new SetBreakpointsResult(breakpoints.ToList()));
         }
@@ -117,7 +133,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             if (threadId != null)
             {
                 // unblock single thread
-                var evalState = m_state.RemoveStoppedThread(threadId.Value);
+                var evalState = State.RemoveStoppedThread(threadId.Value);
                 cmd.SendResult(new ContinueResult(allThreadsContinued: false));
                 evalState.Resume();
             }
@@ -125,7 +141,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             {
                 // unblock all
                 cmd.SendResult(new ContinueResult(allThreadsContinued: true));
-                foreach (var kvp in m_state.ClearStoppedThreads())
+                foreach (var kvp in State.ClearStoppedThreads())
                 {
                     var evalState = kvp.Value;
                     evalState.Resume();
@@ -136,14 +152,14 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <inheritdoc/>
         public void Threads(IThreadsCommand cmd)
         {
-            var threads = m_state.GetStoppedThreadsClone().Select(kvp => new VSThread(kvp.Key, kvp.Value.ThreadName())).ToList();
+            var threads = State.GetStoppedThreadsClone().Select(kvp => new VSThread(kvp.Key, kvp.Value.ThreadName())).ToList();
             cmd.SendResult(new ThreadsResult(threads));
         }
 
         /// <inheritdoc/>
         public void StackTrace(IStackTraceCommand cmd)
         {
-            var threadState = m_state.GetThreadState(cmd.ThreadId);
+            var threadState = State.GetThreadState(cmd.ThreadId);
             int startFrame = cmd.StartFrame ?? 0;
             int maxNumberOfFrames = cmd.Levels ?? int.MaxValue;
             var frames = threadState.StackTrace.Skip(startFrame).Take(maxNumberOfFrames).Select((entry, idx) =>
@@ -162,14 +178,14 @@ namespace BuildXL.FrontEnd.Script.Debugger
         {
             var frameRef = m_scopeHandles.Get(cmd.FrameId, null);
             var scopeContexts = frameRef.ThreadState.GetSupportedScopes(frameRef.FrameIndex);
-            var scopes = scopeContexts.Select(m_renderer.CreateScope).ToList();
+            var scopes = scopeContexts.Select(Renderer.CreateScope).ToList();
             cmd.SendResult(new ScopesResult(scopes));
         }
 
         /// <inheritdoc/>
         public void Variables(IVariablesCommand cmd)
         {
-            var vars = m_renderer.GetVariablesForScope(cmd.VariablesReference);
+            var vars = Renderer.GetVariablesForScope(cmd.VariablesReference);
             cmd.SendResult(new VariablesResult(vars.ToList()));
         }
 
@@ -177,8 +193,9 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public void Disconnect(IDisconnectCommand cmd)
         {
             cmd.SendResult(null);
-            m_state.StopDebugging();
+            State.StopDebugging();
             m_sessionInitializedBarrier.Signal();
+            m_taskSource.TrySetResult(Unit.Void);
         }
 
         /// <inheritdoc/>
@@ -191,11 +208,15 @@ namespace BuildXL.FrontEnd.Script.Debugger
             }
 
             var frameRef = m_scopeHandles.Get(cmd.FrameId.Value, null);
-            var ans = m_expressionEvaluator.EvaluateExpression(frameRef, cmd.Expression);
+            var ans = ExpressionEvaluator.EvaluateExpression(
+                State.GetThreadState(frameRef.ThreadId),
+                frameRef.FrameIndex,
+                cmd.Expression,
+                evaluateForCompletions: false);
             if (ans.Succeeded)
             {
                 ObjectContext objContext = ans.Result;
-                var variable = m_renderer.ObjectToVariable(objContext.Context, value: objContext.Object, variableName: null);
+                var variable = Renderer.ObjectToVariable(objContext.Context, value: objContext.Object, variableName: null);
                 cmd.SendResult(new EvaluateResult(variable.Value, variable.VariablesReference));
             }
             else
@@ -262,7 +283,16 @@ namespace BuildXL.FrontEnd.Script.Debugger
             }
 
             var frameRef = m_scopeHandles.Get(cmd.FrameId.Value, null);
-            var ans = m_expressionEvaluator.EvaluateExpression(frameRef, GetCompletionTextToEvaluate(cmd));
+            var textToEval = ExtractCompletionRequestPrefixText(cmd);
+            var lastIdx = new[] { '.', '[', '(' }.Max(c => textToEval.LastIndexOf(c));
+            var text = lastIdx > -1
+                ? textToEval.Substring(0, length: lastIdx)
+                : textToEval;
+            var ans = ExpressionEvaluator.EvaluateExpression(
+                State.GetThreadState(frameRef.ThreadId),
+                frameRef.FrameIndex,
+                text,
+                evaluateForCompletions: true);
 
             List<ICompletionItem> items;
             if (!ans.Succeeded)
@@ -271,10 +301,11 @@ namespace BuildXL.FrontEnd.Script.Debugger
             }
             else
             {
-                var resultAsObjLiteral = ans.Result.Object as ObjectLiteral;
-                var memberProps = resultAsObjLiteral != null ? Renderer.ObjectLiteralInfo(ans.Result.Context, resultAsObjLiteral).Properties : Property.Empty;
-                var ambientProps = m_renderer.GetAmbientProperties(ans.Result.Context, ans.Result.Object);
-                items = memberProps.Concat(ambientProps).Select(p => (ICompletionItem)new CompletionItem(p.Name, p.Name, p.Kind)).ToList();
+                items = Renderer
+                    .GetObjectInfo(ans.Result.Context, ans.Result.Object)
+                    .Properties
+                    .Select(p => (ICompletionItem)new CompletionItem(p.Name, p.Name, p.Kind))
+                    .ToList();
             }
 
             cmd.SendResult(new CompletionsResult(items));
@@ -283,22 +314,18 @@ namespace BuildXL.FrontEnd.Script.Debugger
         // ===========================================================================================
         // === PRIVATE AUXILIARY METHODS =============================================================
         // ===========================================================================================
+
         private void Step<T>(int threadId, ICommand<T> cmd, DebugAction.ActionKind kind, T result = default(T))
         {
-            var evalState = m_state.RemoveStoppedThread(threadId);
+            var evalState = State.RemoveStoppedThread(threadId);
             evalState.Resume(kind);
             cmd.SendResult(result);
         }
 
-        private string TranslateUserPath(string path) => m_userToBuildXLPathTranslator != null ? m_userToBuildXLPathTranslator.Translate(path) : path;
-
-        private string TranslateBuildXLPath(string path) => m_buildXLToUserPathTranslator != null ? m_buildXLToUserPathTranslator.Translate(path) : path;
-
-        private static string GetCompletionTextToEvaluate(ICompletionsCommand cmd)
+        private static string ExtractCompletionRequestPrefixText(ICompletionsCommand cmd)
         {
             var idx = cmd.Column - 1;
-            var text = idx <= cmd.Text.Length ? cmd.Text.Substring(0, idx) : cmd.Text;
-            return text.TrimEnd('.');
+            return idx <= cmd.Text.Length ? cmd.Text.Substring(0, idx) : cmd.Text;
         }
 
         private static void SendErrorNotSupported<T>(ICommand<T> cmd, string category) => cmd.SendErrorResult(1000, category + " not supported");

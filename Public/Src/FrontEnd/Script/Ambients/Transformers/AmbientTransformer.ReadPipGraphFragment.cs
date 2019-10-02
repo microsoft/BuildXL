@@ -8,6 +8,7 @@ using System.Threading;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
@@ -29,7 +30,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private static EvaluationResult ReadGraphFragment(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             var file = Args.AsFile(args, 0);
-            var deps = Args.AsArrayLiteral(args, 1).Values.Select(v => (int)v.Value).ToArray();
+            var deps = Args.AsArrayLiteral(args, 1).Values.Select(v => (AbsolutePath)v.Value).ToArray();
             var description = Args.AsStringOptional(args, 2) ?? file.Path.ToString(context.PathTable);
 
             if (!file.IsSourceFile)
@@ -49,8 +50,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             context.FrontEndHost.Engine.RecordFrontEndFile(file.Path, "DScript");
 
             int id = Interlocked.Increment(ref s_uniqueFragmentId);
-            var readFragmentTask = context.FrontEndHost.PipGraphFragmentManager.AddFragmentFileToGraph(id, file, deps, description);
-            return EvaluationResult.Create(id);
+            var readFragmentResult = context.FrontEndHost.PipGraphFragmentManager.AddFragmentFileToGraph(file, description, deps);
+            if (!readFragmentResult)
+            {
+                return EvaluationResult.Error;
+            }
+
+            return EvaluationResult.Create(file.Path);
         }
     }
 }

@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifdef ES_SANDBOX
-
 #include <signal.h>
 #include "ESSandbox.h"
 #include "BuildXLSandboxShared.hpp"
@@ -12,21 +10,15 @@
 // initialized below in InitializeEndpointSecuritySandbox (which is called once by the host process)
 static ESSandbox *sandbox;
 
-void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg, pid_t host)
+void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg)
 {
     pid_t pid = audit_token_to_pid(msg->process->audit_token);
     
-    // Mute all events comming from BuildXL itself
-    if (pid == host)
-    {
-        es_mute_process(client, &msg->process->audit_token);
-        return;
-    }
-    
     IOHandler handler = IOHandler(sandbox);
-    
     if (handler.TryInitializeWithTrackedProcess(pid))
     {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
         switch (msg->event_type)
         {
             case ES_EVENT_TYPE_NOTIFY_EXEC:
@@ -73,6 +65,7 @@ void processEndpointSecurityEvent(es_client_t *client, const es_message_t *msg, 
             case ES_EVENT_TYPE_NOTIFY_UNLINK:
                 return handler.HandleUnlink(msg);
         }
+#pragma clang diagnostic pop
     }
 }
 
@@ -82,60 +75,78 @@ extern "C"
 
     void InitializeEndpointSecuritySandbox(ESConnectionInfo *info, pid_t host)
     {
-        sandbox = new ESSandbox(^(es_client_t *client, const es_message_t *msg)
+        if (__builtin_available(macOS 10.15, *))
         {
-            processEndpointSecurityEvent(client, msg, host);
-        });
-        
-        es_client_t *client;
-        es_new_client_result_t result = es_new_client(&client, sandbox->GetObservationHandler());
-        if (result != ES_NEW_CLIENT_RESULT_SUCCESS)
+            sandbox = new ESSandbox(^(es_client_t *client, const es_message_t *msg)
+            {
+                processEndpointSecurityEvent(client, msg);
+            });
+
+            es_client_t *client;
+
+            es_new_client_result_t result = es_new_client(&client, sandbox->GetObservationHandler());
+            if (result != ES_NEW_CLIENT_RESULT_SUCCESS)
+            {
+                log_error("Failed creating EndpointSecurity client with error code: (%d)\n", result);
+                info->error = ES_CLIENT_CREATION_FAILED;
+                return;
+            }
+
+            sandbox->SetESClient(client);
+
+            es_clear_cache_result_t clearResult = es_clear_cache(client);
+            if (clearResult != ES_CLEAR_CACHE_RESULT_SUCCESS)
+            {
+                log_error("%s", "Failed resetting result cache on EndpointSecurity client initialization!\n");
+                info->error = ES_CLIENT_CACHE_RESET_FAILED;
+                return;
+            }
+
+            info->client = (uintptr_t) client;
+            info->source = (uintptr_t) CFRunLoopSourceCreate(NULL, 0, sandbox->GetRunLoopSourceContext());
+        }
+        else
         {
-            log_error("Failed creating EndpointSecurity client with error code: (%d)\n", result);
+            log_error("%s", "Creating EndpointSecurity clients on macOS < 10.15 is not supported");
             info->error = ES_CLIENT_CREATION_FAILED;
             return;
         }
-        
-        sandbox->SetESClient(client);
-        
-        es_clear_cache_result_t clearResult = es_clear_cache(client);
-        if (clearResult != ES_CLEAR_CACHE_RESULT_SUCCESS)
-        {
-            log_error("%s", "Failed resetting result cache on EndpointSecurity client initialization!\n");
-            info->error = ES_CLIENT_CACHE_RESET_FAILED;
-            return;
-        }
-    
-        info->client = (uintptr_t) client;
-        info->source = (uintptr_t) CFRunLoopSourceCreate(NULL, 0, sandbox->GetRunLoopSourceContext());
     }
     
     void DeinitializeEndpointSecuritySandbox(ESConnectionInfo info)
     {
-        es_client_t *client = (es_client_t *) info.client;
-        
-        es_return_t result = es_unsubscribe_all(client);
-        if (result != ES_RETURN_SUCCESS)
+        if (__builtin_available(macOS 10.15, *))
         {
-            log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!\n");
+            es_client_t *client = (es_client_t *) info.client;
+
+            es_return_t result = es_unsubscribe_all(client);
+            if (result != ES_RETURN_SUCCESS)
+            {
+                log_error("%s", "Failed unsubscribing from all EndpointSecurity events on client tear-down!\n");
+            }
+
+            result = es_delete_client(client);
+            if (result != ES_RETURN_SUCCESS)
+            {
+                log_error("%s", "Failed deleting the EndpointSecurity client!\n");
+            }
+
+            CFRunLoopRef runLoop = (CFRunLoopRef) info.runLoop;
+            CFRunLoopSourceRef source = (CFRunLoopSourceRef) info.source;
+
+            CFRunLoopRemoveSource(runLoop, source, kCFRunLoopDefaultMode);
+            CFRunLoopSourceInvalidate(source);
+            CFRelease(source);
+
+            CFRunLoopStop(runLoop);
+            delete sandbox;
+            log_debug("%s", "Successfully shut down EndpointSecurity subystem...");
         }
-        
-        result = es_delete_client(client);
-        if (result != ES_RETURN_SUCCESS)
+        else
         {
-            log_error("%s", "Failed deleting the EndpointSecurity client!\n");
+            // Noop, we should never be able to reach it as initialization wont work on macOS < 10.15
+            return;
         }
-        
-        CFRunLoopRef runLoop = (CFRunLoopRef) info.runLoop;
-        CFRunLoopSourceRef source = (CFRunLoopSourceRef) info.source;
-        
-        CFRunLoopRemoveSource(runLoop, source, kCFRunLoopDefaultMode);
-        CFRunLoopSourceInvalidate(source);
-        CFRelease(source);
-        
-        CFRunLoopStop(runLoop);
-        delete sandbox;
-        log_debug("%s", "Successfully shut down EndpointSecurity subystem...");
     }
 
     __cdecl void ObserverFileAccessReports(ESConnectionInfo *info, AccessReportCallback callback, long accessReportSize)
@@ -152,27 +163,51 @@ extern "C"
             log_error("%s", "No callback has been supplied for EndpointSecurity file observation!");
             return;
         }
-        
-        sandbox->SetAccessReportCallback(callback);
-        es_client_t *client = (es_client_t *) info->client;
-        
-        // Subsribe and activate the ES client
-        
-        es_return_t status = es_subscribe(client, sandbox->GetSubscibedESEvents(), sandbox->GetSubscribedESEventsCount());
-        if (status != ES_RETURN_SUCCESS)
+
+        if (__builtin_available(macOS 10.15, *))
         {
-            log_error("%s", "Failed subscribing to EndpointSecurity events, please check the sandbox configuration!");
-            if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
+            sandbox->SetAccessReportCallback(callback);
+            es_client_t *client = (es_client_t *) info->client;
+
+            // Subsribe and activate the ES client
+
+            es_return_t status = es_subscribe(client, sandbox->GetEventsForType(EventType::ProcessEvent), sandbox->GetEventCountForType(EventType::ProcessEvent));
+            if (status != ES_RETURN_SUCCESS)
+            {
+                log_error("%s", "Failed subscribing to EndpointSecurity process lifetime events, please check the sandbox configuration!");
+                if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
+                return;
+            }
+
+            status = es_subscribe(client, sandbox->GetEventsForType(EventType::IOEvent), sandbox->GetEventCountForType(EventType::IOEvent));
+            if (status != ES_RETURN_SUCCESS)
+            {
+                log_error("%s", "Failed subscribing to EndpointSecurity I/O events, please check the sandbox configuration!");
+                if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
+                return;
+            }
+
+            status = es_subscribe(client, sandbox->GetEventsForType(EventType::LookupEvent), sandbox->GetEventCountForType(EventType::LookupEvent));
+            if (status != ES_RETURN_SUCCESS)
+            {
+                log_error("%s", "Failed subscribing to EndpointSecurity lookup events, please check the sandbox configuration!");
+                if (callback != NULL) callback(AccessReport{}, ES_CLIENT_SUBSCRIBE_FAILED);
+                return;
+            }
+
+            log_debug("Listening for reports of the EndpointSecurity sub system from process: %d", getpid());
+
+            info->runLoop = (uintptr_t) CFRunLoopGetCurrent();
+
+            // Use a dedicated run-loop for the thread so we can continously observe ES events
+            CFRunLoopAddSource((CFRunLoopRef) info->runLoop, (CFRunLoopSourceRef) info->source, kCFRunLoopDefaultMode);
+            CFRunLoopRun();
+        }
+        else
+        {
+            // Noop, we should never be able to reach it as initialization wont work on macOS < 10.15
             return;
         }
-        
-        log_debug("Listening for reports of the EndpointSecurity sub system from process: %d", getpid());
-        
-        info->runLoop = (uintptr_t) CFRunLoopGetCurrent();
-        
-        // Use a dedicated run-loop for the thread so we can continously observe ES events
-        CFRunLoopAddSource((CFRunLoopRef) info->runLoop, (CFRunLoopSourceRef) info->source, kCFRunLoopDefaultMode);
-        CFRunLoopRun();
     }
 }
 
@@ -353,5 +388,3 @@ void const ESSandbox::SendAccessReport(AccessReport &report, SandboxedPip *pip)
     log_debug("Enqueued PID(%d), Root PID(%d), PIP(%#llX), Operation: %{public}s, Path: %{public}s, Status: %d",
               report.pid, report.rootPid, report.pipId, OpNames[report.operation], report.path, report.status);
 }
-
-#endif /* ES_SANDBOX */

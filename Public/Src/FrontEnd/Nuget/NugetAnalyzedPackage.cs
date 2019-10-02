@@ -71,6 +71,9 @@ namespace BuildXL.FrontEnd.Nuget
         public string Id => PackageOnDisk.Package.Id;
 
         /// <nodoc />
+        public string NugetName { get; set; }
+
+        /// <nodoc />
         public string Alias => PackageOnDisk.Package.Alias;
 
         /// <nodoc/>

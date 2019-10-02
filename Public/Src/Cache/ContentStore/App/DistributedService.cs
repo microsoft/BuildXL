@@ -10,14 +10,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Interfaces.Distributed;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Service;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Host.Service;
 using CLAP;
 using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
 using Newtonsoft.Json;
 
 // ReSharper disable once UnusedMember.Global
@@ -75,8 +74,7 @@ namespace BuildXL.Cache.ContentStore.App
                             maxGrpcClientCount: dcs.MaxGrpcClientCount,
                             maxGrpcClientAgeMinutes: dcs.MaxGrpcClientAgeMinutes,
                             grpcClientCleanupDelayMinutes: dcs.GrpcClientCleanupDelayMinutes,
-                            useCompression: useCompressionForCopies,
-                            bufferSize: bufferSizeForGrpcCopies);
+                            useCompression: useCompressionForCopies);
 
                 var copier = useDistributedGrpc
                         ? grpcCopier

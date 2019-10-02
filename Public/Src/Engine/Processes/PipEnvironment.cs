@@ -64,21 +64,21 @@ namespace BuildXL.Processes
             m_baseEnvironmentVariables = FullEnvironmentVariables
                 .Select(new[]
                 {
-                            "NUMBER_OF_PROCESSORS",
-                            "OS",
-                            "PROCESSOR_ARCHITECTURE",
-                            "PROCESSOR_IDENTIFIER",
-                            "PROCESSOR_LEVEL",
-                            "PROCESSOR_REVISION",
-                            "SystemDrive",
-                            "SystemRoot",
-                            "SYSTEMTYPE",
+                    "NUMBER_OF_PROCESSORS",
+                    "OS",
+                    "PROCESSOR_ARCHITECTURE",
+                    "PROCESSOR_IDENTIFIER",
+                    "PROCESSOR_LEVEL",
+                    "PROCESSOR_REVISION",
+                    "SystemDrive",
+                    "SystemRoot",
+                    "SYSTEMTYPE",
                 })
                 .Override(new Dictionary<string, string>()
                 {
-                            { "ComSpec", comspec },
-                            { "PATH", path },
-                            { "PATHEXT", pathExt }
+                    { "ComSpec", comspec },
+                    { "PATH", path },
+                    { "PATHEXT", pathExt }
                 })
                 .Override(DisallowedTempVariables
                     .Select(tmp => new KeyValuePair<string, string>(tmp, RestrictedTemp)));
@@ -87,7 +87,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the effective environment variables, taking into account default and machine-specific values
         /// </summary>
-        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer)
+        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
         {
             Contract.Requires(pipFragmentRenderer != null);
             Contract.Requires(pip != null);
@@ -95,6 +95,9 @@ namespace BuildXL.Processes
 
             var trackedEnv = pip.EnvironmentVariables.Where(envVar => !envVar.IsPassThrough);
             var passThroughEnvNames = pip.EnvironmentVariables.Where(envVar => envVar.IsPassThrough).Select(envVar => pipFragmentRenderer.Render(envVar.Name));
+
+            // Append any passthrough environment variables if they're specified
+            passThroughEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? passThroughEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : passThroughEnvNames;
 
             IBuildParameters fullEnvironmentForPassThrough = MasterEnvironmentVariables != null ?
 

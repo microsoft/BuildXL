@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -38,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>
-        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize = null)
+        internal GrpcCopyClient(GrpcCopyClientKey key, int? clientBufferSize)
         {
             GrpcEnvironment.InitializeIfNeeded();
             _channel = new Channel(key.Host, key.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
@@ -61,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                ExistenceRequest request = new ExistenceRequest()
+                var request = new ExistenceRequest()
                 {
                     TraceId = context.Id.ToString(),
                     HashType = (int)hash.HashType,
@@ -94,19 +94,25 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Copies content from the server to the given local path.
         /// </summary>
-        public Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct)
+        public async Task<CopyFileResult> CopyFileAsync(Context context, ContentHash hash, AbsolutePath destinationPath, CancellationToken ct)
         {
             Func<Stream> streamFactory = () => new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, _bufferSize, FileOptions.SequentialScan);
 
-            return CopyToAsync(context, hash, streamFactory, ct);
+            using (var operationContext = TrackShutdown(context, ct))
+            {
+                return await CopyToCoreAsync(operationContext, hash, streamFactory);
+            }
         }
-        
+
         /// <summary>
         /// Copies content from the server to the given stream.
         /// </summary>
-        public Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct)
+        public async Task<CopyFileResult> CopyToAsync(Context context, ContentHash hash, Stream stream, CancellationToken ct)
         {
-            return CopyToAsync(context, hash, () => stream, ct);
+            using (var operationContext = TrackShutdown(context, ct))
+            {
+                return await CopyToCoreAsync(operationContext, hash, () => stream);
+            }
         }
 
         /// <summary>
@@ -154,7 +160,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 string exception = null;
                 string message = null;
                 CopyCompression compression = CopyCompression.None;
-                foreach(Metadata.Entry header in headers)
+                foreach (Metadata.Entry header in headers)
                 {
                     switch (header.Key)
                     {
@@ -197,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // Copy the content to the target stream.
                 using (targetStream)
                 {
-                    switch (compression)
+                    switch(compression)
                     {
                         case CopyCompression.None:
                             await StreamContentAsync(targetStream, response.ResponseStream, context.Token);
@@ -205,6 +211,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         case CopyCompression.Gzip:
                             await StreamContentWithCompressionAsync(targetStream, response.ResponseStream, context.Token);
                             break;
+                        default:
+                            throw new NotSupportedException($"CopyCompression {compression} is not supported.");
                     }
                 }
 
@@ -226,18 +234,18 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Requests host to copy a file from another source machine.
         /// </summary>
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash)
+        public async Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash)
         {
             try
             {
                 var request = new RequestCopyFileRequest
                 {
-                    TraceId = context.Id.ToString(),
+                    TraceId = context.TracingContext.Id.ToString(),
                     ContentHash = hash.ToByteString(),
                     HashType = (int)hash.HashType
                 };
 
-                var response = await _client.RequestCopyFileAsync(request);
+                var response = await _client.RequestCopyFileAsync(request, cancellationToken: context.Token);
 
                 return response.Header.Succeeded
                     ? BoolResult.Success
@@ -273,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             long chunks = 0L;
             long bytes = 0L;
-            using (BufferedReadStream grpcStream = new BufferedReadStream(async () =>
+            using (var grpcStream = new BufferedReadStream(async () =>
             {
                 if (await replyStream.MoveNext(ct))
                 {
@@ -294,23 +302,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return (chunks, bytes);
-        }
-        
-        private async Task<T> RunClientActionAndThrowIfFailedAsync<T>(Context context, Func<Task<T>> clientAction)
-        {
-            try
-            {
-                return await clientAction();
-            }
-            catch (RpcException ex)
-            {
-                if (ex.Status.StatusCode == StatusCode.Unavailable)
-                {
-                    throw new ClientCanRetryException(context, $"{nameof(GrpcCopyClient)} failed to detect running service");
-                }
-
-                throw new ClientCanRetryException(context, ex.ToString(), ex);
-            }
         }
 
         /// <inheritdoc />

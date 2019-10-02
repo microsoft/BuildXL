@@ -1,0 +1,808 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+import "tools/google/protobuf/timestamp.proto";
+import "tools/google/protobuf/duration.proto";
+
+// Import Enums
+import "Enums/CreationDisposition.proto";
+import "Enums/DesiredAccess.proto";
+import "Enums/DoubleWritePolicy.proto";
+import "Enums/FileAccessStatus.proto";
+import "Enums/FlagsAndAttributes.proto";
+import "Enums/FileAccessStatusMethod.proto";
+import "Enums/FileExistence.proto";
+import "Enums/HashType.proto";
+import "Enums/ObservedInputType.proto";
+import "Enums/Options.proto";
+import "Enums/PathExistence.proto";
+import "Enums/PreserveOutputsMode.proto";
+import "Enums/ReportedFileOperation.proto";
+import "Enums/RequestedAccess.proto";
+import "Enums/SandboxKind.proto";
+import "Enums/SealDirectoryKind.proto";
+import "Enums/ServicePipKind.proto";
+import "Enums/ShareMode.proto";
+import "Enums/WriteFileEncoding.proto";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+// Absolute path message
+message AbsolutePath{
+    // The fully rooted and expanded Absolute Path
+    string Value = 1;
+}
+
+// ContentHash message
+message ContentHash{
+    // Byte array that represents the ContentHash
+    bytes Value = 1;
+
+    // The Hash Type
+    HashType HashType = 2;
+}
+
+// File Artifact message
+message FileArtifact{
+    // Path to the file
+    AbsolutePath path = 1;
+    
+    // Rewrite count of the file
+    int32 RewriteCount = 2;
+}
+
+// Length and Existence message
+message LengthAndExistence{
+    // Whether the length value has been set
+    bool HasKnownLength = 1;
+
+    // THe legth of the value. 0 if no known length
+    int64 Length = 2;
+
+    // The stored existence value. If no value is stored, returns null
+    PathExistence Existence = 3;
+}
+
+// File Content Info message
+message FileContentInfo{
+    // Represents length for actual files
+    LengthAndExistence LengthAndExistence = 1;
+
+    // Hash of the file
+    ContentHash Hash = 2;
+}
+
+// PipExecutionPerformance message
+message PipExecutionPerformance{
+    // Indicates the manner in which a pip executed
+    int32 PipExecutionLevel = 1;
+
+    // Start time in UTC
+    google.protobuf.Timestamp ExecutionStart = 2;
+
+    // Stop time in UTC
+    google.protobuf.Timestamp ExecutionStop = 3;
+}
+
+// ProcessPipExecutionPerformance message
+message ProcessPipExecutionPerformance{
+    // Time spent executing the entry-point process (possibly zero, such as if this execution was cached)
+    google.protobuf.Duration ProcessExecutionTime = 1;
+
+    // Counters for read operations
+    IOTypeCounters ReadCounters = 2;
+
+    // Counters for write operations
+    IOTypeCounters WriteCounters = 3;
+
+    // Counters for other operations (not classified as either read or write)
+    IOTypeCounters OtherCounters = 4;
+
+    // User-mode execution time. Note that this counter increases as threads in the process tree execute (it is not equivalent to wall clock time)
+    google.protobuf.Duration UserTime = 5;
+
+    // Kernel-mode execution time. Note that this counter increases as threads in the process tree execute (it is not equivalent to wall clock time)
+    google.protobuf.Duration KernelTime = 6;
+
+    // Peak memory usage (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree)
+    uint64 PeakMemoryUsage = 7;
+    
+    // Number of processes that executed as part of the pip (the entry-point process may start children)
+    uint32 NumberOfProcesses = 8;
+
+    // Counters for the classification of file monitoring violations encountered during process execution
+    FileMonitoringViolationCounters FileMonitoringViolationCounters = 9;
+
+    // Fingerprint identity as used for cache lookup
+    Fingerprint Fingerprint = 10;
+
+    // Unique ID of the cache descriptor (if one was stored or retrieved from cache)
+    uint64 CacheDescriptorId = 11;
+}
+
+// FileMonitoringViolationCounters message for the classification of file monitoring violations encountered during process execution
+message FileMonitoringViolationCounters{
+    // Count of accesses such that the access was whitelisted, but was not in the cache-friendly part of the whitelist. The pip should not be cached
+    int32 NumFileAccessesWhitelistedButNotCacheable = 1;
+
+    // Count of accesses such that the access was whitelisted, via the cache-friendly part of the whitelist. The pip may be cached
+    int32 NumFileAccessesWhitelistedAndCacheable = 2;
+
+    // Count of accesses such that the access was not whitelisted at all, and should be reported as a violation
+    int32 NumFileAccessViolationsNotWhitelisted = 3;
+}
+
+// Fingerprint message. A binary fingerprint with 33 bytes storage.
+message Fingerprint{
+    // The byte length.
+    int32 Length = 1;
+
+    // Value of fingerprint packed into a byte array
+    bytes Bytes = 2;
+}
+
+// IOTypeCounter message
+message IOTypeCounters{
+    // Number of operations performed (independent of size)
+    uint64 OperationCount = 1;
+
+    // Total bytes transferred (regardless of the number of operations used to transfer them)
+    uint64 TransferCount = 2;
+}
+
+// ReportedProcess message. A (nested) process instance reported via Detours
+message ReportedProcess{
+    // The path of the executable file of the process
+    string Path = 1;
+
+    // The (not necessarily unique) process id
+    uint32 ProcessId = 2;
+
+    // The command line arguments of the process
+    string ProcessArgs = 3;
+
+    // Counters for read operations
+    IOTypeCounters ReadCounters = 4;
+
+    // Counters for write operations
+    IOTypeCounters WriteCounters = 5;
+
+    // Counters for other operations (not classified as either read or write)
+    IOTypeCounters OtherCounters = 6;
+
+    // The time this reported process object was created
+    google.protobuf.Timestamp CreationTime = 7;
+
+    // The time this reported process object was created
+    google.protobuf.Timestamp ExitTime = 8;
+
+    // Represents the amount of time the process spent in kernel mode code
+    google.protobuf.Duration KernelTime = 9;
+
+    // Represent the amount of time the process spent in user mode code
+    google.protobuf.Duration UserTime = 10;
+
+    // The process exit code. 0xBAAAAAAD means DllProcessDetach was not called on DetoursServices.dll, so the value is not initialized
+    uint32 ExitCode = 11;
+
+    // The process Id of the current process's parent
+    uint32 ParentProcessId = 12;
+}
+
+// ReportedFileAccess message. Information about attempted File Access
+message ReportedFileAccess{
+    // An action to take on a file or device that exists or does not exist
+    CreationDisposition CreationDisposition = 1;
+
+    // The requested access to the file or device
+    DesiredAccess DesiredAccess = 2;
+
+    // Last-error code
+    uint32 Error = 3;
+
+    // USN number. Note that 0 is the default USN number (e.g. when no journal is present),
+    // and the 0xFFFFFFFFFFFFFFFF value indicates the absence of a USN number.
+    uint64 Usn = 4;
+
+    // The file or device attributes and flags
+    FlagsAndAttributes FlagsAndAttributes = 5;
+
+    // Full path that was accessed. If this path is equivalent to ManifestPath, it is null.
+    /// If it is not equivalent to ManifestPath, then this path is outside of the path table altogether
+    /// (manifest absolute path is invalid) or refers to a descendant (i.e., the manifest path id was used in a scope rule).
+    string Path = 6;
+
+    // Path as given in the file access manifest. This path may have been echoed as part of an exact match Path is then null)
+    // or as part of a scope Path is a descendant).
+    string ManifestPath = 7;
+
+    // The process which caused the reported file access
+    ReportedProcess Process = 8;
+
+    // The requested sharing mode of the file or device
+    ShareMode ShareMode = 9;
+
+    // Whether the file access was allowed or denied
+    FileAccessStatus Status = 10;
+
+    // What method was used for determining the FileAccessStatus
+    FileAccessStatusMethod Method = 11;
+
+    // Level of access requested by this file operation (e.g. CreateFile can request read, write or both).
+    RequestedAccess RequestedAccess = 12;
+
+    // The operation that caused the reported file access
+    ReportedFileOperation Operation = 13;
+
+    // If true, the file access was marked for explicit reporting FileAccessPolicy.ReportAccess,
+    // possibly in a containing scope.
+    bool ExplicitlyReported = 14;
+
+    // Enumerate pattern regex
+    string EnumeratePattern = 15;
+}
+
+// ProcessDetouringStatusData message. A (nested) detouring status of a process instance reported via Detours
+message ProcessDetouringStatusData{
+    // Process Id
+    uint64 ProcessID = 1;
+
+    // Report Status
+    uint32 ReportStatus = 2;
+
+    // Process name
+    string ProcessName = 3;
+
+    // Application being started.
+    string StartApplicationName = 4;
+
+    // Command line for the process being started.
+    string StartCommandLine = 5;
+
+    // Whether detours to be injected in the process.
+    bool NeedsInjection = 6;
+
+    // Job Id
+    uint64 Job = 7;
+
+    // Whether detours is disabled.
+    bool DisableDetours = 8;
+
+    // Process creation flags.
+    uint32 CreationFlags = 9;
+
+    // Whether the process was detoured.
+    bool Detoured = 10;
+
+    // Error code that Detoured Process sets.
+    uint32 Error = 11;
+
+    // Status returned from the the detoured CreateProcess function.
+    uint32 CreateProcessStatusReturn = 12;
+}
+
+// WeakContentFingerprint message
+// A recursively-computed fingerprint for a pip that is based on the content of its inputs.
+// This is a 'weak' fingerprint which includes statically-known inputs but not dynamically observed inputs.
+message WeakContentFingerprint{
+    // Fingerprint Hash
+    Fingerprint Hash = 1;
+}
+
+// StrongContentFingerprint message. A fingerprint fully qualifying an execution.
+message StrongContentFingerprint{
+    // Fingerprint Hash
+    Fingerprint Hash = 1;
+}
+
+// ObservedPathEntry message. Represents a path in an ObservedPathSet and associated data.
+message ObservedPathEntry{
+    // The path itself
+    AbsolutePath Path = 1;
+
+    // The regex pattern toenumerate
+    string EnumeratePatternRegex = 2;
+
+    // If it is a search path
+    bool IsSearchPath = 3;
+
+    // If it is a directory path
+    bool IsDirectoryPath = 4;
+
+    // If it is a directory enumeration
+    bool DirectoryEnumeration = 5;
+
+    // If it is a directory enumeration witha  custom pattern
+    bool DirectoryEnumerationWithCustomPattern = 6;
+
+    // If it is a directory enumeration with AllowAll regex pattern ("^.*$")
+    bool DirectoryEnumerationWithAllPattern = 7;
+    
+    // If it is a file probe
+    bool IsFileProbe = 8;
+}
+
+// UnsafeSandboxConfiguration message. 
+message UnsafeSandboxConfiguration{
+    // Mode of the preserved outputs
+    PreserveOutputsMode PreserveOutputs = 1;
+
+    // If the file access was monitored
+    bool MonitorFileAccesses = 2;
+
+    // If the file rename was ignored
+    bool IgnoreZwRenameFileInformation = 3;
+
+    // If the other file info was ignored
+    bool IgnoreZwOtherFileInformation = 4;
+
+    // If the reparse points was ignored for non created files
+    bool IgnoreNonCreateFileReparsePoints = 5;
+
+    // If the file information by handle was ignored
+    bool IgnoreSetFileInformationByHandle = 6;
+
+    // If the reparse points were ignored
+    bool IgnoreReparsePoints = 7;
+
+    // If the preloaded dlls were ignored
+    bool IgnorePreloadedDlls = 8;
+
+    // If existing directory probes were used as enumerations
+    bool ExistingDirectoryProbesAsEnumerations = 9;
+
+    // If engine should monitor nt created files
+    bool MonitorNtCreateFile = 10;
+
+    // If engine should monitor zw created open query files
+    bool MonitorZwCreateOpenQueryFile = 11;
+
+    // The sandbox kind
+    SandboxKind SandboxKind = 12;
+
+    // If the unexpected file accesses are errors
+    bool UnexpectedFileAccessesAreErrors = 13;
+
+    // If getting the final path name by handle was ignored
+    bool IgnoreGetFinalPathNameByHandle = 14;
+
+    // If dynamic writes on absent probes was ignored
+    bool IgnoreDynamicWritesOnAbsentProbes = 15;
+
+    // The Double Write Policy
+    DoubleWritePolicy DoubleWritePolicy = 16;
+
+    // If the undeclared accesses under shared opaques was ignored
+    bool IgnoreUndeclaredAccessesUnderSharedOpaques = 17;
+}
+
+// UnsafeOptions message. Become part of strong fingerprint
+message UnsafeOptions{
+    // Preserve output salt as hash
+    ContentHash PreserveOutputsSalt = 1;
+
+    // Unsafe configuration
+    UnsafeSandboxConfiguration UnsafeConfiguration = 2;
+}
+
+// ObservedInput message.
+// An ObservedInput represents a dynamically discovered dependency on some aspect of the filesystem.
+// The supported types of dependencies are enumerated as ObservedInputType (such as ObservedInputType.AbsentPathProbe).
+// Versus an BuildXL.Processes.ObservedFileAccess, this dependency identifies the particular content accessed (e.g. file hash) rather than
+// the particular low-level filesystem operations used to access it.
+// One may service ObservedInputs from a list of accessed paths using an ObservedInputProcessor, which
+// applies access rules such that (if successful) the returned dependencies are actually valid for the traced process.
+message ObservedInput{
+    // The type of the observed Input
+    ObservedInputType Type = 1;
+
+    // The hash of the contents
+    ContentHash Hash = 2;
+
+    // The path entry for observed input
+    ObservedPathEntry PathEntry = 3;
+
+    // Path to the input
+    AbsolutePath Path = 4;
+
+    // If it is a search path
+    bool IsSearchPath = 5;
+
+    // If it is a directory path
+    bool IsDirectoryPath = 6;
+
+    // If it is a directory enumeration
+    bool DirectoryEnumeration = 7;
+}
+
+// ObservedPathSet message
+// Set of paths projected from ObservedInputs. In two-phase fingerprinting, the set of paths from a prior run of a tool
+// (ignoring content) is used to derive a BuildXL.Engine.Cache.Fingerprints.StrongContentFingerprint. The path-sets are expected to be heavily duplicated
+// across executions, i.e., a few path-sets generate many distinct strong fingerprints (due to differences in e.g. C++ header content).
+//
+// Since access-order of files is heavily non-deterministic, path-sets are canonicalized by sorting. This also facilitates excellent
+// and cheap prefix-compression (many adjacent paths tend to share a long prefix).
+message ObservedPathSet{
+    // Represented paths. 
+    repeated ObservedPathEntry Paths = 1;
+
+    // Observed accesses file names
+    repeated string ObservedAccessedFileNames = 2;
+
+    // Unsafe options used to run the pip
+    UnsafeOptions UnsafeOptions = 3;
+}
+
+// ProcessStrongFingerprintComputationData message. Data associated with strong fingerprint computation
+message ProcessStrongFingerprintComputationData{
+    // Observed path set
+    ObservedPathSet PathSet = 1;
+
+    // The computed hash of the path set
+    ContentHash PathSetHash = 2;
+
+    // The observed path entries
+    repeated ObservedPathEntry PathEntries = 3;
+
+    // Unsafe options used during pip execution.
+    UnsafeOptions UnsafeOptions = 4;
+
+    // Observed accesses file names
+    repeated string ObservedAccessedFileNames = 5;
+
+    // The strong fingerprint computed for the path set from the prior build
+    repeated StrongContentFingerprint PriorStrongFingerprints = 6;
+
+    // Gets whether the strong fingerprint computation succeeded (note there might still be a cache miss)
+    bool Succeeded = 7;
+
+    // Gets whether the strong fingerprint matched the expected strong fingerprint
+    bool IsStrongFingerprintHit = 8;
+
+    // The computed strong fingerprint
+    StrongContentFingerprint ComputedStrongFingerprint = 9;
+
+    // The observed inputs
+    repeated ObservedInput ObservedInputs = 10;
+}
+
+// DirectoryFingerprint message for the membership of a directory.
+message DirectoryFingerprint{
+    // Hash of the membership (filenames, or of metadata entries) within a directory
+    ContentHash Hash = 1;
+}
+
+// DirectoryArtifact message. 
+// Represents an opaque directory. Pips that depend on this directory can enumerate it and read its contents.
+message DirectoryArtifact{
+    // The AbsolutePath associated with this artifact.
+    AbsolutePath Path = 1;
+
+    // The unique id for partially sealed directories
+    uint32 PartialSealID = 2;
+
+    // Whether this directory represents a shared opaque directory
+    bool IsSharedOpaque = 3;
+}
+
+// FileOrDirectoryArtifact message. Can be a file OR a directory artifact (union type)
+message FileOrDirectoryArtifact{
+    // The file artifact
+    FileArtifact FileArtifact = 1;
+
+    // The directory artifact
+    DirectoryArtifact DirectoryArtifact = 2;
+
+    // If it is a file
+    bool IsFile = 3;
+
+    // If it is a directory
+    bool IsDirectory = 4;
+}
+
+// Pip message. Primitive Indivisible Processing, representing the smallest schedulable unit of work.
+message Pip{
+    // Identifier of this pip that is stable across BuildXL runs with an identical schedule
+    int64 SemiStableHash = 1;
+
+    // Unique Pip Id assigned when Pip is added to table
+    uint32 PipId = 2;
+
+    // Incoming edges (PipIds) to this pip in the PipGraph
+    repeated uint32 IncomingEdges = 3;
+
+    // Outgoing edges (PipIds) from this pip in the PipGraph
+    repeated uint32 OutgoingEdges = 4;
+}
+
+// PipProvenance message. The provenance data are important for tracing and error logging.
+message PipProvenance{
+    // A string supplied by the tool definition that describes the particular details of this pip.
+    string Usage = 1;
+
+    // The module id
+    string ModuleId = 2;
+
+    // The module name
+    string ModuleName = 3;
+
+    // Identifier of this pip that is stable across BuildXL runs with an identical schedule
+    int64 SemiStableHash = 4;
+}
+
+// ProcessPip message
+message ProcessPip{
+    // Graph information like incoming/outgoing edges and semistable hash
+    Pip GraphInfo = 1;
+
+    // Process options.
+    Options ProcessOptions = 2;
+
+    // If non nul, load standard input from this file
+    FileArtifact StandardInputFile = 3;
+
+    // If non null, use this data as the standard input
+    string StandardInputData = 4;
+
+    // If non null, a standard input is present
+    StandardInput StandardInput = 5;
+
+    // If non null, points to the response
+    FileArtifact ResponseFile = 6;
+
+    // If non null, has the contents that should be written to ResponseFile before the process is executed
+    string ResponseFileData = 7;
+
+    // The tool to execute.
+    FileArtifact Executable = 8;
+
+    // The description of the tool associated with the pip
+    string ToolDescription = 9;
+
+    // The working directory of the process.
+    AbsolutePath WorkingDirectory = 10;
+
+    // The Arguments to the process.
+    string Arguments = 11;
+
+    // The environment variables.
+    repeated EnvironmentVariable EnvironmentVariable = 12;
+
+    // File dependencies. Each member of the array is distinct.
+    repeated FileArtifact Dependencies = 13;
+
+    // Directory dependencies. Each member of the array is distinct.
+    repeated DirectoryArtifact DirectoryDependencies = 14;
+
+    // External file dependencies
+    repeated AbsolutePath UntrackedPaths = 15;
+
+    // External file dependencies
+    repeated AbsolutePath UntrackedScopes = 16;
+
+    // File outputs. Each member of the array is distinct.
+    repeated FileArtifactWithAttributes FileOutputs = 17;
+
+    // Directory outputs. Each member of the array is distinct.
+    repeated DirectoryArtifact DirectoryOutputs = 18;
+
+    // The temp directory, if access is allowed.
+    AbsolutePath TempDirectory = 19;
+
+    // Additional temp directories, but none of them are set to TEMP or TMP.
+    repeated AbsolutePath AdditionalTempDirectories = 20;
+
+    // Indicates whether this is a shutdown process for a service.
+    ServiceInfo ServiceInfo = 21;
+
+    // File/directory output paths that are preserved if AllowPreserveOutputs is enabled. 
+    repeated AbsolutePath PreserveOutputWhitelist = 22;
+
+    // Tags of the pip
+    repeated string Tags = 23;
+
+    // Pip Provenance
+    PipProvenance Provenance = 24;
+}
+
+// WriteFile pip message
+message WriteFile{
+     // Graph information like incoming/outgoing edges and semistable hash
+    Pip GraphInfo = 1;
+
+    // Destination path.
+    FileArtifact Destination = 2;
+
+    // Contents of the file to be created.
+    string Contents = 3;
+
+    // The encoding of the file to be created.
+    WriteFileEncoding Encoding = 4;
+
+    // Tags of the pip
+    repeated string Tags = 5;
+
+    // Pip Provenance
+    PipProvenance Provenance = 6;
+}
+
+// CopyFile pip message
+message CopyFile{
+     // Graph information like incoming/outgoing edges and semistable hash
+    Pip GraphInfo = 1;
+
+    // Path to copy from.
+    FileArtifact Source = 2;
+
+    // Path to copy to.
+    FileArtifact Destination = 3;
+
+    // Indicates if the outputs of this process must be left writable
+    bool OutputsMustRemainWritable = 4;
+
+    // Tags of the pip
+    repeated string Tags = 5;
+
+    // Pip Provenance
+    PipProvenance Provenance = 6;
+}
+
+// SealDirectory pip message. This pip is a scheduler-internal pip representing the completion of a directory.
+// Once this pip's inputs are satisfied, the underlying directory (or the specified partial view) is immutable.
+message SealDirectory{
+     // Graph information like incoming/outgoing edges and semistable hash
+    Pip GraphInfo = 1;
+
+    // The kind of sealed directory
+    SealDirectoryKind Kind = 2;
+
+    // The patterns for source sealed directories
+    repeated string Patterns = 3;
+
+    // Upon completion, Directory contains these contents. If the seal is not Partial, then the directory contains exactly these contents.
+    repeated FileArtifact Contents = 4;
+
+    /// A seal directory can be composed of other seal directories. This is not the case for a regular seal directory, and therefore this collection is always empty.
+    repeated DirectoryArtifact ComposedDirectories = 5;
+
+    // Always false for a regular seal directory
+    bool IsComposite = 6;
+
+    // Scrub the unsealed contents for fully seal directory. Always false when SealDirectoryKind is not Full.
+    bool Scrub = 7;
+
+    // The directory represented. This directory is immutable upon this pip's completion.
+    DirectoryArtifact Directory = 8;
+
+    // Checks if the seal directory pip is a seal source directory.
+    bool IsSealSourceDirectory = 9;
+
+    // Tags of the pip
+    repeated string Tags = 10;
+
+    // Pip Provenance
+    PipProvenance Provenance = 11;
+}
+
+// IpcPip message. Specification of a Process invocation via an IPC message
+message IpcPip{
+     // Graph information like incoming/outgoing edges and semistable hash
+    Pip GraphInfo = 1;
+
+    // All the necessary information needed to execute this pip in-proc via the IPC mechanisms provided by the BuildXL.Ipc assembly.
+    IpcClientInfo IpcInfo = 2;
+
+    // The arguments to the IPC call.
+    string MessageBody = 3;
+
+    // Service pip dependencies.
+    repeated uint32 ServicePipDependencies = 4;
+
+    // Input file artifact dependencies.
+    repeated FileArtifact FileDependencies = 5;
+
+    // Input directory artifact dependencies.
+    repeated DirectoryArtifact DirectoryDependencies = 6;
+
+    // Artifacts (files and/or directories) not to materialize eagerly.
+    repeated FileOrDirectoryArtifact LazilyMaterializedDependencies = 7;
+
+    // Whether this pip is used as a finalization of a service pip
+    bool IsServiceFinalization = 8;
+
+    // Whether this pip must be executed on master in a distributed build
+    bool MustRunOnMaster = 9;
+
+    // Tags of the pip
+    repeated string Tags = 10;
+
+    // Pip Provenance
+    PipProvenance Provenance = 11;
+}
+
+// StandardInput message. Representation of standard input, that can be either a file or data.
+message StandardInput{
+    // File as the standard input.
+    FileArtifact File = 1;
+
+    // Data as the standard input.
+    string Data = 2;
+
+    // If this input is a file
+    bool IsFile = 3;
+
+    // If this input is data instead
+    bool IsData = 4;
+}
+
+// EnvironmentVariable message
+message EnvironmentVariable{
+    // Name of the variable
+    string Name = 1;
+
+    // Value of the variable
+    string Value = 2;
+
+    // Whether this is a pass-through environment variabl
+    bool IsPassThrough = 3;
+}
+
+// FileArtifactWithAttributes message. Represents a file artifact with additional FileExistence attributes
+message FileArtifactWithAttributes{
+
+    // Path of the file
+    AbsolutePath Path = 1;
+
+    // Rewrite count of the file. 0 means source, 1 means output. > 1 = rewritten file
+    int32 RewriteCount = 2;
+
+    // File existence of the current file (what kind of file it is and why it exists)
+    FileExistence FileExistence = 3;
+}
+
+// ServiceInfo message. All service-related properties of a pip
+message ServiceInfo{
+    // Whether and how this pip is related to service pips
+    ServicePipKind Kind = 1;
+
+    // Service pip dependencies.
+    repeated uint32 ServicePipDependencies = 2;
+
+    // A process to execute in order to gracefully kill this process
+    uint32 ShutdownPipId = 3;
+
+    // Finalization Pip Ids
+    repeated uint32 FinalizationPipIds = 4;
+
+    // If this service was used to start or shutdown
+    bool IsStartOrShutdownKind = 5;
+}
+
+// LocationData message. The token class tracks the location information during parsing.
+message LocationData{
+    // Line number of the token
+    int32 Line = 1;
+
+    // Path of the token
+    AbsolutePath Path = 2;
+
+    // Column number of the token
+    int32 Position = 3;
+}
+
+// IpcClientInfo message. Information necessary for creating an IPC client
+message IpcClientInfo{
+    // Id of the moniker to use to obtain a connection string for IIpcProvider.GetClient
+    string IpcMonikerId = 1;
+}
+
+// ContentFingerprint message
+// A recursively-computed fingerprint for a pip that is based on the content of its inputs.
+message ContentFingerprint{
+    // Hash of the fingerprint
+    Fingerprint Hash = 1;
+}

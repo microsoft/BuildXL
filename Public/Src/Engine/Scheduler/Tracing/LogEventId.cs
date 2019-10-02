@@ -64,6 +64,8 @@ namespace BuildXL.Scheduler.Tracing
         // Reserved = 3640,
         SavePreservedOutputsTracker = 3641,
 
+        AddAugmentingPathSet = 3651,
+        AugmentedWeakFingerprint = 3652,
         PipTwoPhaseCacheGetCacheEntry = 3653,
         PipTwoPhaseCachePublishCacheEntry = 3654,
         ScheduleProcessNotStoredToWarningsUnderWarnAsError = 3655,
@@ -143,6 +145,8 @@ namespace BuildXL.Scheduler.Tracing
         ExceptionOnDeserializingPipGraphFragment = 5050,
         DeserializationStatsPipGraphFragment = 5051,
         DebugFragment = 5052,
+
+        PipSourceDependencyCannotBeHashed = 5053,
 
         ProblematicWorkerExit = 5070,
 

@@ -171,14 +171,9 @@ namespace BuildXL.Utilities.Configuration
         bool AllowInternalDetoursErrorNotificationFile { get; }
 
         /// <summary>
-        /// Whether to measure CPU times (user/system) of sandboxed processes.  Default: false.
+        /// Whether to measure CPU times (user/system) of sandboxed processes.  Default: true.
         /// </summary>
-        /// <remarks>
-        /// In principle thre should be no reason not to measure CPU times.  But on macOS this amounts to wrapping
-        /// every process in '/usr/bin/time', which could lead to some unexpected behavior.  Hence this option to
-        /// explicitly turn in on or off.
-        /// </remarks>
-        bool KextMeasureProcessCpuTimes { get; }
+        bool MeasureProcessCpuTimes { get; }
 
         /// <summary>
         /// Indicates how big a single sandbox kernel extension report queue is in MB when it is allocated in the sandbox kernel extension
@@ -238,20 +233,20 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         /// <remarks>
         /// This is a temporary flag for enforcing consistent behavior in temp directories creation.
-        /// If this flag is set to false, then only directories specified in %TMP% and %TEMP% are 
-        /// ensured to exist, but additional temp directories are not. The current default is false. 
+        /// If this flag is set to false, then only directories specified in %TMP% and %TEMP% are
+        /// ensured to exist, but additional temp directories are not. The current default is false.
         /// Eventually, BuildXL will always ensure temp directory creation. However, currently, such a change
         /// can break customers who assume that additional temp directories are not created before the pip executes.
         /// Thus, this enforcement is made opt-in.
         /// </remarks>
         bool EnsureTempDirectoriesExistenceBeforePipExecution { get; }
 
-        /// <summary> 
-        /// Paths and Directory Paths which should be untracked for all processes 
-        /// </summary> 
+        /// <summary>
+        /// Paths and Directory Paths which should be untracked for all processes
+        /// </summary>
         /// <remarks>
         /// When Directory Path is specified, all paths under that directory will be untracked
-        /// This is an unsafe configuration, since it allows read and write access to the paths 
+        /// This is an unsafe configuration, since it allows read and write access to the paths
         /// which is not specified as input or output.
         /// Moreover, this global configuration from cammand line will bypass cache,
         /// which means pips and graph will be cached ignoring paths specified in this configure
@@ -262,5 +257,15 @@ namespace BuildXL.Utilities.Configuration
         /// Temporary flag to use tool incremental behavior when preserve outputs is enabled.
         /// </summary>
         bool PreserveOutputsForIncrementalTool { get; }
+
+        /// <summary>
+        /// Environment Variables which should be passed through for all processes
+        /// </summary>
+        /// <remarks>
+        /// This is an unsafe configuration.
+        /// This global configuration from cammand line will bypass cache,
+        /// which means pips and graph will be cached ignoring environment variables specified in this configuration.
+        /// </remarks>
+        IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables { get; }
     }
 }

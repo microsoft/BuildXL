@@ -42,7 +42,14 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
     /// <summary>
     /// A related set of read accesses to a cache with support for multi-level GetSelectors.
     /// </summary>
-    public interface IReadOnlyMemoizationSessionWithLevelSelectors : IReadOnlyMemoizationSession
+    public interface IReadOnlyMemoizationSessionWithLevelSelectors : IReadOnlyMemoizationSession, ILevelSelectorsProvider
+    {
+    }
+
+    /// <summary>
+    /// A related set of read accesses to a cache with support for multi-level GetSelectors.
+    /// </summary>
+    public interface ILevelSelectorsProvider
     {
         /// <summary>
         /// Gets known selectors for a given weak fingerprint for a given "level".

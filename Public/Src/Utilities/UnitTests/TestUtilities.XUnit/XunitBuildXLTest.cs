@@ -28,15 +28,20 @@ namespace Test.BuildXL.TestUtilities.Xunit
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
         private static readonly Lazy<ISandboxConnection> s_sandboxConnection =  new Lazy<ISandboxConnection>(() =>
-            OperatingSystemHelper.IsUnixOS
+        {
 #if PLATFORM_OSX
-                ? OperatingSystemHelper.IsMacOSCatalinaOrHigher 
-                    ? (ISandboxConnection) new SandboxConnectionES() 
-                    : new SandboxConnectionKext(
-#else
-                    ? new SandboxConnectionKext(
+            var useEndpointSecuritySandboxEnv = Environment.GetEnvironmentVariable("BUILDXL_MACOS_ES_SANDBOX");
+            var useEndpointSecuritySandbox = !string.IsNullOrWhiteSpace(useEndpointSecuritySandboxEnv);
 #endif
-                        skipDisposingForTests: true, 
+            return OperatingSystemHelper.IsUnixOS
+#if PLATFORM_OSX
+                ? useEndpointSecuritySandbox
+                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: true, measureCpuTimes: true)
+                    : (ISandboxConnection) new SandboxConnectionKext(
+#else
+                    ? (ISandboxConnection) new SandboxConnectionKext(
+#endif
+                        skipDisposingForTests: true,
                         config: new SandboxConnectionKext.Config
                         {
                             MeasureCpuTimes = true,
@@ -44,14 +49,16 @@ namespace Test.BuildXL.TestUtilities.Xunit
                             {
                                 XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
                             },
-    #if PLATFORM_OSX                        
+    #if PLATFORM_OSX
                             KextConfig = new KextConfig
                             {
                                 EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
-                            }   
+                            }
     #endif
-                        })
-                : null);
+                        }
+                    )
+                    : null;
+        });
 
         /// <summary>
         /// Returns a static kernel connection object. Unit tests would spam the kernel extension if they need sandboxing, so we
@@ -105,7 +112,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
-        /// Value returned by <see cref="DiscoverCurrentlyExecutingXunitTestMethodFQN"/> when it cannot discover 
+        /// Value returned by <see cref="DiscoverCurrentlyExecutingXunitTestMethodFQN"/> when it cannot discover
         /// the currently executing XUnit method.
         /// </summary>
         protected const string UnknownXunitMethod = "<unknown>";
@@ -158,7 +165,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     // Omit Windows type driver letter format e.g. /c
                     return unixPath.Substring(2);
                 }
-                
+
                 return unixPath;
             }
 

@@ -45,6 +45,7 @@ using ISymbol = TypeScript.Net.Types.ISymbol;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using ModuleDeclaration = BuildXL.FrontEnd.Script.Declarations.ModuleDeclaration;
 using NamespaceImport = BuildXL.FrontEnd.Script.Declarations.NamespaceImport;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using ObjectType = BuildXL.FrontEnd.Script.Types.ObjectType;
 using PropertySignature = BuildXL.FrontEnd.Script.Types.PropertySignature;
 using ReturnStatement = BuildXL.FrontEnd.Script.Statements.ReturnStatement;
@@ -2260,7 +2261,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             {
                 return expression;
             }
-            
+
             Type type = ConvertType(source.Type, context.CurrentQualifierSpaceId);
             CastExpression.TypeAssertionKind castKind = CastExpression.TypeAssertionKind.AsCast;
 
@@ -2511,24 +2512,63 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             var selector = functor as SelectorExpressionBase;
-            if (selector?.Selector == m_conversionContext.WithQualifierKeyword)
+            if (selector != null)
             {
-                Contract.Assert(arguments.Length != 0, "withQualifier should have at least one argument.");
-                var qualifierExpression = arguments[0];
+                if (selector.Selector == m_conversionContext.WithQualifierKeyword)
+                {
+                    Contract.Assert(arguments.Length != 0, "withQualifier should have at least one argument.");
+                    var qualifierExpression = arguments[0];
 
-                var resolvedSymbol = ResolveSymbolAtPositionAndReportWarningIfObsolete(source.Expression);
-                Contract.Assert(resolvedSymbol != null);
-                var targetQualifierSpaceId = ExtractSourceQualifierSpace(resolvedSymbol);
+                    var resolvedSymbol = ResolveSymbolAtPositionAndReportWarningIfObsolete(source.Expression);
+                    Contract.Assert(resolvedSymbol != null);
+                    var targetQualifierSpaceId = ExtractSourceQualifierSpace(resolvedSymbol);
 
-                return new WithQualifierExpression(
-                    selector.ThisExpression,
-                    qualifierExpression,
-                    sourceQualifierSpaceId: context.CurrentQualifierSpaceId,
-                    targetQualifierSpaceId: targetQualifierSpaceId,
-                    location: Location(source));
+                    return new WithQualifierExpression(
+                        selector.ThisExpression,
+                        qualifierExpression,
+                        sourceQualifierSpaceId: context.CurrentQualifierSpaceId,
+                        targetQualifierSpaceId: targetQualifierSpaceId,
+                        location: Location(source));
+                }
+                
+                if (selector.ThisExpression is ModuleIdExpression moduleIdExpression
+                    && moduleIdExpression.Name == m_conversionContext.UnsafeNamespace)
+                {
+                    Expression inlineExpression = TryInlineUnsafeCall(source, selector, arguments);
+
+                    if (inlineExpression != null)
+                    {
+                        return inlineExpression;
+                    }
+                }
             }
 
             return ApplyExpression.Create(functor, typeArguments, arguments, Location(source));
+        }
+
+        private Expression TryInlineUnsafeCall(INode source, SelectorExpressionBase selector, Expression[] arguments)
+        {
+            if (arguments.Length == 0)
+            {
+                return null;
+            }
+
+            if (!(arguments[0] is PathLiteral path))
+            {
+                return null;
+            }
+
+            if (selector.Selector == m_conversionContext.UnsafeOutputFile)
+            {
+                int rewriteCount = arguments.Length > 1 && arguments[1] is NumberLiteral rc ? rc.UnboxedValue : 1;
+                return new FileLiteral(path.Value, rewriteCount, Location(source));
+            }
+            else if (selector.Selector == m_conversionContext.UnsafeExOutputDirectory)
+            {
+                return new DirectoryLiteralExpression(path, Location(source));
+            }
+
+            return null;
         }
 
         private bool IsObsolete(ISymbol symbol, out string message)
@@ -3175,7 +3215,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             string text = isNegative ? ($"-{literal.Text}") : literal.Text;
-            
+
             switch (literal.Kind)
             {
                 case TypeScript.Net.Types.SyntaxKind.NumericLiteral:

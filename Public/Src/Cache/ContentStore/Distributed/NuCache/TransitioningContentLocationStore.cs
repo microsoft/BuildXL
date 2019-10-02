@@ -149,6 +149,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint)
+        {
+            if (_redisContentLocationStore == null)
+            {
+                // If LLS is on, do nothing.
+                // When LLS is on, the system's consistency is achieved by reconciliation.
+                // When the content disappears from a machine it is machine's responsibility to "reconcile" and remove the locations from the system.
+                // Other machines cannot "notify" the master and remove the locations for other machines.
+                return BoolResult.SuccessTask;
+            }
+
+            return _redisContentLocationStore.TrimBulkAsync(context, contentHashToLocationMap, cts, urgencyHint);
+        }
+
+        /// <inheritdoc />
         public Task<BoolResult> TouchBulkAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
         {
             var operationContext = new OperationContext(context, cts);
@@ -203,17 +218,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint)
-        {
-            if (_redisContentLocationStore == null)
-            {
-                return BoolResult.SuccessTask;
-            }
-
-            return _redisContentLocationStore.TrimBulkAsync(context, contentHashToLocationMap, cts, urgencyHint);
-        }
-
-        /// <inheritdoc />
         public Task<BoolResult> InvalidateLocalMachineAsync(Context context, ILocalContentStore localStore, CancellationToken cts)
         {
             var operationContext = new OperationContext(context, cts);
@@ -233,14 +237,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             MachineReputationTracker.ReportReputation(location, reputation);
 
         /// <inheritdoc />
-        public Result<MachineLocation> GetRandomMachineLocation(MachineLocation except)
+        public Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except)
         {
             if (_configuration.HasReadMode(ContentLocationMode.Redis))
             {
                 return _redisContentLocationStore.GetRandomMachineLocation(except);
             }
 
-            return _localLocationStore.GetRandomMachineLocation(except);
+            return _localLocationStore.ClusterState.GetRandomMachineLocation(except);
+        }
+
+        /// <inheritdoc />
+        public bool IsMachineActive(MachineLocation machine)
+        {
+            if (_configuration.HasReadMode(ContentLocationMode.Redis))
+            {
+                return _redisContentLocationStore.IsMachineActive(machine);
+            }
+
+            return _localLocationStore.ClusterState.TryResolveMachineId(machine, out var machineId)
+                ? !_localLocationStore.ClusterState.InactiveMachines.Contains(machineId)
+                : false;
         }
 
         #region IDistributedLocationStore Members
@@ -309,6 +326,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     return _localLocationStore.GetBlobAsync(context, hash);
                 }
+
                 return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
             }
 
@@ -316,6 +334,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return _redisContentLocationStore.GetBlobAsync(context, hash);
             }
+
             return Task.FromResult(new Result<byte[]>("Blobs are not supported."));
         }
 

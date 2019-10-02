@@ -4,7 +4,6 @@
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -13,8 +12,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public sealed class GrpcCopyClientCache : ResourcePool<GrpcCopyClientKey, GrpcCopyClient>
     {
-        private readonly Context _context;
-
         /// <summary>
         /// Cache for <see cref="GrpcCopyClient"/>.
         /// </summary>
@@ -26,8 +23,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public GrpcCopyClientCache(Context context, int maxClientCount = 512, int maxClientAgeMinutes = 55, int waitBetweenCleanupMinutes = 17, int? bufferSize = null)
             : base(context, maxClientCount, maxClientAgeMinutes, waitBetweenCleanupMinutes, (key) => new GrpcCopyClient(key, bufferSize))
         {
-            // Creating nested context to trace all the messages from this class in a separate "tracing thread".
-            _context = new Context(context);
         }
 
         /// <summary>

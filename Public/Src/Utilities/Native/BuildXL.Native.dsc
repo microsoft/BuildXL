@@ -3,8 +3,6 @@
 
 import * as Deployment from "Sdk.Deployment";
 import {Transformer} from "Sdk.Transformers";
-import * as OsxNetCore from "runtime.osx-x64.Microsoft.NETCore.App";
-import * as WinNetCore from "runtime.win-x64.Microsoft.NETCore.App";
 import * as Managed from "Sdk.Managed";
 import * as Shared from "Sdk.Managed.Shared";
 import * as MacServices from "BuildXL.Sandbox.MacOS";

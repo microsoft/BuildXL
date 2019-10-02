@@ -45,8 +45,9 @@ namespace BuildXL.SandboxExec
                     enableReportBatching: false,
                     reportQueueSizeMB: 1024,
                     enableTelemetry: true,
-                    processTimeout: (int)s_defaultProcessTimeOut,
-                    trackDirectoryCreation: false);
+                    processTimeout: (int) s_defaultProcessTimeOut,
+                    trackDirectoryCreation: false,
+                    useEndpointSecuritySandbox: false);
 
             /// <summary>
             /// When set to true, the output contains long instead of short description of reported accesses.
@@ -83,8 +84,13 @@ namespace BuildXL.SandboxExec
             /// </summary>
             public bool TrackDirectoryCreation { get; }
 
+            /// <summary>
+            /// When set, sandboxing is done using EndpointSecurity instead of the kernel extension
+            /// </summary>
+            public bool UseEndpointSecuritySandbox { get; }
+
             /// <nodoc />
-            public Options(bool verbose, bool logToStdOut, uint reportQueueSizeMB, bool enableTelemetry, int processTimeout, bool trackDirectoryCreation, bool enableReportBatching)
+            public Options(bool verbose, bool logToStdOut, uint reportQueueSizeMB, bool enableTelemetry, int processTimeout, bool trackDirectoryCreation, bool enableReportBatching, bool useEndpointSecuritySandbox)
             {
                 Verbose = verbose;
                 LogToStdOut = logToStdOut;
@@ -93,6 +99,7 @@ namespace BuildXL.SandboxExec
                 EnableTelemetry = enableTelemetry;
                 ProcessTimeout = processTimeout;
                 TrackDirectoryCreation = trackDirectoryCreation;
+                UseEndpointSecuritySandbox = useEndpointSecuritySandbox;
             }
         }
 
@@ -123,6 +130,9 @@ namespace BuildXL.SandboxExec
             public bool TrackDirectoryCreation;
 
             /// <nodoc />
+            public bool UseEndpointSecuritySandbox;
+
+            /// <nodoc />
             public OptionsBuilder() { }
 
             /// <nodoc />
@@ -135,10 +145,11 @@ namespace BuildXL.SandboxExec
                 EnableTelemetry = opts.EnableTelemetry;
                 ProcessTimeout = opts.ProcessTimeout;
                 TrackDirectoryCreation = opts.TrackDirectoryCreation;
+                UseEndpointSecuritySandbox = opts.UseEndpointSecuritySandbox;
             }
 
             /// <nodoc />
-            public Options Finish() => new Options(Verbose, LogToStdOut, ReportQueueSizeMB, EnableTelemetry, ProcessTimeout, TrackDirectoryCreation, EnableReportBatching);
+            public Options Finish() => new Options(Verbose, LogToStdOut, ReportQueueSizeMB, EnableTelemetry, ProcessTimeout, TrackDirectoryCreation, EnableReportBatching, UseEndpointSecuritySandbox);
         }
 
         private readonly Options m_options;
@@ -162,13 +173,21 @@ namespace BuildXL.SandboxExec
         {
             m_options = options;
             s_crashCollector = OperatingSystemHelper.IsUnixOS ? new CrashCollectorMacOS(new[] { CrashType.SandboxExec, CrashType.Kernel }) : null;
-            m_sandboxConnection = OperatingSystemHelper.IsUnixOS
-                ? 
+
+            var useEndpointSecuritySandbox = m_options.UseEndpointSecuritySandbox;
 #if PLATFORM_OSX
-                OperatingSystemHelper.IsMacOSCatalinaOrHigher 
-                    ? (ISandboxConnection) new SandboxConnectionES() 
-                    : 
-#endif                
+            if (useEndpointSecuritySandbox && !OperatingSystemHelper.IsMacOSCatalinaOrHigher)
+            {
+                useEndpointSecuritySandbox = false;
+            }
+#endif
+            m_sandboxConnection = OperatingSystemHelper.IsUnixOS
+                ?
+#if PLATFORM_OSX
+                useEndpointSecuritySandbox
+                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: false, measureCpuTimes: true)
+                    :
+#endif
                     (ISandboxConnection) new SandboxConnectionKext(
                         new SandboxConnectionKext.Config
                         {
@@ -233,7 +252,7 @@ namespace BuildXL.SandboxExec
             if (procArgs.Length < 1)
             {
                 var macOSUsageDescription = OperatingSystemHelper.IsUnixOS ? $" [/{ArgReportQueueSizeMB}:<1-1024>] [/{ArgEnableReportBatching}[+,-]]" : "";
-                PrintToStderr($"Usage: SandboxExec [[/{ArgVerbose}[+,-]] [/{ArgLogToStdOut}[+,-]] [/{ArgProcessTimeout}:seconds] [/{ArgTrackDirectoryCreation}] [/{ArgEnableStatistics}[+,-]]{macOSUsageDescription} --] executable [arg1 arg2 ...]");
+                PrintToStderr($"Usage: SandboxExec [[/{ArgVerbose}[+,-]] [/{ArgLogToStdOut}[+,-]] [/{ArgProcessTimeout}:seconds] [/{ArgTrackDirectoryCreation}] [/{ArgEnableStatistics}[+,-]] [/{ArgUseEndpointSecuritySandbox}[+,-]]{macOSUsageDescription} --] executable [arg1 arg2 ...]");
                 return 1;
             }
 
@@ -453,6 +472,7 @@ namespace BuildXL.SandboxExec
         private const string ArgEnableStatistics = "enableStatistics";
         private const string ArgProcessTimeout = "processTimeout";
         private const string ArgTrackDirectoryCreation = "trackDirectoryCreation";
+        private const string ArgUseEndpointSecuritySandbox = "useEndpointSecuritySandbox";
 
         private static Options ParseOptions(string[] toolArgs)
         {
@@ -495,6 +515,10 @@ namespace BuildXL.SandboxExec
                     case ArgTrackDirectoryCreation:
                     case "d":
                         opts.TrackDirectoryCreation = CommandLineUtilities.ParseBooleanOption(opt);
+                        break;
+                    case ArgUseEndpointSecuritySandbox:
+                    case "e":
+                        opts.UseEndpointSecuritySandbox = CommandLineUtilities.ParseBooleanOption(opt);
                         break;
                     default:
                         throw new InvalidArgumentException($"Unrecognized option {opt.Name}");

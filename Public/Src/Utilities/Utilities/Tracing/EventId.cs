@@ -656,6 +656,8 @@ namespace BuildXL.Utilities.Tracing
         // Elsewhere  = 2603,
         PipWillBeRetriedDueToExitCode = 2604,
 
+        DetailedPipMaterializeDependenciesFromCacheFailure = 2610,
+
         // MLAM
         FileArtifactContentMismatch = 2700,
         PipOutputNotMaterialized = 2701,
@@ -1044,6 +1046,8 @@ namespace BuildXL.Utilities.Tracing
         ApiServerReportStatisticsExecuted = 12104,
         ApiServerGetSealedDirectoryContentExecuted = 12105,
         ErrorApiServerMaterializeFileFailed = 12106,
+        ApiServerReceivedMessage = 12107,
+        ApiServerReceivedWarningMessage = 12108,
 
         // Copy file cont'd.
         PipCopyFileSourceFileDoesNotExist = 12201,
@@ -1143,6 +1147,7 @@ namespace BuildXL.Utilities.Tracing
         KextFailedToInitializeConnectionManager = 14500,
         KextFailureNotificationReceived = 14501,
 
-        FailedToLoadPipGraphFragment = 14502
+        FailedToLoadPipGraphFragment = 14502,
+        PipCacheLookupStats = 14503,
     }
 }

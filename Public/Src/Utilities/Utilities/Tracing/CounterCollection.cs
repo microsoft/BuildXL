@@ -69,10 +69,16 @@ namespace BuildXL.Utilities.Tracing
         private readonly long[,] m_durations;
 
         /// <summary>
+        /// Parent collection that should be incremented when this counter is.
+        /// We assume that the parent will have the same structure as this counter.
+        /// </summary>
+        private readonly CounterCollection m_parent;
+
+        /// <summary>
         /// Creates a collection with the specified number of counters. Each counter in <c>[0, numberOfCounters - 1]</c>
         /// may be accessed with <see cref="AddToCounterInternal"/> or <see cref="GetCounterValueInternal"/>.
         /// </summary>
-        internal CounterCollection(ushort numberOfCounters)
+        internal CounterCollection(ushort numberOfCounters, CounterCollection parent = null)
         {
             Contract.Requires(numberOfCounters > 0);
 
@@ -81,6 +87,8 @@ namespace BuildXL.Utilities.Tracing
             int valuesPerProcessor = ((int)numberOfCounters + (ValuesPerCacheLine - 1)) & ~(ValuesPerCacheLine - 1);
             m_counters = new long[AssumedLogicalProcessorCount, valuesPerProcessor];
             m_durations = new long[AssumedLogicalProcessorCount, valuesPerProcessor];
+
+            m_parent = parent;
         }
 
         /// <summary>
@@ -89,6 +97,7 @@ namespace BuildXL.Utilities.Tracing
         internal void AddToCounterInternal(ushort counterId, long add)
         {
             AddToCounter(m_counters, counterId, add);
+            m_parent?.AddToCounterInternal(counterId, add);
         }
 
         /// <summary>
@@ -97,6 +106,7 @@ namespace BuildXL.Utilities.Tracing
         internal void AddToStopwatchInternal(ushort counterId, long add)
         {
             AddToCounter(m_durations, counterId, add);
+            m_parent?.AddToStopwatchInternal(counterId, add);
         }
 
         /// <summary>
@@ -178,6 +188,11 @@ namespace BuildXL.Utilities.Tracing
         {
             return (long)(timespan.Ticks / s_tickFrequency);
         }
+
+        /// <summary>
+        /// Returns all the counters. Default implementation will return null since it has no information about counter names.
+        /// </summary>
+        public virtual IEnumerable<(Counter, string name)> GetCounters() => null;
 
         /// <summary>
         /// Stopwatch context of a counter. Adds to the counter when disposed.
@@ -349,8 +364,8 @@ namespace BuildXL.Utilities.Tracing
         /// Creates a collection with a counter for every value of <typeparamref name="TEnum"/>.
         /// Note that the enum should be dense, since this creates <c>MaxEnumValue - MinEnumValue + 1</c> counters.
         /// </summary>
-        public CounterCollection()
-            : base((ushort)s_counterTypes.Length)
+        public CounterCollection(CounterCollection<TEnum> parent = null)
+            : base((ushort)s_counterTypes.Length, parent)
         {
         }
 
@@ -363,6 +378,15 @@ namespace BuildXL.Utilities.Tracing
             {
                 ushort counterIndex = GetCounterIndex(counterId);
                 return new Counter(this, counterIndex, s_counterTypes[counterIndex], s_counterNames[counterIndex]);
+            }
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<(Counter, string name)> GetCounters()
+        {
+            foreach (var counterEnum in EnumTraits<TEnum>.EnumerateValues())
+            {
+                yield return (this[counterEnum], counterEnum.ToString());
             }
         }
 

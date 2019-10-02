@@ -25,9 +25,17 @@ namespace BuildXL.Scheduler.Graph
     /// </summary>
     public class GraphFragmentBuilder : IPipGraph
     {
+        /// <summary>
+        /// Seal directory table
+        /// </summary>
+        protected readonly SealedDirectoryTable SealDirectoryTable;
+
+        /// <summary>
+        /// Configuration
+        /// </summary>
+        protected readonly IConfiguration Configuration;
         private readonly LoggingContext m_loggingContext;
         private readonly PipExecutionContext m_pipExecutionContext;
-        private readonly SealedDirectoryTable m_sealDirectoryTable;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
         private WindowsOsDefaults m_windowsOsDefaults;
@@ -43,18 +51,20 @@ namespace BuildXL.Scheduler.Graph
             Contract.Requires(loggingContext != null);
             Contract.Requires(pipExecutionContext != null);
 
+            Configuration = configuration;
             m_loggingContext = loggingContext;
             m_pipExecutionContext = pipExecutionContext;
             m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
                 ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
                 : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
-            m_sealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
+            SealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
         }
 
         /// <inheritdoc />
         public int PipCount => m_pips.Count;
 
-        private bool AddPip(Pip pip)
+        /// <inheritdoc />
+        protected bool AddPip(Pip pip)
         {
             m_pips.Enqueue(pip);
             pip.PipId = new PipId((uint)Interlocked.Increment(ref m_nextPipId));
@@ -62,7 +72,7 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip) => AddPip(copyFile);
+        public virtual bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip) => AddPip(copyFile);
 
         /// <inheritdoc />
         public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
@@ -80,10 +90,10 @@ namespace BuildXL.Scheduler.Graph
         public bool AddOutputValue([NotNull] ValuePip value) => AddPip(value);
 
         /// <inheritdoc />
-        public bool AddProcess([NotNull] Process process, PipId valuePip) => AddPip(process);
+        public virtual bool AddProcess([NotNull] Process process, PipId valuePip) => AddPip(process);
 
         /// <inheritdoc />
-        public DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
+        public virtual DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
         {
             AddPip(sealDirectory);
             DirectoryArtifact artifactForNewSeal;
@@ -99,11 +109,11 @@ namespace BuildXL.Scheduler.Graph
                 // created with sealId 0. For other cases, we reserve it
                 artifactForNewSeal = sealDirectory.Kind == SealDirectoryKind.Opaque
                     ? DirectoryArtifact.CreateWithZeroPartialSealId(sealDirectory.DirectoryRoot)
-                    : m_sealDirectoryTable.ReserveDirectoryArtifact(sealDirectory);
+                    : SealDirectoryTable.ReserveDirectoryArtifact(sealDirectory);
                 sealDirectory.SetDirectoryArtifact(artifactForNewSeal);
             }
 
-            m_sealDirectoryTable.AddSeal(sealDirectory);
+            SealDirectoryTable.AddSeal(sealDirectory);
 
             return artifactForNewSeal;
         }
@@ -115,7 +125,7 @@ namespace BuildXL.Scheduler.Graph
         public bool AddValueValueDependency(in ValuePip.ValueDependency valueDependency) => true;
 
         /// <inheritdoc />
-        public bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip) => AddPip(writeFile);
+        public virtual bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip) => AddPip(writeFile);
 
         /// <inheritdoc />
         public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
@@ -160,13 +170,13 @@ namespace BuildXL.Scheduler.Graph
         public GraphPatchingStatistics PartiallyReloadGraph([NotNull] HashSet<AbsolutePath> affectedSpecs) => default;
 
         /// <inheritdoc />
-        public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot) => m_sealDirectoryTable.CreateSharedOpaqueDirectoryWithNewSealId(directoryArtifactRoot);
+        public DirectoryArtifact ReserveSharedOpaqueDirectory(AbsolutePath directoryArtifactRoot) => SealDirectoryTable.CreateSharedOpaqueDirectoryWithNewSealId(directoryArtifactRoot);
 
         /// <inheritdoc />
-        public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip) => Enumerable.Empty<Pip>();
+        public IEnumerable<Pip> RetrievePipImmediateDependencies(Pip pip) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip) => Enumerable.Empty<Pip>();
+        public virtual IEnumerable<Pip> RetrievePipImmediateDependents(Pip pip) => throw new NotImplementedException();
 
         /// <inheritdoc />
         public IEnumerable<Pip> RetrieveScheduledPips() => m_pips;

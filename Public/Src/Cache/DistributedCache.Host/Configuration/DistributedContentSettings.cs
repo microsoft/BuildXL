@@ -94,6 +94,17 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int ContentHashBumpTimeMinutes { get; set; } = 2880;
 
+        private int _redisMemoizationExpiryTimeMinutes;
+
+        /// <summary>
+        /// TTL to be set in Redis for memoization entries.
+        /// </summary>
+        [DataMember]
+        public int RedisMemoizationExpiryTimeMinutes {
+            get => _redisMemoizationExpiryTimeMinutes == 0 ? ContentHashBumpTimeMinutes : _redisMemoizationExpiryTimeMinutes;
+            set => _redisMemoizationExpiryTimeMinutes = value;
+        }
+
         /// <summary>
         /// The map of environment to connection secrets
         /// </summary>
@@ -130,7 +141,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// Whether to use old (original) implementation of QuotaKeeper or to use the new one.
         /// </summary>
         [DataMember]
-        public bool UseLegacyQuotaKeeperImplementation { get; set; } = true;
+        public bool UseLegacyQuotaKeeperImplementation { get; set; } = false;
 
         /// <summary>
         /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
@@ -149,6 +160,9 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public int SelfCheckFrequencyInMinutes { get; set; } = (int)TimeSpan.FromDays(1).TotalMinutes;
+
+        [DataMember]
+        public int? SelfCheckProgressReportingIntervalInMinutes { get; set; }
 
         /// <summary>
         /// An epoch used for reseting self check of a content directory.
@@ -276,10 +290,19 @@ namespace BuildXL.Cache.Host.Configuration
         public bool IsBandwidthCheckEnabled { get; set; } = false;
 
         [DataMember]
-        public double MinimumSpeedInMbPerSec { get; set; } = -1.0;
+        public double? MinimumSpeedInMbPerSec { get; set; } = null;
 
         [DataMember]
         public int BandwidthCheckIntervalSeconds { get; set; } = 60;
+
+        [DataMember]
+        public double MaxBandwidthLimit { get; set; } = double.MaxValue;
+
+        [DataMember]
+        public double BandwidthLimitMultiplier { get; set; } = 1;
+
+        [DataMember]
+        public int HistoricalBandwidthRecordsStored { get; set; } = 64;
         #endregion
 
         #region Pin Better
@@ -345,8 +368,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsRedisGarbageCollectionEnabled { get; set; } = false;
 
+        /// <summary>
+        /// Disabling reconciliation is an unsafe option that can cause builds to fail because the machine's state can be off compared to the LLS's state.
+        /// Please do not set this property for long period of time. 
+        /// </summary>
         [DataMember]
-        public bool? IsReconciliationEnabled { get; set; }
+        public bool Unsafe_DisableReconciliation { get; set; } = false;
 
         [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
@@ -359,6 +386,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool? UseIncrementalCheckpointing { get; set; }
+
+        [DataMember]
+        public int? IncrementalCheckpointDegreeOfParallelism { get; set; }
 
         [DataMember]
         public int? ContentLocationDatabaseGcIntervalMinutes { get; set; }
@@ -408,6 +438,12 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? MaxEventProcessingConcurrency { get; set; }
+
+        [DataMember]
+        public int? EventBatchSize { get; set; }
+
+        [DataMember]
+        public int? EventProcessingMaxQueueSize { get; set; }
 
         [DataMember]
         public string[] AzureStorageSecretNames { get; set; }
@@ -491,6 +527,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
+        [DataMember]
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
@@ -498,7 +537,13 @@ namespace BuildXL.Cache.Host.Configuration
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
         [DataMember]
-        public bool EnableProactiveCopy { get; set; } = false;
+        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+
+        /// <summary>
+        /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
+        /// </summary>
+        [DataMember]
+        public string ProactiveCopyMode { get; set; } = "Disabled";
 
         [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
@@ -507,7 +552,16 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
 
         [DataMember]
-        public int PutFileWaitWarningMilliseconds { get; set; } = 5000;
+        public bool EnableMetadataStore { get; set; } = false;
+
+        [DataMember]
+        public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
+
+        [DataMember]
+        public bool UseRedisMetadataStore{ get; set; } = false;
+
+        [DataMember]
+        public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion
 
@@ -531,13 +585,6 @@ namespace BuildXL.Cache.Host.Configuration
 
             return new RedisContentSecretNames(
                 ConnectionSecretNameMap.Single(kvp => Regex.IsMatch(stampId, kvp.Key, RegexOptions.IgnoreCase)).Value);
-        }
-
-        public Tuple<double, int> GetBandwidthCheckSettings()
-        {
-            return IsDistributedContentEnabled && IsBandwidthCheckEnabled
-                ? Tuple.Create(MinimumSpeedInMbPerSec, BandwidthCheckIntervalSeconds)
-                : null;
         }
 
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()

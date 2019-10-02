@@ -1,0 +1,30 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum Options{
+    Options_UNSPECIFIED = 0;
+
+    None = 1;
+    HasUntrackedChildProcesses = 2;
+    ProducesPathIndependentOutputs = 4;
+    OutputsMustRemainWritable = 8;
+    AllowPreserveOutputs = 16;
+    IsLight = 32;
+    NeedsToRunInContainer = 64;
+    AllowUndeclaredSourceReads = 128;
+    DisableCacheLookup = 256;
+    DependsOnCurrentOs = 512;
+    DependsOnWindowsAppData = 1024;
+    DependsOnWindowsProgramData = 2048;
+    RequiresAdmin = 4096;
+    HasPreserveOutputWhitelist = 8192;
+
+    // (1 << 14) | AllowPreserveOutputs
+    IncrementalTool = 16400;
+}

@@ -19,11 +19,9 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Tracing;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
@@ -44,8 +42,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public class BlobReadOnlyContentSession : ContentSessionBase
     {
-        /// <nodoc />
-        private enum BlobContentSessionCounters
+        private enum Counters
         {
             /// <summary>
             /// Download URI had to be obtained from calling a remote VSTS service.
@@ -59,7 +56,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
         }
 
         private CounterCollection<BackingContentStore.SessionCounters> _counters { get; } = new CounterCollection<BackingContentStore.SessionCounters>();
-        private CounterCollection<BlobContentSessionCounters> _blobCounters { get; } = new CounterCollection<BlobContentSessionCounters>();
+        private CounterCollection<Counters> _blobCounters { get; } = new CounterCollection<Counters>();
 
         /// <summary>
         ///     The only HashType recognizable by the server.
@@ -130,14 +127,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// <param name="blobStoreHttpClient">Backing BlobStore http client.</param>
         /// <param name="timeToKeepContent">Minimum time-to-live for accessed content.</param>
         /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
+        /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobReadOnlyContentSession(
             IAbsFileSystem fileSystem,
             string name,
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
-            bool downloadBlobsThroughBlobStore)
-            : base(name)
+            bool downloadBlobsThroughBlobStore,
+            CounterTracker counterTracker = null)
+            : base(name, counterTracker)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(name != null);
@@ -164,14 +163,14 @@ namespace BuildXL.Cache.ContentStore.Vsts
                         DefaultMaxSegmentDownloadRetries.ToString()));
 
             TempDirectory = new DisposableDirectory(fileSystem);
-            BuildXL.Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
+            Native.IO.FileUtilities.CreateDirectory(TempDirectory.Path.Path);
+
+            _counters = CounterTracker.CreateCounterCollection<BackingContentStore.SessionCounters>(counterTracker);
+            _blobCounters = CounterTracker.CreateCounterCollection<Counters>(counterTracker);
         }
 
         /// <inheritdoc />
         protected override void DisposeCore() => TempDirectory.Dispose();
-
-        /// <inheritdoc />
-        protected override bool TracePinFinished => false; // Since this implementation calls PinBulk, which has its own tracing, it results in a duplicate stop message.
 
         /// <inheritdoc />
         protected override async Task<PinResult> PinCoreAsync(
@@ -426,10 +425,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 path,
                                 fileMode,
                                 context.Token,
-                                (destinationPath, offset, endOffset) =>
-                                    Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) start."),
-                                (destinationPath, offset, endOffset) =>
-                                    Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) end."),
+                                logSegmentStart: (destinationPath, offset, endOffset) => { },
+                                logSegmentStop: (destinationPath, offset, endOffset) => { },
                                 (destinationPath, offset, endOffset, message) =>
                                     Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) failed. (message: {message})"),
                                 async (offset, token) =>
@@ -519,7 +516,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             {
                 if (!DownloadUriCache.Instance.TryGetDownloadUri(contentHash, out var uri))
                 {
-                    _blobCounters[BlobContentSessionCounters.VstsDownloadUriFetchedFromRemote].Increment();
+                    _blobCounters[Counters.VstsDownloadUriFetchedFromRemote].Increment();
                     var blobId = contentHash.ToBlobIdentifier();
 
                     var mappings = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
@@ -540,7 +537,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 }
                 else
                 {
-                    _blobCounters[BlobContentSessionCounters.VstsDownloadUriFetchedInMemory].Increment();
+                    _blobCounters[Counters.VstsDownloadUriFetchedInMemory].Increment();
                 }
 
                 return await GetStreamThroughAzureBlobs(

@@ -88,6 +88,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _cacheFlushTimerLock = new object();
 
+        /// <summary>
+        /// Event callback that's triggered when the database is permanently invalidated. 
+        /// </summary>
+        public Action<OperationContext, Failure<Exception>> DatabaseInvalidated;
+
+        /// <nodoc />
+        protected void OnDatabaseInvalidated(OperationContext context, Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
+            // Notice that no update to the internal state is required when invalidation happens. By definition,
+            // nothing can be done to this instance after invalidation: all incoming and ongoing operations should fail
+            // (because it is triggered by RocksDb). The only way to resume operation is to reload from a checkpoint,
+            // which resets the internal state correctly.
+            DatabaseInvalidated?.Invoke(context, failure);
+        }
+
         /// <nodoc />
         protected ContentLocationDatabase(IClock clock, ContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
         {
@@ -288,8 +305,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             EnumerationFilter filter = null)
         {
-            Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
-            ForceCacheFlush(context);
+            if (IsInMemoryCacheEnabled)
+            {
+                // If we don't check, then GC will happen anyways and we will -incorrectly- increment the counter
+                Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].Increment();
+                ForceCacheFlush(context);
+            }
+
             return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
         }
 
@@ -549,7 +571,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        protected void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
+        public void Store(OperationContext context, ShortHash hash, ContentLocationEntry entry)
         {
             Counters[ContentLocationDatabaseCounters.NumberOfStoreOperations].Increment();
 
@@ -591,14 +613,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     try
                     {
                         await Task.Yield();
-                        await _inMemoryCache.FlushAsync(context);
-                        return BoolResult.Success;
+                        return Result.Success(await _inMemoryCache.FlushAsync(context));
                     }
                     finally
                     {
                         Interlocked.Exchange(ref _cacheUpdatesSinceLastFlush, 0);
                         ResetFlushTimer();
                     }
+                }, extraEndMessage: maybeCounters =>
+                {
+                    if (!maybeCounters.Succeeded)
+                    {
+                        return string.Empty;
+                    }
+
+                    var counters = maybeCounters.Value;
+                    return $"Persisted={counters[FlushableCache.FlushableCacheCounters.Persisted].Value} Leftover={counters[FlushableCache.FlushableCacheCounters.Leftover].Value} Growth={counters[FlushableCache.FlushableCacheCounters.Growth].Value} FlushingTime={counters[FlushableCache.FlushableCacheCounters.FlushingTime].Duration.TotalMilliseconds}ms CleanupTime={counters[FlushableCache.FlushableCacheCounters.CleanupTime].Duration.TotalMilliseconds}ms";
                 }).ThrowIfFailure();
         }
 
@@ -720,7 +750,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets known selectors for a given weak fingerprint.
         /// </summary>
-        public abstract IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
+        public abstract Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint);
 
         /// <summary>
         /// Enumerates all strong fingerprints currently stored in the cache.

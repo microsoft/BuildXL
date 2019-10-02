@@ -487,6 +487,17 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_PinCachedOutputs,
                 HelpLevel.Verbose);
 
+
+            hw.WriteOption(
+                "/pathSetThreshold",
+                Strings.HelpText_DisplayHelp_PathSetThreshold,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/augmentingPathSetCommonalityFactor:(0, 1]",
+                Strings.HelpText_DisplayHelp_AugmentingPathSetCommonalityFactor,
+                HelpLevel.Verbose);
+
             hw.WriteOption(
                 "/vfsCasRoot<vfs cas root directory>",
                 Strings.HelpText_DisplayHelp_VfsCasRoot,
@@ -1005,6 +1016,17 @@ namespace BuildXL
             hw.WriteOption(
                 "/maxTypeCheckingConcurrency[+|-]",
                 Strings.HelpText_DisplayHelp_MaxTypeCheckingConcurrency);
+
+            #endregion
+
+            #region Component Governance Manifest 
+            hw.WriteBanner(Strings.HelpText_DisplayHelp_CgManifestBanner);
+
+            hw.WriteOption("/generateCgManifestForNugets:<file>",
+                Strings.HelpText_DisplayHelp_GenerateCgManifest);
+
+            hw.WriteOption("/validateCgManifestForNugets:<file>",
+                Strings.HelpText_DisplayHelp_ValidateCgManifest);
 
             #endregion
 

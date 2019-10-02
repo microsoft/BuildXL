@@ -54,13 +54,13 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initializes the ES sandbox
         /// </summary>
-        public SandboxConnectionES()
+        public SandboxConnectionES(bool isInTestMode = false, bool measureCpuTimes = false)
         {
             m_reportQueueLastEnqueueTime = 0;
             m_esConnectionInfo = new Sandbox.ESConnectionInfo() { Error = Sandbox.SandboxSuccess };
 
-            MeasureCpuTimes = false;
-            IsInTestMode = false;
+            MeasureCpuTimes = measureCpuTimes;
+            IsInTestMode = isInTestMode;
 
             var process = System.Diagnostics.Process.GetCurrentProcess();
 
@@ -74,7 +74,7 @@ namespace BuildXL.Processes
             ProcessUtilities.SetNativeConfiguration(true);
 #else
             ProcessUtilities.SetNativeConfiguration(false);
-            
+
 #endif
 
             m_workerThread = new Thread(() => StartReceivingAccessReports());
@@ -110,13 +110,13 @@ namespace BuildXL.Processes
         private void StartReceivingAccessReports()
         {
             Sandbox.AccessReportCallback callback = (Sandbox.AccessReport report, int code) =>
-            {   
+            {
                 if (code != Sandbox.ReportQueueSuccessCode)
                 {
                     var message = "EndpointSecurity event delivery failed with error: " + code;
                     throw new BuildXLException(message, ExceptionRootCause.MissingRuntimeDependency);
                 }
-                
+
                 // Stamp the access report as it has been dequeued at this point
                 report.Statistics.DequeueTime = Sandbox.GetMachAbsoluteTime();
 

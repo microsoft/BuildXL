@@ -806,6 +806,12 @@ namespace BuildXL.Scheduler.Graph
             => PipProducers.Select(kvp => new KeyValuePair<FileArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
 
         /// <summary>
+        /// Gets all seal directories and their producers
+        /// </summary>
+        public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllSealDirectoriesAndProducers
+            => m_sealedDirectoryNodes.Select(kvp => new KeyValuePair<DirectoryArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
+
+        /// <summary>
         /// Gets all output directories and their corresponding producers.
         /// </summary>
         public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllOutputDirectoriesAndProducers
@@ -998,7 +1004,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Applies the filter to each node in the build graph.
         /// </summary>
-        internal bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn, bool canonicalizeFilter)
+        internal bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn)
         {
             Contract.Ensures(Contract.ValueAtReturn(out filteredIn) != null);
 
@@ -1019,7 +1025,7 @@ namespace BuildXL.Scheduler.Graph
                     "Builds with an empty filter should not actually perform filtering. Instead their pips should be added to the schedule with an initial state of Waiting. "
                     + "Or in the case of a cached graph, all pips should be scheduled without going through the overhead of filtering.");
 
-                var outputs = FilterOutputs(filter, canonicalizeFilter);
+                var outputs = FilterOutputs(filter);
 
                 int addAttempts = 0;
 
@@ -1219,9 +1225,9 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Gets filtered outputs appropriate for a clean operation
         /// </summary>
-        internal IReadOnlyList<FileOrDirectoryArtifact> FilterOutputsForClean(RootFilter filter, bool canonicalizeFilter = true)
+        internal IReadOnlyList<FileOrDirectoryArtifact> FilterOutputsForClean(RootFilter filter)
         {
-            var outputs = FilterOutputs(filter, canonicalizeFilter);
+            var outputs = FilterOutputs(filter);
 
             List<FileOrDirectoryArtifact> outputsForDeletion = new List<FileOrDirectoryArtifact>(outputs.Count);
             foreach (var output in outputs)
@@ -1267,7 +1273,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             var context = new PipFilterContext(this);
-            var pipFilter = canonicalizeFilter ? filter.PipFilter.Canonicalize(new FilterCanonicalizer()) : filter.PipFilter;
+            var pipFilter = filter.PipFilter;
             return pipFilter.FilterOutputs(context);
         }
 

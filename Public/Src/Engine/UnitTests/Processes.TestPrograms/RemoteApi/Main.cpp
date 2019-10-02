@@ -191,7 +191,7 @@ int main(int argc, char **argv)
         }
 
         if (parameters.size() == 0 || parameters[0].length() == 0) {
-            std::wcerr << L"Bad command format. Expected commandName,parameter,parameter ; zero or more parameters separated by commas. Actual: " << lineBuffer << std::endl;
+            std::wcerr << L"Bad command format. Expected commandName,parameter,parameter ; zero or more parameters separated by commas. Actual: '" << lineBuffer << "'" << std::endl;
             return 2;
         }
 
@@ -199,7 +199,7 @@ int main(int argc, char **argv)
         for (CommandBase const** c = Commands; ; c++) {
             CommandBase const* cmd = *c;
             if (cmd == nullptr) {
-                std::wcerr << L"Unknown command name. Supported: [EnumerateWithFindFirstFileEx, DeleteViaNtCreateFile, CreateHardLink]. Actual: " << commandName << std::endl;
+                std::wcerr << L"Unknown command name. Supported: [EnumerateWithFindFirstFileEx, DeleteViaNtCreateFile, CreateHardLink]. Actual: '" << commandName << "'" << std::endl;
                 return 3;
             } 
 
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
             case IncorrectParameterCount:
                 std::wcerr 
                     << L"Wrong number of parameters for " << commandName
-                    << L". Expected: " << cmd->requiredParameters << " Actual: " << (parameters.size() - 1) << std::endl;
+                    << L". Expected: " << cmd->requiredParameters << " Actual: '" << (parameters.size() - 1) << "'" << std::endl;
                 return 4;
             case CommandNameDoesNotMatch:
                 handled = false;

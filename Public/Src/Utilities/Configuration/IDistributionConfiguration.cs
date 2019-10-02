@@ -11,11 +11,6 @@ namespace BuildXL.Utilities.Configuration
     /// </summary>
     public interface IDistributionConfiguration
     {
-        /// <summary>,
-        /// Is Grpc enabled.
-        /// </summary>
-        bool IsGrpcEnabled { get; }
-
         /// <summary>
         /// Specifies the roles the node plays in the distributed build {get;} or [W]orker. This argument is required for executing a distributed build. (short form: /dbr)
         /// </summary>
@@ -60,7 +55,7 @@ namespace BuildXL.Utilities.Configuration
         int MinimumWorkers { get; }
 
         /// <summary>
-        /// Indicates whether the remote workers should be released early in case of insufficient amount of work. 
+        /// Indicates whether the remote workers should be released early in case of insufficient amount of work.
         /// </summary>
         bool EarlyWorkerRelease { get; }
 

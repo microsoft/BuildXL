@@ -26,6 +26,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileChangeTrackingExclusionRoots = new List<AbsolutePath>();
             FileChangeTrackingInclusionRoots = new List<AbsolutePath>();
             ReplaceExistingFileOnMaterialization = false;
+            ElideMinimalGraphEnumerationAbsentPathProbes = true;
+            AugmentWeakFingerprintRequiredPathCommonalityFactor = 1;
         }
 
         /// <nodoc />
@@ -56,6 +58,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseDedupStore = template.UseDedupStore;
             ReplaceExistingFileOnMaterialization = template.ReplaceExistingFileOnMaterialization;
             VfsCasRoot = pathRemapper.Remap(template.VfsCasRoot);
+            ElideMinimalGraphEnumerationAbsentPathProbes = template.ElideMinimalGraphEnumerationAbsentPathProbes;
+            AugmentWeakFingerprintPathSetThreshold = template.AugmentWeakFingerprintPathSetThreshold;
+            AugmentWeakFingerprintRequiredPathCommonalityFactor = template.AugmentWeakFingerprintRequiredPathCommonalityFactor;
         }
 
         /// <nodoc />
@@ -111,6 +116,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool DeterminismProbe { get; set; }
 
         /// <inheritdoc />
+        public bool ElideMinimalGraphEnumerationAbsentPathProbes { get; set; }
+
+        /// <inheritdoc />
         public bool? HistoricMetadataCache { get; set; }
 
         /// <inheritdoc />
@@ -141,5 +149,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath VfsCasRoot { get; set; }
+
+        /// <inheritdoc />
+        public int AugmentWeakFingerprintPathSetThreshold { get; set; }
+
+        /// <inheritdoc />
+        public double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; set; }
     }
 }

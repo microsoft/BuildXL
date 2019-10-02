@@ -27,9 +27,10 @@ namespace BuildXL.Scheduler
         private readonly IServer m_server;
         private readonly PipExecutionContext m_context;
 
-        private long m_numMaterializeFile = 0;
-        private long m_numReportStatistics = 0;
-        private long m_numGetSealedDirectoryContent = 0;
+        private long m_numMaterializeFile;
+        private long m_numReportStatistics;
+        private long m_numGetSealedDirectoryContent;
+        private long m_numLogMessage;
 
         private LoggingContext m_loggingContext;
 
@@ -88,6 +89,7 @@ namespace BuildXL.Scheduler
                 [Statistics.ApiTotalMaterializeFileCalls] = Volatile.Read(ref m_numMaterializeFile),
                 [Statistics.ApiTotalReportStatisticsCalls] = Volatile.Read(ref m_numReportStatistics),
                 [Statistics.ApiTotalGetSealedDirectoryContentCalls] = Volatile.Read(ref m_numGetSealedDirectoryContent),
+                [Statistics.ApiTotalLogMessageCalls] = Volatile.Read(ref m_numLogMessage),
             });
         }
 
@@ -127,9 +129,16 @@ namespace BuildXL.Scheduler
             }
 
             var getSealedDirectoryFilesCmd = cmd as GetSealedDirectoryContentCommand;
-            if(getSealedDirectoryFilesCmd != null)
+            if (getSealedDirectoryFilesCmd != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ref m_numGetSealedDirectoryContent);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var logMessageCmd = cmd as LogMessageCommand;
+            if (logMessageCmd != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteLogMessage, logMessageCmd, ref m_numLogMessage);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -202,7 +211,7 @@ namespace BuildXL.Scheduler
 
             var files = m_fileContentManager.ListSealedDirectoryContents(cmd.Directory);
 
-            Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable));
+            Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable), files.Length);
 
             var inputContentsTasks = files
                 .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(f.Path, nameof(ApiServer), false))
@@ -230,12 +239,36 @@ namespace BuildXL.Scheduler
 
             if (failedResults.Count > 0)
             {
-                new IpcResult(
+                return new IpcResult(
                     IpcResultStatus.ExecutionError,
-                    "could not find content information for the files: " + string.Join("; ", failedResults));
+                    string.Format("Could not find content information for {0} out of {1} files inside of '{4}':{2}{3}",
+                        failedResults.Count,
+                        files.Length,
+                        Environment.NewLine,
+                        string.Join("; ", failedResults),
+                        cmd.Directory.Path.ToString(m_context.PathTable)));
             }
 
             return IpcResult.Success(cmd.RenderResult(results));
+        }
+
+        /// <summary>
+        /// Executes <see cref="LogMessageCommand"/>.
+        /// </summary>
+        private Task<IIpcResult> ExecuteLogMessage(LogMessageCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+
+            if (cmd.IsWarning)
+            {
+                Tracing.Logger.Log.ApiServerReceivedWarningMessage(m_loggingContext, cmd.Message);
+            }
+            else
+            {
+                Tracing.Logger.Log.ApiServerReceivedMessage(m_loggingContext, cmd.Message);
+            }
+
+            return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
         private Possible<Command> TryDeserialize(string operation)

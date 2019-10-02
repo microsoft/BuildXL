@@ -13,15 +13,16 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 {
     /// <summary>
-    /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>, <seealso cref="GrpcServerFactory"/>
+    /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
     public class GrpcFileCopier : IAbsolutePathFileCopier, ICopyRequester
     {
-        private const int DefaultGrpcPort = 7089;
         private readonly Context _context;
         private readonly int _grpcPort;
         private readonly bool _useCompression;
@@ -37,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             _grpcPort = grpcPort;
             _useCompression = useCompression;
 
-            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize: bufferSize);
+            _clientCache = new GrpcCopyClientCache(context, maxGrpcClientCount, maxGrpcClientAgeMinutes, grpcClientCleanupDelayMinutes, bufferSize);
         }
 
         /// <inheritdoc />
@@ -49,19 +50,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
             {
                 return await clientWrapper.Value.CheckFileExistsAsync(_context, contentHash);
-            }
-        }
-
-        /// <inheritdoc />
-        public async Task<CopyFileResult> CopyFileAsync(AbsolutePath sourcePath, AbsolutePath destinationPath, long contentSize, bool overwrite, CancellationToken cancellationToken)
-        {
-            // Extract host and contentHash from sourcePath
-            (string host, ContentHash contentHash) = ExtractHostHashFromAbsolutePath(sourcePath);
-
-            // Contact hard-coded port on source
-            using (var clientWrapper = await _clientCache.CreateAsync(host, _grpcPort, _useCompression))
-            {
-                return await clientWrapper.Value.CopyFileAsync(_context, contentHash, destinationPath, cancellationToken);
             }
         }
 
@@ -104,8 +92,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> RequestCopyFileAsync(Context context, ContentHash hash, string targetMachineName)
+        public async Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
+            var targetPath = new AbsolutePath(targetMachine.Path);
+            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+
             using (var clientWrapper = await _clientCache.CreateAsync(targetMachineName, _grpcPort, _useCompression))
             {
                 return await clientWrapper.Value.RequestCopyFileAsync(context, hash);

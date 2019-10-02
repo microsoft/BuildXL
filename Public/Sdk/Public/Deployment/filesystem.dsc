@@ -26,7 +26,9 @@ export interface OpaqueSubDirectory {
     /** Parent opaque directory */
     opaque: OpaqueDirectory,
 
-    /** A path relative to that opaque directory designating a subdirectory to be added to the deployment */
+    /** An optional path relative to that opaque directory designating a subdirectory to be added to the deployment.
+     * If not specified, the whole opaque directory will be added to the deployment
+    */
     subDirectory?: RelativePath,
 }
 

@@ -17,7 +17,6 @@ set MINIMAL_LAB=0
 REM These are provided to bxl.cmd only when /lab is specified (automated builds).
 REM For lab builds, log full outputs.
 REM For lab builds, retry unit tests automatically.
-REM Consider adding the following to lab builds: /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json
 set LAB_SPECIFIC_ARGS=-DisableInteractive /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /ado
 set INTERNAL_BUILD_ARGS=/p:[Sdk.BuildXL]microsoftInternal=1
 
@@ -73,7 +72,7 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
 set start=%time%
 set stepName=Building 'debug\net472' and 'debug\win-x64' using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole-
+    call :RunBxl -Use LKG -Deploy RunCheckinTests /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 

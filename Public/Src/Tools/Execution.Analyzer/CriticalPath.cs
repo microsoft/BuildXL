@@ -19,11 +19,11 @@ namespace BuildXL.Execution.Analyzer
 
         private readonly Func<NodeId, IEnumerable<NodeId>> m_getOutgoingNodes;
 
-        private readonly IDictionary<NodeId, Tuple<TimeSpan, NodeId>> m_nodeToCriticalPath = new Dictionary<NodeId, Tuple<TimeSpan, NodeId>>();
+        private readonly IDictionary<NodeId, CriticalPathStats> m_nodeToCriticalPath = new Dictionary<NodeId, CriticalPathStats>();
 
-        public Tuple<TimeSpan, NodeId> ComputeCriticalPath(NodeId node)
+        public CriticalPathStats ComputeCriticalPath(NodeId node)
         {
-            Tuple<TimeSpan, NodeId> criticalPath;
+            CriticalPathStats criticalPath;
             bool hasCriticalPath = m_nodeToCriticalPath.TryGetValue(node, out criticalPath);
             if (hasCriticalPath)
             {
@@ -35,15 +35,25 @@ namespace BuildXL.Execution.Analyzer
             foreach (var outgoingNode in m_getOutgoingNodes(node))
             {
                 var dependencyCriticalPath = ComputeCriticalPath(outgoingNode);
-                if (dependencyCriticalPath.Item1 > maxOutputgoingCriticalPath)
+                if (dependencyCriticalPath.CriticalPathTime > maxOutputgoingCriticalPath)
                 {
-                    maxOutputgoingCriticalPath = dependencyCriticalPath.Item1;
+                    maxOutputgoingCriticalPath = dependencyCriticalPath.CriticalPathTime;
                     maxOutputgoingNode = outgoingNode;
                 }
             }
-            criticalPath = new Tuple<TimeSpan, NodeId>(m_getElapsed(node) + maxOutputgoingCriticalPath, maxOutputgoingNode);
+            criticalPath = new CriticalPathStats
+            {
+                CriticalPathTime = m_getElapsed(node) + maxOutputgoingCriticalPath,
+                NextNodeInCriticalPath = maxOutputgoingNode
+            };
             m_nodeToCriticalPath[node] = criticalPath;
             return criticalPath;
         }
+    }
+
+    public struct CriticalPathStats
+    {
+        public TimeSpan CriticalPathTime;
+        public NodeId NextNodeInCriticalPath;
     }
 }

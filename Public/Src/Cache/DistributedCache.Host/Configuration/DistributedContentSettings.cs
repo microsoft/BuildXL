@@ -368,8 +368,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsRedisGarbageCollectionEnabled { get; set; } = false;
 
+        /// <summary>
+        /// Disabling reconciliation is an unsafe option that can cause builds to fail because the machine's state can be off compared to the LLS's state.
+        /// Please do not set this property for long period of time. 
+        /// </summary>
         [DataMember]
-        public bool? IsReconciliationEnabled { get; set; }
+        public bool Unsafe_DisableReconciliation { get; set; } = false;
 
         [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;

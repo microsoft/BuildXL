@@ -406,7 +406,7 @@ namespace BuildXL.Scheduler
         private PipRuntimeInfo[] m_pipRuntimeInfos;
 
         private PipRuntimeTimeTable m_runningTimeTable;
-        private AsyncLazy<PipRuntimeTimeTable> m_runningTimeTableTask;
+        private readonly AsyncLazy<PipRuntimeTimeTable> m_runningTimeTableTask;
 
         /// <summary>
         /// The last node in the currently computed critical path
@@ -4805,7 +4805,7 @@ namespace BuildXL.Scheduler
                 InitSchedulerRuntimeState(pm.LoggingContext, schedulerState: schedulerState);
 
                 // Start workers after scheduler runtime state is successfully established
-                if (!HasFailed)
+                if (!HasFailed && IsDistributedMaster)
                 {
                     StartWorkers(loggingContext);
                 }
@@ -4929,7 +4929,7 @@ namespace BuildXL.Scheduler
                 // Start loading data for pip two phase cache and running time table. No need to wait since any operation against the components
                 // will block until the required component is ready.
                 m_pipTwoPhaseCache.StartLoading(waitForCompletion: false);
-                m_runningTimeTableTask.Start();
+                m_runningTimeTableTask?.Start();
 
                 InitFileChangeTracker(loggingContext);
                 ProcessFileChanges(loggingContext, schedulerState);

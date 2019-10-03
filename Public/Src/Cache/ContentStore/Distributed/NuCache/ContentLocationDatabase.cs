@@ -535,7 +535,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.RestoreCheckpoint].Start())
             {
-                return context.PerformOperation(Tracer, () => RestoreCheckpointCore(context, checkpointDirectory));
+                return context.PerformOperation(Tracer,
+                    () => RestoreCheckpointCore(context, checkpointDirectory),
+                    extraStartMessage: $"CheckpointDirectory=[{checkpointDirectory}]",
+                    messageFactory: _ => $"CheckpointDirectory=[{checkpointDirectory}]");
             }
         }
 

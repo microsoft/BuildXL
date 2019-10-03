@@ -349,7 +349,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
                     }
-                });
+                },
+                extraStartMessage: $"CheckpointId=[{checkpointId}]",
+                extraEndMessage: _ => $"CheckpointId=[{checkpointId}]");
         }
 
         private static void RestoreFullCheckpointAsync(AbsolutePath checkpointFile, AbsolutePath extractedCheckpointDirectory)

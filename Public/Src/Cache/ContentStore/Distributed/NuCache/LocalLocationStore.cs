@@ -1105,6 +1105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IReadOnlyList<ContentHashWithLastAccessTime> contentHashes)
         {
             Contract.Requires(contentHashes != null);
+            Contract.Requires(contentHashes.Count > 0);
 
             var postInitializationResult = EnsureInitializedAsync().GetAwaiter().GetResult();
             if (!postInitializationResult)
@@ -1112,11 +1113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new Result<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(postInitializationResult);
             }
 
-            if (contentHashes.Count == 0)
-            {
-                return CollectionUtilities.EmptyArray<ContentHashWithLastAccessTimeAndReplicaCount>();
-            }
-
+            // This is required because the code inside could throw.
             return context.PerformOperation(
                 Tracer,
                 () =>
@@ -1138,7 +1135,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             // TODO[LLS]: Maybe some machines should be primary replicas for the content and not prioritize deletion (bug 1365340)
                             // just because there are many replicas
-
                             replicaCount = entry.Locations.Count;
 
                             // Incorporate both replica count and size into an evictability metric.
@@ -1162,7 +1158,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
 
                     return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);
-                }, Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes]);
+                }, Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
+                traceOperationStarted: false);
         }
 
         /// <summary>

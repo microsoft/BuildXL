@@ -280,7 +280,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
                 if (!createMemoizationResult.Succeeded)
                 {
-                    return new CreateSessionResult<ICacheSession>(createContentResult, "Memoization session creation failed");
+                    return new CreateSessionResult<ICacheSession>(createMemoizationResult, "Memoization session creation failed");
                 }
                 var memoizationSession = createMemoizationResult.Session;
 

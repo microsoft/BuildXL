@@ -187,55 +187,81 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         }
 
         [Fact]
-        public void TestQueryAndOrderInPages()
+        public void TestApproximateSort1()
+        {
+            // Since the page size is 1, we will do one query per element and return, which means the order won't be
+            // changed. We also return 1 element every time.
+            TestApproximateSort(
+                elements: new int[] { 2, 4, 3, 5, 1, 6 },
+                poolSize: 2,
+                pageSize: 1,
+                removalFraction: 1.0f / 10.0f,
+                expectedEnumerator: new int[] { 2, 4, 3, 5, 1, 6 },
+                expectedQueries: new int[] { 1, 2, 3, 4, 5, 6 });
+        }
+
+        [Fact]
+        public void TestApproximateSort2()
+        {
+            // We always fill the pool, but it is really small, so we are only able to partially sort.
+            TestApproximateSort(
+                elements: new int[] { 2, 4, 3, 5, 1, 6 },
+                poolSize: 2,
+                pageSize: 2,
+                removalFraction: 1.0f / 10.0f,
+                expectedEnumerator: new int[] { 2, 3, 4, 1, 5, 6 },
+                expectedQueries: new int[] { 1, 2, 3, 4, 5, 5 });
+        }
+
+        [Fact]
+        public void TestApproximateSort3()
+        {
+            // With a larger pool and page size, we sort through it a little bit better.
+            TestApproximateSort(
+                elements: new int[] { 2, 4, 3, 5, 1, 6 },
+                poolSize: 4,
+                pageSize: 3,
+                removalFraction: 1.0f / 10.0f,
+                expectedEnumerator: new int[] { 2, 3, 1, 4, 5, 6 },
+                expectedQueries: new int[] { 1, 2, 3, 3, 3, 3 });
+        }
+
+        [Fact]
+        public void TestApproximateSort4()
+        {
+            // If the page size is greater or equal to the maximum displacement of an element from its true position,
+            // then we obtain the true order.
+            TestApproximateSort(
+                elements: new int[] { 2, 4, 3, 5, 1, 6 },
+                poolSize: 6,
+                pageSize: 5,
+                removalFraction: 1.0f / 10.0f,
+                expectedEnumerator: new int[] { 1, 2, 3, 4, 5, 6 },
+                expectedQueries: new int[] { 1, 2, 2, 2, 2, 2 });
+        }
+
+        private static void TestApproximateSort(int[] elements, int poolSize, int pageSize, float removalFraction, int[] expectedEnumerator, int[] expectedQueries)
         {
             var comparer = Comparer<int>.Default;
-            var pageSize = 2;
-            var queries = 0;
-            Func<IEnumerable<int>, IEnumerable<int>> query = page => { queries++; return page; };
-            var elements = new int[] { 2, 4, 3, 5, 1, 6 };
-            var enumerable = elements.QueryAndOrderInPages(pageSize, comparer, query);
-            var e = enumerable.GetEnumerator();
+            var numQueries = 0;
+            Func<IEnumerable<int>, IEnumerable<int>> query = page => { numQueries++; return page; };
+            var enumerable = elements.ApproximateSort(comparer, query, poolSize, pageSize, removalFraction);
+            var enumerator = enumerable.GetEnumerator();
 
-            // Expected:
-            // Takes 2, 4 and does one query    (Queue: 2,4)
-            // Yields 2                         (Queue: 4)
-            // Takes 3, 5 and does a query      (Queue: 3,4,5)
-            // Yields 3                         (Queue: 4,5)
-            // Yields 4                         (Queue: 5)
-            // Takes 1, 6 and does a query      (Queue: 1,5,6)
-            // Yields 1                         (Queue: 5,6)
-            // Yields 5                         (Queue: 6)
-            // Yields 6                         (Queue: Empty)
+            numQueries.Should().Be(0);
 
-            var expectedResult = new int[] { 2, 3, 4, 1, 5, 6 };
-            queries.Should().Be(0);
+            var actualEnumerator = new int[elements.Length];
+            var actualQueries = new int[elements.Length];
+            for (int i = 0; i < elements.Length; ++i)
+            {
+                enumerator.MoveNext();
+                actualQueries[i] = numQueries;
+                actualEnumerator[i] = enumerator.Current;
+            }
 
-            e.MoveNext();
-            queries.Should().Be(1);
-            e.Current.Should().Be(expectedResult[0]);
-
-            e.MoveNext();
-            queries.Should().Be(2);
-            e.Current.Should().Be(expectedResult[1]);
-
-            e.MoveNext();
-            queries.Should().Be(2);
-            e.Current.Should().Be(expectedResult[2]);
-
-            e.MoveNext();
-            queries.Should().Be(3);
-            e.Current.Should().Be(expectedResult[3]);
-
-            e.MoveNext();
-            queries.Should().Be(3);
-            e.Current.Should().Be(expectedResult[4]);
-
-            e.MoveNext();
-            queries.Should().Be(3);
-            e.Current.Should().Be(expectedResult[5]);
-
-            e.MoveNext().Should().Be(false);
+            enumerator.MoveNext().Should().Be(false);
+            actualEnumerator.Should().BeEquivalentTo(expectedEnumerator);
+            actualQueries.Should().BeEquivalentTo(expectedQueries);
         }
     }
 }

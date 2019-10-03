@@ -1337,6 +1337,10 @@ namespace BuildXL.Scheduler
                                     }
                                 });
 
+                            IReadOnlyList<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
+                                ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
+                                : null;
+
                             int remainingUserRetries = pip.RetryExitCodes.Length > 0 ? configuration.Schedule.ProcessRetries : 0;
                             int remainingInternalSandboxedProcessExecutionFailureRetries = InternalSandboxedProcessExecutionFailureRetryCountMax;
 
@@ -1374,7 +1378,8 @@ namespace BuildXL.Scheduler
                                     remainingUserRetryCount: remainingUserRetries,
                                     vmInitializer: environment.VmInitializer,
                                     tempDirectoryCleaner: environment.TempCleaner,
-                                    incrementalTools: configuration.IncrementalTools);
+                                    incrementalTools: configuration.IncrementalTools,
+                                    changeAffectedInputs: changeAffectedInputs);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -1395,11 +1400,7 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                IReadOnlyCollection<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
-                                    ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
-                                    : null;
-
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, changeAffectedInputs);
+                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
 
                                 ++retryCount;
 

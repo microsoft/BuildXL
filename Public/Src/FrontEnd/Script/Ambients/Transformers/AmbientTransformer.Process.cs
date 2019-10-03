@@ -481,12 +481,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 processBuilder.Priority = priority.Value;
             }
 
-            var requireGlobalDependencies = Converter.ExtractOptionalBoolean(obj, m_unsafeRequireGlobalDependencies);
-            if (requireGlobalDependencies != null)
-            {
-                processBuilder.RequireGlobalDependencies = requireGlobalDependencies.Value;
-            }
-
             // Acquired semaphores.
             var acquireSemaphores = Converter.ExtractArrayLiteral(obj, m_executeAcquireSemaphores, allowUndefined: true);
             if (acquireSemaphores != null)
@@ -1211,6 +1205,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeIncrementalTool) == true)
             {
                 processBuilder.Options |= Process.Options.IncrementalTool;
+            }
+
+            // UnsafeExecuteArguments.requireGlobalDependencies
+            var requireGlobalDependencies = Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies);
+            if (requireGlobalDependencies != null)
+            {
+                processBuilder.RequireGlobalDependencies = requireGlobalDependencies.Value;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables

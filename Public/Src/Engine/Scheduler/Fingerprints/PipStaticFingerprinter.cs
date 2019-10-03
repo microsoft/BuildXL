@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -65,7 +66,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     {
                         hasher.Add("IndependentFingerprint", completeFingerprint.Hash);
                         hasher.AddOrderIndependentCollection(
-                            "DirectoryDependencies", 
+                            "DirectoryDependencyFingerprints", 
                             process.DirectoryDependencies, 
                             (fp, d) => fp.Add(d.Path, m_sealDirectoryFingerprintLookup(d).Hash), 
                             DirectoryComparer);
@@ -80,15 +81,33 @@ namespace BuildXL.Scheduler.Fingerprints
                 && sealDirectory.Kind == SealDirectoryKind.SharedOpaque 
                 && !sealDirectory.IsComposite)
             {
-                // For non-composite shared opaque directories, contents and composed directories are always empty, and therefore the static fingerprint 
-                // is not strong enough, i.e. multiple shared opaques can share the same directory root. So in this case we need to add the fingerprint of the producer
-                if (m_directoryProducerFingerprintLookup != null)
+                if (!sealDirectory.IsComposite)
                 {
-                    DirectoryArtifact directory = sealDirectory.Directory;
+                    // For non-composite shared opaque directories, contents and composed directories are always empty, and therefore the static fingerprint 
+                    // is not strong enough, i.e. multiple shared opaques can share the same directory root. So in this case we need to add the fingerprint of the producer
+                    if (m_directoryProducerFingerprintLookup != null)
+                    {
+                        DirectoryArtifact directory = sealDirectory.Directory;
+                        using (var hasher = CreateHashingHelper(true))
+                        {
+                            hasher.Add("IndependentFingerprint", completeFingerprint.Hash);
+                            hasher.Add(directory, m_directoryProducerFingerprintLookup(directory).Hash);
+                            completeFingerprint = new ContentFingerprint(hasher.GenerateHash());
+                            completeFingerprintText = FingerprintTextEnabled
+                                ? completeFingerprintText + Environment.NewLine + hasher.FingerprintInputText
+                                : completeFingerprintText;
+                        }
+                    }
+                }
+                else if (sealDirectory.ComposedDirectories != null)
+                {
                     using (var hasher = CreateHashingHelper(true))
                     {
                         hasher.Add("IndependentFingerprint", completeFingerprint.Hash);
-                        hasher.Add(directory, m_directoryProducerFingerprintLookup(directory).Hash);
+                        hasher.AddCollection<DirectoryArtifact, IReadOnlyList<DirectoryArtifact>>(
+                            "ComposedDirectoryFingerprints",
+                            sealDirectory.ComposedDirectories,
+                            (fp, d) => fp.Add(d.Path, m_sealDirectoryFingerprintLookup(d).Hash));
                         completeFingerprint = new ContentFingerprint(hasher.GenerateHash());
                         completeFingerprintText = FingerprintTextEnabled
                             ? completeFingerprintText + Environment.NewLine + hasher.FingerprintInputText

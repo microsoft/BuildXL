@@ -109,7 +109,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
                     }
-                });
+                },
+                extraStartMessage: $"SequencePoint=[{sequencePoint}]",
+                extraEndMessage: _ => $"SequencePoint=[{sequencePoint}]");
         }
 
         private async Task CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)

@@ -523,7 +523,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint].Increment();
                 ForceCacheFlush(context);
-                return context.PerformOperation(Tracer, () => SaveCheckpointCore(context, checkpointDirectory));
+                return context.PerformOperation(Tracer,
+                    () => SaveCheckpointCore(context, checkpointDirectory),
+                    extraStartMessage: $"CheckpointDirectory=[{checkpointDirectory}]",
+                    messageFactory: _ => $"CheckpointDirectory=[{checkpointDirectory}]");
             }
         }
 

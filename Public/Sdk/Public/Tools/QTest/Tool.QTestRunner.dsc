@@ -3,12 +3,13 @@
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
-const root = Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? d`${Environment.getFileValue("QTEST_DEPLOYMENT_PATH")}` : d`.`;
+const root = d`.`;
 const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
     ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
     : "None";
 
-const isChangeBasedCodeCoverage = Environment.getFlag("[Sdk.BuildXL]inputChangesPresented");
+// TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
+const isChangeBasedCodeCoverage = Environment.getFlag("[Sdk.BuildXL]inputChangesPresented") || Environment.getFlag("[Sdk.BuildXL.CBInternal]inputChangesPresented");
 
 
 @@public
@@ -126,6 +127,11 @@ export function runQTest(args: QTestArguments): Result {
         const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
         qTestContextInfoPath = qTestContextInfoFile.path;
     }
+    // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
+    else if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]qtestContextInfo")){
+        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo");
+        qTestContextInfoPath = qTestContextInfoFile.path;  
+    }
      
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
@@ -193,9 +199,6 @@ export function runQTest(args: QTestArguments): Result {
     ];          
 
     let unsafeOptions = {
-        untrackedPaths: [
-            qTestContextInfoPath,
-        ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.

@@ -2862,12 +2862,6 @@ namespace BuildXL.Engine
                                 Logger.Log.ErrorUnableToCacheGraphDistributedBuild(loggingContext);
                                 return ConstructScheduleResult.Failure;
                             }
-
-                            // Now that graph is saved, workers can be attached
-                            if (phase.HasFlag(EnginePhases.Execute))
-                            {
-                                m_masterService.EnableDistribution(engineSchedule);
-                            }
                         }
                     }
                 }
@@ -2894,6 +2888,12 @@ namespace BuildXL.Engine
                 if (TestHooks != null)
                 {
                     TestHooks.TempCleanerTempDirectory = m_tempCleaner.TempDirectory;
+                }
+
+                // Now that graph is constructed and saved, workers can be attached
+                if (phase.HasFlag(EnginePhases.Execute))
+                {
+                    m_masterService.EnableDistribution(engineSchedule);
                 }
 
                 if (!engineSchedule.PrepareForBuild(

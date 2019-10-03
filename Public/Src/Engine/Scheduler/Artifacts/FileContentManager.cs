@@ -94,6 +94,11 @@ namespace BuildXL.Scheduler.Artifacts
         public FileContentStats FileContentStats => m_stats;
 
         /// <summary>
+        /// Gets the file content manager host.
+        /// </summary>
+        public IFileContentManagerHost Host => m_host;
+
+        /// <summary>
         /// Dictionary of number of cache content hits by cache name.
         /// </summary>
         private readonly ConcurrentDictionary<string, int> m_cacheContentSource = new ConcurrentDictionary<string, int>();
@@ -261,7 +266,7 @@ namespace BuildXL.Scheduler.Artifacts
                 m_outputMaterializationExclusionMap.TryAdd(outputMaterializationExclusionRoot.Value, Unit.Void);
             }
 
-            SourceChangeAffectedContents = new SourceChangeAffectedContents(host.Context.PathTable, this);
+            SourceChangeAffectedContents = new SourceChangeAffectedContents(this);
         }
 
         /// <summary>
@@ -385,7 +390,7 @@ namespace BuildXL.Scheduler.Artifacts
                     }
                 }
 
-                return await TryHashArtifacts(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
+                return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
             }
         }
 
@@ -405,11 +410,11 @@ namespace BuildXL.Scheduler.Artifacts
                 // by consumers of the seal directory
                 MarkDirectoryMaterializations(state);
 
-                return await TryHashArtifacts(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
+                return await TryHashArtifactsAsync(operationContext, state, pip.ProcessAllowsUndeclaredSourceReads);
             }
         }
 
-        private async Task<Possible<Unit>> TryHashArtifacts(OperationContext operationContext, PipArtifactsState state, bool allowUndeclaredSourceReads)
+        private async Task<Possible<Unit>> TryHashArtifactsAsync(OperationContext operationContext, PipArtifactsState state, bool allowUndeclaredSourceReads)
         {
             var maybeReported = EnumerateAndReportDynamicOutputDirectories(state.PipArtifacts);
 

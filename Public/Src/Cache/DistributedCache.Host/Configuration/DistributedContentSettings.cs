@@ -192,10 +192,28 @@ namespace BuildXL.Cache.Host.Configuration
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
         /// <summary>
-        /// Indicates the window size for executing eviction.
+        /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
+        /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
+        /// to produce candidates.
         /// </summary>
         [DataMember]
         public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for before determining eviction order. The larger this is,
+        /// the slower and more resources eviction takes, but also the more accurate it becomes.
+        /// </summary>
+        /// <remarks>
+        /// Two pools are kept in memory at the same time, so we effectively keep double the amount of data in memory.
+        /// </remarks>
+        [DataMember]
+        public int EvictionPoolSize { get; set; } = 5000;
+
+        /// <summary>
+        /// Fraction of the pool considered trusted to be in the accurate order.
+        /// </summary>
+        [DataMember]
+        public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         private int[] _retryIntervalForCopiesMs =
             new int[]
@@ -275,7 +293,7 @@ namespace BuildXL.Cache.Host.Configuration
 
         #region Bandwidth Check
         [DataMember]
-        public bool IsBandwidthCheckEnabled { get; set; } = false;
+        public bool IsBandwidthCheckEnabled { get; set; } = true;
 
         [DataMember]
         public double? MinimumSpeedInMbPerSec { get; set; } = null;
@@ -370,7 +388,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool StoreClusterStateInDatabase { get; set; } = true;
 
         [DataMember]
-        public bool IsMachineReputationEnabled { get; set; } = false;
+        public bool IsMachineReputationEnabled { get; set; } = true;
 
         [DataMember]
         public bool? UseIncrementalCheckpointing { get; set; }
@@ -491,11 +509,11 @@ namespace BuildXL.Cache.Host.Configuration
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
         [DataMember]
-        public bool UseTrustedHash { get; set; } = false;
+        public bool UseTrustedHash { get; set; } = true;
 
         // Files smaller than this will use the untrusted hash
         [DataMember]
-        public int TrustedHashFileSizeBoundary = -1;
+        public int TrustedHashFileSizeBoundary = 100000;
 
         [DataMember]
         public long ParallelHashingFileSizeBoundary { get; set; } = -1;
@@ -507,7 +525,7 @@ namespace BuildXL.Cache.Host.Configuration
         public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
         [DataMember]
-        public bool EmptyFileHashShortcutEnabled { get; set; } = false;
+        public bool EmptyFileHashShortcutEnabled { get; set; } = true;
 
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;

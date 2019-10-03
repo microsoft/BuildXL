@@ -25,7 +25,7 @@ namespace Test.BuildXL.Processes
         public SandboxedProcessMacTest(ITestOutputHelper output)
             : base(output) { }
 
-        private class Connection : ISandboxConnection
+        private sealed class Connection : ISandboxConnection
         {
             public ulong MinReportQueueEnqueueTime { get; set; }
 
@@ -72,6 +72,7 @@ namespace Test.BuildXL.Processes
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
+            processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromSeconds(1);
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
@@ -94,6 +95,7 @@ namespace Test.BuildXL.Processes
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAndStuckRootProcessAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block());
+            processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromSeconds(1);
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
@@ -204,10 +206,7 @@ namespace Test.BuildXL.Processes
 
         private SandboxedProcessInfo CreateProcessInfoWithSandboxConnection(Operation op)
         {
-            var processInfo = ToProcessInfo(ToProcess(op));
-            processInfo.SandboxConnection = s_connection;
-
-            return processInfo;
+            return ToProcessInfo(ToProcess(op), sandboxConnection: s_connection);
         }
 
         private SandboxedProcessMac CreateAndStartSandboxedProcess(SandboxedProcessInfo info, bool? measureTime = null)

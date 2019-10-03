@@ -2451,7 +2451,7 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,
             Message =
-                "Static fingerprint of {pipDescription} is '{staticFingerprint}':\r\n{fingerprintText}.")]
+                "Static fingerprint of '{pipDescription}' is '{staticFingerprint}':\r\n{fingerprintText}.")]
         public abstract void PipStaticFingerprint(LoggingContext context, string pipDescription, string staticFingerprint, string fingerprintText);
 
         [GeneratedEvent(

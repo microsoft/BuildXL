@@ -19,6 +19,8 @@ public:
 
     int HandleVNodeCreateEvent(const char *fullPath, const bool isDir, const bool isSymlink);
 
+    int HandleVnodeWrite(vnode_t vnode);
+
     void HandleProcessWantsToFork(const pid_t parentProcessPid);
 
     void HandleProcessFork(const pid_t childProcessPid);

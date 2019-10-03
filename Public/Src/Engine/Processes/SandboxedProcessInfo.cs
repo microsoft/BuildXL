@@ -400,6 +400,11 @@ namespace BuildXL.Processes
         /// </summary>
         public string Provenance => $"[Pip{PipSemiStableHash:X16} -- {PipDescription}] ";
 
+        /// <summary>
+        /// Overrides <see cref="SandboxedProcessMac.ReportQueueProcessTimeout"/> when running tests
+        /// </summary>
+        public TimeSpan? ReportQueueProcessTimeoutForTests { get; internal set; }
+
         #region Serialization
 
         /// <nodoc />

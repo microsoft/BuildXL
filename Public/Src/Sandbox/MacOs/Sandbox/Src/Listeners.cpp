@@ -90,7 +90,6 @@ int Listeners::buildxl_vnode_listener(kauth_cred_t credential,
      * (1) KAUTH_VNODE_ACCESS bit is set (request is advisory rather than authoritative)
      * (2) none of the relevant bits are set
      */
-
     bool isVnodeAccess = HasAnyFlags(action, KAUTH_VNODE_ACCESS);
     bool hasRelevantVnodeBits = HasAnyFlags(action, RELEVANT_KAUTH_VNODE_BITS);
 
@@ -254,4 +253,18 @@ int Listeners::mpo_vnode_check_create(kauth_cred_t cred,
     }
 
     return KERN_SUCCESS;
+}
+
+int Listeners::mpo_vnode_check_write(kauth_cred_t active_cred,
+                                     kauth_cred_t file_cred,
+                                     struct vnode *vp,
+                                     struct label *label)
+{
+    TrustedBsdHandler handler = TrustedBsdHandler((BuildXLSandbox*)g_dispatcher);
+    if (!handler.TryInitializeWithTrackedProcess(proc_selfpid()))
+    {
+        return KERN_SUCCESS;
+    }
+
+    return handler.HandleVnodeWrite(vp);
 }

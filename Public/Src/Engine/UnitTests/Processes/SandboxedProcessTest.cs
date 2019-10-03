@@ -1047,11 +1047,10 @@ namespace Test.BuildXL.Processes
         public async Task StartFileDoesNotExist()
         {
             var pt = new PathTable();
-            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false)
+            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                SandboxConnection = GetSandboxConnection()
             };
 
             try
@@ -1122,7 +1121,7 @@ namespace Test.BuildXL.Processes
                 var pt = new PathTable();
                 var info =
                     // 'time' uses vfork on macOS
-                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -1131,7 +1130,6 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.PipId = GetNextPipId();
                 info.FileAccessManifest.ReportFileAccesses = true;
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
-                info.SandboxConnection = GetSandboxConnection();
 
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);

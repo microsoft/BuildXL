@@ -192,11 +192,11 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 if (allDirectories)
                                 {
-                                    sourceDirectoriesAllDirectories.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns));
+                                    sourceDirectoriesAllDirectories.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns, false));
                                 }
                                 else
                                 {
-                                    sourceDirectoriesTopDirectoryOnly.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns));
+                                    sourceDirectoriesTopDirectoryOnly.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns, true));
                                 }
                             }
                         }
@@ -242,7 +242,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             for (int j = 0; j < sourceDirectoriesAllDirectories.Count && !underSealedSource; j++)
                             {
                                 var sourceSealWithPatterns = sourceDirectoriesAllDirectories[j];
-                                if (sourceSealWithPatterns.Contains(pathTable, path, isTopDirectoryOnly: false))
+                                if (sourceSealWithPatterns.Contains(pathTable, path))
                                 {
                                     // Note the directories themselves are never part of the seal.
                                     underSealedSource = true;
@@ -390,7 +390,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                                 ObservedInputAccessCheckFailureAction accessCheckFailureResult = target.OnAccessCheckFailure(
                                     observation,
-                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnly: false)));
+                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
                                 HandleFailureResult(accessCheckFailureResult, ref status, ref invalid);
                                 continue;
                             }
@@ -412,7 +412,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 ObservedInputAccessCheckFailureAction accessCheckFailureResult = target.OnAccessCheckFailure(
                                     observation,
-                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnly: false)));
+                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
                                 HandleFailureResult(accessCheckFailureResult, ref status, ref invalid);
                                 continue;
                             }
@@ -657,7 +657,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                             if (!proposed.Path.IsValid)
                             {
-                                Contract.Assume(proposed.Path.IsValid, "Created an ObservedInput with an invalid path in ObservedInputProcessor line 675. Type:" + proposed.Type.ToString());
+                                Contract.Assume(proposed.Path.IsValid, "Created an ObservedInput with an invalid path in ObservedInputProcessor line 660. Type: " + proposed.Type.ToString());
                             }
 
                             switch (proposed.Type)
@@ -1131,7 +1131,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Action to perform on access check failure
         /// </summary>
         /// <param name="observation">the observation</param>
-        /// <param name="fromTopLevelDirectory">Whether the observation was nested deeploy under a source sealed directory
+        /// <param name="fromTopLevelDirectory">Whether the observation was nested deeply under a source sealed directory
         /// that is configured as a top only directory. This scenar ends up hitting the sealed directory codepath due
         /// the access being allowed but we want to report it differently.</param>
         ObservedInputAccessCheckFailureAction OnAccessCheckFailure(TObservation observation, bool fromTopLevelDirectory);

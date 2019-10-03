@@ -68,6 +68,30 @@ int TrustedBsdHandler::HandleVNodeCreateEvent(const char *fullPath,
     }
 }
 
+int TrustedBsdHandler::HandleVnodeWrite(vnode_t vnode)
+{
+    char path[MAXPATHLEN];
+    int len = MAXPATHLEN;
+    int err = vn_getpath(vnode, path, &len);
+    if (err)
+    {
+        log_error("Could not get VNnode path for write operation; error code: %#X", err);
+        return KERN_SUCCESS; // don't deny access because of our own error
+    }
+
+    // check write access
+    AccessCheckResult checkResult = CheckAndReport(kOpKAuthVNodeWrite, path, Checkers::CheckWrite, /*isDir*/ false);
+    if (checkResult.ShouldDenyAccess())
+    {
+        LogAccessDenied(path, 0, "Operation: Write");
+        return EPERM;
+    }
+    else
+    {
+        return KERN_SUCCESS;
+    }
+}
+
 // TODO: We could take advantage of knowing what's on critical path, and not slow down those processes
 //       This information could be conveyed via the FileAccessManifest
 void TrustedBsdHandler::HandleProcessWantsToFork(const pid_t parentProcessPid)

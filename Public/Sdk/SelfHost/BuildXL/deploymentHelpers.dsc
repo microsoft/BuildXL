@@ -86,7 +86,7 @@ namespace DeploymentHelpers {
             const filesResult = runner.addFilesToDrop(createResult, args, filesToAdd);
 
             // Add all Opaque directories via a batch call.
-            const directoriesToAdd = flattenedResult.flattenedOpaques.forEach(kvp => <DirectoryInfo>{dropPath: kvp[0], directory: kvp[1]});
+            const directoriesToAdd = flattenedResult.flattenedOpaques.forEach(kvp => <DirectoryInfo>{dropPath: kvp[0], directory: kvp[1].opaque});
             const directoryResults = runner.addDirectoriesToDrop(createResult, args, directoriesToAdd);
         };
     }

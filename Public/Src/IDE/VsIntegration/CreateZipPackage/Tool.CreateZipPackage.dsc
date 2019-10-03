@@ -36,6 +36,7 @@ namespace Tool.CreateZipPackage {
         outputFileName: string;
         useUriEncoding?: boolean;
         fixUnixPermissions?: boolean;
+        additionalDependencies?: Transformer.InputArtifact[];
     }
 
     @@public
@@ -52,7 +53,12 @@ namespace Tool.CreateZipPackage {
 
         const tool = CreateZipPackage.withQualifier(BuildXLSdk.TargetFrameworks.currentMachineQualifier).deployed;
 
-        const result = Transformer.execute({tool: tool, workingDirectory: wd, arguments: cmdLineArguments});
+        const result = Transformer.execute({
+            tool: tool, 
+            workingDirectory: wd, 
+            arguments: cmdLineArguments,
+            dependencies: args.additionalDependencies
+        });
 
         return result.getOutputFile(outFile);
     }

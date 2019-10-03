@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips.Operations;
@@ -57,6 +58,7 @@ namespace BuildXL.Scheduler.Fingerprints
         private readonly Comparer<DirectoryArtifact> m_directoryComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
         private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
+        private static readonly string s_untrackedExecutable = "<UNTRACKED_EXECUTABLE>";
 
         /// <summary>
         /// The tokenizer used to handle path roots
@@ -244,7 +246,15 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         protected virtual void AddWeakFingerprint(IFingerprinter fingerprinter, Process process)
         {
-            AddFileDependency(fingerprinter, "Executable", process.Executable);
+            if (process.UntrackedPaths.Contains(process.Executable.Path))       // Check if executable is untracked
+            {
+                // Donot record executable in weak fingerprint if executable is untracked
+                fingerprinter.Add("Executable", s_untrackedExecutable);
+            }
+            else {
+                AddFileDependency(fingerprinter, "Executable", process.Executable);
+            }
+
             fingerprinter.Add("WorkingDirectory", process.WorkingDirectory);
 
             if (process.StandardInput.IsData)

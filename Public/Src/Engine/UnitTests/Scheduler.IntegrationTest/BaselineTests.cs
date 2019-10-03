@@ -1318,7 +1318,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             };
 
             var builder = CreatePipBuilder(ops);
-            builder.RequireCbDependencies = true;
+            builder.RequireGlobalDependencies = true;
             var process = SchedulePipBuilder(builder).Process;
 
             RunScheduler().AssertSuccess();

@@ -364,7 +364,7 @@ namespace BuildXL.Pips.Operations
         /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public bool RequireCbDependencies { get; }
+        public bool RequireGlobalDependencies { get; }
 
 
         /// <summary>
@@ -415,7 +415,7 @@ namespace BuildXL.Pips.Operations
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
             FileArtifact changeAffectedInputListWrittenFilePath = default,
-            bool requireCbDependencies = false)
+            bool requireGlobalDependencies = false)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -518,7 +518,7 @@ namespace BuildXL.Pips.Operations
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
             ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
-            RequireCbDependencies = requireCbDependencies;
+            RequireGlobalDependencies = requireGlobalDependencies;
 
             if (PreserveOutputWhitelist.Length != 0)
             {
@@ -576,7 +576,7 @@ namespace BuildXL.Pips.Operations
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
             FileArtifact? changeAffectedInputListWrittenFilePath = default,
-            bool requireCbDependencies = false)
+            bool requireGlobalDependencies = false)
         {
             return new Process(
                 executable ?? Executable,
@@ -623,7 +623,7 @@ namespace BuildXL.Pips.Operations
                 priority,
                 preserveOutputWhitelist ?? PreserveOutputWhitelist,
                 changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
-                requireCbDependencies);
+                requireGlobalDependencies);
         }
 
         /// <inheritdoc />

@@ -135,7 +135,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_toolDependsOnAppDataDirectory;
         private SymbolAtom m_toolPrepareTempDirectory;
         private SymbolAtom m_toolDescription;
-        private SymbolAtom m_toolRequireCbDependencies;
         private SymbolAtom m_weight;
         private SymbolAtom m_changeAffectedInputListWrittenFile;
 
@@ -168,6 +167,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
         private SymbolAtom m_unsafePreserveOutputWhitelist;
         private SymbolAtom m_unsafeIncrementalTool;
+        private SymbolAtom m_unsafeRequireGlobalDependencies;
 
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
@@ -281,7 +281,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_toolTimeoutInMilliseconds = Symbol("timeoutInMilliseconds");
             m_toolWarningTimeoutInMilliseconds = Symbol("warningTimeoutInMilliseconds");
             m_toolDescription = Symbol("description");
-            m_toolRequireCbDependencies = Symbol("requireCbDependencies");
 
             // Runtime environment.
             m_runtimeEnvironmentMinimumOSVersion = Symbol("minimumOSVersion");
@@ -318,6 +317,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
             m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
             m_unsafeIncrementalTool = Symbol("incrementalTool");
+            m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -481,10 +481,10 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 processBuilder.Priority = priority.Value;
             }
 
-            var requireCbDependencies = Converter.ExtractOptionalBoolean(obj, m_toolRequireCbDependencies);
-            if (requireCbDependencies != null)
+            var requireGlobalDependencies = Converter.ExtractOptionalBoolean(obj, m_unsafeRequireGlobalDependencies);
+            if (requireGlobalDependencies != null)
             {
-                processBuilder.RequireCbDependencies = requireCbDependencies.Value;
+                processBuilder.RequireGlobalDependencies = requireGlobalDependencies.Value;
             }
 
             // Acquired semaphores.

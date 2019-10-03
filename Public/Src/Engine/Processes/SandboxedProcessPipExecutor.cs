@@ -711,7 +711,7 @@ namespace BuildXL.Processes
             try
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
-                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_pip.RequireCbDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
+                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_pip.RequireGlobalDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
 
                 if (!PrepareWorkingDirectory())
                 {
@@ -1752,7 +1752,7 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration
-            if (m_pip.RequireCbDependencies)
+            if (m_pip.RequireGlobalDependencies)
             {
                 foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
                 {

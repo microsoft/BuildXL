@@ -200,7 +200,8 @@ export function runQTest(args: QTestArguments): Result {
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.
             d`${sandboxDir.pathRoot}/$Recycle.Bin`,
-        ]
+        ],
+        requireGlobalDependencies: true,
     };
 
     let result = Transformer.execute(
@@ -231,7 +232,6 @@ export function runQTest(args: QTestArguments): Result {
             ],
             unsafe: unsafeOptions,
             retryExitCodes: [2],
-            requireCbDependencies: true,
         },
         changeAffectedInputListWrittenFileArg
     ));
@@ -265,7 +265,6 @@ export function runQTest(args: QTestArguments): Result {
             privilegeLevel: args.privilegeLevel,
             unsafe: unsafeOptions,
             retryExitCodes: [2],
-            requireCbDependencies: true,
         });
     }
 

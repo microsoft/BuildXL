@@ -132,8 +132,8 @@ export function install(args: Arguments) : Result {
                             d`${Context.getMount("LocalAppData").path}/yarn`,
                         ]),
                     ],
+                    requireCbDependencies: true,
                 },
-                requireCbDependencies: true,
             },
             credentialProviderArguments
         )

@@ -64,7 +64,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// A macOS kernel extension connection.
         /// </summary>
-        public ISandboxConnection SandboxConnection { get; private set; }
+        public ISandboxConnection SandboxConnection;
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container

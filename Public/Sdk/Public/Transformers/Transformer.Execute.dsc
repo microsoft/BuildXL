@@ -208,7 +208,7 @@ namespace Transformer {
         /**
          * File to write the change affected input list of the pip before it execute.
          */
-        changeAffectedInputListWrittenFile?: Path;        
+        changeAffectedInputListWrittenFile?: Path;
     }
 
     @@public

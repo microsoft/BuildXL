@@ -93,6 +93,19 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void ProcessIndependentStaticFingerprinting()
+        {
+            var staticFingerprintingTypeDescriptors = CreateTypeDescriptors(m_context.PathTable, FingerprinterTestKind.Static, independentFingerprint: true);
+
+            VerifySinglePropertyVariationsAreCollisionFree<Process>(
+                m_context.PathTable,
+                staticFingerprintingTypeDescriptors,
+                CreateProcessPipVariant,
+                CreateIndependentStaticFingerprinter,
+                (fingerprinter, pip) => fingerprinter.ComputeWeakFingerprint(pip));
+        }
+
+        [Fact]
         public void ProcessFingerprintingOrderIndependent()
         {
             var pathTable = m_context.PathTable;
@@ -859,9 +872,13 @@ namespace Test.BuildXL.Scheduler
         /// including by constructing various arrays of test values. All types for properties that are varied
         /// must have a corresponding descriptor.
         /// </summary>
-        private static IFingerprintingTypeDescriptor[] CreateTypeDescriptors(PathTable pathTable, FingerprinterTestKind fingerprinterTestKind)
+        private static IFingerprintingTypeDescriptor[] CreateTypeDescriptors(
+            PathTable pathTable, 
+            FingerprinterTestKind fingerprinterTestKind,
+            bool independentFingerprint = false)
         {
             Contract.Requires(pathTable != null);
+            Contract.Requires(!independentFingerprint || fingerprinterTestKind == FingerprinterTestKind.Static);
 
             var paths = new[]
                         {
@@ -894,7 +911,11 @@ namespace Test.BuildXL.Scheduler
                        new FingerprintingTypeDescriptor<AbsolutePath>(AbsolutePath.Invalid, paths),
                        new FingerprintingTypeDescriptor<DirectoryArtifact>(
                            DirectoryArtifact.Invalid,
-                           role => GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses(pathTable, paths, role, fingerprinterTestKind).SelectMany(mutex => mutex)),
+                           role => 
+                               (independentFingerprint 
+                                ? GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClassesForIndependentFingerprint(pathTable, paths, role, fingerprinterTestKind)
+                                : GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses(pathTable, paths, role, fingerprinterTestKind))
+                               .SelectMany(mutex => mutex)),
                        new FingerprintingTypeDescriptor<FileArtifact>(
                            FileArtifact.Invalid,
                            role => GenerateMutuallyExclusiveFileArtifactEquivalenceClasses(pathTable, paths, role, fingerprinterTestKind).SelectMany(mutex => mutex)),
@@ -945,11 +966,17 @@ namespace Test.BuildXL.Scheduler
                            ReadOnlyArray<DirectoryArtifact>.Empty,
                            role => GenerateArrayVariants<DirectoryArtifact>(
                                role,
-                               GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses(
-                                   pathTable, 
-                                   paths, 
-                                   role, 
-                                   fingerprinterTestKind).ToArray()).Select(ec => ec.Cast<ReadOnlyArray<DirectoryArtifact>>())),
+                               (independentFingerprint
+                                ? GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClassesForIndependentFingerprint(
+                                    pathTable,
+                                    paths,
+                                    role,
+                                    fingerprinterTestKind)
+                                : GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses(
+                                    pathTable, 
+                                    paths, 
+                                    role, 
+                                    fingerprinterTestKind)).ToArray()).Select(ec => ec.Cast<ReadOnlyArray<DirectoryArtifact>>())),
                        new FingerprintingTypeDescriptor<DoubleWritePolicy>(DoubleWritePolicy.DoubleWritesAreErrors, DoubleWritePolicy.UnsafeFirstDoubleWriteWins),
                        new FingerprintingTypeDescriptor<ContainerIsolationLevel>(
                            ContainerIsolationLevel.None, 
@@ -1110,59 +1137,61 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        //private static IEnumerable<EquivalenceClass<DirectoryArtifact>[]> GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses2(
-        //    PathTable pathTable,
-        //    AbsolutePath[] paths,
-        //    FingerprintingRole role,
-        //    FingerprinterTestKind fingerprinterTestKind)
-        //{
-        //    if (role == FingerprintingRole.None)
-        //    {
-        //        // If a directory artifact is not significant for fingerprinting there's a single equivalence class for all paths, 
-        //        // even given differing fingperprints.
+        private static IEnumerable<EquivalenceClass<DirectoryArtifact>[]> GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClassesForIndependentFingerprint(
+            PathTable pathTable,
+            AbsolutePath[] paths,
+            FingerprintingRole role,
+            FingerprinterTestKind fingerprinterTestKind)
+        {
+            Contract.Requires(fingerprinterTestKind == FingerprinterTestKind.Static);
 
-        //        var classes = new List<EquivalenceClass<DirectoryArtifact>>();
+            if (role == FingerprintingRole.None)
+            {
+                // If a directory artifact is not significant for fingerprinting there's a single equivalence class for all paths, 
+                // even given differing fingperprints.
 
-        //        foreach (AbsolutePath p in paths)
-        //        {
-        //            var artifact0 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 0);
-        //            var artifact1 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 1);
-        //            var fp0 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f0]"));
-        //            var fp1 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f1]"));
+                var classes = new List<EquivalenceClass<DirectoryArtifact>>();
 
-        //            classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact0));
-        //            classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact0, new ContentFingerprint(fp0)));
-        //            classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact1));
-        //            classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact1, new ContentFingerprint(fp1)));
-        //        }
+                foreach (AbsolutePath p in paths)
+                {
+                    var artifact0 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 0);
+                    var artifact1 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 1);
+                    var fp0 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f0]"));
+                    var fp1 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f1]"));
 
-        //        yield return new[] { EquivalenceClass<DirectoryArtifact>.Combine(classes.ToArray()) };
-        //    }
-        //    else
-        //    {
-        //        // For semantic / content fingerprinting roles, distinct paths are always in separate equivalence classes 
-        //        // (and those classes are not mutually exclusive).
+                    classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact0));
+                    classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact0, new ContentFingerprint(fp0)));
+                    classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact1));
+                    classes.Add(EquivalenceClass<FileArtifact>.FromDirectoryArtifact(artifact1, new ContentFingerprint(fp1)));
+                }
 
-        //        foreach (AbsolutePath p in paths)
-        //        {
-        //            var artifact0 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 0);
-        //            var artifact1 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 1);
-        //            var fp0 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f0]"));
-        //            var fp1 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f1]"));
+                yield return new[] { EquivalenceClass<DirectoryArtifact>.Combine(classes.ToArray()) };
+            }
+            else
+            {
+                // For semantic / content fingerprinting roles, distinct paths are always in separate equivalence classes 
+                // (and those classes are not mutually exclusive).
 
-        //            // The path of the directory artifact matters but not the corresponding members. Thus,
-        //            // changing the members of a directory does not result in a new equivalence class.
-        //            yield return new[]
-        //                {
-        //                    EquivalenceClass<DirectoryArtifact>.Combine(
-        //                       EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact0),
-        //                       EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact0, new ContentFingerprint(fp0)),
-        //                       EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact1),
-        //                       EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact1, new ContentFingerprint(fp1)))
-        //                };
-        //        }
-        //    }
-        //}
+                foreach (AbsolutePath p in paths)
+                {
+                    var artifact0 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 0);
+                    var artifact1 = DirectoryArtifact.CreateDirectoryArtifactForTesting(p, 1);
+                    var fp0 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f0]"));
+                    var fp1 = FingerprintUtilities.Hash(I($"{p.ToString(pathTable)}: [{p.ToString(pathTable)}/f1]"));
+
+                    // The path of the directory artifact matters but not the corresponding members. Thus,
+                    // changing the members of a directory does not result in a new equivalence class.
+                    yield return new[]
+                        {
+                            EquivalenceClass<DirectoryArtifact>.Combine(
+                               EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact0),
+                               EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact0, new ContentFingerprint(fp0)),
+                               EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact1),
+                               EquivalenceClass<DirectoryArtifact>.FromDirectoryArtifact(artifact1, new ContentFingerprint(fp1)))
+                        };
+                }
+            }
+        }
 
         private PipFingerprinter CreateDefaultContentFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip
         {
@@ -1177,6 +1206,14 @@ namespace Test.BuildXL.Scheduler
                     m_context.PathTable,
                     variation.LookupDirectoryFingerprint,
                     variation.LookupDirectoryFingerprint);
+        }
+
+        private PipFingerprinter CreateIndependentStaticFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip
+        {
+            return new PipStaticFingerprinter(
+                    m_context.PathTable,
+                    null,
+                    null);
         }
 
         private PipFingerprinter CreateSealDirectoryStaticFingerprinter<TPip>(VariationSource<TPip> variation) where TPip : Pip

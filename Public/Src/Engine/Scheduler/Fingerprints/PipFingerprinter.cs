@@ -246,12 +246,14 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         protected virtual void AddWeakFingerprint(IFingerprinter fingerprinter, Process process)
         {
-            if (process.UntrackedPaths.Contains(process.Executable.Path))       // Check if executable is untracked
+            if (process.UntrackedPaths.Contains(process.Executable.Path) ||
+                process.UntrackedScopes.Any(scope => process.Executable.Path.IsWithin(m_pathTable, scope)))
             {
-                // Donot record executable in weak fingerprint if executable is untracked
+                // Don't record executable in weak fingerprint if executable is untracked
                 fingerprinter.Add("Executable", s_untrackedExecutable);
             }
-            else {
+            else
+            {
                 AddFileDependency(fingerprinter, "Executable", process.Executable);
             }
 

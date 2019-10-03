@@ -2891,7 +2891,7 @@ namespace BuildXL.Engine
                 }
 
                 // Now that graph is constructed and saved, workers can be attached
-                if (phase.HasFlag(EnginePhases.Execute))
+                if (IsDistributedMaster && phase.HasFlag(EnginePhases.Execute))
                 {
                     m_masterService.EnableDistribution(engineSchedule);
                 }

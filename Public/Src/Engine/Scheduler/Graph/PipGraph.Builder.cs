@@ -2904,19 +2904,9 @@ namespace BuildXL.Scheduler.Graph
 
                 string fingerprintText = null;
 
-                ContentFingerprint fingerprint;
-                if (m_pipStaticFingerprinter.FingerprintTextEnabled)
-                {
-                    fingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip, out fingerprintText);
-                }
-                else if (pip.StaticFingerprint.Length > 0)
-                {
-                    fingerprint = new ContentFingerprint(pip.StaticFingerprint);
-                }
-                else
-                {
-                    fingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip);
-                }
+                ContentFingerprint fingerprint = m_pipStaticFingerprinter.FingerprintTextEnabled
+                    ? m_pipStaticFingerprinter.ComputeWeakFingerprint(pip, out fingerprintText)
+                    : m_pipStaticFingerprinter.ComputeWeakFingerprint(pip);
 
                 m_pipStaticFingerprints.AddFingerprint(pip, fingerprint);
 

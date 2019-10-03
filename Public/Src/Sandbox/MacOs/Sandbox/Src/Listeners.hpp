@@ -92,6 +92,12 @@ public:
     static int mpo_vnode_check_readlink(kauth_cred_t cred,
                                         struct vnode *vp,
                                         struct label *label);
+
+
+    static int mpo_vnode_check_write(kauth_cred_t active_cred,
+                                     kauth_cred_t file_cred,
+                                     struct vnode *vp,
+                                     struct label *label);
 };
 
 #endif /* Listeners_hpp */

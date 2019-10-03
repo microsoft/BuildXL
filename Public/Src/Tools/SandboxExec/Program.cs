@@ -374,9 +374,8 @@ namespace BuildXL.SandboxExec
         /// <returns>SandboxedProcessInfo object that is configured to explicitly report all observed file accesses</returns>
         public static SandboxedProcessInfo CreateSandboxedProcessInfo(string processFileName, SandboxExecRunner instance)
         {
-            var sandboxProcessInfo = new SandboxedProcessInfo(fileStorage: instance, fileName: processFileName, disableConHostSharing: true);
+            var sandboxProcessInfo = new SandboxedProcessInfo(fileStorage: instance, fileName: processFileName, disableConHostSharing: true, sandboxConnection: instance.m_sandboxConnection);
             sandboxProcessInfo.PipDescription = processFileName;
-            sandboxProcessInfo.SandboxConnection = instance.m_sandboxConnection;
 
             sandboxProcessInfo.StandardOutputEncoding = Encoding.UTF8;
             sandboxProcessInfo.StandardOutputObserver = PrintToStdout;

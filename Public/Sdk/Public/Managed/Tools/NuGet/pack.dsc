@@ -204,10 +204,10 @@ function createNuSpecFile(
     // Process the flattened opaque directories
     for (let opaque of flattened.flattenedOpaques.toArray())
     {
-        dependencies = dependencies.push(opaque[1]);
+        dependencies = dependencies.push(opaque[1].opaque);
         fileElements = fileElements.push(
             Xml.elem("file",
-                Xml.attr("src", [opaque[1].path, "\\**"]),
+                Xml.attr("src", [opaque[1].opaque.path, "\\**"]),
                 Xml.attr("target", opaque[0])
             )
         );

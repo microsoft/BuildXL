@@ -1,22 +1,46 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import {Transformer} from "Sdk.Transformers";
+import {Artifact, Transformer} from "Sdk.Transformers";
 import * as ManagedSdk from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import * as Transformers from "Sdk.Transformers";
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Branding from "BuildXL.Branding";
 import * as VSIntegration from "BuildXL.Ide.VsIntegration";
+import {Node, Npm} from "Sdk.NodeJs";
+
+namespace VsCode.Client {
+    // A new namespace with empty qualifier space to ensure the values inside are evaluated only once
+    export declare const qualifier: {};
+
+    const clientSealDir = Transformer.sealDirectory(d`client`, globR(d`client`));
+
+    const clientCopy: OpaqueDirectory = Deployment.copyDirectory(clientSealDir.root, Context.getNewOutputDirectory("client-copy"), clientSealDir);
+
+    @public
+    export const installRootDir: OpaqueDirectory = Npm.npmInstall(clientCopy);
+
+    @@public
+    export const compileOutDir: OpaqueDirectory = Node.tscCompile(clientCopy.root, [clientCopy, installRootDir]);
+
+    @@public
+    export const deployedNpmPackageLockFile = Deployment.copyFileFromOpaqueDirectory(
+        // Here we want to copy a file from inside an opaque output directory. 
+        // If done using Transformer.copyFile we would have no way of specifying a dependency 
+        // of that copy pip to the pip producing this opaque directory, so we wouldn't be able to
+        // ensure that the copy operation runs after the opaque directory is produced.
+        p`${installRootDir}/package-lock.json`,
+        p`${Context.getMount("CgNpmRoot").path}/package-lock.json`,
+        installRootDir);
+}
 
 namespace LanguageService.Server {
-
     /**
      * Builds a VSIX for given version that packages the server assembly (with closure of its references)
      * as well as client resources
      */
     export function buildVsix(serverAssembly: ManagedSdk.Assembly) : DerivedFile {
-
         const vsixDeploymentDefinition = buildVsixDeploymentDefinition(serverAssembly);
 
         // Special "scrubbable" mount should be use for deploying vsix package content.
@@ -34,7 +58,8 @@ namespace LanguageService.Server {
             outputFileName: `BuildXL.vscode.${qualifier.targetRuntime}.vsix`,
             inputDirectory: vsixDeployment.contents,
             useUriEncoding: true,
-            fixUnixPermissions: qualifier.targetRuntime === "osx-x64"
+            fixUnixPermissions: qualifier.targetRuntime === "osx-x64",
+            additionalDependencies: vsixDeployment.targetOpaques
         });
 
         return vsix;
@@ -48,7 +73,6 @@ namespace LanguageService.Server {
      * means that any change to client/src/extension.ts needs to be recompiled and the checked-in file updated.
      */
     export function buildVsixDeploymentDefinition(serverAssembly: ManagedSdk.Assembly) : Deployment.Definition {
-
         // We have to publish the vsix to the Visual Studio MarketPlace which doesn't handle prerelease tags. 
         let version = Branding.versionNumberForToolsThatDontSupportPreReleaseTag;
         let manifest = IDE.VersionUtilities.updateVersion(version, f`pluginTemplate/extension.vsixmanifest`);
@@ -89,23 +113,24 @@ namespace LanguageService.Server {
                             subfolder: a`projectManagement`,
                             contents: globR(d`client/projectManagement`)
                         },
+                        {
+                            subfolder: a`node_modules`,
+                            contents: [ Deployment.createDeployableOpaqueSubDirectory(VsCode.Client.installRootDir, r`node_modules`) ]
+                        },
+                        {
+                            subfolder: a`out`,
+                            contents: [ VsCode.Client.compileOutDir ]
+                        },
                         f`client/License.txt`,
                         f`client/package.nls.json`,
                         readme,
                         f`client/ThirdPartyNotices.txt`,
                         Branding.pngFile,
                         json,
-
-                        // This contains the actual extension source as well as the
-                        // node_modules that it depends on.
-                        Transformer.sealDirectory({
-                            root: d`pluginTemplate/extension`, 
-                            files: globR(d`pluginTemplate/extension`)
-                        }),
                     ]
                 },
                 f`pluginTemplate/[Content_Types].xml`,
-                manifest
+                manifest,
             ]
         };
 

@@ -77,9 +77,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
         /// <summary>
-        /// Indicates the window size for executing eviction.
+        /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
+        /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
+        /// to produce candidates.
         /// </summary>
         public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for before determining eviction order. The larger this is,
+        /// the slower and more resources eviction takes, but also the more accurate it becomes.
+        /// </summary>
+        /// <remarks>
+        /// Two pools are kept in memory at the same time, so we effectively keep double the amount of data in memory.
+        /// </remarks>
+        public int EvictionPoolSize { get; set; } = 5000;
+
+        /// <summary>
+        /// Fraction of the pool considered trusted to be in the accurate order.
+        /// </summary>
+        /// <remarks>
+        /// Estimated by looking into the percentage of files we remove of the total content store. Means we remove
+        /// at most 76 entries per iteration when we stabilize.
+        /// </remarks>
+        public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         /// <summary>
         /// Returns true if Redis can be used for storing small files.

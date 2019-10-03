@@ -141,7 +141,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// Whether to use old (original) implementation of QuotaKeeper or to use the new one.
         /// </summary>
         [DataMember]
-        public bool UseLegacyQuotaKeeperImplementation { get; set; } = true;
+        public bool UseLegacyQuotaKeeperImplementation { get; set; } = false;
 
         /// <summary>
         /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
@@ -160,6 +160,9 @@ namespace BuildXL.Cache.Host.Configuration
         /// </summary>
         [DataMember]
         public int SelfCheckFrequencyInMinutes { get; set; } = (int)TimeSpan.FromDays(1).TotalMinutes;
+
+        [DataMember]
+        public int? SelfCheckProgressReportingIntervalInMinutes { get; set; }
 
         /// <summary>
         /// An epoch used for reseting self check of a content directory.
@@ -201,10 +204,28 @@ namespace BuildXL.Cache.Host.Configuration
         public long MaxBlobCapacity { get; set; } = 1024 * 1024 * 1024;
 
         /// <summary>
-        /// Indicates the window size for executing eviction.
+        /// Amount of entries to compute evictability metric for in a single pass. The larger this is, the faster the
+        /// candidate pool fills up, but also the slower it is to produce a candidate. Helps control how fast we need
+        /// to produce candidates.
         /// </summary>
         [DataMember]
         public int EvictionWindowSize { get; set; } = 500;
+
+        /// <summary>
+        /// Amount of entries to compute evictability metric for before determining eviction order. The larger this is,
+        /// the slower and more resources eviction takes, but also the more accurate it becomes.
+        /// </summary>
+        /// <remarks>
+        /// Two pools are kept in memory at the same time, so we effectively keep double the amount of data in memory.
+        /// </remarks>
+        [DataMember]
+        public int EvictionPoolSize { get; set; } = 5000;
+
+        /// <summary>
+        /// Fraction of the pool considered trusted to be in the accurate order.
+        /// </summary>
+        [DataMember]
+        public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         private int[] _retryIntervalForCopiesMs =
             new int[]
@@ -291,6 +312,15 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int BandwidthCheckIntervalSeconds { get; set; } = 60;
+
+        [DataMember]
+        public double MaxBandwidthLimit { get; set; } = double.MaxValue;
+
+        [DataMember]
+        public double BandwidthLimitMultiplier { get; set; } = 1;
+
+        [DataMember]
+        public int HistoricalBandwidthRecordsStored { get; set; } = 64;
         #endregion
 
         #region Pin Better
@@ -356,8 +386,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool IsRedisGarbageCollectionEnabled { get; set; } = false;
 
+        /// <summary>
+        /// Disabling reconciliation is an unsafe option that can cause builds to fail because the machine's state can be off compared to the LLS's state.
+        /// Please do not set this property for long period of time. 
+        /// </summary>
         [DataMember]
-        public bool? IsReconciliationEnabled { get; set; }
+        public bool Unsafe_DisableReconciliation { get; set; } = false;
 
         [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
@@ -520,6 +554,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = false;
 
+        [DataMember]
+        public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
+
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
         /// </summary>
@@ -566,13 +603,6 @@ namespace BuildXL.Cache.Host.Configuration
 
             return new RedisContentSecretNames(
                 ConnectionSecretNameMap.Single(kvp => Regex.IsMatch(stampId, kvp.Key, RegexOptions.IgnoreCase)).Value);
-        }
-
-        public Tuple<double?, int> GetBandwidthCheckSettings()
-        {
-            return IsDistributedContentEnabled && IsBandwidthCheckEnabled
-                ? Tuple.Create(MinimumSpeedInMbPerSec, BandwidthCheckIntervalSeconds)
-                : null;
         }
 
         public IReadOnlyDictionary<string, string> GetAutopilotAlternateDriveMap()

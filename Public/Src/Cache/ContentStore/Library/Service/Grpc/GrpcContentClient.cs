@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             string scenario,
             TimeSpan? heartbeatInterval = null,
             Capabilities capabilities = Capabilities.ContentOnly)
-            : this(tracer, fileSystem, new ServiceClientRpcConfiguration(grpcPort,heartbeatInterval), scenario, capabilities)
+            : this(tracer, fileSystem, new ServiceClientRpcConfiguration(grpcPort, heartbeatInterval), scenario, capabilities)
         {
             GrpcEnvironment.InitializeIfNeeded();
             Client = new ContentServer.ContentServerClient(Channel);

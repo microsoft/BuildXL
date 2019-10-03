@@ -116,13 +116,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Estimated decay time for content re-use.
         /// </summary>
-        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        /// <remarks><para>This is used in the optimal distributed eviction algorithm.</para></remarks>
         public TimeSpan ContentLifetime { get; set; } = TimeSpan.FromDays(0.5);
 
         /// <summary>
         /// Estimated chance of a content not being available on a machine in the distributed pool.
         /// </summary>
-        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        /// <remarks><para>This is used in the optimal distributed eviction algorithm.</para></remarks>
         public double MachineRisk { get; set; } = 0.1;
 
         /// <summary>
@@ -144,6 +144,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Indicates whether content is reconciled between local machine and local db once a checkpoint is restored.
         /// </summary>
+        /// <remarks>
+        /// Reconciliation is a very critical feature and disabling it can cause build failures because machine's state can be out of sync with LLS's data.
+        /// </remarks>
         public bool EnableReconciliation { get; set; } = true;
 
         /// <summary>

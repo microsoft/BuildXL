@@ -44,8 +44,9 @@ namespace BuildXL
             Events eventSource,
             IConsole console,
             DateTime baseTime,
-            BuildViewModel buildViewModel)
-            : base(eventSource, baseTime, warningMapper: null, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds)
+            BuildViewModel buildViewModel,
+            bool useCustomPipDescription)
+            : base(eventSource, baseTime, warningMapper: null, level: EventLevel.Verbose, captureAllDiagnosticMessages: false, timeDisplay: TimeDisplay.Seconds, useCustomPipDescription: useCustomPipDescription)
         {
             Contract.Requires(console != null);
             Contract.Requires(buildViewModel != null);
@@ -202,10 +203,15 @@ namespace BuildXL
             // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
             body = string.Format(CultureInfo.CurrentCulture, message, args);
 
+            // process pip description for PipProcessError event
+            if (eventData.EventId == (int)EventId.PipProcessError)
+            {
+                ProcessCustomPipDescription(ref body, UseCustomPipDescription);
+            }
+
             builder.Append(";]");
 
             // substitute newlines in the message
-
             var encodedBody = body.Replace("\r", "%0D").Replace("\n", "%0A");
             builder.Append(encodedBody);
 

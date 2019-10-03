@@ -88,6 +88,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _cacheFlushTimerLock = new object();
 
+        /// <summary>
+        /// Event callback that's triggered when the database is permanently invalidated. 
+        /// </summary>
+        public Action<OperationContext, Failure<Exception>> DatabaseInvalidated;
+
+        /// <nodoc />
+        protected void OnDatabaseInvalidated(OperationContext context, Failure<Exception> failure)
+        {
+            Contract.Requires(failure != null);
+
+            // Notice that no update to the internal state is required when invalidation happens. By definition,
+            // nothing can be done to this instance after invalidation: all incoming and ongoing operations should fail
+            // (because it is triggered by RocksDb). The only way to resume operation is to reload from a checkpoint,
+            // which resets the internal state correctly.
+            DatabaseInvalidated?.Invoke(context, failure);
+        }
+
         /// <nodoc />
         protected ContentLocationDatabase(IClock clock, ContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
         {
@@ -506,7 +523,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 Counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint].Increment();
                 ForceCacheFlush(context);
-                return context.PerformOperation(Tracer, () => SaveCheckpointCore(context, checkpointDirectory));
+                return context.PerformOperation(Tracer,
+                    () => SaveCheckpointCore(context, checkpointDirectory),
+                    extraStartMessage: $"CheckpointDirectory=[{checkpointDirectory}]",
+                    messageFactory: _ => $"CheckpointDirectory=[{checkpointDirectory}]");
             }
         }
 
@@ -518,7 +538,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.RestoreCheckpoint].Start())
             {
-                return context.PerformOperation(Tracer, () => RestoreCheckpointCore(context, checkpointDirectory));
+                return context.PerformOperation(Tracer,
+                    () => RestoreCheckpointCore(context, checkpointDirectory),
+                    extraStartMessage: $"CheckpointDirectory=[{checkpointDirectory}]",
+                    messageFactory: _ => $"CheckpointDirectory=[{checkpointDirectory}]");
             }
         }
 

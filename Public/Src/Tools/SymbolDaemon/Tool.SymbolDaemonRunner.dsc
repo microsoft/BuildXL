@@ -144,13 +144,16 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
 
     if (files.length === 0) {
         return undefined;
-    }               
+    }
+
+    const symbolMetadataFile = indexSymbolFiles(files);
 
     const fileMessageBody = files.length !== 0
         ? [
             Cmd.options("--file ", files.map(fi => Artifact.input(fi))),                
             Cmd.options("--hash ", files.map(fi => Artifact.vsoHash(fi))),
             Cmd.options("--fileId ", files.map(fi => Artifact.fileId(fi))),
+            Cmd.option("--symbolMetadata ", Artifact.input(symbolMetadataFile)),
             ]
         : [];      
 
@@ -165,13 +168,53 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
         uberArgs,
         ipcArgs => ipcArgs.merge<Transformer.IpcSendArguments>({
             messageBody: [
-                ...fileMessageBody,                    
+                ...fileMessageBody,
             ],
             lazilyMaterializedDependencies: [
-                ...files,                    
+                // note: symbolMetadataFile is not included in this list
+                ...files,
             ],
         })
     );
+}
+
+function indexSymbolFiles(files: File[]) : DerivedFile {
+    const symbolDataFileName = "symbol_data.txt";
+
+    Contract.requires(
+        files.length !== 0,
+        "The list of files cannot be empty"
+    );   
+
+    // get a directory where we are going to store the result of indexing
+    const outDir = Context.getNewOutputDirectory("symbol_indexing");
+
+    // the result of indexing
+    const outputPath = p`${outDir.path}/${symbolDataFileName}`;
+
+    const executeArguments = <Transformer.ExecuteArguments>{
+        tool: tool,
+        workingDirectory: outDir,
+        arguments: [
+            Cmd.argument("indexFiles"),
+            Cmd.options("--file ", files.map(f => Artifact.input(f))),
+            Cmd.options("--hash ", files.map(f => Artifact.vsoHash(f))),
+            Cmd.option("--symbolMetadata ", Artifact.output(outputPath)),
+        ],
+        unsafe: {
+            // SymStoreUtil opens some files (namely .pdb) with ReadWrite access,
+            // this causes DFAs and other issues.
+            untrackedPaths: files
+        },
+        description : "SymbolIndexing: " + files[0].name + " and " + (files.length - 1) + " other file(s)"
+    }; 
+
+    // run the tool
+    const result = Transformer.execute(executeArguments);
+
+    const outputResult = result.getOutputFile(outputPath);
+
+    return outputResult;
 }
 
 function overrideMustRunOnMaster(args: Transformer.IpcSendArguments): Transformer.IpcSendArguments {

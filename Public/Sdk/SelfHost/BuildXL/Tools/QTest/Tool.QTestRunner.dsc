@@ -215,7 +215,6 @@ export function runQTest(args: QTestArguments): Result {
             tempDirectory: qtestRunTempDirectory,
             weight: args.weight,
             environmentVariables: [
-                { name: "[Sdk.BuildXL]qCodeCoverageEnumType", value: qCodeCoverageEnumType },
                 ...(args.qTestEnvironmentVariables || [])
             ],
             disableCacheLookup: Environment.getFlag("[Sdk.BuildXL]qTestForceTest"),

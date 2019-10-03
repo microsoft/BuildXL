@@ -63,7 +63,8 @@ function setInternal() {
 
 function compileWithBxl() {
     local args=(
-        --config "$MY_DIR/config.dsc"
+        --config "$MY_DIR/config.dsc" 
+        /generateCgManifestForNugets:"${MY_DIR}/cg/nuget/cgmanifest.json"
         /fancyConsoleMaxStatusPips:10
         /nowarn:11319 # DX11319: nuget version mismatch
         "$@"

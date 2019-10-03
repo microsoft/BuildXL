@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Pips.Operations;
@@ -16,7 +17,8 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
     /// </summary>
     public sealed class SourceChangeAffectedContents
     {
-        private readonly PathTable m_pathTable;
+        private PathTable PathTable => m_fileContentManager.Host.Context.PathTable;
+
         private readonly FileContentManager m_fileContentManager;
 
         /// <summary>
@@ -27,14 +29,26 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         /// On the master, this list contains all the affected files of the build. It is maintained by calling the function ReportSourceChangeAffectedOutputs() after execution of each pip.
         /// On the workers, this list contains all the affected files distributed to the worker. It is maintained by calling the function ReportSourceChangedAffectedFile() when reporting a file input from master by worker.  
         /// </remarks>
-        private ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedFiles = new ConcurrentBigSet<AbsolutePath>();
+        private readonly ConcurrentBigSet<AbsolutePath> m_sourceChangeAffectedFiles = new ConcurrentBigSet<AbsolutePath>();
+
+        /// <summary>
+        /// Initial source changes.
+        /// </summary>
+        /// <remarks>
+        /// We keep initial source changes for computing changes that reside in source seal directories.
+        /// </remarks>
+        private readonly HashSet<AbsolutePath> m_initialSourceChanges = new HashSet<AbsolutePath>();
+
+        /// <summary>
+        /// Mappings from source seal directory to their affected members.
+        /// </summary>
+        private readonly ConcurrentDictionary<DirectoryArtifact, List<AbsolutePath>> m_sourceSealDirectoryAffectedMembers = new ConcurrentDictionary<DirectoryArtifact, List<AbsolutePath>>();
 
         /// <nodoc />
-        public SourceChangeAffectedContents(PathTable pathTable, FileContentManager fileContentManager)
+        public SourceChangeAffectedContents(FileContentManager fileContentManager)
         {
-            m_pathTable = pathTable;
             m_fileContentManager = fileContentManager;
-    }
+        }
 
         /// <summary>
         /// Initial affected output list with the external source change list
@@ -55,18 +69,17 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                         m_sourceChangeAffectedFiles.GetOrAdd(new FileArtifact(AbsolutePath.Create(pathTable, changePath.Path)));
                         break;
                 }
-
             }
+
+            m_initialSourceChanges.AddRange(m_sourceChangeAffectedFiles.UnsafeGetList());
         }
 
         /// <summary>
         /// Compute the intersection of the pip's dependencies and the affected contents of the build
         /// </summary>
-        public IReadOnlyCollection<AbsolutePath> GetChangeAffectedInputs(Process process)
+        public IReadOnlyList<AbsolutePath> GetChangeAffectedInputs(Process process)
         {
-            var changeAffectedInputs = new HashSet<AbsolutePath>();
-
-            changeAffectedInputs.AddRange(process.Dependencies.Select(f => f.Path).Where(f=>m_sourceChangeAffectedFiles.Contains(f)));
+            var changeAffectedInputs = new HashSet<AbsolutePath>(process.Dependencies.Select(f => f.Path).Where(p => m_sourceChangeAffectedFiles.Contains(p)));
 
             foreach (var directory in process.DirectoryDependencies)
             {
@@ -76,6 +89,14 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
                     {
                         changeAffectedInputs.Add(file.Path);
                     }
+                }
+
+                if (m_fileContentManager.Host.TryGetSourceSealDirectory(directory, out var sourceSealWithPatterns))
+                {
+                    var affectedMembers = m_sourceSealDirectoryAffectedMembers.GetOrAdd(
+                        directory,
+                        d => new List<AbsolutePath>(m_initialSourceChanges.Where(p => sourceSealWithPatterns.Contains(PathTable, p))));
+                    changeAffectedInputs.AddRange(affectedMembers);
                 }
             }
 

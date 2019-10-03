@@ -109,7 +109,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
                     }
-                });
+                },
+                extraStartMessage: $"SequencePoint=[{sequencePoint}]",
+                extraEndMessage: _ => $"SequencePoint=[{sequencePoint}]");
         }
 
         private async Task CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
@@ -349,7 +351,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         ClearIncrementalCheckpointStateIfNeeded(context, successfullyUpdatedIncrementalState);
                     }
-                });
+                },
+                extraStartMessage: $"CheckpointId=[{checkpointId}]",
+                extraEndMessage: _ => $"CheckpointId=[{checkpointId}]");
         }
 
         private static void RestoreFullCheckpointAsync(AbsolutePath checkpointFile, AbsolutePath extractedCheckpointDirectory)

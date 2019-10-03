@@ -487,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <nodoc />
-        public IEnumerable<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruPages(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
+        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             // Ensure startup was called then wait for it to complete successfully (or error)
             // This logic is important to avoid runtime errors when, for instance, QuotaKeeper tries
@@ -498,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             Contract.Assert(_contentLocationStore is IDistributedLocationStore);
             if (_contentLocationStore is IDistributedLocationStore distributedStore)
             {
-                return distributedStore.GetLruPages(context, contentHashesWithInfo);
+                return distributedStore.GetHashesInEvictionOrder(context, contentHashesWithInfo);
             }
             else
             {
@@ -564,7 +564,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     return BoolResult.Success;
-                });
+                },
+                traceOperationStarted: false,
+                extraEndMessage: _ => $"Hash=[{hash.ToShortString()}]");
         }
     }
 }

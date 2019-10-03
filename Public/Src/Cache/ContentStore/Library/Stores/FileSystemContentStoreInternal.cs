@@ -41,6 +41,7 @@ using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePa
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
+
     /// <summary>
     ///     Callback to update last access time based on external access times.
     /// </summary>
@@ -152,15 +153,13 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         protected SerializedDataValue SerializedDataVersion { get; }
 
-        private readonly ContentStoreInternalTracer _tracer = new ContentStoreInternalTracer();
+        private readonly ContentStoreInternalTracer _tracer;
 
         private readonly ConfigurationModel _configurationModel;
         private readonly CounterCollection<Counter> _counters = new CounterCollection<Counter>();
 
         private readonly AbsolutePath _contentRootDirectory;
         private readonly AbsolutePath _tempFolder;
-
-        private readonly Dictionary<HashType, IContentHasher> _hashers;
 
         /// <summary>
         ///     LockSet used to ensure thread safety on write operations.
@@ -246,7 +245,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             Contract.Requires(fileSystem != null);
             Contract.Requires(clock != null);
 
-            _hashers = HashInfoLookup.CreateAll();
+            _tracer = new ContentStoreInternalTracer(settings?.TraceFileSystemContentStoreDiagnosticMessages ?? false);
             int maxContentPathLengthRelativeToCacheRoot = GetMaxContentPathLengthRelativeToCacheRoot();
 
             RootPath = rootPath;
@@ -397,19 +396,15 @@ namespace BuildXL.Cache.ContentStore.Stores
         internal async Task<ContentHashWithSize?> TryHashFileAsync(Context context, AbsolutePath path, HashType hashType, Func<Stream, Stream> wrapStream = null)
         {
             // We only hash the file if a trusted hash is not supplied
-            using (var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+            using var stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete);
+            if (stream == null)
             {
-                if (stream == null)
-                {
-                    return null;
-                }
-
-                using (var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream))
-                {
-                    // Hash the file in  place
-                    return await HashContentAsync(context, wrappedStream, hashType, path);
-                }
+                return null;
             }
+
+            using var wrappedStream = (wrapStream == null) ? stream : wrapStream(stream);
+            // Hash the file in  place
+            return await HashContentAsync(context, wrappedStream, hashType, path);
         }
 
         /// <summary>
@@ -1210,12 +1205,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                         counters.Merge(quotaKeeperCounter.ToCounterSet());
                     }
                 }
-
-                foreach (var kvp in _hashers)
-                {
-                    counters.Merge(kvp.Value.GetCounters(), $"{Component}.{kvp.Key}");
-                }
-
                 return new GetStatsResult(counters);
             });
         }
@@ -1288,7 +1277,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         return;
                     }
 
-                    var hasher = _hashers[hashFromPath.HashType];
+                    var hasher = ContentHashers.Get(hashFromPath.HashType);
                     ContentHash hashFromContents;
                     using (Stream contentStream = await FileSystem.OpenSafeAsync(
                         contentFile, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, HashingExtensions.HashStreamBufferSize))
@@ -1425,11 +1414,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         protected override void DisposeCore()
         {
             base.DisposeCore();
-
-            foreach (IContentHasher hasher in _hashers.Values)
-            {
-                hasher.Dispose();
-            }
 
             QuotaKeeper?.Dispose();
             _taskTracker?.Dispose();
@@ -1574,7 +1558,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             {
                 long contentSize;
 
-                var hasher = _hashers[hashType];
+                var hasher = ContentHashers.Get(hashType);
                 using (var hashingStream = hasher.CreateReadHashingStream(stream))
                 {
                     pathToTempContent = await WriteToTemporaryFileAsync(context, hashingStream);
@@ -1736,7 +1720,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             try
             {
-                ContentHash contentHash = await _hashers[hashType].GetContentHashAsync(stream);
+                ContentHash contentHash = await ContentHashers.Get(hashType).GetContentHashAsync(stream);
                 return new ContentHashWithSize(contentHash, stream.Length);
             }
             catch (Exception e)
@@ -2521,8 +2505,8 @@ namespace BuildXL.Cache.ContentStore.Stores
             FileReplacementMode replacementMode)
         {
             var code = PlaceFileResult.ResultCode.Unknown;
-            var hasher = _hashers[contentHash.HashType];
             ContentHash computedHash = new ContentHash(contentHash.HashType);
+            var hasher = ContentHashers.Get(contentHash.HashType);
 
             using (Stream contentStream =
                 await OpenStreamInternalWithLockAsync(context, contentHash, null, FileShare.Read | FileShare.Delete))

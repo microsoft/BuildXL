@@ -224,7 +224,9 @@ namespace BuildXL.Engine.Tracing
 
         StartInitializingVm = 7123,
         EndInitializingVm = 7124,
-        InitializingVm = 7125
+        InitializingVm = 7125,
+
+        ChosenABTesting = 7126,
 
         // max 7200
     }

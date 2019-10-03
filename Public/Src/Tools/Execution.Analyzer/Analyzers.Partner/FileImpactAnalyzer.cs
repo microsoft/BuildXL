@@ -215,6 +215,7 @@ namespace BuildXL.Execution.Analyzer
 
         private readonly ConcurrentDenseIndex<Times> m_elapsedTimes = new ConcurrentDenseIndex<Times>(false);
         private readonly ConcurrentDenseIndex<IEnumerable<ObservedInput>> m_fingerprintComputations = new ConcurrentDenseIndex<IEnumerable<ObservedInput>>(false);
+        private readonly ConcurrentDenseIndex<List<NodeId>> m_incomingEdges = new ConcurrentDenseIndex<List<NodeId>>(false);
         private readonly HashSet<NodeId> m_nodesWithObservedInputs = new HashSet<NodeId>();
         private readonly bool m_computeImpactForAllFiles;
         private readonly bool m_computeImpactfulFilesByNumberOfTimesChanged;
@@ -325,90 +326,107 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine("Starting file impact analysis started at: " + DateTime.Now);
             HashSet<NodeId> allNodes = GetAllNodes();
 
-            // All files and nuget seal directory roots used by allNodes
-            bool computeFileImpact = !string.IsNullOrWhiteSpace(m_fileToDetermineImpactFor);
+            ComputeIncomingEdges(allNodes);
 
-            HashSet<AbsolutePath> paths = GetPaths(allNodes);
-            IDictionary<AbsolutePath, string> pathToPackage = ComputePathToNugetPackage(paths);
-            IDictionary<NodeId, Tuple<TimeSpan, NodeId>> nodeToCriticalPath = ComputeNodeCriticalPaths(allNodes);
-            IDictionary<AbsolutePath, Tuple<TimeSpan, NodeId>> fileToCriticalPath = ComputeFileCriticalPaths(allNodes, paths, nodeToCriticalPath);
-
-            // Second argument is frontier nodes.  Pass a different value to only do computations on part of the graph.
-            IDictionary<NodeId, int> nodeToDepth = ComputeAllNodeDepths(allNodes, allNodes);
-            IDictionary<NodeId, List<int>> nodeToAffectedCriticalPath = ParseNodeIdToAffectedChanges();
-            var (pathToDownstreamNodes, nodeToTotalCpu, changeToDownstreamNodes) = ComputeAllDownstreamNodesAndPipCpuMinutes(paths, nodeToDepth, nodeToAffectedCriticalPath);
-            IDictionary<AbsolutePath, double> pathToCpuMillis = ComputePathCpuTime(pathToDownstreamNodes);
-            IDictionary<AbsolutePath, double> fileToCacheHitRate = ComputePathToCacheHitRate(pathToDownstreamNodes);
+            IDictionary<NodeId, CriticalPathStats> nodeToCriticalPath = ComputeNodeCriticalPaths(allNodes);
+            IDictionary<NodeId, int> nodeToDepth = ComputeAllNodeDepthsInExecutionCone(allNodes);
+            (IDictionary<NodeId, List<int>> nodeToAffectedChanges, ISet<int> allChanges) = ParseNodeIdToAffectedChanges();
+            IList<IList<NodeId>> nodeDepthList = ComputeNodeDepthList(nodeToDepth);
+            IDictionary<NodeId, HashSet<int>> nodesToAffectedChange = ComputeAllDownstreamNodesAndPipCpuMinutes(nodeDepthList, new HashSet<NodeId>(nodeToDepth.Keys), nodeToAffectedChanges);
+            IDictionary<int, ChangeImpactStats> changeToImpactStats = ComputeChangeImpact(nodeToCriticalPath, allChanges, nodesToAffectedChange);
 
             if (m_criticalPathWriter != null)
             {
                 PrintCriticalPaths(nodeToCriticalPath, m_criticalPathWriter);
             }
 
-            if (changeToDownstreamNodes.Count > 0)
+            if (allChanges.Count > 0)
             {
-                WriteChangeImpactLines(nodeToCriticalPath, changeToDownstreamNodes, m_pipImpactwriter);
-            }
-            else
-            {
-                WritePipImpactLines(nodeToCriticalPath, nodeToTotalCpu, m_pipImpactwriter);
-            }
-
-            if (!m_computeImpactfulFilesByNumberOfTimesChanged)
-            {
-                WriteFileImpactLines(pathToPackage, fileToCriticalPath, pathToCpuMillis, fileToCacheHitRate, null, null, m_fileImpactwriter);
-            }
-            else
-            {
-                // Format of this file is on each line: original package name\tnew package name
-                List<Tuple<DateTime, long, List<AbsolutePath>, List<string>>> changeLists = GetChangelists(paths, CachedGraph.Context.PathTable, m_changesFile, m_srcRootMount);
-                if (m_simulateBuildHistory)
-                {
-                    IDictionary<string, TimeSpan> packageToCriticalPath = ComputeNugetCriticalPaths(allNodes, pathToPackage, nodeToCriticalPath);
-                    IDictionary<string, double> packageToImpactingFileTime = ComputeNugetCpuTime(pathToDownstreamNodes, pathToPackage);
-                    IDictionary<string, HashSet<NodeId>> packageToDownstreamPips = ComputePackageToDownstreamNodes(pathToDownstreamNodes, pathToPackage);
-                    List<SimulateChangesOverTime.SimulatedBuildStats> times = SimulateChangesOverTime.SimulateBuilds(
-                        nodeToDepth.Count,
-                        GetElapsed,
-                        pathToDownstreamNodes,
-                        packageToDownstreamPips,
-                        fileToCriticalPath,
-                        pathToCpuMillis,
-                        packageToCriticalPath,
-                        packageToImpactingFileTime,
-                        changeLists,
-                        5 * 80, // 5 machines * 8 cores per machine
-                        90 * 5 / 4 + 25, // machines use 80% cpu on cloud and are 90% slower per core
-                        14, // Approx cloud critical path / btw critical path
-                        48 * 60 * 1000); // 48 minutes for metabuild + queuing
-                    SimulateChangesOverTime.WriteSimulatedBuilds(m_simulatedBuildWriter, times, (AbsolutePath path) => GetPath(path));
-                }
-
-                IDictionary<AbsolutePath, int> fileChangeCount = ComputeFileChangeCount(changeLists);
-                IDictionary<string, int> nugetPackageChangeCounts = ComputeNugetChangeCount(changeLists);
-                WriteFileImpactLines(pathToPackage, fileToCriticalPath, pathToCpuMillis, fileToCacheHitRate, fileChangeCount, nugetPackageChangeCounts, m_fileImpactwriter);
+                WriteChangeImpactLines(changeToImpactStats, m_pipImpactwriter);
             }
 
             Console.WriteLine("File impact analysis finished at: " + DateTime.Now);
             return 0;
         }
 
-        private void PrintCriticalPaths(IDictionary<NodeId, Tuple<TimeSpan, NodeId>> criticalPaths, StreamWriter writer)
+        private void ComputeIncomingEdges(HashSet<NodeId> allNodes)
+        {
+            Console.WriteLine("Starting incoming edges computation: " + DateTime.Now);
+            Parallel.ForEach(allNodes, node =>
+            {
+                m_incomingEdges[node.Value] = GetIncomingEdges(node, allNodes).ToList();
+            });
+            Console.WriteLine("Ending incoming edges computation: " + DateTime.Now);
+        }
+
+        private struct ChangeImpactStats
+        {
+            public TimeSpan CriticalPathTime;
+            public NodeId FirstNodeInCriticalPath;
+            public TimeSpan TotalCpuTime;
+            public TimeSpan SlowestNodeImpactedTime;
+            public NodeId SlowestNodeImpacted;
+        }
+
+        private IDictionary<int, ChangeImpactStats> ComputeChangeImpact(
+            IDictionary<NodeId, CriticalPathStats> nodeToCriticalPath,
+            ISet<int> allChanges,
+            IDictionary<NodeId, HashSet<int>> nodesToAffectedChange)
+        {
+            Console.WriteLine("Starting computing change impact " + DateTime.Now);
+            var changeToImpactStats = new ConcurrentDictionary<int, ChangeImpactStats>();
+            foreach (var change in allChanges)
+            {
+                changeToImpactStats[change] = new ChangeImpactStats { CriticalPathTime = TimeSpan.MinValue, TotalCpuTime = TimeSpan.Zero };
+            }
+            int i = 0;
+            foreach (var nodeToAffectedChange in nodesToAffectedChange)
+            {
+                if (i % 10000 == 0)
+                {
+                    Console.WriteLine("Computed change impact for: " + i + " nodes out of " + nodesToAffectedChange.Count);
+                }
+
+                i++;
+                Parallel.ForEach(nodeToAffectedChange.Value, affectedChange =>
+                {
+                    TimeSpan elapsedTime = GetElapsed(nodeToAffectedChange.Key);
+                    bool betterCriticalPathTime = nodeToCriticalPath[nodeToAffectedChange.Key].CriticalPathTime > changeToImpactStats[affectedChange].CriticalPathTime;
+                    bool slowerNodeAffected = elapsedTime > changeToImpactStats[affectedChange].SlowestNodeImpactedTime;
+                    changeToImpactStats[affectedChange] =
+                        new ChangeImpactStats
+                        {
+                            CriticalPathTime = betterCriticalPathTime ? nodeToCriticalPath[nodeToAffectedChange.Key].CriticalPathTime : changeToImpactStats[affectedChange].CriticalPathTime,
+                            FirstNodeInCriticalPath = betterCriticalPathTime ? nodeToAffectedChange.Key : changeToImpactStats[affectedChange].FirstNodeInCriticalPath,
+                            TotalCpuTime = elapsedTime + changeToImpactStats[affectedChange].TotalCpuTime,
+                            SlowestNodeImpacted = slowerNodeAffected ? nodeToAffectedChange.Key : changeToImpactStats[affectedChange].SlowestNodeImpacted,
+                            SlowestNodeImpactedTime = slowerNodeAffected ? elapsedTime : changeToImpactStats[affectedChange].SlowestNodeImpactedTime
+                        };
+                });
+            }
+
+            Console.WriteLine("Done computing change impact " + DateTime.Now);
+            return changeToImpactStats;
+        }
+
+        private void PrintCriticalPaths(IDictionary<NodeId, CriticalPathStats> criticalPaths, StreamWriter writer)
         {
             writer.WriteLine("Pip Id,Time Taken(mins),Critical Path (mins),Next Pip Id");
-            foreach (var criticalPath in criticalPaths.OrderByDescending(x => x.Value.Item1).ThenBy(x => x.Key.Value))
+            foreach (var criticalPath in criticalPaths.OrderByDescending(x => x.Value.CriticalPathTime).ThenBy(x => x.Key.Value))
             {
                 var pip = CachedGraph.PipTable.HydratePip(criticalPath.Key.ToPipId(), PipQueryContext.ViewerAnalyzer);
-                var nextPip = CachedGraph.PipTable.HydratePip(criticalPath.Value.Item2.ToPipId(), PipQueryContext.ViewerAnalyzer);
+                var nextPip = CachedGraph.PipTable.HydratePip(criticalPath.Value.NextNodeInCriticalPath.ToPipId(), PipQueryContext.ViewerAnalyzer);
 
-                writer.WriteLine(pip.FormattedSemiStableHash + "," + GetElapsed(criticalPath.Key) + "," + criticalPath.Value.Item1.TotalMinutes + "," + nextPip.FormattedSemiStableHash);
+                writer.WriteLine(pip.FormattedSemiStableHash + "," + GetElapsed(criticalPath.Key) + "," + criticalPath.Value.CriticalPathTime.TotalMinutes + "," + nextPip.FormattedSemiStableHash);
             }
         }
 
-        private IDictionary<NodeId, List<int>> ParseNodeIdToAffectedChanges()
+        private (IDictionary<NodeId, List<int>>, HashSet<int>) ParseNodeIdToAffectedChanges()
         {
+            Console.WriteLine("Parsing node to change at " + DateTime.Now);
             IDictionary<NodeId, List<int>> nodeToAffectedCriticalPath = new Dictionary<NodeId, List<int>>();
             IDictionary<long, List<int>> sshToAffectedCriticalPath = new Dictionary<long, List<int>>();
+            HashSet<int> allChanges = new HashSet<int>();
 
             if (!string.IsNullOrWhiteSpace(m_pipToListOfAffectingChangesFile))
             {
@@ -419,7 +437,9 @@ namespace BuildXL.Execution.Analyzer
                     sshToAffectedCriticalPath[semiStableHash] = new List<int>();
                     for (int i = 1; i < parts.Length; i++)
                     {
-                        sshToAffectedCriticalPath[semiStableHash].Add(int.Parse(parts[i]));
+                        int changeId = int.Parse(parts[i]);
+                        allChanges.Add(changeId);
+                        sshToAffectedCriticalPath[semiStableHash].Add(changeId);
                     }
                 }
 
@@ -433,18 +453,8 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            return nodeToAffectedCriticalPath;
-        }
-
-        private string GetMountPath(string mountName)
-        {
-            AbsolutePath root;
-            if (!CachedGraph.MountPathExpander.TryGetRootByMountName(mountName, out root))
-            {
-                return null;
-            }
-
-            return GetPath(root);
+            Console.WriteLine("Done parsing node to change at " + DateTime.Now + " " + allChanges.Count + " changes affected " + nodeToAffectedCriticalPath.Count + " nodes.");
+            return (nodeToAffectedCriticalPath, allChanges);
         }
 
         private string GetPath(AbsolutePath path)
@@ -452,147 +462,38 @@ namespace BuildXL.Execution.Analyzer
             return CachedGraph.PipGraph.SemanticPathExpander.ExpandPath(CachedGraph.Context.PathTable, path);
         }
 
-        private IDictionary<AbsolutePath, double> ComputePathToCacheHitRate(IDictionary<AbsolutePath, HashSet<NodeId>> pathToDownstreamNodes)
-        {
-            IDictionary<AbsolutePath, double> pathToCacheHitRate = new ConcurrentDictionary<AbsolutePath, double>();
-            Parallel.ForEach(pathToDownstreamNodes, path =>
-            {
-                int tot = path.Value.Count * 32;
-                int numInvalidated = path.Value.Count;
-                pathToCacheHitRate[path.Key] = 100 * (tot - numInvalidated) / tot;
-            });
-
-            return pathToCacheHitRate;
-        }
-
-        private HashSet<AbsolutePath> GetPaths(IEnumerable<NodeId> allNodes)
-        {
-            string[] files;
-            if (!string.IsNullOrWhiteSpace(m_fileToDetermineImpactFor))
-            {
-                files = new string[] { m_fileToDetermineImpactFor };
-            }
-            else if (!string.IsNullOrWhiteSpace(m_filesListFile))
-            {
-                if (m_srcRootMount == null)
-                {
-                    throw new ArgumentException("Srcroot mount name must not be null");
-                }
-
-                string srcRoot = GetMountPath(m_srcRootMount);
-                if (srcRoot == null)
-                {
-                    throw new ArgumentException("Srcroot must not be null");
-                }
-
-                files = File.ReadAllLines(m_filesListFile).Select(file => Path.Combine(srcRoot, file.Replace('/', '\\'))).ToArray();
-            }
-            else
-            {
-                files = new string[0];
-            }
-
-            if (m_nugetMachineInstallRootMount == null)
-            {
-                throw new ArgumentException("nugetMachineInstallRoot mount name must not be null");
-            }
-
-            string nugetMachineInstallRoot = GetMountPath(m_nugetMachineInstallRootMount);
-            if (nugetMachineInstallRoot == null)
-            {
-                throw new ArgumentException("nugetMachineInstallRoot must not be null");
-            }
-
-            // ICollection<AbsolutePath> nugetFiles = GetNugetFiles(allNodes, nugetMachineInstallRoot);
-            HashSet<AbsolutePath> paths = GetAbsolutePathsFromFileNames(files);
-            // paths.UnionWith(nugetFiles);
-            return paths;
-        }
-
-        private IDictionary<AbsolutePath, string> ComputePathToNugetPackage(HashSet<AbsolutePath> paths)
-        {
-            string[] nugetPackages;
-            if (!string.IsNullOrWhiteSpace(m_packageToDetermineImpactFor))
-            {
-                nugetPackages = new string[] { m_packageToDetermineImpactFor };
-            }
-            else if (!string.IsNullOrWhiteSpace(m_packagesListFile))
-            {
-                nugetPackages = File.ReadAllLines(m_packagesListFile);
-            }
-            else
-            {
-                nugetPackages = new string[0];
-            }
-
-            string nugetMachineInstallRoot = GetMountPath(m_nugetMachineInstallRootMount);
-            if (nugetMachineInstallRoot == null)
-            {
-                throw new ArgumentException("Could not file srcroot or nugetMachineInstallRoot");
-            }
-
-            string aggregateNugetMachineInstallRoot = Path.Combine(nugetMachineInstallRoot, ".A");
-            return ComputePathToNugetPackage(paths, nugetPackages, nugetMachineInstallRoot, aggregateNugetMachineInstallRoot);
-        }
-
-        private HashSet<AbsolutePath> GetAbsolutePathsFromFileNames(IEnumerable<string> files)
-        {
-            HashSet<AbsolutePath> paths = new HashSet<AbsolutePath>();
-            foreach (var file in files)
-            {
-                AbsolutePath path;
-                if (AbsolutePath.TryGet(CachedGraph.Context.PathTable, file, out path))
-                {
-                    paths.Add(path);
-                }
-                else
-                {
-                    Console.WriteLine("Couldn't get path: " + file);
-                }
-            }
-
-            return paths;
-        }
-
         private void WriteChangeImpactLines(
-            IDictionary<NodeId, Tuple<TimeSpan, NodeId>> pipToCriticalPath,
-            IDictionary<int, HashSet<NodeId>> changeToDownstreamPips,
+            IDictionary<int, ChangeImpactStats> changeImpactStats,
             StreamWriter writer)
         {
-            Console.WriteLine("Computing change impact output strings");
+            Console.WriteLine("Computing change impact output strings at " + DateTime.Now);
             var outputLines = new ConcurrentDictionary<int, string>();
             var criticalPathTimes = new ConcurrentDictionary<int, TimeSpan>();
-            Parallel.ForEach(changeToDownstreamPips, change =>
+            Parallel.ForEach(changeImpactStats, change =>
             {
-                TimeSpan criticalPathTime = TimeSpan.MinValue;
-                TimeSpan totalCpuTime = TimeSpan.Zero;
-                NodeId nodeForCriticalPath = change.Value.FirstOrDefault();
-                foreach (var downstreamPip in change.Value)
-                {
-                    if (criticalPathTime <= pipToCriticalPath[downstreamPip].Item1)
-                    {
-                        criticalPathTime = pipToCriticalPath[downstreamPip].Item1;
-                        nodeForCriticalPath = downstreamPip;
-                    }
-
-                    totalCpuTime += GetElapsed(downstreamPip);
-                }
-
-                criticalPathTimes[change.Key] = criticalPathTime;
-                var pip = CachedGraph.PipTable.HydratePip(nodeForCriticalPath.ToPipId(), PipQueryContext.ViewerAnalyzer);
-                outputLines[change.Key] = change.Key + "," + criticalPathTime.TotalMinutes + "," + totalCpuTime.TotalMinutes + "," + change.Value.Count + "," + pip.FormattedSemiStableHash;
+                var firstPipInCriticalPath = CachedGraph.PipTable.HydratePip(change.Value.FirstNodeInCriticalPath.ToPipId(), PipQueryContext.ViewerAnalyzer);
+                string firstPipInCriticalPathDescription = firstPipInCriticalPath.GetDescription(CachedGraph.Context).Replace(',', ';');
+                var longestPipAffected = CachedGraph.PipTable.HydratePip(change.Value.SlowestNodeImpacted.ToPipId(), PipQueryContext.ViewerAnalyzer);
+                string longestPipAffectedDescription = longestPipAffected.GetDescription(CachedGraph.Context).Replace(',', ';');
+                outputLines[change.Key] = string.Join(",",
+                    change.Key,
+                    change.Value.CriticalPathTime.TotalMinutes,
+                    change.Value.TotalCpuTime.TotalMinutes,
+                    change.Value.SlowestNodeImpactedTime.TotalMinutes,
+                    firstPipInCriticalPathDescription,
+                    longestPipAffectedDescription);
             });
 
-            var sortedOutputLines = outputLines.OrderByDescending(x => criticalPathTimes[x.Key]).ThenBy(x => x.Value).ToList();
-            Console.WriteLine("Writing change impact");
-            string headerLine = "Change Id,Longest Critical Path Affected (mins),Total CPU Time Affected (mins),Number of pips affected,First pip in critical path";
+            var sortedOutputLines = outputLines.OrderByDescending(x => changeImpactStats[x.Key].CriticalPathTime).ThenBy(x => x.Value).ToList();
+            Console.WriteLine("Writing change impact at " + DateTime.Now);
+            string headerLine = "Change Id,Longest critical path affected (mins),Total CPU time affected (mins),Time taken for longest pip affected,First pip in critical path,Longest pip affected";
             writer.WriteLine(headerLine);
             foreach (var criticalPath in sortedOutputLines)
             {
                 writer.WriteLine(criticalPath.Value);
             }
 
-            Console.WriteLine("Done writing change impact");
+            Console.WriteLine("Done writing change impact at " + DateTime.Now);
         }
 
         private void WritePipImpactLines(
@@ -622,74 +523,6 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine("Done writing pip impact");
         }
 
-
-        private void WriteFileImpactLines(
-             IDictionary<AbsolutePath, string> pathToPackage,
-             IDictionary<AbsolutePath, Tuple<TimeSpan, NodeId>> fileToCriticalPath,
-             IDictionary<AbsolutePath, double> pathToCpuMillis,
-             IDictionary<AbsolutePath, double> fileToCacheHitRate,
-             IDictionary<AbsolutePath, int> fileChangeCount,
-             IDictionary<string, int> nugetPackageChangeCounts,
-             StreamWriter writer)
-        {
-            if (pathToCpuMillis == null || pathToCpuMillis.Count == 0)
-            {
-                return;
-            }
-
-            var outputLines = new ConcurrentDictionary<AbsolutePath, string>();
-            bool useChangeCount = fileChangeCount != null || nugetPackageChangeCounts != null;
-            Console.WriteLine("Sorting critical paths strings");
-            Parallel.ForEach(fileToCriticalPath, criticalPath =>
-            {
-                double critPathTime = criticalPath.Value.Item1.TotalMilliseconds / 1000 / 60;
-                double cpuTime = pathToCpuMillis.ContainsKey(criticalPath.Key) ? ToMins(pathToCpuMillis[criticalPath.Key]) : -1;
-                string outputLine = GetPath(criticalPath.Key) + "," + critPathTime + "," + cpuTime;
-                if (useChangeCount)
-                {
-                    int changeCount = 0;
-                    if (fileChangeCount != null && fileChangeCount.ContainsKey(criticalPath.Key))
-                    {
-                        changeCount = fileChangeCount[criticalPath.Key];
-                    }
-                    else if (nugetPackageChangeCounts != null && pathToPackage != null && pathToPackage.ContainsKey(criticalPath.Key) && nugetPackageChangeCounts.ContainsKey(pathToPackage[criticalPath.Key]))
-                    {
-                        changeCount = nugetPackageChangeCounts[pathToPackage[criticalPath.Key]];
-                    }
-
-                    double critPathImpact = critPathTime * changeCount;
-                    double cpuImpact = cpuTime * changeCount;
-                    double cacheHitRate = fileToCacheHitRate[criticalPath.Key];
-                    outputLine += "," + cacheHitRate + "," + changeCount + "," + critPathImpact + "," + cpuImpact;
-                }
-
-                NodeId firstNodeInCriticalPath = criticalPath.Value.Item2;
-                var pip = CachedGraph.PipTable.HydratePip(firstNodeInCriticalPath.ToPipId(), PipQueryContext.ViewerAnalyzer);
-                outputLines[criticalPath.Key] = outputLine + "," + pip.GetDescription(CachedGraph.Context);
-            });
-
-            var sortedOutputLines = outputLines.OrderByDescending(x => pathToCpuMillis[x.Key]).ThenBy(x => x.Value).ToList();
-
-            Console.WriteLine("Writing critical paths");
-            string headerLine = "File Path,Longest Critical Path Affected (mins),Total CPU Time Affected (mins)";
-            if (useChangeCount)
-            {
-                headerLine += ",Cache Hit Rate,Change Count,Critical Path Impact,Cpu Impact";
-            }
-
-            headerLine += ",Description";
-
-            if (sortedOutputLines.Count > 0)
-            {
-                writer.WriteLine(headerLine);
-            }
-
-            foreach (var criticalPath in sortedOutputLines)
-            {
-                writer.WriteLine(criticalPath.Value);
-            }
-        }
-
         private double ToMins(double millis)
         {
             return millis / 1000 / 60;
@@ -703,366 +536,25 @@ namespace BuildXL.Execution.Analyzer
             return allNodes;
         }
 
-        private List<Tuple<DateTime, long, List<AbsolutePath>, List<string>>> GetChangelists(HashSet<AbsolutePath> paths, PathTable pathTable, string changeListsFile, string srcRootMount)
-        {
-            Console.WriteLine("Getting changlists " + DateTime.Now);
-            string srcRoot = GetMountPath(srcRootMount);
-            if (srcRoot == null)
-            {
-                throw new ArgumentException("Srcroot must not be null");
-            }
-
-            DateTime date = DateTime.MinValue;
-            long cl_num = -1;
-            List<AbsolutePath> absolutePaths = new List<AbsolutePath>();
-            List<string> nugetPackages = new List<string>();
-            List<Tuple<DateTime, long, List<AbsolutePath>, List<string>>> changeLists = new List<Tuple<DateTime, long, List<AbsolutePath>, List<string>>>();
-            foreach (var line in File.ReadLines(changeListsFile))
-            {
-                if (line[0] == '=')
-                {
-                    if (absolutePaths.Any())
-                    {
-                        changeLists.Add(new Tuple<DateTime, long, List<AbsolutePath>, List<string>>(date, cl_num, absolutePaths, nugetPackages));
-                        absolutePaths = new List<AbsolutePath>();
-                        nugetPackages = new List<string>();
-                    }
-
-                    string[] parts = line.Split('\t');
-                    date = DateTime.Parse(parts[2]);
-                    cl_num = long.Parse(parts[1]);
-                }
-                else if (line.StartsWith(@"nugetcache\"))
-                {
-                    nugetPackages.Add(line.ToLower().Substring(@"nugetcache\".Length));
-                }
-                else
-                {
-                    string path = Path.Combine(srcRoot, line.Replace('/', '\\'));
-                    AbsolutePath absolutePath;
-                    if (AbsolutePath.TryGet(pathTable, path, out absolutePath))
-                    {
-                        if (paths.Contains(absolutePath))
-                        {
-                            absolutePaths.Add(absolutePath);
-                        }
-                    }
-                }
-            }
-
-            Console.WriteLine("Done getting changlists " + DateTime.Now);
-            Console.WriteLine("Found: " + changeLists.Count + " changelists.");
-            return changeLists;
-        }
-
-        private IDictionary<AbsolutePath, int> ComputeFileChangeCount(List<Tuple<DateTime, long, List<AbsolutePath>, List<string>>> changeLists)
-        {
-            IDictionary<AbsolutePath, int> changeCounts = new Dictionary<AbsolutePath, int>();
-            foreach (var changelist in changeLists)
-            {
-                foreach (var path in changelist.Item3)
-                {
-                    changeCounts[path] = changeCounts.ContainsKey(path) ? changeCounts[path] + 1 : 1;
-                }
-            }
-
-            return changeCounts;
-        }
-
-        private IDictionary<string, int> ComputeNugetChangeCount(List<Tuple<DateTime, long, List<AbsolutePath>, List<string>>> changeLists)
-        {
-            IDictionary<string, int> changeCounts = new Dictionary<string, int>();
-            foreach (var changelist in changeLists)
-            {
-                foreach (var path in changelist.Item4)
-                {
-                    changeCounts[path] = changeCounts.ContainsKey(path) ? changeCounts[path] + 1 : 1;
-                }
-            }
-
-            return changeCounts;
-        }
-
-        private IDictionary<AbsolutePath, double> ComputePathCpuTime(IDictionary<AbsolutePath, HashSet<NodeId>> pathToDownstreamPips)
-        {
-            Console.WriteLine("Computing sum of cpu time for files");
-            int i = 0;
-            ConcurrentDictionary<AbsolutePath, double> pathToCpuMinutes = new ConcurrentDictionary<AbsolutePath, double>();
-            Parallel.ForEach(pathToDownstreamPips, file =>
-            {
-                double time = 0;
-
-                foreach (var pip in file.Value)
-                {
-                    time += GetElapsed(pip).TotalMilliseconds;
-                }
-                pathToCpuMinutes[file.Key] = time;
-                if (i % 100000 == 0)
-                {
-                    Console.WriteLine("File Cpu Time: " + i * 100 / pathToDownstreamPips.Count);
-                }
-
-                i++;
-            });
-            Console.WriteLine("Done computing sum of cpu time for files");
-            return pathToCpuMinutes;
-        }
-
-        private IDictionary<string, HashSet<NodeId>> ComputePackageToDownstreamNodes(IDictionary<AbsolutePath, HashSet<NodeId>> pathToDownstreamnodes, IDictionary<AbsolutePath, string> pathToPackage)
-        {
-            Console.WriteLine("Computing package downstreams");
-            IDictionary<string, HashSet<NodeId>> packageToDownstreamPips = new ConcurrentDictionary<string, HashSet<NodeId>>(StringComparer.OrdinalIgnoreCase);
-            var packageToPaths = pathToDownstreamnodes.Where(path => pathToPackage.ContainsKey(path.Key)).ToList().GroupBy(x => pathToPackage[x.Key]).ToList();
-            int done = 0;
-            Parallel.ForEach(packageToPaths, packagePaths =>
-            {
-                var downstreamPips = new HashSet<NodeId>();
-                foreach (var path in packagePaths)
-                {
-                    downstreamPips.UnionWith(path.Value);
-                }
-
-                packageToDownstreamPips[packagePaths.Key] = downstreamPips;
-
-                Console.WriteLine("Adding package: " + packagePaths.Key);
-                if (done % 1000 == 0)
-                {
-                    Console.WriteLine("Done: " + done + " out of " + packageToPaths.Count);
-                }
-
-                done++;
-            });
-
-            Console.WriteLine("Done computing package downstreams");
-            return packageToDownstreamPips;
-        }
-
-
-        private IDictionary<AbsolutePath, string> ComputePathToNugetPackage(IEnumerable<AbsolutePath> files, IEnumerable<string> allNugetPackageNames, string nugetMachineInstallRoot, string nugetAggregateRoot)
-        {
-            Console.WriteLine("Computing path to package");
-            allNugetPackageNames = allNugetPackageNames.OrderByDescending(x => x.Length).ToList();
-            IDictionary<AbsolutePath, string> pathToNugetPackage = new ConcurrentDictionary<AbsolutePath, string>();
-            int i = 0;
-            int numFiles = files.Count();
-            Parallel.ForEach(files, file =>
-            {
-                string fileName = GetPath(file);
-                string correctNugetPackageName = null;
-                if (fileName.StartsWith(nugetAggregateRoot, StringComparison.OrdinalIgnoreCase))
-                {
-                    string name = fileName.Substring(nugetAggregateRoot.Length);
-                    foreach (var nugetPackageName in allNugetPackageNames)
-                    {
-                        if (name.StartsWith(nugetPackageName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            correctNugetPackageName = nugetPackageName;
-                            break;
-                        }
-                    }
-                }
-                else if (fileName.StartsWith(nugetMachineInstallRoot, StringComparison.OrdinalIgnoreCase))
-                {
-                    string name = fileName.Substring(nugetMachineInstallRoot.Length);
-                    foreach (var nugetPackageName in allNugetPackageNames)
-                    {
-                        if (name.StartsWith(nugetPackageName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            correctNugetPackageName = nugetPackageName;
-                            break;
-                        }
-                    }
-                }
-
-                if (correctNugetPackageName != null)
-                {
-                    pathToNugetPackage.Add(file, correctNugetPackageName.ToLower());
-                }
-
-                if (i % 100000 == 0)
-                {
-                    Console.WriteLine("Computing path to package: " + i * 100 / numFiles);
-                }
-
-                i++;
-            });
-
-            Console.WriteLine("Done computing path to package. Found: " + pathToNugetPackage.Count + " files in nuget packages");
-            return pathToNugetPackage;
-        }
-
-        private IDictionary<string, double> ComputeNugetCpuTime(IDictionary<AbsolutePath, HashSet<NodeId>> pathToDownstreamPips, IDictionary<AbsolutePath, string> pathToNugetPackage)
-        {
-            Console.WriteLine("Computing sum of cpu time for nuget packages");
-            int i = 0;
-            ConcurrentDictionary<string, double> nugetPackageToCpuMinutes = new ConcurrentDictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            Parallel.ForEach(pathToDownstreamPips, file =>
-            {
-                string nugetPackage;
-                if (!pathToNugetPackage.TryGetValue(file.Key, out nugetPackage))
-                {
-                    return;
-                }
-
-                double time = 0;
-                foreach (var pip in file.Value)
-                {
-                    time += GetElapsed(pip).TotalMilliseconds;
-                }
-                nugetPackageToCpuMinutes.AddOrUpdate(nugetPackage, time, (key, oldValue) => { return Math.Max(oldValue, time); });
-                if (i % 100000 == 0)
-                {
-                    Console.WriteLine("Nuget package Cpu Time: " + i * 100 / pathToDownstreamPips.Count);
-                }
-
-                i++;
-            });
-            Console.WriteLine("Done computing sum of cpu time for packages");
-            return nugetPackageToCpuMinutes;
-        }
-
-        private IDictionary<NodeId, Tuple<TimeSpan, NodeId>> ComputeNodeCriticalPaths(HashSet<NodeId> allNodes)
+        private IDictionary<NodeId, CriticalPathStats> ComputeNodeCriticalPaths(HashSet<NodeId> allNodes)
         {
             CriticalPath criticalPathCalculator = new CriticalPath(GetElapsed, (nodeId) => CachedGraph.DataflowGraph.GetOutgoingEdges(nodeId).Select(edge => edge.OtherNode));
             var now = DateTime.Now;
             Console.WriteLine("Computing critical paths " + now);
             TimeSpan longestCriticalPath = TimeSpan.Zero;
-            ConcurrentDictionary<NodeId, Tuple<TimeSpan, NodeId>> nodeToCriticalPath = new ConcurrentDictionary<NodeId, Tuple<TimeSpan, NodeId>>();
+            var nodeToCriticalPath = new ConcurrentDictionary<NodeId, CriticalPathStats>();
             foreach (var sourceNode in allNodes)
             {
                 nodeToCriticalPath[sourceNode] = criticalPathCalculator.ComputeCriticalPath(sourceNode);
-                if (nodeToCriticalPath[sourceNode].Item1.Ticks > longestCriticalPath.Ticks)
+                if (nodeToCriticalPath[sourceNode].CriticalPathTime > longestCriticalPath)
                 {
-                    Console.WriteLine("new longest critical path: " + nodeToCriticalPath[sourceNode]);
-                    longestCriticalPath = new TimeSpan(Math.Max(longestCriticalPath.Ticks, nodeToCriticalPath[sourceNode].Item1.Ticks));
+                    Console.WriteLine("new longest critical path: " + nodeToCriticalPath[sourceNode].CriticalPathTime);
+                    longestCriticalPath = nodeToCriticalPath[sourceNode].CriticalPathTime;
                 }
             }
 
             Console.WriteLine("Done computing critical paths in " + (DateTime.Now - now));
             return nodeToCriticalPath;
-        }
-
-        private IDictionary<AbsolutePath, Tuple<TimeSpan, NodeId>> ComputeFileCriticalPaths(HashSet<NodeId> allNodes, HashSet<AbsolutePath> paths, IDictionary<NodeId, Tuple<TimeSpan, NodeId>> nodeToCriticalPath)
-        {
-            var now = DateTime.Now;
-            Console.WriteLine("Computing file critical paths " + now);
-            var pathToCriticalPath = new ConcurrentDictionary<AbsolutePath, Tuple<TimeSpan, NodeId>>();
-            if (paths.Count == 0)
-            {
-                return pathToCriticalPath;
-            }
-
-            int i = 0;
-            foreach (var sourceNode in allNodes)
-            {
-                TimeSpan criticalPathTime = nodeToCriticalPath[sourceNode].Item1;
-                Parallel.ForEach(CachedGraph.PipGraph.RetrievePipReferenceImmediateDependencies(sourceNode.ToPipId(), null).Where(pipRef => pipRef.PipType == PipType.HashSourceFile || pipRef.PipType == PipType.SealDirectory), pipRef =>
-                {
-                    var pip = CachedGraph.PipTable.HydratePip(pipRef.PipId, PipQueryContext.ViewerAnalyzer);
-
-                    HashSourceFile hashSourceFilePip = pip as HashSourceFile;
-                    AbsolutePath path;
-                    if (hashSourceFilePip == null)
-                    {
-                        SealDirectory sealDirectoryPip = pip as SealDirectory;
-                        path = sealDirectoryPip.DirectoryRoot;
-                    }
-                    else
-                    {
-                        path = hashSourceFilePip.Artifact.Path;
-                    }
-
-                    if (!paths.Contains(path))
-                    {
-                        return;
-                    }
-
-                    if (!pathToCriticalPath.ContainsKey(path) || (criticalPathTime > pathToCriticalPath[path].Item1))
-                    {
-                        pathToCriticalPath[path] = new Tuple<TimeSpan, NodeId>(criticalPathTime, sourceNode);
-                    }
-                });
-
-                if (m_nodesWithObservedInputs.Contains(sourceNode))
-                {
-                    Parallel.ForEach(m_fingerprintComputations[sourceNode.Value], observedInput =>
-                    {
-                        if (!paths.Contains(observedInput.Path))
-                        {
-                            return;
-                        }
-
-                        if (!pathToCriticalPath.ContainsKey(observedInput.Path) || (criticalPathTime > pathToCriticalPath[observedInput.Path].Item1))
-                        {
-                            pathToCriticalPath[observedInput.Path] = new Tuple<TimeSpan, NodeId>(criticalPathTime, sourceNode);
-                        }
-                    });
-                }
-
-                if (i % (allNodes.Count / 100) == 0)
-                {
-                    Console.WriteLine((i * 100 / allNodes.Count) + "% done");
-                }
-
-                i++;
-            }
-
-            Console.WriteLine("Done computing file critical paths " + DateTime.Now.Subtract(now));
-            return pathToCriticalPath;
-        }
-
-        private IDictionary<string, TimeSpan> ComputeNugetCriticalPaths(HashSet<NodeId> allNodes, IDictionary<AbsolutePath, string> pathToPackage, IDictionary<NodeId, Tuple<TimeSpan, NodeId>> nodeToCriticalPath)
-        {
-            var now = DateTime.Now;
-            Console.WriteLine("Computing nuget file critical paths " + now);
-            ConcurrentDictionary<string, TimeSpan> pathToCriticalPath = new ConcurrentDictionary<string, TimeSpan>(StringComparer.OrdinalIgnoreCase);
-            int i = 0;
-            foreach (var sourceNode in allNodes)
-            {
-                TimeSpan criticalPathTime = nodeToCriticalPath[sourceNode].Item1;
-                Parallel.ForEach(CachedGraph.PipGraph.RetrievePipReferenceImmediateDependencies(sourceNode.ToPipId(), null).Where(pipRef => pipRef.PipType == PipType.HashSourceFile || pipRef.PipType == PipType.SealDirectory), pipRef =>
-                {
-                    var pip = CachedGraph.PipTable.HydratePip(pipRef.PipId, PipQueryContext.ViewerAnalyzer);
-                    HashSourceFile hashSourceFilePip = pip as HashSourceFile;
-                    AbsolutePath path;
-                    if (hashSourceFilePip == null)
-                    {
-                        SealDirectory sealDirectoryPip = pip as SealDirectory;
-                        path = sealDirectoryPip.DirectoryRoot;
-                    }
-                    else
-                    {
-                        path = hashSourceFilePip.Artifact.Path;
-                    }
-
-                    if (pathToPackage.ContainsKey(path))
-                    {
-                        MaxDictionaryValue(pathToCriticalPath, pathToPackage[path], criticalPathTime);
-
-                    }
-                });
-
-                if (m_nodesWithObservedInputs.Contains(sourceNode))
-                {
-                    Parallel.ForEach(m_fingerprintComputations[sourceNode.Value], observedInput =>
-                    {
-                        if (pathToPackage.ContainsKey(observedInput.Path))
-                        {
-                            MaxDictionaryValue(pathToCriticalPath, pathToPackage[observedInput.Path], criticalPathTime);
-                        }
-                    });
-                }
-
-                if (i % (allNodes.Count / 100) == 0)
-                {
-                    Console.WriteLine((i * 100 / allNodes.Count) + "% done");
-                }
-
-                i++;
-            }
-
-            Console.WriteLine("Done computing nuget file critical paths " + DateTime.Now.Subtract(now));
-            return pathToCriticalPath;
         }
 
         private void MaxDictionaryValue<T>(IDictionary<T, TimeSpan> dictionary, T key, TimeSpan valueToMax)
@@ -1077,172 +569,67 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
-        private IDictionary<NodeId, int> GetNodeToIndex(IEnumerable<NodeId> allNodes)
+        private IList<IList<NodeId>> ComputeNodeDepthList(IDictionary<NodeId, int> nodeToDepth)
         {
-            IDictionary<NodeId, int> nodeToIndex = new Dictionary<NodeId, int>();
-            int ind = 0;
-            foreach (var nodeId in allNodes)
+            Console.WriteLine("Computing node to depth list at " + DateTime.Now);
+            int maxDepth = nodeToDepth.Values.Max();
+            IList<IList<NodeId>> nodesAtDepths = new List<IList<NodeId>>(maxDepth + 1);
+            HashSet<NodeId> allNodes = new HashSet<NodeId>();
+            for (int i = 0; i < maxDepth + 1; i++)
             {
-                nodeToIndex[nodeId] = ind;
-                ind++;
+                nodesAtDepths.Add(new List<NodeId>());
             }
 
-            return nodeToIndex;
-        }
-
-        private IDictionary<int, NodeId> GetIndexToNode(IEnumerable<NodeId> nodeToDepth)
-        {
-            IDictionary<int, NodeId> indexToNode = new Dictionary<int, NodeId>();
-            int ind = 0;
-            foreach (var nodeId in nodeToDepth)
+            foreach (var node in nodeToDepth)
             {
-                indexToNode[ind] = nodeId;
-                ind++;
+                if (node.Value >= 0)
+                {
+                    nodesAtDepths[node.Value].Add(node.Key);
+                }
             }
 
-            return indexToNode;
+            Console.WriteLine("Done computing node to depth list at " + DateTime.Now);
+            return nodesAtDepths;
         }
 
-        private Tuple<IDictionary<AbsolutePath, HashSet<NodeId>>, IDictionary<NodeId, double>, IDictionary<int, HashSet<NodeId>>> ComputeAllDownstreamNodesAndPipCpuMinutes(
-            HashSet<AbsolutePath> paths,
-            IDictionary<NodeId, int> nodeToDepth,
+        private IDictionary<NodeId, HashSet<int>> ComputeAllDownstreamNodesAndPipCpuMinutes(
+            IList<IList<NodeId>> nodesAtDepths,
+            HashSet<NodeId> allNodes,
             IDictionary<NodeId, List<int>> nodeToChanges)
         {
-            var nodeToDownstreamPips = new ConcurrentDictionary<NodeId, HashSet<NodeId>>();
-            var pathToDownstreamPips = new ConcurrentDictionary<AbsolutePath, HashSet<NodeId>>();
-            var pipToCpuMinutes = new ConcurrentDictionary<NodeId, double>();
-            var changeToDownStreamPips = new ConcurrentDictionary<int, HashSet<NodeId>>();
-
-            int depthToComputeCpuMinutes = 0;
-            var nodesAtDepth = nodeToDepth.Where(x => x.Value == depthToComputeCpuMinutes).Select(x => x.Key);
-            var groups = nodesAtDepth.GroupBy(x => x.Value);
-            int num = nodesAtDepth.Count();
-            while (num > 0)
+            var nodeToAffectedChanges = new ConcurrentDictionary<NodeId, HashSet<int>>();
+            for (int currentDepth = 0; currentDepth < nodesAtDepths.Count; currentDepth++)
             {
-                Console.WriteLine(depthToComputeCpuMinutes + " " + num);
-                depthToComputeCpuMinutes++;
-                num = nodeToDepth.Where(x => x.Value == depthToComputeCpuMinutes).Select(x => x.Key).Count();
-            }
-
-            depthToComputeCpuMinutes--;
-            nodesAtDepth = nodeToDepth.Where(x => x.Value == depthToComputeCpuMinutes).Select(x => x.Key);
-            int cnt = nodeToDepth.Count;
-            int size = nodeToDepth.Count / 32 + 1;
-            while (depthToComputeCpuMinutes >= 0)
-            {
-                Console.WriteLine("At Depth: " + depthToComputeCpuMinutes);
-                int j = 0;
-                ConcurrentDictionary<NodeId, IEnumerable<NodeId>> incomingEdges = new ConcurrentDictionary<NodeId, IEnumerable<NodeId>>();
+                var nodesAtDepth = nodesAtDepths[currentDepth];
+                Console.WriteLine("At Depth: " + currentDepth + " of " + nodesAtDepths.Count + " with: " + nodesAtDepth.Count + " nodes at this depth.");
                 Parallel.ForEach(nodesAtDepth, nodeId =>
                 {
-                    incomingEdges[nodeId] = GetIncomingEdges(nodeId, null, nodeToDepth).ToList();
+                    bool assosiatedWithChange = nodeToChanges.ContainsKey(nodeId);
+                    if (assosiatedWithChange || m_incomingEdges[nodeId.Value].Count > 0)
+                    {
+                        var affectedChanges = nodeToAffectedChanges.GetOrAdd(nodeId, (node) => { return new HashSet<int>(); });
+                        if (assosiatedWithChange)
+                        {
+                            affectedChanges.AddRange(nodeToChanges[nodeId]);
+                        }
+
+                        foreach (var incomingNode in m_incomingEdges[nodeId.Value])
+                        {
+                            var upstreamAffectedChanges = nodeToAffectedChanges.GetOrAdd(incomingNode, (node) => { return new HashSet<int>(); });
+                            affectedChanges.UnionWith(upstreamAffectedChanges);
+                        }
+                    }
                 });
-
-                Parallel.ForEach(nodesAtDepth, nodeId =>
-                {
-                    if (j++ % 1000 == 0)
-                    {
-                        Console.WriteLine(j + " / " + nodesAtDepth.Count());
-                    }
-
-                    HashSet<NodeId> downstreamPips = nodeToDownstreamPips.GetOrAdd(nodeId, (node) => { return new HashSet<NodeId>(); });
-                    downstreamPips.Add(nodeId);
-                    double time = 0;
-                    foreach (var pip in downstreamPips)
-                    {
-                        time += GetElapsed(pip).TotalMilliseconds;
-                    }
-
-                    if (nodeToChanges.ContainsKey(nodeId))
-                    {
-                        Parallel.ForEach(nodeToChanges[nodeId], changeId =>
-                        {
-                            changeToDownStreamPips.GetOrAdd(changeId, (node) => { return new HashSet<NodeId>(); });
-                            lock (changeToDownStreamPips[changeId])
-                            {
-                                changeToDownStreamPips[changeId].UnionWith(downstreamPips);
-                            }
-                        });
-                    }
-
-                    pipToCpuMinutes[nodeId] = time;
-                    if (paths.Count > 0)
-                    {
-                        Parallel.ForEach(CachedGraph.PipGraph.RetrievePipReferenceImmediateDependencies(nodeId.ToPipId(), null).Where(pipRef => pipRef.PipType == PipType.HashSourceFile || pipRef.PipType == PipType.SealDirectory), pipRef =>
-                        {
-                            var pip = CachedGraph.PipTable.HydratePip(pipRef.PipId, PipQueryContext.ViewerAnalyzer);
-
-                            HashSourceFile hashSourceFilePip = pip as HashSourceFile;
-                            AbsolutePath path;
-                            if (hashSourceFilePip == null)
-                            {
-                                SealDirectory sealDirectoryPip = pip as SealDirectory;
-                                path = sealDirectoryPip.DirectoryRoot;
-                            }
-                            else
-                            {
-                                path = hashSourceFilePip.Artifact.Path;
-                            }
-
-                            if (!paths.Contains(path))
-                            {
-                                return;
-                            }
-
-                            pathToDownstreamPips.GetOrAdd(path, (node) => { return new HashSet<NodeId>(); });
-                            lock (pathToDownstreamPips[path])
-                            {
-                                pathToDownstreamPips[path].UnionWith(downstreamPips);
-                            }
-                        });
-
-                        if (m_nodesWithObservedInputs.Contains(nodeId))
-                        {
-                            Parallel.ForEach(m_fingerprintComputations[nodeId.Value], observedInput =>
-                            {
-                                if (!paths.Contains(observedInput.Path))
-                                {
-                                    return;
-                                }
-
-                                pathToDownstreamPips.GetOrAdd(observedInput.Path, (node) => { return new HashSet<NodeId>(); });
-                                lock (pathToDownstreamPips[observedInput.Path])
-                                {
-                                    pathToDownstreamPips[observedInput.Path].UnionWith(downstreamPips);
-                                }
-                            });
-                        }
-                    }
-
-                    foreach (NodeId upstreamEdge in incomingEdges[nodeId])
-                    {
-                        if (!nodeToDepth.ContainsKey(upstreamEdge))
-                        {
-                            continue;
-                        }
-
-                        nodeToDownstreamPips.GetOrAdd(upstreamEdge, (node) => { return new HashSet<NodeId>(); });
-                        lock (nodeToDownstreamPips[upstreamEdge])
-                        {
-                            nodeToDownstreamPips[upstreamEdge].UnionWith(downstreamPips);
-                        }
-                    }
-
-                    nodeToDownstreamPips[nodeId] = null;
-                });
-
-                depthToComputeCpuMinutes--;
-                nodesAtDepth = nodeToDepth.Where(x => x.Value == depthToComputeCpuMinutes).Select(x => x.Key);
             }
 
-            return new Tuple<IDictionary<AbsolutePath, HashSet<NodeId>>, IDictionary<NodeId, double>, IDictionary<int, HashSet<NodeId>>>(pathToDownstreamPips, pipToCpuMinutes, changeToDownStreamPips);
+            return nodeToAffectedChanges;
         }
 
-        public IEnumerable<NodeId> GetIncomingEdges(NodeId nodeId, HashSet<NodeId> allNodes, IDictionary<NodeId, int> nodeToDepth)
+        public IEnumerable<NodeId> GetIncomingEdges(NodeId nodeId, HashSet<NodeId> allNodes)
         {
             foreach (var incomingNode in CachedGraph.DataflowGraph.GetIncomingEdges(nodeId))
             {
-                if ((allNodes == null || allNodes.Contains(incomingNode.OtherNode)) && (nodeToDepth == null || nodeToDepth.ContainsKey(incomingNode.OtherNode)))
+                if (allNodes == null || allNodes.Contains(incomingNode.OtherNode))
                 {
                     yield return incomingNode.OtherNode;
                 }
@@ -1260,7 +647,7 @@ namespace BuildXL.Execution.Analyzer
                         {
                             Console.Error.WriteLine("Pip depends on himself: " + GetPath(observedPath.Path));
                         }
-                        else if ((allNodes == null || allNodes.Contains(newNodeId)) && (nodeToDepth == null || nodeToDepth.ContainsKey(newNodeId)))
+                        else if (allNodes == null || allNodes.Contains(newNodeId))
                         {
                             yield return newNodeId;
                         }
@@ -1279,39 +666,45 @@ namespace BuildXL.Execution.Analyzer
             return m_elapsedTimes[node.Value].ExecuteDuration;
         }
 
-        private IDictionary<NodeId, int> ComputeAllNodeDepths(HashSet<NodeId> allNodes, HashSet<NodeId> frontierNodes)
+        private IDictionary<NodeId, int> ComputeAllNodeDepthsInExecutionCone(HashSet<NodeId> allNodes)
         {
-            Console.WriteLine("Computing node depth");
-            ConcurrentDictionary<NodeId, int> nodeToDepth = new ConcurrentDictionary<NodeId, int>();
+            Console.WriteLine("Computing node depth at " + DateTime.Now);
+            var nodeToDepth = new ConcurrentDictionary<NodeId, int>();
             Parallel.ForEach(allNodes, sourceNode =>
             {
-                ComputeNodeDepth(sourceNode, allNodes, frontierNodes, nodeToDepth);
+                ComputeNodeDepth(sourceNode, nodeToDepth);
             });
 
-            var frontierNodeToDepth = nodeToDepth.Where(x => x.Value >= 0).ToDictionary(x => x.Key, x => x.Value);
-            Console.WriteLine("Total nodes found: " + nodeToDepth.Count + " Nodes in the frontier cone: " + frontierNodeToDepth.Count);
+            var frontierNodeToDepth = nodeToDepth.Where(x => x.Value > 0).ToDictionary(x => x.Key, x => x.Value);
+            Console.WriteLine("Total nodes found: " + nodeToDepth.Count + " Nodes in the execution cone: " + frontierNodeToDepth.Count + " at: " + DateTime.Now);
             return frontierNodeToDepth;
         }
 
-        private int ComputeNodeDepth(NodeId node, HashSet<NodeId> allNodes, HashSet<NodeId> frontierNodes, IDictionary<NodeId, int> nodeToDepth)
+        private int ComputeNodeDepth(NodeId node, IDictionary<NodeId, int> nodeToDepth)
         {
-            int depth;
-            bool hasDepth = nodeToDepth.TryGetValue(node, out depth);
-            if (hasDepth)
+            int result;
+            if (nodeToDepth.TryGetValue(node, out result))
             {
-                return depth;
+                return result;
             }
 
-            depth = frontierNodes.Contains(node) ? 0 : -1;
-            foreach (var dependency in GetIncomingEdges(node, allNodes, null))
+            bool builds = GetElapsed(node).Ticks > 0;
+            int maxDepth = 1;
+            foreach (var dependency in m_incomingEdges[node.Value])
             {
-                int dependencyDepth = ComputeNodeDepth(dependency, allNodes, frontierNodes, nodeToDepth);
-                int computedDepth = dependencyDepth == -1 ? -1 : 1 + dependencyDepth;
-                depth = Math.Max(depth, computedDepth);
+                int dependencyDepth = ComputeNodeDepth(dependency, nodeToDepth);
+                int computedDepth = 1 + Math.Abs(dependencyDepth);
+                builds |= dependencyDepth > 0;
+                maxDepth = Math.Max(maxDepth, computedDepth);
             }
 
-            nodeToDepth[node] = depth;
-            return depth;
+            if (!builds)
+            {
+                maxDepth *= -1;
+            }
+
+            nodeToDepth[node] = maxDepth;
+            return nodeToDepth[node];
         }
 
         public override void PipExecutionStepPerformanceReported(PipExecutionStepPerformanceEventData data)

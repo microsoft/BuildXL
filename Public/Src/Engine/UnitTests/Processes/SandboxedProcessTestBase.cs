@@ -28,7 +28,8 @@ namespace Test.BuildXL.Processes
             FileAccessManifest fileAccessManifest = null,
             IDetoursEventListener detoursListener = null,
             bool disableConHostSharing = false,
-            Dictionary<string, string> overrideEnvVars = null)
+            Dictionary<string, string> overrideEnvVars = null,
+            ISandboxConnection sandboxConnection = null)
         {
             var envVars = Override(
                 BuildParameters.GetFactory().PopulateFromEnvironment().ToDictionary(),
@@ -44,7 +45,7 @@ namespace Test.BuildXL.Processes
                 this,
                 process.Executable.Path.ToString(Context.PathTable),
                 detoursEventListener: detoursListener,
-                sandboxConnection: GetSandboxConnection(),
+                sandboxConnection: sandboxConnection ?? GetSandboxConnection(),
                 disableConHostSharing: disableConHostSharing,
                 fileAccessManifest: fileAccessManifest)
             {

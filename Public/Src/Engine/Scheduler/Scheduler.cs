@@ -2290,14 +2290,16 @@ namespace BuildXL.Scheduler
                 {
                     ReadOnlyArray<FileArtifact> outputContents = ReadOnlyArray<FileArtifact>.Empty;
                     PipResultStatus status = result.Status;
+
                     if (pipType == PipType.CopyFile)
                     {
                         outputContents = new[] { ((CopyFile)runnablePip.Pip).Destination }.ToReadOnlyArray();
                     }
                     else if (runnablePip.ExecutionResult?.OutputContent != null)
                     {
-                        outputContents = runnablePip.ExecutionResult.OutputContent.SelectList(o => o.Item1).ToReadOnlyArray();
+                        outputContents = runnablePip.ExecutionResult.OutputContent.SelectList(o => o.fileArtifact).ToReadOnlyArray();
                     }
+
                     m_fileContentManager.SourceChangeAffectedContents.ReportSourceChangeAffectedFiles(
                         pip,
                         result.DynamicallyObservedFiles,
@@ -5483,6 +5485,20 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
+        bool IFileContentManagerHost.TryGetSourceSealDirectory(DirectoryArtifact directory, out SourceSealWithPatterns sourceSealWithPatterns)
+        {
+            sourceSealWithPatterns = default;
+
+            if (((IPipExecutionEnvironment)this).IsSourceSealedDirectory(directory, out bool allDirectories, out ReadOnlyArray<StringId> patterns))
+            {
+                sourceSealWithPatterns = new SourceSealWithPatterns(directory.Path, patterns, !allDirectories);
+                return true;
+            }
+
+            return false;
+        }
+
+        [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IFileContentManagerHost.ShouldScrubFullSealDirectory(DirectoryArtifact directory)
         {
             return ShouldScrubFullSealDirectory(directory);
@@ -6166,8 +6182,7 @@ namespace BuildXL.Scheduler
             else if (!PipGraph.FilterNodesToBuild(
                 loggingContext,
                 filter,
-                out filterPassingNodesNotYetScheduled,
-                m_scheduleConfiguration.CanonicalizeFilterOutputs))
+                out filterPassingNodesNotYetScheduled))
             {
                 // Find which nodes are in the set.
                 Contract.Assume(loggingContext.ErrorWasLogged, "PipGraph.FilterNodesToBuild returned false but didn't log an error");

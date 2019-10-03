@@ -17,6 +17,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
+using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -83,7 +84,9 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
+        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode 
+            ? ProcessInfo.ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100) 
+            : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
 
@@ -172,7 +175,7 @@ namespace BuildXL.Processes
             proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
 
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            if (!proc.Killed)
+            if (!proc.Process.HasExited)
             {
                 proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
             }
@@ -300,6 +303,15 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
+            m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
+            // Any scheduled callback may occur even after Dispose has been called; here we explicitly wait until they all complete
+            // NOTE: we unregister callbacks as soon as the process exits, and since this method is never called before the process 
+            //       exits, in practice this dance is probably not necessary.
+            var allCallbacksCompleted = new EventWaitHandle(initialState: false, mode: EventResetMode.ManualReset);
+            m_perfTimer.Dispose(allCallbacksCompleted);
+            allCallbacksCompleted.WaitOne();
+
             m_perfTimer.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 
@@ -325,14 +337,14 @@ namespace BuildXL.Processes
         /// The callers must make sure that when they call this method no concurrent modifications are
         /// being done to <see cref="m_reports"/>.
         /// </summary>
-        private IReadOnlyList<ReportedProcess> GetCurrentlyActiveProcesses()
+        private IReadOnlyList<ReportedProcess> GetCurrentlyActiveChildProcesses()
         {
-            return m_reports.GetActiveProcesses();
+            return m_reports.GetActiveProcesses().Where(p => p.ProcessId != ProcessId).ToList();
         }
 
         private void KillAllChildProcesses()
         {
-            NotifyPipTerminated(PipId, CoalesceProcesses(GetCurrentlyActiveProcesses()));
+            NotifyPipTerminated(PipId, CoalesceProcesses(GetCurrentlyActiveChildProcesses()));
         }
 
         private bool ShouldWaitForSurvivingChildProcesses()
@@ -344,7 +356,7 @@ namespace BuildXL.Processes
             }
 
             // Otherwise, wait if there are any alive processes that are not explicitly allowed to survivie
-            var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveProcesses()).Select(p => Path.GetFileName(p.Path));
+            var aliveProcessesNames = CoalesceProcesses(GetCurrentlyActiveChildProcesses()).Select(p => Path.GetFileName(p.Path));
             return aliveProcessesNames
                 .Except(AllowedSurvivingChildProcessNames)
                 .Any();
@@ -472,7 +484,7 @@ namespace BuildXL.Processes
                                         $"and no reports have been received for over {ReportQueueProcessTimeout.TotalSeconds} seconds!");
 
                         m_pendingReports.Complete();
-                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
+                        m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveChildProcesses());
 
                         await KillAsync();
                         processTreeTimeoutSource.SetResult(Unit.Void);
@@ -491,7 +503,7 @@ namespace BuildXL.Processes
                             }
 
                             LogProcessState($"Process timed out because nested process termination timeout limit was reached.");
-                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveProcesses());
+                            m_survivingChildProcesses = CoalesceProcesses(GetCurrentlyActiveChildProcesses());
                             processTreeTimeoutSource.SetResult(Unit.Void);
                             break;
                         }

@@ -13,8 +13,8 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
 using BuildXL.Cache.ContentStore.Distributed.Stores;
+using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.FileSystem;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -68,6 +68,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MaxBlobCapacity = _distributedSettings.MaxBlobCapacity,
                 MaxBlobSize = _distributedSettings.MaxBlobSize,
                 EvictionWindowSize = _distributedSettings.EvictionWindowSize,
+                EvictionPoolSize = _distributedSettings.EvictionPoolSize,
+                EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
             };
 
@@ -192,6 +194,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(namedCacheSettings.CacheSizeQuotaString)));
             }
 
+            var bandwidthCheckedCopier = new BandwidthCheckedCopier<AbsolutePath>(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
+
             _logger.Debug("Creating a distributed content store for Autopilot");
             var contentStore =
                 new DistributedContentStore<AbsolutePath>(
@@ -201,7 +205,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                             contentStoreSettings: contentStoreSettings, trimBulkAsync: trimBulk, configurationModel: configurationModel),
                     redisContentLocationStoreFactory,
                     _arguments.Copier,
-                    _arguments.Copier,
+                    bandwidthCheckedCopier,
                     _arguments.PathTransformer,
                     _arguments.CopyRequester,
                     contentAvailabilityGuarantee,
@@ -241,7 +245,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
-            return new ContentStoreSettings()
+            var result = new ContentStoreSettings()
             {
                 UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
                 CheckFiles = settings.CheckLocalFiles,
@@ -252,8 +256,13 @@ namespace BuildXL.Cache.Host.Service.Internal
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
                 SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
                 OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
-                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut
+                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
+                TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
             };
+
+            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => result.SelfCheckProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+
+            return result;
         }
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)
@@ -294,7 +303,9 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(
                 _distributedSettings.SafeToLazilyUpdateMachineCountThreshold,
                 value => configuration.SafeToLazilyUpdateMachineCountThreshold = value);
-            ApplyIfNotNull(_distributedSettings.IsReconciliationEnabled, value => configuration.EnableReconciliation = value);
+
+            configuration.EnableReconciliation = !_distributedSettings.Unsafe_DisableReconciliation;
+
             ApplyIfNotNull(_distributedSettings.UseIncrementalCheckpointing, value => configuration.Checkpoint.UseIncrementalCheckpointing = value);
             ApplyIfNotNull(_distributedSettings.IncrementalCheckpointDegreeOfParallelism, value => configuration.Checkpoint.IncrementalCheckpointDegreeOfParallelism = value);
 

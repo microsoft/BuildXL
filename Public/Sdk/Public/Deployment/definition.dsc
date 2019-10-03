@@ -53,12 +53,12 @@ export interface DeployedFileWithProvenance {
 @@public
 export interface FlattenedResult {
     flattenedFiles: Map<RelativePath, DeployedFileWithProvenance>,
-    flattenedOpaques: Map<RelativePath, OpaqueDirectory>,
+    flattenedOpaques: Map<RelativePath, OpaqueSubDirectory>,  // Tuple of (1) an opaque directory, and (2) a path relative to that opaque directory designating a subdirectory to be added to the deployment
     visitedItems: Set<Object>,
 }
 
 /** 
- * Helper type alias for handeling duplicate file deployments. It can decide to return one or the other, but commonly it should just fail.
+ * Helper type alias for handling duplicate file deployments. It can decide to return one or the other, but commonly it should just fail.
  * The canaonical implementation is Diagnostics.reportDuplicateError 
  */
 @@public
@@ -84,7 +84,7 @@ export interface Deployable {
 
     /** 
      * Callback for when deployments will be processed. By processing we mean flattening the recursive structure into a flat list which is encoded by the FlattenedResult type.
-     * @param item - The item that is deployable. Think of this as the 'this' pointer which is not accessable from interface implementations.
+     * @param item - The item that is deployable. Think of this as the 'this' pointer which is not accessible from interface implementations.
      * @param targetFolder - The folder to place this deployable item into
      * @param onDuplicate - The error handler for duplicate files
      * @param currentResult - The current flattened result to add the extra flattened files to 

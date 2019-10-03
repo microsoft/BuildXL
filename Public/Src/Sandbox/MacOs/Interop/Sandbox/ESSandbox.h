@@ -4,8 +4,6 @@
 #ifndef ESSandbox_h
 #define ESSandbox_h
 
-#if ES_SANDBOX
-
 #include <EndpointSecurity/EndpointSecurity.h>
 #include <bsm/libbsm.h>
 
@@ -163,18 +161,5 @@ public:
     
     void const SendAccessReport(AccessReport &report, SandboxedPip *pip);
 };
-
-#else  /* ES_SANDBOX */
-
-#include "BuildXLSandboxShared.hpp"
-
-bool ES_SendPipStarted(const pid_t pid, pipid_t pipId, const char *const famBytes, int famBytesLength) {
-    return false;
-}
-bool ES_SendPipProcessTerminated(pipid_t pipId, pid_t pid) {
-    return false;
-}
-
-#endif /* ES_SANDBOX */
 
 #endif /* ESSandbox_h */

@@ -127,6 +127,8 @@ void BuildXLSandbox::InitializePolicyStructures()
 
         .mpo_vnode_check_create           = Listeners::mpo_vnode_check_create,
 
+        .mpo_vnode_check_write            = Listeners::mpo_vnode_check_write,
+
         .mpo_vnode_check_readlink         = Listeners::mpo_vnode_check_readlink,
     };
 
@@ -219,6 +221,8 @@ kern_return_t BuildXLSandbox::InitializeListeners()
         return status;
     }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
     buildxlVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::buildxl_vnode_listener, reinterpret_cast<void *>(this));
     if (buildxlVnodeListener_ == nullptr)
     {
@@ -232,6 +236,7 @@ kern_return_t BuildXLSandbox::InitializeListeners()
         log_error("%s", "Registering callback for KAUTH_SCOPE_FILEOP scope failed!");
         return KERN_FAILURE;
     }
+#pragma clang diagnostic pop
 
     LogVerbose("%s", "Successfully registered listeners");
     return KERN_SUCCESS;
@@ -241,6 +246,8 @@ void BuildXLSandbox::UninitializeListeners()
 {
     counters_ = {0};
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
     if (buildxlVnodeListener_ != nullptr)
     {
         kauth_unlisten_scope(buildxlVnodeListener_);
@@ -254,7 +261,8 @@ void BuildXLSandbox::UninitializeListeners()
         LogVerbose("%s", "Deregistered callback for KAUTH_SCOPE_FILEOP scope");
         buildxlFileOpListener_ = nullptr;
     }
-
+#pragma clang diagnostic pop
+    
     if (policyHandle_ != 0)
     {
         mac_policy_unregister(policyHandle_);

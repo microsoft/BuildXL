@@ -209,6 +209,9 @@ namespace BuildXL
                 m_handlers =
                     new[]
                     {
+                        OptionHandlerFactory.CreateOption(
+                            "abTesting",
+                            opt => CommandLineUtilities.ParsePropertyOption(opt, startupConfiguration.ABTestingArgs)),
                         OptionHandlerFactory.CreateOption2(
                             "additionalConfigFile",
                             "ac",
@@ -701,9 +704,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "adoTaskLogging",
                             sign => loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "adoWarningErrorLogging",
-                            sign => loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps = sign),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",
                             opt => schedulingConfiguration.OutputFileExtensionsForSequentialScanHandleOnHashing.AddRange(CommandLineUtilities.ParseRepeatingPathAtomOption(opt, pathTable.StringTable, ";"))),
@@ -1205,47 +1205,34 @@ namespace BuildXL
                     };
 
                 // Iterate through each argument, looking each argument up in the table.
-                foreach (CommandLineUtilities.Option opt in cl.Options)
+                IterateArgs(cl, configuration, specialCaseUnsafeOptions);
+
+                int numABTestingOptions = startupConfiguration.ABTestingArgs.Count;
+                if (numABTestingOptions > 0)
                 {
-                    int min = 0;
-                    int limit = m_handlers.Length;
-                    while (min < limit)
-                    {
-                        // This avoids overflow, while i = (min + limit) >> 1 could overflow.
-                        int i = unchecked((int)(((uint)min + (uint)limit) >> 1));
+                    // If RelatedActivityId is populated, use it as a seed for random number generation
+                    // so that we can use the same abTesting args for master-workers and different build phases (enlist, meta, product).
+                    Random randomGen = string.IsNullOrEmpty(loggingConfiguration.RelatedActivityId) ?
+                        new Random() :
+                        new Random(loggingConfiguration.RelatedActivityId.GetHashCode());
 
-                        int order = string.Compare(m_handlers[i].OptionName + m_handlers[i].Suffix, opt.Name, StringComparison.OrdinalIgnoreCase);
-                        if (order < 0)
-                        {
-                            min = i + 1;
-                        }
-                        else
-                        {
-                            // Since i < limit, this is guaranteed to make progress.
-                            limit = i;
-                        }
-                    }
+                    int randomNum = randomGen.Next(numABTestingOptions);
+                    var randomOption = startupConfiguration.ABTestingArgs.ToList()[randomNum];
+                    string abTestingKey = randomOption.Key;
+                    string abTestingArgs = randomOption.Value;
 
-                    // Check for equality
-                    if (min < m_handlers.Length)
-                    {
-                        if (string.Equals(m_handlers[min].OptionName + m_handlers[min].Suffix, opt.Name, StringComparison.OrdinalIgnoreCase))
-                        {
-                            // min it is
-                            m_handlers[min].Action(opt);
+                    // Add key and the hash code of the arguments to traceInfo for telemetry purposes. 
+                    // As the ID for the AB testing arguments is specified by the user, there is a chance to
+                    // give the same ID to the different set of arguments. That's why, we also add the hash code of 
+                    // the arguments to traceInfo.
+                    loggingConfiguration.TraceInfo.Add(
+                        TraceInfoExtensions.ABTesting, 
+                        $"{abTestingKey};{abTestingArgs.GetHashCode().ToString()}");
 
-                            // compile list of user-enabled unsafe options to log later
-                            if (specialCaseUnsafeOptions.Contains(opt.Name) || (m_handlers[min].IsUnsafe && m_handlers[min].IsEnabled()))
-                            {
-                                configuration.CommandLineEnabledUnsafeOptions.Add(m_handlers[min].OptionName);
-                            }
-
-                            continue;
-                        }
-                    }
-
-                    // unknown argument, fail
-                    throw CommandLineUtilities.Error(Strings.Args_Args_NotRecognized, opt.Name);
+                    string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);
+                    var cl2 = new CommandLineUtilities(splittedABTestingArgs);
+                    IterateArgs(cl2, configuration, specialCaseUnsafeOptions);
+                    startupConfiguration.ChosenABTestingKey = abTestingKey;
                 }
 
                 foreach (string arg in cl.Arguments)
@@ -1369,6 +1356,52 @@ namespace BuildXL
                 m_console.WriteOutputLine(MessageLevel.Error, Environment.CommandLine);
                 arguments = null;
                 return false;
+            }
+        }
+
+        private void IterateArgs(CommandLineUtilities cl, Utilities.Configuration.Mutable.CommandLineConfiguration configuration, HashSet<string> specialCaseUnsafeOptions)
+        {
+            foreach (CommandLineUtilities.Option opt in cl.Options)
+            {
+                int min = 0;
+                int limit = m_handlers.Length;
+                while (min < limit)
+                {
+                    // This avoids overflow, while i = (min + limit) >> 1 could overflow.
+                    int i = unchecked((int)(((uint)min + (uint)limit) >> 1));
+
+                    int order = string.Compare(m_handlers[i].OptionName + m_handlers[i].Suffix, opt.Name, StringComparison.OrdinalIgnoreCase);
+                    if (order < 0)
+                    {
+                        min = i + 1;
+                    }
+                    else
+                    {
+                        // Since i < limit, this is guaranteed to make progress.
+                        limit = i;
+                    }
+                }
+
+                // Check for equality
+                if (min < m_handlers.Length)
+                {
+                    if (string.Equals(m_handlers[min].OptionName + m_handlers[min].Suffix, opt.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // min it is
+                        m_handlers[min].Action(opt);
+
+                        // compile list of user-enabled unsafe options to log later
+                        if (specialCaseUnsafeOptions.Contains(opt.Name) || (m_handlers[min].IsUnsafe && m_handlers[min].IsEnabled()))
+                        {
+                            configuration.CommandLineEnabledUnsafeOptions.Add(m_handlers[min].OptionName);
+                        }
+
+                        continue;
+                    }
+                }
+
+                // unknown argument, fail
+                throw CommandLineUtilities.Error(Strings.Args_Args_NotRecognized, opt.Name);
             }
         }
 

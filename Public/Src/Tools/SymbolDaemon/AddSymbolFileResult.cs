@@ -21,6 +21,11 @@ namespace Tool.SymbolDaemon
         /// <summary>
         /// Indicates that the file was missing from the server and it had to be uploaded prior completing the request.
         /// </summary>
-        UploadedAndAssociated
+        UploadedAndAssociated,
+
+        /// <summary>
+        /// Indicates that a file did not contain any symbol data, so it was skipped.
+        /// </summary>
+        NoSymbolData
     }
 }

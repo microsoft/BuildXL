@@ -1426,7 +1426,7 @@ namespace BuildXL
                     m_noLogMask,
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                     maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
-                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeWarningOrErrorAnnotationsForAzureDevOps);
+                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeVsoAnnotationsForAzureDevOps);
 
                 listener.SetBuildViewModel(buildViewModel);
 
@@ -1439,7 +1439,8 @@ namespace BuildXL
                     Events.Log,
                     m_console,
                     m_baseTime,
-                    buildViewModel
+                    buildViewModel,
+                    m_configuration.UseCustomPipDescriptionOnConsole
                 );
 
                 AddListener(listener);
@@ -2075,8 +2076,11 @@ namespace BuildXL
 
             // Cache stats
             var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
-            summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
-            summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+            if (schedulerInfo != null)
+            {
+                summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+                summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+            }
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]
@@ -2099,8 +2103,7 @@ namespace BuildXL
 
             if (loggingConfiguration.OptimizeConsoleOutputForAzureDevOps
                 || loggingConfiguration.OptimizeProgressUpdatingForAzureDevOps
-                || loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps
-                || loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps)
+                || loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps)
             {
                 // Use a very simple logger for azure devops
                 return new StandardConsole(colorize: false, animateTaskbar: false, supportsOverwriting: false, pathTranslator: translator);

@@ -62,7 +62,6 @@ namespace Test.BuildXL.Scheduler
             m_expander = new MountPathExpander(Context.PathTable);
 
             m_pipGraph = new GraphFragmentBuilder(
-                m_loggingContext,
                 Context,
                 new ConfigurationImpl()
                 {

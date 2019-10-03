@@ -7,6 +7,7 @@ using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
@@ -43,15 +44,83 @@ namespace BuildXL.Scheduler.Fingerprints
                   pathExpander: pathExpander,
                   pipDataLookup: null)
         {
-            m_sealDirectoryFingerprintLookup = sealDirectoryFingerprintLookup ?? new Func<DirectoryArtifact, ContentFingerprint>(d => ContentFingerprint.Zero);
-            m_directoryProducerFingerprintLookup = directoryProducerFingerprintLookup ?? new Func<DirectoryArtifact, ContentFingerprint>(d => ContentFingerprint.Zero);
+            m_sealDirectoryFingerprintLookup = sealDirectoryFingerprintLookup;
+            m_directoryProducerFingerprintLookup = directoryProducerFingerprintLookup;
+        }
+
+        /// <summary>
+        /// Completes pip's independent static weak fingerprint with the fingerprints of pip's dependencies when appropriate.
+        /// </summary>
+        private ContentFingerprint CompleteFingerprint(PipWithFingerprint pipWithFingerprint, out string completeFingerprintText)
+        {
+            ContentFingerprint completeFingerprint = pipWithFingerprint.Fingerprint;
+            completeFingerprintText = pipWithFingerprint.FingerprintText ?? string.Empty;
+            Pip pip = pipWithFingerprint.Pip;
+
+            if (pip is Process process)
+            {
+                if (m_sealDirectoryFingerprintLookup != null)
+                {
+                    using (var hasher = CreateHashingHelper(true))
+                    {
+                        hasher.Add("IndependentFingerprint", completeFingerprint.Hash);
+                        hasher.AddOrderIndependentCollection(
+                            "DirectoryDependencies", 
+                            process.DirectoryDependencies, 
+                            (fp, d) => fp.Add(d.Path, m_sealDirectoryFingerprintLookup(d).Hash), 
+                            DirectoryComparer);
+                        completeFingerprint = new ContentFingerprint(hasher.GenerateHash());
+                        completeFingerprintText = FingerprintTextEnabled 
+                            ? completeFingerprintText + Environment.NewLine + hasher.FingerprintInputText 
+                            : completeFingerprintText;
+                    }
+                }
+            }
+            else if (pip is SealDirectory sealDirectory 
+                && sealDirectory.Kind == SealDirectoryKind.SharedOpaque 
+                && !sealDirectory.IsComposite)
+            {
+                // For non-composite shared opaque directories, contents and composed directories are always empty, and therefore the static fingerprint 
+                // is not strong enough, i.e. multiple shared opaques can share the same directory root. So in this case we need to add the fingerprint of the producer
+                if (m_directoryProducerFingerprintLookup != null)
+                {
+                    DirectoryArtifact directory = sealDirectory.Directory;
+                    using (var hasher = CreateHashingHelper(true))
+                    {
+                        hasher.Add("IndependentFingerprint", completeFingerprint.Hash);
+                        hasher.Add(directory, m_directoryProducerFingerprintLookup(directory).Hash);
+                        completeFingerprint = new ContentFingerprint(hasher.GenerateHash());
+                        completeFingerprintText = FingerprintTextEnabled
+                            ? completeFingerprintText + Environment.NewLine + hasher.FingerprintInputText
+                            : completeFingerprintText;
+                    }
+                }
+            }
+
+            return completeFingerprint;
         }
 
         /// <inheritdoc />
-        protected override void AddDirectoryDependency(ICollectionFingerprinter fingerprinter, DirectoryArtifact directoryArtifact)
+        public override ContentFingerprint ComputeWeakFingerprint(Pip pip, out string fingerprintInputText)
         {
-            Contract.Requires(fingerprinter != null);
-            fingerprinter.Add(directoryArtifact.Path, m_sealDirectoryFingerprintLookup(directoryArtifact).Hash);
+            ContentFingerprint fingerprint;
+            fingerprintInputText = string.Empty;
+
+            if (FingerprintTextEnabled)
+            {
+                // Force compute weak fingerprint if fingerprint text is requested.
+                fingerprint = base.ComputeWeakFingerprint(pip, out fingerprintInputText);
+            }
+            else if (pip.IndependentStaticFingerprint.Length > 0)
+            {
+                fingerprint = new ContentFingerprint(pip.IndependentStaticFingerprint);
+            }
+            else
+            {
+                fingerprint = base.ComputeWeakFingerprint(pip, out fingerprintInputText);
+            }
+
+            return CompleteFingerprint(new PipWithFingerprint(pip, fingerprint, fingerprintInputText), out fingerprintInputText);
         }
 
         /// <inheritdoc />
@@ -62,19 +131,42 @@ namespace BuildXL.Scheduler.Fingerprints
 
             base.AddWeakFingerprint(fingerprinter, sealDirectory);
 
-            // For non-composite shared opaque directories, contents and composed directories are always empty, and therefore the static fingerprint 
-            // is not strong enough, i.e. multiple shared opaques can share the same directory root. So in this case we need to add the fingerprint of the producer
-            if (sealDirectory.Kind == SealDirectoryKind.SharedOpaque && !sealDirectory.IsComposite)
-            {
-                DirectoryArtifact directory = sealDirectory.Directory;
-                fingerprinter.Add(directory, m_directoryProducerFingerprintLookup(directory).Hash);
-            }
-
             if (!ExcludeSemiStableHashOnFingerprintingSealDirectory && !sealDirectory.Kind.IsDynamicKind())
             {
                 // A statically sealed directory can exist as multiple different instances, e.g., one can have partially sealed directories with the same root and member set.
                 // To distinguish those instances, we include the semi stable hash as part of the static fingerprint.
                 fingerprinter.Add("SemiStableHash", sealDirectory.SemiStableHash);
+            }
+        }
+
+        /// <summary>
+        /// Pip with its fingerprint.
+        /// </summary>
+        private struct PipWithFingerprint
+        {
+            /// <summary>
+            /// Pip.
+            /// </summary>
+            public readonly Pip Pip;
+
+            /// <summary>
+            /// (Static) Fingerprint.
+            /// </summary>
+            public readonly ContentFingerprint Fingerprint;
+
+            /// <summary>
+            /// Fingerprint text.
+            /// </summary>
+            public readonly string FingerprintText;
+
+            /// <summary>
+            /// Creates an instance of <see cref="PipWithFingerprint"/>.
+            /// </summary>
+            public PipWithFingerprint(Pip pip, ContentFingerprint fingerprint, string fingerprintText)
+            {
+                Pip = pip;
+                Fingerprint = fingerprint;
+                FingerprintText = fingerprintText;
             }
         }
     }

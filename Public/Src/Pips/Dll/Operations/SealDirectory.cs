@@ -54,7 +54,7 @@ namespace BuildXL.Pips.Operations
         /// A seal directory can be composed of other seal directories. This is not the case for a regular seal directory,
         /// and therefore this collection is always empty. <see cref="CompositeSharedOpaqueSealDirectory"/>
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public virtual IReadOnlyList<DirectoryArtifact> ComposedDirectories => CollectionUtilities.EmptyArray<DirectoryArtifact>();
 
         /// <summary>

@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
-using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
@@ -19,7 +18,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Scheduler.Graph.PipGraph;
-using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Scheduler.Graph
 {
@@ -39,11 +37,6 @@ namespace BuildXL.Scheduler.Graph
         protected readonly IConfiguration Configuration;
 
         /// <summary>
-        /// Logging context.
-        /// </summary>
-        protected readonly LoggingContext LoggingContext;
-
-        /// <summary>
         /// File producers.
         /// </summary>
         protected readonly ConcurrentBigMap<FileArtifact, PipId> FileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
@@ -54,8 +47,7 @@ namespace BuildXL.Scheduler.Graph
         protected readonly ConcurrentBigMap<DirectoryArtifact, PipId> OpaqueDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, PipId>();
 
         private readonly PipStaticFingerprinter m_pipStaticFingerprinter;
-        private readonly PipGraphStaticFingerprints m_pipStaticFingerprints = new PipGraphStaticFingerprints();
-
+        
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
@@ -68,16 +60,13 @@ namespace BuildXL.Scheduler.Graph
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
         public GraphFragmentBuilder(
-            LoggingContext loggingContext, 
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration,
             PathExpander pathExpander)
         {
-            Contract.Requires(loggingContext != null);
             Contract.Requires(pipExecutionContext != null);
 
             Configuration = configuration;
-            LoggingContext = loggingContext;
             m_pipExecutionContext = pipExecutionContext;
             m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
                 ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
@@ -94,10 +83,10 @@ namespace BuildXL.Scheduler.Graph
 
                 m_pipStaticFingerprinter = new PipStaticFingerprinter(
                     pipExecutionContext.PathTable,
-                    GetSealDirectoryFingerprint,
-                    GetDirectoryProducerFingerprint,
-                    extraFingerprintSalts,
-                    pathExpander)
+                    sealDirectoryFingerprintLookup: null,
+                    directoryProducerFingerprintLookup: null,
+                    extraFingerprintSalts: extraFingerprintSalts,
+                    pathExpander: pathExpander)
                 {
                     FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
                 };
@@ -118,7 +107,8 @@ namespace BuildXL.Scheduler.Graph
         {
             AddPip(copyFile);
             FileProducers[copyFile.Destination] = copyFile.PipId;
-            return ComputeStaticFingerprint(copyFile);
+            ComputeStaticFingerprint(copyFile);
+            return true;
         }
 
         /// <inheritdoc />
@@ -160,7 +150,9 @@ namespace BuildXL.Scheduler.Graph
                 OpaqueDirectoryProducers[directoryOutput] = process.PipId;
             }
 
-            return ComputeStaticFingerprint(process);
+            ComputeStaticFingerprint(process);
+
+            return true;
         }
 
         /// <inheritdoc />
@@ -185,10 +177,9 @@ namespace BuildXL.Scheduler.Graph
             }
 
             SealDirectoryTable.AddSeal(sealDirectory);
+            ComputeStaticFingerprint(sealDirectory);
 
-            return ComputeStaticFingerprint(sealDirectory)
-                ? artifactForNewSeal
-                : DirectoryArtifact.Invalid;
+            return artifactForNewSeal;
         }
 
         /// <inheritdoc />
@@ -206,7 +197,9 @@ namespace BuildXL.Scheduler.Graph
         {
             AddPip(writeFile);
             FileProducers[writeFile.Destination] = writeFile.PipId;
-            return ComputeStaticFingerprint(writeFile);
+            ComputeStaticFingerprint(writeFile);
+
+            return true;
         }
 
         /// <inheritdoc />
@@ -268,59 +261,12 @@ namespace BuildXL.Scheduler.Graph
         {
         }
 
-        private ContentFingerprint GetSealDirectoryFingerprint(DirectoryArtifact directory)
+        private void ComputeStaticFingerprint(Pip pip)
         {
-            Contract.Requires(directory.IsValid);
-
-            if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(directory, out PipId pipId)
-                || !m_pipStaticFingerprints.TryGetFingerprint(pipId, out ContentFingerprint fingerprint))
+            if (m_pipStaticFingerprinter != null)
             {
-                throw new BuildXLException(I($"Fingerprint for seal directory '{directory.Path.ToString(m_pipExecutionContext.PathTable)}' is not found"));
+                pip.IndependentStaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
             }
-
-            return fingerprint;
-        }
-
-        private ContentFingerprint GetDirectoryProducerFingerprint(DirectoryArtifact directory)
-        {
-            Contract.Requires(directory.IsValid);
-
-            if (!OpaqueDirectoryProducers.TryGetValue(directory, out PipId pipId)
-                || !m_pipStaticFingerprints.TryGetFingerprint(pipId, out ContentFingerprint fingerprint))
-            {
-                throw new BuildXLException(I($"Fingerprint for producer of directory '{directory.Path.ToString(m_pipExecutionContext.PathTable)}' is not found"));
-            }
-
-            return fingerprint;
-        }
-
-        private bool ComputeStaticFingerprint(Pip pip)
-        {
-            if (m_pipStaticFingerprinter == null)
-            {
-                return true;
-            }
-
-            try
-            {
-                pip.StaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
-                m_pipStaticFingerprints.AddFingerprint(pip, new ContentFingerprint(pip.StaticFingerprint));
-            }
-            catch (BuildXLException e)
-            {
-                PipProvenance provenance = pip.Provenance ?? PipProvenance.CreateDummy(m_pipExecutionContext);
-                Tracing.Logger.Log.FailedComputingPipStaticFingerprintForGraphFragment(
-                    LoggingContext,
-                    provenance.Token.Path.ToString(m_pipExecutionContext.PathTable),
-                    provenance.Token.Line,
-                    provenance.Token.Position,
-                    provenance.SemiStableHash,
-                    pip.GetDescription(m_pipExecutionContext),
-                    e.Message);
-                return false;
-            }
-
-            return true;
         }
     }
 }

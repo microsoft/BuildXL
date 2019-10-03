@@ -5,10 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 
 namespace BuildXL.Scheduler.Graph
@@ -24,11 +22,10 @@ namespace BuildXL.Scheduler.Graph
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
         public GraphFragmentBuilderTopSort(
-            LoggingContext loggingContext, 
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration, 
             PathExpander pathExpander) 
-            : base(loggingContext, pipExecutionContext, configuration, pathExpander)
+            : base(pipExecutionContext, configuration, pathExpander)
         {
         }
 

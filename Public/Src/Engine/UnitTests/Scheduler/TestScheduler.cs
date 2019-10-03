@@ -72,7 +72,7 @@ namespace Test.BuildXL.Scheduler
             VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null) : base(graph, pipQueue, context, fileContentTable, cache,
                 configuration, fileAccessWhitelist, loggingContext, null, directoryMembershipFingerprinterRules,
-                tempCleaner, Task.FromResult<PipRuntimeTimeTable>(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
+                tempCleaner, AsyncLazy<PipRuntimeTimeTable>.FromResult(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
                 ipcProvider: ipcProvider, 
                 directoryTranslator: directoryTranslator, 
                 journalState: journalState, 

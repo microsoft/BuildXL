@@ -20,6 +20,20 @@ namespace BuildXL.Utilities
             m_lazyTask = new Lazy<Task<T>>(() => Task.Run(factory));    
         }
 
+        /// <nodoc />
+        private AsyncLazy(T value)
+        {
+            m_lazyTask = new Lazy<Task<T>>(() => Task.FromResult(value));
+        }
+
+        /// <summary>
+        /// Creates an async lazy from the result value
+        /// </summary>
+        public static AsyncLazy<T> FromResult(T value)
+        {
+            return new AsyncLazy<T>(value);
+        }
+
         /// <summary>
         /// Gets the synchronous result of the completion of the async lazy
         /// </summary>

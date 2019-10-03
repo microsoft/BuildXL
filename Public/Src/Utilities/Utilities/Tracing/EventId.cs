@@ -116,10 +116,8 @@ namespace BuildXL.Utilities.Tracing
         // Reserved  = 90,
         // Reserved  = 91,
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
-        // Reserved  = 93,
         EnvironmentValueForTempDisallowed = 94,
         CannotHonorLowPriority = 95,
-        // Reserved  = 96,
         // Reserved  = 97,
         // Reserved  = 98,
         [SuppressMessage("Microsoft.Naming", "CA1700:IdentifiersShouldBeSpelledCorrectly")]

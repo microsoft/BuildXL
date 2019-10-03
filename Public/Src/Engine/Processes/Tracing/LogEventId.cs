@@ -63,6 +63,8 @@ namespace BuildXL.Processes.Tracing
 
         TranslatePathInGlobalUnsafeUntrackedScopes = 91,
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
+        PipProcessPulledGlobalUnsafeUntrackedScopes = 93,
+        PipProcessPulledGlobalUnsafePassthroughEnvironmentVariables = 96,
 
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
         PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,

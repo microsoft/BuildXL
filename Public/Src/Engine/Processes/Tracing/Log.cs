@@ -999,5 +999,29 @@ namespace BuildXL.Processes.Tracing
             long pipSemiStableHash,
             string pipDescription,
             string path);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessPulledGlobalUnsafeUntrackedScopes,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "GlobalUnsafeUntrackedScopes get pulled.")]
+        public abstract void PipProcessPulledGlobalUnsafeUntrackedScopes(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessPulledGlobalUnsafePassthroughEnvironmentVariables,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "GlobalUnsafePassthroughEnvironmentVariables get pulled.")]
+        public abstract void PipProcessPulledGlobalUnsafePassthroughEnvironmentVariables(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription);
     }
 }

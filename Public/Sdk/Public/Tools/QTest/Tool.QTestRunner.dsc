@@ -231,7 +231,7 @@ export function runQTest(args: QTestArguments): Result {
                 ...(args.qTestRuntimeDependencies || []),
             ],
             unsafe: unsafeOptions,
-            retryExitCodes: [2],
+            retryExitCodes: [2]
         },
         changeAffectedInputListWrittenFileArg
     ));
@@ -264,7 +264,7 @@ export function runQTest(args: QTestArguments): Result {
             disableCacheLookup: true,
             privilegeLevel: args.privilegeLevel,
             unsafe: unsafeOptions,
-            retryExitCodes: [2],
+            retryExitCodes: [2]
         });
     }
 

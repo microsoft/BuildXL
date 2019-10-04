@@ -1703,7 +1703,7 @@ namespace BuildXL.Processes
         {
             const string PipPropertyPrefix = "PipProperty_";
 
-            Regex pipPropertyRegex = new Regex(PipPropertyPrefix + @"(?<" + PipPropertyPrefix + @">.+)_EndProperty", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
+            Regex pipPropertyRegex = new Regex(PipPropertyPrefix + @"(?<" + PipPropertyPrefix + @">.+?)_EndProperty", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
             OutputFilter propertyFilter = new OutputFilter(pipPropertyRegex, PipPropertyPrefix);
 
             string errorMatches = await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true);

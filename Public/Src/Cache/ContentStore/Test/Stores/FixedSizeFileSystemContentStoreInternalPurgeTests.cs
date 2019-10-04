@@ -135,25 +135,16 @@ namespace ContentStoreTest.Stores
             });
         }
 
-        [Theory]
-        [InlineData(true, true, true)] // useLegacyQuotaKeeper: true, purgeAtStartup: true, expectedTriggeredEviction: true
-        [InlineData(true, false, false)] // useLegacyQuotaKeeper: true, purgeAtStartup: false, expectedTriggeredEviction: false
-        [InlineData(false, true, true)] // useLegacyQuotaKeeper: false, purgeAtStartup: true, expectedTriggeredEviction: true
-        [InlineData(false, false, false)] // useLegacyQuotaKeeper: false, purgeAtStartup: false, expectedTriggeredEviction: false
-        public async Task StartupShouldTriggerPurgeIfConfigured(bool useLegacyQuotaKeeper, bool purgeAtStartup, bool expectedTriggeredEviction)
+        [Fact]
+        public async Task StartupShouldTriggerPurge()
         {
+            bool expectedTriggeredEviction = true;
             // This test makes sure that if configured QuotaKeeper starts purging at startup if
             // the constructed store is full (above soft limit).
 
             // Using the same test directory for two invocations to reuse the content.
             using (var directory = new DisposableDirectory(FileSystem))
             {
-                ContentStoreSettings = new ContentStoreSettings()
-                                       {
-                                           StartPurgingAtStartup = purgeAtStartup,
-                                           UseLegacyQuotaKeeperImplementation = useLegacyQuotaKeeper,
-                                       };
-
                 bool triggeredEviction = false;
                 var contentSize = ContentSizeToStartSoftPurging(3);
                 await TestStore(Context, Clock, directory, async store =>

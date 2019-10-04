@@ -148,7 +148,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     CheckFiles = true,
                     UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled,
-                    UseLegacyQuotaKeeperImplementation = false,
                 },
                 setPostInitializationCompletionAfterStartup: true);
 

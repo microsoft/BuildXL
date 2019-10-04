@@ -7,7 +7,6 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Host.Configuration;
@@ -36,11 +35,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <summary>
-        /// Checks that a copy has a minimum bandwidth, and cancells it otherwise.
+        /// Checks that a copy has a minimum bandwidth, and cancels it otherwise.
         /// </summary>
         /// <param name="context">The context of the operation.</param>
         /// <param name="copyTaskFactory">Function that will trigger the copy.</param>
-        /// <param name="destinationStream">Stream into which the copy is being made. Used to meassure bandwidth.</param>
+        /// <param name="destinationStream">Stream into which the copy is being made. Used to measure bandwidth.</param>
         public async Task<CopyFileResult> CheckBandwidthAtIntervalAsync(OperationContext context, Func<CancellationToken, Task<CopyFileResult>> copyTaskFactory, Stream destinationStream)
         {
             if (_historicalBandwidthLimitSource != null)

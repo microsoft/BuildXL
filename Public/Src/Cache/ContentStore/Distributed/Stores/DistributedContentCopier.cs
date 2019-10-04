@@ -512,7 +512,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)new RecordingStream(fileStream, hashInfo.Size) : fileStream)
                     using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
-                        var copyFileResult = await _remoteFileCopier.CopyToAsync(location, hashingStream, hashInfo.Size, cts);
+                        var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);
                         copyFileResult.TimeSpentHashing = hashingStream.TimeSpentHashing;
 
                         if (copyFileResult.Succeeded)

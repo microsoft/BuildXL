@@ -152,6 +152,12 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int? SelfCheckProgressReportingIntervalInMinutes { get; set; }
 
+        [DataMember]
+        public int? SelfCheckDelayInMilliseconds { get; set; }
+
+        [DataMember]
+        public int? SelfCheckDefaultHddDelayInMilliseconds { get; set; }
+
         /// <summary>
         /// An epoch used for reseting self check of a content directory.
         /// </summary>

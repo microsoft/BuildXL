@@ -243,22 +243,32 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
-            var result = new ContentStoreSettings()
+            return new ContentStoreSettings()
+                   {
+                       UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
+                       CheckFiles = settings.CheckLocalFiles,
+                       UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
+                       SelfCheckSettings = CreateSelfCheckSettings(settings),
+                       OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
+                       UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
+                       TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                   };
+        }
+
+        private static SelfCheckSettings CreateSelfCheckSettings(DistributedContentSettings settings)
+        {
+            var selfCheckSettings = new SelfCheckSettings()
             {
-                UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
-                CheckFiles = settings.CheckLocalFiles,
-                UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
-                SelfCheckEpoch = settings.SelfCheckEpoch,
+                Epoch = settings.SelfCheckEpoch,
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
-                SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
-                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
-                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
-                TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                Frequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
             };
 
-            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => result.SelfCheckProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => selfCheckSettings.ProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+            ApplyIfNotNull(settings.SelfCheckDelayInMilliseconds, milliseconds => selfCheckSettings.HashAnalysisDelay = TimeSpan.FromMilliseconds(milliseconds));
+            ApplyIfNotNull(settings.SelfCheckDefaultHddDelayInMilliseconds, milliseconds => selfCheckSettings.DefaultHddHashAnalysisDelay = TimeSpan.FromMilliseconds(milliseconds));
 
-            return result;
+            return selfCheckSettings;
         }
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)

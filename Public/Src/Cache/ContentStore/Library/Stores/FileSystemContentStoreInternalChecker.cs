@@ -199,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Trying to restore the index of a hash that we processed before.
             int index = 0;
-            if (status == SelfCheckStatus.InProgress)
+            if (status == SelfCheckStatus.InProgress && selfCheckState.LastPosition != null)
             {
                 index = findNextIndexToProcess(selfCheckState.LastPosition.Value);
                 _tracer.Debug(context, $"SelfCheck: skipping {index} elements based on previous state '{selfCheckState.ToParseableString()}'.");

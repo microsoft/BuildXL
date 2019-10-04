@@ -107,7 +107,7 @@ namespace BuildXL.Pips.Operations
             IncrementalTool = (1 << 13) | AllowPreserveOutputs,
 
             /// <summary>
-            /// Pull unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes for this process is set
+            /// Whether this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
             /// </summary>
             RequireGlobalDependencies = 1 << 14,
         }

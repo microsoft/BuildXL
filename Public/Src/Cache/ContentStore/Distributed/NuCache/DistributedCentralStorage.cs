@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -358,6 +359,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // from the set of locations assuming worst case where all machines are trying to copy concurrently
             var machineThreshold = index / _configuration.MaxSimultaneousCopies;
             return Math.Max(1, machineThreshold);
+        }
+
+        /// <inheritdoc />
+        public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        {
+            return await _privateCas.OpenStreamAsync(context, contentHash, pinRequest: null);
+        }
+
+        /// <inheritdoc />
+        public bool HasContent(ContentHash contentHash)
+        {
+            return _privateCas.Contains(contentHash);
         }
 
         /// <summary>

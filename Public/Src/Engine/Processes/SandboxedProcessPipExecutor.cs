@@ -534,28 +534,30 @@ namespace BuildXL.Processes
             return m_warningRegex.IsMatch(line);
         }
 
-        private readonly struct OutputFilter
+        private struct OutputFilter
         {
             internal readonly Predicate<string> LinePredicate;
             internal readonly Regex Regex;
+            internal readonly string GroupName;
 
             internal OutputFilter(Predicate<string> linePredicate)
-                : this(linePredicate, null)
+                : this(linePredicate, null, null)
             {
                 Contract.Requires(linePredicate != null);
             }
 
-            internal OutputFilter(Regex regex)
-                : this(null, regex)
+            internal OutputFilter(Regex regex, string groupName = null)
+                : this(null, regex, groupName)
             {
                 Contract.Requires(regex != null);
             }
 
-            private OutputFilter(Predicate<string> linePredicate, Regex regex)
+            private OutputFilter(Predicate<string> linePredicate, Regex regex, string groupName)
             {
                 Contract.Requires(linePredicate != null || regex != null);
                 LinePredicate = linePredicate;
                 Regex = regex;
+                GroupName = groupName ?? ErrorMessageGroupName;
             }
 
             /// <summary>
@@ -583,9 +585,9 @@ namespace BuildXL.Processes
                 }
             }
 
-            private static string ExtractTextFromMatch(Match match)
+            private string ExtractTextFromMatch(Match match)
             {
-                var errorMessageGroup = match.Groups[ErrorMessageGroupName];
+                Group errorMessageGroup = match.Groups[GroupName];
                 return errorMessageGroup.Success
                     ? errorMessageGroup.Value
                     : match.Value;
@@ -1334,6 +1336,8 @@ namespace BuildXL.Processes
             bool exitedSuccessfullyAndGracefully = !canceled && exitedWithSuccessExitCode;
             bool exitedButCanBeRetried = m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0;
 
+            Dictionary<string, int> pipProperties = null;
+
             bool allOutputsPresent = false;
 
             ProcessTimes primaryProcessTimes = result.PrimaryProcessTimes;
@@ -1384,7 +1388,7 @@ namespace BuildXL.Processes
                     {
                         LogFinishedFailed(result);
 
-                        if (m_pip.RetryExitCodes.Contains(result.ExitCode) && m_remainingUserRetryCount > 0)
+                        if (exitedButCanBeRetried)
                         {
                             Tuple<AbsolutePath, Encoding> encodedStandardError = null;
                             Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
@@ -1409,7 +1413,8 @@ namespace BuildXL.Processes
                                 maxDetoursHeapSize,
                                 m_containerConfiguration,
                                 encodedStandardError,
-                                encodedStandardOutput);
+                                encodedStandardOutput,
+                                pipProperties);
                         }
                         else if (m_sandboxConfig.RetryOnAzureWatsonExitCode && result.Processes.Any(p => p.ExitCode == AzureWatsonExitCode))
                         {
@@ -1432,7 +1437,8 @@ namespace BuildXL.Processes
                                 sw.ElapsedMilliseconds,
                                 result.ProcessStartTime,
                                 maxDetoursHeapSize,
-                                m_containerConfiguration);
+                                m_containerConfiguration,
+                                pipProperties);
                         }
                     }
                 }
@@ -1539,6 +1545,8 @@ namespace BuildXL.Processes
             // if some outputs are missing, we are logging this process as a failed one (even if it finished with a success exit code).
             if ((!mainProcessExitedCleanly || !allOutputsPresent) && !canceled && loggingSuccess)
             {
+                pipProperties = await UpdatePipPropertiesCountsAsync(result, pipProperties);
+
                 standardOutHasBeenWrittenToLog = true;
 
                 LogErrorResult logErrorResult = await TryLogErrorAsync(result, exitedWithSuccessExitCode);
@@ -1687,7 +1695,46 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: allFileAccesses,
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: m_containerConfiguration);
+                containerConfiguration: m_containerConfiguration,
+                pipProperties: pipProperties);
+        }
+
+        private async Task<Dictionary<string, int>> UpdatePipPropertiesCountsAsync(SandboxedProcessResult result, Dictionary<string, int> pipProperties)
+        {
+            const string PipPropertyPrefix = "PipProperty_";
+
+            Regex pipPropertyRegex = new Regex(PipPropertyPrefix + @"(?<" + PipPropertyPrefix + @">.+)_EndProperty", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
+            OutputFilter propertyFilter = new OutputFilter(pipPropertyRegex, PipPropertyPrefix);
+
+            string errorMatches = await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true);
+            string outputMatches = await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true);
+            string allMatches = errorMatches + Environment.NewLine + outputMatches;
+
+            if (!string.IsNullOrWhiteSpace(allMatches))
+            {
+                string[] matchedProperties = allMatches.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+                if (pipProperties == null)
+                {
+                    pipProperties = matchedProperties.ToDictionary(val => val, val => 1);
+                }
+                else
+                {
+                    foreach (string property in matchedProperties)
+                    {
+                        if (pipProperties.ContainsKey(property))
+                        {
+                            pipProperties[property] = ++pipProperties[property];
+                        }
+                        else
+                        {
+                            pipProperties.Add(property, 1);
+                        }
+                    }
+                }
+
+            }
+
+            return pipProperties;
         }
 
         private Tuple<AbsolutePath, Encoding> GetEncodedStandardConsoleStream(SandboxedProcessOutput output)

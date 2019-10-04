@@ -1345,6 +1345,7 @@ namespace BuildXL.Scheduler
                             int remainingInternalSandboxedProcessExecutionFailureRetries = InternalSandboxedProcessExecutionFailureRetryCountMax;
 
                             int retryCount = 0;
+                            bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
 
                             // Retry pip count up to limit if we produce result without detecting file access.
@@ -1446,6 +1447,7 @@ namespace BuildXL.Scheduler
                                                 break;
                                         }
 
+                                        counters.AddToCounter(PipExecutorCounter.RetriedInternalExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                                         continue;
                                     }
 
@@ -1521,6 +1523,8 @@ namespace BuildXL.Scheduler
                                         remainingUserRetries,
                                         stdErr,
                                         stdOut);
+                                    userRetry = true;
+                                    counters.AddToCounter(PipExecutorCounter.RetriedUserExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
 
                                     continue;
@@ -1549,11 +1553,29 @@ namespace BuildXL.Scheduler
                                 }
                             }
 
+                            if (userRetry)
+                            {
+                                counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPips);
+                                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded)
+                                {
+                                    //TODO update PipsSucceedingAfterUserRetry
+                                }
+                                else if (result.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed)
+                                {
+                                    //TODO update PipsFailingAfterLastUserRetry
+                                }
+                            }
+
                             return result;
                         }
                     });
 
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
+
+            if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
+            {
+                //TODO create and/or update global pip Properties counters
+            }
 
             counters.AddToCounter(PipExecutorCounter.SandboxedProcessPrepDurationMs, executionResult.SandboxPrepMs);
             counters.AddToCounter(

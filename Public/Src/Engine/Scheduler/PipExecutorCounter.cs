@@ -622,9 +622,26 @@ namespace BuildXL.Scheduler
         AzureWatsonExitCodeRetriesCount,
 
         /// <summary>
+        /// The total pip execution time that was later retried for internal reasons.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RetriedInternalExecutionDuration,
+
+        /// <summary>
         /// Counts the number of retries for pips because users allow them to be retried, e.g., based on their exit codes.
         /// </summary>
         ProcessUserRetries,
+
+        /// <summary>
+        /// The total count of unique pips impacted by user allowed retries.
+        /// </summary>
+        ProcessUserRetriesImpactedPips,
+
+        /// <summary>
+        /// The total pip execution time that was later retried for because users allowed them to be retried.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        RetriedUserExecutionDuration,
 
         /// <summary>
         /// Counts the number of process pips executed on remote workers

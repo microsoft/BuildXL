@@ -308,9 +308,13 @@ namespace BuildXL.Scheduler
                 worker.SyncResourceMappings(LocalWorker);
             }
 
-            m_workersStatusOperation = OperationTracker.StartOperation(Worker.WorkerStatusParentOperationKind, m_executePhaseLoggingContext);
             m_workers.AddRange(remoteWorkers);
             PipExecutionCounters.AddToCounter(PipExecutorCounter.RemoteWorkerCount, remoteWorkers.Length);
+        }
+
+        private void StartWorkers(LoggingContext loggingContext)
+        {
+            m_workersStatusOperation = OperationTracker.StartOperation(Worker.WorkerStatusParentOperationKind, loggingContext);
 
             // The first of the workers must be local and all others must be remote.
             Contract.Assert(m_workers[0] is LocalWorker && m_workers.Skip(1).All(w => w.IsRemote));
@@ -402,14 +406,7 @@ namespace BuildXL.Scheduler
         private PipRuntimeInfo[] m_pipRuntimeInfos;
 
         private PipRuntimeTimeTable m_runningTimeTable;
-
-        /// <summary>
-        /// Task for lazily initializing the running time table.
-        /// </summary>
-        /// <remarks>
-        /// Exposed for sake of controling when the task has completed.
-        /// </remarks>
-        internal readonly Task<PipRuntimeTimeTable> RunningTimeTableTask;
+        private readonly AsyncLazy<PipRuntimeTimeTable> m_runningTimeTableTask;
 
         /// <summary>
         /// The last node in the currently computed critical path
@@ -419,7 +416,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Historical estimation for duration of each pip, indexed by semi stable hashes
         /// </summary>
-        public PipRuntimeTimeTable RunningTimeTable => (m_runningTimeTable = m_runningTimeTable ?? (RunningTimeTableTask?.Result ?? new PipRuntimeTimeTable()));
+        public PipRuntimeTimeTable RunningTimeTable => (m_runningTimeTable = (m_runningTimeTableTask?.Value ?? new PipRuntimeTimeTable()));
 
         /// <summary>
         /// Nodes that are explicitly scheduled by filtering.
@@ -999,7 +996,7 @@ namespace BuildXL.Scheduler
             string buildEngineFingerprint,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules = null,
             ITempCleaner tempCleaner = null,
-            Task<PipRuntimeTimeTable> runningTimeTableTask = null,
+            AsyncLazy<PipRuntimeTimeTable> runningTimeTable = null,
             PerformanceCollector performanceCollector = null,
             string fingerprintSalt = null,
             ContentHash? previousInputsSalt = null,
@@ -1057,7 +1054,7 @@ namespace BuildXL.Scheduler
                 extraFingerprintSalts,
                 m_semanticPathExpander,
                 PipGraph.QueryFileArtifactPipData);
-            RunningTimeTableTask = runningTimeTableTask;
+            m_runningTimeTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.
             var rootMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -4808,6 +4805,13 @@ namespace BuildXL.Scheduler
                     Logger.Log.EndSchedulingPipsWithFilter))
             {
                 InitSchedulerRuntimeState(pm.LoggingContext, schedulerState: schedulerState);
+
+                // Start workers after scheduler runtime state is successfully established
+                if (!HasFailed && IsDistributedMaster)
+                {
+                    StartWorkers(loggingContext);
+                }
+
                 InitPipStates(pm.LoggingContext);
 
                 IEnumerable<NodeId> nodesToSchedule;
@@ -4924,6 +4928,11 @@ namespace BuildXL.Scheduler
             {
                 Contract.Requires(loggingContext != null);
 
+                // Start loading data for pip two phase cache and running time table. No need to wait since any operation against the components
+                // will block until the required component is ready.
+                m_pipTwoPhaseCache.StartLoading(waitForCompletion: false);
+                m_runningTimeTableTask?.Start();
+
                 InitFileChangeTracker(loggingContext);
                 ProcessFileChanges(loggingContext, schedulerState);
 
@@ -4957,11 +4966,11 @@ namespace BuildXL.Scheduler
                 using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.CreateFileSystemViewDuration))
                 {
                     fileSystemView = FileSystemView.Create(
-                    Context.PathTable,
-                    PipGraph,
-                    m_localDiskContentStore,
-                    maxInitializationDegreeOfParallelism: m_scheduleConfiguration.MaxProcesses,
-                    inferNonExistenceBasedOnParentPathInRealFileSystem: m_scheduleConfiguration.InferNonExistenceBasedOnParentPathInRealFileSystem);
+                        Context.PathTable,
+                        PipGraph,
+                        m_localDiskContentStore,
+                        maxInitializationDegreeOfParallelism: m_scheduleConfiguration.MaxProcesses,
+                        inferNonExistenceBasedOnParentPathInRealFileSystem: m_scheduleConfiguration.InferNonExistenceBasedOnParentPathInRealFileSystem);
                 }
 
                 State = new PipExecutionState(

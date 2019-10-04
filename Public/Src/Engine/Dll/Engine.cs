@@ -1873,16 +1873,9 @@ namespace BuildXL.Engine
 
                                     WorkerService workerservice = null;
 
-                                    if (Configuration.Distribution.BuildRole != DistributedBuildRoles.None)
+                                    if (Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
                                     {
-                                        if (Configuration.Distribution.BuildRole == DistributedBuildRoles.Master)
-                                        {
-                                            m_masterService.EnableDistribution(engineSchedule);
-                                        }
-                                        else if (Configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
-                                        {
-                                            workerservice = m_workerService;
-                                        }
+                                        workerservice = m_workerService;
                                     }
 
                                     var stats = default(ExecuteStatistics);
@@ -2897,6 +2890,12 @@ namespace BuildXL.Engine
                     TestHooks.TempCleanerTempDirectory = m_tempCleaner.TempDirectory;
                 }
 
+                // Now that graph is constructed and saved, workers can be attached
+                if (IsDistributedMaster && phase.HasFlag(EnginePhases.Execute))
+                {
+                    m_masterService.EnableDistribution(engineSchedule);
+                }
+
                 if (!engineSchedule.PrepareForBuild(
                     loggingContext,
                     m_initialCommandLineConfiguration,
@@ -2981,7 +2980,7 @@ namespace BuildXL.Engine
             }
         }
 
-#region Logging stats about the build
+        #region Logging stats about the build
 
         private static void LogObjectPoolStats<T>(LoggingContext loggingContext, string poolName, ObjectPool<T> pool) where T : class
         {
@@ -3077,9 +3076,9 @@ namespace BuildXL.Engine
                 });
         }
 
-#endregion
+        #endregion
 
-#region Graph Caching
+        #region Graph Caching
 
         /// <summary>
         /// Determines whether the GraphCaching feature is allowed
@@ -3170,13 +3169,6 @@ namespace BuildXL.Engine
                             mountsImpactingBuild,
                             serializer.PreviousInputsJournalCheckpoint),
                         overrideName: EngineSerializer.PreviousInputsIntermediateFile);
-
-                    // The RunningTimeTable task initializes asynchronously. It needs to complete before the StringTable's serialization starts to avoid races.
-                    // The line below enforces that the lazy initialization has completed.
-                    if (engineSchedule.Scheduler.RunningTimeTableTask != null)
-                    {
-                        Analysis.IgnoreResult(engineSchedule.Scheduler.RunningTimeTableTask.GetAwaiter().GetResult());
-                    }
 
                     // We do not want to concurrently execute the serialization tasks and pips because pips can add new stuff to the PathTable, SymbolTable, and StringTable.
                     var success = engineSchedule.SaveToDiskAsync(serializer, Context).GetAwaiter().GetResult();
@@ -3303,7 +3295,7 @@ namespace BuildXL.Engine
                 checkAllPossiblyChangedPaths: m_rememberAllChangedTrackedInputs);
         }
 
-#endregion
+        #endregion
 
         /// <summary>
         /// Gets the update and delay time for status timers

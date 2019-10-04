@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace BuildXL.Utilities
 {
@@ -22,6 +23,18 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(factory != null);
             return new Lazy<T>(factory, mode);
+        }
+
+        /// <summary>
+        /// Creates instance of <see cref="AsyncLazy{T}"/>.
+        /// </summary>
+        /// <remarks>
+        /// This method simply calls constructor of <see cref="AsyncLazy{T}"/>, but because it is a static method, it will infer generic argument automatically.
+        /// </remarks>
+        public static AsyncLazy<T> CreateAsync<T>(Func<Task<T>> factory)
+        {
+            Contract.Requires(factory != null);
+            return new AsyncLazy<T>(factory);
         }
     }
 }

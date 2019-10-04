@@ -361,13 +361,6 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; }
 
         /// <summary>
-        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
-        /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public bool RequireGlobalDependencies { get; }
-
-
-        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -414,8 +407,7 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact changeAffectedInputListWrittenFilePath = default,
-            bool requireGlobalDependencies = false)
+            FileArtifact changeAffectedInputListWrittenFilePath = default)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -518,7 +510,6 @@ namespace BuildXL.Pips.Operations
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
             ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
-            RequireGlobalDependencies = requireGlobalDependencies;
 
             if (PreserveOutputWhitelist.Length != 0)
             {
@@ -575,8 +566,7 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact? changeAffectedInputListWrittenFilePath = default,
-            bool requireGlobalDependencies = false)
+            FileArtifact? changeAffectedInputListWrittenFilePath = default)
         {
             return new Process(
                 executable ?? Executable,
@@ -622,8 +612,7 @@ namespace BuildXL.Pips.Operations
                 weight,
                 priority,
                 preserveOutputWhitelist ?? PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
-                requireGlobalDependencies);
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath);
         }
 
         /// <inheritdoc />
@@ -669,6 +658,12 @@ namespace BuildXL.Pips.Operations
         /// Indicates the process run for tool that has incremental build capability.
         /// </summary>
         public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
+
+        /// <summary>
+        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;
 
         /// <summary>
         /// Indicates whether this is a light process.

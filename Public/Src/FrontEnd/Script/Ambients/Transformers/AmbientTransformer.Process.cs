@@ -1208,10 +1208,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.requireGlobalDependencies
-            var requireGlobalDependencies = Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies);
-            if (requireGlobalDependencies != null)
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) == true)
             {
-                processBuilder.RequireGlobalDependencies = requireGlobalDependencies.Value;
+                processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables

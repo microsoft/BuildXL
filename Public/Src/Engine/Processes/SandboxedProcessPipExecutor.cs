@@ -422,7 +422,7 @@ namespace BuildXL.Processes
                         () => new Regex(descriptor2.Pattern, descriptor2.Options | RegexOptions.Compiled | RegexOptions.CultureInvariant)))).Value;
         }
 
-        private string GetDetoursInternalErrorFilePath(LoggingContext loggingContext)
+        private string GetDetoursInternalErrorFilePath()
         {
             string tempDir = null;
 
@@ -473,7 +473,7 @@ namespace BuildXL.Processes
                 catch (BuildXLException ex)
                 {
                     Tracing.Logger.Log.LogFailedToCreateDirectoryForInternalDetoursFailureFile(
-                        loggingContext,
+                        m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pip.GetDescription(m_context),
                         tempDir,
@@ -1785,13 +1785,13 @@ namespace BuildXL.Processes
                         if (path != translatedPath)
                         {
                             AddUntrackedScopeToManifest(translatedPath);
-                            Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
                         }
                     }
 
                     // Untrack the original path
                     AddUntrackedScopeToManifest(path);
                 }
+
                 Tracing.Logger.Log.PipProcessPulledGlobalUnsafeUntrackedScopes(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
             }
 
@@ -1828,7 +1828,7 @@ namespace BuildXL.Processes
             if (allowInternalErrorsLogging || checkMessageCount)
             {
                 // Create unique file name.
-                m_detoursFailuresFile = GetDetoursInternalErrorFilePath(m_loggingContext);
+                m_detoursFailuresFile = GetDetoursInternalErrorFilePath();
 
                 // Delete the file
                 if (FileUtilities.FileExistsNoFollow(m_detoursFailuresFile))

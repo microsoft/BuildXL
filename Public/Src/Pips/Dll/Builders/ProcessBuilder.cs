@@ -102,11 +102,6 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         public int? Priority { get; set; } = null;
 
-        /// <summary>
-        /// If true, take the unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes and set them to the pip
-        /// </summary>
-        public bool RequireGlobalDependencies { get; set; } = false;
-
         /// <nodoc />
         public TimeSpan? Timeout { get; set; }
 
@@ -672,8 +667,7 @@ namespace BuildXL.Pips.Builders
                 weight: Weight,
                 priority: Priority,
                 preserveOutputWhitelist: PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile,
-                requireGlobalDependencies: RequireGlobalDependencies);
+                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
 
             return true;
         }

@@ -1516,6 +1516,32 @@ namespace BuildXL.Native.IO.Windows
                 FileSystemRights.WriteAttributes |
                 FileSystemRights.WriteExtendedAttributes;
 
+            return CheckFileSystemRightsForPath(path, fileSystemRights);
+#else
+            return true;
+#endif
+        }
+
+
+        /// <inheritdoc />
+        public bool HasWritableAttributeAccessControl(string path)
+        {
+            Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
+
+#if NET_FRAMEWORK
+            FileSystemRights fileSystemRights =
+                FileSystemRights.WriteAttributes |
+                FileSystemRights.WriteExtendedAttributes;
+
+            return CheckFileSystemRightsForPath(path, fileSystemRights);
+#else
+            return true;
+#endif
+        }
+
+        private bool CheckFileSystemRightsForPath(string path, FileSystemRights fileSystemRights)
+        {
             FileInfo fileInfo = new FileInfo(path);
             FileSecurity fileSecurity = fileInfo.GetAccessControl();
             foreach (AuthorizationRule rule in fileSecurity.GetAccessRules(true, true, typeof(SecurityIdentifier)))
@@ -1535,9 +1561,6 @@ namespace BuildXL.Native.IO.Windows
             }
 
             return true;
-#else
-            return true;
-#endif
         }
 
         /// <inheritdoc />

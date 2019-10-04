@@ -534,7 +534,7 @@ namespace BuildXL.Processes
             return m_warningRegex.IsMatch(line);
         }
 
-        private struct OutputFilter
+        private readonly struct OutputFilter
         {
             internal readonly Predicate<string> LinePredicate;
             internal readonly Regex Regex;

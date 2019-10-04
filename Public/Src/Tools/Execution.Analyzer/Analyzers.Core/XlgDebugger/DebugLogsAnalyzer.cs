@@ -91,6 +91,8 @@ namespace BuildXL.Execution.Analyzer
         internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching)
             : base(input)
         {
+            m_port = port;
+            EnableEvalCaching = enableCaching;
             XlgState = new XlgDebuggerState(this);
             m_dirData = new MultiValueDictionary<AbsolutePath, DirectoryMembershipHashedEventData>();
             m_criticalPathAnalyzer = new CriticalPathAnalyzer(input, outputFilePath: null);
@@ -99,8 +101,6 @@ namespace BuildXL.Execution.Analyzer
                 m_criticalPathAnalyzer.Analyze();
                 return m_criticalPathAnalyzer.criticalPathData;
             });
-            m_port = port;
-            EnableEvalCaching = enableCaching;
             m_state = new DebuggerState(PathTable, LoggingContext, XlgState.Render, XlgState);
             m_lazyPipPerfDict = new Lazy<Dictionary<PipId, PipExecutionPerformance>>(() =>
             {

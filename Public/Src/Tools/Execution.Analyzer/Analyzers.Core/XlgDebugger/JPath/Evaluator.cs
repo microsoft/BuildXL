@@ -92,6 +92,8 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             public override int GetHashCode()
             {
+                // TODO: this is not great as some structs (e.g., DirectoryMembershipHashedEventData)
+                //       seem to always return the same hash code.
                 return m_identity.GetHashCode();
             }
 
@@ -427,23 +429,34 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         public Env TopEnv => m_envStack.Peek();
 
-        public Evaluator(Env rootEnv)
+        private bool EnableCaching { get; }
+
+        public Evaluator(Env rootEnv, bool enableCaching)
         {
             Contract.Requires(rootEnv != null);
             m_envStack.Push(rootEnv);
+            EnableCaching = enableCaching;
         }
 
         /// <nodoc />
         public Result Eval(Expr expr)
         {
-            var key = $"{expr.Print()}|{TopEnv.GetContentHash()}";
-            if (m_evalCache.TryGetValue(key, out var result))
+            if (EnableCaching)
             {
-                Console.WriteLine("============== cached: " + key);
-                return result;
+                var key = $"{expr.Print()}|{TopEnv.GetContentHash()}";
+                if (m_evalCache.TryGetValue(key, out var result))
+                {
+                    return result;
+                }
+                else
+                {
+                    return m_evalCache[key] = EvalInternal(expr);
+                }
             }
-
-            return m_evalCache[key] = EvalInternal(expr);
+            else
+            {
+                return EvalInternal(expr);
+            }
         }
 
         private Result EvalInternal(Expr expr)
@@ -656,7 +669,7 @@ namespace BuildXL.Execution.Analyzer.JPath
             var rhsVal = ToScalar(rhs);
             switch (rhsVal)
             {
-                case string str: return lhsStr.Contains(str);
+                case string str: return lhsStr.ToUpperInvariant().Contains(str.ToUpperInvariant());
                 case Regex regex: return regex.Match(lhsStr).Success;
                 default:
                     throw TypeError(rhsVal, "string | Regex");

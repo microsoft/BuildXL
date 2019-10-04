@@ -364,6 +364,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                     unsafeProperties.Add(new PropertyAssignment("allowPreservedOutputs", Generate(pip.AllowPreserveOutputs)));
                 }
 
+                if (pip.RequireGlobalDependencies)
+                {
+                    unsafeProperties.Add(new PropertyAssignment("requireGlobalDependencies", Generate(pip.RequireGlobalDependencies)));
+                }
+
                 properties.Add(new PropertyAssignment("unsafe", new ObjectLiteralExpression(unsafeProperties)));
             }
 

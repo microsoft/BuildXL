@@ -986,18 +986,5 @@ namespace BuildXL.Processes.Tracing
             bool isWinOS,
             bool isContainerEnabled,
             bool existsListener);
-
-        [GeneratedEvent(
-            (int)LogEventId.TranslatePathInGlobalUnsafeUntrackedScopes,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated")]
-        public abstract void TranslatePathInGlobalUnsafeUntrackedScopes(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string path);
     }
 }

@@ -1317,7 +1317,10 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(CreateOutputFileArtifact()),
             };
 
-            var result = CreateAndSchedulePipBuilder(ops);
+            var builder = CreatePipBuilder(ops);
+            builder.Options |= Process.Options.RequireGlobalDependencies;
+            var process = SchedulePipBuilder(builder).Process;
+
             RunScheduler().AssertSuccess();
             string log = EventListener.GetLog();
             XAssert.IsTrue(log.Contains(passedOriginalValue));
@@ -1325,7 +1328,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // We should get a cache hit even if the value changes.
             Environment.SetEnvironmentVariable(passedEnvironmentVariable, passedUpdatedValue);
-            RunScheduler().AssertCacheHit(result.Process.PipId);
+            RunScheduler().AssertCacheHit(process.PipId);
         }
 
         /// <summary>

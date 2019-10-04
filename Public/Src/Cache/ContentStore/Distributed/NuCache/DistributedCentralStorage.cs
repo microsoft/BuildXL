@@ -361,13 +361,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return Math.Max(1, machineThreshold);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Opens stream to content in inner content store
+        /// </summary>
         public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
             return await _privateCas.OpenStreamAsync(context, contentHash, pinRequest: null);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Checks whether the inner content store has the content
+        /// </summary>
         public bool HasContent(ContentHash contentHash)
         {
             return _privateCas.Contains(contentHash);

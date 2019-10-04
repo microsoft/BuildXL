@@ -138,18 +138,6 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaxShutdownDurationInMinutes { get; set; } = 30;
 
         /// <summary>
-        /// Whether to use old (original) implementation of QuotaKeeper or to use the new one.
-        /// </summary>
-        [DataMember]
-        public bool UseLegacyQuotaKeeperImplementation { get; set; } = false;
-
-        /// <summary>
-        /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
-        /// </summary>
-        [DataMember]
-        public bool StartPurgingAtStartup { get; set; } = true;
-
-        /// <summary>
         /// If true, then content store will start a self-check to validate that the content in cache is valid at startup.
         /// </summary>
         [DataMember]

@@ -33,19 +33,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool UseNativeBlobEnumeration { get; set; } = false;
 
         /// <summary>
-        /// Whether to use old (original) implementation of <see cref="LegacyQuotaKeeper"/> or switch to <see cref="QuotaKeeperV2"/>.
-        /// </summary>
-        /// <remarks>
-        /// This flag should go away after the validation of the new logic.
-        /// </remarks>
-        public bool UseLegacyQuotaKeeperImplementation { get; set; } = false;
-
-        /// <summary>
-        /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
-        /// </summary>
-        public bool StartPurgingAtStartup { get; set; } = true;
-
-        /// <summary>
         /// If true, then <see cref="FileSystemContentStoreInternal"/> will start a self-check to validate that the content in cache is valid at startup.
         /// </summary>
         /// <remarks>

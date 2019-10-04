@@ -723,14 +723,7 @@ namespace BuildXL.Processes
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
 
-                IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null;
-                if (m_pip.RequireGlobalDependencies)
-                {
-                    globalUnsafePassthroughEnvironmentVariables = m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables;
-                    Tracing.Logger.Log.PipProcessPulledGlobalUnsafePassthroughEnvironmentVariables(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
-                }
-
-                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, globalUnsafePassthroughEnvironmentVariables);
+                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_pip.RequireGlobalDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
 
                 if (!PrepareWorkingDirectory())
                 {
@@ -1791,8 +1784,6 @@ namespace BuildXL.Processes
                     // Untrack the original path
                     AddUntrackedScopeToManifest(path);
                 }
-
-                Tracing.Logger.Log.PipProcessPulledGlobalUnsafeUntrackedScopes(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
             }
 
 

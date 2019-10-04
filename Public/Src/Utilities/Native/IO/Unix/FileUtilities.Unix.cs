@@ -627,6 +627,13 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
+        public bool HasWritableAttributeAccessControl(string path)
+        {
+            // There is no write attribute specific permissions for unix
+            return HasWritableAccessControl(path);
+        }
+
+        /// <inheritdoc />
         public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
         {
             FilePermissions permissions = 0;

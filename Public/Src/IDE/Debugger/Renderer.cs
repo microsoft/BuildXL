@@ -191,6 +191,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
         private static string TryToString(object obj)
         {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
             try
             {
                 return obj?.ToString();
@@ -199,6 +200,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             {
                 return null;
             }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
         private ObjectInfo PipFragmentInfo(object context, PipFragment pipFrag)

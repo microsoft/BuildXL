@@ -4,13 +4,17 @@
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
 const root = d`.`;
-const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
-    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
-    : "None";
 
-// TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
-const isChangeBasedCodeCoverage = Environment.getFlag("[Sdk.BuildXL]inputChangesPresented") || Environment.getFlag("[Sdk.BuildXL.CBInternal]inputChangesPresented");
+const codeCoverageOption = Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")
+    ? Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")
+    : CoverageOptions.None.toString();
 
+const enum CoverageOptions
+{
+    None,
+    DynamicFull,
+    DynamicChangeList
+}
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -135,13 +139,24 @@ export function runQTest(args: QTestArguments): Result {
      
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
-    if (qCodeCoverageEnumType === "DynamicCodeCov" && isChangeBasedCodeCoverage){
+    if (codeCoverageOption === CoverageOptions.DynamicChangeList.toString()){
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
         changeAffectedInputListWrittenFile = p`${dir}/fileWithImpactedTargets.txt`;
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
+
+    let qCodeCoverageEnumType = undefined;
+    if(codeCoverageOption === CoverageOptions.DynamicChangeList.toString() || codeCoverageOption === CoverageOptions.DynamicFull.toString())
+    {
+        qCodeCoverageEnumType = "DynamicCodeCov";
+    }
+
+    // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
+    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
+    : qCodeCoverageEnumType;    
     
 
     let commandLineArgs: Argument[] = [
@@ -199,6 +214,9 @@ export function runQTest(args: QTestArguments): Result {
     ];          
 
     let unsafeOptions = {
+        untrackedPaths: [
+            qTestContextInfoPath,
+        ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.

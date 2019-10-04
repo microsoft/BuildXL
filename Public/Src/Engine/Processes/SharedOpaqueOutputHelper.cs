@@ -166,7 +166,7 @@ namespace BuildXL.Processes
             //   - if 'expandedPath' is a symlink pointing to a non-existent file, 'expandedPath' should hence
             //     still be treated as an existent file
             //   - similarly, if 'expandedPath' is a symlink pointing to a directory, it should still be treated as a file
-            bool followSymlink = true;
+            bool followSymlink = !OperatingSystemHelper.IsUnixOS;
 
             // If the file is not there (the check may be happening against a reported write that later got deleted)
             // then there is nothing to do

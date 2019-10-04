@@ -18,11 +18,11 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(false, true)]
-        [InlineData(true, false)]
-        [InlineData(false, false)]
-        public void TranslateGlobalUntrackedScope(bool translate, bool requireGlobalDependencies)
+        [InlineData(true, Process.Options.RequireGlobalDependencies)]
+        [InlineData(false, Process.Options.RequireGlobalDependencies)]
+        [InlineData(true, Process.Options.None)]
+        [InlineData(false, Process.Options.None)]
+        public void TranslateGlobalUntrackedScope(bool translate, Process.Options requireGlobalDependencies)
         {
             DirectoryArtifact sourceDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(SourceRoot, prefix: "sourceDir"));
             DirectoryArtifact targetDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(SourceRoot, prefix: "targetDir"));
@@ -43,10 +43,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             };
 
             var builder = CreatePipBuilder(ops);
-            builder.RequireGlobalDependencies = requireGlobalDependencies;
+
+            builder.Options |= requireGlobalDependencies;
+
             Process pip = SchedulePipBuilder(builder).Process;
 
-            if (translate && requireGlobalDependencies)
+            if (translate && ((requireGlobalDependencies & Process.Options.RequireGlobalDependencies) == Process.Options.RequireGlobalDependencies) )
             {
                 RunScheduler().AssertCacheMiss(pip.PipId);
                 RunScheduler().AssertCacheHit(pip.PipId);

@@ -364,9 +364,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Opens stream to content in inner content store
         /// </summary>
-        public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
+        public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
-            return await _privateCas.OpenStreamAsync(context, contentHash, pinRequest: null);
+            return _privateCas.OpenStreamAsync(context, contentHash, pinRequest: null);
         }
 
         /// <summary>

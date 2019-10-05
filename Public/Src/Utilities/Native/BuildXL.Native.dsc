@@ -31,6 +31,16 @@ namespace Native {
     ] : [];
 
     @@public
+    export const nativeWin = [ importFrom("BuildXL.Sandbox.Windows").Deployment.natives ];
+
+    @@public
+    export const nativeMac = [
+        MacServices.Deployment.sandboxMonitor,
+        MacServices.Deployment.ariaLibrary,
+        MacServices.Deployment.interopLibrary
+    ];
+
+    @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Native",
         sources: globR(d`.`, "*.cs"),
@@ -43,14 +53,8 @@ namespace Native {
             Configuration.dll,
         ],
         runtimeContent: [
-            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.sandboxMonitor,
-                MacServices.Deployment.ariaLibrary,
-                MacServices.Deployment.interopLibrary
-            ]),
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [
-                importFrom("BuildXL.Sandbox.Windows").Deployment.natives,
-            ]),
+            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => nativeMac),
+            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => nativeWin),
         ]
     });
 }

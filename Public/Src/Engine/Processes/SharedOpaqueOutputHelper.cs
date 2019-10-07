@@ -83,7 +83,9 @@ namespace BuildXL.Processes
         private static unsafe class Unix
         {
             private const string MY_XATTR_NAME = "com.microsoft.buildxl:shared_opaque_output";
-            private const long MY_XATTR_VALUE = 42;
+
+            // arbitrary value; in the future, we could store something more useful here (e.g., the producer PipId or something)
+            private const long MY_XATTR_VALUE = 42; 
 
             private const int XATTR_NOFOLLOW = 1;
 
@@ -100,7 +102,7 @@ namespace BuildXL.Processes
             private static extern long GetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
-                void* value,
+                void *value,
                 ulong size,
                 uint position,
                 int options);

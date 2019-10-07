@@ -112,9 +112,10 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
-        public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip)
+        public virtual bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip)
         {
             AddPip(ipcPip);
+            FileProducers[ipcPip.OutputFile] = ipcPip.PipId;
             return true;
         }
 

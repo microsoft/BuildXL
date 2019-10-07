@@ -92,7 +92,7 @@ namespace BuildXL.Scheduler.Graph
                         },
                         description);
 
-                    if (!BuildXL.Scheduler.ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+                    if (!ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
                     {
                         Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
                     }

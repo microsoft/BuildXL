@@ -666,6 +666,57 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <summary>
+        /// Extracts optional boolean or int property.
+        /// Returns 'false' if the property is missing in a given object literal.
+        /// </summary>
+        public static bool ExtractOptionalBooleanOrInt(ObjectLiteral literal, SymbolAtom property, out bool enabled, out int intValue)
+        {
+            enabled = false;
+            intValue = 0;
+
+            var value = literal[property];
+            if (value.IsUndefined)
+            {
+                return false;
+            }
+
+            if(!TryGetBooleanOrInt(value, out enabled, out intValue))
+            {
+                throw CreateException(
+                   new[] { typeof(bool), typeof(int) },
+                   value,
+                   context: new ConversionContext(name: property, objectCtx: literal));
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Try to get int or bool value from EvaluationResult.
+        /// Returns 'false' if the value is no int or bool type.
+        /// </summary>
+        public static bool TryGetBooleanOrInt(EvaluationResult value, out bool boolValue, out int intValue)
+        {
+            boolValue = default(bool);
+            intValue = default(int);
+
+            if (value.Value is bool boolVal)
+            {
+                boolValue = boolVal;
+            }
+            else if(value.Value is int intVal)
+            {
+                intValue = intVal;
+            }
+            else
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Extracts int property.
         /// </summary>
         public static int? ExtractInt(ObjectLiteral literal, SymbolAtom property)

@@ -148,7 +148,7 @@ namespace Transformer {
         /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
         hasUntrackedChildProcesses?: boolean;
         /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
-        allowPreservedOutputs?: boolean;
+        allowPreservedOutputs?: boolean | number;
         /** Obsolete: You must use import {Transformer} from "Sdk.Transformers" */
         passThroughEnvironmentVariables?: string[];
     }

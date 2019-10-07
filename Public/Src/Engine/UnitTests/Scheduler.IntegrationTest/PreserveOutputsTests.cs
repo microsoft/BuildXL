@@ -291,6 +291,55 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnpreserved)));
         }
 
+        [Fact]
+        public void PreserveOutputsTestWithTrustLevel()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 2;
+            var input = CreateSourceFile();
+            var outputPreservedA = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedA"));
+            var outputPreservedB = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedB"));
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedA, CONTENT),
+            });
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedB, CONTENT),
+            });
+
+            // processA will not perserve outputs because its trust level is lowert than global setting of preserve output trust level
+            // but processB will preserve output
+            builderA.Options |= Process.Options.AllowPreserveOutputs;
+            builderA.PreserveOutputsTrustLevel = 1; 
+            var processAndOutputsA = SchedulePipBuilder(builderA);
+
+            builderB.Options |= Process.Options.AllowPreserveOutputs;
+            builderB.PreserveOutputsTrustLevel = 2;
+            var processAndOutputsB = SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertCacheMiss(processAndOutputsA.Process.PipId, processAndOutputsB.Process.PipId);
+
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedB)));
+
+            ModifyFile(input);
+
+            RunScheduler().AssertCacheMiss(processAndOutputsA.Process.PipId, processAndOutputsB.Process.PipId);
+
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+            XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedB)));
+
+            RunScheduler().AssertCacheHit(processAndOutputsA.Process.PipId, processAndOutputsB.Process.PipId);
+
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+            XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedB)));
+        }
+
         /// <summary>
         /// Testing preserve outputs in an opaque dir
         /// </summary>

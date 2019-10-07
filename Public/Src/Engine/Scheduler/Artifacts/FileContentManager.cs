@@ -357,7 +357,7 @@ namespace BuildXL.Scheduler.Artifacts
                 // Get inputs
                 PopulateDependencies(pip, state.PipArtifacts, includeLazyInputs: true, onlySourceFiles: true);
 
-                var maybeInputsHashed = await TryHashFileArtifactsAsync(state, operationContext, pip.ProcessAllowsUndeclaredSourceReads);
+                var maybeInputsHashed = await TryHashFileArtifactsAsync(state, operationContext, pip.ProcessAllowsUndeclaredSourceReads, pip.GetDescription(Context));
 
                 if (!maybeInputsHashed.Succeeded)
                 {
@@ -1332,7 +1332,11 @@ namespace BuildXL.Scheduler.Artifacts
             return file;
         }
 
-        private async Task<Possible<Unit>> TryHashFileArtifactsAsync(PipArtifactsState state, OperationContext operationContext, bool allowUndeclaredSourceReads)
+        private async Task<Possible<Unit>> TryHashFileArtifactsAsync(
+            PipArtifactsState state, 
+            OperationContext operationContext, 
+            bool allowUndeclaredSourceReads, 
+            string pipDescription = null)
         {
             foreach (var artifact in state.PipArtifacts)
             {
@@ -1350,7 +1354,8 @@ namespace BuildXL.Scheduler.Artifacts
                             file,
                             operationContext,
                             declaredArtifact: file,
-                            allowUndeclaredSourceReads));
+                            allowUndeclaredSourceReads,
+                            pipDescription));
                     }
                 }
             }
@@ -1372,17 +1377,19 @@ namespace BuildXL.Scheduler.Artifacts
             FileArtifact fileArtifact,
             OperationContext operationContext,
             FileOrDirectoryArtifact declaredArtifact,
-            bool allowUndeclaredSourceReads)
+            bool allowUndeclaredSourceReads,
+            string consumerDescription)
         {
             var artifactContentInfo = await TryQueryContentAsync(
                             fileArtifact,
                             operationContext,
                             declaredArtifact,
-                            allowUndeclaredSourceReads);
+                            allowUndeclaredSourceReads,
+                            consumerDescription);
 
             if (!artifactContentInfo.HasValue)
             {
-                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString());
+                Logger.Log.PipSourceDependencyCannotBeHashed(operationContext.LoggingContext, fileArtifact.Path.ToString(), consumerDescription);
             }
             return artifactContentInfo;
         }

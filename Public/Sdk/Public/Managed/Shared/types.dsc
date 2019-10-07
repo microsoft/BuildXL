@@ -78,6 +78,11 @@ export interface Assembly extends Deployment.Deployable {
      * that conflict with other dependencies.
      */
     runtimeContentToSkip?: Deployment.DeployableItem[];
+
+    /**
+     * Similiar to runtimeContent, but specific to native files.
+     */
+    nativeContent?: Deployment.Definition;
 }
 
 /**

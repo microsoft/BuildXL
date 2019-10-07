@@ -122,6 +122,12 @@ namespace PrivatePackages {
                     ],
                 },
                 {
+                    subfolder: r`runtimes/win-x64/native/`,
+                    contents: [
+                        importFrom("BuildXL.Utilities").withQualifier(winx64Qualifier).Native.dll.nativeContent,
+                    ],
+                },
+                {
                     subfolder: r`runtimes/osx-x64/lib/netcoreapp3.0/`,
                     contents: [
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).dll,
@@ -130,6 +136,12 @@ namespace PrivatePackages {
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.dll,
                         importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Interop.dll,
                         importFrom("BuildXL.Utilities.Instrumentation").withQualifier(osxx64Qualifier).Common.dll,
+                    ],
+                },
+                {
+                    subfolder: r`runtimes/osx-x64/native/`,
+                    contents: [
+                        importFrom("BuildXL.Utilities").withQualifier(osxx64Qualifier).Native.dll.nativeContent,
                     ],
                 },
                 {

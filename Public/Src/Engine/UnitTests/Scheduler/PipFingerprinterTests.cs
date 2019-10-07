@@ -381,21 +381,30 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(json.Contains(Path.GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)).ToUpperInvariant()));
         }
 
-        private string GetWeakFingerPrintForExecutable(string exectuablePath, )
-        {
-
-        }
-
-        [Fact]
-        public void TestExecutableWhenTrackedStaysInsideFingerprints()
+        private ContentFingerprint GetWeakFingerPrintForExecutable(
+            string exectuablePath, 
+            bool assertValue,  // true if fingerprint should contain executable path, false if output should be untracked
+            bool untracked = false, 
+            string untrackedScopePath = null)
         {
             var pathTable = m_context.PathTable;
-            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X(exectuablePath)));
 
             var dependencies = new HashSet<FileArtifact>() { executable };
-            var process = GetDefaultProcessBuilder(pathTable, executable)
-                .WithDependencies(dependencies)
-                .Build();
+            var processBuilder = GetDefaultProcessBuilder(pathTable, executable)
+                .WithDependencies(dependencies);
+
+            if (untracked)
+            {
+                processBuilder = processBuilder.WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X(exectuablePath)) });
+            }
+
+            if (untrackedScopePath != null)
+            {
+                processBuilder = processBuilder.WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.History)) });
+            }
+
+            var process = processBuilder.Build();
 
             MountPathExpander expander = new MountPathExpander(pathTable);
 
@@ -408,13 +417,12 @@ namespace Test.BuildXL.Scheduler
                 FingerprintTextEnabled = true
             };
 
-            fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
+            var contentFingerprint = fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
             fingerprintText = fingerprintText.ToUpperInvariant();
-
             string untrackedPathText = executable.Path.ToString(pathTable).ToUpperInvariant();
 
             // Make sure the executable path doesn't show up in the fingerprint
-            XAssert.IsTrue(fingerprintText.Contains(untrackedPathText));
+            XAssert.Equals(assertValue, fingerprintText.Contains(untrackedPathText));
 
             // Validate the JSON fingerprinter does the same
             var json = JsonFingerprinter.CreateJsonString(writer =>
@@ -424,74 +432,42 @@ namespace Test.BuildXL.Scheduler
             pathTable: m_context.PathTable).ToUpperInvariant();
 
             var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
-            XAssert.IsTrue(json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
+            XAssert.Equals(assertValue, json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
 
-            // Change executable file and check if fingerprint changes
-            
-            var executable2 = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool2.exe")));
-            var dependencies2 = new HashSet<FileArtifact>() { executable2 };
-            var process2 = GetDefaultProcessBuilder(pathTable, executable2)
-                .WithDependencies(dependencies2)
-                .Build();
-            //System.Diagnostics.Debugger.Launch();
-            var fingerprinter2 = new PipContentFingerprinter(
-                m_context.PathTable,
-                GetContentHashLookup(executable2),
-                ExtraFingerprintSalts.Default(),
-                pathExpander: expander)
-            {
-                FingerprintTextEnabled = true
-            };
-
-            fingerprinter2.ComputeWeakFingerprint(process2, out string fingerprintText2);
-            fingerprintText2 = fingerprintText2.ToUpperInvariant();
-
-            XAssert.IsFalse(fingerprintText.Equals(fingerprintText2));
+            return contentFingerprint;
         }
 
-        //[Fact]
-        //public void TestExecutableWhenUntrackedStaysOutOfFingerprints()
-        //{
-        //    var pathTable = m_context.PathTable;
-        //    var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+        [Fact]
+        public void TestExecutableWhenTrackedStaysInsideFingerprints()
+        {
+            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/tool.exe", true);
+            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/tool2.exe", true);
+            XAssert.IsFalse(fingerprint.Equals(fingerprint2));    
+        }
 
-        //    var dependencies = new HashSet<FileArtifact>() { executable };
-        //    var process = GetDefaultProcessBuilder(pathTable, executable)
-        //        .WithDependencies(dependencies)
-        //        .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")) })
-        //        .Build();
+        [Fact]
+        public void TestExecutableWhenUntrackedStaysOutOfFingerprints()
+        {
+            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/tool.exe", false, true);
+            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/tool2.exe", false, true);
+            //XAssert.IsTrue(fingerprint.Equals(fingerprint2)); // Will uncomment once development is done
+        }
 
-        //    MountPathExpander expander = new MountPathExpander(pathTable);
+        [Fact]
+        public void TestExecutableWhenInsideUntrackedScopeStaysOutOfFingerprints()
+        {
+            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/tool.exe", false, false, "/x/pkgs");
+            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/tool2.exe", false, false, "/x/pkgs");
+            //XAssert.IsTrue(fingerprint.Equals(fingerprint2)); // Will uncomment once development is done
+        }
 
-        //    var fingerprinter = new PipContentFingerprinter(
-        //        m_context.PathTable,
-        //        GetContentHashLookup(executable),
-        //        ExtraFingerprintSalts.Default(),
-        //        pathExpander: expander)
-        //    {
-        //        FingerprintTextEnabled = true
-        //    };
-
-        //    fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
-        //    fingerprintText = fingerprintText.ToUpperInvariant();
-
-        //    string untrackedPathText = executable.Path.ToString(pathTable).ToUpperInvariant();
-
-        //    // Make sure the executable path doesn't show up in the fingerprint
-        //    XAssert.IsFalse(fingerprintText.Contains(untrackedPathText));
-
-        //    // Validate the JSON fingerprinter does the same
-        //    var json = JsonFingerprinter.CreateJsonString(writer =>
-        //    {
-        //        fingerprinter.AddWeakFingerprint(writer, process);
-        //    },
-        //    pathTable: m_context.PathTable).ToUpperInvariant();
-
-        //    var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
-        //    XAssert.IsFalse(json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
-
-            
-        //}
+        [Fact]
+        public void TestExecutableWhenInsideUntrackedParentScopeStaysOutOfFingerprints()
+        {
+            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/sub1/tool.exe", false, false, "/x/pkgs");
+            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/sub2/tool2.exe", false, false, "/x/pkgs");
+            //XAssert.IsTrue(fingerprint.Equals(fingerprint2)); // Will uncomment once development is done
+        }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestPathsUnderRedirectedUserProfileProperlyTokenized()

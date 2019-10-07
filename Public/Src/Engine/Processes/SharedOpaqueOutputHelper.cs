@@ -95,6 +95,8 @@ namespace BuildXL.Processes
             // arbitrary value; in the future, we could store something more useful here (e.g., the producer PipId or something)
             private const long MY_XATTR_VALUE = 42; 
 
+            // from xattr.h:
+            // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
             private const int XATTR_NOFOLLOW = 1;
 
             [DllImport("libc", EntryPoint = "setxattr")]

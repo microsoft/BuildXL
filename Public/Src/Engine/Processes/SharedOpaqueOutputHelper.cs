@@ -14,6 +14,14 @@ namespace BuildXL.Processes
     /// Utility class for identifying a file as being an output of a shared opaque.
     /// This helps the scrubber to be more precautious when deleting files under shared opaques.
     /// </summary>
+    /// <remarks>
+    /// Currently, we use two different strategies when running on Windows and non-Windows platforms
+    ///   - on Windows, we set a magic timestamp as file's creation (birth) date
+    ///   - on Mac, we set an extended attribute with a special name.
+    /// On Mac, some tools tend to change the timestamps (even the birth date) which is the reason for this.
+    ///
+    /// TODO: eventually we should unify this and use the same mechanism for all platforms, if possible.
+    /// </remarks>
     public static class SharedOpaqueOutputHelper
     {
         private static class Win

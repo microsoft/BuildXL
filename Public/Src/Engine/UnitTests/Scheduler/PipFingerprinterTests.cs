@@ -28,6 +28,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
+using Newtonsoft.Json;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -380,70 +381,20 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(json.Contains(Path.GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)).ToUpperInvariant()));
         }
 
-        [Fact]
-        public void TestUntrackedPathStaysOutOfFingerprints()
+        private string GetWeakFingerPrintForExecutable(string exectuablePath, )
         {
-            string untrackedPathText = "/x/pkgs/tool.exe";
-            var pathTable = m_context.PathTable;
-            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X(untrackedPathText)));
 
-            PipDataBuilder pdb = new PipDataBuilder(m_context.PathTable.StringTable);
-            string appDataSubdirName = "appdataSubDir";
-            pdb.Add(AbsolutePath.Create(pathTable, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), appDataSubdirName)));
-            EnvironmentVariable envVar = new EnvironmentVariable(m_context.StringTable.AddString("testVar"), pdb.ToPipData(" ", PipDataFragmentEscaping.NoEscaping));
-
-            var dependencies = new HashSet<FileArtifact>() { executable };
-            var process = GetDefaultProcessBuilder(pathTable, executable)
-                .WithEnvironmentVariables(new EnvironmentVariable[] { envVar })
-                .WithDependencies(dependencies)
-                .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X(untrackedPathText)) })
-                //.WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.History)) })
-                .Build();
-
-            MountPathExpander expander = new MountPathExpander(pathTable);
-
-            var fingerprinter = new PipContentFingerprinter(
-                m_context.PathTable,
-                GetContentHashLookup(executable),
-                ExtraFingerprintSalts.Default(),
-                pathExpander: expander)
-            {
-                FingerprintTextEnabled = true
-            };
-
-            var baselineFingerprint = fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
-            fingerprintText = fingerprintText.ToUpperInvariant();
-
-            // Make sure the executable path doesn't show up in the fingerprint
-            XAssert.IsFalse(fingerprintText.Contains(executable.Path.ToString().ToUpperInvariant()));
-
-            // Validate the JSON fingerprinter does the same
-            var json = JsonFingerprinter.CreateJsonString(writer =>
-            {
-                fingerprinter.AddWeakFingerprint(writer, process);
-            },
-            pathTable: m_context.PathTable).ToUpperInvariant();
-
-            var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
-            XAssert.IsFalse(json.Contains($"{fence}{executable.Path.ToString().ToUpperInvariant()}{fence}"));
         }
 
         [Fact]
-        public void TestUntrackedScopeStaysOutOfFingerprints()
+        public void TestExecutableWhenTrackedStaysInsideFingerprints()
         {
             var pathTable = m_context.PathTable;
             var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
 
-            PipDataBuilder pdb = new PipDataBuilder(m_context.PathTable.StringTable);
-            string appDataSubdirName = "appdataSubDir";
-            pdb.Add(AbsolutePath.Create(pathTable, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), appDataSubdirName)));
-            EnvironmentVariable envVar = new EnvironmentVariable(m_context.StringTable.AddString("testVar"), pdb.ToPipData(" ", PipDataFragmentEscaping.NoEscaping));
-
             var dependencies = new HashSet<FileArtifact>() { executable };
             var process = GetDefaultProcessBuilder(pathTable, executable)
-                .WithEnvironmentVariables(new EnvironmentVariable[] { envVar })
                 .WithDependencies(dependencies)
-                .WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, X("/x/pkgs")) })
                 .Build();
 
             MountPathExpander expander = new MountPathExpander(pathTable);
@@ -457,11 +408,13 @@ namespace Test.BuildXL.Scheduler
                 FingerprintTextEnabled = true
             };
 
-            var baselineFingerprint = fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
+            fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
             fingerprintText = fingerprintText.ToUpperInvariant();
 
+            string untrackedPathText = executable.Path.ToString(pathTable).ToUpperInvariant();
+
             // Make sure the executable path doesn't show up in the fingerprint
-            XAssert.IsFalse(fingerprintText.Contains(executable.Path.ToString().ToUpperInvariant()));
+            XAssert.IsTrue(fingerprintText.Contains(untrackedPathText));
 
             // Validate the JSON fingerprinter does the same
             var json = JsonFingerprinter.CreateJsonString(writer =>
@@ -471,8 +424,74 @@ namespace Test.BuildXL.Scheduler
             pathTable: m_context.PathTable).ToUpperInvariant();
 
             var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
-            XAssert.IsFalse(json.Contains($"{fence}{executable.Path.ToString().ToUpperInvariant()}{fence}"));
+            XAssert.IsTrue(json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
+
+            // Change executable file and check if fingerprint changes
+            
+            var executable2 = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool2.exe")));
+            var dependencies2 = new HashSet<FileArtifact>() { executable2 };
+            var process2 = GetDefaultProcessBuilder(pathTable, executable2)
+                .WithDependencies(dependencies2)
+                .Build();
+            //System.Diagnostics.Debugger.Launch();
+            var fingerprinter2 = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetContentHashLookup(executable2),
+                ExtraFingerprintSalts.Default(),
+                pathExpander: expander)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            fingerprinter2.ComputeWeakFingerprint(process2, out string fingerprintText2);
+            fingerprintText2 = fingerprintText2.ToUpperInvariant();
+
+            XAssert.IsFalse(fingerprintText.Equals(fingerprintText2));
         }
+
+        //[Fact]
+        //public void TestExecutableWhenUntrackedStaysOutOfFingerprints()
+        //{
+        //    var pathTable = m_context.PathTable;
+        //    var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+
+        //    var dependencies = new HashSet<FileArtifact>() { executable };
+        //    var process = GetDefaultProcessBuilder(pathTable, executable)
+        //        .WithDependencies(dependencies)
+        //        .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")) })
+        //        .Build();
+
+        //    MountPathExpander expander = new MountPathExpander(pathTable);
+
+        //    var fingerprinter = new PipContentFingerprinter(
+        //        m_context.PathTable,
+        //        GetContentHashLookup(executable),
+        //        ExtraFingerprintSalts.Default(),
+        //        pathExpander: expander)
+        //    {
+        //        FingerprintTextEnabled = true
+        //    };
+
+        //    fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
+        //    fingerprintText = fingerprintText.ToUpperInvariant();
+
+        //    string untrackedPathText = executable.Path.ToString(pathTable).ToUpperInvariant();
+
+        //    // Make sure the executable path doesn't show up in the fingerprint
+        //    XAssert.IsFalse(fingerprintText.Contains(untrackedPathText));
+
+        //    // Validate the JSON fingerprinter does the same
+        //    var json = JsonFingerprinter.CreateJsonString(writer =>
+        //    {
+        //        fingerprinter.AddWeakFingerprint(writer, process);
+        //    },
+        //    pathTable: m_context.PathTable).ToUpperInvariant();
+
+        //    var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
+        //    XAssert.IsFalse(json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
+
+            
+        //}
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TestPathsUnderRedirectedUserProfileProperlyTokenized()

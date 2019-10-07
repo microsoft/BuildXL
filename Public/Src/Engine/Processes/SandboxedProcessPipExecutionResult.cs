@@ -302,9 +302,9 @@ namespace BuildXL.Processes
         public ContainerConfiguration ContainerConfiguration { get; }
 
         /// <summary>
-        /// Extract if a pip property and it's count if a value matching the PipProperty regex was defined in the process output
+        /// Extract a pip property and the count of that property, if a value matching the PipProperty regex was defined in the process output
         /// </summary>
-        public Dictionary<string,int> PipProperties { get; set; }
+        public Dictionary<string, int> PipProperties { get; set; }
 
         /// <nodoc />
         public SandboxedProcessPipExecutionResult(

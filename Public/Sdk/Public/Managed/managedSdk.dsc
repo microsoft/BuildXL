@@ -210,6 +210,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
     let runtimeConfigFiles = undefined;
     let runtimeContent = args.runtimeContent;
+    let nativeContent = args.nativeContent;
 
     let deployFunction : Deployment.FlattenForDeploymentFunction = Shared.Deployment.flattenAssembly;
 
@@ -231,6 +232,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
 
             runtimeContent = [
                 ...(runtimeContent || []),
+                ...(nativeContent || []),
                 // Self-Contained .NET Core deployments need a runtime and a patched application host container to be able to run on the target OS
                 ...frameworkRuntimeFiles,
                 ...patchResult.contents,
@@ -278,6 +280,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         runtimeConfigFiles: runtimeConfigFiles,
         runtimeContent: runtimeContent ? { contents: runtimeContent } : undefined,
         runtimeContentToSkip: args.runtimeContentToSkip,
+        nativeContent: nativeContent ? { contents: nativeContent } : undefined,
         deploy: deployFunction,
     };
 }
@@ -339,8 +342,11 @@ export interface Arguments {
 
     noConfig?: boolean;
 
-    /** Extra content/files to be deployed with the assembly when running. i.e. native dlls that are p-invoked, config files etc. */
+    /** Extra content/files to be deployed with the assembly when running. i.e. config files etc. */
     runtimeContent?: Deployment.DeployableItem[];
+
+    /** Native dlls that are p-invoked */
+    nativeContent?: Deployment.DeployableItem[];
 
     /**
      * List of deployable items to skip when deploying the dependencies of this assembly.

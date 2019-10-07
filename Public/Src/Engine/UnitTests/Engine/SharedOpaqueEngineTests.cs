@@ -171,7 +171,7 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
-        public void OutputsUnderSharedOpaqueHaveAWellKnownCreationTimeEvenOnCacheReplay()
+        public void OutputsUnderSharedOpaqueAreProperlyMarkedEvenOnCacheReplay()
         {
             var file = X("out/SharedOpaqueOutput.txt");
             var spec0 = ProduceFileUnderSharedOpaque(file);
@@ -185,8 +185,8 @@ namespace Test.BuildXL.Engine
             // Make sure the file was produced
             Assert.True(File.Exists(producedFile));
 
-            // And that it has a well-known creation time
-            XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
+            // And that it has been marked as shared opaque output
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile));
 
             File.Delete(producedFile);
 
@@ -196,12 +196,12 @@ namespace Test.BuildXL.Engine
             IgnoreWarnings();
             // Make sure this is a cache replay
             AssertVerboseEventLogged(EventId.ProcessPipCacheHit);
-            // And check the timestamp again
-            XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
+            // And check again that the file is still properly marked
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile));
         }
 
         [Fact]
-        public void StaticOutputBecomingASharedOpaqueOutputHasWellKnownCreationTime()
+        public void StaticOutputBecomingASharedOpaqueOutputIsProperlyMarkedAsSharedOpaqueOutput()
         {
             var file = X("out/MyFile.txt");
 
@@ -216,8 +216,8 @@ namespace Test.BuildXL.Engine
             // Make sure the file was produced
             Assert.True(File.Exists(producedFile));
 
-            // Since this is a statically declared file, the creation timestamp should not be the one used for shared opaques
-            XAssert.AreNotEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
+            // Since this is a statically declared file, it shouldn't be marked as a shared opaque output
+            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "Statically declared file marked as shared opaque output");
 
             // Delete the created file (since scrubbing is not on for this test, we have to simulate it)
             File.Delete(producedFile);
@@ -230,7 +230,7 @@ namespace Test.BuildXL.Engine
             RunEngine(rememberAllChangedTrackedInputs: true);
 
             // Check the timestamp is the right one
-            XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on cache miss");
 
             // Delete the file
             File.Delete(producedFile);
@@ -242,11 +242,11 @@ namespace Test.BuildXL.Engine
             // Make sure this is a cache replay
             AssertVerboseEventLogged(EventId.ProcessPipCacheHit);
             // Check the timestamp is the right one now
-            XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on cache replay");
         }
 
         [Fact]
-        public void SharedOpaqueOutputsOnFailingPipHaveWellKnownCreationTime()
+        public void SharedOpaqueOutputsOnFailingPipMustBeProperlyMarked()
         {
             var file = X("out/MyFile.txt");
             var objDir = Configuration.Layout.ObjectDirectory.ToString(Context.PathTable);
@@ -261,7 +261,7 @@ namespace Test.BuildXL.Engine
             AssertErrorEventLogged(EventId.PipProcessError);
 
             // Check the timestamp is the right one
-            XAssert.AreEqual(WellKnownTimestamps.OutputInSharedOpaqueTimestamp, FileUtilities.GetFileTimestamps(producedFile).CreationTime);
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(producedFile), "SOD file not marked on pip failure");
         }
 
         private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "") => ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies);

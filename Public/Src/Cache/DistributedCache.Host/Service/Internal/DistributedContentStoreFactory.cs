@@ -192,7 +192,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(namedCacheSettings.CacheSizeQuotaString)));
             }
 
-            var bandwidthCheckedCopier = new BandwidthCheckedCopier<AbsolutePath>(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
+            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
 
             _logger.Debug("Creating a distributed content store for Autopilot");
             var contentStore =

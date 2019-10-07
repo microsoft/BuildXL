@@ -109,7 +109,7 @@ namespace BuildXL
             // Returns a singleton array containing a single OptionHandler instance for given name/action.
             public static OptionHandler[] CreateOption(string name, Action<CommandLineUtilities.Option> action, bool isUnsafe = false, Func<bool> isEnabled = null)
             {
-                return new[] {new OptionHandler(name, action, isUnsafe, isEnabled: isEnabled),};
+                return new[] {new OptionHandler(name, action, isUnsafe),};
             }
 
             // Returns an array containing two OptionHandler instances for two given names, both having the same action.
@@ -1091,8 +1091,7 @@ namespace BuildXL
                             "unsafe_PreserveOutputsTrustLevel",
                             (opt) => sandboxConfiguration.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel =
                             CommandLineUtilities.ParseInt32Option(opt, (int)PreserveOutputsTrustValue.Lowest, int.MaxValue),
-                            isUnsafe: true,
-                            isEnabled: () => true),
+                            isUnsafe: true),
                         // TODO: Remove this!
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_SourceFileCanBeInsideOutputDirectory",

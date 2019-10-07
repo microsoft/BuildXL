@@ -2304,8 +2304,8 @@ namespace BuildXL.Engine
             // Log a warning for every unsafe option enabled by command line
             foreach (var opt in Configuration.CommandLineEnabledUnsafeOptions)
             {
-                //Contract.Assert(unsafeOptionLoggers.ContainsKey(opt));
-                //unsafeOptionLoggers[opt](loggingContext);
+                Contract.Assert(unsafeOptionLoggers.ContainsKey(opt));
+                unsafeOptionLoggers[opt](loggingContext);
             }
 
             // Layout has been set up including directory creation. If journals are required,

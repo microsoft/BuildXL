@@ -2498,7 +2498,6 @@ namespace BuildXL.Processes
                             if (ShouldPreserveDeclaredOutput(output.Path, preserveOutputWhitelist))
                             {
                                 Contract.Assume(m_makeOutputPrivate != null);
-                                //LogOutputPreparationFailed(output.Path.ToString(m_pathTable), new BuildXLException("path been preserved"));
                                 // A process may be configured to allow its prior outputs to be seen by future
                                 // invocations. In this case we must make sure the outputs are no longer hardlinked to
                                 // the cache to allow them to be writeable.
@@ -2621,7 +2620,6 @@ namespace BuildXL.Processes
                                         throw new BuildXLException("Failed to create a private, writeable copy of an output file from a previous invocation.");
                                     }
                                 }
-                            //throw new BuildXLException($"Preserve: {directoryOutput.Path.ToString(m_pathTable)}");
                             }
                         }
                         else

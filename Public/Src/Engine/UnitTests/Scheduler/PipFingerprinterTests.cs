@@ -401,11 +401,11 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(json.Contains(Path.GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)).ToUpperInvariant()));
         }
 
-        private ContentFingerprint GetWeakFingerPrintForExecutable(
+        private ContentFingerprint GenerateAndAssertWeakFingerPrint(
             string exectuablePath, 
             bool assertValue,  // true if fingerprint should contain executable path, false if output should be untracked
-            bool untracked = false, 
-            string untrackedScopePath = null)
+            string[] untrackedPaths = null,
+            string[] untrackedScopes = null)
         {
             var pathTable = m_context.PathTable;
             var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X(exectuablePath)));
@@ -414,14 +414,24 @@ namespace Test.BuildXL.Scheduler
             var processBuilder = GetDefaultProcessBuilder(pathTable, executable)
                 .WithDependencies(dependencies);
 
-            if (untracked)
+            if (untrackedPaths != null)
             {
-                processBuilder = processBuilder.WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X(exectuablePath)) });
+                List<AbsolutePath> abp = new List<AbsolutePath>();
+                foreach(string path in untrackedPaths)
+                {
+                    abp.Add(AbsolutePath.Create(pathTable, X(path)));
+                }
+                processBuilder = processBuilder.WithUntrackedPaths(abp.ToArray());
             }
 
-            if (untrackedScopePath != null)
+            if (untrackedScopes != null)
             {
-                processBuilder = processBuilder.WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, OperatingSystemHelper.IsUnixOS ? "/tmp" : Environment.GetFolderPath(Environment.SpecialFolder.History)) });
+                List<AbsolutePath> abp = new List<AbsolutePath>();
+                foreach (string path in untrackedScopes)
+                {
+                    abp.Add(AbsolutePath.Create(pathTable, X(path)));
+                }
+                processBuilder = processBuilder.WithUntrackedScopes(abp.ToArray());
             }
 
             var process = processBuilder.Build();
@@ -460,33 +470,33 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestExecutableWhenTrackedStaysInsideFingerprints()
         {
-            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/tool.exe", true);
-            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/tool2.exe", true);
-            XAssert.IsFalse(fingerprint.Equals(fingerprint2));    
+            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", true);
+            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", true);
+            XAssert.AreNotEqual(fingerprint, fingerprint2);
         }
 
         [Fact]
         public void TestExecutableWhenUntrackedStaysOutOfFingerprints()
         {
-            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/tool.exe", false, true);
-            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/tool2.exe", false, true);
-            //XAssert.IsTrue(fingerprint.Equals(fingerprint2)); // Will uncomment once development is done
+            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, new string[] {"/x/pkgs/tool.exe"});
+            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, new string[] { "/x/pkgs/tool2.exe" });
+            //XAssert.AreEqual(fingerprint, fingerprint2); // Will uncomment once development is done
         }
 
         [Fact]
         public void TestExecutableWhenInsideUntrackedScopeStaysOutOfFingerprints()
         {
-            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/tool.exe", false, false, "/x/pkgs");
-            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/tool2.exe", false, false, "/x/pkgs");
-            //XAssert.IsTrue(fingerprint.Equals(fingerprint2)); // Will uncomment once development is done
+            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, null, new string[] { "/x/pkgs" });
+            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, null, new string[] { "/x/pkgs" });
+            //XAssert.AreEqual(fingerprint, fingerprint2); // Will uncomment once development is done
         }
 
         [Fact]
         public void TestExecutableWhenInsideUntrackedParentScopeStaysOutOfFingerprints()
         {
-            var fingerprint = GetWeakFingerPrintForExecutable("/x/pkgs/sub1/tool.exe", false, false, "/x/pkgs");
-            var fingerprint2 = GetWeakFingerPrintForExecutable("/x/pkgs/sub2/tool2.exe", false, false, "/x/pkgs");
-            //XAssert.IsTrue(fingerprint.Equals(fingerprint2)); // Will uncomment once development is done
+            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub1/tool.exe", false, null, new string[] { "/x/pkgs" });
+            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub2/tool2.exe", false, null, new string[] { "/x/pkgs" });
+            //XAssert.AreEqual(fingerprint, fingerprint2); // Will uncomment once development is done
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

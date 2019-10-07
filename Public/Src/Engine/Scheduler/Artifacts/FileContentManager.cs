@@ -2045,70 +2045,7 @@ namespace BuildXL.Scheduler.Artifacts
                                     return;
                                 }
 
-                                Possible<ContentMaterializationResult> possiblyPlaced;
-
-                                using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
-                                using (await m_materializationSemaphore.AcquireAsync())
-                                {
-                                    if (m_host.CanMaterializeFile(file))
-                                    {
-                                        using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
-                                        {
-                                            var possiblyMaterialized = await m_host.TryMaterializeFileAsync(file, outerContext);
-                                            possiblyPlaced = possiblyMaterialized.Then(origin =>
-                                                new ContentMaterializationResult(
-                                                    origin,
-                                                    TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo)));
-                                        }
-                                    }
-                                    else
-                                    {
-                                        using (outerContext.StartOperation(
-                                            (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.ReparsePointType == ReparsePointType.SymLink)
-                                                ? PipExecutorCounter.TryMaterializeSymlinkDuration
-                                                : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
-                                            file))
-                                        {
-                                            if (state.VerifyMaterializationOnly)
-                                            {
-                                                // Ensure local existence by opening content stream.
-                                                var possiblyStream = await ArtifactContentCache.TryOpenContentStreamAsync(hash);
-
-                                                if (possiblyStream.Succeeded)
-                                                {
-#pragma warning disable AsyncFixer02
-                                                    possiblyStream.Result.Dispose();
-#pragma warning restore AsyncFixer02
-
-                                                    possiblyPlaced =
-                                                        new Possible<ContentMaterializationResult>(
-                                                            new ContentMaterializationResult(
-                                                                ContentMaterializationOrigin.DeployedFromCache,
-                                                                TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName)));
-                                                    possiblyPlaced = WithLineInfo(possiblyPlaced);
-                                                }
-                                                else
-                                                {
-                                                    possiblyPlaced = new Possible<ContentMaterializationResult>(possiblyStream.Failure);
-                                                    possiblyPlaced = WithLineInfo(possiblyPlaced);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                // Try materialize content.
-                                                possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
-                                                    ArtifactContentCache,
-                                                    fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly),
-                                                    path: file.Path,
-                                                    contentHash: hash,
-                                                    fileName: fileName,
-                                                    symlinkTarget: symlinkTarget,
-                                                    reparsePointInfo: materializationInfo.ReparsePointInfo);
-                                                possiblyPlaced = WithLineInfo(possiblyPlaced);
-                                            }
-                                        }
-                                    }
-                                }
+                                Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFile);
 
                                 if (possiblyPlaced.Succeeded)
                                 {
@@ -2171,6 +2108,82 @@ namespace BuildXL.Scheduler.Artifacts
             return success;
         }
 
+        private async Task<Possible<ContentMaterializationResult>> PlaceSingleFileAsync(
+            OperationContext operationContext,
+            PipArtifactsState state,
+            MaterializationFile materializationFile)
+        {
+            FileArtifact file = materializationFile.Artifact;
+            FileMaterializationInfo materializationInfo = materializationFile.MaterializationInfo;
+            ContentHash hash = materializationInfo.Hash;
+            PathAtom fileName = materializationInfo.FileName;
+            AbsolutePath symlinkTarget = materializationFile.SymlinkTarget;
+            bool allowReadOnly = materializationFile.AllowReadOnly;
+
+            using (var outerContext = operationContext.StartAsyncOperation(PipExecutorCounter.FileContentManagerTryMaterializeOuterDuration, file))
+            using (await m_materializationSemaphore.AcquireAsync())
+            {
+                if (m_host.CanMaterializeFile(file))
+                {
+                    using (outerContext.StartOperation(PipExecutorCounter.FileContentManagerHostTryMaterializeDuration, file))
+                    {
+                        var possiblyMaterialized = await m_host.TryMaterializeFileAsync(file, outerContext);
+                        return possiblyMaterialized.Then(origin =>
+                            new ContentMaterializationResult(
+                                origin,
+                                TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo)));
+                    }
+                }
+                else
+                {
+                    using (outerContext.StartOperation(
+                        (symlinkTarget.IsValid || materializationInfo.ReparsePointInfo.ReparsePointType == ReparsePointType.SymLink)
+                            ? PipExecutorCounter.TryMaterializeSymlinkDuration
+                            : PipExecutorCounter.FileContentManagerTryMaterializeDuration,
+                        file))
+                    {
+                        if (state.VerifyMaterializationOnly)
+                        {
+                            // Ensure local existence by opening content stream.
+                            var possiblyStream = await ArtifactContentCache.TryOpenContentStreamAsync(hash);
+
+                            if (possiblyStream.Succeeded)
+                            {
+#pragma warning disable AsyncFixer02
+                                possiblyStream.Result.Dispose();
+#pragma warning restore AsyncFixer02
+
+                                var possiblyPlaced =
+                                    new Possible<ContentMaterializationResult>(
+                                        new ContentMaterializationResult(
+                                            ContentMaterializationOrigin.DeployedFromCache,
+                                            TrackedFileContentInfo.CreateUntracked(materializationInfo.FileContentInfo, fileName)));
+                                return WithLineInfo(possiblyPlaced);
+                            }
+                            else
+                            {
+                                var possiblyPlaced = new Possible<ContentMaterializationResult>(possiblyStream.Failure);
+                                return WithLineInfo(possiblyPlaced);
+                            }
+                        }
+                        else
+                        {
+                            // Try materialize content.
+                            Possible<ContentMaterializationResult> possiblyPlaced = await LocalDiskContentStore.TryMaterializeAsync(
+                                ArtifactContentCache,
+                                fileRealizationModes: GetFileRealizationMode(allowReadOnly: allowReadOnly),
+                                path: file.Path,
+                                contentHash: hash,
+                                fileName: fileName,
+                                symlinkTarget: symlinkTarget,
+                                reparsePointInfo: materializationInfo.ReparsePointInfo);
+                            return WithLineInfo(possiblyPlaced);
+                        }
+                    }
+                }
+            }
+        }
+
         private static Possible<T> WithLineInfo<T>(Possible<T> possible, [CallerMemberName] string caller = null, [CallerLineNumber] int line = 0)
         {
             return possible.Succeeded ? possible : new Failure<string>(I($"Failure line info: {caller} ({line})"), possible.Failure);
@@ -2203,7 +2216,7 @@ namespace BuildXL.Scheduler.Artifacts
                 operationContext,
                 pipInfo,
                 state.MaterializingOutputs,
-                state.GetCacheMaterializationContentHashes(),
+                state.GetCacheMaterializationFiles().SelectList(i => (i.materializationFile.Artifact, i.materializationFile.MaterializationInfo.Hash, i.index)),
                 onFailure: failure =>
                 {
                     for (int index = 0; index < state.MaterializationFiles.Count; index++)
@@ -2255,10 +2268,20 @@ namespace BuildXL.Scheduler.Artifacts
             Possible<ContentAvailabilityBatchResult, Failure> possibleResults;
             using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerTryLoadAvailableContentDuration))
             {
-                possibleResults =
-                    await
-                        ArtifactContentCache.TryLoadAvailableContentAsync(
-                            filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.Item2).ToList());
+                if (state != null && EngineEnvironmentSettings.SkipExtraneousPins.Value)
+                {
+                    // When actually materializing files, skip the pin and place directly.
+                    possibleResults = await PlaceFilesPinAsync(
+                        operationContext,
+                        state);
+                }
+                else
+                {
+                    possibleResults =
+                        await
+                            ArtifactContentCache.TryLoadAvailableContentAsync(
+                                filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.Item2).ToList());
+                }
             }
 
             if (!possibleResults.Succeeded)
@@ -2304,6 +2327,9 @@ namespace BuildXL.Scheduler.Artifacts
 
                         if (!isAvailable)
                         {
+                            // Try to recover content that was wanted but not found in the cache
+                            Interlocked.Increment(ref m_stats.FileRecoveryAttempts);
+
                             Possible<ContentDiscoveryResult, Failure>? existingContent = null;
 
                             bool isPreservedOutputFile = IsPreservedOutputFile(pipInfo.UnderlyingPip, materializingOutputs, fileArtifact);
@@ -2458,6 +2484,11 @@ namespace BuildXL.Scheduler.Artifacts
                                     }
                                 }
                             }
+
+                            if (isAvailable)
+                            {
+                                Interlocked.Increment(ref m_stats.FileRecoverySuccesses);
+                            }
                         }
 
                         // Log the result of each requested hash
@@ -2513,6 +2544,45 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             return success;
+        }
+
+        private async Task<Possible<ContentAvailabilityBatchResult, Failure>> PlaceFilesPinAsync(
+            OperationContext operationContext, 
+            PipArtifactsState state)
+        {
+            var files = state.GetCacheMaterializationFiles();
+            var results = new ContentAvailabilityResult[files.Count];
+            bool allContentAvailable = true;
+
+            for (int i = 0; i < files.Count; i++)
+            {
+                var fileAndIndex = files[i];
+                Func<int, Task> placeFile = async (int resultIndex) =>
+                {
+                    var result = await PlaceSingleFileAsync(
+                        operationContext,
+                        state,
+                        fileAndIndex.materializationFile);
+
+                    if (result.Succeeded)
+                    {
+                        state.SetMaterializationSuccess(fileAndIndex.index, result.Result.Origin, operationContext);
+                        m_host.ReportFileArtifactPlaced(fileAndIndex.materializationFile.Artifact);
+                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");
+                    }
+                    else
+                    {
+                        allContentAvailable = false;
+                        results[resultIndex] = new ContentAvailabilityResult(fileAndIndex.materializationFile.MaterializationInfo.Hash, false, 0, "ContentMiss");
+                    }
+                };
+
+                state.PlacementTasks.Add(placeFile(i));
+            }
+
+            await Task.WhenAll(state.PlacementTasks);
+            
+            return new ContentAvailabilityBatchResult(ReadOnlyArray<ContentAvailabilityResult>.FromWithoutCopy(results), allContentAvailable);
         }
 
         private FileRealizationMode GetFileRealizationModeForCacheRestore(
@@ -3560,8 +3630,8 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// The paths and content hashes for files in <see cref="MaterializationFiles"/>
             /// </summary>
-            private readonly List<(FileArtifact, ContentHash, int)> m_filesAndContentHashes =
-                new List<(FileArtifact, ContentHash, int)>();
+            private readonly List<(MaterializationFile, int)> m_filesAndContentHashes =
+                new List<(MaterializationFile, int)>();
 
             /// <summary>
             /// The tasks for hashing files
@@ -3595,7 +3665,7 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// Get the content hashes for <see cref="MaterializationFiles"/>
             /// </summary>
-            public IReadOnlyList<(FileArtifact, ContentHash, int)> GetCacheMaterializationContentHashes()
+            public IReadOnlyList<(MaterializationFile materializationFile, int index)> GetCacheMaterializationFiles()
             {
                 m_filesAndContentHashes.Clear();
                 for (int i = 0; i < MaterializationFiles.Count; i++)
@@ -3603,7 +3673,7 @@ namespace BuildXL.Scheduler.Artifacts
                     var file = MaterializationFiles[i];
                     if (!(file.CreateSymlink || file.MaterializationInfo.IsReparsePointActionable) && !m_manager.m_host.CanMaterializeFile(file.Artifact))
                     {
-                        m_filesAndContentHashes.Add((file.Artifact, file.MaterializationInfo.Hash, i));
+                        m_filesAndContentHashes.Add((file, i));
                     }
                 }
 

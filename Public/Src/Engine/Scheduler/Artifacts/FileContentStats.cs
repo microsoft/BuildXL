@@ -76,5 +76,15 @@ namespace BuildXL.Scheduler
         /// Number of output files which were unchanged from a prior build (seen before, so not hashed).
         /// </summary>
         public long OutputFilesUnchanged;
+
+        /// <summary>
+        /// Number of times we attempted to recover a file that was not in the cache when requested.
+        /// </summary>
+        public long FileRecoveryAttempts;
+
+        /// <summary>
+        /// Number of times we successfully recovered a file file that was not in the cache when requested. 
+        /// </summary>
+        public long FileRecoverySuccesses;
     }
 }

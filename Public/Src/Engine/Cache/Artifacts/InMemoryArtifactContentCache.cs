@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -200,7 +201,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                         }
                         else
                         {
-                            return new Failure<string>("Content not found (locally or remotely). Store it first with TryStoreAsync.");
+                            return new NoCasEntryFailure("InMemoryCache", new CasHash(contentHash));
                         }
                     }
                 });

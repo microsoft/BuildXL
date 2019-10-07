@@ -2260,6 +2260,7 @@ namespace BuildXL.Engine
                 { "unsafe_LazySymlinkCreation", Logger.Log.ConfigUnsafeLazySymlinkCreation },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },
                 { "unsafe_PreserveOutputs", Logger.Log.ConfigPreserveOutputs },
+                { "unsafe_PreserveOutputsTrustLevel", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_SourceFileCanBeInsideOutputDirectory", loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_UnexpectedFileAccessesAreErrors", Logger.Log.ConfigUnsafeUnexpectedFileAccessesAsWarnings },
                 { "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques", Logger.Log.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques },
@@ -2310,8 +2311,8 @@ namespace BuildXL.Engine
             // Log a warning for every unsafe option enabled by command line
             foreach (var opt in Configuration.CommandLineEnabledUnsafeOptions)
             {
-                Contract.Assert(unsafeOptionLoggers.ContainsKey(opt));
-                unsafeOptionLoggers[opt](loggingContext);
+                //Contract.Assert(unsafeOptionLoggers.ContainsKey(opt));
+                //unsafeOptionLoggers[opt](loggingContext);
             }
 
             // Layout has been set up including directory creation. If journals are required,

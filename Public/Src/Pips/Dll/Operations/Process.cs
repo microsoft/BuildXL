@@ -42,6 +42,11 @@ namespace BuildXL.Pips.Operations
         public readonly Options ProcessOptions;
 
         /// <summary>
+        /// PreserveOutput Trust level which is used to override the allowPreserveOutput option
+        /// </summary>
+        public int PreserveOutputsTrustLevel;
+
+        /// <summary>
         /// Mode for absent path probes under opaque directories.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
@@ -407,7 +412,8 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact changeAffectedInputListWrittenFilePath = default)
+            FileArtifact changeAffectedInputListWrittenFilePath = default,
+            int? preserveOutputsTrustLevel = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -517,6 +523,7 @@ namespace BuildXL.Pips.Operations
             }
 
             ProcessOptions = options;
+            PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
         }
 
         /// <summary>
@@ -566,7 +573,8 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact? changeAffectedInputListWrittenFilePath = default)
+            FileArtifact? changeAffectedInputListWrittenFilePath = default,
+            int? preserveOutputsTrustLevel = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -612,7 +620,9 @@ namespace BuildXL.Pips.Operations
                 weight,
                 priority,
                 preserveOutputWhitelist ?? PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath);
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
+                preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
+
         }
 
         /// <inheritdoc />

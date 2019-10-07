@@ -1188,13 +1188,17 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.allowPreservedOutputs
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs) == true)
+            if (Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs, out bool enabled, out int trustLevel))
             {
-                processBuilder.Options |= Process.Options.AllowPreserveOutputs;
-
-                if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
+                if (enabled || trustLevel > 0)
                 {
-                    processBuilder.Options |= Process.Options.IncrementalTool;
+                    processBuilder.Options |= Process.Options.AllowPreserveOutputs;
+                    processBuilder.PreserveOutputsTrustLevel = enabled ? (int)PreserveOutputsTrustValue.Lowest : trustLevel;
+
+                    if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
+                    {
+                        processBuilder.Options |= Process.Options.IncrementalTool;
+                    }
                 }
             }
 

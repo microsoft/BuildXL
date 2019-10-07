@@ -107,9 +107,9 @@ namespace BuildXL
         private static class OptionHandlerFactory
         {
             // Returns a singleton array containing a single OptionHandler instance for given name/action.
-            public static OptionHandler[] CreateOption(string name, Action<CommandLineUtilities.Option> action, bool isUnsafe = false)
+            public static OptionHandler[] CreateOption(string name, Action<CommandLineUtilities.Option> action, bool isUnsafe = false, Func<bool> isEnabled = null)
             {
-                return new[] {new OptionHandler(name, action, isUnsafe),};
+                return new[] {new OptionHandler(name, action, isUnsafe, isEnabled: isEnabled),};
             }
 
             // Returns an array containing two OptionHandler instances for two given names, both having the same action.
@@ -1087,6 +1087,12 @@ namespace BuildXL
                             CommandLineUtilities.ParseBoolEnumOption(opt, sign, PreserveOutputsMode.Enabled, PreserveOutputsMode.Disabled),
                             isUnsafe: true,
                             isEnabled: (() => sandboxConfiguration.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled)),
+                        OptionHandlerFactory.CreateOption(
+                            "unsafe_PreserveOutputsTrustLevel",
+                            (opt) => sandboxConfiguration.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel =
+                            CommandLineUtilities.ParseInt32Option(opt, (int)PreserveOutputsTrustValue.Lowest, int.MaxValue),
+                            isUnsafe: true,
+                            isEnabled: () => true),
                         // TODO: Remove this!
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_SourceFileCanBeInsideOutputDirectory",

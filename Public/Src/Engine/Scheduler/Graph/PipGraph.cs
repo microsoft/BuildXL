@@ -15,6 +15,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -954,7 +955,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Checks if artifact is an output that should be preserved.
         /// </summary>
-        public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact artifact)
+        public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact artifact, int sandBoxPreserveOutputTrustLevel)
         {
             Contract.Requires(artifact.IsValid);
 
@@ -967,13 +968,19 @@ namespace BuildXL.Scheduler.Graph
             PipId pipId = TryGetProducer(artifact);
             Contract.Assert(pipId.IsValid);
 
-            if (!PipTable.GetMutable(pipId).IsPreservedOutputsPip())
+
+            MutablePipState mutablePipState = PipTable.GetMutable(pipId);
+            if (!mutablePipState.IsPreservedOutputsPip())
             {
-                // If AllowPreserveOutputs is disabled for the pip, return false before hydrating pip. 
                 return false;
             }
 
-            if (!PipTable.GetMutable(pipId).HasPreserveOutputWhitelist())
+            if (mutablePipState.GetProcessPreserveOutputsTrustLevel() < sandBoxPreserveOutputTrustLevel)
+            {
+                return false;
+            }
+
+            if (!mutablePipState.HasPreserveOutputWhitelist())
             {
                 // If whitelist is not given, we preserve all outputs of the given pip.
                 // This is shortcut to avoid hydrating pip in order to get the whitelist.
@@ -981,7 +988,8 @@ namespace BuildXL.Scheduler.Graph
             }
 
             Process process = PipTable.HydratePip(pipId, PipQueryContext.PreserveOutput) as Process;
-            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable);
+
+            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable, sandBoxPreserveOutputTrustLevel);
         }
 
         #endregion Queries

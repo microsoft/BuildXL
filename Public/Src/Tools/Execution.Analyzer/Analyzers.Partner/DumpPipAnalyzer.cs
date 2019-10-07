@@ -492,7 +492,8 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("HasUntrackedChildProcesses", pip.HasUntrackedChildProcesses),
                     m_html.CreateRow("ProducesPathIndependentOutputs", pip.ProducesPathIndependentOutputs),
                     m_html.CreateRow("OutputsMustRemainWritable", pip.OutputsMustRemainWritable),
-                    m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs)),
+                    m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs),
+                    m_html.CreateRow("PresrveOutputTrustLevel", pip.PreserveOutputsTrustLevel)),
 
                 m_html.CreateBlock(
                     "Process inputs/outputs",

@@ -32,9 +32,18 @@ namespace BuildXL.Pips.Operations
         private PipId m_pipId;
 
         /// <summary>
-        /// Static fingerprint
+        /// Independent static fingerprint of a pip that does not include the static fingerprints of its dependencies.
         /// </summary>
-        public Fingerprint StaticFingerprint { get; set; }
+        /// <remarks>
+        /// Independent static fingerprint is fingerprint that is computed without including the fingerprints of pip's dependencies.
+        /// To support graph-agnostic incremental scheduling, the process pip's static fingerprint must include the static fingerprints of its seal directory dependencies
+        /// otherwise changes in the members of the seal directory may not invalidate the consuming process pip.
+        /// However, computing such static fingerprints is not always possible in the case of binary graph fragment. A process pip in a fragment can be dependent on
+        /// a seal directory declared in another fragment. Thus, when the static fingerprint of the process pip is computed, the static fingerprint of the seal directory
+        /// does not exist. In such a case, we compute an independent static fingerprint for the process pip. Then, upon merging the fragments into a full pip graph,
+        /// we compute the static fingerprint that includes the seal directory's fingerprint.
+        /// </remarks>
+        public Fingerprint IndependentStaticFingerprint { get; set; }
 
         /// <summary>
         /// Tags used to enable pip-level filtering of the schedule.
@@ -193,7 +202,7 @@ namespace BuildXL.Pips.Operations
 
             if (reader.ReadBoolean())
             {
-                pip.StaticFingerprint = FingerprintUtilities.CreateFrom(reader);
+                pip.IndependentStaticFingerprint = FingerprintUtilities.CreateFrom(reader);
             }
             reader.End();
             Contract.Assume(pip != null);
@@ -206,10 +215,10 @@ namespace BuildXL.Pips.Operations
             writer.Write((byte)PipType);
             writer.Start(GetType());
             InternalSerialize(writer);
-            if (StaticFingerprint.Length >0)
+            if (IndependentStaticFingerprint.Length >0)
             {
                 writer.Write(true);
-                StaticFingerprint.WriteTo(writer);
+                IndependentStaticFingerprint.WriteTo(writer);
             }
             else
             {

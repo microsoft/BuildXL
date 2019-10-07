@@ -393,6 +393,9 @@ namespace BuildXL.Native.IO
         /// <see cref="IFileUtilities.HasWritableAccessControl(string)"/>
         public static bool HasWritableAccessControl(string path) => s_fileUtilities.HasWritableAccessControl(path);
 
+        /// <see cref="IFileUtilities.HasWritableAttributeAccessControl(string)"/>
+        public static bool HasWritableAttributeAccessControl(string path) => s_fileUtilities.HasWritableAttributeAccessControl(path);
+
         /// <see cref="IFileUtilities.CreateFileStream(string, FileMode, FileAccess, FileShare, FileOptions, bool, bool)"/>
         public static FileStream CreateFileStream(
             string path,

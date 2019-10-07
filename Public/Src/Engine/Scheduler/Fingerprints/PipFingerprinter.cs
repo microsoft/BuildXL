@@ -55,10 +55,14 @@ namespace BuildXL.Scheduler.Fingerprints
         private readonly PipDataLookup m_pipDataLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
-        private readonly Comparer<DirectoryArtifact> m_directoryComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
         private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
         private static readonly string s_untrackedExecutable = "<UNTRACKED_EXECUTABLE>";
+
+        /// <summary>
+        /// Directory comparer.
+        /// </summary>
+        protected readonly Comparer<DirectoryArtifact> DirectoryComparer;
 
         /// <summary>
         /// The tokenizer used to handle path roots
@@ -105,7 +109,7 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pipDataLookup = pipDataLookup ?? new PipDataLookup(file => PipData.Invalid);
             PathExpander = pathExpander ?? PathExpander.Default;
             m_expandedPathFileArtifactComparer = new ExpandedPathFileArtifactComparer(m_pathTable.ExpandedPathComparer, pathOnly: false);
-            m_directoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
+            DirectoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
             m_environmentVariableComparer = Comparer<EnvironmentVariable>.Create((ev1, ev2) => { return ev1.Name.ToString(pathTable.StringTable).CompareTo(ev2.Name.ToString(pathTable.StringTable)); });
             m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
         }
@@ -125,7 +129,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Computes the weak fingerprint of a pip. This accounts for all statically declared inputs including
         /// unsafe config option. This does not account for dynamically discovered input assertions.
         /// </summary>
-        public ContentFingerprint ComputeWeakFingerprint(Pip pip, out string fingerprintInputText)
+        public virtual ContentFingerprint ComputeWeakFingerprint(Pip pip, out string fingerprintInputText)
         {
             Contract.Requires(pip != null);
 
@@ -269,10 +273,10 @@ namespace BuildXL.Scheduler.Fingerprints
             AddFileOutput(fingerprinter, "StandardOutput", process.StandardOutput);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);            
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), m_directoryComparer);
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path), m_directoryComparer);
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path), DirectoryComparer);
                          
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedPaths", process.UntrackedPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedScopes", process.UntrackedScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
@@ -440,7 +444,10 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(name, fileArtifact.Path);
         }
 
-        private HashingHelper CreateHashingHelper(bool useSemanticPaths, HashAlgorithmType hashAlgorithmType = HashAlgorithmType.SHA1Managed)
+        /// <summary>
+        /// Creates a hashing helper.
+        /// </summary>
+        protected HashingHelper CreateHashingHelper(bool useSemanticPaths, HashAlgorithmType hashAlgorithmType = HashAlgorithmType.SHA1Managed)
         {
             return new HashingHelper(
                 m_pathTable,

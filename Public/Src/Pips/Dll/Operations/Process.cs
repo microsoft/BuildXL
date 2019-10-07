@@ -660,6 +660,12 @@ namespace BuildXL.Pips.Operations
         public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
 
         /// <summary>
+        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;
+
+        /// <summary>
         /// Indicates whether this is a light process.
         /// </summary>
         public bool IsLight => (ProcessOptions & Options.IsLight) != 0;

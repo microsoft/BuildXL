@@ -250,11 +250,13 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         protected virtual void AddWeakFingerprint(IFingerprinter fingerprinter, Process process)
         {
+            bool untrackedExecutable = false;
             if (process.UntrackedPaths.Contains(process.Executable.Path) ||
                 process.UntrackedScopes.Any(scope => process.Executable.Path.IsWithin(m_pathTable, scope)))
             {
                 // Don't record executable in weak fingerprint if executable is untracked
                 fingerprinter.Add("Executable", s_untrackedExecutable);
+                untrackedExecutable = true;
             }
             else
             {
@@ -272,7 +274,12 @@ namespace BuildXL.Scheduler.Fingerprints
             AddFileOutput(fingerprinter, "StandardError", process.StandardError);
             AddFileOutput(fingerprinter, "StandardOutput", process.StandardOutput);
 
-            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);            
+            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => {
+                if (!(untrackedExecutable && process.Executable.Path.Equals(f.Path)))    // Don't record executable in weak fingerprint if executable is untracked
+                {
+                    AddFileDependency(fp, f);
+                }
+            }, m_expandedPathFileArtifactComparer);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
@@ -382,6 +389,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
                 else
                 {
+                    // HASHPATH changes here
                     fingerprinter.Add(fileArtifact.Path, m_contentHashLookup(fileArtifact).Hash);
                 }
             }

@@ -480,7 +480,7 @@ namespace Test.BuildXL.Scheduler
         {
             var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, new string[] {"/x/pkgs/tool.exe"});
             var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, new string[] { "/x/pkgs/tool2.exe" });
-            //XAssert.AreEqual(fingerprint, fingerprint2); // Will uncomment once development is done
+            XAssert.AreNotEqual(fingerprint, fingerprint2);
         }
 
         [Fact]
@@ -488,7 +488,7 @@ namespace Test.BuildXL.Scheduler
         {
             var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, null, new string[] { "/x/pkgs" });
             var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, null, new string[] { "/x/pkgs" });
-            //XAssert.AreEqual(fingerprint, fingerprint2); // Will uncomment once development is done
+            XAssert.AreEqual(fingerprint, fingerprint2);
         }
 
         [Fact]
@@ -496,7 +496,7 @@ namespace Test.BuildXL.Scheduler
         {
             var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub1/tool.exe", false, null, new string[] { "/x/pkgs" });
             var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub2/tool2.exe", false, null, new string[] { "/x/pkgs" });
-            //XAssert.AreEqual(fingerprint, fingerprint2); // Will uncomment once development is done
+            XAssert.AreEqual(fingerprint, fingerprint2);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

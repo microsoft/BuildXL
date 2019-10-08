@@ -9,6 +9,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
@@ -19,16 +20,14 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Cache.ContentStore.Hashing;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
-using Newtonsoft.Json;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -401,7 +400,7 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(json.Contains(Path.GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)).ToUpperInvariant()));
         }
 
-        private ContentFingerprint GenerateAndAssertWeakFingerPrint(
+        private string GenerateAndAssertWeakFingerPrint(
             string exectuablePath, 
             bool assertValue,  // true if fingerprint should contain executable path, false if output should be untracked
             string[] untrackedPaths = null,
@@ -464,7 +463,8 @@ namespace Test.BuildXL.Scheduler
             var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
             XAssert.Equals(assertValue, json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
 
-            return contentFingerprint;
+            //return contentFingerprint;    // TODO: Revert when dev complete
+            return fingerprintText.ToUpperInvariant();
         }
 
         [Fact]
@@ -484,11 +484,11 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
-        public void TestExecutableWhenInsideUntrackedScopeStaysOutOfFingerprints()
+        public void TestExecutableWhenInsideUntrackedScopeStaysInsideFingerprints()
         {
             var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, null, new string[] { "/x/pkgs" });
             var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, null, new string[] { "/x/pkgs" });
-            XAssert.AreEqual(fingerprint, fingerprint2);
+            XAssert.AreNotEqual(fingerprint, fingerprint2);
         }
 
         [Fact]
@@ -496,7 +496,7 @@ namespace Test.BuildXL.Scheduler
         {
             var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub1/tool.exe", false, null, new string[] { "/x/pkgs" });
             var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub2/tool2.exe", false, null, new string[] { "/x/pkgs" });
-            XAssert.AreEqual(fingerprint, fingerprint2);
+            XAssert.AreNotEqual(fingerprint, fingerprint2);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

@@ -57,7 +57,6 @@ namespace BuildXL.Scheduler.Fingerprints
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
         private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
-        private static readonly string s_untrackedExecutable = "<UNTRACKED_EXECUTABLE>";
 
         /// <summary>
         /// Directory comparer.
@@ -250,19 +249,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         protected virtual void AddWeakFingerprint(IFingerprinter fingerprinter, Process process)
         {
-            bool untrackedExecutable = false;
-            if (process.UntrackedPaths.Contains(process.Executable.Path) ||
-                process.UntrackedScopes.Any(scope => process.Executable.Path.IsWithin(m_pathTable, scope)))
-            {
-                // Don't record executable in weak fingerprint if executable is untracked
-                fingerprinter.Add("Executable", s_untrackedExecutable);
-                untrackedExecutable = true;
-            }
-            else
-            {
-                AddFileDependency(fingerprinter, "Executable", process.Executable);
-            }
-
+            fingerprinter.Add("Executable", process.Executable);
             fingerprinter.Add("WorkingDirectory", process.WorkingDirectory);
 
             if (process.StandardInput.IsData)
@@ -274,12 +261,10 @@ namespace BuildXL.Scheduler.Fingerprints
             AddFileOutput(fingerprinter, "StandardError", process.StandardError);
             AddFileOutput(fingerprinter, "StandardOutput", process.StandardOutput);
 
-            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => {
-                if (!(untrackedExecutable && process.Executable.Path.Equals(f.Path)))    // Don't record executable in weak fingerprint if executable is untracked
-                {
-                    AddFileDependency(fp, f);
-                }
-            }, m_expandedPathFileArtifactComparer);
+            // Files within untrackedPaths and untrackedScopes are irrelevent to the weak fingerprint and are removed from the fingerprint
+            ReadOnlyArray<FileArtifact> relevantDependencies = process.Dependencies.Where(d => !IsUntracked(process, d.Path)).ToReadOnlyArray<FileArtifact>();
+
+            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", relevantDependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
@@ -354,6 +339,13 @@ namespace BuildXL.Scheduler.Fingerprints
         }
 
         /// <summary>
+        /// Checks if path exists in untrackedPath or exists within an untrackedScope
+        /// </summary>
+        private bool IsUntracked(Process process, AbsolutePath path) =>
+            process.UntrackedPaths.Contains(path) ||
+            process.UntrackedScopes.Any(scope => path.IsWithin(m_pathTable, scope));
+
+        /// <summary>
         /// Adds pip data (such as a command line or the contents of a response file) to a fingerprint stream.
         /// </summary>
         private void AddPipData(IFingerprinter fingerprinter, string name, PipData data)
@@ -389,7 +381,6 @@ namespace BuildXL.Scheduler.Fingerprints
                 }
                 else
                 {
-                    // HASHPATH changes here
                     fingerprinter.Add(fileArtifact.Path, m_contentHashLookup(fileArtifact).Hash);
                 }
             }

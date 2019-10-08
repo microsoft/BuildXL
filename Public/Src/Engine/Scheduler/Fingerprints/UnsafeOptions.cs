@@ -89,7 +89,7 @@ namespace BuildXL.Scheduler.Fingerprints
             return m_preserveOutputsSalt == null || 
                 UnsafeConfiguration.PreserveOutputs == PreserveOutputsMode.Disabled ||
                 (otherUnsafeOptions.UnsafeConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled && 
-                    (m_preserveOutputsSalt.Value == PreserveOutputsNotUsed || m_preserveOutputsSalt.Value == otherUnsafeOptions.PreserveOutputsSalt));
+                    ( m_preserveOutputsSalt.Value == otherUnsafeOptions.PreserveOutputsSalt));
         }
 
         /// <summary>

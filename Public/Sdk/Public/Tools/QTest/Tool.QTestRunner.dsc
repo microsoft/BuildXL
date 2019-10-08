@@ -5,17 +5,6 @@ import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
 const root = d`.`;
 
-const codeCoverageOption = Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")
-    ? Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")
-    : CoverageOptions.None.toString();
-
-const enum CoverageOptions
-{
-    None,
-    DynamicFull,
-    DynamicChangeList
-}
-
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
     exe: f`${root}/bin/DBS.QTest.exe`,
@@ -43,6 +32,28 @@ const defaultArgs: QTestArguments = {
         'telemetry:QTest'
     ]
 };
+
+const enum CoverageOptions
+{
+    None,
+    DynamicFull,
+    DynamicChangeList
+}
+
+function getCodeCoverageOption(): CoverageOptions {
+    if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption"))
+    {
+        switch (Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")){
+            case CoverageOptions.DynamicChangeList.toString():
+                return CoverageOptions.DynamicChangeList;
+            case CoverageOptions.DynamicFull.toString():
+                return CoverageOptions.DynamicFull;
+            default:
+                return CoverageOptions.None;
+        }
+    }
+}
+
 function qTestTypeToString(args: QTestArguments) {
     switch (args.qTestType) {
         case QTestType.msTest_latest:
@@ -84,6 +95,7 @@ function validateArguments(args: QTestArguments): void {
         Contract.fail("Do not specify both qTestDirToDeploy and qTestInputs. Specify your inputs using only one of these arguments");
     }
 }
+
 /**
  * Evaluate (i.e. schedule) QTest runner with specified arguments.
  */
@@ -136,10 +148,11 @@ export function runQTest(args: QTestArguments): Result {
         const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo");
         qTestContextInfoPath = qTestContextInfoFile.path;  
     }
-     
+    
+    let codeCoverageOption = getCodeCoverageOption();
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
-    if (codeCoverageOption === CoverageOptions.DynamicChangeList.toString()){
+    if (codeCoverageOption === CoverageOptions.DynamicChangeList){
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
@@ -148,15 +161,13 @@ export function runQTest(args: QTestArguments): Result {
     }
 
     let qCodeCoverageEnumType = undefined;
-    if(codeCoverageOption === CoverageOptions.DynamicChangeList.toString() || codeCoverageOption === CoverageOptions.DynamicFull.toString())
+    if(codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull)
     {
         qCodeCoverageEnumType = "DynamicCodeCov";
     }
 
     // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
-    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
-    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
-    : qCodeCoverageEnumType;    
+    qCodeCoverageEnumType = Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption") || CoverageOptions.None.toString();    
     
 
     let commandLineArgs: Argument[] = [

@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Timers;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
@@ -820,6 +821,14 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
             }
+
+            var shutdownWaitStopwatch = StopwatchSlim.Start();
+            while (!sessionHandle.Session.ShutdownCompleted && shutdownWaitStopwatch.Elapsed.TotalSeconds < 5)
+            {
+                await Task.Delay(200);
+            }
+
+            Tracer.Debug(context, $"{method} waited {shutdownWaitStopwatch.Elapsed.TotalSeconds}s for session to shutdown (id={sessionId})");
             
             sessionHandle.Session.Dispose();
         }

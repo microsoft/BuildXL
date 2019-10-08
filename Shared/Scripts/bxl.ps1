@@ -557,7 +557,7 @@ if (!$skipFilter){
 
     if ($Cache) {
         # Only build Cache code.
-        if ($LongRunningTest) {
+        if ($LongRunningTest -or $Vs) {
             $AdditionalBuildXLArguments += "/f:$AllCacheProjectsFilter"
         }
         elseif ($CacheNuget) {

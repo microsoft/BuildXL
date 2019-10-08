@@ -538,6 +538,8 @@ namespace BuildXL.Processes
         {
             internal readonly Predicate<string> LinePredicate;
             internal readonly Regex Regex;
+            // GroupName can be used with the Regex and defaults to ErrorMessageGroupName if nothing 
+            // is provided when constructing the OutputFiler with a Regex
             internal readonly string GroupName;
 
             internal OutputFilter(Predicate<string> linePredicate)
@@ -587,9 +589,9 @@ namespace BuildXL.Processes
 
             private string ExtractTextFromMatch(Match match)
             {
-                Group errorMessageGroup = match.Groups[GroupName];
-                return errorMessageGroup.Success
-                    ? errorMessageGroup.Value
+                Group regexGroupName = match.Groups[GroupName];
+                return regexGroupName.Success
+                    ? regexGroupName.Value
                     : match.Value;
             }
         }

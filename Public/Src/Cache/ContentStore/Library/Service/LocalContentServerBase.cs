@@ -816,7 +816,11 @@ namespace BuildXL.Cache.ContentStore.Service
 
             TryUnsetBuildId(sessionHandle.SessionName);
 
-            await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
+            if (!sessionHandle.Session.ShutdownStarted)
+            {
+                await sessionHandle.Session.ShutdownAsync(context).ThrowIfFailure();
+            }
+            
             sessionHandle.Session.Dispose();
         }
 

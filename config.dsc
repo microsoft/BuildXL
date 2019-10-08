@@ -646,6 +646,13 @@ config({
             isReadable: true,
         },
         {
+            name: a`CgNpmRoot`,
+            path: p`cg/npm`,
+            trackSourceFileChanges: true,
+            isWritable: true,
+            isReadable: true
+        },
+        {
             // Special scrubbable mount with the content that can be cleaned up by running bxl.exe /scrub
             name: a`ScrubbableDeployment`,
             path: Context.getCurrentHost().os === "win" ? p`Out/Objects/TempDeployment` : p`Out/Objects.noindex/TempDeployment`,

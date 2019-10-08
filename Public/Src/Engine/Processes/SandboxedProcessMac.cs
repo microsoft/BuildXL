@@ -84,7 +84,9 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode ? TimeSpan.FromSeconds(100) : TimeSpan.FromMinutes(45);
+        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode 
+            ? ProcessInfo.ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100) 
+            : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
 

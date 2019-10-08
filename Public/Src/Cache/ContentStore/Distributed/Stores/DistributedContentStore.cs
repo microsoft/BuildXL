@@ -203,7 +203,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _distributedCopier = _distributedCopierFactory(_contentLocationStore);
             await _distributedCopier.StartupAsync(context).ThrowIfFailure();
 
-            if (_contentLocationStore is TransitioningContentLocationStore tcs)
+            if (_contentLocationStore is TransitioningContentLocationStore tcs && tcs.IsLocalLocationStoreEnabled)
             {
                 tcs.LocalLocationStore.PreStartupInitialize(context, InnerContentStore as ILocalContentStore, _distributedCopier);
             }
@@ -487,7 +487,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <nodoc />
-        public IEnumerable<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruPages(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
+        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(Context context, IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             // Ensure startup was called then wait for it to complete successfully (or error)
             // This logic is important to avoid runtime errors when, for instance, QuotaKeeper tries
@@ -498,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             Contract.Assert(_contentLocationStore is IDistributedLocationStore);
             if (_contentLocationStore is IDistributedLocationStore distributedStore)
             {
-                return distributedStore.GetLruPages(context, contentHashesWithInfo);
+                return distributedStore.GetHashesInEvictionOrder(context, contentHashesWithInfo);
             }
             else
             {
@@ -522,9 +522,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
         }
 
+        /// <summary>
+        /// Checks the LLS <see cref="DistributedCentralStorage"/> for the content if available and returns
+        /// the storage instance if content is found
+        /// </summary>
+        private bool CheckLlsForContent(ContentHash desiredContent, out DistributedCentralStorage storage)
+        {
+            if (_contentLocationStore is TransitioningContentLocationStore tcs
+                && tcs.IsLocalLocationStoreEnabled
+                && tcs.LocalLocationStore.DistributedCentralStorage != null
+                && tcs.LocalLocationStore.DistributedCentralStorage.HasContent(desiredContent))
+            {
+                storage = tcs.LocalLocationStore.DistributedCentralStorage;
+                return true;
+            }
+
+            storage = default;
+            return false;
+        }
+
         /// <inheritdoc />
         public async Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
+            // NOTE: Checking LLS for content needs to happen first since the query to the inner stream store result
+            // is used even if the result is fails.
+            if (CheckLlsForContent(contentHash, out var storage))
+            {
+                var result = await storage.StreamContentAsync(context, contentHash);
+                if (result.Succeeded)
+                {
+                    return result;
+                }
+            }
+
             if (InnerContentStore is IStreamStore innerStreamStore)
             {
                 return await innerStreamStore.StreamContentAsync(context, contentHash);
@@ -536,6 +566,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <inheritdoc />
         public async Task<FileExistenceResult> CheckFileExistsAsync(Context context, ContentHash contentHash)
         {
+            // NOTE: Checking LLS for content needs to happen first since the query to the inner stream store result
+            // is used even if the result is fails.
+            if (CheckLlsForContent(contentHash, out var storage))
+            {
+                return new FileExistenceResult(FileExistenceResult.ResultCode.FileExists);
+            }
+
             if (InnerContentStore is IStreamStore innerStreamStore)
             {
                 return await innerStreamStore.CheckFileExistsAsync(context, contentHash);

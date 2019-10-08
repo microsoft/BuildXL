@@ -203,8 +203,8 @@ namespace BuildXL
             // report the entire message since Azure DevOps does not yet provide actionalbe information from the metadata.
             body = string.Format(CultureInfo.CurrentCulture, message, args);
 
-            // pip description in the final string only exist when args is not empty
-            if (args.Length > 0)
+            // process pip description for PipProcessError event
+            if (eventData.EventId == (int)EventId.PipProcessError)
             {
                 ProcessCustomPipDescription(ref body, UseCustomPipDescription);
             }
@@ -212,7 +212,6 @@ namespace BuildXL
             builder.Append(";]");
 
             // substitute newlines in the message
-
             var encodedBody = body.Replace("\r", "%0D").Replace("\n", "%0A");
             builder.Append(encodedBody);
 

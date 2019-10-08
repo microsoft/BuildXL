@@ -127,6 +127,8 @@ void BuildXLSandbox::InitializePolicyStructures()
 
         .mpo_vnode_check_create           = Listeners::mpo_vnode_check_create,
 
+        .mpo_vnode_check_write            = Listeners::mpo_vnode_check_write,
+
         .mpo_vnode_check_readlink         = Listeners::mpo_vnode_check_readlink,
     };
 

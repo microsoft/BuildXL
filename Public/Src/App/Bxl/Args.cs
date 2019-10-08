@@ -704,9 +704,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "adoTaskLogging",
                             sign => loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "adoWarningErrorLogging",
-                            sign => loggingConfiguration.OptimizeWarningOrErrorAnnotationsForAzureDevOps = sign),
                         OptionHandlerFactory.CreateOption(
                             "outputFileExtensionsForSequentialScanHandleOnHashing",
                             opt => schedulingConfiguration.OutputFileExtensionsForSequentialScanHandleOnHashing.AddRange(CommandLineUtilities.ParseRepeatingPathAtomOption(opt, pathTable.StringTable, ";"))),

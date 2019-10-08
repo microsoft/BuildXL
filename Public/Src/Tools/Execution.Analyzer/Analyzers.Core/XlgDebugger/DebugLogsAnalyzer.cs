@@ -12,6 +12,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
@@ -25,6 +26,7 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeDebugLogsAnalyzer()
         {
             int port = XlgDebuggerPort;
+            bool enableCaching = true;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("port", StringComparison.OrdinalIgnoreCase) ||
@@ -32,13 +34,19 @@ namespace BuildXL.Execution.Analyzer
                 {
                     port = ParseInt32Option(opt, 0, 100000);
                 }
+                else if (
+                    opt.Name.Equals("evalCache-", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase))
+                {
+                    enableCaching = ParseBooleanOption(opt);
+                }
                 else
                 {
                     throw Error("Unknown option for fingerprint text analysis: {0}", opt.Name);
                 }
             }
 
-            return new DebugLogsAnalyzer(GetAnalysisInput(), port);
+            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching);
         }
 
         private static void WriteDebugLogsAnalyzerHelp(HelpWriter writer)
@@ -59,6 +67,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly Lazy<Dictionary<PipId, PipExecutionPerformance>> m_lazyPipPerfDict;
         private readonly Lazy<Dictionary<long, PipId>> m_lazyPipsBySemiStableHash;
         private readonly Lazy<CriticalPathData> m_lazyCriticalPath;
+        private readonly MultiValueDictionary<AbsolutePath, DirectoryMembershipHashedEventData> m_dirData;
 
         private string[] m_workers;
         private PathTranslator m_pathTranslator;
@@ -76,17 +85,22 @@ namespace BuildXL.Execution.Analyzer
         public bool IsDebugging => Debugger != null;
 
         /// <nodoc />
-        internal DebugLogsAnalyzer(AnalysisInput input, int port)
+        public bool EnableEvalCaching { get; }
+
+        /// <nodoc />
+        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching)
             : base(input)
         {
+            m_port = port;
+            EnableEvalCaching = enableCaching;
             XlgState = new XlgDebuggerState(this);
+            m_dirData = new MultiValueDictionary<AbsolutePath, DirectoryMembershipHashedEventData>();
             m_criticalPathAnalyzer = new CriticalPathAnalyzer(input, outputFilePath: null);
             m_lazyCriticalPath = Lazy.Create(() =>
             {
                 m_criticalPathAnalyzer.Analyze();
                 return m_criticalPathAnalyzer.criticalPathData;
             });
-            m_port = port;
             m_state = new DebuggerState(PathTable, LoggingContext, XlgState.Render, XlgState);
             m_lazyPipPerfDict = new Lazy<Dictionary<PipId, PipExecutionPerformance>>(() =>
             {
@@ -178,12 +192,36 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <nodoc />
+        public IEnumerable<DirectoryMembershipHashedEventData> GetDirMembershipData()
+        {
+            return m_dirData.Values.SelectMany(d => d);
+        }
+
+        /// <nodoc />
+        public IEnumerable<AbsolutePath> GetDirMembers(DirectoryArtifact dir, PipId dirProducer)
+        {
+            if (!m_dirData.TryGetValue(dir.Path, out var data))
+            {
+                return CollectionUtilities.EmptyArray<AbsolutePath>();
+            }
+
+            return data
+                .Where(d => d.PipId == dirProducer)
+                .SelectMany(d => d.Members);
+        }
+
+        /// <nodoc />
         public PipReference AsPipReference(PipId pipId)
         {
             return new PipReference(PipTable, pipId, PipQueryContext.ViewerAnalyzer);
         }
 
-        #region Log processing
+        #region Log processing        
+
+        public override void DirectoryMembershipHashed(DirectoryMembershipHashedEventData data)
+        {
+            m_dirData.Add(data.Directory, data);
+        }
 
         /// <inheritdoc />
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)

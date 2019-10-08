@@ -981,42 +981,49 @@ namespace BuildXL.FrontEnd.Core
             PhaseLogicHandler<TStatistics> phaseLogicHandler)
             where TStatistics : IHasEndTime
         {
-            var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());
-            if (configuration.Engine.Phase.HasFlag(phase))
+            try
             {
-                var statistics = default(TStatistics);
-
-                using (var aggregator = m_collector?.CreateAggregator())
+                var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());
+                if (configuration.Engine.Phase.HasFlag(phase))
                 {
-                    var stopwatch = Stopwatch.StartNew();
-                    startPhaseLogMessage(loggingContext);
+                    var statistics = default(TStatistics);
 
-                    m_frontEndFactory.GetPhaseStartHook(phase)();
-                    var success = phaseLogicHandler(loggingContext, ref statistics);
-                    m_frontEndFactory.GetPhaseEndHook(phase)();
-
-                    LaunchDebuggerIfConfigured(phase);
-
-                    statistics.ElapsedMilliseconds = (int)stopwatch.ElapsedMilliseconds;
-
-                    // Call the endPhase handler for both: error and successful cases,
-                    // but not if the unhandled exception will occur.
-                    endPhaseLogMessage(loggingContext, statistics);
-
-                    if (aggregator != null)
+                    using (var aggregator = m_collector?.CreateAggregator())
                     {
-                        LoggingHelpers.LogPerformanceCollector(aggregator, loggingContext, loggingContext.LoggerComponentInfo, statistics.ElapsedMilliseconds);
-                    }
+                        var stopwatch = Stopwatch.StartNew();
+                        startPhaseLogMessage(loggingContext);
 
-                    if (!success)
-                    {
-                        Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after frontend phase: " + phase.ToString());
-                        return false;
+                        m_frontEndFactory.GetPhaseStartHook(phase)();
+                        var success = phaseLogicHandler(loggingContext, ref statistics);
+                        m_frontEndFactory.GetPhaseEndHook(phase)();
+
+                        LaunchDebuggerIfConfigured(phase);
+
+                        statistics.ElapsedMilliseconds = (int)stopwatch.ElapsedMilliseconds;
+
+                        // Call the endPhase handler for both: error and successful cases,
+                        // but not if the unhandled exception will occur.
+                        endPhaseLogMessage(loggingContext, statistics);
+
+                        if (aggregator != null)
+                        {
+                            LoggingHelpers.LogPerformanceCollector(aggregator, loggingContext, loggingContext.LoggerComponentInfo, statistics.ElapsedMilliseconds);
+                        }
+
+                        if (!success)
+                        {
+                            Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after frontend phase: " + phase.ToString());
+                            return false;
+                        }
                     }
                 }
-            }
 
-            return true;
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
         }
 
         private static void LaunchDebuggerIfConfigured(EnginePhases phase)
@@ -1494,7 +1501,7 @@ namespace BuildXL.FrontEnd.Core
             var progressMessages = remainingItems
                 .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialize})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

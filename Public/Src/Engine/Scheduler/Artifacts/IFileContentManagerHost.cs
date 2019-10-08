@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
@@ -63,6 +64,11 @@ namespace BuildXL.Scheduler.Artifacts
         /// Gets the seal directory kind for the given directory artifact
         /// </summary>
         SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory);
+
+        /// <summary>
+        /// Gets source seal directory info.
+        /// </summary>
+        bool TryGetSourceSealDirectory(DirectoryArtifact directory, out SourceSealWithPatterns sourceSealWithPatterns);
 
         /// <summary>
         /// Gets the scrub flag of a seal directory

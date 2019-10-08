@@ -226,7 +226,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Starting the loading task for the historic metadata cache
         /// </summary>
-        public void StartLoading(bool waitForCompletion)
+        public override void StartLoading(bool waitForCompletion)
         {
             var loadingTask = EnsureLoadedAsync();
             if (waitForCompletion)

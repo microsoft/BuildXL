@@ -90,13 +90,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Indicates if LocalLocationStore is enabled
+        /// </summary>
+        public bool IsLocalLocationStoreEnabled => _configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore);
+
+        /// <summary>
         /// Exposes <see cref="LocalLocationStore"/>. Mostly for testing purposes.
         /// </summary>
         public LocalLocationStore LocalLocationStore
         {
             get
             {
-                Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore));
+                Contract.Assert(IsLocalLocationStoreEnabled);
                 return _localLocationStore;
             }
         }
@@ -272,37 +277,43 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public IEnumerable<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>> GetLruPages(
+        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
             Context context,
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
 
+            // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove
+            // content until we are within quota. Here we return batches of content to be removed.
+
+            // contentHashesWithInfo is sorted by (local) LastAccessTime in descending order (Least Recently Used).
             if (contentHashesWithInfo.Count != 0)
             {
                 var first = contentHashesWithInfo[0];
                 var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
 
-                context.Debug($"GetLruPages start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
+                context.Debug($"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
             }
 
             var operationContext = new OperationContext(context);
 
-            var pageSize = _configuration.EvictionWindowSize;
+            // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
+            // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
 
             // Assume that EffectiveLastAccessTime will always have a value.
             var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
 
-            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> query =
-                page => _localLocationStore.GetEffectiveLastAccessTimes(operationContext, page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
+            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> intoEffectiveLastAccessTimes =
+                page => _localLocationStore.GetEffectiveLastAccessTimes(
+                            operationContext,
+                            page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
 
             // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
             // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
-            var localOldest = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
-            var localMid = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).QueryAndOrderInPages(pageSize, comparer, query);
+            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
+            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
 
-            var mergedEnumerables = NuCacheCollectionUtilities.MergeOrdered(localOldest, localMid, comparer);
-            return mergedEnumerables.GetPages(pageSize);
+            return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer);
         }
 
         /// <inheritdoc />

@@ -1092,26 +1092,24 @@ namespace BuildXL.Scheduler.Graph
                                     Contract.Assume(false, "Should have found a producer for the referenced path.");
                                 }
 
-                                if (pipReferencingUnsealedFile.IsValid)
+                                if (pipReferencingUnsealedFile.IsValid
+                                    // Ignore this for Source files, they should be okay.
+                                    && PipTable.GetPipType(pipReferencingUnsealedFile.ToPipId()) != PipType.HashSourceFile)
                                 {
                                     var pip = PipTable.HydratePip(
                                         pipReferencingUnsealedFile.ToPipId(),
                                         PipQueryContext.PipGraphPostValidation);
 
-                                    // Ignore this for Source files, they should be okay.
-                                    if (pip.PipType != PipType.HashSourceFile)
-                                    {
-                                        Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
-                                            LoggingContext,
-                                            sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
-                                            sealDirectoryProvenance.Token.Line,
-                                            sealDirectoryProvenance.Token.Position,
-                                            directory.Path.ToString(Context.PathTable),
-                                            pip.GetDescription(Context),
-                                            childAsPath.ToString(Context.PathTable));
+                                    Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
+                                        LoggingContext,
+                                        sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
+                                        sealDirectoryProvenance.Token.Line,
+                                        sealDirectoryProvenance.Token.Position,
+                                        directory.Path.ToString(Context.PathTable),
+                                        pip.GetDescription(Context),
+                                        childAsPath.ToString(Context.PathTable));
 
-                                        childError = true;
-                                    }
+                                    childError = true;
                                 }
                             }
 
@@ -2906,19 +2904,9 @@ namespace BuildXL.Scheduler.Graph
 
                 string fingerprintText = null;
 
-                ContentFingerprint fingerprint;
-                if (m_pipStaticFingerprinter.FingerprintTextEnabled)
-                {
-                    fingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip, out fingerprintText);
-                }
-                else if (pip.StaticFingerprint.Length > 0)
-                {
-                    fingerprint = new ContentFingerprint(pip.StaticFingerprint);
-                }
-                else
-                {
-                    fingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip);
-                }
+                ContentFingerprint fingerprint = m_pipStaticFingerprinter.FingerprintTextEnabled
+                    ? m_pipStaticFingerprinter.ComputeWeakFingerprint(pip, out fingerprintText)
+                    : m_pipStaticFingerprinter.ComputeWeakFingerprint(pip);
 
                 m_pipStaticFingerprints.AddFingerprint(pip, fingerprint);
 

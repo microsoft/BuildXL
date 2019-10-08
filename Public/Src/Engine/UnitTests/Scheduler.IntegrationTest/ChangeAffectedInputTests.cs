@@ -40,9 +40,14 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Process B.
             FileArtifact bOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-b-out-file");
-            FileArtifact changeAffectedWrittenFile = CreateOutputFileArtifact();
-            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(aOutput), Operation.WriteFile(bOutput) });
-            pipBuilderB.SetEnvironmentVariable(StringId.Create(Context.StringTable, "[Sdk.BuildXL]qCodeCoverageEnumType"), "");
+            AbsolutePath changeAffectedWrittenFile = CreateUniqueObjPath("change");
+            var pipBuilderB = CreatePipBuilder(new[] 
+            { 
+                // Ensure that pip reads the changeAffectedWrittenFile.
+                Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true), 
+                Operation.ReadFile(aOutput), 
+                Operation.WriteFile(bOutput) 
+            });
             SchedulePipBuilder(pipBuilderB);
 
             RunScheduler().AssertSuccess();
@@ -55,19 +60,16 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             ResetPipGraphBuilder();
             SchedulePipBuilder(pipBuilderA);
-            pipBuilderB.SetEnvironmentVariable(StringId.Create(Context.StringTable, "[Sdk.BuildXL]qCodeCoverageEnumType"), "DynamicCodeCov");
-            pipBuilderB.SetChangeAffectedInputListWrittenFilePath(changeAffectedWrittenFile);
+            pipBuilderB.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
             SchedulePipBuilder(pipBuilderB);
-
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
             Configuration.Schedule.InputChanges = inputChangesFile.Path;
-            Environment.SetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType", "DynamicCodeCov");
 
             RunScheduler().AssertCacheMiss();
 
-            var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
+            var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
             var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
@@ -114,15 +116,17 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderA.AddOutputDirectory(aOutputDirArtifact, SealDirectoryKind.Opaque);
             var pipA = SchedulePipBuilder(pipBuilderA);
 
-            var changeAffectedWrittenFile = CreateOutputFileArtifact();
+            var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderB = CreatePipBuilder(new Operation[]
             {
+                // Ensure that pip reads the changeAffectedWrittenFile.
+                Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(aOutputFileInOutputSubDir, doNotInfer: true),
                 Operation.WriteFile(bOutFileArtifact, doNotInfer: true),
             });
             pipBuilderB.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(aOutputDirPath));
             pipBuilderB.AddOutputDirectory(bOutDirArtifact, SealDirectoryKind.Opaque);
-            pipBuilderB.SetChangeAffectedInputListWrittenFilePath(changeAffectedWrittenFile);
+            pipBuilderB.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
             var pipB = SchedulePipBuilder(pipBuilderB);
 
             var inputChangesFile = CreateOutputFileArtifact();
@@ -131,9 +135,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
 
-            string[] actualAffectedSortedInputs = File.ReadAllLines(ArtifactToString(changeAffectedWrittenFile)).OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
-            string[] expectedAffectedInputs = { aOutputFileInOutputSubDir.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable),
-                                                aOutputFileInOutputeDir.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable) };
+            string[] actualAffectedSortedInputs = File.ReadAllLines(changeAffectedWrittenFile.ToString(Context.PathTable)).OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
+            string[] expectedAffectedInputs = 
+            { 
+                aOutputFileInOutputSubDir.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable),
+                aOutputFileInOutputeDir.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable) 
+            };
+
             string[] expectedAffectedSortedInputs = expectedAffectedInputs.OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
             XAssert.AreArraysEqual(expectedAffectedSortedInputs, actualAffectedSortedInputs, true);
         }
@@ -204,14 +212,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderB.AddOutputDirectory(bOutDirArtifact, SealDirectoryKind.Opaque);            
             var pipB = SchedulePipBuilder(pipBuilderB);
 
-            var changeAffectedWrittenFile = CreateOutputFileArtifact();
+            var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderC = CreatePipBuilder(new Operation[]
             {
+                // Ensure that pip reads the changeAffectedWrittenFile.
+                Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(bOutFileArtifact, doNotInfer: true),
                 Operation.WriteFile(cOutFileArtifact),
             });
             pipBuilderC.AddInputDirectory(bOutDirArtifact);
-            pipBuilderC.SetChangeAffectedInputListWrittenFilePath(changeAffectedWrittenFile);
+            pipBuilderC.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
             var pipC = SchedulePipBuilder(pipBuilderC);
 
             var inputChangesFile = CreateOutputFileArtifact();
@@ -220,7 +230,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
               
-            var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
+            var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);  
         }
 
@@ -294,15 +304,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderB.AddOutputDirectory(bOutDirArtifact, SealDirectoryKind.Opaque);
             var pipB = SchedulePipBuilder(pipBuilderB);
 
-
-            var changeAffectedWrittenFile = CreateOutputFileArtifact();
+            var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderC = CreatePipBuilder(new Operation[]
             {
+                // Ensure that pip reads the changeAffectedWrittenFile.
+                Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(bOutFileArtifact, doNotInfer: true),
                 Operation.WriteFile(cOutFileArtifact),
             });
             pipBuilderC.AddInputDirectory(bOutDirArtifact);
-            pipBuilderC.SetChangeAffectedInputListWrittenFilePath(changeAffectedWrittenFile);
+            pipBuilderC.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
             var pipC = SchedulePipBuilder(pipBuilderC);
 
             var inputChangesFile = CreateOutputFileArtifact();
@@ -311,8 +322,37 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
 
-            var actualAffectedInput = File.ReadAllText(ArtifactToString(changeAffectedWrittenFile));
+            var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
+        }
+
+        [Fact]
+        public void AffectedSourceInsideSourceSealDirectory()
+        {
+            var sourceDirectory = CreateUniqueDirectory(SourceRootPath);
+            var fileInsideSourceDirectory = CreateSourceFile(sourceDirectory, "file_");
+            var sourceSealDirectory = CreateSourceSealDirectory(sourceDirectory, SealDirectoryKind.SourceTopDirectoryOnly, "file_*");
+            PipGraphBuilder.AddSealDirectory(sourceSealDirectory);
+
+            var changeAffectedWrittenFile = CreateUniqueObjPath("change");
+            var pipBuilder = CreatePipBuilder(new Operation[]
+            {
+                // Ensure that pip reads the changeAffectedWrittenFile.
+                Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
+                Operation.ReadFile(fileInsideSourceDirectory, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact()),
+            });
+            pipBuilder.AddInputDirectory(sourceSealDirectory.Directory);
+            pipBuilder.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
+            SchedulePipBuilder(pipBuilder);
+            var inputChangesFile = CreateOutputFileArtifact();
+            File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(fileInsideSourceDirectory));
+            Configuration.Schedule.InputChanges = inputChangesFile;
+
+            RunScheduler().AssertSuccess();
+
+            var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            XAssert.AreEqual(Path.GetFileName(ArtifactToString(fileInsideSourceDirectory)), actualAffectedInput);
         }
     }
 }

@@ -3550,6 +3550,8 @@ namespace BuildXL.Scheduler
 
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 
+                        // TODO - Possibly bubble up pipProperties to this location to add to the global results
+                    
                         // Don't count service pips in process pip counters
                         if (!processRunnable.Process.IsStartOrShutdownKind && executionResult.PerformanceInformation != null)
                         {

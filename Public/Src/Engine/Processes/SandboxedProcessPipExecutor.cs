@@ -1387,6 +1387,7 @@ namespace BuildXL.Processes
                     if (!canceled)
                     {
                         LogFinishedFailed(result);
+                        await UpdatePipPropertiesCountsAsync(result, pipProperties);
 
                         if (exitedButCanBeRetried)
                         {
@@ -1545,8 +1546,6 @@ namespace BuildXL.Processes
             // if some outputs are missing, we are logging this process as a failed one (even if it finished with a success exit code).
             if ((!mainProcessExitedCleanly || !allOutputsPresent) && !canceled && loggingSuccess)
             {
-                pipProperties = await UpdatePipPropertiesCountsAsync(result, pipProperties);
-
                 standardOutHasBeenWrittenToLog = true;
 
                 LogErrorResult logErrorResult = await TryLogErrorAsync(result, exitedWithSuccessExitCode);
@@ -1699,10 +1698,11 @@ namespace BuildXL.Processes
                 pipProperties: pipProperties);
         }
 
-        private async Task<Dictionary<string, int>> UpdatePipPropertiesCountsAsync(SandboxedProcessResult result, Dictionary<string, int> pipProperties)
+        private async Task UpdatePipPropertiesCountsAsync(SandboxedProcessResult result, Dictionary<string, int> pipProperties)
         {
             const string PipPropertyPrefix = "PipProperty_";
 
+            // Match everything between PipProperty_ and _EndProperty, assigned to a PipProperty_ group
             Regex pipPropertyRegex = new Regex(PipPropertyPrefix + @"(?<" + PipPropertyPrefix + @">.+?)_EndProperty", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
             OutputFilter propertyFilter = new OutputFilter(pipPropertyRegex, PipPropertyPrefix);
 
@@ -1721,20 +1721,12 @@ namespace BuildXL.Processes
                 {
                     foreach (string property in matchedProperties)
                     {
-                        if (pipProperties.ContainsKey(property))
-                        {
-                            pipProperties[property] = ++pipProperties[property];
-                        }
-                        else
-                        {
-                            pipProperties.Add(property, 1);
-                        }
+                        pipProperties.TryGetValue(property, out int value);
+                        pipProperties[property] = ++value;
                     }
                 }
 
             }
-
-            return pipProperties;
         }
 
         private Tuple<AbsolutePath, Encoding> GetEncodedStandardConsoleStream(SandboxedProcessOutput output)

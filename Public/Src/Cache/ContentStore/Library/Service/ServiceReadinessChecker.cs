@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
+using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -113,6 +115,38 @@ namespace BuildXL.Cache.ContentStore.Service
             }
 
             return handle;
+        }
+
+        private static EventWaitHandle CreateReadyEvent(ILogger logger, string scenario)
+        {
+            var currentUser = UserUtilities.CurrentUserName();
+
+            logger.Debug($"Creating ready event name=[{scenario}] for user=[{currentUser}]");
+            var readyEvent = IpcUtilities.GetReadyWaitHandle(scenario);
+
+            if (readyEvent.WaitOne(0))
+            {
+                readyEvent.Dispose();
+                throw new CacheException("A service is already running");
+            }
+
+            return readyEvent;
+        }
+
+        private static EventWaitHandle CreateShutdownEvent(ILogger logger, string scenario)
+        {
+            var currentUser = UserUtilities.CurrentUserName();
+
+            logger.Debug($"Creating shutdown event name=[{scenario}] for user=[{currentUser}]");
+            var shutdownEvent = IpcUtilities.GetShutdownWaitHandle(scenario);
+
+            if (shutdownEvent.WaitOne(0))
+            {
+                shutdownEvent.Dispose();
+                throw new CacheException($"Shutdown event name=[{scenario}] already exists");
+            }
+
+            return shutdownEvent;
         }
 
         /// <summary>

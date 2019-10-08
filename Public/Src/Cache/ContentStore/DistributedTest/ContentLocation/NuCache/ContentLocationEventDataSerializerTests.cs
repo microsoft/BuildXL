@@ -91,7 +91,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var hashesAndSizes = Enumerable.Range(1, numberOfHashes).Select(n => (hash: new ShortHash(ContentHash.Random()), size: (long)random.Next(10_000_000))).ToList();
             return (index % 3) switch
             {
-                0 => new AddContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), hashesAndSizes.SelectArray(n => n.size)),
+                0 => (ContentLocationEventData)new AddContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), hashesAndSizes.SelectArray(n => n.size)),
                 1 => new TouchContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), touchTime),
                 _ => new RemoveContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash)),
             };

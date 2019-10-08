@@ -1191,12 +1191,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.allowPreservedOutputs
-            if (Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs, out bool enabled, out int trustLevel))
+            if (Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs, out bool? enabled, out int? trustLevel))
             {
-                if (enabled || trustLevel > 0)
+                if (enabled.HasValue || trustLevel.HasValue)
                 {
                     processBuilder.Options |= Process.Options.AllowPreserveOutputs;
-                    processBuilder.PreserveOutputsTrustLevel = enabled ? (int)PreserveOutputsTrustValue.Lowest : trustLevel;
+                    processBuilder.PreserveOutputsTrustLevel = enabled.HasValue ? (int)PreserveOutputsTrustValue.Lowest : trustLevel.Value;
 
                     if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
                     {

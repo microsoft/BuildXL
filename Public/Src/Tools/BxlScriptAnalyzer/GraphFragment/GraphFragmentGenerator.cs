@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using BuildXL.Pips.Operations;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -102,7 +101,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         }
 
         /// <inheritdoc />
-        public override bool AnalyzeSourceFile(BuildXL.FrontEnd.Workspaces.Core.Workspace workspace, AbsolutePath path, ISourceFile sourceFile) => true;
+        public override bool AnalyzeSourceFile(Workspaces.Core.Workspace workspace, AbsolutePath path, ISourceFile sourceFile) => true;
 
         /// <inheritdoc />
         public override bool FinalizeAnalysis()
@@ -147,7 +146,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         /// </summary>
         private static List<List<Pip>> StableSortPips(List<Pip> pips, List<List<Pip>> finalPipList)
         {
-            Dictionary<Pip, int> order = new Dictionary<Pip, int>();
+            var order = new Dictionary<Pip, int>();
             for (int i = 0; i < pips.Count; i++)
             {
                 order[pips[i]] = i;
@@ -159,19 +158,15 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 
         private List<List<Pip>> TopSort(List<Pip> pips)
         {
-            List<List<Pip>> sortedPipGroups = new List<List<Pip>>();
-            List<Pip> modules = new List<Pip>();
-            List<Pip> specs = new List<Pip>();
-            List<Pip> values = new List<Pip>();
+            var sortedPipGroups = new List<List<Pip>>();
+            var modules = new List<Pip>();
+            var specs = new List<Pip>();
+            var values = new List<Pip>();
 
-            // SpecialIpcPips are service-shutdown process pip, ipc drop finalization, service-start process pip, drop create ipc pip
-            List<Pip> specialIpcPips = new List<Pip>();
-            List<Pip> ipcPips = new List<Pip>();
-            List<Pip> otherPips = new List<Pip>();
+            // Service related are service-shutdown process pip, service finalization (IPC) pip, service-start process pip.
+            var serviceRelatedPips = new List<Pip>();
+            var otherPips = new List<Pip>();
 
-            // The first IPC pip after the finalization pip is a create pip, and needs to be before the other ipc pips
-            // There is not currently a way to identify the create pip short of guessing from the command line.
-            HashSet<StringId> foundIpcCreatePips = new HashSet<StringId>();
             foreach (var pip in pips)
             {
                 if (pip is ModulePip)
@@ -186,19 +181,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
                 {
                     values.Add(pip);
                 }
-                else if ((pip is Process && (((Process)pip).IsService || ((Process)pip).IsStartOrShutdownKind))
-                    || (pip is IpcPip && ((IpcPip)pip).IsServiceFinalization))
+                else if (ServicePipKindUtil.IsServiceStartShutdownOrFinalizationPip(pip))
                 {
-                    specialIpcPips.Add(pip);
-                }
-                else if (pip is IpcPip && !foundIpcCreatePips.Contains(((IpcPip)pip).IpcInfo.IpcMonikerId))
-                {
-                    specialIpcPips.Add(pip);
-                    foundIpcCreatePips.Add(((IpcPip)pip).IpcInfo.IpcMonikerId);
-                }
-                else if (pip is IpcPip)
-                {
-                    ipcPips.Add(pip);
+                    serviceRelatedPips.Add(pip);
                 }
                 else
                 {
@@ -209,18 +194,19 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             sortedPipGroups.Add(modules);
             sortedPipGroups.Add(specs);
             sortedPipGroups.Add(values);
-            TopSortInternal(otherPips, sortedPipGroups);
+            
+            // Special service related pips must go in sequential order.
+            sortedPipGroups.AddRange(serviceRelatedPips.Select(pip => new List<Pip>() { pip }));
 
-            // Special IPC related pips must go in sequential order.
-            sortedPipGroups.AddRange(specialIpcPips.Select(pip => new List<Pip>() { pip }));
-            sortedPipGroups.Add(ipcPips);
+            TopSortInternal(otherPips, sortedPipGroups);
             sortedPipGroups = StableSortPips(pips, sortedPipGroups);
+
             return sortedPipGroups;
         }
 
         private void TopSortInternal(List<Pip> pips, List<List<Pip>> sortedPipGroups)
         {
-            Dictionary<Pip, int> childrenLeftToVisit = new Dictionary<Pip, int>();
+            var childrenLeftToVisit = new Dictionary<Pip, int>();
             sortedPipGroups.Add(new List<Pip>());
             int totalAdded = 0;
             foreach (var pip in pips)

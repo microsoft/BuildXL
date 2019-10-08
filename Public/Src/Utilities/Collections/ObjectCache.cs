@@ -83,12 +83,8 @@ namespace BuildXL.Utilities.Collections
         /// <returns>true if the value for the key exists in the cache, otherwise false</returns>
         public bool TryGetValue(TKey key, out TValue value)
         {
-            int modifiedHashCode;
-            uint index;
-            Entry entry;
-
             // Look in the primary slot for the value
-            GetEntry(key, out index, out modifiedHashCode, out entry);
+            GetEntry(key, out _, out int modifiedHashCode, out Entry entry);
             if (entry.ModifiedHashCode == modifiedHashCode)
             {
                 var entryKey = entry.Key;
@@ -102,7 +98,7 @@ namespace BuildXL.Utilities.Collections
 
             // Try the backup slot
             modifiedHashCode = HashCodeHelper.Combine(modifiedHashCode, 17);
-            GetEntry(ref modifiedHashCode, out index, out entry);
+            GetEntry(ref modifiedHashCode, out _, out entry);
             if (entry.ModifiedHashCode == modifiedHashCode)
             {
                 var entryKey = entry.Key;
@@ -182,12 +178,9 @@ namespace BuildXL.Utilities.Collections
         public bool AddItem(TKey key, TValue value)
         {
             int missCount = 0;
-            int modifiedHashCode;
-            uint index;
-            Entry entry;
 
             // Place in the primary slot
-            GetEntry(key, out index, out modifiedHashCode, out entry);
+            GetEntry(key, out uint index, out int modifiedHashCode, out Entry entry);
             if (entry.ModifiedHashCode != modifiedHashCode || !m_comparer.Equals(entry.Key, key))
             {
                 entry = new Entry()

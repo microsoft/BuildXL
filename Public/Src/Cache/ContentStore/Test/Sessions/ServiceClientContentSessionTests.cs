@@ -33,8 +33,6 @@ namespace ContentStoreTest.Sessions
         protected const string CacheName = "test";
         protected const uint MaxConnections = 4;
         protected const uint ConnectionsPerSession = 2;
-        private const uint RetryIntervalSeconds = ServiceClientContentStore.DefaultRetryIntervalSeconds;
-        private const uint RetryCount = ServiceClientContentStore.DefaultRetryCount;
         protected const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
         private const int RandomContentByteCount = 100;
         protected readonly string Scenario;
@@ -166,8 +164,8 @@ namespace ContentStoreTest.Sessions
         [Fact]
         public async Task MultipleCaches()
         {
-            const string cacheName1 = "test1";
-            const string cacheName2 = "test2";
+            const string CacheName1 = "test1";
+            const string CacheName2 = "test2";
             using (var testDirectory0 = new DisposableDirectory(FileSystem))
             using (var testDirectory1 = new DisposableDirectory(FileSystem))
             using (var testDirectory2 = new DisposableDirectory(FileSystem))
@@ -184,7 +182,7 @@ namespace ContentStoreTest.Sessions
                 var grpcPortFileName = Guid.NewGuid().ToString();
 
                 var serviceConfiguration = new ServiceConfiguration(
-                    new Dictionary<string, AbsolutePath> { { cacheName1, rootPath1 }, { cacheName2, rootPath2 } },
+                    new Dictionary<string, AbsolutePath> { { CacheName1, rootPath1 }, { CacheName2, rootPath2 } },
                     testDirectory0.Path,
                     ServiceConfiguration.DefaultMaxConnections,
                     ServiceConfiguration.DefaultGracefulShutdownSeconds,
@@ -201,11 +199,11 @@ namespace ContentStoreTest.Sessions
                     using (var store1 = new ServiceClientContentStore(
                         Logger,
                         FileSystem,
-                        new ServiceClientContentStoreConfiguration(cacheName1, rpcConfig, Scenario)))
+                        new ServiceClientContentStoreConfiguration(CacheName1, rpcConfig, Scenario)))
                     using (var store2 = new ServiceClientContentStore(
                         Logger,
                         FileSystem,
-                        new ServiceClientContentStoreConfiguration(cacheName2, rpcConfig, Scenario)))
+                        new ServiceClientContentStoreConfiguration(CacheName2, rpcConfig, Scenario)))
                     {
                         try
                         {

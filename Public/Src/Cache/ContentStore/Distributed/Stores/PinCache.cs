@@ -147,8 +147,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public void Invalidate(ContentHash hash)
         {
-            PinInfo removedInfo;
-            _cachedPins.TryRemove(hash, out removedInfo);
+            _cachedPins.TryRemove(hash, out _);
         }
 
         private Task<IEnumerable<Task<Indexed<PinResult>>>> PinFromCachedResultsAsync(

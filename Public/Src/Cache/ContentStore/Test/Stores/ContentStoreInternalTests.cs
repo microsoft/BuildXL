@@ -42,7 +42,7 @@ namespace ContentStoreTest.Stores
 
         protected abstract TStore CreateStore(DisposableDirectory testDirectory);
 
-        async Task TestStore(Context context, Func<TStore, Task> func, IContentChangeAnnouncer announcer = null)
+        private async Task TestStore(Context context, Func<TStore, Task> func, IContentChangeAnnouncer announcer = null)
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
@@ -174,7 +174,7 @@ namespace ContentStoreTest.Stores
                 announcer: mockAnnouncer
                 );
 
-            mockAnnouncer.contentAddedCalled.Should().BeTrue();
+            mockAnnouncer.ContentAddedCalled.Should().BeTrue();
         }
 
         [Fact]
@@ -828,11 +828,11 @@ namespace ContentStoreTest.Stores
             var context = new Context(Logger);
             return TestStore(context, async store =>
             {
-                const int fileCount = 10;
-                int byteCount = await CreateRandomStore(store, context, fileCount);
+                const int FileCount = 10;
+                int byteCount = await CreateRandomStore(store, context, FileCount);
 
                 var contentInfoList = await store.EnumerateContentInfoAsync();
-                contentInfoList.Count.Should().Be(fileCount);
+                contentInfoList.Count.Should().Be(FileCount);
                 contentInfoList.Select(x => x.Size).Sum().Should().Be(byteCount);
             });
         }
@@ -887,11 +887,11 @@ namespace ContentStoreTest.Stores
 
         private class TestContentChangeAnnouncer : IContentChangeAnnouncer
         {
-            public bool contentAddedCalled { get; private set; } = false;
+            public bool ContentAddedCalled { get; private set; } = false;
 
             public Task ContentAdded(ContentHashWithSize item)
             {
-                contentAddedCalled = true;
+                ContentAddedCalled = true;
                 return Task.FromResult(0);
             }
 

@@ -366,7 +366,7 @@ namespace BuildXL.Processes
         {
             FileArtifact fileArtifact = file.PipFileArtifact(m_pip);
 
-            string filename = null;
+            string filename;
             if (fileArtifact.IsValid)
             {
                 // If the file is valid, that means it also got included as a declared output file
@@ -2960,8 +2960,6 @@ namespace BuildXL.Processes
             return false;
         }
 
-        private Dictionary<AbsolutePath, bool> m_isDirSymlinkCache = new Dictionary<AbsolutePath, bool>();
-
         /// <summary>
         /// Returns true if any symlinks are found on a given path
         /// </summary>
@@ -2980,6 +2978,8 @@ namespace BuildXL.Processes
 
             return PathContainsSymlinksCached(path.GetParent(m_context.PathTable));
         }
+
+        private readonly Dictionary<AbsolutePath, bool> m_isDirSymlinkCache = new Dictionary<AbsolutePath, bool>();
 
         /// <summary>
         /// Same as <see cref="PathContainsSymlinks"/> but with caching around it.
@@ -4100,8 +4100,8 @@ namespace BuildXL.Processes
             var unexpectedSurvivingChildProcesses = result
                 .SurvivingChildProcesses
                 .Where(pr =>
-                    !HasProcessName(pr, "ProcessTreeContextCreator.exe") &&
-                    !m_pip.AllowedSurvivingChildProcessNames.Any(procName => HasProcessName(pr, procName.ToString(m_context.StringTable))));
+                    !hasProcessName(pr, "ProcessTreeContextCreator.exe") &&
+                    !m_pip.AllowedSurvivingChildProcessNames.Any(procName => hasProcessName(pr, procName.ToString(m_context.StringTable))));
 
             int numErrors = unexpectedSurvivingChildProcesses.Count();
 
@@ -4132,7 +4132,7 @@ namespace BuildXL.Processes
 
             return numErrors;
 
-            bool HasProcessName(ReportedProcess pr, string name)
+            static bool hasProcessName(ReportedProcess pr, string name)
             {
                 return string.Equals(Path.GetFileName(pr.Path), name, StringComparison.OrdinalIgnoreCase);
             }

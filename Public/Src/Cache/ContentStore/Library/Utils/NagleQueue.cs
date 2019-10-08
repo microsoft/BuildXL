@@ -48,15 +48,6 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <summary>
-        /// Creates an instance of a nagle queue.
-        /// </summary>
-        private NagleQueue(Func<T[], Task> processBatch, int maxDegreeOfParallelism, TimeSpan interval, int batchSize)
-            : this(maxDegreeOfParallelism, interval, batchSize)
-        {
-            Contract.Requires(processBatch != null);
-        }
-
-        /// <summary>
         /// Creates a unstarted nagle queue which is not started until <see cref="Start(Func{T[], Task})"/> is called.
         /// </summary>
         public static NagleQueue<T> CreateUnstarted(int maxDegreeOfParallelism, TimeSpan interval, int batchSize)

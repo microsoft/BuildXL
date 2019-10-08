@@ -831,7 +831,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
 
             // Setup
-            var path = CreatePaths(1);
+            _ = CreatePaths(1);
             var context = new Context(TestGlobal.Logger);
 
             var storeFactory = new RedisContentLocationStoreFactory(
@@ -869,7 +869,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
             }
 
             // Setup
-            var path = CreatePaths(1);
+            _ = CreatePaths(1);
             var context = new Context(TestGlobal.Logger);
 
             var storeFactory = new RedisContentLocationStoreFactory(

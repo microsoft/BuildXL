@@ -54,9 +54,9 @@ namespace ContentStoreTest.Logging
             //   - <column> is at position 'columnIndex'
             //   - total number of columns is 'columnCount'
             var schema =
-                Repeat(CsvFileLog.ColumnKind.Empty, columnIndex - 1)
+                repeat(CsvFileLog.ColumnKind.Empty, columnIndex - 1)
                 .Concat(new[] { column })
-                .Concat(Repeat(CsvFileLog.ColumnKind.Empty, columnCount - columnIndex - 1));
+                .Concat(repeat(CsvFileLog.ColumnKind.Empty, columnCount - columnIndex - 1));
 
             using (var log = new CsvFileLog(logFile, schema, serviceName: "CsvFileLogTests"))
             {
@@ -67,7 +67,7 @@ namespace ContentStoreTest.Logging
                 actual.Should().BeEquivalentTo(expected);
             }
 
-            IEnumerable<CsvFileLog.ColumnKind> Repeat(CsvFileLog.ColumnKind col, int count)
+            IEnumerable<CsvFileLog.ColumnKind> repeat(CsvFileLog.ColumnKind col, int count)
             {
                 return Enumerable.Range(0, Math.Max(0, count)).Select(_ => col);
             }
@@ -143,7 +143,7 @@ namespace ContentStoreTest.Logging
             var colNames = Enum.GetNames(typeof(CsvFileLog.ColumnKind));
             foreach (var colName in colNames)
             {
-                var colKind = ToColumnKind(colName);
+                var colKind = toColumnKind(colName);
 
                 // one column
                 yield return new object[] { $"{colName}", new[] { colKind } };
@@ -166,11 +166,11 @@ namespace ContentStoreTest.Logging
             }
 
             // all columns joined
-            var allColumnKinds = colNames.Select(ToColumnKind).Cast<object>().ToArray();
+            var allColumnKinds = colNames.Select(toColumnKind).Cast<object>().ToArray();
             yield return new object[] { string.Join(",", colNames), allColumnKinds };
             yield return new object[] { string.Join(", ", colNames.Select(cn => $"{cn}:string")), allColumnKinds };
 
-            CsvFileLog.ColumnKind ToColumnKind(string name)
+            static CsvFileLog.ColumnKind toColumnKind(string name)
             {
                 return (CsvFileLog.ColumnKind)Enum.Parse(typeof(CsvFileLog.ColumnKind), name);
             }
@@ -189,25 +189,25 @@ namespace ContentStoreTest.Logging
 
             var csvLog = new CsvFileLog(
                 GetRandomLogFile(),
-                schema: TranslateSchema(schema),
+                schema: translateSchema(schema),
                 renderConstColums: false);
             csvLog.IsConstValueColumn(constCol).Should().BeTrue();
             csvLog.IsConstValueColumn(dynCol).Should().BeFalse();
 
-            csvLog.FileSchema.Should().BeEquivalentTo(TranslateSchema(expectedFileSchema));
-            csvLog.ConstSchema.Should().BeEquivalentTo(TranslateSchema(expectedConstSchema));
+            csvLog.FileSchema.Should().BeEquivalentTo(translateSchema(expectedFileSchema));
+            csvLog.ConstSchema.Should().BeEquivalentTo(translateSchema(expectedConstSchema));
 
-            CsvFileLog.ColumnKind[] TranslateSchema(string s)
+            CsvFileLog.ColumnKind[] translateSchema(string s)
             {
                 return s
                     .Split(',')
                     .Select(c => c.Trim())
                     .Where(c => !string.IsNullOrEmpty(c))
-                    .Select(TranslateCol)
+                    .Select(translateCol)
                     .ToArray();
             }
 
-            CsvFileLog.ColumnKind TranslateCol(string c)
+            CsvFileLog.ColumnKind translateCol(string c)
             {
                 Assert.True(c == "D" || c == "C", $"Column specified must be either 'C' or 'D', but is '{c}'");
                 return c == "D" ? dynCol : constCol;

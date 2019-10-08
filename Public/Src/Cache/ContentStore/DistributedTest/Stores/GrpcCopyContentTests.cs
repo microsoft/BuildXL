@@ -32,7 +32,7 @@ namespace ContentStoreTest.Distributed.Stores
         private const int FileSize = 1000;
         private const HashType DefaultHashType = HashType.Vso0;
         private const string LocalHost = "localhost";
-        private Context _context;
+        private readonly Context _context;
         private GrpcCopyClientCache _clientCache;
 
         public GrpcCopyContentTests()

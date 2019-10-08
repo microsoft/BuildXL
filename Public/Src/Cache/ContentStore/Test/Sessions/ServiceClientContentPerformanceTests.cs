@@ -27,7 +27,6 @@ namespace ContentStoreTest.Performance.Sessions
     {
         private const uint GracefulShutdownSeconds = ServiceConfiguration.DefaultGracefulShutdownSeconds;
         private const uint MaxConnections = 10;
-        private const uint ConnectionsPerSession = 10;
         private readonly string _scenario;
 
         protected ServiceClientContentPerformanceTests(

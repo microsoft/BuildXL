@@ -14,7 +14,7 @@ namespace BuildXL.Utilities.Configuration
     /// </remarks>
     public abstract class DiscriminatingUnion
     {
-        private HashSet<Type> m_allowedTypes;
+        private readonly HashSet<Type> m_allowedTypes;
         private object m_value;
 
         /// <nodoc/>

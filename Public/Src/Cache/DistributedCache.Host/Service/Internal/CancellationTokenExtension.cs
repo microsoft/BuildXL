@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
-    static class CancellationTokenExtension
+    internal static class CancellationTokenExtension
     {
         public static async Task WaitForCancellationAsync(this CancellationToken token)
         {

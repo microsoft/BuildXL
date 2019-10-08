@@ -417,7 +417,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// <inheritdoc />
             public override bool Equals(object obj)
             {
-                if (ReferenceEquals(null, obj))
+                if (obj is null)
                 {
                     return false;
                 }
@@ -447,8 +447,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// <inheritdoc />
             public int Compare(T x, T y) => _comparer(x, y);
         }
-
-        private static DelegateBasedComparer<T> CreateComparer<T>(Func<T, T, int> comparer) where T : IComparable<T> => new DelegateBasedComparer<T>(comparer);
     }
 
     /// <summary>

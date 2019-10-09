@@ -57,6 +57,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         /// <nodoc />
         public int CurrentIoGateCount => _ioGate.CurrentCount;
+
+        //Controls the maximum total number of copy retry attempts
         public const int MaxRetryCount = 32;
 
 
@@ -285,6 +287,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 var location = hashInfo.Locations[replicaIndex];
 
+                //Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
+                //We add one because replicaIndex is indexed from zero.
+                //If we reach over maximum retries, return an put result stating so, and no longer retry
                 if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > MaxRetryCount)
                 {
                     Tracer.Debug(

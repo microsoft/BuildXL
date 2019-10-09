@@ -104,7 +104,12 @@ namespace BuildXL.Pips.Operations
             /// <summary>
             /// Incremental tool is superset of <see cref="AllowPreserveOutputs"/> and is only active when preserve output is active.
             /// </summary>
-            IncrementalTool = (1 << 13) | AllowPreserveOutputs
+            IncrementalTool = (1 << 13) | AllowPreserveOutputs,
+
+            /// <summary>
+            /// Whether this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
+            /// </summary>
+            RequireGlobalDependencies = 1 << 14,
         }
     }
 }

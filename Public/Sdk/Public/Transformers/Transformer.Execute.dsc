@@ -250,6 +250,11 @@ namespace Transformer {
          */
         preserveOutputWhitelist?: (File | Directory)[];
         incrementalTool?: boolean;
+
+        /**
+         * Pull unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes for this process.
+         */
+        requireGlobalDependencies?: boolean;
     }
 
     /**

@@ -35,6 +35,8 @@ namespace BuildXL.Cache.Tests
             ""ContentionBackoffMaxMilliseonds"":32
         }}";
 
+        protected override bool RequiresPinBeforeGet => false;
+
         protected readonly Dictionary<string, string> CacheId2cacheDir = new Dictionary<string, string>();
 
         protected string JsonConfig(string cacheId, string path, bool readOnly, bool strict, bool authoritative)

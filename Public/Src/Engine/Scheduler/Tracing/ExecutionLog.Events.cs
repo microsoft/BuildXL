@@ -1468,7 +1468,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             PipId = PipId.Deserialize(reader);
             FailedFiles = reader.ReadReadOnlyArray(
-                r => (reader.ReadFileArtifact(), ContentHashingUtilities.CreateFrom(reader)));
+                r => (reader.ReadFileArtifact(), new ContentHash(reader)));
         }
     }
 }

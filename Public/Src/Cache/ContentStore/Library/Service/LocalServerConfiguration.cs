@@ -107,6 +107,9 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <nodoc />
         public string GrpcPortFileName { get; set; } = DefaultFileName;
 
+        /// <nodoc />
+        public int GrpcPoolSize { get; private set; } = 70;
+
         /// <inheritdoc />
         public override string ToString()
         {

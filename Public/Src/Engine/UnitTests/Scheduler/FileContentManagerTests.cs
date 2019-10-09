@@ -45,7 +45,6 @@ namespace Test.BuildXL.Scheduler
         public async Task RestoreContentInCacheCopySourceAndWriteFile()
         {
             var harness = CreateDefaultHarness();
-
             harness.Seal();
 
             FileArtifact copyChainFinalOutput = CreateOutputFile(fileName: "copyFileOutput.txt");

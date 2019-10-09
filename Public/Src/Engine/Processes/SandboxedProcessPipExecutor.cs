@@ -416,7 +416,7 @@ namespace BuildXL.Processes
                         () => new Regex(descriptor2.Pattern, descriptor2.Options | RegexOptions.Compiled | RegexOptions.CultureInvariant)))).Value;
         }
 
-        private string GetDetoursInternalErrorFilePath(LoggingContext loggingContext)
+        private string GetDetoursInternalErrorFilePath()
         {
             string tempDir = null;
 
@@ -467,7 +467,7 @@ namespace BuildXL.Processes
                 catch (BuildXLException ex)
                 {
                     Tracing.Logger.Log.LogFailedToCreateDirectoryForInternalDetoursFailureFile(
-                        loggingContext,
+                        m_loggingContext,
                         m_pip.SemiStableHash,
                         m_pip.GetDescription(m_context),
                         tempDir,
@@ -626,7 +626,8 @@ namespace BuildXL.Processes
             try
             {
                 var sandboxPrepTime = System.Diagnostics.Stopwatch.StartNew();
-                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables);
+
+                var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(m_pip, m_pipDataRenderer, m_pip.RequireGlobalDependencies ? m_sandboxConfig.GlobalUnsafePassthroughEnvironmentVariables : null);
 
                 if (!PrepareWorkingDirectory())
                 {
@@ -665,7 +666,7 @@ namespace BuildXL.Processes
                     // in the scope of a shared opaque
                     HashSet<AbsolutePath> allInputPathsUnderSharedOpaques = allInputPathsUnderSharedOpaquesWrapper.Instance;
 
-                    if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses && !TryPrepareFileAccessMonitoring(m_loggingContext, allInputPathsUnderSharedOpaques))
+                    if (m_sandboxConfig.UnsafeSandboxConfiguration.MonitorFileAccesses && !TryPrepareFileAccessMonitoring(allInputPathsUnderSharedOpaques))
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
@@ -1625,9 +1626,9 @@ namespace BuildXL.Processes
             return Tuple.Create(AbsolutePath.Create(m_pathTable, output.FileName), output.Encoding);
         }
 
-        private bool TryPrepareFileAccessMonitoring(LoggingContext loggingContext, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
+        private bool TryPrepareFileAccessMonitoring(HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
         {
-            if (!PrepareFileAccessMonitoringCommon(loggingContext))
+            if (!PrepareFileAccessMonitoringCommon())
             {
                 return false;
             }
@@ -1637,7 +1638,7 @@ namespace BuildXL.Processes
             return true;
         }
 
-        private bool PrepareFileAccessMonitoringCommon(LoggingContext loggingContext)
+        private bool PrepareFileAccessMonitoringCommon()
         {
             if (m_pip.IsService)
             {
@@ -1690,25 +1691,28 @@ namespace BuildXL.Processes
             }
 
             // Untrack the globally untracked paths specified in the configuration
-            foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
+            if (m_pip.RequireGlobalDependencies)
             {
-                // Translate the path and untrack the translated one
-                if (m_fileAccessManifest.DirectoryTranslator != null)
+                foreach (var path in m_sandboxConfig.GlobalUnsafeUntrackedScopes)
                 {
-                    var pathString = path.ToString(m_pathTable);
-                    var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
-                    var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
-
-                    if (path != translatedPath)
+                    // Translate the path and untrack the translated one
+                    if (m_fileAccessManifest.DirectoryTranslator != null)
                     {
-                        AddUntrackedScopeToManifest(translatedPath);
-                        Tracing.Logger.Log.TranslatePathInGlobalUnsafeUntrackedScopes(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context), pathString);
-                    }
-                }
+                        var pathString = path.ToString(m_pathTable);
+                        var translatedPathString = m_fileAccessManifest.DirectoryTranslator.Translate(pathString);
+                        var translatedPath = AbsolutePath.Create(m_pathTable, translatedPathString);
 
-                // Untrack the original path
-                AddUntrackedScopeToManifest(path);
+                        if (path != translatedPath)
+                        {
+                            AddUntrackedScopeToManifest(translatedPath);
+                        }
+                    }
+
+                    // Untrack the original path
+                    AddUntrackedScopeToManifest(path);
+                }
             }
+
 
             if (!OperatingSystemHelper.IsUnixOS)
             {
@@ -1742,7 +1746,7 @@ namespace BuildXL.Processes
             if (allowInternalErrorsLogging || checkMessageCount)
             {
                 // Create unique file name.
-                m_detoursFailuresFile = GetDetoursInternalErrorFilePath(loggingContext);
+                m_detoursFailuresFile = GetDetoursInternalErrorFilePath();
 
                 // Delete the file
                 if (FileUtilities.FileExistsNoFollow(m_detoursFailuresFile))
@@ -1765,7 +1769,7 @@ namespace BuildXL.Processes
                         // Semaphore names don't allow '\\' chars.
                         if (!m_fileAccessManifest.SetMessageCountSemaphore(m_detoursFailuresFile.Replace('\\', '_')))
                         {
-                            Tracing.Logger.Log.LogMessageCountSemaphoreExists(loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
+                            Tracing.Logger.Log.LogMessageCountSemaphoreExists(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context));
                             return false;
                         }
                     }

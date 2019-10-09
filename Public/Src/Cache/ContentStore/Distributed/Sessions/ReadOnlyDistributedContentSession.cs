@@ -359,6 +359,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return await results.SingleAwaitIndexed();
         }
 
+        /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> LightweightPinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint)
         {
             return PinHelperAsync(operationContext, contentHashes, urgencyHint, false);

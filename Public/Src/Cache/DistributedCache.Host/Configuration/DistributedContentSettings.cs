@@ -415,6 +415,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ContentLocationDatabaseFlushDegreeOfParallelism { get; set; }
 
         [DataMember]
+        public int? ContentLocationDatabaseFlushTransactionSize { get; set; }
+
+        [DataMember]
         public bool? ContentLocationDatabaseFlushSingleTransaction { get; set; }
 
         [DataMember]

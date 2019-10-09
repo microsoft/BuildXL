@@ -418,13 +418,11 @@ namespace Test.BuildXL.Scheduler
                 .WithDependencies(dependencies);
 
             if (untrackPath)
-
             {
                 pb = pb.WithUntrackedPaths(new[] { AbsolutePath.Create(pathTable, executablePath) });
             }
 
             if (untrackScope)
-
             {
                 pb = pb.WithUntrackedScopes(new[] { AbsolutePath.Create(pathTable, Path.GetDirectoryName(executablePath)) });
             }

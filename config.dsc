@@ -250,7 +250,6 @@ config({
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
 
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.App.220" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
@@ -261,7 +260,6 @@ config({
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
 
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.App.220"},
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },

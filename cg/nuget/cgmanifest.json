@@ -1661,24 +1661,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.NETCore.App",
-          "Version": "2.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.App",
-          "Version": "2.1.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
           "Version": "3.0.0"
         }

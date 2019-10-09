@@ -230,7 +230,6 @@ config({
 
                 // .NET Core Dependencies
                 { id: "Microsoft.NETCore.App.Ref", version: "3.0.0" },
-                { id: "Microsoft.NETCore.App", version: "2.1.1", alias: "Microsoft.NETCore.App.211" },
 
                 { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
                 { id: "Microsoft.NETCore.Platforms", version: "3.0.0" },
@@ -444,8 +443,6 @@ config({
                 { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild", dependentPackageIdsToIgnore: ["*"], dependentPackageIdsToSkip: ["*"]},
                 { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild"},
-
-                { id: "Microsoft.NETCore.App", version: "2.1.0", alias: "Microsoft.NETCore.App.210" },
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },

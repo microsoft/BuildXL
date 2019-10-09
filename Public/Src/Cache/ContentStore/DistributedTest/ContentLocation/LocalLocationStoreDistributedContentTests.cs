@@ -324,35 +324,35 @@ namespace ContentStoreTest.Distributed.Sessions
 
             await RunTestAsync(
                 new Context(Logger),
-                1,
+                2,
                 async context =>
                 {
-                    var master = context.GetMaster();
+                    var worker = context.GetFirstWorker();
 
-                    master.LocalLocationStore.IsReconcileUpToDate().Should().BeFalse();
+                    worker.LocalLocationStore.IsReconcileUpToDate().Should().BeFalse();
 
-                    await master.LocalLocationStore.ReconcileAsync(context).ThrowIfFailure();
+                    await worker.LocalLocationStore.ReconcileAsync(context).ThrowIfFailure();
 
-                    var result = await master.LocalLocationStore.ReconcileAsync(context).ThrowIfFailure();
+                    var result = await worker.LocalLocationStore.ReconcileAsync(context).ThrowIfFailure();
                     result.Value.totalLocalContentCount.Should().Be(-1, "Amount of local content should be unknown because reconcile is skipped");
 
-                    master.LocalLocationStore.IsReconcileUpToDate().Should().BeTrue();
+                    worker.LocalLocationStore.IsReconcileUpToDate().Should().BeTrue();
 
                     TestClock.UtcNow += LocalLocationStoreConfiguration.DefaultLocationEntryExpiry.Multiply(0.5);
 
-                    master.LocalLocationStore.IsReconcileUpToDate().Should().BeTrue();
+                    worker.LocalLocationStore.IsReconcileUpToDate().Should().BeTrue();
 
                     TestClock.UtcNow += LocalLocationStoreConfiguration.DefaultLocationEntryExpiry.Multiply(0.5);
 
-                    master.LocalLocationStore.IsReconcileUpToDate().Should().BeFalse();
+                    worker.LocalLocationStore.IsReconcileUpToDate().Should().BeFalse();
 
-                    master.LocalLocationStore.MarkReconciled();
+                    worker.LocalLocationStore.MarkReconciled();
 
-                    master.LocalLocationStore.IsReconcileUpToDate().Should().BeTrue();
+                    worker.LocalLocationStore.IsReconcileUpToDate().Should().BeTrue();
 
-                    master.LocalLocationStore.MarkReconciled(reconciled: false);
+                    worker.LocalLocationStore.MarkReconciled(reconciled: false);
 
-                    master.LocalLocationStore.IsReconcileUpToDate().Should().BeFalse();
+                    worker.LocalLocationStore.IsReconcileUpToDate().Should().BeFalse();
                 });
         }
 
@@ -2700,7 +2700,7 @@ namespace ContentStoreTest.Distributed.Sessions
             Output.WriteLine("[Statistics] TotalNumberOfCacheFlushes: " + counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].ToString());
             Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByUpdates: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByUpdates].ToString());
             Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByTimer: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByTimer].ToString());
-            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByGarbageCollection: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection].ToString());
+            Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByGarbageCollection: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByReconciliation].ToString());
             Output.WriteLine("[Statistics] NumberOfCacheFlushesTriggeredByCheckpoint: " + counters[ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint].ToString());
 
             Output.WriteLine("[Statistics] CacheFlush: " + counters[ContentLocationDatabaseCounters.CacheFlush].ToString());

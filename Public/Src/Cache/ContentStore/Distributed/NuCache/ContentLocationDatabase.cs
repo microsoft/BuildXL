@@ -90,6 +90,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private int _isFlushInProgress = 0;
 
+        private readonly EventWaitHandle _flushEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
         /// </summary>
@@ -308,12 +310,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             EnumerationFilter filter = null)
         {
-            if (IsInMemoryCacheEnabled)
-            {
-                // If we don't check, then GC will happen anyways and we will -incorrectly- increment the counter
-                ForceCacheFlush(context,
-                    counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByGarbageCollection);
-            }
+            // This is called only when computing reconciliation between a worker's LLS and local store. This means we
+            // don't need to flush, because workers don't perform any updates.
+            Contract.Assert(!IsDatabaseWriteable);
 
             return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
         }
@@ -525,7 +524,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             using (Counters[ContentLocationDatabaseCounters.SaveCheckpoint].Start())
             {
                 ForceCacheFlush(context,
-                    counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint);
+                    counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint,
+                    blocking: true);
 
                 return context.PerformOperation(Tracer,
                     () => SaveCheckpointCore(context, checkpointDirectory),
@@ -613,63 +613,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
-        /// <summary>
-        /// Should only be called from <see cref="ForceCacheFlush(ContentStore.Tracing.Internal.OperationContext, ContentLocationDatabaseCounters?, bool)"/>
-        /// </summary>
-        private Task ForceCacheFlushAsync(OperationContext context, ContentLocationDatabaseCounters? counter = null)
-        {
-            if (!IsInMemoryCacheEnabled)
-            {
-                return BoolResult.SuccessTask;
-            }
-
-            return context.PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    long flushedEntries = 0;
-                    try
-                    {
-                        // Make it likely that this runs in a separate thread other than the one that triggered the
-                        // flush
-                        await Task.Yield();
-
-                        var counters = await _inMemoryCache.FlushAsync(context);
-                        flushedEntries = counters[FlushableCache.FlushableCacheCounters.Persisted].Value;
-                        return Result.Success(counters);
-                    }
-                    finally
-                    {
-                        Interlocked.Add(ref _cacheUpdatesSinceLastFlush, -flushedEntries);
-                        ResetFlushTimer();
-
-                        if (counter != null)
-                        {
-                            Counters[counter.Value].Increment();
-                        }
-                    }
-                }, extraEndMessage: maybeCounters =>
-                {
-                    if (!maybeCounters.Succeeded)
-                    {
-                        return string.Empty;
-                    }
-
-                    var counters = maybeCounters.Value;
-                    return $"Persisted={counters[FlushableCache.FlushableCacheCounters.Persisted].Value} Leftover={counters[FlushableCache.FlushableCacheCounters.Leftover].Value} Growth={counters[FlushableCache.FlushableCacheCounters.Growth].Value} FlushingTime={counters[FlushableCache.FlushableCacheCounters.FlushingTime].Duration.TotalMilliseconds}ms CleanupTime={counters[FlushableCache.FlushableCacheCounters.CleanupTime].Duration.TotalMilliseconds}ms";
-                }).ThrowIfFailure();
-        }
-
         internal bool ForceCacheFlush(OperationContext context, ContentLocationDatabaseCounters? counter = null, bool blocking = true)
         {
             // Ensure only one thread can start the flush
             if (Interlocked.CompareExchange(ref _isFlushInProgress, 1, 0) == 1)
             {
+                if (blocking)
+                {
+                    // If the flush is blocking, then we need to wait until it is over for correctness
+                    _flushEvent.WaitOne();
+                    return true;
+                }
+
                 return false;
             }
 
-            var task = ForceCacheFlushAsync(context, counter).ContinueWith(_ =>
+            var task = forceCacheFlushAsync(context, counter).ContinueWith(_ =>
             {
+                // Release all threads waiting for the flush to finish
+                _flushEvent.Set();
+
+                // If a blocking flush gets interleaved with this code, the blocking flush could potentially be forced
+                // to wait until another thread comes along and effectively performs the flush. Not much we can do
+                // about this, as the alternative is just as bad or worse.
+
+                _flushEvent.Reset();
+
                 Interlocked.Exchange(ref _isFlushInProgress, 0);
             });
 
@@ -683,6 +652,46 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return true;
+
+            Task forceCacheFlushAsync(OperationContext context, ContentLocationDatabaseCounters? counter = null)
+            {
+                if (!IsInMemoryCacheEnabled)
+                {
+                    return BoolResult.SuccessTask;
+                }
+
+                return context.PerformOperationAsync(
+                    Tracer,
+                    async () =>
+                    {
+                        long flushedEntries = 0;
+                        try
+                        {
+                            var flushCounters = await _inMemoryCache.FlushAsync(context);
+                            flushedEntries = flushCounters[FlushableCache.FlushableCacheCounters.Persisted].Value;
+                            return Result.Success(flushCounters);
+                        }
+                        finally
+                        {
+                            Interlocked.Add(ref _cacheUpdatesSinceLastFlush, -flushedEntries);
+                            ResetFlushTimer();
+
+                            if (counter != null)
+                            {
+                                Counters[counter.Value].Increment();
+                            }
+                        }
+                    }, extraEndMessage: maybeCounters =>
+                    {
+                        if (!maybeCounters.Succeeded)
+                        {
+                            return string.Empty;
+                        }
+
+                        var counters = maybeCounters.Value;
+                        return $"Persisted={counters[FlushableCache.FlushableCacheCounters.Persisted].Value} Leftover={counters[FlushableCache.FlushableCacheCounters.Leftover].Value} Growth={counters[FlushableCache.FlushableCacheCounters.Growth].Value} FlushingTime={counters[FlushableCache.FlushableCacheCounters.FlushingTime].Duration.TotalMilliseconds}ms CleanupTime={counters[FlushableCache.FlushableCacheCounters.CleanupTime].Duration.TotalMilliseconds}ms";
+                    }).ThrowIfFailure();
+            }
         }
 
         private ContentLocationEntry SetMachineExistenceAndUpdateDatabase(OperationContext context, ShortHash hash, MachineId? machine, bool existsOnMachine, long size, UnixTime? lastAccessTime, bool reconciling)

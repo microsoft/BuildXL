@@ -86,7 +86,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         NumberOfCacheFlushesTriggeredByTimer,
 
         /// <nodoc />
-        NumberOfCacheFlushesTriggeredByGarbageCollection,
+        NumberOfCacheFlushesTriggeredByReconciliation,
 
         /// <nodoc />
         NumberOfCacheFlushesTriggeredByCheckpoint,

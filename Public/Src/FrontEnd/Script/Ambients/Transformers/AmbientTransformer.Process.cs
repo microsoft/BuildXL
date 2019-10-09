@@ -1191,8 +1191,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.allowPreservedOutputs
-            if (Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs, out bool? enabled, out int? trustLevel))
+            var unsafePreserveOutput = Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs);
+            if (unsafePreserveOutput.HasValue)
             {
+                bool? enabled = unsafePreserveOutput.Value.Item1;
+                int?  trustLevel = unsafePreserveOutput.Value.Item2;
                 if (enabled.HasValue || trustLevel.HasValue)
                 {
                     processBuilder.Options |= Process.Options.AllowPreserveOutputs;

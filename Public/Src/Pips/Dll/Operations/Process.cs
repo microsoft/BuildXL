@@ -727,7 +727,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates whether this pip is configured to always miss
         /// </summary>
-        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;
+        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;    
 
         /// <summary>
         /// What policy to apply when merging redirected outputs back

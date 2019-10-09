@@ -673,18 +673,15 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// <remarks>
         /// Either enabled or invValue will contain value not both. 
         /// </remarks>
-        public static bool ExtractOptionalBooleanOrInt(ObjectLiteral literal, SymbolAtom property, out bool? enabled, out int? intValue)
+        public static (bool?, int?)? ExtractOptionalBooleanOrInt(ObjectLiteral literal, SymbolAtom property)
         {
-            enabled = false;
-            intValue = 0;
-
             var value = literal[property];
             if (value.IsUndefined)
             {
-                return false;
+                return null;
             }
 
-            if(!TryGetBooleanOrInt(value, out enabled, out intValue))
+            if(!TryGetBooleanOrInt(value, out bool? enabled, out int? intValue))
             {
                 throw CreateException(
                    new[] { typeof(bool), typeof(int) },
@@ -692,7 +689,7 @@ namespace BuildXL.FrontEnd.Script.Evaluator
                    context: new ConversionContext(name: property, objectCtx: literal));
             }
 
-            return true;
+            return (enabled, intValue);
         }
 
         /// <summary>
@@ -701,8 +698,8 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         /// </summary>
         public static bool TryGetBooleanOrInt(EvaluationResult value, out bool? boolValue, out int? intValue)
         {
-            boolValue = default(bool);
-            intValue = default(int);
+            boolValue = null;
+            intValue = null;
 
             if (value.Value is bool boolVal)
             {

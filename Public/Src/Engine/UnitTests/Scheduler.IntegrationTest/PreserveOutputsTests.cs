@@ -312,7 +312,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(outputPreservedB, CONTENT),
             });
 
-            // processA will not perserve outputs because its trust level is lowert than global setting of preserve output trust level
+            // processA will not perserve outputs because its trust level is lower than global setting of preserve output trust level
             // but processB will preserve output
             builderA.Options |= Process.Options.AllowPreserveOutputs;
             builderA.PreserveOutputsTrustLevel = 1; 

@@ -274,7 +274,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             _distributedEvictionSettings = distributedEvictionSettings;
             _settings = settings ?? ContentStoreSettings.DefaultSettings;
 
-            _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings, this);
+            _checker = new FileSystemContentStoreInternalChecker(FileSystem, Clock, RootPath, _tracer, _settings.SelfCheckSettings, this);
         }
 
         private async Task PerformUpgradeToNextVersionAsync(Context context, VersionHistory currentVersion)
@@ -739,7 +739,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             _tracer.StartStats(context, size, contentDirectoryCount);
 
-            if (_settings.StartSelfCheckInStartup)
+            if (_settings.SelfCheckSettings?.StartSelfCheckInStartup == true)
             {
                 // Starting the self check and ignore and trace the failure.
                 // Self check procedure is a long running operation that can take longer then an average process lifetime.

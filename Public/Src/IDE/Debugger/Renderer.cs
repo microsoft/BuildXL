@@ -184,9 +184,23 @@ namespace BuildXL.FrontEnd.Script.Debugger
                     Case<ArrayLiteral>(arrLit => ArrayObjInfo(arrLit.Values.Select(v => v.Value).ToArray()).WithOriginal(arrLit)),
                     Case<ModuleBinding>(binding => GetObjectInfo(context, binding.Body)),
                     Case<ErrorValue>(error => ErrorValueInfo()),
-                    Case<object>(o => GenericObjectInfo(o, o?.ToString()))
+                    Case<object>(o => GenericObjectInfo(o))
                 },
                 defaultResult: s_nullObj);
+        }
+
+        private static string TryToString(object obj)
+        {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+            try
+            {
+                return obj?.ToString();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
         }
 
         private ObjectInfo PipFragmentInfo(object context, PipFragment pipFrag)
@@ -224,7 +238,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
             IEnumerable<string> excludeProperties = null)
         {
             return new ObjectInfo(
-                preview ?? obj?.ToString(), 
+                preview ?? TryToString(obj),
                 Lazy.Create(() =>
                 {
                     var props = ExtractObjectProperties(obj).Concat(ExtractObjectFields(obj));

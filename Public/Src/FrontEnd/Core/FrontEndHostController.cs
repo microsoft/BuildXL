@@ -1501,7 +1501,7 @@ namespace BuildXL.FrontEnd.Core
             var progressMessages = remainingItems
                 .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialized})"))
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialize})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

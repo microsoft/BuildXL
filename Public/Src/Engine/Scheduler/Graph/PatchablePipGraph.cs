@@ -125,7 +125,7 @@ namespace BuildXL.Scheduler.Graph
                         }
 
                         // check if this pip is a service-related pip which must be postponed
-                        if (ServiceKind(pip) != ServicePipKind.None)
+                        if (ServicePipKindUtil.IsServiceRelatedPip(pip))
                         {
                             SynchronizedAddToSortedList(toPostpone, pip);
                             MarkAllDependentsVisited(mustPostponeDueToServicePips, node);
@@ -151,7 +151,7 @@ namespace BuildXL.Scheduler.Graph
             // add postponed nodes sequentially in the order of creation
             foreach (var pip in toPostpone.Values)
             {
-                var serviceKind = ServiceKind(pip);
+                var serviceKind = ServicePipKindUtil.ServiceKind(pip);
                 if (serviceKind != ServicePipKind.ServiceShutdown && serviceKind != ServicePipKind.ServiceFinalization)
                 {
                     // 'shutdown' and 'finalization' are exception because of forward edges that are added
@@ -319,7 +319,7 @@ namespace BuildXL.Scheduler.Graph
                 return false;
             }
 
-            if (IsServiceStartShutdownOrFinalizationPip(pip))
+            if (ServicePipKindUtil.IsServiceStartShutdownOrFinalizationPip(pip))
             {
                 pip.PipId = m_reloadedServicePips[pip.SemiStableHash];
             }
@@ -336,42 +336,11 @@ namespace BuildXL.Scheduler.Graph
             Contract.Assert(success, "Expected to be able to reload pip");
             Interlocked.Increment(ref counter);
 
-            if (IsServiceStartShutdownOrFinalizationPip(pip))
+            if (ServicePipKindUtil.IsServiceStartShutdownOrFinalizationPip(pip))
             {
                 m_reloadedServicePips[pip.SemiStableHash] = pip.PipId;
                 m_pipIdMap[oldPipId] = pip.PipId;
             }
-        }
-
-        private static bool IsServiceStartShutdownOrFinalizationPip(Pip pip)
-        {
-            var serviceKind = ServiceKind(pip);
-            return
-                serviceKind == ServicePipKind.Service ||
-                serviceKind == ServicePipKind.ServiceShutdown ||
-                serviceKind == ServicePipKind.ServiceFinalization;
-        }
-
-        private static ServicePipKind ServiceKind(Pip pip)
-        {
-            if (pip.PipType == PipType.Process)
-            {
-                return ServiceKind((Process)pip);
-            }
-
-            if (pip.PipType == PipType.Ipc)
-            {
-                return ((IpcPip)pip).IsServiceFinalization
-                    ? ServicePipKind.ServiceFinalization
-                    : ServicePipKind.ServiceClient;
-            }
-
-            return ServicePipKind.None;
-        }
-
-        private static ServicePipKind ServiceKind(Process pip)
-        {
-            return pip.ServiceInfo?.Kind ?? ServicePipKind.None;
         }
 
         private bool AddPipToBuilder(Pip pip, PipId valuePip)
@@ -407,7 +376,7 @@ namespace BuildXL.Scheduler.Graph
 
         private Process TranslatePipIds(Process process)
         {
-            return ServiceKind(process) == ServicePipKind.None
+            return !ServicePipKindUtil.IsServiceRelatedPip(process)
                 ? process
                 : process.Override(serviceInfo: TranslatePipIds(process.ServiceInfo));
         }

@@ -595,6 +595,22 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <summary>
+        /// Returns pips consuming given directory artifact.
+        /// </summary>
+        public IEnumerable<Pip> GetConsumingPips(DirectoryArtifact dir)
+        {
+            var producer = GetProducer(dir);
+            var potentialConsumers = HydratePips(
+                DataflowGraph.GetOutgoingEdges(producer.ToNodeId()).Cast<Edge>().Select(edge => edge.OtherNode), 
+                PipQueryContext.PipGraphGetConsumingPips);
+
+            return potentialConsumers
+                .Where(pip =>
+                    (pip is Process proc && proc.DirectoryDependencies.Contains(dir)) ||
+                    (pip is SealDirectory sd && sd.Directory == dir));
+        }
+
+        /// <summary>
         /// Get the list of pips that consume a given file artifact
         /// </summary>
         /// <param name="filePath">The consumed file path</param>

@@ -39,4 +39,54 @@ namespace BuildXL.Pips.Operations
             return kind == ServicePipKind.Service || kind == ServicePipKind.ServiceShutdown;
         }
     }
+
+    /// <summary>
+    /// Utilities for extracting <see cref="ServicePipKind"/> from a pip.
+    /// </summary>
+    public static class ServicePipKindUtil
+    {
+        /// <summary>
+        /// Checks if a pip is a service start, shutdown, or finalization.
+        /// </summary>
+        public static bool IsServiceStartShutdownOrFinalizationPip(Pip pip)
+        {
+            var serviceKind = ServiceKind(pip);
+            return
+                serviceKind == ServicePipKind.Service ||
+                serviceKind == ServicePipKind.ServiceShutdown ||
+                serviceKind == ServicePipKind.ServiceFinalization;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ServicePipKind"/> of a pip.
+        /// </summary>
+        public static ServicePipKind ServiceKind(Pip pip)
+        {
+            if (pip.PipType == PipType.Process)
+            {
+                return ServiceKind((Process)pip);
+            }
+
+            if (pip.PipType == PipType.Ipc)
+            {
+                return ((IpcPip)pip).IsServiceFinalization
+                    ? ServicePipKind.ServiceFinalization
+                    : ServicePipKind.ServiceClient;
+            }
+
+            return ServicePipKind.None;
+        }
+
+        private static ServicePipKind ServiceKind(Process pip)
+        {
+            return pip.ServiceInfo?.Kind ?? ServicePipKind.None;
+        }
+
+        /// <summary>
+        /// Checks if a pip is a service related pip.
+        /// </summary>
+        /// <param name="pip"></param>
+        /// <returns></returns>
+        public static bool IsServiceRelatedPip(Pip pip) => ServiceKind(pip) != ServicePipKind.None;
+    }
 }

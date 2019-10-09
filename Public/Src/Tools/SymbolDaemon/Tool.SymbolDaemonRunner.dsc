@@ -63,6 +63,24 @@ export const runner: SymbolRunner = {
     },
 };
 
+/**
+ * Specialized runner for CloudBuild, which sets some magic environment variables  
+ * CloudBuild uses to discover credential providers needed to authenticate against VSO.  
+ */
+@@public
+export const cloudBuildRunner: SymbolRunner = {
+    createSymbol: (
+        args: SymbolCreateArguments
+    )
+    => runner.createSymbol(
+        applyCloudBuildDefaultsAndSetEnvVars(args)
+    ),
+    addFilesToSymbol: runner.addFilesToSymbol,
+    startDaemonNoSymbol: runner.startDaemonNoSymbol,
+    pingDaemon: runner.pingDaemon,
+    testReadFile: runner.testReadFile,
+};
+
 function startService(args: UberArguments, startCommand: string, shutdownCmdName: string, finalizationCmdName?: string, skipValidation?: boolean): ServiceStartResult {
     if (skipValidation !== true) {
         Contract.requires(
@@ -349,4 +367,32 @@ function debugEntryCreateBehaviorToString(arg: DebugEntryCreateBehavior) {
         default:
             return "Unspecified";
     };
+}
+
+const cbEnvironmentVariables: string[] = [
+    "__CLOUDBUILD_AUTH_HELPER_CONFIG__", 
+    "QAUTHMATERIALROOT",
+    "ARTIFACT_CREDENTIALPROVIDERS_PATH",
+    "__CLOUDBUILD_AUTH_HELPER_ROOT__",
+    "__Q_DPAPI_Secrets_Dir",
+    "__CREDENTIAL_PROVIDER_LOG_DIR"
+];
+
+function applyCloudBuildDefaultsAndSetEnvVars(args: SymbolCreateArguments): SymbolCreateArguments {
+    const defaults : SymbolCreateArguments = {
+        enableTelemetry: true,
+        enableCloudBuildIntegration: true,
+        verbose: true,
+        maxConnectRetries: 10,
+        connectRetryDelayMillis: 3000,        
+        maxConcurrentClients: 500,
+        timeoutInMilliseconds: 5 * 60 * 60 * 1000,        
+        warningTimeoutInMilliseconds: 4 * 60 * 60 * 1000,        
+    };
+
+    return defaults.merge(args).merge(
+        <OperationArguments>{
+            forwardEnvironmentVars: cbEnvironmentVariables
+        }
+    );
 }

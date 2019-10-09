@@ -1347,6 +1347,7 @@ namespace BuildXL.Scheduler
                             int retryCount = 0;
                             bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
+                            Dictionary<string, int> pipProperties = null;
 
                             // Retry pip count up to limit if we produce result without detecting file access.
                             // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
@@ -1404,6 +1405,25 @@ namespace BuildXL.Scheduler
                                 result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
 
                                 ++retryCount;
+
+                                if (result.PipProperties != null)
+                                {
+                                    if (pipProperties != null)
+                                    {
+                                        foreach (string pipPropertyKey in pipProperties.Keys)
+                                        {
+                                            result.PipProperties.TryGetValue(pipPropertyKey, out int value);
+                                            result.PipProperties[pipPropertyKey] = value + pipProperties[pipPropertyKey];
+                                        }
+                                    }
+                                    else
+                                    {
+                                        result.PipProperties = pipProperties;
+                                    }
+
+                                    // Save off the current PipProperties to add back to future loop iterations that reset the result
+                                    pipProperties = result.PipProperties;
+                                }
 
                                 lock (s_telemetryDetoursHeapLock)
                                 {
@@ -1556,14 +1576,7 @@ namespace BuildXL.Scheduler
                             if (userRetry)
                             {
                                 counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPips);
-                                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded)
-                                {
-                                    //TODO update PipsSucceedingAfterUserRetry
-                                }
-                                else if (result.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed)
-                                {
-                                    //TODO update PipsFailingAfterLastUserRetry
-                                }
+                                result.HadUserRetries = true;
                             }
 
                             return result;
@@ -1571,11 +1584,6 @@ namespace BuildXL.Scheduler
                     });
 
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
-
-            if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
-            {
-                //TODO create and/or update global pip Properties counters
-            }
 
             counters.AddToCounter(PipExecutorCounter.SandboxedProcessPrepDurationMs, executionResult.SandboxPrepMs);
             counters.AddToCounter(

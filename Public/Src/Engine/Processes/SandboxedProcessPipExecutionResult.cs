@@ -306,6 +306,12 @@ namespace BuildXL.Processes
         /// </summary>
         public Dictionary<string, int> PipProperties { get; set; }
 
+        /// <summary>
+        /// A flag to denote if the process was retried based on a User set retry code
+        /// </summary>
+        public bool HadUserRetries { get; set; }
+
+
         /// <nodoc />
         public SandboxedProcessPipExecutionResult(
             SandboxedProcessPipExecutionStatus status,

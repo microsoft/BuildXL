@@ -86,7 +86,9 @@ namespace Test.BuildXL.Scheduler
                 pipCacheDescriptorV2Metadata: null,
                 converged: true,
                 pathSet: null,
-                cacheLookupStepDurations: null);
+                cacheLookupStepDurations: null,
+                pipProperties: null,
+                hasUserRetries: false);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 

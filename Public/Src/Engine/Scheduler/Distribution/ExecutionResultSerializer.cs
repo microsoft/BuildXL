@@ -154,6 +154,7 @@ namespace BuildXL.Scheduler.Distribution
                 result = PipResultStatus.NotMaterialized;
             }
 
+            //TODO - Figure out what is necessary to serialize PipProperties and HasUserRetries, then update the CreateSealed call below
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
                 numberOfWarnings,

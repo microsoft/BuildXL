@@ -1289,7 +1289,7 @@ namespace BuildXL.Processes
                     if (!canceled)
                     {
                         LogFinishedFailed(result);
-                        await UpdatePipPropertiesCountsAsync(result, pipProperties);
+                        pipProperties = await SetPipPropertiesAsync(result);
 
                         if (exitedButCanBeRetried)
                         {
@@ -1600,7 +1600,7 @@ namespace BuildXL.Processes
                 pipProperties: pipProperties);
         }
 
-        private async Task UpdatePipPropertiesCountsAsync(SandboxedProcessResult result, Dictionary<string, int> pipProperties)
+        private async Task<Dictionary<string, int>> SetPipPropertiesAsync(SandboxedProcessResult result)
         {
             OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter(m_pip.EnableMultiLineErrorScanning);
 
@@ -1611,20 +1611,10 @@ namespace BuildXL.Processes
             if (!string.IsNullOrWhiteSpace(allMatches))
             {
                 string[] matchedProperties = allMatches.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                if (pipProperties == null)
-                {
-                    pipProperties = matchedProperties.ToDictionary(val => val, val => 1);
-                }
-                else
-                {
-                    foreach (string property in matchedProperties)
-                    {
-                        pipProperties.TryGetValue(property, out int value);
-                        pipProperties[property] = ++value;
-                    }
-                }
-
+                return matchedProperties.ToDictionary(val => val, val => 1);
             }
+
+            return null;
         }
 
         private Tuple<AbsolutePath, Encoding> GetEncodedStandardConsoleStream(SandboxedProcessOutput output)

@@ -3550,8 +3550,6 @@ namespace BuildXL.Scheduler
 
                         var executionResult = await worker.ExecuteProcessAsync(processRunnable);
 
-                        // TODO - Possibly bubble up pipProperties to this location to add to the global results
-                    
                         // Don't count service pips in process pip counters
                         if (!processRunnable.Process.IsStartOrShutdownKind && executionResult.PerformanceInformation != null)
                         {
@@ -3593,6 +3591,23 @@ namespace BuildXL.Scheduler
                             processRunnable.ExpectedRamUsageMb = expectedRamUsageMb;
 
                             return PipExecutionStep.ChooseWorkerCpu;
+                        }
+
+                        if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
+                        {
+                            //TODO create and/or update global pip Properties counters
+                        }
+
+                        if (executionResult.HasUserRetries)
+                        {
+                            if (executionResult.Result == PipResultStatus.Succeeded)
+                            {
+                                //TODO update PipsSucceedingAfterUserRetry
+                            }
+                            else if (executionResult.Result == PipResultStatus.Failed)
+                            {
+                                //TODO update PipsFailingAfterLastUserRetry
+                            }
                         }
 
                         if (runnablePip.Worker?.IsRemote == true)

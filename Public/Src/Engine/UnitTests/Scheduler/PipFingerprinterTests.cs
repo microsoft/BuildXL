@@ -14,6 +14,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
@@ -63,6 +64,16 @@ namespace Test.BuildXL.Scheduler
 
                 XAssert.Fail("Attempted to load hash for file other than executable");
                 return FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash);
+            };
+        }
+
+        internal static PipFragmentRenderer.ContentHashLookup GetDummyContentHash(int randomNumber)
+        {
+            return file =>
+            {
+                var hashBytes = Enumerable.Repeat((byte)randomNumber, ContentHashingUtilities.HashInfo.ByteLength).ToArray();
+                var hash = ContentHashingUtilities.CreateFrom(hashBytes);
+                return FileContentInfo.CreateWithUnknownLength(hash);
             };
         }
 
@@ -400,12 +411,10 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(json.Contains(Path.GetFileName(Environment.GetFolderPath(Environment.SpecialFolder.InternetCache)).ToUpperInvariant()));
         }
 
-        private string GenerateAndAssertWeakFingerPrint(
-            string exectuablePath, 
-            bool assertValue,  // true if fingerprint should contain executable path, false if output should be untracked
-            string[] untrackedPaths = null,
-            string[] untrackedScopes = null)
+        [Fact]
+        public void TestModifiedExecutableWhenUntrackedStaysOutOfFingerprints()
         {
+            var exectuablePath = "/x/pkgs/tool.exe";
             var pathTable = m_context.PathTable;
             var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X(exectuablePath)));
 
@@ -413,90 +422,39 @@ namespace Test.BuildXL.Scheduler
             var processBuilder = GetDefaultProcessBuilder(pathTable, executable)
                 .WithDependencies(dependencies);
 
-            if (untrackedPaths != null)
-            {
-                List<AbsolutePath> abp = new List<AbsolutePath>();
-                foreach(string path in untrackedPaths)
-                {
-                    abp.Add(AbsolutePath.Create(pathTable, X(path)));
-                }
-                processBuilder = processBuilder.WithUntrackedPaths(abp.ToArray());
-            }
-
-            if (untrackedScopes != null)
-            {
-                List<AbsolutePath> abp = new List<AbsolutePath>();
-                foreach (string path in untrackedScopes)
-                {
-                    abp.Add(AbsolutePath.Create(pathTable, X(path)));
-                }
-                processBuilder = processBuilder.WithUntrackedScopes(abp.ToArray());
-            }
+            processBuilder = processBuilder.WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X(exectuablePath)) });
+            //processBuilder = processBuilder.WithUntrackedScopes(abp.ToArray());
 
             var process = processBuilder.Build();
 
             MountPathExpander expander = new MountPathExpander(pathTable);
 
-            var fingerprinter = new PipContentFingerprinter(
+            var fingerprinter1 = new PipContentFingerprinter(
                 m_context.PathTable,
-                GetContentHashLookup(executable),
+                GetDummyContentHash(5),
                 ExtraFingerprintSalts.Default(),
                 pathExpander: expander)
             {
                 FingerprintTextEnabled = true
             };
 
-            var contentFingerprint = fingerprinter.ComputeWeakFingerprint(process, out string fingerprintText);
+            var contentFingerprint = fingerprinter1.ComputeWeakFingerprint(process, out string fingerprintText);
             fingerprintText = fingerprintText.ToUpperInvariant();
-            string untrackedPathText = executable.Path.ToString(pathTable).ToUpperInvariant();
 
-            // Make sure the executable path doesn't show up in the fingerprint
-            XAssert.Equals(assertValue, fingerprintText.Contains(untrackedPathText));
-
-            // Validate the JSON fingerprinter does the same
-            var json = JsonFingerprinter.CreateJsonString(writer =>
+            var fingerprinter2 = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetDummyContentHash(6),
+                ExtraFingerprintSalts.Default(),
+                pathExpander: expander)
             {
-                fingerprinter.AddWeakFingerprint(writer, process);
-            },
-            pathTable: m_context.PathTable).ToUpperInvariant();
+                FingerprintTextEnabled = true
+            };
 
-            var fence = OperatingSystemHelper.IsUnixOS ? "\"" : "";
-            XAssert.Equals(assertValue, json.Contains($"{fence}{untrackedPathText.Replace("\\", "\\\\")}{fence}"));
+            var contentFingerprint2 = fingerprinter2.ComputeWeakFingerprint(process, out string fingerprintText2);
+            fingerprintText2 = fingerprintText2.ToUpperInvariant();
 
-            //return contentFingerprint;    // TODO: Revert when dev complete
-            return fingerprintText.ToUpperInvariant();
-        }
-
-        [Fact]
-        public void TestExecutableWhenTrackedStaysInsideFingerprints()
-        {
-            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", true);
-            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", true);
-            XAssert.AreNotEqual(fingerprint, fingerprint2);
-        }
-
-        [Fact]
-        public void TestExecutableWhenUntrackedStaysOutOfFingerprints()
-        {
-            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, new string[] {"/x/pkgs/tool.exe"});
-            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, new string[] { "/x/pkgs/tool2.exe" });
-            XAssert.AreNotEqual(fingerprint, fingerprint2);
-        }
-
-        [Fact]
-        public void TestExecutableWhenInsideUntrackedScopeStaysInsideFingerprints()
-        {
-            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool.exe", false, null, new string[] { "/x/pkgs" });
-            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/tool2.exe", false, null, new string[] { "/x/pkgs" });
-            XAssert.AreNotEqual(fingerprint, fingerprint2);
-        }
-
-        [Fact]
-        public void TestExecutableWhenInsideUntrackedParentScopeStaysOutOfFingerprints()
-        {
-            var fingerprint = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub1/tool.exe", false, null, new string[] { "/x/pkgs" });
-            var fingerprint2 = GenerateAndAssertWeakFingerPrint("/x/pkgs/sub2/tool2.exe", false, null, new string[] { "/x/pkgs" });
-            XAssert.AreNotEqual(fingerprint, fingerprint2);
+            XAssert.AreEqual(contentFingerprint, contentFingerprint2);
+            XAssert.AreEqual(fingerprintText, fingerprintText2);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

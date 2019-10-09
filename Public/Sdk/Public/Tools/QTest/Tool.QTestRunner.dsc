@@ -41,8 +41,7 @@ const enum CoverageOptions
 }
 
 function getCodeCoverageOption(): CoverageOptions {
-    if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption"))
-    {
+    if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")){
         switch (Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")){
             case CoverageOptions.DynamicChangeList.toString():
                 return CoverageOptions.DynamicChangeList;
@@ -52,6 +51,7 @@ function getCodeCoverageOption(): CoverageOptions {
                 return CoverageOptions.None;
         }
     }
+    return CoverageOptions.None;
 }
 
 function qTestTypeToString(args: QTestArguments) {
@@ -137,18 +137,13 @@ export function runQTest(args: QTestArguments): Result {
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
     // Microsoft internal cloud service use only
-    let qTestContextInfoPath = undefined;
-    let untrackingCBPaths = {};
-    if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
-        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
-        qTestContextInfoPath = qTestContextInfoFile.path;
-    }
     // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
-    else if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]qtestContextInfo")){
-        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo");
-        qTestContextInfoPath = qTestContextInfoFile.path;  
-    }
-    
+    let qTestContextInfoPath = Environment.hasVariable("[Sdk.BuildXL.CBInternal]qtestContextInfo") 
+                             ? Environment.getPathValue("[Sdk.BuildXL.CBInternal]qtestContextInfo")
+                             : Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") 
+                             ? Environment.getPathValue("[Sdk.BuildXL]qtestContextInfo")
+                             : undefined;
+
     let codeCoverageOption = getCodeCoverageOption();
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
@@ -160,14 +155,10 @@ export function runQTest(args: QTestArguments): Result {
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
 
-    let qCodeCoverageEnumType = undefined;
-    if(codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull)
-    {
-        qCodeCoverageEnumType = "DynamicCodeCov";
-    }
+    let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? "DynamicCodeCov" : undefined;
 
     // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
-    qCodeCoverageEnumType = Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption") || CoverageOptions.None.toString();    
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;    
     
 
     let commandLineArgs: Argument[] = [

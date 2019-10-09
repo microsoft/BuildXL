@@ -12,38 +12,32 @@ using Microsoft.Build.Prediction;
 namespace MsBuildGraphBuilderTool
 {
     /// <summary>
-    /// Collects predictions from the MSBuild prediction library.
+    /// Collects output predictions from the MSBuild prediction library.
     /// </summary>
     /// <remarks>
-    /// This validates the predicted inputs and outputs, in case the predictor is not working properly
+    /// This validates the predicted outputs, in case the predictor is not working properly
     /// </remarks>
-    public sealed class MsBuildPredictionCollector : IProjectPredictionCollector
+    public sealed class MsBuildOutputPredictionCollector : IProjectPredictionCollector
     {
         private readonly ConcurrentQueue<(string predictorName, string failure)> m_predictionFailures;
-
-        private readonly ICollection<string> m_inputFilePredictions;
 
         private readonly ICollection<string> m_outputFolderPredictions;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MsBuildPredictionCollector"/> class.
+        /// Initializes a new instance of the <see cref="MsBuildOutputPredictionCollector"/> class.
         /// </summary>
         /// <remarks>
         /// The provided collections will be added to by this collector as predictions (or prediction errors) happen.
         /// </remarks>
-        /// <param name="inputFilePredictions">A collection of input file predictions the collector should add to as needed.</param>
         /// <param name="outputFolderPredictions">A collection of output folder predictions the collector should add to as needed.</param>
         /// <param name="predictionFailures">A collection of prediction failures the collector should add to as needed.</param>
-        public MsBuildPredictionCollector(
-            ICollection<string> inputFilePredictions,
+        public MsBuildOutputPredictionCollector(
             ICollection<string> outputFolderPredictions,
             ConcurrentQueue<(string predictorName, string failure)> predictionFailures)
         {
-            Contract.Assert(inputFilePredictions != null);
             Contract.Assert(outputFolderPredictions != null);
             Contract.Assert(predictionFailures != null);
 
-            m_inputFilePredictions = inputFilePredictions;
             m_outputFolderPredictions = outputFolderPredictions;
             m_predictionFailures = predictionFailures;
         }
@@ -51,31 +45,13 @@ namespace MsBuildGraphBuilderTool
         /// <inheritdoc/>
         public void AddInputFile(string path, string projectDirectory, string predictorName)
         {
-            if (!TryValidatePrediction(path, projectDirectory, predictorName, out string absolutePath))
-            {
-                return;
-            }
-
-            m_inputFilePredictions.Add(absolutePath);
+            // We don't collect inputs
         }
 
         /// <inheritdoc/>
         public void AddInputDirectory(string path, string projectDirectory, string predictorName)
         {
-            if (!TryValidatePrediction(path, projectDirectory, predictorName, out string absolutePath))
-            {
-                return;
-            }
-
-            if (Directory.Exists(absolutePath))
-            {
-                FileUtilities.EnumerateFiles(
-                    absolutePath,
-                    false,
-                    "*",
-                    (dir, fileName, attrs, length) => m_inputFilePredictions.Add(Path.Combine(dir, fileName)));
-            }
-            // TODO: Can we do anything to flag that the input prediction is not going to be used?
+            // We don't collect input directories
         }
 
         /// <inheritdoc/>

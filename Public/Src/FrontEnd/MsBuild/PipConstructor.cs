@@ -513,6 +513,10 @@ namespace BuildXL.FrontEnd.MsBuild
                 processBuilder.ContainerIsolationLevel = ContainerIsolationLevel.IsolateAllOutputs;
             }
 
+            // We want to enforce the use of weak fingerprint augmentation since input predictions could be not complete/sufficient
+            // to avoid a large number of path sets
+            processBuilder.Options |= Process.Options.EnforceWeakFingerprintAugmentation;
+
             // By default the double write policy is to allow same content double writes.
             processBuilder.DoubleWritePolicy |= m_resolverSettings.DoubleWritePolicy ?? DoubleWritePolicy.AllowSameContentDoubleWrites;
 

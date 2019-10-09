@@ -58,7 +58,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <nodoc />
         public int CurrentIoGateCount => _ioGate.CurrentCount;
 
-        //Controls the maximum total number of copy retry attempts
+        /// <summary>
+        /// Controls the maximum total number of copy retry attempts
+        /// </summary>
         public const int MaxRetryCount = 32;
 
 

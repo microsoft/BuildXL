@@ -57,6 +57,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         /// <nodoc />
         public int CurrentIoGateCount => _ioGate.CurrentCount;
+        public const int MaxRetryCount = 32;
+
 
         /// <nodoc />
         public DistributedContentCopier(
@@ -259,6 +261,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
+        private PutResult CreateMaxRetryPutResult() => new ErrorResult("Maximum total retries attempted").AsResult<PutResult>();
+
 
         /// <nodoc />
         private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(
@@ -280,6 +284,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             for (int replicaIndex = 0; replicaIndex < hashInfo.Locations.Count; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];
+
+                if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > MaxRetryCount)
+                {
+                    Tracer.Debug(
+                            context,
+                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries.");
+                    return (result: CreateMaxRetryPutResult(), retry: false);
+                }
+
 
                 // if the file is explicitly reported missing by the remote, don't bother retrying.
                 if (missingContentLocations.Contains(location))

@@ -419,13 +419,52 @@ namespace Test.BuildXL.Scheduler
             var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X(exectuablePath)));
 
             var dependencies = new HashSet<FileArtifact>() { executable };
-            var processBuilder = GetDefaultProcessBuilder(pathTable, executable)
-                .WithDependencies(dependencies);
+            var process = GetDefaultProcessBuilder(pathTable, executable)
+                .WithDependencies(dependencies)
+                .WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X(exectuablePath)) })
+                .Build();
 
-            processBuilder = processBuilder.WithUntrackedPaths(new AbsolutePath[] { AbsolutePath.Create(pathTable, X(exectuablePath)) });
-            //processBuilder = processBuilder.WithUntrackedScopes(abp.ToArray());
+            MountPathExpander expander = new MountPathExpander(pathTable);
 
-            var process = processBuilder.Build();
+            var fingerprinter1 = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetDummyContentHash(5),
+                ExtraFingerprintSalts.Default(),
+                pathExpander: expander)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            var contentFingerprint = fingerprinter1.ComputeWeakFingerprint(process, out string fingerprintText);
+            fingerprintText = fingerprintText.ToUpperInvariant();
+
+            var fingerprinter2 = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetDummyContentHash(6),
+                ExtraFingerprintSalts.Default(),
+                pathExpander: expander)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            var contentFingerprint2 = fingerprinter2.ComputeWeakFingerprint(process, out string fingerprintText2);
+            fingerprintText2 = fingerprintText2.ToUpperInvariant();
+
+            XAssert.AreEqual(contentFingerprint, contentFingerprint2);
+            XAssert.AreEqual(fingerprintText, fingerprintText2);
+        }
+
+        [Fact]
+        public void TestModifiedExecutableInsideUnrackedScopeStaysOutOfFingerprints()
+        {
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+
+            var dependencies = new HashSet<FileArtifact>() { executable };
+            var process = GetDefaultProcessBuilder(pathTable, executable)
+                .WithDependencies(dependencies)
+                .WithUntrackedScopes(new AbsolutePath[] { AbsolutePath.Create(pathTable, X("/x/pkgs")) })
+                .Build();
 
             MountPathExpander expander = new MountPathExpander(pathTable);
 

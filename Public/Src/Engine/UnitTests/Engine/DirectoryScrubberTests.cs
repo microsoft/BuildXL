@@ -379,18 +379,6 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
-        public void DeleteFilesHandlesInvalidPaths()
-        {
-            string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesHandlesInvalidPaths));
-            Directory.CreateDirectory(rootDir);
-            XAssert.IsTrue(Directory.Exists(rootDir));
-
-            var invalidPath = Path.Combine(rootDir, "~!@#$%^&*()_+{}[]|\n\r");
-            var numDeleted = Scrubber.DeleteFiles(new[] { invalidPath });
-            XAssert.AreEqual(0, numDeleted);
-        }
-
-        [Fact]
         public void DeleteFilesHandlesMixedEntries()
         {
             string rootDir = Path.Combine(TemporaryDirectory, nameof(DeleteFilesHandlesMixedEntries));

@@ -747,7 +747,7 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                using (var sharedOpaqueOutputsJournal = new SharedOpaqueJournal(m_context, m_pip, m_layoutConfiguration.SharedOpaqueJournalDirectory))
+                using (var sharedOpaqueOutputsJournal = CreateSharedOpaqueJournalIfConfigured())
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -814,6 +814,14 @@ namespace BuildXL.Processes
 
                 m_fileAccessManifest.UnsetMessageCountSemaphore();
             }
+        }
+
+        private SharedOpaqueJournal CreateSharedOpaqueJournalIfConfigured()
+        {
+            // don't use this journal if pip's semistable hash is 0 or if journal root directory is not set up
+            return m_layoutConfiguration?.SharedOpaqueJournalDirectory.IsValid == true && m_pip.SemiStableHash != 0
+                ? new SharedOpaqueJournal(m_context, m_pip, m_layoutConfiguration.SharedOpaqueJournalDirectory)
+                : null;
         }
 
         private bool SandboxedProcessNeedsExecuteExternal

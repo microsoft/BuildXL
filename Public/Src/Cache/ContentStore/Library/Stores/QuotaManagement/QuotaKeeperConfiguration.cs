@@ -45,16 +45,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// </summary>
         public long ContentDirectorySize { get; private set; }
 
-        /// <summary>
-        /// If true, then quota keeper will check the current content directory size and start content eviction at startup if the threshold is reached.
-        /// </summary>
-        public bool StartPurgingAtStartup { get; private set; }
-
-        /// <summary>
-        /// If true, then <see cref="LegacyQuotaKeeper"/> is used, otherwise <see cref="QuotaKeeperV2"/> is used.
-        /// </summary>
-        public bool UseLegacyQuotaKeeper { get; private set; }
-
         /// <nodoc />
         private QuotaKeeperConfiguration()
         {
@@ -64,7 +54,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public static QuotaKeeperConfiguration Create(
             ContentStoreConfiguration configuration,
             DistributedEvictionSettings evictionSettings,
-            ContentStoreSettings contentStoreSettings,
             long contentDirectorySize)
         {
             Contract.Requires(configuration != null);
@@ -78,8 +67,6 @@ namespace BuildXL.Cache.ContentStore.Stores
                        HistoryWindowSize = configuration.HistoryWindowSize,
                        DistributedEvictionSettings = evictionSettings,
                        ContentDirectorySize = contentDirectorySize,
-                       StartPurgingAtStartup = contentStoreSettings.StartPurgingAtStartup,
-                       UseLegacyQuotaKeeper = contentStoreSettings.UseLegacyQuotaKeeperImplementation,
                    };
         }
     }

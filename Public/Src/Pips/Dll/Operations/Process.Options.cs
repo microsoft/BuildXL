@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using System;
 
 namespace BuildXL.Pips.Operations
@@ -8,6 +10,20 @@ namespace BuildXL.Pips.Operations
     /// <nodoc />
     public partial class Process
     {
+        /// <summary>
+        /// Process-level default value for <see cref="ICacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor"/> 
+        /// if fingerprint augmentation is not explicitly set globally and 
+        /// <see cref="Options.EnforceWeakFingerprintAugmentation"/> is on
+        /// </summary>
+        public static double DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor = .4;
+
+        /// <summary>
+        /// Process-level default value for <see cref="ICacheConfiguration.AugmentWeakFingerprintPathSetThreshold"/> 
+        /// if fingerprint augmentation is not explicitly set globally and 
+        /// <see cref="Options.EnforceWeakFingerprintAugmentation"/> is on
+        /// </summary>
+        public static int DefaultAugmentWeakFingerprintPathSetThreshold = 5;
+
         /// <summary>
         /// Flag options controlling process pip behavior.
         /// </summary>
@@ -104,7 +120,20 @@ namespace BuildXL.Pips.Operations
             /// <summary>
             /// Incremental tool is superset of <see cref="AllowPreserveOutputs"/> and is only active when preserve output is active.
             /// </summary>
-            IncrementalTool = (1 << 13) | AllowPreserveOutputs
+            IncrementalTool = (1 << 13) | AllowPreserveOutputs,
+
+            /// <summary>
+            /// Whether this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes
+            /// </summary>
+            RequireGlobalDependencies = 1 << 14,
+
+            /// <summary>
+            /// If the global <see cref="ICacheConfiguration.AugmentWeakFingerprintPathSetThreshold"/> is not 
+            /// set (i.e is equal to zero), this option forces fingerprint augmentation
+            /// for this particular process using defaults specified by <see cref="DefaultAugmentWeakFingerprintPathSetThreshold"/> 
+            /// and <see cref="DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor"/>
+            /// </summary>
+            EnforceWeakFingerprintAugmentation = 1 << 15,
         }
     }
 }

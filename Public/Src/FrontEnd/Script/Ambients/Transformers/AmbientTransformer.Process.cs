@@ -138,6 +138,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_weight;
         private SymbolAtom m_changeAffectedInputListWrittenFile;
 
+
         private SymbolAtom m_runtimeEnvironmentMinimumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMaximumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMinimumClrVersion;
@@ -166,6 +167,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
         private SymbolAtom m_unsafePreserveOutputWhitelist;
         private SymbolAtom m_unsafeIncrementalTool;
+        private SymbolAtom m_unsafeRequireGlobalDependencies;
 
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
@@ -315,6 +317,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
             m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
             m_unsafeIncrementalTool = Symbol("incrementalTool");
+            m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
@@ -1202,6 +1205,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeIncrementalTool) == true)
             {
                 processBuilder.Options |= Process.Options.IncrementalTool;
+            }
+
+            // UnsafeExecuteArguments.requireGlobalDependencies
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) != false)
+            {
+                processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables

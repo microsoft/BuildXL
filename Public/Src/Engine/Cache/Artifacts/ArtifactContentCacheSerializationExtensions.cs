@@ -10,6 +10,7 @@ using Bond;
 using Bond.IO.Unsafe;
 using Bond.Protocols;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
@@ -240,6 +241,11 @@ namespace BuildXL.Engine.Cache.Artifacts
 
             if (!maybeStream.Succeeded)
             {
+                if (maybeStream.Failure is NoCasEntryFailure)
+                {
+                    return default(Stream);
+                }
+
                 return maybeStream.Failure;
             }
 

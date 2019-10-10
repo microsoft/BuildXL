@@ -80,6 +80,13 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <summary>
+        /// Attempts to load state need for use of the cache.
+        /// </summary>
+        public virtual void StartLoading(bool waitForCompletion)
+        {
+        }
+
+        /// <summary>
         /// Stores cache descriptor metadata for pip
         /// </summary>
         public virtual async Task<Possible<ContentHash>> TryStoreMetadataAsync(PipCacheDescriptorV2Metadata metadata)

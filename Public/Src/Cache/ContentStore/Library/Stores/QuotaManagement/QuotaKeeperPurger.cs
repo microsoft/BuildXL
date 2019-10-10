@@ -44,6 +44,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             _token = token;
         }
 
+        /// <nodoc />
         public async Task<PurgeResult> PurgeAsync()
         {
             var purgeSuccessResult = await PurgeCoreAsync();
@@ -66,6 +67,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return EvictDistributedWithDistributedStoreAsync();
                 }
 
+                // This case is possible only in non-lls mode. The method should be removed once non-lls code is gone.
                 return EvictDistributedAsync();
             }
             else

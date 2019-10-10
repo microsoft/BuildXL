@@ -90,13 +90,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Indicates if LocalLocationStore is enabled
+        /// </summary>
+        public bool IsLocalLocationStoreEnabled => _configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore);
+
+        /// <summary>
         /// Exposes <see cref="LocalLocationStore"/>. Mostly for testing purposes.
         /// </summary>
         public LocalLocationStore LocalLocationStore
         {
             get
             {
-                Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore));
+                Contract.Assert(IsLocalLocationStoreEnabled);
                 return _localLocationStore;
             }
         }

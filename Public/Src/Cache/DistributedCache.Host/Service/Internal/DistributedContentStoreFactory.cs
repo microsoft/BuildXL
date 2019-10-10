@@ -119,9 +119,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 redisContentLocationStoreConfiguration.GarbageCollectionConfiguration = null;
             }
 
-            var localMachineLocation = _arguments.PathTransformer.GetLocalMachineLocation(localCacheRoot);
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
-            var memoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes);
 
             // RedisContentSecretName and RedisMachineLocationsSecretName can be null. HostConnectionStringProvider won't fail in this case.
             IConnectionStringProvider contentConnectionStringProvider = TryCreateRedisConnectionStringProvider(_redisContentSecretNames.RedisContentSecretName);
@@ -194,7 +192,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(namedCacheSettings.CacheSizeQuotaString)));
             }
 
-            var bandwidthCheckedCopier = new BandwidthCheckedCopier<AbsolutePath>(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
+            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
 
             _logger.Debug("Creating a distributed content store for Autopilot");
             var contentStore =
@@ -245,24 +243,32 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
-            var result = new ContentStoreSettings()
+            return new ContentStoreSettings()
+                   {
+                       UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
+                       CheckFiles = settings.CheckLocalFiles,
+                       UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
+                       SelfCheckSettings = CreateSelfCheckSettings(settings),
+                       OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
+                       UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
+                       TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                   };
+        }
+
+        private static SelfCheckSettings CreateSelfCheckSettings(DistributedContentSettings settings)
+        {
+            var selfCheckSettings = new SelfCheckSettings()
             {
-                UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
-                CheckFiles = settings.CheckLocalFiles,
-                UseLegacyQuotaKeeperImplementation = settings.UseLegacyQuotaKeeperImplementation,
-                StartPurgingAtStartup = settings.StartPurgingAtStartup,
-                UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
-                SelfCheckEpoch = settings.SelfCheckEpoch,
+                Epoch = settings.SelfCheckEpoch,
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
-                SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
-                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
-                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
-                TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                Frequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
             };
 
-            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => result.SelfCheckProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => selfCheckSettings.ProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+            ApplyIfNotNull(settings.SelfCheckDelayInMilliseconds, milliseconds => selfCheckSettings.HashAnalysisDelay = TimeSpan.FromMilliseconds(milliseconds));
+            ApplyIfNotNull(settings.SelfCheckDefaultHddDelayInMilliseconds, milliseconds => selfCheckSettings.DefaultHddHashAnalysisDelay = TimeSpan.FromMilliseconds(milliseconds));
 
-            return result;
+            return selfCheckSettings;
         }
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)

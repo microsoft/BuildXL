@@ -289,6 +289,12 @@ namespace BuildXL.Native.IO
         bool HasWritableAccessControl(string path);
 
         /// <summary>
+        /// Checks the ACL for writable attribute access control.
+        /// </summary>
+        /// <param name="path">The path to the file.</param>
+        bool HasWritableAttributeAccessControl(string path);
+
+        /// <summary>
         /// Returns a new <see cref="FileStream" /> with the given creation mode, access level, and sharing.
         /// </summary>
         /// <remarks>

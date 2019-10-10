@@ -15,6 +15,11 @@ When a BuildXL developer implements a feature, fixes an important bug, solves an
 - Removed old Microsoft.ContentStoreApp.exe from deployment (replaced with ContentStoreApp.exe)
 - ...
 
+# 0.1.0-20190925.15.6 (Release [42115](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=42115&_a=release-pipeline-progress)). Released 10/02/2019
+- Fix source files missing in drop
+- Component Governance for NuGet Packages
+- Various bug fixes and stability improvements
+
 # 0.1.0-20190919.1.4  (Release [41538](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=41538&_a=release-pipeline-progress)). Released 09/26/2019
 - Resource based cancelling with shared opaque output producers.
 - Less data to Kusto telemetry.

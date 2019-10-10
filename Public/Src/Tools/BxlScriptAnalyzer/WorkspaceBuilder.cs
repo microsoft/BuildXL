@@ -193,11 +193,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
                         if (topSort)
                         {
-                            pipGraphBuilder = new GraphFragmentBuilderTopSort(loggingContext, engineContext, config, mountsTable.MountPathExpander);
+                            pipGraphBuilder = new GraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander);
                         }
                         else
                         {
-                            pipGraphBuilder = new GraphFragmentBuilder(loggingContext, engineContext, config);
+                            pipGraphBuilder = new GraphFragmentBuilder(engineContext, config, mountsTable.MountPathExpander);
                         }
 
                         // TODO: Think more if an analyzer wants to use the real pip graph builder.

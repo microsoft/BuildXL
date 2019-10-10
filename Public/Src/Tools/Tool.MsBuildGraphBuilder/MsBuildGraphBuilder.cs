@@ -357,10 +357,9 @@ namespace MsBuildGraphBuilderTool
                 ProjectInstance projectInstance = msBuildNode.ProjectInstance;
                 Project project = projectInstanceToProjectCache[projectInstance];
 
-                var inputFilePredictions = new List<string>();
                 var outputFolderPredictions = new List<string>();
 
-                var predictionCollector = new MsBuildPredictionCollector(inputFilePredictions, outputFolderPredictions, predictionFailures);
+                var predictionCollector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
                 try
                 {
                     // Again, be defensive when using arbitrary predictors
@@ -387,11 +386,16 @@ namespace MsBuildGraphBuilderTool
                     return;
                 }
 
+                // The project file itself and all its imports are considered inputs to this project.
+                // Predicted inputs are not actually used.
+                var inputs = new List<string>() { project.FullPath };
+                inputs.AddRange(project.Imports.Select(i => i.ImportedProject.FullPath));
+
                 projectNodes[i] = new ProjectWithPredictions(
                     projectInstance.FullPath,
                     projectInstance.GetItems(ProjectReferenceTargets).Count > 0,
                     globalProperties,
-                    inputFilePredictions,
+                    inputs,
                     outputFolderPredictions);
 
                 // If projects not implementing the target protocol are blocked, then the list of computed targets is final. So we set it right here

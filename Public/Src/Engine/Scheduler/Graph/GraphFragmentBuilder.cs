@@ -5,14 +5,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
@@ -34,7 +35,19 @@ namespace BuildXL.Scheduler.Graph
         /// Configuration
         /// </summary>
         protected readonly IConfiguration Configuration;
-        private readonly LoggingContext m_loggingContext;
+
+        /// <summary>
+        /// File producers.
+        /// </summary>
+        protected readonly ConcurrentBigMap<FileArtifact, PipId> FileProducers = new ConcurrentBigMap<FileArtifact, PipId>();
+
+        /// <summary>
+        /// Opaque directory producers.
+        /// </summary>
+        protected readonly ConcurrentBigMap<DirectoryArtifact, PipId> OpaqueDirectoryProducers = new ConcurrentBigMap<DirectoryArtifact, PipId>();
+
+        private readonly PipStaticFingerprinter m_pipStaticFingerprinter;
+        
         private readonly PipExecutionContext m_pipExecutionContext;
         private readonly ConcurrentQueue<Pip> m_pips = new ConcurrentQueue<Pip>();
         private readonly Lazy<IIpcMoniker> m_lazyApiServerMoniker;
@@ -46,51 +59,102 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilder(LoggingContext loggingContext, PipExecutionContext pipExecutionContext, IConfiguration configuration)
+        public GraphFragmentBuilder(
+            PipExecutionContext pipExecutionContext, 
+            IConfiguration configuration,
+            PathExpander pathExpander)
         {
-            Contract.Requires(loggingContext != null);
             Contract.Requires(pipExecutionContext != null);
 
             Configuration = configuration;
-            m_loggingContext = loggingContext;
             m_pipExecutionContext = pipExecutionContext;
             m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
                 ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
                 : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
             SealDirectoryTable = new SealedDirectoryTable(m_pipExecutionContext.PathTable);
+
+            if (configuration.Schedule.ComputePipStaticFingerprints)
+            {
+                var extraFingerprintSalts = new ExtraFingerprintSalts(
+                    configuration,
+                    PipFingerprintingVersion.TwoPhaseV2,
+                    configuration.Cache.CacheSalt,
+                    new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
+
+                m_pipStaticFingerprinter = new PipStaticFingerprinter(
+                    pipExecutionContext.PathTable,
+                    sealDirectoryFingerprintLookup: null,
+                    directoryProducerFingerprintLookup: null,
+                    extraFingerprintSalts: extraFingerprintSalts,
+                    pathExpander: pathExpander)
+                {
+                    FingerprintTextEnabled = configuration.Schedule.LogPipStaticFingerprintTexts
+                };
+            }
         }
 
         /// <inheritdoc />
         public int PipCount => m_pips.Count;
 
-        /// <inheritdoc />
-        protected bool AddPip(Pip pip)
+        private void AddPip(Pip pip)
         {
             m_pips.Enqueue(pip);
             pip.PipId = new PipId((uint)Interlocked.Increment(ref m_nextPipId));
+        }
+
+        /// <inheritdoc />
+        public virtual bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip)
+        {
+            AddPip(copyFile);
+            FileProducers[copyFile.Destination] = copyFile.PipId;
+            ComputeStaticFingerprint(copyFile);
             return true;
         }
 
         /// <inheritdoc />
-        public virtual bool AddCopyFile([NotNull] CopyFile copyFile, PipId valuePip) => AddPip(copyFile);
-
-        /// <inheritdoc />
-        public bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip) => AddPip(ipcPip);
+        public virtual bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip)
+        {
+            AddPip(ipcPip);
+            FileProducers[ipcPip.OutputFile] = ipcPip.PipId;
+            return true;
+        }
 
         /// <inheritdoc />
         public bool AddModule([NotNull] ModulePip module)
         {
-            return AddPip(module);
+            AddPip(module);
+            return true;
         }
 
         /// <inheritdoc />
         public bool AddModuleModuleDependency(ModuleId moduleId, ModuleId dependency) => true;
 
         /// <inheritdoc />
-        public bool AddOutputValue([NotNull] ValuePip value) => AddPip(value);
+        public bool AddOutputValue([NotNull] ValuePip value)
+        {
+            AddPip(value);
+            return true;
+        }
 
         /// <inheritdoc />
-        public virtual bool AddProcess([NotNull] Process process, PipId valuePip) => AddPip(process);
+        public virtual bool AddProcess([NotNull] Process process, PipId valuePip)
+        {
+            AddPip(process);
+
+            foreach (var fileOutput in process.FileOutputs)
+            {
+                FileProducers[fileOutput.ToFileArtifact()] = process.PipId;
+            }
+
+            foreach (var directoryOutput in process.DirectoryOutputs)
+            {
+                OpaqueDirectoryProducers[directoryOutput] = process.PipId;
+            }
+
+            ComputeStaticFingerprint(process);
+
+            return true;
+        }
 
         /// <inheritdoc />
         public virtual DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
@@ -114,18 +178,30 @@ namespace BuildXL.Scheduler.Graph
             }
 
             SealDirectoryTable.AddSeal(sealDirectory);
+            ComputeStaticFingerprint(sealDirectory);
 
             return artifactForNewSeal;
         }
 
         /// <inheritdoc />
-        public bool AddSpecFile([NotNull] SpecFilePip specFile) => AddPip(specFile);
+        public bool AddSpecFile([NotNull] SpecFilePip specFile)
+        {
+            AddPip(specFile);
+            return true;
+        }
 
         /// <inheritdoc />
         public bool AddValueValueDependency(in ValuePip.ValueDependency valueDependency) => true;
 
         /// <inheritdoc />
-        public virtual bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip) => AddPip(writeFile);
+        public virtual bool AddWriteFile([NotNull] WriteFile writeFile, PipId valuePip)
+        {
+            AddPip(writeFile);
+            FileProducers[writeFile.Destination] = writeFile.PipId;
+            ComputeStaticFingerprint(writeFile);
+
+            return true;
+        }
 
         /// <inheritdoc />
         public bool ApplyCurrentOsDefaults(ProcessBuilder processBuilder)
@@ -184,6 +260,14 @@ namespace BuildXL.Scheduler.Graph
         /// <inheritdoc />
         public void SetSpecsToIgnore(IEnumerable<AbsolutePath> specsToIgnore)
         {
+        }
+
+        private void ComputeStaticFingerprint(Pip pip)
+        {
+            if (m_pipStaticFingerprinter != null)
+            {
+                pip.IndependentStaticFingerprint = m_pipStaticFingerprinter.ComputeWeakFingerprint(pip).Hash;
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
@@ -138,6 +139,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var missingContentLocations = new HashSet<MachineLocation>();
                 int attemptCount = 0;
 
+                /*
+                public class Copylocations
+        {
+               public Copylocations(MachineLocation location, int priority, int locRetryCount)
+            {
+                this.location = location;
+                this.priority = priority;
+                this.locRetryCount = locRetryCount;
+                this.timeOutTime = null;
+            }
+
+            public void IncrementRetry()
+            {
+                this.locRetryCount++;
+            }
+
+            public int TimeOutTime
+            {
+                get { return this.TimeOutTime; }
+                set { this.TimeOutTime = value; }
+            }
+        }*/
+
                 //Find list of locations based on reputation
                 //Convert locations from hashInfo into priority queue for available list
                 //Go through list of locations by reputation, and populate available priority queue
@@ -180,6 +204,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                      * If location has not reached maximum retries
                      *      Calculate Wait time (15-45s)
                      *      Add back into unavailableLocs
+                     */
 
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(

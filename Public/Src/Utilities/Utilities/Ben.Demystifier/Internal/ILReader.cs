@@ -8,14 +8,14 @@ namespace System.Diagnostics.Internal
 {
     internal class ILReader
     {
-        private static readonly OpCode[] singleByteOpCode;
-        private static readonly OpCode[] doubleByteOpCode;
+        private static readonly OpCode[] s_singleByteOpCode;
+        private static readonly OpCode[] s_doubleByteOpCode;
 
-        private readonly byte[] _cil;
-        private int ptr;
+        private readonly byte[] m_cil;
+        private int m_ptr;
 
 
-        public ILReader(byte[] cil) => _cil = cil;
+        public ILReader(byte[] cil) => m_cil = cil;
 
         public OpCode OpCode { get; private set; }
         public int MetadataToken { get; private set; }
@@ -23,7 +23,7 @@ namespace System.Diagnostics.Internal
 
         public bool Read(MethodBase methodInfo)
         {
-            if (ptr < _cil.Length)
+            if (m_ptr < m_cil.Length)
             {
                 OpCode = ReadOpCode();
                 Operand = ReadOperand(OpCode, methodInfo);
@@ -32,16 +32,20 @@ namespace System.Diagnostics.Internal
             return false;
         }
 
-        OpCode ReadOpCode()
+        private OpCode ReadOpCode()
         {
             var instruction = ReadByte();
             if (instruction < 254)
-                return singleByteOpCode[instruction];
+            {
+                return s_singleByteOpCode[instruction];
+            }
             else
-                return doubleByteOpCode[ReadByte()];
+            {
+                return s_doubleByteOpCode[ReadByte()];
+            }
         }
 
-        MemberInfo ReadOperand(OpCode code, MethodBase methodInfo)
+        private MemberInfo ReadOperand(OpCode code, MethodBase methodInfo)
         {
             MetadataToken = 0;
             switch (code.OperandType)
@@ -72,9 +76,9 @@ namespace System.Diagnostics.Internal
             return null;
         }
 
-        byte ReadByte() => _cil[ptr++];
+        private byte ReadByte() => m_cil[m_ptr++];
 
-        int ReadInt()
+        private int ReadInt()
         {
             var b1 = ReadByte();
             var b2 = ReadByte();
@@ -87,8 +91,8 @@ namespace System.Diagnostics.Internal
         static ILReader()
 #pragma warning restore CA1810 // Initialize reference type static fields inline
         {
-            singleByteOpCode = new OpCode[225];
-            doubleByteOpCode = new OpCode[31];
+            s_singleByteOpCode = new OpCode[225];
+            s_doubleByteOpCode = new OpCode[31];
 
             var fields = GetOpCodeFields();
 
@@ -96,15 +100,21 @@ namespace System.Diagnostics.Internal
             {
                 var code = (OpCode)fields[i].GetValue(null);
                 if (code.OpCodeType == OpCodeType.Nternal)
+                {
                     continue;
+                }
 
                 if (code.Size == 1)
-                    singleByteOpCode[code.Value] = code;
+                {
+                    s_singleByteOpCode[code.Value] = code;
+                }
                 else
-                    doubleByteOpCode[code.Value & 0xff] = code;
+                {
+                    s_doubleByteOpCode[code.Value & 0xff] = code;
+                }
             }
         }
 
-        static FieldInfo[] GetOpCodeFields() => typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
+        private static FieldInfo[] GetOpCodeFields() => typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
     }
 }

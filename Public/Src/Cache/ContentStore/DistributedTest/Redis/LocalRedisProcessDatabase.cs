@@ -462,7 +462,6 @@ port {portNumber}";
 
         private IEnumerable<RedisKey> GetKeys()
         {
-            var database = GetDatabase();
             foreach (var endpoint in _connectionMultiplexer.GetEndPoints())
             {
                 IServer server = _connectionMultiplexer.GetServer(endpoint);

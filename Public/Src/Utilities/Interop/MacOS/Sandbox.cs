@@ -165,9 +165,9 @@ namespace BuildXL.Interop.MacOS
             {
                 return
                     MinAvailableRamMB > 0 ||
-                    IsThresholdEnabled(CpuUsageBlockPercent);
+                    isThresholdEnabled(CpuUsageBlockPercent);
 
-                bool IsThresholdEnabled(uint percent) => percent > 0 && percent < 100;
+                static bool isThresholdEnabled(uint percent) => percent > 0 && percent < 100;
             }
         }
 
@@ -197,8 +197,6 @@ namespace BuildXL.Interop.MacOS
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "UpdateCurrentResourceUsage")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool UpdateCurrentResourceUsage(uint cpuUsageBasisPoints, uint availableRamMB, KextConnectionInfo info);
-
-        private static readonly Encoding s_accessReportStringEncoding = Encoding.UTF8;
 
         /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]

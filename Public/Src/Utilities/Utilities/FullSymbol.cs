@@ -165,8 +165,7 @@ namespace BuildXL.Utilities
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol result;
-            int characterWithError;
-            ParseResult parseResult = TryCreate(table, fullSymbol, out result, out characterWithError);
+            ParseResult parseResult = TryCreate(table, fullSymbol, out result, out _);
 
             if (parseResult != ParseResult.Success)
             {
@@ -189,10 +188,8 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(table != null, "table != null");
             Contract.Ensures(Contract.Result<FullSymbol>() != FullSymbol.Invalid);
-
-            int characterWithError;
             PartialSymbol relIdentifier;
-            PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, relativeId, out relIdentifier, out characterWithError);
+            PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, relativeId, out relIdentifier, out _);
             if (parseResult != PartialSymbol.ParseResult.Success)
             {
                 Contract.Assume(false, I($"Failed to create a full symbol from the segment '{relativeId.ToString()}'"));

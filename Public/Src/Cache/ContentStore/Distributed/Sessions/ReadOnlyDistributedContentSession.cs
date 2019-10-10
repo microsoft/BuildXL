@@ -281,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
 
                 // Local function: Use content locations for GetBulk to copy file locally
-                async Task<BoolResult> TryCopyContentLocalAsync()
+                async Task<BoolResult> tryCopyContentLocalAsync()
                 {
                     if (!getBulkResult || !getBulkResult.ContentHashesInfo.Any())
                     {
@@ -309,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     return BoolResult.Success;
                 }
 
-                var copyLocalResult = await TryCopyContentLocalAsync();
+                var copyLocalResult = await tryCopyContentLocalAsync();
 
                 // Throw operation canceled to avoid operations below which are not value for canceled case.
                 operationContext.Token.ThrowIfCancellationRequested();
@@ -779,7 +779,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // The return type should probably be just Task<IList<PinResult>>, but higher callers require the Indexed wrapper and that the PinResults be encased in Tasks.
             return pinnings.Select(x => x.Result ?? createCanceledPutResult()).AsIndexed().AsTasks();
 
-            PinResult createCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PinResult>();
+            static PinResult createCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PinResult>();
         }
 
         // The dataflow framework can process only a single object, and returns no output from that processing. By combining the input and output of each remote pinning into a single object,

@@ -30,10 +30,10 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
     /// </summary>
     internal class VfsProvider
     {
-        private Logger Log;
-        private VfsCasConfiguration Configuration;
-        private VfsContentManager ContentManager;
-        private VfsTree Tree;
+        private readonly Logger Log;
+        private readonly VfsCasConfiguration Configuration;
+        private readonly VfsContentManager ContentManager;
+        private readonly VfsTree Tree;
 
         private static readonly byte[] s_contentId = new byte[] { 0 };
         private static readonly byte[] s_providerId = new byte[] { 1 };
@@ -302,7 +302,7 @@ namespace BuildXL.Cache.ContentStore.Vfs.Provider
         internal HResult EndDirectoryEnumerationCallback(
             Guid enumerationId)
         {
-            if (!activeEnumerations.TryRemove(enumerationId, out ActiveEnumeration enumeration))
+            if (!activeEnumerations.TryRemove(enumerationId, out _))
             {
                 return HResult.InternalError;
             }

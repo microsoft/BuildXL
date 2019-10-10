@@ -166,14 +166,9 @@ namespace ContentStoreTest.Distributed.Redis
 
         public Task<bool> KeyDeleteAsync(RedisKey key)
         {
-            DateTime expiry;
-            _dbExpiry.TryRemove(key, out expiry);
-
-            RedisValue value;
-            bool success = _dbMaster.TryRemove(key, out value);
-
-            RedisValue[] values;
-            success = success || DbSet.TryRemove(key, out values);
+            _dbExpiry.TryRemove(key, out _);
+            bool success = _dbMaster.TryRemove(key, out _);
+            success = success || DbSet.TryRemove(key, out _);
 
             return Task.FromResult(success);
         }

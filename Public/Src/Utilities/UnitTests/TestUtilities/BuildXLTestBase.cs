@@ -495,7 +495,7 @@ namespace Test.BuildXL.TestUtilities
         /// </remarks>
         protected string GetTestDataValue(string key)
         {
-            var testData = this.GetTestData();
+            var testData = GetTestData();
             if (!testData.TryGetValue(key, out var result))
             {
                 AssertTrue(false, "TestData does not contain value: {0}", key);

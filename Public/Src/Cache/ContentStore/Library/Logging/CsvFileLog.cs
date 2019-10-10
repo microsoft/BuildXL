@@ -84,7 +84,7 @@ namespace BuildXL.Cache.ContentStore.Logging
         }
 
         // case-insensitive mapping of ColumKind enum name to enum value
-        private static Dictionary<string, ColumnKind> ColumnName2ValueMap = typeof(ColumnKind)
+        private static readonly Dictionary<string, ColumnKind> ColumnName2ValueMap = typeof(ColumnKind)
             .GetEnumNames()
             .ToDictionary
                 (

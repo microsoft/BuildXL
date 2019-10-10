@@ -8,7 +8,6 @@ using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -20,6 +19,7 @@ using Xunit;
 using Xunit.Abstractions;
 
 #pragma warning disable SA1402 // File may only contain a single class
+#pragma warning disable IDE0040 // Accessibility modifiers required
 
 namespace ContentStoreTest.Sessions
 {

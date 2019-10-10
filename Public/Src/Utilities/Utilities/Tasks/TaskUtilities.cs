@@ -308,20 +308,6 @@ namespace BuildXL.Utilities.Tasks
             }
         }
 
-        private static CancellationTokenSource CreateLinkedTokenSourceWithTimeout(TimeSpan timeout, CancellationToken token = default)
-        {
-            if (token.CanBeCanceled)
-            {
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                cts.CancelAfter(timeout);
-                return cts;
-            }
-            else
-            {
-                return new CancellationTokenSource(timeout);
-            }
-        }
-
         /// <summary>
         /// Gets a task for the completion source which execute continuations for TaskCompletionSource.SetResult asynchronously.
         /// </summary>
@@ -332,10 +318,10 @@ namespace BuildXL.Utilities.Tasks
                 return completion.Task;
             }
 
-            return GetTaskWithAsyncContinuation(completion);
+            return GetTaskWithAsyncContinuationAsync(completion);
         }
 
-        private static async Task<T> GetTaskWithAsyncContinuation<T>(this TaskSourceSlim<T> completion)
+        private static async Task<T> GetTaskWithAsyncContinuationAsync<T>(this TaskSourceSlim<T> completion)
         {
             var result = await completion.Task;
 
@@ -479,12 +465,9 @@ namespace BuildXL.Utilities.Tasks
         /// </summary>
         public static async Task<T> WithCancellationHandlingAsync<T>(LoggingContext loggingContext, Task<T> evaluationTask, Action<LoggingContext> errorLogEvent, T errorValue, CancellationToken cancellationToken)
         {
-            var result = default(T);
-
             try
             {
-                result = await evaluationTask;
-
+                var result = await evaluationTask;
                 if (result.Equals(errorValue))
                 {
                     return errorValue;

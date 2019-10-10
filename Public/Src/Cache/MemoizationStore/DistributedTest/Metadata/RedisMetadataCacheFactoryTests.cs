@@ -193,7 +193,7 @@ namespace BuildXL.Cache.MemoizationStore.DistributedTest.Metadata
 
         private class TestConnectionStringProvider : IConnectionStringProvider
         {
-            private string _connectionString;
+            private readonly string _connectionString;
 
             public TestConnectionStringProvider(string connectionString)
             {

@@ -106,11 +106,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             switch (configuration)
             {
                 case EventHubContentLocationEventStoreConfiguration azureConfig:
-                    return new AzureEventHubClient(azureConfig);
+                return new AzureEventHubClient(azureConfig);
                 case MemoryContentLocationEventStoreConfiguration memoryConfig:
-                    return new MemoryEventHubClient(memoryConfig);
+                return new MemoryEventHubClient(memoryConfig);
                 default:
-                    throw new InvalidOperationException($"Unknown EventStore type '{configuration!.GetType()}'.");
+                throw new InvalidOperationException($"Unknown EventStore type '{configuration!.GetType()}'.");
             }
         }
 

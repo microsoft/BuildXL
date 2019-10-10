@@ -197,13 +197,12 @@ namespace BuildXL.Processes
         {
             // There is a race in here; but that shouldn't matter in the way we use JobObjects in BuildXL.
             var limitInfo = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
-            uint bytesWritten;
             if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
                 handle,
                 JOBOBJECTINFOCLASS.ExtendedLimitInformation,
                 &limitInfo,
                 (uint)Marshal.SizeOf(limitInfo),
-                out bytesWritten))
+                out _))
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to query job ExtendedLimitInformation.");
             }
@@ -345,14 +344,12 @@ namespace BuildXL.Processes
         public AccountingInformation GetAccountingInformation()
         {
             var info = default(JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION);
-
-            uint bytesWritten;
             if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
                 handle,
                 JOBOBJECTINFOCLASS.JobObjectBasicAndIOAccountingInformation,
                 &info,
                 (uint)Marshal.SizeOf(info),
-                out bytesWritten))
+                out _))
             {
                 throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get basic accounting information.");
             }
@@ -682,7 +679,7 @@ namespace BuildXL.Processes
                     IntPtr completionKey;
                     IntPtr overlappedPtr;
                     if (!Native.Processes.Windows.ProcessUtilitiesWin.GetQueuedCompletionStatus(
-                        this.m_completionPort,
+                        m_completionPort,
                         out completionCode,
                         out completionKey,
                         out overlappedPtr,
@@ -695,7 +692,7 @@ namespace BuildXL.Processes
                     // Since we allow jobs to be disposed without waiting on them, it is okay for the job to have been unregistered already.
                     JobObject job;
                     if (completionCode == Native.Processes.ProcessUtilities.JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO &&
-                        this.m_jobs.TryRemove(completionKey, out job))
+                        m_jobs.TryRemove(completionKey, out job))
                     {
                         job.MarkDone();
                     }

@@ -162,15 +162,15 @@ namespace BuildXL.Processes
             LogProcessState(
                 $"Process Times: " +
                 $"started = {startTime}, " +
-                $"exited = {exitTime} (since start = {ToSeconds(exitTime - startTime)}s), " +
-                $"received reports = {m_reportsReceivedTime} (since start = {ToSeconds(m_reportsReceivedTime - startTime)}s), " +
-                $"life time = {ToSeconds(lifetime)}s, " +
-                $"user time = {ToSeconds(cpuTimes.User)}s, " +
-                $"system time = {ToSeconds(cpuTimes.System)}s");
+                $"exited = {exitTime} (since start = {toSeconds(exitTime - startTime)}s), " +
+                $"received reports = {m_reportsReceivedTime} (since start = {toSeconds(m_reportsReceivedTime - startTime)}s), " +
+                $"life time = {toSeconds(lifetime)}s, " +
+                $"user time = {toSeconds(cpuTimes.User)}s, " +
+                $"system time = {toSeconds(cpuTimes.System)}s");
             SandboxedProcessFactory.Counters.AddToCounter(SandboxedProcessFactory.SandboxedProcessCounters.SandboxedProcessLifeTimeMs, (long)lifetime.TotalMilliseconds);
             m_processExecutor?.Dispose();
 
-            string ToSeconds(TimeSpan ts)
+            static string toSeconds(TimeSpan ts)
             {
                 return (ts.TotalMilliseconds / 1000.0).ToString("0.00");
             }

@@ -33,15 +33,6 @@ namespace BuildXL.Processes
             /// <exception cref="BuildXLException">When the timestamp cannot be set</exception>
             public static void SetPathAsSharedOpaqueOutput(string expandedPath)
             {
-                // In the case of a no replay, this case can happen if the file got into the cache as a static output,
-                // but later was made a shared opaque output without a content change.
-                // Make sure we allow for attribute writing first
-                var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
-                if (writeAttributesDenied)
-                {
-                    FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: true);
-                }
-
                 try
                 {
                     // Only the creation time is used to identify a file as the output of a shared opaque
@@ -57,14 +48,6 @@ namespace BuildXL.Processes
 
                     // Since these files should be just created outputs, this shouldn't happen and we bail out hard.
                     throw new BuildXLException(I($"Failed to open output file '{expandedPath}' for writing."), ex);
-                }
-                finally
-                {
-                    // Restore the attributes as they were originally set
-                    if (writeAttributesDenied)
-                    {
-                        FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: false);
-                    }
                 }
             }
 
@@ -156,13 +139,33 @@ namespace BuildXL.Processes
         /// <exception cref="BuildXLException">When unsuccessful</exception>
         public static void SetPathAsSharedOpaqueOutput(string expandedPath)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            // In the case of a no replay, this case can happen if the file got into the cache as a static output,
+            // but later was made a shared opaque output without a content change.
+            // Make sure we allow for attribute writing first
+            var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
+            if (writeAttributesDenied)
             {
-                Unix.SetPathAsSharedOpaqueOutput(expandedPath);
+                FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: true);
             }
-            else
+
+            try
             {
-                Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    Unix.SetPathAsSharedOpaqueOutput(expandedPath);
+                }
+                else
+                {
+                    Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                }
+            }
+            finally
+            {
+                // Restore the attributes as they were originally set
+                if (writeAttributesDenied)
+                {
+                    FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: false);
+                }
             }
         }
 

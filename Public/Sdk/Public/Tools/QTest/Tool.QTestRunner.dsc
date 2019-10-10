@@ -33,16 +33,15 @@ const defaultArgs: QTestArguments = {
     ]
 };
 
-const enum CoverageOptions
-{
+const enum CoverageOptions {
     None,
     DynamicFull,
     DynamicChangeList
 }
 
 function getCodeCoverageOption(): CoverageOptions {
-    if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")){
-        switch (Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")){
+    if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")) {
+        switch (Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")) {
             case CoverageOptions.DynamicChangeList.toString():
                 return CoverageOptions.DynamicChangeList;
             case CoverageOptions.DynamicFull.toString():
@@ -144,6 +143,12 @@ export function runQTest(args: QTestArguments): Result {
                              ? Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo")
                              : undefined;   
 
+    let qTestContextInfoFilePath = Environment.hasVariable("[Sdk.BuildXL.CBInternal]qtestContextInfo") 
+                                 ? Environment.getPathValue("[Sdk.BuildXL.CBInternal]qtestContextInfo") 
+                                 : Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")
+                                 ? Environment.getPathValue("[Sdk.BuildXL]qtestContextInfo")
+                                 : undefined;                         
+
     let codeCoverageOption = getCodeCoverageOption();
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
@@ -155,7 +160,7 @@ export function runQTest(args: QTestArguments): Result {
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
 
-    let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? "DynamicCodeCov" : undefined;
+    let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? "DynamicCodeCov" :  CoverageOptions.None.toString();
 
     // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
     qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;    
@@ -207,7 +212,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
-        Cmd.option("--qTestContextInfo ", qTestContextInfoFile.path),
+        Cmd.option("--qTestContextInfo ", qTestContextInfoFilePath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
@@ -217,7 +222,7 @@ export function runQTest(args: QTestArguments): Result {
 
     let unsafeOptions = {
         untrackedPaths: [
-            qTestContextInfoFile,
+            ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that
@@ -271,7 +276,7 @@ export function runQTest(args: QTestArguments): Result {
 
         const commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
-            Cmd.option("--qTestContextInfo ", qTestContextInfoFile.path),
+            Cmd.option("--qTestContextInfo ", qTestContextInfoFilePath),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
             Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))

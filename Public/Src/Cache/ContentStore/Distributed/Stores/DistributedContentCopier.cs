@@ -260,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
-        private PutResult CreateMaxRetryPutResult() => new ErrorResult("Maximum total retries attempted").AsResult<PutResult>();
+        private PutResult CreateMaxRetryPutResult() => new ErrorResult($"Maximum total retries of {_maxRetryCount} attempted").AsResult<PutResult>();
 
         /// <nodoc />
         private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(

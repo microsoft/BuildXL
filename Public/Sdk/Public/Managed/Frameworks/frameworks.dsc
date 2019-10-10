@@ -15,8 +15,6 @@ export const framework : Shared.Framework = (() => {
             return importFrom("Sdk.Managed.Frameworks.Net461").framework;
         case "net472":
             return importFrom("Sdk.Managed.Frameworks.Net472").framework;
-        case "netcoreapp2.2":
-            return importFrom("Sdk.Managed.Frameworks.NetCoreApp2.2").framework;
         case "netcoreapp3.0":
             return importFrom("Sdk.Managed.Frameworks.NetCoreApp3.0").framework;
         case "netstandard2.0":

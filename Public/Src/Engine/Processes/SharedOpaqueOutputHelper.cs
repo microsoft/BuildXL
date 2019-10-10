@@ -124,11 +124,6 @@ namespace BuildXL.Processes
                 long value = 0;
                 uint valueSize = sizeof(long);
                 var resultSize = GetXattr(expandedPath, MY_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
-                if (resultSize == -1)
-                {
-                    int errorCode = Marshal.GetLastWin32Error();
-                    throw new BuildXLException(I($"Failed to read extended attributes for file '{expandedPath}'. Error: {errorCode}"));
-                }
                 return resultSize == valueSize && value == MY_XATTR_VALUE;
             }
         }

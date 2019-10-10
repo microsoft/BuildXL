@@ -17,6 +17,11 @@ namespace BuildXL.Utilities.Configuration
         /// on the state of the outputs.
         /// </summary>
         PreserveOutputsMode PreserveOutputs { get; }
+        
+        /// <summary>
+        /// Trust levle of how much we trust the preserveoutputs per pip.
+        /// </summary>
+        int PreserveOutputsTrustLevel { get; }
 
         /// <summary>
         /// Whether BuildXL is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on.
@@ -148,6 +153,7 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.MonitorNtCreateFile);
             writer.Write(@this.MonitorZwCreateOpenQueryFile);
             writer.Write((byte)@this.PreserveOutputs);
+            writer.Write(@this.PreserveOutputsTrustLevel);
             writer.Write(@this.UnexpectedFileAccessesAreErrors);
             writer.Write(@this.IgnorePreloadedDlls);
             writer.Write(@this.IgnoreDynamicWritesOnAbsentProbes);
@@ -176,6 +182,7 @@ namespace BuildXL.Utilities.Configuration
                 MonitorNtCreateFile = reader.ReadBoolean(),
                 MonitorZwCreateOpenQueryFile = reader.ReadBoolean(),
                 PreserveOutputs = (PreserveOutputsMode)reader.ReadByte(),
+                PreserveOutputsTrustLevel = reader.ReadInt32(),
                 UnexpectedFileAccessesAreErrors = reader.ReadBoolean(),
                 IgnorePreloadedDlls = reader.ReadBoolean(),
                 IgnoreDynamicWritesOnAbsentProbes = reader.ReadBoolean(),

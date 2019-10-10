@@ -292,7 +292,8 @@ namespace BuildXL.Processes
             m_semanticPathExpander = semanticPathExpander;
             m_logger = logger ?? new SandboxedProcessLogger(m_loggingContext, pip, context);
             m_disableConHostSharing = disableConHostSharing;
-            m_shouldPreserveOutputs = m_pip.AllowPreserveOutputs && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled;
+            m_shouldPreserveOutputs = m_pip.AllowPreserveOutputs && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled
+                                      && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel <= m_pip.PreserveOutputsTrustLevel;
             m_processIdListener = processIdListener;
             m_pipEnvironment = pipEnvironment;
             m_pipDataRenderer = pipDataRenderer ?? new PipFragmentRenderer(m_pathTable);
@@ -2497,7 +2498,6 @@ namespace BuildXL.Processes
                             if (ShouldPreserveDeclaredOutput(output.Path, preserveOutputWhitelist))
                             {
                                 Contract.Assume(m_makeOutputPrivate != null);
-
                                 // A process may be configured to allow its prior outputs to be seen by future
                                 // invocations. In this case we must make sure the outputs are no longer hardlinked to
                                 // the cache to allow them to be writeable.

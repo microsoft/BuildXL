@@ -1989,7 +1989,7 @@ namespace Test.BuildXL.Scheduler
 
                 object value = (m_overlayVariation != null && m_overlayVariation.Property == exprProperty)
                     ? m_overlayVariation.Value
-                    : m_baseValues[exprProperty];
+                    : m_baseValues[exprProperty];    
 
                 return (TResult)value;
             }

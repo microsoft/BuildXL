@@ -27,6 +27,7 @@ enum Options{
 
     // (1 << 14) | AllowPreserveOutputs
     IncrementalTool = 16400;
-    RequireGlobalDependencies =32768;
+    RequireGlobalDependencies = 32768;
 
+    EnforceWeakFingerprintAugmentation = 65536;
 }

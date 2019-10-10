@@ -143,9 +143,10 @@ namespace BuildXL.Processes
             // but later was made a shared opaque output without a content change.
             // Make sure we allow for attribute writing first
             var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
+            var writeAttrs = FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes;
             if (writeAttributesDenied)
             {
-                FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: true);
+                FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: true);
             }
 
             try
@@ -164,7 +165,7 @@ namespace BuildXL.Processes
                 // Restore the attributes as they were originally set
                 if (writeAttributesDenied)
                 {
-                    FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: false);
+                    FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: false);
                 }
             }
         }

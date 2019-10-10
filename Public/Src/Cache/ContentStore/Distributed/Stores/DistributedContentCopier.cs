@@ -63,7 +63,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public const int MaxRetryCount = 32;
 
-
         /// <nodoc />
         public DistributedContentCopier(
             AbsolutePath workingDirectory,
@@ -267,7 +266,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
         private PutResult CreateMaxRetryPutResult() => new ErrorResult("Maximum total retries attempted").AsResult<PutResult>();
 
-
         /// <nodoc />
         private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(
             OperationContext context,
@@ -289,17 +287,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             {
                 var location = hashInfo.Locations[replicaIndex];
 
-                //Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
-                //We add one because replicaIndex is indexed from zero.
-                //If we reach over maximum retries, return an put result stating so, and no longer retry
+                // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
+                // We add one because replicaIndex is indexed from zero.
+                // If we reach over maximum retries, return an put result stating so, and no longer retry
                 if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > MaxRetryCount)
                 {
                     Tracer.Debug(
                             context,
-                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries.");
+                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {MaxRetryCount}.");
                     return (result: CreateMaxRetryPutResult(), retry: false);
                 }
-
 
                 // if the file is explicitly reported missing by the remote, don't bother retrying.
                 if (missingContentLocations.Contains(location))

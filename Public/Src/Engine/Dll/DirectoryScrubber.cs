@@ -135,7 +135,6 @@ namespace BuildXL.Engine
             int filesRemoved = 0;
             int directoriesRemovedRecursively = 0;
 
-
             using (var pm = PerformanceMeasurement.Start(
                 m_loggingContext,
                 Category,

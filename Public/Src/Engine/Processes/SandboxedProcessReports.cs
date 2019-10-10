@@ -582,8 +582,6 @@ namespace BuildXL.Processes
                 return true;
             }
 
-
-
             // A process id is only unique during the lifetime of the process (so there may be duplicates reported),
             // but the ID is at least consistent with other tracing tools including procmon.
             // For the purposes of event correlation, m_activeProcesses keeps track which process id maps to which process a the current time.

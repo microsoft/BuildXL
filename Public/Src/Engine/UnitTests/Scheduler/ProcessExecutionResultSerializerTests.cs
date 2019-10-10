@@ -17,6 +17,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Native.IO;
+using System.Collections.Generic;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -87,8 +88,8 @@ namespace Test.BuildXL.Scheduler
                 converged: true,
                 pathSet: null,
                 cacheLookupStepDurations: null,
-                pipProperties: null,
-                hasUserRetries: false);
+                pipProperties: new Dictionary<string, int> { { "Foo", 1 }, { "Bar", 9 } },
+                hasUserRetries: true);
 
             ExecutionResultSerializer serializer = new ExecutionResultSerializer(0, Context);
 
@@ -139,7 +140,10 @@ namespace Test.BuildXL.Scheduler
                 r => r.TwoPhaseCachingInfo.PathSetHash,
                 r => r.TwoPhaseCachingInfo.CacheEntry.MetadataHash,
                 r => r.TwoPhaseCachingInfo.CacheEntry.OriginatingCache,
-                r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length
+                r => r.TwoPhaseCachingInfo.CacheEntry.ReferencedContent.Length,
+
+                r => r.PipProperties.Count,
+                r => r.HasUserRetries
                 );
 
             for (int i = 0; i < processExecutionResult.OutputContent.Length; i++)

@@ -1997,6 +1997,71 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task UpdatePipProperties()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, workingDirectory);
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                arguments.Add("echo PipProperty_Foo_EndProperty");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    arguments.Add("exit");
+                    arguments.Add("1");
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.FromWithoutCopy(1),
+                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    provenance: PipProvenance.CreateDummy(context),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcess(
+                    context,
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true }, 
+                    pip, 
+                    null, 
+                    new Dictionary<string, string>(), 
+                    SemanticPathExpander.Default, 
+                    null);
+
+                XAssert.AreEqual(1, result.PipProperties["Foo"]);
+                VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                SetExpectedFailures(1, 0, "DX0064");
+            }
+        }
+
         private class TestSemanticPathExpander : SemanticPathExpander
         {
             private readonly IEnumerable<AbsolutePath> m_writableRoots;

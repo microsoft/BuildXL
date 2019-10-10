@@ -138,9 +138,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var missingContentLocations = new HashSet<MachineLocation>();
                 int attemptCount = 0;
 
+                //TODO: Change the _retryIntervals Count to 32 in DistributedContentSettings
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
                     bool retry;
+
+                    //TODO
+                    //Go through the unavailable locations queue, and reinsert the locations that are done waiting
+                    //Determine next best location based on who's free, if no location is free, wait until next one is.
+                    //Increment number of retry, if reached maximum remove after 
+                    //Tries to copy with WalkLocations and Copy 
+
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,
@@ -169,6 +177,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     }
 
                     attemptCount++;
+
+                    //TODO
+                    //If we still have retry attempts, add the previous selected location into queue of unavailable locations to wait
+                    //If Location has max retries, remove from list, don't need add back in.
 
                     if (attemptCount < _retryIntervals.Count)
                     {
@@ -277,6 +289,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             badContentLocations.Clear();
             string lastErrorMessage = null;
 
+            //TODO: Assume we have our selected location, don't need to iterate through anymore
             for (int replicaIndex = 0; replicaIndex < hashInfo.Locations.Count; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];

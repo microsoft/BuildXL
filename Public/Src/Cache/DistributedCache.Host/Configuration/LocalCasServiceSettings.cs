@@ -32,7 +32,7 @@ namespace BuildXL.Cache.Host.Configuration
             string grpcPortFileName = null,
             int? bufferSizeForGrpcCopies = null,
             int? gzipBarrierSizeForGrpcCopies = null,
-            int? grpcPoolSize = null
+            int? grpcThreadPoolSize = null
             )
         {
             DefaultSingleInstanceTimeoutSec = defaultSingleInstanceTimeoutSec;
@@ -43,7 +43,7 @@ namespace BuildXL.Cache.Host.Configuration
             GrpcPortFileName = grpcPortFileName;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
-            GrpcPoolSize = grpcPoolSize;
+            GrpcThreadPoolSize = grpcThreadPoolSize;
         }
 
         /// <summary>
@@ -114,6 +114,6 @@ namespace BuildXL.Cache.Host.Configuration
         /// Thread pool size used by GRPC.
         /// </summary>
         [DataMember]
-        public int? GrpcPoolSize { get; set; } = 70;
+        public int? GrpcThreadPoolSize { get; set; } = null;
     }
 }

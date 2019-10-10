@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Service
         where TSession : IContentSession
         where TStore : IStartupShutdown
     {
-        private const int DefaultGrpcPoolSize = 70;
+        private const int DefaultGrpcThreadPoolSize = 70;
 
         private const string Name = nameof(LocalContentServerBase<TStore, TSession>);
         private const string CheckForExpiredSessionsName = "CheckUnusedSessions";
@@ -270,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     await LoadHibernatedSessionsAsync(context);
 
-                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue, Config.GrpcPoolSize ?? DefaultGrpcPoolSize);
+                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue, Config.GrpcThreadPoolSize ?? DefaultGrpcThreadPoolSize);
 
                     _serviceReadinessChecker.Ready(context);
 
@@ -292,10 +292,10 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue, int grpcPoolSize)
+        private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue, int grpcThreadPoolSize)
         {
             Contract.Requires(definitions.Length != 0);
-            GrpcEnvironment.InitializeIfNeeded(numThreads: grpcPoolSize);
+            GrpcEnvironment.InitializeIfNeeded(numThreads: grpcThreadPoolSize);
             _grpcServer = new Server(GrpcEnvironment.DefaultConfiguration)
             {
                 Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },

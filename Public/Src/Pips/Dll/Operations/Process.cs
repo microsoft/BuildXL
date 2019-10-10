@@ -130,7 +130,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// The tool to execute.
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public FileArtifact Executable { get; }
 
         /// <summary>

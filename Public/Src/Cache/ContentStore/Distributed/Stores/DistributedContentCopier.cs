@@ -138,6 +138,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var missingContentLocations = new HashSet<MachineLocation>();
                 int attemptCount = 0;
 
+                //Find list of locations based on reputation
+                //Convert locations from hashInfo into priority queue for available list
+                //Go through list of locations by reputation, and populate available priority queue
+                PriorityQueue<T> availableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
+
+                //Create unavailable priority queue, comparable should be based on time needed to wait until
+                PriorityQueue<T> unavailableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
+             
+
                 //TODO: Change the _retryIntervals Count to 32 in DistributedContentSettings
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
@@ -145,9 +154,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     //TODO
                     //Go through the unavailable locations queue, and reinsert the locations that are done waiting
+                    /*
+                     * for iterate through unavailableLocs priority queue
+                     *      if the timeout for location is smaller than current time
+                     *          pop location from unavailable location
+                     *          insert location back into available locations
+                     */
+
                     //Determine next best location based on who's free, if no location is free, wait until next one is.
+                    /*
+                     * If availableLocs has size > 0
+                     *      pop first element from availableLocs as selected location
+                     * else
+                     *      wait until first element of unavailableLocs because available
+                     *      pop first element from unavailableLocs
+                     */
+
                     //Increment number of retry, if reached maximum remove after 
-                    //Tries to copy with WalkLocations and Copy 
+                    //Tries to copy with WalkLocations and Copy
+
+                    /*Try to copy with WalkLocationsandCopy the popped location
+                     * if Error or no retry break
+                     * Otherwise, increment total counter for retries
+                     * Increment number of retries for selected location
+                     * If location has not reached maximum retries
+                     *      Calculate Wait time (15-45s)
+                     *      Add back into unavailableLocs
 
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(

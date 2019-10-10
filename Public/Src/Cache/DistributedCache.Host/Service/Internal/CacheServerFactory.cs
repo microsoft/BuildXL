@@ -218,6 +218,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                 localContentServerConfiguration.UnusedSessionHeartbeatTimeout = TimeSpan.FromMinutes(localCasServiceSettings.UnusedSessionHeartbeatTimeoutMinutes.Value);
             }
 
+            if (localCasServiceSettings.GrpcPoolSize.HasValue)
+            {
+                localContentServerConfiguration.GrpcPoolSize = localCasServiceSettings.GrpcPoolSize.Value;
+            }
+
             return localContentServerConfiguration;
         }
 

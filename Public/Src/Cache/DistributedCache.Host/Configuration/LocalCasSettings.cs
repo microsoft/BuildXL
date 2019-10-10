@@ -39,7 +39,8 @@ namespace BuildXL.Cache.Host.Configuration
             string grpcPortFileName = null,
             bool supportsProactiveReplication = true,
             int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null)
+            int? gzipBarrierSizeForGrpcCopies = null,
+            int? grpcPoolSize = null)
         {
             CasClientSettings = new LocalCasClientSettings(useCasService, cacheName, connectionsPerSession, retryIntervalSecondsOnFailServiceCalls, retryCountOnFailServiceCalls);
 
@@ -51,7 +52,8 @@ namespace BuildXL.Cache.Host.Configuration
                 grpcPort: grpcPort,
                 grpcPortFileName: grpcPortFileName,
                 bufferSizeForGrpcCopies: bufferSizeForGrpcCopies,
-                gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
+                gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
+                grpcPoolSize: grpcPoolSize);
 
             AddNamedCache(cacheName, new NamedCacheSettings(
                 cacheRootPath, cacheSizeQuotaString, supportsSensitiveSessions, supportsProactiveReplication, requiredCapabilites: null));
@@ -73,7 +75,8 @@ namespace BuildXL.Cache.Host.Configuration
                 scenarioName: null,
                 grpcPort: grpcPort,
                 grpcPortFileName: grpcPortFileName,
-                supportsProactiveReplication: false);
+                supportsProactiveReplication: false,
+                grpcPoolSize: 70);
 
         /// <summary>
         /// For unit test use only.

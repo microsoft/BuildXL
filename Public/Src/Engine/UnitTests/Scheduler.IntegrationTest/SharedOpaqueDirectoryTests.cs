@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -59,8 +60,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipB = SchedulePipBuilder(builderB);
 
             // B should be able to consume the file in the opaque directory. Second build should have both cached
-            RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+            var result = RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
+            AssertWritesJournaled(result, pipA, outputInSharedOpaque);
+            AssertInformationalEventLogged(EventId.ScrubbingOutputsFromJournalStarted, count: 0);
+            AssertInformationalEventLogged(EventId.ScrubbingSharedOpaqueJournalFilesStarted, count: 0) ;
+
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+            AssertInformationalEventLogged(EventId.ScrubbingOutputsFromJournalStarted, count: 1);
+            AssertInformationalEventLogged(EventId.ScrubbingSharedOpaqueJournalFilesStarted, count: 1);
 
             // Make sure we can replay the file in the opaque directory
             File.Delete(ArtifactToString(outputInSharedOpaque));
@@ -71,6 +78,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(ArtifactToString(source), "New content");
             RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+        }
+
+        private void AssertWritesJournaled(ScheduleRunResult result, ProcessWithOutputs pip, AbsolutePath outputInSharedOpaque)
+        {
+            // Assert that shared opaque outputs were journaled and the explicitly declared ones were not
+            var journaledWrites = GetJournaledWritesForProcess(result, pip.Process);
+            XAssert.Contains(journaledWrites, outputInSharedOpaque);
+            XAssert.ContainsNot(journaledWrites, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
         }
 
         [Theory]
@@ -1563,5 +1578,17 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
+
+        private AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
+        {
+            var journalFile = SharedOpaqueJournal.GetJournalFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueJournalDirectory, process);
+            var journalFilePath = journalFile.ToString(Context.PathTable);
+            XAssert.IsTrue(File.Exists(journalFilePath));
+            return SharedOpaqueJournal
+                .ReadRecordedWritesFromJournal(journalFilePath)
+                .Select(path => AbsolutePath.Create(Context.PathTable, path))
+                .Distinct()
+                .ToArray();
+        }
     }
 }

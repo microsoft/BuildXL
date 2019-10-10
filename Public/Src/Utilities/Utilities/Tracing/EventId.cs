@@ -538,6 +538,10 @@ namespace BuildXL.Utilities.Tracing
         ScrubbingFailedToEnumerateMissingDirectory = 865,
         ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled = 866,
 
+        ScrubbingOutputsFromJournalStarted = 867,
+        ScrubbingSharedOpaqueJournalFilesStarted = 868,
+        ScrubbingProgress = 869,
+
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,
         ConfigUnsafeIgnoringChangeJournal = 901,

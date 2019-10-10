@@ -67,24 +67,14 @@ namespace BuildXL.Processes
         public ISandboxConnection SandboxConnection;
 
         /// <summary>
+        /// On optional journal where to record file writes under shared opaque directories as soon as they happen.
+        /// </summary>
+        public SharedOpaqueJournal SharedOpaqueOutputsJournal { get; }
+
+        /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
         /// </summary>
         public ContainerConfiguration ContainerConfiguration { get; }
-
-        /// <summary>
-        /// Creates instance
-        /// </summary>
-        public SandboxedProcessInfo(
-            ISandboxedProcessFileStorage fileStorage,
-            string fileName,
-            bool disableConHostSharing,
-            bool testRetries = false,
-            LoggingContext loggingContext = null,
-            IDetoursEventListener detoursEventListener = null,
-            ISandboxConnection sandboxConnection = null)
-            : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
-        {
-        }
 
         /// <summary>
         /// Creates instance
@@ -99,7 +89,8 @@ namespace BuildXL.Processes
             bool testRetries = false,
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
-            ISandboxConnection sandboxConnection = null)
+            ISandboxConnection sandboxConnection = null,
+            SharedOpaqueJournal sharedOpaqueOutputsJournal = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
@@ -119,6 +110,7 @@ namespace BuildXL.Processes
             DetoursEventListener = detoursEventListener;
             SandboxConnection = sandboxConnection;
             ContainerConfiguration = containerConfiguration;
+            SharedOpaqueOutputsJournal = sharedOpaqueOutputsJournal;
         }
 
         /// <summary>

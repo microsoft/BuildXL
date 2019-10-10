@@ -747,6 +747,7 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
+                using (var sharedOpaqueOutputsJournal = new SharedOpaqueJournal(m_context, m_pip, m_layoutConfiguration.SharedOpaqueJournalDirectory))
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -776,7 +777,7 @@ namespace BuildXL.Processes
                     string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
                     m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
 
-                    SandboxedProcessInfo info = new SandboxedProcessInfo(
+                    var info = new SandboxedProcessInfo(
                         m_pathTable,
                         this,
                         executable,
@@ -785,7 +786,8 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxConnection: sandboxConnection)
+                        sandboxConnection: sandboxConnection,
+                        sharedOpaqueOutputsJournal: sharedOpaqueOutputsJournal)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

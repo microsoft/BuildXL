@@ -132,7 +132,8 @@ namespace BuildXL.Processes
                 info.PipSemiStableHash,
                 info.PipDescription,
                 info.LoggingContext,
-                info.DetoursEventListener);
+                info.DetoursEventListener,
+                info.SharedOpaqueOutputsJournal);
 
             m_pendingReports = new ActionBlock<AccessReport>(
                 HandleAccessReport,

@@ -771,21 +771,46 @@ namespace BuildXL.Engine
                 outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(scheduler.Context.PathTable)).ToList();
             }
 
+            var scrubber = new DirectoryScrubber(
+                cancellationToken: scheduler.Context.CancellationToken,
+                loggingContext: loggingContext,
+                loggingConfiguration: configuration.Logging,
+                maxDegreeParallelism: Environment.ProcessorCount,
+                tempDirectoryCleaner: tempCleaner);
+
+            var journalFiles = SharedOpaqueJournal
+                .FindAllJournalFiles(configuration.Layout.SharedOpaqueJournalDirectory.ToString(scheduler.Context.PathTable))
+                .ToArray();
+            var distinctRecordedWrites = journalFiles
+                .AsParallel()
+                .WithDegreeOfParallelism(Environment.ProcessorCount)
+                .WithCancellation(scheduler.Context.CancellationToken)
+                .SelectMany(SharedOpaqueJournal.ReadRecordedWritesFromJournalWrapExceptions)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(FileUtilities.FileExistsNoFollow)
+                .ToArray();
+
+            if (distinctRecordedWrites.Any())
+            {
+                Logger.Log.ScrubbingOutputsFromJournalStarted(loggingContext);
+                scrubber.DeleteFiles(distinctRecordedWrites);
+            }
+
+            if (journalFiles.Any())
+            {
+                Logger.Log.ScrubbingSharedOpaqueJournalFilesStarted(loggingContext);
+                scrubber.DeleteFiles(journalFiles);
+            }
+
             if (pathsToScrub.Count > 0)
             {
-                var scrubber = new DirectoryScrubber(
-                    loggingContext: loggingContext,
-                    loggingConfiguration: configuration.Logging,
+                Logger.Log.ScrubbingStarted(loggingContext);
+                scrubber.RemoveExtraneousFilesAndDirectories(
                     isPathInBuild: path => scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)),
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
-                    mountPathExpander: mountPathExpander,
-                    maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: tempCleaner);
-
-                Logger.Log.ScrubbingStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
+                    mountPathExpander: mountPathExpander);
             }
 
             // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
@@ -801,9 +826,8 @@ namespace BuildXL.Engine
             {
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
-                var scrubber = new DirectoryScrubber(
-                    loggingContext: loggingContext,
-                    loggingConfiguration: configuration.Logging,
+                Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
+                scrubber.RemoveExtraneousFilesAndDirectories(
                     // Everything that is not an output under a shared opaque is considered part of the build.
                     isPathInBuild: path =>
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
@@ -812,12 +836,7 @@ namespace BuildXL.Engine
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
-                    mountPathExpander: null,
-                    maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: tempCleaner);
-
-                Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
+                    mountPathExpander: null);
             }
         }
 

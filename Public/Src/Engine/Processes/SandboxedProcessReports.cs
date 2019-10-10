@@ -37,6 +37,7 @@ namespace BuildXL.Processes
         private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
         private readonly IDetoursEventListener m_detoursEventListener;
+        private readonly SharedOpaqueJournal m_writeJournal;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
@@ -97,7 +98,8 @@ namespace BuildXL.Processes
             long pipSemiStableHash,
             string pipDescription,
             LoggingContext loggingContext,
-            IDetoursEventListener detoursEventListener = null)
+            IDetoursEventListener detoursEventListener,
+            SharedOpaqueJournal writeJournal)
         {
             Contract.Requires(manifest != null);
             Contract.Requires(pathTable != null);
@@ -110,6 +112,7 @@ namespace BuildXL.Processes
             FileUnexpectedAccesses = new HashSet<ReportedFileAccess>();
             m_manifest = manifest;
             m_detoursEventListener = detoursEventListener;
+            m_writeJournal = writeJournal;
 
             // For tests we need the StaticContext
             m_loggingContext = loggingContext ?? BuildXL.Utilities.Tracing.Events.StaticContext;
@@ -539,12 +542,6 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            // Special case seen with vstest.console.exe
-            if (string.IsNullOrEmpty(path))
-            {
-                return true;
-            }
-
             // If there is a listener registered and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessNotify) != 0)
             {
@@ -584,6 +581,8 @@ namespace BuildXL.Processes
                 HasReadWriteToReadFileAccessRequest = true;
                 return true;
             }
+
+
 
             // A process id is only unique during the lifetime of the process (so there may be duplicates reported),
             // but the ID is at least consistent with other tracing tools including procmon.
@@ -634,6 +633,17 @@ namespace BuildXL.Processes
                 path = null;
             }
 
+            var pathAsAbsolutePath = finalPath;
+            if (!pathAsAbsolutePath.IsValid)
+            {
+                AbsolutePath.TryCreate(m_pathTable, path, out pathAsAbsolutePath);
+            }
+
+            if (pathAsAbsolutePath.IsValid && m_writeJournal != null && (requestedAccess & RequestedAccess.Write) != 0)
+            {
+                m_writeJournal.RecordFileWrite(pathAsAbsolutePath);
+            }
+
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));
 
             if (path != null)
@@ -661,7 +671,7 @@ namespace BuildXL.Processes
                 // non-deterministically deny the access
                 // We store the path as an absolute path in order to guarantee canonicalization: e.g. prefixes like \\?\
                 // are not canonicalized in detours
-                if (path != null && AbsolutePath.TryCreate(m_pathTable, path, out var pathAsAbsolutePath) && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
+                if (path != null && pathAsAbsolutePath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
                     m_overrideAllowedWritePaths[pathAsAbsolutePath] = (status == FileAccessStatus.Denied);
@@ -678,8 +688,8 @@ namespace BuildXL.Processes
                 (requestedAccess & RequestedAccess.Write) != 0 &&
                 status == FileAccessStatus.Allowed &&
                 m_overrideAllowedWritePaths.Count > 0 && // Avoid creating the absolute path if the override allowed writes flag is off
-                AbsolutePath.TryCreate(m_pathTable, path, out var absolutePath) &&
-                m_overrideAllowedWritePaths.TryGetValue(absolutePath, out bool shouldOverrideAllowedAccess) &&
+                pathAsAbsolutePath.IsValid &&
+                m_overrideAllowedWritePaths.TryGetValue(pathAsAbsolutePath, out bool shouldOverrideAllowedAccess) &&
                 shouldOverrideAllowedAccess)
             {
                 status = FileAccessStatus.Denied;

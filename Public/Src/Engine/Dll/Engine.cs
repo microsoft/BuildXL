@@ -666,6 +666,11 @@ namespace BuildXL.Engine
                 layout.FingerprintStoreDirectory = layout.EngineCacheDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory);
             }
 
+            if (!layout.SharedOpaqueJournalDirectory.IsValid)
+            {
+                layout.SharedOpaqueJournalDirectory = layout.EngineCacheDirectory.Combine(pathTable, Scheduler.Scheduler.SharedOpaqueJournalDirectory);
+            }
+
             // Logging
             if (string.IsNullOrEmpty(logging.LogPrefix))
             {

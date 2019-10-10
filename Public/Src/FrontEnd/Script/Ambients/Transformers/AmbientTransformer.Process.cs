@@ -1196,7 +1196,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 bool? enabled = unsafePreserveOutput.Value.Item1;
                 int?  trustLevel = unsafePreserveOutput.Value.Item2;
-                if (enabled.HasValue || trustLevel.HasValue)
+
+                if(trustLevel.HasValue && trustLevel.Value < 0)
+                {
+                    throw new InputValidationException(I($"Expected '{m_unsafeAllowPreservedOutputs.ToString(StringTable)}' to be boolean or >= 0"), new ErrorContext(objectCtx: unsafeOptionsObjLit));
+                }
+                if ((enabled.HasValue && enabled.Value) || (trustLevel.HasValue && trustLevel.Value > 0))
                 {
                     processBuilder.Options |= Process.Options.AllowPreserveOutputs;
                     processBuilder.PreserveOutputsTrustLevel = enabled.HasValue ? (int)PreserveOutputsTrustValue.Lowest : trustLevel.Value;

@@ -1199,7 +1199,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
                 if(trustLevel.HasValue && trustLevel.Value < 0)
                 {
-                    throw new InputValidationException(I($"Expected '{m_unsafeAllowPreservedOutputs.ToString(StringTable)}' to be boolean or >= 0"), new ErrorContext(objectCtx: unsafeOptionsObjLit));
+                    throw new InputValidationException(I($"Expected '{m_unsafeAllowPreservedOutputs.ToString(StringTable)}' to be boolean or >= 0"), new ErrorContext(name: m_unsafeAllowPreservedOutputs,  objectCtx: unsafeOptionsObjLit));
                 }
                 if ((enabled.HasValue && enabled.Value) || (trustLevel.HasValue && trustLevel.Value > 0))
                 {

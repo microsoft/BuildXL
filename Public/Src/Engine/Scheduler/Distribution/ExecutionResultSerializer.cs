@@ -622,7 +622,7 @@ namespace BuildXL.Scheduler.Distribution
             writer.WriteCompact(file.RewriteCount);
         }
 
-        private static void ReadPipProperties(BuildXLReader reader, out Dictionary<string, int> pipProperties)
+        private static void ReadPipProperties(BuildXLReader reader, out IReadOnlyDictionary<string, int> pipProperties)
         {
             bool hasPipProperties = reader.ReadBoolean();
 
@@ -634,17 +634,19 @@ namespace BuildXL.Scheduler.Distribution
             {
                 int count = reader.ReadInt32Compact();
 
-                pipProperties = new Dictionary<string, int>();
+                var tmpPipProperties = new Dictionary<string, int>();
 
                 for (int i = 0; i < count; i++)
                 {
                     string key = reader.ReadNullableString();
-                    pipProperties[key] = reader.ReadInt32Compact();
+                    tmpPipProperties[key] = reader.ReadInt32Compact();
                 }
+
+                pipProperties = tmpPipProperties;
             }
         }
 
-        private static void WritePipProperties(BuildXLWriter writer, Dictionary<string, int> pipProperties)
+        private static void WritePipProperties(BuildXLWriter writer, IReadOnlyDictionary<string, int> pipProperties)
         {
             bool hasPipProperties = pipProperties != null && pipProperties.Count != 0;
 

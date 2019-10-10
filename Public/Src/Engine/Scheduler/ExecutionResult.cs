@@ -53,7 +53,7 @@ namespace BuildXL.Scheduler
         private IReadOnlySet<AbsolutePath> m_absentPathProbesUnderOutputDirectories;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
-        private Dictionary<string, int> m_pipProperties;
+        private IReadOnlyDictionary<string, int> m_pipProperties;
         private bool m_hasUserRetries;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
@@ -382,10 +382,11 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Returns any pip properties (with their counts) extracted from the process output
         /// </summary>
-        public Dictionary<string, int> PipProperties
+        public IReadOnlyDictionary<string, int> PipProperties
         {
             get
             {
+                EnsureSealed();
                 return m_pipProperties;
             }
         }
@@ -414,7 +415,7 @@ namespace BuildXL.Scheduler
             bool converged,
             ObservedPathSet? pathSet,
             CacheLookupPerfInfo cacheLookupStepDurations,
-            Dictionary<string, int> pipProperties,
+            IReadOnlyDictionary<string, int> pipProperties,
             bool hasUserRetries)
         {
             var processExecutionResult =

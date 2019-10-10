@@ -222,7 +222,7 @@ namespace BuildXL.Processes.Internal
                 }
 
                 int exitCode;
-                if (!Native.Processes.ProcessUtilities.GetExitCodeProcess(this.m_processHandle, out exitCode))
+                if (!Native.Processes.ProcessUtilities.GetExitCodeProcess(m_processHandle, out exitCode))
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get exit code.");
                 }
@@ -249,7 +249,7 @@ namespace BuildXL.Processes.Internal
                 Contract.Assume(m_processHandle != null, "Process not yet started.");
 
                 long creation, exit, kernel, user;
-                if (!Native.Processes.ProcessUtilities.GetProcessTimes(this.m_processHandle.DangerousGetHandle(), out creation, out exit, out kernel, out user))
+                if (!Native.Processes.ProcessUtilities.GetProcessTimes(m_processHandle.DangerousGetHandle(), out creation, out exit, out kernel, out user))
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get times.");
                 }
@@ -377,7 +377,7 @@ namespace BuildXL.Processes.Internal
                 // the console window. If BuildXL itself is started without a console window the flag is not set to prevent creating
                 // extra conhost.exe processes.
                 int creationFlags =
-                    ((s_consoleWindow == IntPtr.Zero && !this.m_disableConHostSharing) ?
+                    ((s_consoleWindow == IntPtr.Zero && !m_disableConHostSharing) ?
                         0 : Native.Processes.ProcessUtilities.CREATE_NO_WINDOW) | Native.Processes.ProcessUtilities.CREATE_DEFAULT_ERROR_MODE;
 
                 SafeFileHandle standardInputWritePipeHandle = null;

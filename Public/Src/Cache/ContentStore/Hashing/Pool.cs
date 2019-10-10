@@ -124,7 +124,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 if (_disposed)
                 {
-                    throw new ObjectDisposedException(this.GetType().FullName);
+                    throw new ObjectDisposedException(GetType().FullName);
                 }
             }
 

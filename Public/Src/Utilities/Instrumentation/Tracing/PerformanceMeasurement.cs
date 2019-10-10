@@ -243,7 +243,7 @@ namespace BuildXL.Tracing
 
             var pm = new PerformanceMeasurement(
                 parentLoggingContext,
-                collector != null ? collector.CreateAggregator() : null,
+                collector?.CreateAggregator(),
                 phaseFriendlyName,
                 endAction);
 

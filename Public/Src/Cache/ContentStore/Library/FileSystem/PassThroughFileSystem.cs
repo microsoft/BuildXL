@@ -708,7 +708,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             path.ThrowIfPathTooLong();
 
             var dirInfo = new DirectoryInfo(path.Path);
-            bool recursive = (options & EnumerateOptions.Recurse) != 0;
 
             foreach (System.IO.FileInfo fi in dirInfo.EnumerateFiles(
                 "*",
@@ -894,7 +893,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 return CreateHardLinkResult.Success;
             }
 
-            NativeMethods.NtStatus setLink(SafeFileHandle handle, NativeMethods.FileLinkInformation linkInfo)
+            static NativeMethods.NtStatus setLink(SafeFileHandle handle, NativeMethods.FileLinkInformation linkInfo)
             {
                 return NativeMethods.NtSetInformationFile(
                     handle,

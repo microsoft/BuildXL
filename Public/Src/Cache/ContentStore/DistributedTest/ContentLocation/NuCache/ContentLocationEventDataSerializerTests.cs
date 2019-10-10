@@ -89,15 +89,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             var random = new Random(index);
             var hashesAndSizes = Enumerable.Range(1, numberOfHashes).Select(n => (hash: new ShortHash(ContentHash.Random()), size: (long)random.Next(10_000_000))).ToList();
-            switch (index % 3)
+            return (index % 3) switch
             {
-                case 0:
-                    return new AddContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), hashesAndSizes.SelectArray(n => n.size));
-                case 1:
-                    return new TouchContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), touchTime);
-                default:
-                    return new RemoveContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash));
-            }
+                0 => (ContentLocationEventData)new AddContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), hashesAndSizes.SelectArray(n => n.size)),
+                1 => new TouchContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash), touchTime),
+                _ => new RemoveContentLocationEventData(new MachineId(index), hashesAndSizes.SelectArray(n => n.hash)),
+            };
         }
 
         private static ContentLocationEventDataSerializer CreateContentLocationEventDataSerializer() => new ContentLocationEventDataSerializer(ValidationMode.Fail);

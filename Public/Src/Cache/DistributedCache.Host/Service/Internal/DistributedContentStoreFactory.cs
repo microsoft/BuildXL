@@ -166,13 +166,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (_distributedSettings.IsPinBetterEnabled)
             {
                 pinConfiguration = new PinConfiguration();
-                if (_distributedSettings.PinRisk.HasValue) pinConfiguration.PinRisk = _distributedSettings.PinRisk.Value;
-                if (_distributedSettings.MachineRisk.HasValue) pinConfiguration.MachineRisk = _distributedSettings.MachineRisk.Value;
-                if (_distributedSettings.FileRisk.HasValue) pinConfiguration.FileRisk = _distributedSettings.FileRisk.Value;
-                if (_distributedSettings.MaxIOOperations.HasValue) pinConfiguration.MaxIOOperations = _distributedSettings.MaxIOOperations.Value;
+                if (_distributedSettings.PinRisk.HasValue) { pinConfiguration.PinRisk = _distributedSettings.PinRisk.Value; }
+                if (_distributedSettings.MachineRisk.HasValue) { pinConfiguration.MachineRisk = _distributedSettings.MachineRisk.Value; }
+                if (_distributedSettings.FileRisk.HasValue) { pinConfiguration.FileRisk = _distributedSettings.FileRisk.Value; }
+                if (_distributedSettings.MaxIOOperations.HasValue) { pinConfiguration.MaxIOOperations = _distributedSettings.MaxIOOperations.Value; }
+
                 pinConfiguration.UsePinCache = _distributedSettings.IsPinCachingEnabled;
-                if (_distributedSettings.PinCacheReplicaCreditRetentionMinutes.HasValue) pinConfiguration.PinCacheReplicaCreditRetentionMinutes = _distributedSettings.PinCacheReplicaCreditRetentionMinutes.Value;
-                if (_distributedSettings.PinCacheReplicaCreditRetentionDecay.HasValue) pinConfiguration.PinCacheReplicaCreditRetentionDecay = _distributedSettings.PinCacheReplicaCreditRetentionDecay.Value;
+
+                if (_distributedSettings.PinCacheReplicaCreditRetentionMinutes.HasValue) { pinConfiguration.PinCacheReplicaCreditRetentionMinutes = _distributedSettings.PinCacheReplicaCreditRetentionMinutes.Value; }
+                if (_distributedSettings.PinCacheReplicaCreditRetentionDecay.HasValue) { pinConfiguration.PinCacheReplicaCreditRetentionDecay = _distributedSettings.PinCacheReplicaCreditRetentionDecay.Value; }
             }
 
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
@@ -470,19 +472,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             return value;
-        }
-
-        private static RetryPolicy CreateSecretsRetrievalRetryPolicy(DistributedContentSettings settings)
-        {
-            return new RetryPolicy(
-                new KeyVaultRetryPolicy(),
-                new ExponentialBackoff(
-                    name: "SecretsRetrievalBackoff",
-                    retryCount: settings.SecretsRetrievalRetryCount,
-                    minBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMinBackoffSeconds),
-                    maxBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMaxBackoffSeconds),
-                    deltaBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalDeltaBackoffSeconds),
-                    firstFastRetry: false)); // All retries are subjects to the policy, even the first one
         }
 
         private sealed class KeyVaultRetryPolicy : ITransientErrorDetectionStrategy

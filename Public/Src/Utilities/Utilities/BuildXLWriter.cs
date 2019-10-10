@@ -93,7 +93,7 @@ namespace BuildXL.Utilities
                 if (m_debug)
                 {
                     Write(ItemStartMarker);
-                    this.Write(typeId);
+                    Write(typeId);
                 }
 
                 Flush();
@@ -114,7 +114,7 @@ namespace BuildXL.Utilities
                 if (m_debug)
                 {
                     Write(ItemEndMarker);
-                    this.Write(entry.TypeId);
+                    Write(entry.TypeId);
                 }
 
                 Flush();

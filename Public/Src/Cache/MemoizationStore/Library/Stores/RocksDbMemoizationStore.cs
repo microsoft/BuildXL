@@ -14,7 +14,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class RocksDbMemoizationStore : DatabaseMemoizationStore
     {
-        private RocksDbMemoizationDatabase _database;
+        private readonly RocksDbMemoizationDatabase _database;
 
         internal RocksDbContentLocationDatabase Database => _database.Database;
 

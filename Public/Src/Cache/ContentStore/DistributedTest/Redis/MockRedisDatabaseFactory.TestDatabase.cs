@@ -11,8 +11,8 @@ namespace ContentStoreTest.Distributed.Redis
 {
     internal class TestDatabase : IDatabaseAsync, IBatch, IDatabase
     {
-        private ITestRedisDatabase _testDb;
-        private IBatch _testBatch;
+        private readonly ITestRedisDatabase _testDb;
+        private readonly IBatch _testBatch;
 
         public TestDatabase(ITestRedisDatabase testDb, IBatch testBatch = null)
         {

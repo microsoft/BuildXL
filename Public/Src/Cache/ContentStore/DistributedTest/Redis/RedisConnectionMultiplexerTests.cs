@@ -35,7 +35,7 @@ namespace ContentStoreTest.Distributed.Redis
 
         private class TestConnectionStringProvider : IConnectionStringProvider
         {
-            private string _errorMessage;
+            private readonly string _errorMessage;
 
             public TestConnectionStringProvider(string errorMessage)
             {

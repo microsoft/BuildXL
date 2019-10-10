@@ -47,13 +47,13 @@ namespace BuildXL.Tracing
         /// <nodoc/>
         public void DominoInvocationEvent(DominoInvocationEvent eventObj)
         {
-            this.WriteEvent(1, eventObj);
+            WriteEvent(1, eventObj);
         }
 
         /// <nodoc/>
         public void DominoCompletedEvent(DominoCompletedEvent eventObj)
         {
-            this.WriteEvent(2, eventObj);
+            WriteEvent(2, eventObj);
         }
 
         /// <nodoc/>
@@ -61,7 +61,7 @@ namespace BuildXL.Tracing
         {
             if (!s_disableTargetLevelEvents)
             {
-                this.WriteEvent(3, eventObj);
+                WriteEvent(3, eventObj);
             }
         }
 
@@ -70,7 +70,7 @@ namespace BuildXL.Tracing
         {
             if (!s_disableTargetLevelEvents)
             {
-                this.WriteEvent(4, eventObj);
+                WriteEvent(4, eventObj);
             }
         }
 
@@ -79,7 +79,7 @@ namespace BuildXL.Tracing
         {
             if (!s_disableTargetLevelEvents)
             {
-                this.WriteEvent(5, eventObj);
+                WriteEvent(5, eventObj);
             }
         }
 
@@ -88,32 +88,32 @@ namespace BuildXL.Tracing
         {
             if (!s_disableTargetLevelEvents)
             {
-                this.WriteEvent(6, eventObj);
+                WriteEvent(6, eventObj);
             }
         }
 
         /// <nodoc/>
         public void DominoContinuousStatisticsEvent(DominoContinuousStatisticsEvent eventObj)
         {
-            this.WriteEvent(7, eventObj);
+            WriteEvent(7, eventObj);
         }
 
         /// <nodoc/>
         public void DropCreationEvent(DropCreationEvent eventObj)
         {
-            this.WriteEvent(8, eventObj);
+            WriteEvent(8, eventObj);
         }
 
         /// <nodoc/>
         public void DropFinalizationEvent(DropFinalizationEvent eventObj)
         {
-            this.WriteEvent(9, eventObj);
+            WriteEvent(9, eventObj);
         }
 
         /// <nodoc/>
         public void DominoFinalStatisticsEvent(DominoFinalStatisticsEvent eventObj)
         {
-            this.WriteEvent(10, eventObj);
+            WriteEvent(10, eventObj);
         }
     }
 }

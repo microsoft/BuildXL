@@ -82,7 +82,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         /// Gets the hexadecimal string of the hash of this node.
         /// </summary>
-        public string HashString => this.Hash.ToHex();
+        public string HashString => Hash.ToHex();
 
         /// <summary>
         /// Deserializes a node from the provided bytestream.

@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     ///     Readonly storage for up to 32 bytes with common behavior.
     /// </summary>
-    public unsafe readonly struct ReadOnlyFixedBytes : IEquatable<ReadOnlyFixedBytes>, IComparable<ReadOnlyFixedBytes>
+    public readonly unsafe struct ReadOnlyFixedBytes : IEquatable<ReadOnlyFixedBytes>, IComparable<ReadOnlyFixedBytes>
     {
         // This struct relies on a hole in the C# type system.
         // The C# compiler does not allow to define readonly 'fixed size buffers':

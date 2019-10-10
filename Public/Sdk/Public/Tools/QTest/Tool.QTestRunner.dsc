@@ -138,11 +138,13 @@ export function runQTest(args: QTestArguments): Result {
 
     // Microsoft internal cloud service use only
     // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
-    let qTestContextInfoPath = Environment.hasVariable("[Sdk.BuildXL.CBInternal]qtestContextInfo") 
-                             ? Environment.getPathValue("[Sdk.BuildXL.CBInternal]qtestContextInfo")
-                             : Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") 
-                             ? Environment.getPathValue("[Sdk.BuildXL]qtestContextInfo")
-                             : undefined;
+    let qTestContextInfoPath = undefined;
+    if(Environment.hasVariable("[Sdk.BuildXL.CBInternal]qtestContextInfo")){
+        qTestContextInfoPath = Environment.getPathValue("[Sdk.BuildXL.CBInternal]qtestContextInfo");
+    }
+    else if(Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo") ){
+        qTestContextInfoPath = Environment.getPathValue("[Sdk.BuildXL]qtestContextInfo");
+    }
 
     let codeCoverageOption = getCodeCoverageOption();
     let changeAffectedInputListWrittenFile = undefined;

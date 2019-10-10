@@ -668,7 +668,8 @@ namespace BuildXL.Native.IO.Unix
                 currentPermissions &= ~permissions;
             }
 
-            result = SetFilePermissionsForFilePath(path, currentPermissions);
+            // don't follow symlinks because if we do that we may end up modifying source files via symlink outputs
+            result = SetFilePermissionsForFilePath(path, currentPermissions, followSymlink: false);
 
             if (result < 0)
             {

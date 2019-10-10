@@ -38,6 +38,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _timeoutForPoractiveCopies;
+        private readonly int _maxRetryCount;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
         private readonly ICopyRequester _copyRequester;
@@ -57,11 +58,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         /// <nodoc />
         public int CurrentIoGateCount => _ioGate.CurrentCount;
-
-        /// <summary>
-        /// Controls the maximum total number of copy retry attempts
-        /// </summary>
-        public const int MaxRetryCount = 32;
 
         /// <nodoc />
         public DistributedContentCopier(
@@ -91,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
-
+            _maxRetryCount = settings.MaxRetryCount;
             _timeoutForPoractiveCopies = settings.TimeoutForProactiveCopies;
         }
 
@@ -290,11 +286,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
                 // We add one because replicaIndex is indexed from zero.
                 // If we reach over maximum retries, return an put result stating so, and no longer retry
-                if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > MaxRetryCount)
+                if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > _maxRetryCount)
                 {
                     Tracer.Debug(
                             context,
-                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {MaxRetryCount}.");
+                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {_maxRetryCount}.");
                     return (result: CreateMaxRetryPutResult(), retry: false);
                 }
 

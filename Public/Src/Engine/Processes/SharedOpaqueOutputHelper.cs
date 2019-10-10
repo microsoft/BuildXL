@@ -99,7 +99,7 @@ namespace BuildXL.Processes
             // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
             private const int XATTR_NOFOLLOW = 1;
 
-            [DllImport("libc", EntryPoint = "setxattr")]
+            [DllImport("libc", EntryPoint = "setxattr", SetLastError = true)]
             private static extern int SetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
@@ -108,7 +108,7 @@ namespace BuildXL.Processes
                 uint position,
                 int options);
 
-            [DllImport("libc", EntryPoint = "getxattr")]
+            [DllImport("libc", EntryPoint = "getxattr", SetLastError = true)]
             private static extern long GetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
@@ -127,7 +127,8 @@ namespace BuildXL.Processes
                 var err = SetXattr(expandedPath, MY_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
                 if (err != 0)
                 {
-                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute. Error: {err}"));
+                    int errorCode = Marshal.GetLastWin32Error();
+                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {errorCode}"));
                 }
             }
 
@@ -140,6 +141,11 @@ namespace BuildXL.Processes
                 long value = 0;
                 uint valueSize = sizeof(long);
                 var resultSize = GetXattr(expandedPath, MY_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
+                if (resultSize == -1)
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    throw new BuildXLException(I($"Failed to read extended attributes for file '{expandedPath}'. Error: {errorCode}"));
+                }
                 return resultSize == valueSize && value == MY_XATTR_VALUE;
             }
         }

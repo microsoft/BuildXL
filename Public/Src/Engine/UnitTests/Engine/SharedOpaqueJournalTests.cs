@@ -5,19 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using BuildXL.Engine;
-using BuildXL.Native.IO;
-using BuildXL.Pips.Builders;
-using BuildXL.Pips.Operations;
 using BuildXL.Processes;
-using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
-using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -43,7 +33,7 @@ namespace Test.BuildXL.Engine
         {
             var dir = Path.Combine(TemporaryDirectory, "absent-qwre");
             XAssert.IsFalse(Directory.Exists(dir));
-            var result = SharedOpaqueJournal.FindAllJournalFiles(dir);
+            var result = EngineSchedule.FindAllJournalFiles(dir);
             XAssert.ArrayEqual(new string[0], result.ToArray());
         }
 
@@ -162,7 +152,8 @@ namespace Test.BuildXL.Engine
 
             var rootDirs = rootDirsStr
                 .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => AbsolutePath.Create(PathTable, X(p)));
+                .Select(p => AbsolutePath.Create(PathTable, X(p)))
+                .ToList();
             pathToTest = X(pathToTest);
 
             var journalPath = Path.Combine(myDir, "Pip0");
@@ -177,7 +168,7 @@ namespace Test.BuildXL.Engine
                 SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray());
         }
 
-        private void CreateJournalAndRecordPaths(string journalPath, IEnumerable<string> pathsToRecord, IEnumerable<AbsolutePath> rootDirs = null)
+        private void CreateJournalAndRecordPaths(string journalPath, IEnumerable<string> pathsToRecord, IReadOnlyCollection<AbsolutePath> rootDirs = null)
         {
             using (var journal = CreateJournal(journalPath, rootDirs))
             {
@@ -190,14 +181,14 @@ namespace Test.BuildXL.Engine
             }
         }
 
-        private SharedOpaqueJournal CreateJournal(string journalPath = null, IEnumerable<AbsolutePath> rootDirs = null)
+        private SharedOpaqueJournal CreateJournal(string journalPath = null, IReadOnlyCollection<AbsolutePath> rootDirs = null)
         {
             journalPath = journalPath ?? Path.Combine(TemporaryDirectory, $"{s_journalDirectoryCounter++}", "journal");
             Directory.CreateDirectory(Path.GetDirectoryName(journalPath));
             return new SharedOpaqueJournal(
                 PathTable,
-                rootDirectories: rootDirs ?? new[] { AbsolutePath.Create(PathTable, TemporaryDirectory) },
-                journalPath: AbsolutePath.Create(PathTable, journalPath)); 
+                journalPath: AbsolutePath.Create(PathTable, journalPath),
+                rootDirectories: rootDirs);
         }
     }
 }

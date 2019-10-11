@@ -62,12 +62,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             // B should be able to consume the file in the opaque directory. Second build should have both cached
             var result = RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
             AssertWritesJournaled(result, pipA, outputInSharedOpaque);
-            AssertInformationalEventLogged(EventId.ScrubbingOutputsFromJournalStarted, count: 0);
-            AssertInformationalEventLogged(EventId.ScrubbingSharedOpaqueJournalFilesStarted, count: 0) ;
+            AssertInformationalEventLogged(EventId.DeletingOutputsFromJournalStarted, count: 0);
+            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueJournalFilesStarted, count: 0) ;
 
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
-            AssertInformationalEventLogged(EventId.ScrubbingOutputsFromJournalStarted, count: 1);
-            AssertInformationalEventLogged(EventId.ScrubbingSharedOpaqueJournalFilesStarted, count: 1);
+            AssertInformationalEventLogged(EventId.DeletingOutputsFromJournalStarted, count: 1);
+            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueJournalFilesStarted, count: 1);
 
             // Make sure we can replay the file in the opaque directory
             File.Delete(ArtifactToString(outputInSharedOpaque));

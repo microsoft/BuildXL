@@ -9,19 +9,27 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using JetBrains.Annotations;
 
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// TODO 
+    /// Responsible for keeping a journal of all paths written to by a given process pip.
+    /// 
+    /// Paths are flushed to an underlying file as soon as they're reported via <see cref="RecordFileWrite(AbsolutePath)"/>.
+    /// 
+    /// A number of root directories may be set in which case the journal will record only 
+    /// those paths that fall under one of those directories.  The typical use case is to
+    /// use all shared opaque directory outputs of a process as root directories.
     /// </summary>
     /// <remarks>
     /// NOTE: not thread-safe
     /// </remarks>
     public sealed class SharedOpaqueJournal : IDisposable
     {
+        [CanBeNull]
+        private readonly IReadOnlyCollection<AbsolutePath> m_rootDirectories;
         private readonly PathTable m_pathTable;
-        private readonly AbsolutePath[] m_rootDirectories;
         private readonly BuildXLWriter m_bxlWriter;
 
         /// <summary>
@@ -45,8 +53,8 @@ namespace BuildXL.Processes
         public SharedOpaqueJournal(PipExecutionContext context, Process process, AbsolutePath journalDirectory)
             : this(
                   context.PathTable, 
-                  process.DirectoryOutputs.Where(d => d.IsSharedOpaque).Select(d => d.Path),
-                  GetJournalFileForProcess(context.PathTable, journalDirectory, process))
+                  GetJournalFileForProcess(context.PathTable, journalDirectory, process),
+                  process.DirectoryOutputs.Where(d => d.IsSharedOpaque).Select(d => d.Path).ToList())
         {
             Contract.Requires(process != null);
             Contract.Requires(context != null);
@@ -58,15 +66,14 @@ namespace BuildXL.Processes
         /// Creates a new journal.
         /// </summary>
         /// <param name="pathTable">Path table.</param>
-        /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(AbsolutePath)"/>.</param>
         /// <param name="journalPath">File to which to write recorded accesses.</param>
-        public SharedOpaqueJournal(PathTable pathTable, IEnumerable<AbsolutePath> rootDirectories, AbsolutePath journalPath)
+        /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(AbsolutePath)"/>.</param>
+        public SharedOpaqueJournal(PathTable pathTable, AbsolutePath journalPath, [CanBeNull] IReadOnlyCollection<AbsolutePath> rootDirectories)
         {
             Contract.Requires(pathTable.IsValid);
-            Contract.Requires(rootDirectories != null);
 
             m_pathTable = pathTable;
-            m_rootDirectories = rootDirectories.ToArray();
+            m_rootDirectories = rootDirectories;
 
             JournalPath = journalPath.ToString(pathTable);
             m_bxlWriter = new BuildXLWriter(
@@ -83,16 +90,6 @@ namespace BuildXL.Processes
         {
             Contract.Requires(journalDirectory.IsValid);
             return journalDirectory.Combine(pathTable, process.FormattedSemiStableHash);
-        }
-
-        /// <summary>
-        /// Finds and returns all journal files that exist in directory denoted by <paramref name="directory"/>
-        /// </summary>
-        public static IEnumerable<string> FindAllJournalFiles(string directory)
-        {
-            return Directory.Exists(directory)
-                ? Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                : CollectionUtilities.EmptyArray<string>();
         }
 
         /// <summary>
@@ -151,15 +148,16 @@ namespace BuildXL.Processes
         /// </remarks>
         public bool RecordFileWrite(AbsolutePath path)
         {
-            bool isUnderSharedOpaqueDirectory = m_rootDirectories.Any(dir => path.IsWithin(m_pathTable, dir));
-            if (!isUnderSharedOpaqueDirectory)
+            if (m_rootDirectories == null || m_rootDirectories.Any(dir => path.IsWithin(m_pathTable, dir)))
+            {
+                m_bxlWriter.Write(path.ToString(m_pathTable));
+                m_bxlWriter.Flush();
+                return true;
+            }
+            else
             {
                 return false;
             }
-
-            m_bxlWriter.Write(path.ToString(m_pathTable));
-            m_bxlWriter.Flush();
-            return true;
         }
 
         /// <nodoc />

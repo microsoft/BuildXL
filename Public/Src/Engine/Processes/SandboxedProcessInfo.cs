@@ -67,7 +67,7 @@ namespace BuildXL.Processes
         public ISandboxConnection SandboxConnection;
 
         /// <summary>
-        /// On optional journal where to record file writes under shared opaque directories as soon as they happen.
+        /// An optional journal where to record file writes under shared opaque directories as soon as they happen.
         /// </summary>
         public SharedOpaqueJournal SharedOpaqueOutputsJournal { get; }
 

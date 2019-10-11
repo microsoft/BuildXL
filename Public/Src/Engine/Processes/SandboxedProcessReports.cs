@@ -13,6 +13,7 @@ using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
@@ -36,7 +37,11 @@ namespace BuildXL.Processes
 
         private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
+
+        [CanBeNull]
         private readonly IDetoursEventListener m_detoursEventListener;
+
+        [CanBeNull]
         private readonly SharedOpaqueJournal m_writeJournal;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
@@ -98,8 +103,8 @@ namespace BuildXL.Processes
             long pipSemiStableHash,
             string pipDescription,
             LoggingContext loggingContext,
-            IDetoursEventListener detoursEventListener,
-            SharedOpaqueJournal writeJournal)
+            [CanBeNull] IDetoursEventListener detoursEventListener,
+            [CanBeNull] SharedOpaqueJournal writeJournal)
         {
             Contract.Requires(manifest != null);
             Contract.Requires(pathTable != null);

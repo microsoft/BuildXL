@@ -818,7 +818,8 @@ namespace BuildXL.Processes
 
         private SharedOpaqueJournal CreateSharedOpaqueJournalIfConfigured()
         {
-            // don't use this journal if pip's semistable hash is 0 or if journal root directory is not set up
+            // don't use this journal if journal root directory is not set up or
+            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
             return m_layoutConfiguration?.SharedOpaqueJournalDirectory.IsValid == true && m_pip.SemiStableHash != 0
                 ? new SharedOpaqueJournal(m_context, m_pip, m_layoutConfiguration.SharedOpaqueJournalDirectory)
                 : null;

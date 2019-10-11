@@ -114,13 +114,13 @@ namespace BuildXL.Engine
         {
             var finalPathsToScrub = CollapsePaths(pathsToScrub).ToList();
             var finalBlockedPaths = new HashSet<string>(blockedPaths, StringComparer.OrdinalIgnoreCase);
-            var finalNnonDeletableRootDirectories = new HashSet<string>(nonDeletableRootDirectories, StringComparer.OrdinalIgnoreCase);
+            var finalNonDeletableRootDirectories = new HashSet<string>(nonDeletableRootDirectories, StringComparer.OrdinalIgnoreCase);
             if (mountPathExpander != null)
             {
-                finalNnonDeletableRootDirectories.UnionWith(mountPathExpander.GetAllRoots().Select(p => p.ToString(mountPathExpander.PathTable)));
+                finalNonDeletableRootDirectories.UnionWith(mountPathExpander.GetAllRoots().Select(p => p.ToString(mountPathExpander.PathTable)));
             }
 
-            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNnonDeletableRootDirectories, mountPathExpander);
+            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander);
         }
 
         private bool RemoveExtraneousFilesAndDirectories(
@@ -278,7 +278,7 @@ namespace BuildXL.Engine
                                             if (!isPathInBuild(fullPath))
                                             {
                                                 // File is not in the build, delete it.
-                                                if (TryScrubFile(pm.LoggingContext, fullPath))
+                                                if (TryDeleteFile(pm.LoggingContext, fullPath))
                                                 {
                                                     Interlocked.Increment(ref filesRemoved);
                                                 }
@@ -393,7 +393,7 @@ namespace BuildXL.Engine
                     .WithCancellation(m_cancellationToken)
                     .ForAll(path =>
                     {
-                        if (FileUtilities.FileExistsNoFollow(path) && TryScrubFile(m_loggingContext, path))
+                        if (FileUtilities.FileExistsNoFollow(path) && TryDeleteFile(m_loggingContext, path))
                         {
                             Interlocked.Increment(ref numRemoved);
                         }
@@ -403,7 +403,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private bool TryScrubFile(LoggingContext loggingContext, string path)
+        private bool TryDeleteFile(LoggingContext loggingContext, string path)
         {
             try
             {

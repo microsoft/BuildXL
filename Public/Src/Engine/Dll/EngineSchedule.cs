@@ -29,6 +29,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
@@ -778,9 +779,7 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var journalFiles = SharedOpaqueJournal
-                .FindAllJournalFiles(configuration.Layout.SharedOpaqueJournalDirectory.ToString(scheduler.Context.PathTable))
-                .ToArray();
+            var journalFiles = FindAllJournalFiles(configuration.Layout.SharedOpaqueJournalDirectory.ToString(scheduler.Context.PathTable));
             var distinctRecordedWrites = journalFiles
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
@@ -792,13 +791,13 @@ namespace BuildXL.Engine
 
             if (distinctRecordedWrites.Any())
             {
-                Logger.Log.ScrubbingOutputsFromJournalStarted(loggingContext);
+                Logger.Log.DeletingOutputsFromJournalStarted(loggingContext);
                 scrubber.DeleteFiles(distinctRecordedWrites);
             }
 
             if (journalFiles.Any())
             {
-                Logger.Log.ScrubbingSharedOpaqueJournalFilesStarted(loggingContext);
+                Logger.Log.DeletingSharedOpaqueJournalFilesStarted(loggingContext);
                 scrubber.DeleteFiles(journalFiles);
             }
 
@@ -838,6 +837,16 @@ namespace BuildXL.Engine
                     // Mounts don't need to be scrubbable for this operation to take place.
                     mountPathExpander: null);
             }
+        }
+
+        /// <summary>
+        /// Finds and returns all journal files that exist in directory denoted by <paramref name="directory"/>
+        /// </summary>
+        internal static string[] FindAllJournalFiles(string directory)
+        {
+            return Directory.Exists(directory)
+                ? Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly).ToArray()
+                : CollectionUtilities.EmptyArray<string>();
         }
 
         private static bool ShouldRemoveEmptyDirectories(IConfiguration configuration, string path)

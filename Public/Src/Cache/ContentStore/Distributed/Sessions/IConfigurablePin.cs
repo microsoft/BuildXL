@@ -5,19 +5,18 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
     /// <summary>
-    /// Pin in a (hopefully) faster way, while being less reliable.
+    /// Pin in a configurable way.
     /// </summary>
-    public interface ILightweightPin
+    public interface IConfigurablePin
     {
         /// <summary>
-        /// Check for existence in L2, return the missing content, then fire-and-forget L2 pin to locally copy the found content.
+        /// Pin in a configurable way.
         /// </summary>
-        Task<IEnumerable<Task<Indexed<PinResult>>>> LightweightPinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint);
+        Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config);
     }
 }

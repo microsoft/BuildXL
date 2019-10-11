@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// A read only content location based content session with an inner session for storage.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession, ILightweightPin
+    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession, IConfigurablePin
         where T : PathBase
     {
         /// <summary>
@@ -360,49 +360,52 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<Task<Indexed<PinResult>>>> LightweightPinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint)
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
         {
-            return PinHelperAsync(operationContext, contentHashes, urgencyHint, true);
+            return PinHelperAsync(operationContext, contentHashes, UrgencyHint.Nominal, pinOperationConfiguration);
         }
 
         /// <inheritdoc />
         protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
         {
-            return PinHelperAsync(operationContext, contentHashes, urgencyHint, false);
+            return PinHelperAsync(operationContext, contentHashes, urgencyHint, PinOperationConfiguration.Default());
         }
 
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinHelperAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, bool onlyCheckGlobalExistence)
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinHelperAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, PinOperationConfiguration pinOperationConfiguration)
         {
             Contract.Requires(contentHashes != null);
 
-            IEnumerable<Task<Indexed<PinResult>>> pinResults;
+            IEnumerable<Task<Indexed<PinResult>>> pinResults = null;
 
-            if (onlyCheckGlobalExistence)
+            if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
                 // Check globally for existence, but do not copy locally
                 pinResults = await _remotePinner(operationContext, contentHashes, operationContext.Token, true, urgencyHint);
 
-                var newUncancelledContext = new OperationContext(operationContext.TracingContext, default);
-                Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => Inner.PinAsync(newUncancelledContext, hashes, newUncancelledContext.Token, urgencyHint),
-                    hashes => _remotePinner(newUncancelledContext, hashes, newUncancelledContext.Token, false, urgencyHint),
-                    result => result.Succeeded,
-                    // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                    async hits => await UpdateContentTrackerWithLocalHitsAsync(newUncancelledContext, hits.Where(x => !(Settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), newUncancelledContext.Token, urgencyHint))
-                        .FireAndForget(newUncancelledContext);
+                // Replace operation context with a new cancellation token so it can outlast this call
+                operationContext = new OperationContext(operationContext.TracingContext, default);
             }
-            else
-            {
-                pinResults = await Workflows.RunWithFallback(
+
+            // Default pin action
+            var pinTask = Workflows.RunWithFallback(
                     contentHashes,
                     hashes => Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint),
                     hashes => _remotePinner(operationContext, hashes, operationContext.Token, false, urgencyHint),
                     result => result.Succeeded,
                     // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
                     async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(Settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+
+            if (pinOperationConfiguration.ReturnGlobalExistenceFast)
+            {
+                // Fire off the default pin action, but do not await the result.
+                pinTask.FireAndForget(operationContext);
+            }
+            else
+            {
+                pinResults = await pinTask;
             }
 
+            Contract.Assert(pinResults != null);
             return pinResults;
         }
 

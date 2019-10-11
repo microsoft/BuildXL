@@ -785,7 +785,6 @@ namespace BuildXL.Engine
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
                 .SelectMany(SharedOpaqueJournal.ReadRecordedWritesFromJournalWrapExceptions)
-                .Where(FileUtilities.FileExistsNoFollow)
                 .ToArray();
 
             if (distinctRecordedWrites.Any())

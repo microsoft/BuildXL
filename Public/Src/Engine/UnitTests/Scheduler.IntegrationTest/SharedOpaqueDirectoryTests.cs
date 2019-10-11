@@ -1582,10 +1582,9 @@ namespace IntegrationTest.BuildXL.Scheduler
         private AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
         {
             var journalFile = SharedOpaqueJournal.GetJournalFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueJournalDirectory, process);
-            var journalFilePath = journalFile.ToString(Context.PathTable);
-            XAssert.IsTrue(File.Exists(journalFilePath));
+            XAssert.IsTrue(File.Exists(journalFile));
             return SharedOpaqueJournal
-                .ReadRecordedWritesFromJournal(journalFilePath)
+                .ReadRecordedWritesFromJournal(journalFile)
                 .Select(path => AbsolutePath.Create(Context.PathTable, path))
                 .Distinct()
                 .ToArray();

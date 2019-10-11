@@ -102,7 +102,7 @@ namespace Test.BuildXL.Scheduler
             new PipGraphFragmentSerializer(
                 Context,
                 new PipGraphFragmentContext())
-                .SerializeSerially(AbsolutePath.Create(Context.PathTable, path), m_pipGraph.RetrieveScheduledPips().ToList(), m_moduleId.Value.ToString(Context.StringTable));
+                .Serialize(AbsolutePath.Create(Context.PathTable, path), m_pipGraph, m_moduleId.Value.ToString(Context.StringTable));
 
         ///// <summary>
         ///// Serializes this instance of pip graph fragment with top-sort to a file.

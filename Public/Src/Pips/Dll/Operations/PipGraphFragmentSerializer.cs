@@ -135,7 +135,8 @@ namespace BuildXL.Pips.Operations
             {
                 var pip = Pip.Deserialize(reader);
                 var pipId = new PipId(reader.ReadUInt32());
-                if (!await (handleDeserializedPip?.Invoke(pipId, pip)))
+
+                if (!await handleDeserializedPip(pipId, pip))
                 {
                     successful = false;
                 }
@@ -153,7 +154,7 @@ namespace BuildXL.Pips.Operations
             int totalPipsRead = 0;
             while (totalPipsRead < m_totalPipsToDeserialize)
             {
-                var deserializedPips = reader.ReadReadOnlyList<(Pip pip, PipId pipId)>((deserializer) =>
+                var deserializedPips = reader.ReadReadOnlyList((deserializer) =>
                 {
                     var pip = Pip.Deserialize(reader);
 
@@ -172,8 +173,8 @@ namespace BuildXL.Pips.Operations
 
                 for (int i = 0; i < deserializedPips.Count; i++)
                 {
-                    var deserializedPip = deserializedPips[i];
-                    tasks[i] = HandleAndReportDeserializedPipAsync(handleDeserializedPip, deserializedPip.pipId, deserializedPip.pip);
+                    var (pip, pipId) = deserializedPips[i];
+                    tasks[i] = HandleAndReportDeserializedPipAsync(handleDeserializedPip, pipId, pip);
                 }
 
                 successful &= (await Task.WhenAll(tasks)).All(x => x);

@@ -102,7 +102,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         }
 
         /// <inheritdoc />
-        public override bool AnalyzeSourceFile(BuildXL.FrontEnd.Workspaces.Core.Workspace workspace, AbsolutePath path, ISourceFile sourceFile) => true;
+        public override bool AnalyzeSourceFile(Workspaces.Core.Workspace workspace, AbsolutePath path, ISourceFile sourceFile) => true;
 
         /// <inheritdoc />
         public override bool FinalizeAnalysis()

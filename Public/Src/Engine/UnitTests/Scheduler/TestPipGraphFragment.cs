@@ -96,27 +96,41 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Serializes this instance of pip graph fragment to a stream.
+        /// Serializes this instance of pip graph fragment serially to a file.
         /// </summary>
-        public void Serialize(Stream stream) =>
+        public void Serialize(string path) =>
             new PipGraphFragmentSerializer(
-                Context, 
+                Context,
                 new PipGraphFragmentContext())
-                .SerializeSerially(stream, m_pipGraph.RetrieveScheduledPips().ToList(), m_moduleId.Value.ToString(Context.StringTable));
+                .SerializeSerially(AbsolutePath.Create(Context.PathTable, path), m_pipGraph.RetrieveScheduledPips().ToList(), m_moduleId.Value.ToString(Context.StringTable));
+
+        ///// <summary>
+        ///// Serializes this instance of pip graph fragment with top-sort to a file.
+        ///// </summary>
+        //public void SerializeTopSort(string path) =>
+        //    new PipGraphFragmentSerializer(
+        //        Context,
+        //        new PipGraphFragmentContext())
+        //        .SerializeTopSort(AbsolutePath.Create(Context.PathTable, path), m_pipGraph.RetrieveScheduledPips().ToList(), m_moduleId.Value.ToString(Context.StringTable));
+
+        private AbsolutePath CreateAbsolutePath(AbsolutePath root, string relative) =>
+            root.Combine(
+                Context.PathTable, RelativePath.Create(Context.StringTable, relative));
 
         /// <summary>
         /// Creates a source file artifact.
         /// </summary>
-        public FileArtifact CreateSourceFile(string relative) =>
-            FileArtifact.CreateSourceFile(m_sourceRoot.Combine(
-                Context.PathTable, RelativePath.Create(Context.StringTable, relative)));
-        
+        public FileArtifact CreateSourceFile(string relative) => FileArtifact.CreateSourceFile(CreateAbsolutePath(m_sourceRoot, relative));
+
         /// <summary>
         /// Creates an output file artifact.
         /// </summary>
-        public FileArtifact CreateOutputFile(string relative) =>
-            FileArtifact.CreateOutputFile(m_objectRoot.Combine(
-                Context.PathTable, RelativePath.Create(Context.StringTable, relative)));
+        public FileArtifact CreateOutputFile(string relative) => FileArtifact.CreateOutputFile(CreateAbsolutePath(m_objectRoot, relative));
+
+        /// <summary>
+        /// Creates an output directory artifact.
+        /// </summary>
+        public DirectoryArtifact CreateOutputDirectory(string relative) => DirectoryArtifact.CreateWithZeroPartialSealId(CreateAbsolutePath(m_objectRoot, relative));
 
         /// <summary>
         /// Gets a process builder.
@@ -168,7 +182,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Schedules an IPC pip.
         /// </summary>
-        public PipId ScheduleIpcPip(
+        public IpcPip ScheduleIpcPip(
             IIpcMoniker moniker,
             PipId? servicePipId,
             ProcessBuilder ipcProcessBuilder,
@@ -180,7 +194,7 @@ namespace Test.BuildXL.Scheduler
             PipData arguments = ipcProcessBuilder.ArgumentsBuilder.ToPipData(" ", PipDataFragmentEscaping.CRuntimeArgumentRules);
             ReadOnlyArray<FileArtifact> fileDependencies = ipcProcessBuilder.GetInputFilesSoFar();
 
-            (helper ?? m_defaultConstructionHelper).TryAddIpc(
+            if (!(helper ?? m_defaultConstructionHelper).TryAddIpc(
                 ipcClientInfo,
                 arguments,
                 outputFile,
@@ -191,9 +205,12 @@ namespace Test.BuildXL.Scheduler
                 isServiceFinalization: isServiceFinalization,
                 mustRunOnMaster: false,
                 tags: new string[0],
-                out PipId pipId);
+                out IpcPip ipcPip))
+            {
+                throw new BuildXLTestException("Failed to add ipc pip");
+            }
 
-            return pipId;
+            return ipcPip;
         }
     }
 }

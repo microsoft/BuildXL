@@ -291,11 +291,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                 var tempLocation = AbsolutePath.CreateRandomFileName(workingFolder);
 
-                (PutResult result, bool retry) reportCancellationRequested(string source)
+                (PutResult result, bool retry) reportCancellationRequested()
                 {
                     Tracer.Debug(
                         context,
-                        $"{AttemptTracePrefix(attemptCount)}: ({source}) Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
+                        $"{AttemptTracePrefix(attemptCount)}: Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
                     return (result: CreateCanceledPutResult(), retry: false);
                 }
 
@@ -307,7 +307,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     if (cts.IsCancellationRequested)
                     {
-                        return reportCancellationRequested("Token cancelled");
+                        return reportCancellationRequested();
                     }
 
                     // Gate entrance to both the copy logic and the logging which surrounds it
@@ -348,12 +348,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     catch (Exception e) when (e is OperationCanceledException)
                     {
                         // Handles both OperationCanceledException and TaskCanceledException (TaskCanceledException derives from OperationCanceledException)
-                        return reportCancellationRequested("Exception: " + e);
+                        return reportCancellationRequested();
                     }
 
                     if (cts.IsCancellationRequested)
                     {
-                        return reportCancellationRequested("Token cancelled 2");
+                        return reportCancellationRequested();
                     }
 
                     if (copyFileResult != null)
@@ -459,7 +459,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             }
                             else if (putResult.IsCancelled)
                             {
-                                return reportCancellationRequested("Put cancelled");
+                                return reportCancellationRequested();
                             }
                             else
                             {

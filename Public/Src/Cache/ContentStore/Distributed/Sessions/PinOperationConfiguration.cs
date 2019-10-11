@@ -1,11 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
+    /// <summary>
+    /// Configuration object for configurable pins.
+    /// </summary>
     public class PinOperationConfiguration
     {
         /// <summary>
@@ -13,11 +15,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         public bool ReturnGlobalExistenceFast { get; set; }
 
+        /// <nodoc />
+        public UrgencyHint UrgencyHint { get; set; }
+
+        /// <summary>
+        /// Default configuration for pins.
+        /// </summary>
         public static PinOperationConfiguration Default()
         {
             return new PinOperationConfiguration()
             {
-                ReturnGlobalExistenceFast = false
+                ReturnGlobalExistenceFast = false,
+                UrgencyHint = UrgencyHint.Nominal
             };
         }
     }

@@ -9,12 +9,12 @@ namespace BuildXL.Cache.ContentStore.Distributed
     public enum GetBulkOrigin
     {
         /// <summary>
-        /// The locations should be obtained from a local store.
+        /// The locations should be obtained from the Local Location Store (LLS).
         /// </summary>
         Local,
 
         /// <summary>
-        /// The locations should be obtained from a global remote store.
+        /// The locations should be obtained from a global remote store (redis).
         /// </summary>
         Global
     }

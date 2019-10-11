@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Context context,
             IReadOnlyList<ContentHash> contentHashes,
             CancellationToken cts,
-            bool onlyCheckGlobalExistence,
+            bool succeedWithOneLocation,
             UrgencyHint urgencyHint = UrgencyHint.Nominal
         );
 }

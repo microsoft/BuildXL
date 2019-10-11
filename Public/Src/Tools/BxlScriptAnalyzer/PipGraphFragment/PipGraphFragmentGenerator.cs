@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using BuildXL.Pips.Operations;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -15,9 +14,9 @@ using TypeScript.Net.Types;
 namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
 {
     /// <summary>
-    /// Analyzer for generating graph fragment.
+    /// Analyzer for generating pip graph fragment.
     /// </summary>
-    public class GraphFragmentGenerator : Analyzer
+    public class PipGraphFragmentGenerator : Analyzer
     {
         private string m_outputFile;
         private string m_description;

@@ -26,14 +26,19 @@ namespace Test.BuildXL.Scheduler
     /// </summary>
     public sealed class TestPipGraphFragment
     {
+        /// <summary>
+        /// Internal pip graph.
+        /// </summary>
+        public IPipGraph PipGraph { get; }
+
         private readonly AbsolutePath m_sourceRoot;
         private readonly AbsolutePath m_objectRoot;
         private readonly LoggingContext m_loggingContext;
         private readonly MountPathExpander m_expander;
-        private readonly IPipGraph m_pipGraph;
         private readonly ModuleId m_moduleId;
         private readonly AbsolutePath m_specPath;
         private readonly PipConstructionHelper m_defaultConstructionHelper;
+        private readonly bool m_useTopSort;
 
         /// <summary>
         /// Module name.
@@ -48,7 +53,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Creates an instance of <see cref="TestPipGraphFragment"/>.
         /// </summary>
-        public TestPipGraphFragment(LoggingContext loggingContext, string sourceRoot, string objectRoot, string redirectedRoot, string moduleName)
+        public TestPipGraphFragment(LoggingContext loggingContext, string sourceRoot, string objectRoot, string redirectedRoot, string moduleName, bool useTopSort = false)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(!string.IsNullOrEmpty(sourceRoot));
@@ -61,17 +66,19 @@ namespace Test.BuildXL.Scheduler
             m_objectRoot = AbsolutePath.Create(Context.PathTable, objectRoot);
             m_expander = new MountPathExpander(Context.PathTable);
 
-            m_pipGraph = new PipGraphFragmentBuilder(
-                Context,
-                new ConfigurationImpl()
+            var configuration = new ConfigurationImpl()
+            {
+                Schedule =
                 {
-                    Schedule =
-                    {
-                        UseFixedApiServerMoniker = true,
-                        ComputePipStaticFingerprints = true,
-                    }
-                },
-                m_expander);
+                    UseFixedApiServerMoniker = true,
+                    ComputePipStaticFingerprints = true,
+                }
+            };
+
+            m_useTopSort = useTopSort;
+            PipGraph = m_useTopSort
+                ? new PipGraphFragmentBuilderTopSort(Context, configuration, m_expander)
+                : new PipGraphFragmentBuilder(Context, configuration, m_expander);
 
             ModuleName = moduleName;
             var specFileName = moduleName + ".dsc";
@@ -81,14 +88,14 @@ namespace Test.BuildXL.Scheduler
                 Context.StringTable, 
                 m_specPath,
                 m_moduleId);
-            m_pipGraph.AddModule(modulePip);
-            m_pipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(m_specPath), new LocationData(m_specPath, 0, 0), modulePip.Module));
+            PipGraph.AddModule(modulePip);
+            PipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(m_specPath), new LocationData(m_specPath, 0, 0), modulePip.Module));
 
             m_defaultConstructionHelper = PipConstructionHelper.CreateForTesting(
                 Context,
                 objectRoot: m_objectRoot,
                 redirectedRoot: AbsolutePath.Create(Context.PathTable, redirectedRoot),
-                pipGraph: m_pipGraph,
+                pipGraph: PipGraph,
                 moduleName: moduleName,
                 specRelativePath: Path.Combine(m_sourceRoot.GetName(Context.PathTable).ToString(Context.StringTable), specFileName),
                 specPath: m_specPath,
@@ -102,7 +109,7 @@ namespace Test.BuildXL.Scheduler
             new PipGraphFragmentSerializer(
                 Context,
                 new PipGraphFragmentContext())
-                .Serialize(AbsolutePath.Create(Context.PathTable, path), m_pipGraph, m_moduleId.Value.ToString(Context.StringTable));
+                .Serialize(AbsolutePath.Create(Context.PathTable, path), PipGraph, m_moduleId.Value.ToString(Context.StringTable), useTopSortSerialization: m_useTopSort);
 
         ///// <summary>
         ///// Serializes this instance of pip graph fragment with top-sort to a file.
@@ -162,7 +169,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Gets API server moniker.
         /// </summary>
-        public IIpcMoniker GetApiServerMoniker() => m_pipGraph.GetApiServerMoniker();
+        public IIpcMoniker GetApiServerMoniker() => PipGraph.GetApiServerMoniker();
 
         /// <summary>
         /// Gets an IPC moniker.

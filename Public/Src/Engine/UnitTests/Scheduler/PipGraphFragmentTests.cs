@@ -9,7 +9,6 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -115,7 +114,7 @@ namespace Test.BuildXL.Scheduler
         public void TestAddingAndUnifyingIpcPip()
         {
             var fragment = CreatePipGraphFragment(nameof(TestAddingAndUnifyingIpcPip));
-            (IIpcMoniker moniker, PipId servicePipId) = CreateService(fragment);
+            (IIpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment);
 
             var processBuilder = fragment.GetProcessBuilder();
             var argumentsBuilder = new ArgumentsBuilder(processBuilder);
@@ -264,7 +263,7 @@ namespace Test.BuildXL.Scheduler
             (Process processC, ProcessOutputs outputsC) = fragment2.ScheduleProcessBuilder(processBuilderC);
 
             // Drop z and h in fragment 2.
-            (IIpcMoniker moniker, PipId servicePipId) = CreateService(fragment2);
+            (IIpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment2);
 
             var addZBuilder = fragment2.GetIpcProcessBuilder();
             new ArgumentsBuilder(addZBuilder)
@@ -448,61 +447,5 @@ namespace Test.BuildXL.Scheduler
         /// <returns></returns>
         private AbsolutePath RemapFragmentPath(TestPipGraphFragment fragment, AbsolutePath path) =>
             AbsolutePath.Create(Context.PathTable, path.ToString(fragment.Context.PathTable));
-
-        private (IIpcMoniker ipcMoniker, PipId servicePipId) CreateService(TestPipGraphFragment fragment)
-        {
-            var ipcMoniker = fragment.GetIpcMoniker();
-            var apiServerMoniker = fragment.GetApiServerMoniker();
-
-            var shutdownBuilder = fragment.GetProcessBuilder();
-            new ArgumentsBuilder(shutdownBuilder)
-                .AddIpcMonikerOption("--ipcMoniker ", ipcMoniker)
-                .AddIpcMonikerOption("--serverMoniker ", apiServerMoniker)
-                .AddOutputFileOption("--output ", fragment.CreateOutputFile("shutdown.txt"))
-                .Finish();
-            shutdownBuilder.ServiceKind = global::BuildXL.Pips.Operations.ServicePipKind.ServiceShutdown;
-            (Process shutdownProcess, ProcessOutputs _) = fragment.ScheduleProcessBuilder(shutdownBuilder);
-
-            var finalProcessBuilder = fragment.GetIpcProcessBuilder();
-            new ArgumentsBuilder(finalProcessBuilder)
-                .AddStringOption("--command ", "final")
-                .AddIpcMonikerOption("--ipcMoniker ", ipcMoniker)
-                .Finish();
-            var finalOutputFile = fragment.CreateOutputFile("final.txt");
-            var finalizationPip = fragment.ScheduleIpcPip(
-                ipcMoniker,
-                null,
-                finalProcessBuilder,
-                finalOutputFile,
-                true);
-            XAssert.IsTrue(finalizationPip.PipId.IsValid);
-
-            var serviceProcessBuilder = fragment.GetProcessBuilder();
-            new ArgumentsBuilder(serviceProcessBuilder)
-                .AddIpcMonikerOption("--ipcMoniker ", ipcMoniker)
-                .AddIpcMonikerOption("--serverMoniker ", apiServerMoniker)
-                .AddOutputFileOption("--output ", fragment.CreateOutputFile("service.txt"))
-                .Finish();
-            serviceProcessBuilder.ServiceKind = ServicePipKind.Service;
-            serviceProcessBuilder.ShutDownProcessPipId = shutdownProcess.PipId;
-            serviceProcessBuilder.FinalizationPipIds = ReadOnlyArray<PipId>.FromWithoutCopy(new[] { finalizationPip.PipId });
-            (Process serviceProcess, ProcessOutputs _) = fragment.ScheduleProcessBuilder(serviceProcessBuilder);
-
-            var createProcessBuilder = fragment.GetIpcProcessBuilder();
-            new ArgumentsBuilder(createProcessBuilder)
-                .AddStringOption("--command ", "create")
-                .AddIpcMonikerOption("--ipcMoniker ", ipcMoniker)
-                .Finish();
-            var createOutputFile = fragment.CreateOutputFile("create.txt");
-            var createPip = fragment.ScheduleIpcPip(
-                ipcMoniker,
-                serviceProcess.PipId,
-                createProcessBuilder,
-                createOutputFile,
-                false);
-            XAssert.IsTrue(createPip.PipId.IsValid);
-
-            return (ipcMoniker, serviceProcess.PipId);
-        }
     }
 }

@@ -17,7 +17,7 @@ using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 
 namespace Test.BuildXL.Scheduler
 {
-    public sealed class PipGraphFragmentTests : PipTestBase
+    public class PipGraphFragmentTests : PipTestBase
     {
         public PipGraphFragmentTests(ITestOutputHelper output)
             : base(output)
@@ -27,7 +27,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestBasicCreation()
         {
-            var fragment = CreatePipGraphFragment(nameof(TestBasicCreation));
+            var fragment = CreatePipGraphFragmentTest(nameof(TestBasicCreation));
             var processBuilder = fragment.GetProcessBuilder();
             var argumentsBuilder = new ArgumentsBuilder(processBuilder);
             AbsolutePath outputPathToVerify;
@@ -47,7 +47,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestBasicDependencyBetweenFragments()
         {
-            var fragment1 = CreatePipGraphFragment(nameof(TestBasicDependencyBetweenFragments) + "1");
+            var fragment1 = CreatePipGraphFragmentTest(nameof(TestBasicDependencyBetweenFragments) + "1");
             var processBuilder1 = fragment1.GetProcessBuilder();
             var argumentsBuilder1 = new ArgumentsBuilder(processBuilder1);
             AbsolutePath outputPathToVerify1;
@@ -58,7 +58,7 @@ namespace Test.BuildXL.Scheduler
             (Process process1, ProcessOutputs _) = fragment1.ScheduleProcessBuilder(processBuilder1);
 
             // Fragment2 depends on fragment1 on output file g produced by fragment1.
-            var fragment2 = CreatePipGraphFragment(nameof(TestBasicDependencyBetweenFragments) + "2");
+            var fragment2 = CreatePipGraphFragmentTest(nameof(TestBasicDependencyBetweenFragments) + "2");
             var processBuilder2 = fragment2.GetProcessBuilder();
             var argumentsBuilder2 = new ArgumentsBuilder(processBuilder2);
             AbsolutePath outputPathToVerify2;
@@ -80,7 +80,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestBasicAddIndependentFragments()
         {
-            var fragment1 = CreatePipGraphFragment(nameof(TestBasicAddIndependentFragments) + "1");
+            var fragment1 = CreatePipGraphFragmentTest(nameof(TestBasicAddIndependentFragments) + "1");
             var processBuilder1 = fragment1.GetProcessBuilder();
             var argumentsBuilder1 = new ArgumentsBuilder(processBuilder1);
             AbsolutePath outputPathToVerify1;
@@ -91,7 +91,7 @@ namespace Test.BuildXL.Scheduler
             (Process process1, ProcessOutputs _) = fragment1.ScheduleProcessBuilder(processBuilder1);
 
             // Fragment2 is independent of fragment1.
-            var fragment2 = CreatePipGraphFragment(nameof(TestBasicAddIndependentFragments) + "2");
+            var fragment2 = CreatePipGraphFragmentTest(nameof(TestBasicAddIndependentFragments) + "2");
             var processBuilder2 = fragment2.GetProcessBuilder();
             var argumentsBuilder2 = new ArgumentsBuilder(processBuilder2);
             AbsolutePath outputPathToVerify2;
@@ -113,7 +113,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestAddingAndUnifyingIpcPip()
         {
-            var fragment = CreatePipGraphFragment(nameof(TestAddingAndUnifyingIpcPip));
+            var fragment = CreatePipGraphFragmentTest(nameof(TestAddingAndUnifyingIpcPip));
             (IIpcMoniker moniker, PipId servicePipId) = TestPipGraphFragmentUtils.CreateService(fragment);
 
             var processBuilder = fragment.GetProcessBuilder();
@@ -175,7 +175,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void TestUnifyProcessPip()
         {
-            var fragment = CreatePipGraphFragment(nameof(TestUnifyProcessPip));
+            var fragment = CreatePipGraphFragmentTest(nameof(TestUnifyProcessPip));
             var processBuilder = fragment.GetProcessBuilder();
             var argumentsBuilder = new ArgumentsBuilder(processBuilder);
             AbsolutePath outputPathToVerify;
@@ -199,7 +199,7 @@ namespace Test.BuildXL.Scheduler
             //
             // h -> R -> g -> Q -> f -> P -> e
             
-            var fragment1 = CreatePipGraphFragment(nameof(TestIpcPipConsumptionFromOtherFragment) + "1");
+            var fragment1 = CreatePipGraphFragmentTest(nameof(TestIpcPipConsumptionFromOtherFragment) + "1");
             var processBuilderP = fragment1.GetProcessBuilder();
             var argumentsBuilderP = new ArgumentsBuilder(processBuilderP);
             var f = fragment1.CreateOutputFile("f");
@@ -233,7 +233,7 @@ namespace Test.BuildXL.Scheduler
             //      |
             //      + -> y -> B -> v
 
-            var fragment2 = CreatePipGraphFragment(nameof(TestIpcPipConsumptionFromOtherFragment) + "2");
+            var fragment2 = CreatePipGraphFragmentTest(nameof(TestIpcPipConsumptionFromOtherFragment) + "2");
             var processBuilderA = fragment2.GetProcessBuilder();
             var argumentsBuilderA = new ArgumentsBuilder(processBuilderA);
             var x = fragment2.CreateOutputFile("x");
@@ -447,5 +447,15 @@ namespace Test.BuildXL.Scheduler
         /// <returns></returns>
         private AbsolutePath RemapFragmentPath(TestPipGraphFragment fragment, AbsolutePath path) =>
             AbsolutePath.Create(Context.PathTable, path.ToString(fragment.Context.PathTable));
+
+        /// <summary>
+        /// Creates an instance of <see cref="TestPipGraphFragment"/>
+        /// </summary>
+        /// <param name="moduleName">Module name.</param>
+        /// <returns>An instance of <see cref="TestPipGraphFragment"/>.</returns>
+        protected virtual TestPipGraphFragment CreatePipGraphFragmentTest(string moduleName)
+        {
+            return CreatePipGraphFragment(moduleName, useTopSort: false);
+        }
     }
 }

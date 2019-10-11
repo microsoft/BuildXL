@@ -13,6 +13,8 @@ using BuildXL.FrontEnd.MsBuild.Tracing;
 using TypeScript.Net.Extensions;
 using Xunit;
 using Xunit.Abstractions;
+using System.IO;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -207,6 +209,44 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var process = CreateDummyProjectWithEnvironment(new Dictionary<string, string> { ["OutputPath"] = @"not,a,dir" });
             // The process should be computed succesfully with no directory outputs predicted. So the test root will be the only shared opaque
             Assert.Equal(AbsolutePath.Create(PathTable, TestRoot), process.DirectoryOutputs.Single().Path);
+        }
+
+        [Fact]
+        public void RedirectedUserProfileIsHonored()
+        {
+            // Create a project directly under the user profile
+            var pathToTestProj = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "test.csproj");
+
+            try
+            {
+                // We still need an entry point under the repo root, so we create a 'dirs' project for that
+                var config = (CommandLineConfiguration)Build()
+                        .AddSpec("dirs.proj", CreateDirsProject(pathToTestProj))
+                        .AddSpec(pathToTestProj, CreateHelloWorldProject())
+                        .PersistSpecsAndGetConfiguration();
+
+                // Set a redirected profile root to point to the test root
+                var redirectedProfile = AbsolutePath.Create(PathTable, TestRoot);
+                config.Layout.RedirectedUserProfileJunctionRoot = redirectedProfile;
+
+                var engineResult = RunEngineWithConfig(config);
+                Assert.True(engineResult.IsSuccess);
+
+                // The test project file for the corresponding pip should be located in the redirected user profile
+                var testProj = (Process)engineResult.EngineState.PipGraph
+                    .RetrievePipsOfType(PipType.Process)
+                    .Single(p => RetrieveProcessArguments((Process)p).Contains(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+
+                // There should be a statically declared input for test.csproj under the redirected profile
+                Assert.Equal(1, testProj.Dependencies.Count(input => 
+                    input.Path.IsWithin(PathTable, redirectedProfile) && 
+                    input.Path.GetName(PathTable) == PathAtom.Create(StringTable, "test.csproj"))
+                    );
+            }
+            finally
+            {
+                File.Delete(pathToTestProj);
+            }
         }
 
         #region helpers

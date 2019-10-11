@@ -743,22 +743,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             var operationContext = new OperationContext(context, cts);
 
-            if (succeedWithOneLocation)
-            {
-                return Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Local, succeedWithOneLocation: true, urgencyHint),
-                    hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Global, succeedWithOneLocation: true, urgencyHint),
-                    result => result.Succeeded);
-            }
-            else
-            {
-                return Workflows.RunWithFallback(
-                    contentHashes,
-                    hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Local, succeedWithOneLocation: false, urgencyHint),
-                    hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Global, succeedWithOneLocation: false, urgencyHint),
-                    result => result.Succeeded);
-            }
+            return Workflows.RunWithFallback(
+                contentHashes,
+                hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Local, succeedWithOneLocation: succeedWithOneLocation, urgencyHint),
+                hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Global, succeedWithOneLocation: succeedWithOneLocation, urgencyHint),
+                result => result.Succeeded);
         }
 
         // This method creates pages of hashes, makes one bulk call to the content location store to get content location record sets for all the hashes on the page,

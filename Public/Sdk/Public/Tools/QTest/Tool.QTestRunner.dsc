@@ -4,6 +4,7 @@
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
 const root = d`.`;
+const dynamicCodeCovString = "DynamicCodeCov";
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -160,12 +161,11 @@ export function runQTest(args: QTestArguments): Result {
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
 
-    let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? "DynamicCodeCov" :  CoverageOptions.None.toString();
+    let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? dynamicCodeCovString :  CoverageOptions.None.toString();
 
     // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
-    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;    
-    
-
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;        
+     
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
         Cmd.option(
@@ -267,7 +267,7 @@ export function runQTest(args: QTestArguments): Result {
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
 
     // If code coverage is enabled, schedule a pip that will perform coverage file upload.
-    if (qCodeCoverageEnumType === "DynamicCodeCov") {
+    if (qCodeCoverageEnumType === dynamicCodeCovString) {
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;

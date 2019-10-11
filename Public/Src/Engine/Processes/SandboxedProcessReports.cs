@@ -547,6 +547,12 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            // Special case seen with vstest.console.exe
+            if (string.IsNullOrEmpty(path))
+            {
+                return true;
+            }
+
             // If there is a listener registered and notifications allowed, notify over the interface.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessNotify) != 0)
             {

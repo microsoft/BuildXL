@@ -14,6 +14,12 @@ namespace BuildXL.FrontEnd.Utilities
     public class ValidAbsolutePathEnumerationJsonConverter : ReadOnlyJsonConverter<IEnumerable<AbsolutePath>>
     {
         /// <nodoc/>
+        public static ValidAbsolutePathEnumerationJsonConverter Instance = new ValidAbsolutePathEnumerationJsonConverter();
+
+        private ValidAbsolutePathEnumerationJsonConverter()
+        { }
+
+        /// <nodoc/>
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             var ret = new List<AbsolutePath>();

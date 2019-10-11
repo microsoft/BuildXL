@@ -17,12 +17,24 @@ namespace BuildXL.FrontEnd.Utilities
     public class AbsolutePathJsonConverter : ReadOnlyJsonConverter<AbsolutePath>
     {
         private readonly PathTable m_pathTable;
+        private readonly AbsolutePath m_originalRoot;
+        private readonly AbsolutePath m_redirectedRoot;
 
         /// <nodoc/>
-        public AbsolutePathJsonConverter(PathTable pathTable) : base()
+        public AbsolutePathJsonConverter(PathTable pathTable) : this(pathTable, AbsolutePath.Invalid, AbsolutePath.Invalid)
+        { }
+
+        /// <summary>
+        /// Allows for setting a single path redirection (original root to redirected root)
+        /// </summary>
+        public AbsolutePathJsonConverter(PathTable pathTable, AbsolutePath originalRoot, AbsolutePath redirectedRoot) : base()
         {
             Contract.Requires(pathTable != null);
+            Contract.Requires(!originalRoot.IsValid || redirectedRoot.IsValid);
+
             m_pathTable = pathTable;
+            m_originalRoot = originalRoot;
+            m_redirectedRoot = redirectedRoot;
         }
 
         /// <nodoc/>
@@ -39,6 +51,12 @@ namespace BuildXL.FrontEnd.Utilities
             if (!AbsolutePath.TryCreate(m_pathTable, pathAsString, out AbsolutePath fullPath))
             {
                 return AbsolutePath.Invalid;
+            }
+
+            // If the path is within the original root, we redirect it to the redirected root
+            if (m_originalRoot.IsValid && fullPath.IsWithin(m_pathTable, m_originalRoot))
+            {
+                return fullPath.Relocate(m_pathTable, m_originalRoot, m_redirectedRoot);
             }
 
             return fullPath;

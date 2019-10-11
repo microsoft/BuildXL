@@ -715,6 +715,10 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private void SetUntrackedFilesAndDirectories(ProcessBuilder processBuilder)
         {
+            // On some machines, the current user and public user desktop.ini are read by Powershell.exe.
+            // Ignore accesses to the user profile and Public common user profile.
+            processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))
             {             
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, publicDir)));

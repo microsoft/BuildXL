@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Operations;
@@ -37,11 +38,6 @@ namespace BuildXL.Processes
         /// Absolute path of this journal file.
         /// </summary>
         public string JournalPath { get; }
-
-        /// <summary>
-        /// Absolute path of the directory where this journal file is saved.
-        /// </summary>
-        public string JournalDirectory => Path.GetDirectoryName(JournalPath);
 
         /// <summary>
         /// Creates a journal for a given process.
@@ -78,6 +74,9 @@ namespace BuildXL.Processes
             m_recordedPathsCache = new HashSet<AbsolutePath>();
 
             JournalPath = journalPath.ToString(pathTable);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(JournalPath));
+
             m_bxlWriter = new BuildXLWriter(
                 stream: new FileStream(JournalPath, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
                 debug: false,
@@ -91,7 +90,24 @@ namespace BuildXL.Processes
         public static AbsolutePath GetJournalFileForProcess(PathTable pathTable, AbsolutePath journalDirectory, Process process)
         {
             Contract.Requires(journalDirectory.IsValid);
-            return journalDirectory.Combine(pathTable, process.FormattedSemiStableHash);
+
+            var semiStableHashX16 = string.Format(CultureInfo.InvariantCulture, "{0:X16}", process.SemiStableHash);
+            var subDirName = semiStableHashX16.Substring(0, 3);
+
+            return journalDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"Pip{semiStableHashX16}.journal");
+        }
+
+        /// <summary>
+        /// Finds and returns all journal files that exist in directory denoted by <paramref name="directory"/>
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: must be consistent with <see cref="GetJournalFileForProcess(PathTable, AbsolutePath, Process)"/>
+        /// </remarks>
+        public static string[] FindAllProcessPipJournalFiles(string directory)
+        {
+            return Directory.Exists(directory)
+                ? Directory.EnumerateFiles(directory, "Pip*.journal", SearchOption.AllDirectories).ToArray()
+                : CollectionUtilities.EmptyArray<string>();
         }
 
         /// <summary>

@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Engine;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -33,7 +32,7 @@ namespace Test.BuildXL.Engine
         {
             var dir = Path.Combine(TemporaryDirectory, "absent-qwre");
             XAssert.IsFalse(Directory.Exists(dir));
-            var result = EngineSchedule.FindAllJournalFiles(dir);
+            var result = SharedOpaqueJournal.FindAllProcessPipJournalFiles(dir);
             XAssert.ArrayEqual(new string[0], result.ToArray());
         }
 

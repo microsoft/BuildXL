@@ -779,7 +779,7 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var journalFiles = FindAllJournalFiles(configuration.Layout.SharedOpaqueJournalDirectory.ToString(scheduler.Context.PathTable));
+            var journalFiles = SharedOpaqueJournal.FindAllProcessPipJournalFiles(configuration.Layout.SharedOpaqueJournalDirectory.ToString(scheduler.Context.PathTable));
             var distinctRecordedWrites = journalFiles
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
@@ -835,16 +835,6 @@ namespace BuildXL.Engine
                     // Mounts don't need to be scrubbable for this operation to take place.
                     mountPathExpander: null);
             }
-        }
-
-        /// <summary>
-        /// Finds and returns all journal files that exist in directory denoted by <paramref name="directory"/>
-        /// </summary>
-        internal static string[] FindAllJournalFiles(string directory)
-        {
-            return Directory.Exists(directory)
-                ? Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly).ToArray()
-                : CollectionUtilities.EmptyArray<string>();
         }
 
         private static bool ShouldRemoveEmptyDirectories(IConfiguration configuration, string path)

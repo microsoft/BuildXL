@@ -447,7 +447,9 @@ namespace BuildXL.Processes
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
-                // File access manifest should be serialize the last.
+                writer.Write(SharedOpaqueOutputsJournal, (w, v) => v.Serialize(w));
+
+                // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
         }
@@ -485,6 +487,7 @@ namespace BuildXL.Processes
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
+                SharedOpaqueJournal journal = reader.ReadNullable(r => SharedOpaqueJournal.Deserialize(r));
                 FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
@@ -496,6 +499,7 @@ namespace BuildXL.Processes
                     // TODO: serialize/deserialize container configuration.
                     containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
+                    sharedOpaqueOutputsJournal: journal,
                     detoursEventListener: detoursEventListener)
                 {
                     m_arguments = arguments,

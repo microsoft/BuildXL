@@ -644,7 +644,7 @@ namespace BuildXL.Processes
 
             if (pathAsAbsolutePath.IsValid && m_writeJournal != null && (requestedAccess & RequestedAccess.Write) != 0)
             {
-                m_writeJournal.RecordFileWrite(pathAsAbsolutePath);
+                m_writeJournal.RecordFileWrite(m_pathTable, pathAsAbsolutePath);
             }
 
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));

@@ -51,6 +51,20 @@ namespace Test.BuildXL.Engine
                 SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray());
         }
 
+
+
+        [Theory]
+        [InlineData("file1", null)]
+        [InlineData("file1", new[] { "dir1" })]
+        [InlineData("file1", new[] { "dir1", "dir2" })]
+        public void DeserializeIsInverseOfSerialize(string journalFile, string[] rootDirs)
+        {
+            var original = new SharedOpaqueJournal(journalFile, rootDirs);
+            var clone = CloneViaSerialization(original);
+            XAssert.AreEqual(original.JournalPath, clone.JournalPath);
+            XAssert.ArrayEqual(original.RootDirectories?.ToArray(), clone.RootDirectories?.ToArray());
+        }
+
         [Theory]
         [InlineData(20)]
         public void ReadIsInverseOfWrite(int numFiles)
@@ -166,14 +180,14 @@ namespace Test.BuildXL.Engine
 
             var rootDirs = rootDirsStr
                 .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => AbsolutePath.Create(PathTable, X(p)))
+                .Select(p => X(p))
                 .ToList();
             pathToTest = X(pathToTest);
 
             var journalPath = Path.Combine(myDir, "Pip0");
             using (var journal = CreateJournal(journalPath, rootDirs))
             {
-                bool recorded = journal.RecordFileWrite(AbsolutePath.Create(PathTable, pathToTest));
+                bool recorded = journal.RecordFileWrite(PathTable, pathToTest);
                 XAssert.AreEqual(expectedToBeRecorded, recorded);
             }
 
@@ -182,7 +196,7 @@ namespace Test.BuildXL.Engine
                 SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray());
         }
 
-        private void CreateJournalAndRecordPaths(string journalPath, IEnumerable<string> pathsToRecord, IReadOnlyCollection<AbsolutePath> rootDirs = null)
+        private void CreateJournalAndRecordPaths(string journalPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
         {
             using (var journal = CreateJournal(journalPath, rootDirs))
             {
@@ -190,19 +204,35 @@ namespace Test.BuildXL.Engine
 
                 foreach (var path in pathsToRecord)
                 {
-                    journal.RecordFileWrite(AbsolutePath.Create(PathTable, path));
+                    journal.RecordFileWrite(PathTable, path);
                 }
             }
         }
 
-        private SharedOpaqueJournal CreateJournal(string journalPath = null, IReadOnlyCollection<AbsolutePath> rootDirs = null)
+        private SharedOpaqueJournal CreateJournal(string journalPath = null, IReadOnlyList<string> rootDirs = null)
         {
             journalPath = journalPath ?? Path.Combine(TemporaryDirectory, $"{s_journalDirectoryCounter++}", "journal");
             Directory.CreateDirectory(Path.GetDirectoryName(journalPath));
             return new SharedOpaqueJournal(
-                PathTable,
-                journalPath: AbsolutePath.Create(PathTable, journalPath),
+                journalPath: journalPath,
                 rootDirectories: rootDirs);
+        }
+
+        private static SharedOpaqueJournal CloneViaSerialization(SharedOpaqueJournal original)
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (var writer = new BuildXLWriter(debug: true, stream, leaveOpen: true, logStats: true))
+                {
+                    original.Serialize(writer);
+                }
+
+                stream.Seek(0, SeekOrigin.Begin);
+                using (var reader = new BuildXLReader(debug: true, stream, leaveOpen: true))
+                {
+                    return SharedOpaqueJournal.Deserialize(reader);
+                }
+            }
         }
     }
 }

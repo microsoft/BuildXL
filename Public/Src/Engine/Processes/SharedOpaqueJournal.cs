@@ -17,7 +17,7 @@ namespace BuildXL.Processes
     /// <summary>
     /// Responsible for keeping a journal of all paths written to by a given process pip.
     /// 
-    /// Paths are flushed to an underlying file as soon as they're reported via <see cref="RecordFileWrite(AbsolutePath)"/>.
+    /// Paths are flushed to an underlying file as soon as they're reported via <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.
     /// 
     /// A number of root directories may be set in which case the journal will record only 
     /// those paths that fall under one of those directories.  The typical use case is to
@@ -28,11 +28,8 @@ namespace BuildXL.Processes
     /// </remarks>
     public sealed class SharedOpaqueJournal : IDisposable
     {
-        [CanBeNull]
-        private readonly IReadOnlyCollection<AbsolutePath> m_rootDirectories;
-        private readonly PathTable m_pathTable;
-        private readonly BuildXLWriter m_bxlWriter;
         private readonly HashSet<AbsolutePath> m_recordedPathsCache;
+        private readonly Lazy<BuildXLWriter> m_lazyBxlWriter;
 
         /// <summary>
         /// Absolute path of this journal file.
@@ -40,18 +37,25 @@ namespace BuildXL.Processes
         public string JournalPath { get; }
 
         /// <summary>
+        /// Only paths under these root directories will be recorded by <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
+        /// 
+        /// When <code>null</code>, all paths are recorded.
+        /// </summary>
+        [CanBeNull]
+        public IReadOnlyList<string> RootDirectories { get; }
+
+        /// <summary>
         /// Creates a journal for a given process.
         /// 
         /// Shared opaque directory outputs of <paramref name="process"/> are used as root directories and
         /// <see cref="Pip.FormattedSemiStableHash"/> is used as journal base name.
         ///
-        /// <seealso cref="SharedOpaqueJournal(PathTable, AbsolutePath, IReadOnlyCollection{AbsolutePath})"/>
+        /// <seealso cref="SharedOpaqueJournal(string, IReadOnlyList{string})"/>
         /// </summary>
         public SharedOpaqueJournal(PipExecutionContext context, Process process, AbsolutePath journalDirectory)
             : this(
-                  context.PathTable, 
                   GetJournalFileForProcess(context.PathTable, journalDirectory, process),
-                  process.DirectoryOutputs.Where(d => d.IsSharedOpaque).Select(d => d.Path).ToList())
+                  process.DirectoryOutputs.Where(d => d.IsSharedOpaque).Select(d => d.Path.ToString(context.PathTable)).ToList())
         {
             Contract.Requires(process != null);
             Contract.Requires(context != null);
@@ -62,39 +66,36 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates a new journal.
         /// </summary>
-        /// <param name="pathTable">Path table.</param>
         /// <param name="journalPath">File to which to write recorded accesses.</param>
-        /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(AbsolutePath)"/>.</param>
-        public SharedOpaqueJournal(PathTable pathTable, AbsolutePath journalPath, [CanBeNull] IReadOnlyCollection<AbsolutePath> rootDirectories)
+        /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.</param>
+        public SharedOpaqueJournal(string journalPath, [CanBeNull] IReadOnlyList<string> rootDirectories)
         {
-            Contract.Requires(pathTable.IsValid);
-
-            m_pathTable = pathTable;
-            m_rootDirectories = rootDirectories;
+            JournalPath = journalPath;
+            RootDirectories = rootDirectories;
             m_recordedPathsCache = new HashSet<AbsolutePath>();
 
-            JournalPath = journalPath.ToString(pathTable);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(JournalPath));
-
-            m_bxlWriter = new BuildXLWriter(
-                stream: new FileStream(JournalPath, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
-                debug: false,
-                logStats: false,
-                leaveOpen: false);
+            m_lazyBxlWriter = Lazy.Create(() =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(JournalPath));
+                return new BuildXLWriter(
+                    stream: new FileStream(JournalPath, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
+                    debug: false,
+                    logStats: false,
+                    leaveOpen: false);
+            });
         }
 
         /// <summary>
         /// Given a root directory (<paramref name="journalDirectory"/>), returns the full path to the journal corresponding to process <paramref name="process"/>.
         /// </summary>
-        public static AbsolutePath GetJournalFileForProcess(PathTable pathTable, AbsolutePath journalDirectory, Process process)
+        public static string GetJournalFileForProcess(PathTable pathTable, AbsolutePath journalDirectory, Process process)
         {
             Contract.Requires(journalDirectory.IsValid);
 
             var semiStableHashX16 = string.Format(CultureInfo.InvariantCulture, "{0:X16}", process.SemiStableHash);
             var subDirName = semiStableHashX16.Substring(0, 3);
 
-            return journalDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"Pip{semiStableHashX16}.journal");
+            return journalDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"Pip{semiStableHashX16}.journal").ToString(pathTable);
         }
 
         /// <summary>
@@ -153,25 +154,31 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
+        /// </summary>
+        public bool RecordFileWrite(PathTable pathTable, string absolutePath)
+            => RecordFileWrite(pathTable, AbsolutePath.Create(pathTable, absolutePath));
+
+        /// <summary>
         /// Records that the file at location <paramref name="path"/> was written to.
         /// 
         /// Returns whether the path was recorded or skipped.
         /// </summary>
         /// <returns>
         /// <code>true</code> if <paramref name="path"/> was recorded, <code>false</code> 
-        /// if the path was filtered out because of <see cref="m_rootDirectories"/>.
+        /// if the path was filtered out because of <see cref="RootDirectories"/>.
         /// </returns>
         /// <remarks>
         /// NOT THREAD-SAFE.
         /// </remarks>
-        public bool RecordFileWrite(AbsolutePath path)
+        public bool RecordFileWrite(PathTable pathTable, AbsolutePath path)
         {
-            if (m_rootDirectories == null || m_rootDirectories.Any(dir => path.IsWithin(m_pathTable, dir)))
+            if (RootDirectories == null || RootDirectories.Any(dir => path.IsWithin(pathTable, AbsolutePath.Create(pathTable, dir))))
             {
                 if (m_recordedPathsCache.Add(path))
                 {
-                    m_bxlWriter.Write(path.ToString(m_pathTable));
-                    m_bxlWriter.Flush();
+                    m_lazyBxlWriter.Value.Write(path.ToString(pathTable));
+                    m_lazyBxlWriter.Value.Flush();
                 }
 
                 return true;
@@ -185,8 +192,25 @@ namespace BuildXL.Processes
         /// <nodoc />
         public void Dispose()
         {
-            m_bxlWriter?.Dispose();
+            m_lazyBxlWriter.Value.Dispose();
         }
+
+        #region Serialization
+        /// <nodoc />
+        public void Serialize(BuildXLWriter writer)
+        {
+            writer.Write(JournalPath);
+            writer.Write(RootDirectories, (w, list) => w.WriteReadOnlyList(list, (w2, path) => w2.Write(path)));
+        }
+
+        /// <nodoc />
+        public static SharedOpaqueJournal Deserialize(BuildXLReader reader)
+        {
+            return new SharedOpaqueJournal(
+                journalPath: reader.ReadString(),
+                rootDirectories: reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString())));
+        }
+        #endregion
 
         private static string ReadStringOrNull(BuildXLReader bxlReader)
         {

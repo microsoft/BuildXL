@@ -11,6 +11,8 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
 
+#pragma warning disable IDE1006 // Naming rule violation
+
 namespace BuildXL.Utilities
 {
     /// <summary>
@@ -75,7 +77,7 @@ namespace BuildXL.Utilities
         private static readonly Lazy<Version> CurrentMacOSVersion = new Lazy<Version>(() => GetOSVersionMacOS());
 
         private static readonly Tuple<string, string> ProcessorNameAndIdentifierMacOS =
-            IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(String.Empty, String.Empty);
+            IsMacOS ? GetProcessorNameAndIdentifierMacOS() : Tuple.Create(string.Empty, string.Empty);
 
         /// <summary>
         /// Indicates if Catalina (10.15) or a higher macOS version is running on the host
@@ -83,11 +85,11 @@ namespace BuildXL.Utilities
         public static readonly bool IsMacOSCatalinaOrHigher = IsMacOS && CurrentMacOSVersion.Value.Major >= 10 && CurrentMacOSVersion.Value.Minor >= 15;
 
         // Sysctl constants to query CPU information
-        private static string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
-        private static string MACHDEP_CPU_MODEL = "machdep.cpu.model";
-        private static string MACHDEP_CPU_FAMILY = "machdep.cpu.family";
-        private static string MACHDEP_CPU_STEPPING = "machdep.cpu.stepping";
-        private static string MACHDEP_CPU_VENDOR = "machdep.cpu.vendor";
+        private static readonly string MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string";
+        private static readonly string MACHDEP_CPU_MODEL = "machdep.cpu.model";
+        private static readonly string MACHDEP_CPU_FAMILY = "machdep.cpu.family";
+        private static readonly string MACHDEP_CPU_STEPPING = "machdep.cpu.stepping";
+        private static readonly string MACHDEP_CPU_VENDOR = "machdep.cpu.vendor";
         private const int ProcessTimeoutMilliseconds = 1000;
 
         /// <summary>
@@ -303,7 +305,7 @@ namespace BuildXL.Utilities
                 return false;
             }
 
-            bool checkFor45PlusVersion(int releaseKey, out string result)
+            static bool checkFor45PlusVersion(int releaseKey, out string result)
             {
                 // The code was adopted from the following docs page:
                 // https://docs.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed
@@ -423,7 +425,7 @@ namespace BuildXL.Utilities
 #pragma warning disable ERP022 // Checking is best effort.
             catch
             {
-                return Tuple.Create(String.Empty, String.Empty);
+                return Tuple.Create(string.Empty, string.Empty);
             }
 #pragma warning restore ERP022
         }

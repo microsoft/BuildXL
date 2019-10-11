@@ -12,7 +12,7 @@ namespace BuildXL.Utilities
     /// </summary>
     public sealed class AsyncLazy<T>
     {
-        private Lazy<Task<T>> m_lazyTask;
+        private readonly Lazy<Task<T>> m_lazyTask;
 
         /// <nodoc />
         public AsyncLazy(Func<Task<T>> factory)

@@ -24,7 +24,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
     internal class TestContentStore : IContentStore
     {
-        private IContentSession _contentSession;
+        private readonly IContentSession _contentSession;
 
         public bool StartupCompleted => throw new NotImplementedException();
 
@@ -166,7 +166,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
     internal class TestMemoizationStore : IMemoizationStore
     {
-        private IMemoizationSession _memoizationSession;
+        private readonly IMemoizationSession _memoizationSession;
 
         public bool StartupCompleted => throw new NotImplementedException();
 

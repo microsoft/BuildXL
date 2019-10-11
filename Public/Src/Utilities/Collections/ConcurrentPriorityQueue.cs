@@ -45,8 +45,7 @@ namespace BuildXL.Utilities.Collections
                 }
 
                 int inversePriority = int.MaxValue - priority;
-                Queue<T> q;
-                if (!m_items.TryGetValue(inversePriority, out q))
+                if (!m_items.TryGetValue(inversePriority, out Queue<T> q))
                 {
                     m_items.Add(inversePriority, q = new Queue<T>());
                 }

@@ -339,9 +339,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             FileMaximumInformation
         }
 
-        private const string DosToNtPathPrefix = @"\??\";
-        private const string AlternativeDosToNtPathPrefix = @"\\?\";
-
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public readonly struct FileLinkInformation
         {

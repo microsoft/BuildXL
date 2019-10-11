@@ -21,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 foreach (var x in args)
                 {
-                    result += ReferenceEquals(x, null) ? 0 : x.GetHashCode() * 17;
+                    result += x is null ? 0 : x.GetHashCode() * 17;
                 }
             }
 
@@ -69,12 +69,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 return true;
             }
 
-            if (ReferenceEquals(null, first))
+            if (first is null)
             {
                 return false;
             }
 
-            if (ReferenceEquals(null, second))
+            if (second is null)
             {
                 return false;
             }

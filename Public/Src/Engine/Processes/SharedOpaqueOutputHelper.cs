@@ -37,9 +37,10 @@ namespace BuildXL.Processes
                 // but later was made a shared opaque output without a content change.
                 // Make sure we allow for attribute writing first
                 var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
+                var writeAttrs = FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes;
                 if (writeAttributesDenied)
                 {
-                    FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: true);
+                    FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: true);
                 }
 
                 try
@@ -63,7 +64,7 @@ namespace BuildXL.Processes
                     // Restore the attributes as they were originally set
                     if (writeAttributesDenied)
                     {
-                        FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: false);
+                        FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: false);
                     }
                 }
             }
@@ -99,7 +100,7 @@ namespace BuildXL.Processes
             // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
             private const int XATTR_NOFOLLOW = 1;
 
-            [DllImport("libc", EntryPoint = "setxattr")]
+            [DllImport("libc", EntryPoint = "setxattr", SetLastError = true)]
             private static extern int SetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
@@ -108,7 +109,7 @@ namespace BuildXL.Processes
                 uint position,
                 int options);
 
-            [DllImport("libc", EntryPoint = "getxattr")]
+            [DllImport("libc", EntryPoint = "getxattr", SetLastError = true)]
             private static extern long GetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
@@ -117,17 +118,40 @@ namespace BuildXL.Processes
                 uint position,
                 int options);
 
+            private const Interop.MacOS.IO.FilePermissions S_IWUSR = Interop.MacOS.IO.FilePermissions.S_IWUSR;
+
             /// <summary>
             /// Flags the given path as being an output under a shared opaque by setting
             /// <see cref="MY_XATTR_NAME"/> xattr to a <see cref="MY_XATTR_VALUE"/>.
             /// </summary>
             public static void SetPathAsSharedOpaqueOutput(string expandedPath)
             {
+                bool followSymlink = false;
+                var currentMode = (Interop.MacOS.IO.FilePermissions)Interop.MacOS.IO.GetFilePermissionsForFilePath(expandedPath, followSymlink);
+                bool isWritableByUser = (currentMode & S_IWUSR) != 0;
+
+                // set u+w if not already set
+                if (!isWritableByUser)
+                {
+                    Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode | S_IWUSR, followSymlink);
+                }
+
+                // set xattr
                 long value = MY_XATTR_VALUE;
                 var err = SetXattr(expandedPath, MY_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
-                if (err != 0)
+                var xattrErrorCode = err != 0 ? Marshal.GetLastWin32Error() : 0;
+
+                // reset permissions if we changed them
+                if (!isWritableByUser)
                 {
-                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute. Error: {err}"));
+                    Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode, followSymlink);
+                }
+
+                // check if setxattr succeeded and throw if it didn't
+                if (xattrErrorCode != 0)
+                {
+                    var attrs = FileUtilities.GetFileAttributes(expandedPath);
+                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}. Attrs: {attrs}"));
                 }
             }
 

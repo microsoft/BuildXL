@@ -24,6 +24,7 @@ using Overlapped = BuildXL.Native.Streams.Overlapped;
 #pragma warning disable CA1823 // Unused field
 #pragma warning disable SA1203 // Constant fields must appear before non-constant fields
 #pragma warning disable SA1139 // Use literal suffix notation instead of casting
+#pragma warning disable IDE1006 // Naming rule violation
 
 namespace BuildXL.Native.IO.Windows
 {
@@ -950,7 +951,7 @@ namespace BuildXL.Native.IO.Windows
         private const int FSCTL_SET_REPARSE_POINT = 0x000900A4;
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
-        static extern uint GetFullPathNameW(string lpFileName, uint nBufferLength, [Out] StringBuilder lpBuffer, IntPtr lpFilePart);
+        private static extern uint GetFullPathNameW(string lpFileName, uint nBufferLength, [Out] StringBuilder lpBuffer, IntPtr lpFilePart);
 
         [Flags]
         private enum MoveFileFlags
@@ -965,7 +966,7 @@ namespace BuildXL.Native.IO.Windows
 
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern bool MoveFileEx(string lpExistingFileName, string lpNewFileName, MoveFileFlags dwFlags);
+        private static extern bool MoveFileEx(string lpExistingFileName, string lpNewFileName, MoveFileFlags dwFlags);
 
         #endregion
 
@@ -1724,8 +1725,6 @@ namespace BuildXL.Native.IO.Windows
             out SafeFileHandle handle)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
-            Contract.Ensures(Contract.Result<OpenFileResult>().Succeeded == (Contract.ValueAtReturn(out handle) != null));
-            Contract.Ensures(!Contract.Result<OpenFileResult>().Succeeded || !Contract.ValueAtReturn(out handle).IsInvalid);
 
             return TryOpenDirectory(directoryPath, desiredAccess, shareMode, FileMode.Open, flagsAndAttributes, out handle);
         }
@@ -1867,8 +1866,6 @@ namespace BuildXL.Native.IO.Windows
         public OpenFileResult TryOpenDirectory(string directoryPath, FileShare shareMode, out SafeFileHandle handle)
         {
             Contract.Requires(!string.IsNullOrEmpty(directoryPath));
-            Contract.Ensures(Contract.Result<OpenFileResult>().Succeeded == (Contract.ValueAtReturn(out handle) != null));
-            Contract.Ensures(!Contract.Result<OpenFileResult>().Succeeded || !Contract.ValueAtReturn(out handle).IsInvalid);
 
             return TryOpenDirectory(directoryPath, FileDesiredAccess.None, shareMode, FileFlagsAndAttributes.None, out handle);
         }
@@ -1918,8 +1915,6 @@ namespace BuildXL.Native.IO.Windows
             out SafeFileHandle reopenedHandle)
         {
             Contract.Requires(existing != null);
-            Contract.Ensures((Contract.Result<ReOpenFileStatus>() == ReOpenFileStatus.Success) == (Contract.ValueAtReturn(out reopenedHandle) != null));
-            Contract.Ensures((Contract.Result<ReOpenFileStatus>() != ReOpenFileStatus.Success) || !Contract.ValueAtReturn(out reopenedHandle).IsInvalid);
 
             SafeFileHandle newHandle = ReOpenFile(existing, desiredAccess, shareMode, flagsAndAttributes);
             int hr = Marshal.GetLastWin32Error();
@@ -2160,7 +2155,7 @@ namespace BuildXL.Native.IO.Windows
         /// Result of dequeueing an I/O completion packet from a port.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-        public unsafe readonly struct IOCompletionPortDequeueResult
+        public readonly unsafe struct IOCompletionPortDequeueResult
         {
             /// <summary>
             /// Dequeue status (for the dequeue operation itself).
@@ -2597,7 +2592,7 @@ namespace BuildXL.Native.IO.Windows
 
             do
             {
-                if (!TryGetFileAttributes(sourcePath, out FileAttributes attributes, out int hr))
+                if (!TryGetFileAttributes(sourcePath, out FileAttributes attributes, out _))
                 {
                     if (handle != originalHandle)
                     {
@@ -2825,8 +2820,6 @@ namespace BuildXL.Native.IO.Windows
             string path,
             out int hr)
         {
-            Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn(out hr) != 0);
-
             if (!RemoveDirectoryW(ToLongPathIfExceedMaxPath(path)))
             {
                 hr = Marshal.GetLastWin32Error();
@@ -2851,8 +2844,6 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         public bool TrySetFileAttributes(string path, FileAttributes attributes, out int hr)
         {
-            Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn(out hr) != 0);
-
             if (!SetFileAttributesW(ToLongPathIfExceedMaxPath(path), attributes))
             {
                 hr = Marshal.GetLastWin32Error();
@@ -2880,8 +2871,6 @@ namespace BuildXL.Native.IO.Windows
 
         private bool TryGetFileAttributesViaGetFileAttributes(string path, out FileAttributes attributes, out int hr)
         {
-            Contract.Ensures(Contract.Result<bool>() ^ Contract.ValueAtReturn<int>(out hr) != 0);
-
             var fileAttributes = GetFileAttributesW(ToLongPathIfExceedMaxPath(path));
 
             if (fileAttributes == NativeIOConstants.InvalidFileAttributes)
@@ -3348,8 +3337,7 @@ namespace BuildXL.Native.IO.Windows
             storagePropertyQuery.PropertyId = StorageDeviceSeekPenaltyProperty;
             storagePropertyQuery.QueryType = PropertyStandardQuery;
 
-            DEVICE_SEEK_PENALTY_DESCRIPTOR seekPropertyDescriptor = default(DEVICE_SEEK_PENALTY_DESCRIPTOR);
-
+            DEVICE_SEEK_PENALTY_DESCRIPTOR seekPropertyDescriptor;
             bool ioctlSuccess = DeviceIoControl(
                 driveHandle,
                 IOCTL_STORAGE_QUERY_PROPERTY,

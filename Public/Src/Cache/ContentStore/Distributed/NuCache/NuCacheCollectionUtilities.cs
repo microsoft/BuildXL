@@ -312,8 +312,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             T current1 = default;
             T current2 = default;
 
-            bool next1 = TryMoveNext(enumerator1, ref current1);
-            bool next2 = TryMoveNext(enumerator2, ref current2);
+            bool next1 = tryMoveNext(enumerator1, ref current1);
+            bool next2 = tryMoveNext(enumerator2, ref current2);
 
             while (next1 || next2)
             {
@@ -328,7 +328,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         break;
                     }
 
-                    next1 = TryMoveNext(enumerator1, ref current1);
+                    next1 = tryMoveNext(enumerator1, ref current1);
                 }
 
                 while (next2)
@@ -342,11 +342,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         break;
                     }
 
-                    next2 = TryMoveNext(enumerator2, ref current2);
+                    next2 = tryMoveNext(enumerator2, ref current2);
                 }
             }
 
-            bool TryMoveNext(IEnumerator<T> enumerator, ref T current)
+            static bool tryMoveNext(IEnumerator<T> enumerator, ref T current)
             {
                 if (enumerator.MoveNext())
                 {

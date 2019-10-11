@@ -22,7 +22,7 @@ namespace BuildXL.Native.Processes
     /// <summary>
     /// Interface for static methods that potentially have to call into native.
     /// </summary>
-    interface IProcessUtilities
+    internal interface IProcessUtilities
     {
         /// <summary><see cref="ProcessUtilities.NormalizeAndHashPath"/></summary>
         int NormalizeAndHashPath(string path, out byte[] normalizedPathBytes);

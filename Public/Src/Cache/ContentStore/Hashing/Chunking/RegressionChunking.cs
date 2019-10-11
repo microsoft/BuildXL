@@ -36,6 +36,9 @@ using System.Collections.Generic;
 #pragma warning disable SA1516
 #pragma warning disable SA1600 // Elements must be documented
 #pragma warning disable SA1602
+#pragma warning disable IDE0040
+#pragma warning disable IDE0011
+#pragma warning disable IDE1006 // Naming rules are different here.
 
 namespace BuildXL.Cache.ContentStore.Hashing.Chunking
 {

@@ -220,8 +220,6 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(volumeMap != null);
             Contract.Requires(journalAccessor != null);
 
-            ulong trackedJournalsSizeBytes;
-
             // Note that when creating an empty set, we set hasNewFileOrCheckpointData: true; this means that an empty set will get saved to disk,
             // which allows it to replace a prior, non-empty set for example. Otherwise, we would lack a fix-point for any usage in which the current set
             // on disk is unusable, but the newly created set never has files added (consider incremental scheduling without an execution phase).
@@ -233,8 +231,8 @@ namespace BuildXL.Storage.ChangeTracking
                 membershipFingerprints: new ConcurrentDictionary<AbsolutePath, DirectoryMembershipTrackingFingerprint>(),
                 knownCheckpoints: null,
                 hasNewFileOrCheckpointData: true,
-                trackedJournalsSizeBytes: out trackedJournalsSizeBytes,
-                nextUsns: out Dictionary<ulong, Usn> dummyNextUsns);
+                trackedJournalsSizeBytes: out _,
+                nextUsns: out _);
         }
 
         /// <summary>
@@ -1057,9 +1055,9 @@ namespace BuildXL.Storage.ChangeTracking
                         for (int i = range.Item1; i < range.Item2; ++i)
                         {
                             var hardLinkPathAndUsnRecord = hardLinkChanges[i];
-                            string expandedPath = hardLinkPathAndUsnRecord.Item1.ToString(m_internalPathTable);
+                            string expandedPath = hardLinkPathAndUsnRecord.path.ToString(m_internalPathTable);
 
-                            if (potentiallyDataChangedFileIds.Contains(hardLinkPathAndUsnRecord.Item2.FileId))
+                            if (potentiallyDataChangedFileIds.Contains(hardLinkPathAndUsnRecord.usnRecord.FileId))
                             {
                                 emitChanges[i] = true;
                                 continue;
@@ -1067,7 +1065,7 @@ namespace BuildXL.Storage.ChangeTracking
 
                             Possible<TrackAndOpenResult> possiblyHardLinkExist =
                                 TryOpenAndTrackPathInternal(
-                                    hardLinkPathAndUsnRecord.Item1,
+                                    hardLinkPathAndUsnRecord.path,
                                     access: FileDesiredAccess.GenericRead,
                                     filter: ExistenceTrackingFilter.TrackIfExistent,
                                     existentFileFilter: fileHandle =>
@@ -1075,7 +1073,7 @@ namespace BuildXL.Storage.ChangeTracking
                                                             // Track only if file id is the same.
                                                             var possiblyVersionFileIdentity = VersionedFileIdentity.TryQuery(fileHandle);
                                                             return possiblyVersionFileIdentity.Succeeded &&
-                                                                   possiblyVersionFileIdentity.Result.FileId == hardLinkPathAndUsnRecord.Item2.FileId;
+                                                                   possiblyVersionFileIdentity.Result.FileId == hardLinkPathAndUsnRecord.usnRecord.FileId;
                                                         });
 
                             bool shouldEmitChange = true;
@@ -1173,7 +1171,7 @@ namespace BuildXL.Storage.ChangeTracking
                 {
                     if (emitChanges[i])
                     {
-                        string expandedPath = hardLinkChanges[i].Item1.ToString(m_internalPathTable);
+                        string expandedPath = hardLinkChanges[i].path.ToString(m_internalPathTable);
                         handleChangedPath(PathChanges.Removed, expandedPath);
                     }
                 }
@@ -1500,7 +1498,7 @@ namespace BuildXL.Storage.ChangeTracking
 
             var parentPath = AbsolutePath.Create(m_internalPathTable, trackedParentPath);
 
-            HierarchicalNameTable.NameFlags existingParentPathFlags = m_internalPathTable.GetContainerAndFlags(parentPath.Value).Item2;
+            HierarchicalNameTable.NameFlags existingParentPathFlags = m_internalPathTable.GetContainerAndFlags(parentPath.Value).flags;
             HierarchicalNameTable.NameFlags tracked = Tracked | Absent;
             if ((existingParentPathFlags & tracked) == 0)
             {
@@ -1595,7 +1593,7 @@ namespace BuildXL.Storage.ChangeTracking
             Contract.Requires(existingAbsentPath.IsValid);
             Contract.Requires(absentChildPath.IsValid);
 
-            HierarchicalNameTable.NameFlags existingAbsentPathFlags = m_internalPathTable.GetContainerAndFlags(existingAbsentPath.Value).Item2;
+            HierarchicalNameTable.NameFlags existingAbsentPathFlags = m_internalPathTable.GetContainerAndFlags(existingAbsentPath.Value).flags;
 
             if ((existingAbsentPathFlags & Absent) == 0)
             {
@@ -1922,7 +1920,7 @@ namespace BuildXL.Storage.ChangeTracking
                                 return TrackAndOpenResult.CreateNonexistent(ConditionalTrackingResult.SkippedDueToFilter);
                             }
 
-                            if ((m_internalPathTable.GetContainerAndFlags(currentPath.Value).Item2 & Absent) != 0)
+                            if ((m_internalPathTable.GetContainerAndFlags(currentPath.Value).flags & Absent) != 0)
                             {
                                 // Tracking fast path: We've done at least one probe that determined non-existence. The path was already marked
                                 //            absent, so we don't actually need to keep walking up to find an existent parent.
@@ -2304,7 +2302,7 @@ namespace BuildXL.Storage.ChangeTracking
             for (int i = 1; i < m_internalPathTable.Count; ++i)
             {
                 var path = new AbsolutePath(i);
-                if ((m_internalPathTable.GetContainerAndFlags(path.Value).Item2 & Absent) != 0)
+                if ((m_internalPathTable.GetContainerAndFlags(path.Value).flags & Absent) != 0)
                 {
                     writer.WriteLine(I($"\t- {path.ToString(m_internalPathTable)}"));
                 }
@@ -2550,7 +2548,7 @@ namespace BuildXL.Storage.ChangeTracking
                     bool isPrimaryPath = currentPathHierarchicalNameId == path.Value;
                     isPathContainer = !isPrimaryPath || isPathContainer;
 
-                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.Item2 & Tracked) != 0)
+                    if ((containerOfCurrentPathAndFlagsOfCurrentPath.flags & Tracked) != 0)
                     {
                         bool superseding = !isPathContainer && updateMode == TrackingUpdateMode.Supersede;
 
@@ -3206,7 +3204,7 @@ namespace BuildXL.Storage.ChangeTracking
                 PathChanges untrackReason,
                 bool respectSupersession)
             {
-                HierarchicalNameTable.NameFlags currentFlags = m_internalPathTable.GetContainerAndFlags(path.Value).Item2;
+                HierarchicalNameTable.NameFlags currentFlags = m_internalPathTable.GetContainerAndFlags(path.Value).flags;
 
                 if ((ifAnySet & currentFlags) == 0)
                 {

@@ -62,7 +62,7 @@ namespace BuildXL.Utilities
         {
             try
             {
-                return new Disposable<TResult>(selector(this.Value), this);
+                return new Disposable<TResult>(selector(Value), this);
             }
             catch
             {

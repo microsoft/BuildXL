@@ -215,7 +215,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             await _contentLocationStore.StartupAsync(context).ThrowIfFailure();
 
             Func<ContentHash[], Task> evictionHandler;
-            var localContext = new Context(context);
+            var localContext = context.CreateNested();
             if (_enableDistributedEviction)
             {
                 evictionHandler = hashes => EvictContentAsync(localContext, hashes);
@@ -229,7 +229,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             // requires the context passed at startup. So we start the queue here.
             _evictionNagleQueue.Start(evictionHandler);
 
-            var touchContext = new Context(context);
+            var touchContext = context.CreateNested();
             _touchNagleQueue = NagleQueue<ContentHashWithSize>.Create(
                 hashes => TouchBulkAsync(touchContext, hashes),
                 Redis.RedisContentLocationStoreConstants.BatchDegreeOfParallelism,

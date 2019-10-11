@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <inheritdoc />
         public bool Equals(ContentHashWithSizeAndLocations other)
         {
-            if (ReferenceEquals(null, other))
+            if (other is null)
             {
                 return false;
             }
@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj))
+            if (obj is null)
             {
                 return false;
             }

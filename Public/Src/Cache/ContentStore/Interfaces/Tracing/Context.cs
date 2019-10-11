@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
@@ -36,19 +37,31 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other)
-            : this(other, Guid.NewGuid())
+        public Context(Context other, [CallerMemberName]string caller = null)
+            : this(other, Guid.NewGuid(), caller)
         {
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, Guid id)
+        public Context(Context other, Guid id, [CallerMemberName]string caller = null)
         {
             Id = id;
             Logger = other.Logger;
-            Debug($"{other.Id} parent to {Id}");
+            Debug($"{caller}: {other.Id} parent to {Id}");
+        }
+
+        /// <nodoc />
+        public Context CreateNested([CallerMemberName]string caller = null)
+        {
+            return new Context(this, caller);
+        }
+
+        /// <nodoc />
+        public Context CreateNested(Guid id, [CallerMemberName]string caller = null)
+        {
+            return new Context(this, id, caller);
         }
 
         /// <summary>
@@ -146,7 +159,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 operationLogger.OperationFinished(operationResult);
             }
 
-            OperationStatus statusFromResult(ResultBase resultBase)
+            static OperationStatus statusFromResult(ResultBase resultBase)
             {
                 if (resultBase.IsCriticalFailure)
                 {

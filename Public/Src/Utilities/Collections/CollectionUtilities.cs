@@ -299,8 +299,7 @@ namespace BuildXL.Utilities.Collections
         public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TValue> addValueFactory)
         {
             Contract.Requires(dictionary != null);
-            TValue result;
-            if (!dictionary.TryGetValue(key, out result))
+            if (!dictionary.TryGetValue(key, out TValue result))
             {
                 result = addValueFactory(key);
                 dictionary[key] = result;
@@ -321,8 +320,7 @@ namespace BuildXL.Utilities.Collections
         public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue = default(TValue))
         {
             Contract.Requires(dictionary != null);
-            TValue value;
-            if (!dictionary.TryGetValue(key, out value))
+            if (!dictionary.TryGetValue(key, out TValue value))
             {
                 value = defaultValue;
             }
@@ -436,8 +434,7 @@ namespace BuildXL.Utilities.Collections
         {
             Contract.Requires(dictionary != null, "dictionary != null");
 
-            TValue resultingValue;
-            if (dictionary.TryGetValue(key, out resultingValue))
+            if (dictionary.TryGetValue(key, out TValue resultingValue))
             {
                 return resultingValue;
             }

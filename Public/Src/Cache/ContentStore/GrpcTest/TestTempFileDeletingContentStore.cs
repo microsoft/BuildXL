@@ -15,7 +15,7 @@ namespace ContentStoreTest.Grpc
 {
     internal class TestTempFileDeletingContentStore : IContentStore
     {
-        private IAbsFileSystem _fileSystem;
+        private readonly IAbsFileSystem _fileSystem;
 
         internal TestTempFileDeletingContentStore(IAbsFileSystem fileSystem)
         {

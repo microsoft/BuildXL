@@ -70,7 +70,7 @@ namespace Test.BuildXL.TestUtilities
 
         private readonly DateTime m_baseTime = DateTime.UtcNow;
 
-        private List<TestEventListenerBase> m_childListeners = new List<TestEventListenerBase>();
+        private readonly List<TestEventListenerBase> m_childListeners = new List<TestEventListenerBase>();
 
         private readonly Action<string> m_logAction;
 

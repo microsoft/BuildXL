@@ -48,7 +48,7 @@ namespace BuildXL.Processes
         /// Creates a journal for a given process.
         /// 
         /// Shared opaque directory outputs of <paramref name="process"/> are used as root directories and
-        /// <see cref="Pip.FormattedSemiStableHash"/> is used as journal base name.
+        /// <see cref="GetJournalFileForProcess"/> is used as journal base name.
         ///
         /// <seealso cref="SharedOpaqueJournal(string, IReadOnlyList{string})"/>
         /// </summary>
@@ -86,7 +86,7 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Given a root directory (<paramref name="journalDirectory"/>), returns the full path to the journal corresponding to process <paramref name="process"/>.
+        /// Given a root directory (<paramref name="journalDirectory"/>), returns the full path to the journal file corresponding to process <paramref name="process"/>.
         /// </summary>
         public static string GetJournalFileForProcess(PathTable pathTable, AbsolutePath journalDirectory, Process process)
         {

@@ -14,14 +14,14 @@ namespace BuildXL.Scheduler.Graph
     /// <summary>
     /// Class for building graph fragments.
     /// </summary>
-    public class GraphFragmentBuilderTopSort : GraphFragmentBuilder
+    public class PipGraphFragmentBuilderTopSort : PipGraphFragmentBuilder
     {
         private readonly ConcurrentDictionary<PipId, IList<Pip>> m_pipDependents = new ConcurrentDictionary<PipId, IList<Pip>>();
         
         /// <summary>
-        /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
+        /// Creates an instance of <see cref="PipGraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilderTopSort(
+        public PipGraphFragmentBuilderTopSort(
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration, 
             PathExpander pathExpander) 

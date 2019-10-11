@@ -117,7 +117,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// File path of which the source shange affected inputs are written into.
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
         public FileArtifact ChangeAffectedInputListWrittenFilePath { get; }
 
         /// <summary>

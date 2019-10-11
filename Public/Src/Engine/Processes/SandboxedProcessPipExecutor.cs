@@ -743,10 +743,10 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                if (!await PrepareChangeAffectedInputListFileAsync(m_changeAffectedInputs))
-                {
-                    return SandboxedProcessPipExecutionResult.PreparationFailure();
-                }
+                //if (!await PrepareChangeAffectedInputListFileAsync(m_changeAffectedInputs))
+                //{
+                //    return SandboxedProcessPipExecutionResult.PreparationFailure();
+                //}
 
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {

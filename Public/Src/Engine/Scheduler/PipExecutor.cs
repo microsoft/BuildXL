@@ -1839,6 +1839,66 @@ namespace BuildXL.Scheduler
                 canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0);
         }
 
+        private static Task<bool> PrepareChangeAffectedInputListFileAsync(FileArtifact file, PathTable pathTable, IReadOnlyCollection<AbsolutePath> changeAffectedInputs = null) =>
+             changeAffectedInputs == null
+                 ? Task.FromResult(true)
+                 : WritePipAuxiliaryFileAsync(
+                     file,
+                     () => string.Join(
+                         Environment.NewLine,
+                         changeAffectedInputs.Select(i => i.GetName(pathTable).ToString(pathTable.StringTable)).Distinct().OrderBy(n => n)),
+                     pathTable);
+
+        private static async Task<bool> WritePipAuxiliaryFileAsync(
+            FileArtifact fileArtifact,
+            Func<string> createContent,
+            PathTable pathTable)
+        {
+            if (!fileArtifact.IsValid)
+            {
+                return true;
+            }
+
+            string destination = fileArtifact.Path.ToString(pathTable);
+
+            try
+            {
+                string directoryName = ExceptionUtilities.HandleRecoverableIOException(
+                        () => Path.GetDirectoryName(destination),
+                        ex => { throw new BuildXLException("Cannot get directory name", ex); });
+                PreparePathForOutputFile(fileArtifact, pathTable);
+                FileUtilities.CreateDirectory(directoryName);
+                await FileUtilities.WriteAllTextAsync(destination, createContent(), Encoding.UTF8);
+            }
+            catch (BuildXLException ex)
+            {               
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void PreparePathForOutputFile(AbsolutePath filePath, PathTable pathTable, HashSet<AbsolutePath> outputDirectories = null)
+        {
+            Contract.Requires(filePath.IsValid);
+
+            string expandedFilePath = filePath.ToString(pathTable);
+            var mayBeDeleted = FileUtilities.TryDeletePathIfExists(expandedFilePath);
+
+            if (!mayBeDeleted.Succeeded)
+            {
+                mayBeDeleted.Failure.Throw();
+            }
+
+            AbsolutePath parentDirectory = filePath.GetParent(pathTable);
+
+            if (outputDirectories == null || outputDirectories.Add(parentDirectory))
+            {
+                // Ensure parent directory exists.
+                FileUtilities.CreateDirectory(parentDirectory.ToString(pathTable));
+            }
+        }
+
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
             ProcessRunnablePip processRunnable,
             PipExecutionState.PipScopeState state,
@@ -1860,6 +1920,11 @@ namespace BuildXL.Scheduler
             Contract.Assume(content != null);
 
             var process = cacheableProcess.Process;
+
+            IReadOnlyList<AbsolutePath> changeAffectedInputs = process.ChangeAffectedInputListWrittenFilePath.IsValid
+                ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(process)
+                : null;
+            PrepareChangeAffectedInputListFileAsync(process.ChangeAffectedInputListWrittenFilePath, pathTable, changeAffectedInputs);
 
             BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
             {

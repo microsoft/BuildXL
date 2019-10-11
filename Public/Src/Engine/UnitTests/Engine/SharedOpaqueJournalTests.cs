@@ -37,6 +37,21 @@ namespace Test.BuildXL.Engine
             XAssert.ArrayEqual(new string[0], result.ToArray());
         }
 
+        [Fact]
+        public void RecordingDeduplicatesPaths()
+        {
+            var myDir = Path.Combine(TemporaryDirectory, nameof(RecordingDeduplicatesPaths));
+
+            var path = Path.Combine(TemporaryDirectory, "path1");
+            var journalPath = Path.Combine(myDir, "Pip0");
+            
+            CreateJournalAndRecordPaths(journalPath, new[] { path, path, path });
+
+            XAssert.ArrayEqual(
+                new[] { path },
+                SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray());
+        }
+
         [Theory]
         [InlineData(20)]
         public void ReadIsInverseOfWrite(int numFiles)

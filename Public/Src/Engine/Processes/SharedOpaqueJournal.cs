@@ -31,6 +31,7 @@ namespace BuildXL.Processes
         private readonly IReadOnlyCollection<AbsolutePath> m_rootDirectories;
         private readonly PathTable m_pathTable;
         private readonly BuildXLWriter m_bxlWriter;
+        private readonly HashSet<AbsolutePath> m_recordedPathsCache;
 
         /// <summary>
         /// Absolute path of this journal file.
@@ -48,7 +49,7 @@ namespace BuildXL.Processes
         /// Shared opaque directory outputs of <paramref name="process"/> are used as root directories and
         /// <see cref="Pip.FormattedSemiStableHash"/> is used as journal base name.
         ///
-        /// <seealso cref="SharedOpaqueJournal(PathTable, IEnumerable{AbsolutePath}, AbsolutePath)"/>
+        /// <seealso cref="SharedOpaqueJournal(PathTable, AbsolutePath, IReadOnlyCollection{AbsolutePath})"/>
         /// </summary>
         public SharedOpaqueJournal(PipExecutionContext context, Process process, AbsolutePath journalDirectory)
             : this(
@@ -74,6 +75,7 @@ namespace BuildXL.Processes
 
             m_pathTable = pathTable;
             m_rootDirectories = rootDirectories;
+            m_recordedPathsCache = new HashSet<AbsolutePath>();
 
             JournalPath = journalPath.ToString(pathTable);
             m_bxlWriter = new BuildXLWriter(
@@ -150,8 +152,12 @@ namespace BuildXL.Processes
         {
             if (m_rootDirectories == null || m_rootDirectories.Any(dir => path.IsWithin(m_pathTable, dir)))
             {
-                m_bxlWriter.Write(path.ToString(m_pathTable));
-                m_bxlWriter.Flush();
+                if (m_recordedPathsCache.Add(path))
+                {
+                    m_bxlWriter.Write(path.ToString(m_pathTable));
+                    m_bxlWriter.Flush();
+                }
+
                 return true;
             }
             else

@@ -206,6 +206,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                      *      Add back into unavailableLocs
                      */
 
+                    /*
+                     * While retry count less than MaxRetryCount
+                     *      index = retryCount % hashInfo.Locations.Count
+                     *      if wait time:
+                     *          lastFailTime = list[index].lastFailure;
+                     *          alreadyWaitedTIme = curTime - lastFailTime;
+                     *          if alreadyWaitedTime <= waitTime:
+                     *              wait for (waitTime - alreadyWaitedTime)
+                     *      Copy File
+                     *      Increment total retry count
+                     *      If index is last element i.e. index = hashInfo.Locations.Count - 1;
+                     *          Calculate new wait time
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,

@@ -100,7 +100,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _taskTracker = new BackgroundTaskTracker(nameof(RedisMetadataCache), new Context(context));
+            _taskTracker = new BackgroundTaskTracker(nameof(RedisMetadataCache), context.CreateNested());
             var redisDatabaseAdapter = new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(context, ConnectionStringProvider), Keyspace);
             _dbAdapter = redisDatabaseAdapter;
             _stringDatabaseAdapter = redisDatabaseAdapter;

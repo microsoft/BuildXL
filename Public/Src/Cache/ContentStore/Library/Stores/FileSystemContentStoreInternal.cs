@@ -735,7 +735,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             var result = await QuotaKeeper.StartupAsync(context);
 
-            _taskTracker = new BackgroundTaskTracker(Component, new Context(context));
+            _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested());
 
             _tracer.StartStats(context, size, contentDirectoryCount);
 

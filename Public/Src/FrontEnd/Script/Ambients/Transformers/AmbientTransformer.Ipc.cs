@@ -187,7 +187,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             outputFile = FileArtifact.CreateOutputFile(output);
 
             // create IPC pip and add it to the graph
-            return context.GetPipConstructionHelper().TryAddIpc(
+            bool result = context.GetPipConstructionHelper().TryAddIpc(
                 ipcClientInfo,
                 arguments,
                 outputFile,
@@ -198,7 +198,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 isServiceFinalization: isServiceFinalization,
                 mustRunOnMaster: mustRunOnMaster,
                 tags: tags,
-                out pipId);
+                out var ipcPip);
+
+            pipId = ipcPip.PipId;
+
+            return result;
         }
     }
 }

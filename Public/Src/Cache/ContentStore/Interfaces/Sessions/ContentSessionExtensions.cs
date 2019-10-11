@@ -63,7 +63,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
                 tasks.AddRange(
                     contentSizes.Select(
                         contentSize =>
-                            session.PutRandomAsync(new Context(context), hashType, provideHash, contentSize, CancellationToken.None)));
+                            session.PutRandomAsync(context.CreateNested(), hashType, provideHash, contentSize, CancellationToken.None)));
 
                 foreach (var task in tasks)
                 {
@@ -121,7 +121,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         {
             Contract.Requires(fileCount > 0);
 
-            var c = new Context(context);
+            var c = context.CreateNested();
             var tasks = Enumerable.Range(0, fileCount).Select(_ => Task.Run(async () => await session.PutRandomAsync(
                 c,
                 hashType,
@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             Contract.Requires(session != null);
             Contract.Requires(context != null);
 
-            var c = new Context(context);
+            var c = context.CreateNested();
 
             // TODO: Fix this to work with size > int.Max (bug 1365340)
             var data = ThreadSafeRandom.GetBytes((int)size);
@@ -180,7 +180,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         public static async Task<PutResult> PutContentAsync(
             this IContentSession session, Context context, string content)
         {
-            var c = new Context(context);
+            var c = context.CreateNested();
 
             var data = Encoding.UTF8.GetBytes(content);
             var hashType = HashType.SHA256;
@@ -209,7 +209,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 
             using (var directory = new DisposableDirectory(fileSystem))
             {
-                var c = new Context(context);
+                var c = context.CreateNested();
 
                 // TODO: Fix this to work with size > int.Max (bug 1365340)
                 var data = ThreadSafeRandom.GetBytes((int)size);

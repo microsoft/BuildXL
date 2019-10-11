@@ -123,6 +123,10 @@ namespace Test.BuildXL.Utilities
                 XAssert.IsTrue(enumValues.Length > 1, $"Enum type '{propertyType.Name}' has only one value");
                 return new object[] { propertyInfo, enumValues.GetValue(0), enumValues.GetValue(1) };
             }
+            else if(propertyType == typeof(int))
+            {
+                return new object[] { propertyInfo, 0, 1 };
+            }
             else if (propertyType.IsAssignableFrom(typeof(List<string>)))
             {
                 return new object[] { propertyInfo, new List<string>(1) { "str1" }, new List<string>(1) { "str2" } };

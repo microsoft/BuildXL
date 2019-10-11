@@ -3,13 +3,8 @@
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
-const root = Environment.hasVariable("QTEST_DEPLOYMENT_PATH") ? d`${Environment.getFileValue("QTEST_DEPLOYMENT_PATH")}` : d`.`;
-const qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType")
-    ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType")
-    : "None";
-
-const isChangeBasedCodeCoverage = Environment.getFlag("[Sdk.BuildXL]inputChangesPresented");
-
+const root = d`.`;
+const dynamicCodeCovString = "DynamicCodeCov";
 
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
@@ -38,6 +33,27 @@ const defaultArgs: QTestArguments = {
         'telemetry:QTest'
     ]
 };
+
+const enum CoverageOptions {
+    None,
+    DynamicFull,
+    DynamicChangeList
+}
+
+function getCodeCoverageOption(): CoverageOptions {
+    if (Environment.hasVariable("[Sdk.BuildXL.CBInternal]CodeCoverageOption")) {
+        switch (Environment.getStringValue("[Sdk.BuildXL.CBInternal]CodeCoverageOption")) {
+            case CoverageOptions.DynamicChangeList.toString():
+                return CoverageOptions.DynamicChangeList;
+            case CoverageOptions.DynamicFull.toString():
+                return CoverageOptions.DynamicFull;
+            default:
+                return CoverageOptions.None;
+        }
+    }
+    return CoverageOptions.None;
+}
+
 function qTestTypeToString(args: QTestArguments) {
     switch (args.qTestType) {
         case QTestType.msTest_latest:
@@ -79,6 +95,7 @@ function validateArguments(args: QTestArguments): void {
         Contract.fail("Do not specify both qTestDirToDeploy and qTestInputs. Specify your inputs using only one of these arguments");
     }
 }
+
 /**
  * Evaluate (i.e. schedule) QTest runner with specified arguments.
  */
@@ -120,23 +137,25 @@ export function runQTest(args: QTestArguments): Result {
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
 
     // Microsoft internal cloud service use only
-    let qTestContextInfoPath = undefined;
-    let untrackingCBPaths = {};
-    if (Environment.hasVariable("[Sdk.BuildXL]qtestContextInfo")){
-        const qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
-        qTestContextInfoPath = qTestContextInfoFile.path;
-    }
-     
+    // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
+    let qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo") || Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
+    let qTestContextInfoFilePath = Environment.getPathValue("[Sdk.BuildXL.CBInternal]qtestContextInfo") || Environment.getPathValue("[Sdk.BuildXL]qtestContextInfo");                
+
+    let codeCoverageOption = getCodeCoverageOption();
     let changeAffectedInputListWrittenFile = undefined;
     let changeAffectedInputListWrittenFileArg = {};
-    if (qCodeCoverageEnumType === "DynamicCodeCov" && isChangeBasedCodeCoverage){
+    if (codeCoverageOption === CoverageOptions.DynamicChangeList) {
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const dir = d`${parentDir}/changeAffectedInput/${leafDir}`;
         changeAffectedInputListWrittenFile = p`${dir}/fileWithImpactedTargets.txt`;
         changeAffectedInputListWrittenFileArg = {changeAffectedInputListWrittenFile : changeAffectedInputListWrittenFile};
     }
-    
+
+    let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? dynamicCodeCovString :  CoverageOptions.None.toString();
+
+    // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;        
 
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
@@ -184,7 +203,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.flag("--debug", Environment.hasVariable("[Sdk.BuildXL]debugQTest")),
         Cmd.flag("--qTestIgnoreQTestSkip", args.qTestIgnoreQTestSkip),
         Cmd.option("--qTestAdditionalOptions ", args.qTestAdditionalOptions, args.qTestAdditionalOptions ? true : false),
-        Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
+        Cmd.option("--qTestContextInfo ", qTestContextInfoFilePath),
         Cmd.option("--qTestBuildType ", args.qTestBuildType || "unset"),
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
@@ -194,7 +213,7 @@ export function runQTest(args: QTestArguments): Result {
 
     let unsafeOptions = {
         untrackedPaths: [
-            qTestContextInfoPath,
+            ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
         ],
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that
@@ -239,7 +258,7 @@ export function runQTest(args: QTestArguments): Result {
     const qTestLogsDir: StaticDirectory = result.getOutputDirectory(logDir);
 
     // If code coverage is enabled, schedule a pip that will perform coverage file upload.
-    if (qCodeCoverageEnumType === "DynamicCodeCov"){
+    if (qCodeCoverageEnumType === dynamicCodeCovString) {
         const parentDir = d`${logDir}`.parent;
         const leafDir = d`${logDir}`.nameWithoutExtension;
         const coverageLogDir = d`${parentDir}/CoverageLogs/${leafDir}`;
@@ -248,7 +267,7 @@ export function runQTest(args: QTestArguments): Result {
 
         const commandLineArgsForUploadPip: Argument[] = [
             Cmd.option("--qTestLogsDir ", Artifact.output(coverageLogDir)),
-            Cmd.option("--qTestContextInfo ", qTestContextInfoPath),
+            Cmd.option("--qTestContextInfo ", qTestContextInfoFilePath),
             Cmd.option("--coverageDirectory ", Artifact.input(qTestLogsDir)),
             Cmd.option("--qTestBuildType ", args.qTestBuildType || "Unset"),
             Cmd.option("--qtestPlatform ", qTestPlatformToString(args.qTestPlatform))

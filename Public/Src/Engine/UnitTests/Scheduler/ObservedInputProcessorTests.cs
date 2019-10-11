@@ -1202,7 +1202,7 @@ namespace Test.BuildXL.Scheduler
                 preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
                 directoryMembershipFinterprinterRuleSet: parentRuleSet);
-            PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, allowPreserveOutputs: false);
+            PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);
             DirectoryMembershipFingerprinterRule rule;

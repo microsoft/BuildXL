@@ -15,7 +15,6 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 using static BuildXL.Scheduler.Graph.PipGraph;
 
@@ -24,7 +23,7 @@ namespace BuildXL.Scheduler.Graph
     /// <summary>
     /// Class for building graph fragments.
     /// </summary>
-    public class GraphFragmentBuilder : IPipGraph
+    public class PipGraphFragmentBuilder : IPipGraph
     {
         /// <summary>
         /// Seal directory table
@@ -57,9 +56,9 @@ namespace BuildXL.Scheduler.Graph
         private int m_nextPipId = 0;
 
         /// <summary>
-        /// Creates an instance of <see cref="GraphFragmentBuilder"/>.
+        /// Creates an instance of <see cref="PipGraphFragmentBuilder"/>.
         /// </summary>
-        public GraphFragmentBuilder(
+        public PipGraphFragmentBuilder(
             PipExecutionContext pipExecutionContext, 
             IConfiguration configuration,
             PathExpander pathExpander)

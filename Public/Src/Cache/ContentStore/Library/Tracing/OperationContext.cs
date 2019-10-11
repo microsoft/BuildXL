@@ -45,15 +45,15 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public OperationContext CreateNested()
+        public OperationContext CreateNested([CallerMemberName]string? caller = null)
         {
-            return new OperationContext(new Context(TracingContext), Token);
+            return new OperationContext(new Context(TracingContext, caller), Token);
         }
 
         /// <nodoc />
-        public OperationContext CreateNested(Guid id)
+        public OperationContext CreateNested(Guid id, [CallerMemberName]string? caller = null)
         {
-            return new OperationContext(new Context(TracingContext, id), Token);
+            return new OperationContext(new Context(TracingContext, id, caller), Token);
         }
 
         /// <summary>
@@ -66,10 +66,10 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         }
 
         /// <nodoc />
-        public OperationContext CreateNested(CancellationToken linkedCancellationToken)
+        public OperationContext CreateNested(CancellationToken linkedCancellationToken, [CallerMemberName]string? caller = null)
         {
             var token = CancellationTokenSource.CreateLinkedTokenSource(Token, linkedCancellationToken).Token;
-            return new OperationContext(new Context(TracingContext), token);
+            return new OperationContext(new Context(TracingContext, caller), token);
         }
 
         /// <summary>

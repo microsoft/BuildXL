@@ -385,10 +385,10 @@ namespace BuildXL.Pips
             bool isServiceFinalization,
             bool mustRunOnMaster,
             string[] tags,
-            out PipId ipcPipId)
+            out IpcPip ipcPip)
         {
 
-            var pip = new IpcPip(
+            ipcPip = new IpcPip(
                 ipcClientInfo,
                 arguments,
                 outputFile: outputFile,
@@ -404,12 +404,10 @@ namespace BuildXL.Pips
 
             if (PipGraph != null)
             {
-                var success = PipGraph.AddIpcPip(pip, GetValuePipId());
-                ipcPipId = pip.PipId;
+                var success = PipGraph.AddIpcPip(ipcPip, GetValuePipId());
                 return success;
             }
 
-            ipcPipId = PipId.Invalid;
             return true;
         }
 

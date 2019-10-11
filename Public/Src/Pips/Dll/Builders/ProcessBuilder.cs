@@ -127,6 +127,9 @@ namespace BuildXL.Pips.Builders
         public Options Options { get; set; }
 
         /// <nodoc />
+        public int PreserveOutputsTrustLevel { get; set; } = (int)PreserveOutputsTrustValue.Lowest;
+
+        /// <nodoc />
         public ReadOnlyArray<AbsolutePath> PreserveOutputWhitelist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
 
         // Container related
@@ -667,7 +670,8 @@ namespace BuildXL.Pips.Builders
                 weight: Weight,
                 priority: Priority,
                 preserveOutputWhitelist: PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
+                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile,
+                preserveOutputsTrustLevel: PreserveOutputsTrustLevel);
 
             return true;
         }

@@ -1188,7 +1188,7 @@ namespace BuildXL.Engine
                     return null;
                 }
 
-                return ContentHashingUtilities.HashString(guid);
+                return ContentHashingUtilities.HashString(guid + config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
             }
 
             return UnsafeOptions.PreserveOutputsNotUsed;

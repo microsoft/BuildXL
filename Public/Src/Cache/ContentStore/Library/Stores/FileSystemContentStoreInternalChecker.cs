@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -15,11 +14,69 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Native.IO;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Stores
 {
+    /// <nodoc />
+    public sealed class SelfCheckSettings
+    {
+        /// <summary>
+        /// If true, then <see cref="FileSystemContentStoreInternal"/> will start a self-check to validate that the content in cache is valid at startup.
+        /// </summary>
+        /// <remarks>
+        /// If the property is false, then the self check is still possible but <see cref="FileSystemContentStoreInternal.SelfCheckContentDirectoryAsync(Interfaces.Tracing.Context, System.Threading.CancellationToken)"/>
+        /// method should be called manually.
+        /// </remarks>
+        public bool StartSelfCheckInStartup { get; set; } = false;
+
+        /// <summary>
+        /// An interval between self checks performed by a content store to make sure that all the data on disk matches it's hashes.
+        /// </summary>
+        public TimeSpan Frequency { get; set; } = TimeSpan.FromDays(1);
+
+        /// <summary>
+        /// An epoch used for reseting self check of a content directory.
+        /// </summary>
+        public string Epoch { get; set; } = "E0";
+
+        /// <summary>
+        /// An interval for tracing self check progress.
+        /// </summary>
+        public TimeSpan ProgressReportingInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// A number of invalid hashes that the checker will process in one attempt.
+        /// </summary>
+        /// <remarks>
+        /// Used for testing purposes.
+        /// </remarks>
+        public long InvalidFilesLimit { get; set; } = long.MaxValue;
+
+        /// <summary>
+        /// The delay between file IO operations.
+        /// </summary>
+        /// <remarks>
+        /// For HDD drives, reading the entire content directory even from one thread can fully saturate the HDD drive causing significant slowdown for all the other disk IO operations.
+        /// </remarks>
+        public TimeSpan? HashAnalysisDelay { get; set; }
+
+        /// <summary>
+        /// The default delay used by HDD drives during self check to avoid HDD saturation.
+        /// </summary>
+        public TimeSpan DefaultHddHashAnalysisDelay { get; set; } = TimeSpan.FromMilliseconds(100);
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"Epoch=[{Epoch}], ProgressReportingInterval=[{ProgressReportingInterval}], HashAnalysisDelay=[{HashAnalysisDelay}]";
+        }
+    }
+
     /// <summary>
     /// Helper class responsible for validating a content directory.
     /// </summary>
@@ -30,7 +87,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly FileSystemContentStoreInternal _contentStoreInternal;
         private readonly AbsolutePath _selfCheckFilePath;
 
-        private readonly ContentStoreSettings _settings;
+        private readonly SelfCheckSettings _settings;
         private readonly Tracer _tracer;
 
         /// <nodoc />
@@ -39,14 +96,14 @@ namespace BuildXL.Cache.ContentStore.Stores
             IClock clock,
             AbsolutePath rootPath,
             Tracer tracer,
-            ContentStoreSettings settings,
+            SelfCheckSettings? settings,
             FileSystemContentStoreInternal contentStoreInternal)
         {
             _fileSystem = fileSystem;
             _clock = clock;
             _contentStoreInternal = contentStoreInternal;
             _tracer = tracer;
-            _settings = settings;
+            _settings = CreateOrAdjustSelfCheckSettings(settings, rootPath);
             _selfCheckFilePath = rootPath / "selfCheckMarker.txt";
         }
 
@@ -61,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         {
                             var selfCheckState = GetSelfCheckState(context);
 
-                            var status = selfCheckState.CheckStatus(_clock.UtcNow, _settings.SelfCheckEpoch, _settings.SelfCheckFrequency);
+                            var status = selfCheckState.CheckStatus(_clock.UtcNow, _settings.Epoch, _settings.Frequency);
                             if (status == SelfCheckStatus.UpToDate)
                             {
                                 _tracer.Debug(
@@ -79,6 +136,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                             return result;
                         },
+                        extraStartMessage: _settings.ToString(),
                         extraEndMessage: r => r ? r.Value.ToString() : string.Empty);
         }
 
@@ -141,7 +199,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             // Trying to restore the index of a hash that we processed before.
             int index = 0;
-            if (status == SelfCheckStatus.InProgress)
+            if (status == SelfCheckStatus.InProgress && selfCheckState.LastPosition != null)
             {
                 index = findNextIndexToProcess(selfCheckState.LastPosition.Value);
                 _tracer.Debug(context, $"SelfCheck: skipping {index} elements based on previous state '{selfCheckState.ToParseableString()}'.");
@@ -185,22 +243,27 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 // If the current entry is not the last one, and we reached the number of invalid files,
                 // then exiting the loop.
-                if (invalidEntries ==  _settings.SelfCheckInvalidFilesLimit && index != contentHashes.Count - 1)
+                if (invalidEntries ==  _settings.InvalidFilesLimit && index != contentHashes.Count - 1)
                 {
-                    _tracer.Debug(context, $"SelfCheck: Exiting self check because invalid file limit of {_settings.SelfCheckInvalidFilesLimit} is reached.");
+                    _tracer.Debug(context, $"SelfCheck: Exiting self check because invalid file limit of {_settings.InvalidFilesLimit} is reached.");
                     break;
+                }
+
+                if (_settings.HashAnalysisDelay != null)
+                {
+                    await Task.Delay(_settings.HashAnalysisDelay.Value, context.Token);
                 }
             }
 
             if (index == contentHashes.Count)
             {
                 // All the items are processed. Saving new stable checkpoint
-                UpdateSelfCheckStateOnDisk(context, SelfCheckState.SelfCheckComplete(_settings.SelfCheckEpoch, _clock.UtcNow));
+                UpdateSelfCheckStateOnDisk(context, SelfCheckState.SelfCheckComplete(_settings.Epoch, _clock.UtcNow));
             }
             else
             {
                 // The loop was interrupted. Saving an incremental state.
-                var newStatus = selfCheckState.WithEpochAndPosition(_settings.SelfCheckEpoch, contentHashes[index].Hash);
+                var newStatus = selfCheckState.WithEpochAndPosition(_settings.Epoch, contentHashes[index].Hash);
                 UpdateSelfCheckStateOnDisk(context, newStatus);
             }
 
@@ -235,7 +298,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 processedBytes += contentHashes[currentHashIndex].Payload.Length;
 
                 var swTime = stopwatch.Elapsed;
-                if (swTime - progressTracker > _settings.SelfCheckProgressReportingInterval)
+                if (swTime - progressTracker > _settings.ProgressReportingInterval)
                 {
                     // It is possible to have multiple replicas with the same hash.
                     // We need to save the state only when *all* the replicas are processed.
@@ -243,12 +306,12 @@ namespace BuildXL.Cache.ContentStore.Stores
                     // No check is performed on the last element because the state will be saved immediately after
                     if (currentHashIndex + 1 < contentHashes.Count && currentHash != contentHashes[currentHashIndex + 1].Hash)
                     {
-                        var speed = ((double)processedBytes / (1024*1024)) / _settings.SelfCheckProgressReportingInterval.TotalSeconds;
+                        var speed = ((double)processedBytes / (1024*1024)) / _settings.ProgressReportingInterval.TotalSeconds;
                         _tracer.Always(context, $"SelfCheck: processed {index}/{contentHashes.Count}: {new SelfCheckResult(invalidEntries, processedEntries)}. Hashing speed {speed:0.##}Mb/s.");
                         processedBytes = 0;
 
                         // Saving incremental state
-                        var newStatus = selfCheckState.WithEpochAndPosition(_settings.SelfCheckEpoch, currentHash);
+                        var newStatus = selfCheckState.WithEpochAndPosition(_settings.Epoch, currentHash);
                         UpdateSelfCheckStateOnDisk(context, newStatus);
 
                         progressTracker = swTime;
@@ -285,6 +348,24 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 return (isValid: true, error: string.Empty);
             }
+        }
+
+        private static SelfCheckSettings CreateOrAdjustSelfCheckSettings(SelfCheckSettings? settings, AbsolutePath rootPath)
+        {
+            var currentDrive = rootPath.DriveLetter;
+            settings ??= new SelfCheckSettings();
+
+            // Setting the hash analysis delay if the current drive is hdd drive and the analysis delay is not set yet.
+            bool? seekPenalty = (char.IsLetter(currentDrive) && currentDrive > 64 && currentDrive < 123)
+                ? FileUtilities.DoesLogicalDriveHaveSeekPenalty(currentDrive)
+                : false;
+
+            if (seekPenalty == true && settings.HashAnalysisDelay == null)
+            {
+                settings.HashAnalysisDelay = settings.DefaultHddHashAnalysisDelay;
+            }
+
+            return settings;
         }
 
         internal enum SelfCheckStatus
@@ -417,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// <inheritdoc />
             public override bool Equals(object obj)
             {
-                if (ReferenceEquals(null, obj))
+                if (obj is null)
                 {
                     return false;
                 }
@@ -447,8 +528,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             /// <inheritdoc />
             public int Compare(T x, T y) => _comparer(x, y);
         }
-
-        private static DelegateBasedComparer<T> CreateComparer<T>(Func<T, T, int> comparer) where T : IComparable<T> => new DelegateBasedComparer<T>(comparer);
     }
 
     /// <summary>

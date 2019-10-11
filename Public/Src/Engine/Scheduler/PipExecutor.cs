@@ -1836,7 +1836,7 @@ namespace BuildXL.Scheduler
                 state,
                 cacheableProcess,
                 computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
-                canAugmentWeakFingerprint: processRunnable.Environment.Configuration.Cache.AugmentWeakFingerprintPathSetThreshold > 0);
+                canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0);
         }
 
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
@@ -2306,18 +2306,18 @@ namespace BuildXL.Scheduler
                 RunnableFromCacheResult runnableFromCacheResult;
 
                 bool isCacheHit = cacheHitData != null;
-
+                
                 if (!isCacheHit)
                 {
                     var pathSetCount = strongFingerprintComputationList.Count;
-                    int threshold = environment.Configuration.Cache.AugmentWeakFingerprintPathSetThreshold;
+                    int threshold = processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(environment.Configuration.Cache);
                     if (augmentedWeakFingerprint == null
                         && threshold > 0
                         && canAugmentWeakFingerprint
                         && pathSetCount >= threshold)
                     {
                         // Compute 'weak augmenting' path set with common paths among path sets
-                        ObservedPathSet weakAugmentingPathSet = ExtractPathSetForAugmentingWeakFingerprint(pathTable, environment.Configuration.Cache, strongFingerprintComputationList);
+                        ObservedPathSet weakAugmentingPathSet = ExtractPathSetForAugmentingWeakFingerprint(pathTable, environment.Configuration.Cache, process, strongFingerprintComputationList);
 
                         var minPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Min();
                         var maxPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Max();
@@ -2427,9 +2427,10 @@ namespace BuildXL.Scheduler
         private static ObservedPathSet ExtractPathSetForAugmentingWeakFingerprint(
             PathTable pathTable,
             ICacheConfiguration cacheConfiguration,
+            Process process,
             List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
         {
-            var requiredUseCount = Math.Max(1, cacheConfiguration.AugmentWeakFingerprintPathSetThreshold * cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor);
+            var requiredUseCount = Math.Max(1, process.AugmentWeakFingerprintPathSetThreshold(cacheConfiguration) * process.AugmentWeakFingerprintRequiredPathCommonalityFactor(cacheConfiguration));
             using (var pool = s_pathToObservationEntryMapPool.GetInstance())
             using (var accessedNameUseCountMapPool = s_accessedFileNameToUseCountPool.GetInstance())
             using (var stringIdPool = Pools.StringIdSetPool.GetInstance())
@@ -4400,7 +4401,9 @@ namespace BuildXL.Scheduler
             Contract.Requires(process != null);
 
             return process.AllowPreserveOutputs &&
-                   environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled;
+                   environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled
+                   && process.PreserveOutputsTrustLevel >= environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel;
+
         }
 
         private static bool IsProcessPreservingOutputFile(IPipExecutionEnvironment environment, Process process, FileArtifact fileArtifact, FileOutputData fileOutputData)
@@ -4420,7 +4423,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable);
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel); 
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

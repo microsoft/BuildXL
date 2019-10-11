@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Native.IO;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Utilities
@@ -15,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// File copier to handle copying files between two distributed instances
     /// </summary>
-    public class DistributedCopier : IAbsolutePathFileCopier
+    public class DistributedCopier : ITraceableAbsolutePathFileCopier
     {
         /// <inheritdoc />
         public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)
@@ -23,6 +24,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             var resultCode = FileUtilities.Exists(path.Path) ? FileExistenceResult.ResultCode.FileExists : FileExistenceResult.ResultCode.FileNotFound;
 
             return Task.FromResult(new FileExistenceResult(resultCode));
+        }
+
+        /// <inheritdoc />
+        public Task<CopyFileResult> CopyToAsync(OperationContext context, AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize)
+        {
+            return CopyToAsync(sourcePath, destinationStream, expectedContentSize, context.Token);
         }
 
         /// <inheritdoc />
@@ -40,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
 
             using (Stream s = FileUtilities.CreateAsyncFileStream(sourcePath.Path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                return await s.CopyToAsync(destinationStream, 81920, cancellationToken).ContinueWith((_) => CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition));
+                return await s.CopyToAsync(destinationStream, 81920, cancellationToken).ContinueWith(_ => CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition));
             }
         }
     }

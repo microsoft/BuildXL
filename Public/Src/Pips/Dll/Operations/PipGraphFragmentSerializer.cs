@@ -21,12 +21,12 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Total pips to deserialize in the fragment.  Until this is read in from the file, it is 0.
         /// </summary>
-        public int TotalPipsToDeserialized => m_totalPipsToDeserialize;
+        public int TotalPipsToDeserialize => m_totalPipsToDeserialize;
 
         /// <summary>
         /// Total pips to deserialize in the fragment.  Until this is read in from the file, it is 0.
         /// </summary>
-        public int TotalPipsToSerialized => m_totalPipsToSerialize;
+        public int TotalPipsToSerialize => m_totalPipsToSerialize;
 
         /// <summary>
         /// Total pips deserialized so far.
@@ -211,6 +211,7 @@ namespace BuildXL.Pips.Operations
             using (var writer = GetRemapWriter(stream))
             {
                 SerializeHeader(writer, fragmentDescription, false);
+                m_totalPipsToSerialize = pipsToSerialize.Count;
                 writer.Write(pipsToSerialize.Count);
                 foreach (var pip in pipsToSerialize)
                 {
@@ -242,6 +243,7 @@ namespace BuildXL.Pips.Operations
             using (var writer = GetRemapWriter(stream))
             {
                 SerializeHeader(writer, fragmentDescription, true);
+                m_totalPipsToSerialize = totalPipCount;
                 writer.Write(totalPipCount);
                 foreach (var pipGroup in pipsToSerialize)
                 {

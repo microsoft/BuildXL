@@ -50,6 +50,17 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
+        public override bool AddIpcPip([NotNull] IpcPip ipcPip, PipId valuePip)
+        {
+            var result = base.AddIpcPip(ipcPip, valuePip);
+            AddFileDependents(ipcPip.FileDependencies, ipcPip);
+            AddDirectoryDependents(ipcPip.DirectoryDependencies, ipcPip);
+            AddDependents(ipcPip.ServicePipDependencies, ipcPip);
+
+            return result;
+        }
+
+        /// <inheritdoc />
         public override DirectoryArtifact AddSealDirectory([NotNull] SealDirectory sealDirectory, PipId valuePip)
         {
             var result = base.AddSealDirectory(sealDirectory, valuePip);

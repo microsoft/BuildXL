@@ -31,7 +31,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// </summary>
     public sealed class RedisInfo
     {
-        private static readonly Dictionary<(string group, string key), Action<string, RedisInfo>> _mapper = CreateMapper();
+        private static readonly Dictionary<(string group, string key), Action<string, RedisInfo>> Mapper = CreateMapper();
 
         private static Dictionary<(string group, string key), Action<string, RedisInfo>> CreateMapper()
         {
@@ -88,11 +88,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                                                         var parts = input.Split(new []{','}, StringSplitOptions.RemoveEmptyEntries);
                                                         if (parts.Length == 3)
                                                         {
-                                                            redisInfo.KeyCount = TryParseValue(parts[0]);
-                                                            redisInfo.ExpirableKeyCount = TryParseValue(parts[1]);
+                                                            redisInfo.KeyCount = tryParseValue(parts[0]);
+                                                            redisInfo.ExpirableKeyCount = tryParseValue(parts[1]);
                                                         }
 
-                                                        long? TryParseValue(string s)
+                                                        static long? tryParseValue(string s)
                                                         {
                                                             var idx = s.IndexOf("=", StringComparison.InvariantCulture);
                                                             return idx != -1 ? TryParse(s.Substring(idx + 1)) : null;
@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             {
                 foreach (var kvp in g)
                 {
-                    if (_mapper.TryGetValue((g.Key, kvp.Key), out var processFunc))
+                    if (Mapper.TryGetValue((g.Key, kvp.Key), out var processFunc))
                     {
                         processFunc(kvp.Value, this);
                     }

@@ -92,7 +92,7 @@ namespace ContentStoreTest.Stores
 
         private class TestAbsFileSystem : IAbsFileSystem
         {
-            private long _currentSize;
+            private readonly long _currentSize;
 
             public TestAbsFileSystem(long currentSize)
             {
@@ -267,7 +267,7 @@ namespace ContentStoreTest.Stores
 
         private class TestContentStoreInternal : IContentStoreInternal
         {
-            private string _dummyPath;
+            private readonly string _dummyPath;
 
             public AbsolutePath RootPath => new AbsolutePath(_dummyPath);
 

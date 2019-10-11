@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
 // ReSharper disable All
@@ -30,6 +31,18 @@ namespace BuildXL.Cache.ContentStore.Distributed
     }
 
     /// <summary>
+    /// Represents an interface that allows copying files from a remote source to a local path with an ability to specify tracing context for the operation.
+    /// </summary>
+    public interface ITraceableFileCopier<in T>
+        where T : PathBase
+    {
+        /// <summary>
+        /// Copies a file represented by the path into the stream specified.
+        /// </summary>
+        Task<CopyFileResult> CopyToAsync(OperationContext context, T sourcePath, Stream destinationStream, long expectedContentSize);
+    }
+
+    /// <summary>
     /// Represents an interface that allows copying files from a remote source to a local path.
     /// </summary>
     public interface IFileCopier : IFileCopier<PathBase>, IFileExistenceChecker<PathBase> { }
@@ -38,6 +51,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// Represents an interface that allows copying files form a remote source to a local path using absolute paths.
     /// </summary>
     public interface IAbsolutePathFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath> { }
+
+    /// <summary>
+    /// Represents an interface that allows copying files from a remote source to a local path using absolute path with an ability to specify tracing context for the operation.
+    /// </summary>
+    public interface ITraceableAbsolutePathFileCopier : IAbsolutePathFileCopier, ITraceableFileCopier<AbsolutePath>
+    {
+    }
 
     /// <summary>
     /// Requests another machine to copy from the current machine.
@@ -51,5 +71,27 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <param name="hash">The hash of the file to be copied.</param>
         /// <param name="targetMachine">The machine that should copy the file</param>
         Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
+    }
+
+    /// <summary>
+    /// Extension methods for <see cref="IFileCopier{T}"/> interface.
+    /// </summary>
+    public static class AbsolutePathFileCopierExtensions
+    {
+        /// <nodoc />
+        public static Task<CopyFileResult> CopyToWithOperationContextAsync<T>(
+            this IFileCopier<T> copier,
+            OperationContext context,
+            T sourcePath,
+            Stream destinationStream,
+            long expectedContentSize) where T : PathBase
+        {
+            if (copier is ITraceableFileCopier<T> traceable)
+            {
+                return traceable.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize);
+            }
+
+            return copier.CopyToAsync(sourcePath, destinationStream, expectedContentSize, context.Token);
+        }
     }
 }

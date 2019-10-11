@@ -165,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
                     using (counters[GetAndDeserializeReconcileData].Start())
                     {
-                        addOrRemoveEvents = await GetAndDeserializeReconcileDataAsync();
+                        addOrRemoveEvents = await getAndDeserializeReconcileDataAsync();
                     }
 
                     int added = 0;
@@ -191,7 +191,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     return new ReconciliationResult(addedCount: added, removedCount: removed, totalLocalContentCount: -1);
                 }).ThrowIfFailure();
 
-            async Task<IEnumerable<ContentLocationEventData>> GetAndDeserializeReconcileDataAsync()
+            async Task<IEnumerable<ContentLocationEventData>> getAndDeserializeReconcileDataAsync()
             {
                 var reconcileFilePath = _workingDirectory / Guid.NewGuid().ToString();
                 var blobName = reconcileContent.BlobId;
@@ -257,7 +257,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 context.LogSendEventsOverview(counters, (int)counters[SendEvents].Duration.TotalMilliseconds);
             }
 
-            void updateCountersWith(CounterCollection<ContentLocationEventStoreCounters> localCounters, ContentLocationEventData[] sentEvents)
+            static void updateCountersWith(CounterCollection<ContentLocationEventStoreCounters> localCounters, ContentLocationEventData[] sentEvents)
             {
                 foreach (var group in sentEvents.GroupBy(t => t.Kind))
                 {

@@ -607,8 +607,8 @@ namespace BuildXL.Pips
                             {
                                 var table1 = tuple.Item1;
                                 var @this = tuple.Item2;
-                                var storeId1 = tuple.Item3;
-                                var pipId3 = tuple.Item4;
+                                var storeId1 = tuple.storeId;
+                                var pipId3 = tuple.pipId2;
 
                                 var start = Stopwatch.GetTimestamp();
                                 var pip = table1.m_store.Read<Pip>(storeId1, reader => ((PipReader)reader).ReadPip());

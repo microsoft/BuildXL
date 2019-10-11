@@ -146,7 +146,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
                 operationLogger.OperationFinished(operationResult);
             }
 
-            OperationStatus statusFromResult(ResultBase resultBase)
+            static OperationStatus statusFromResult(ResultBase resultBase)
             {
                 if (resultBase.IsCriticalFailure)
                 {

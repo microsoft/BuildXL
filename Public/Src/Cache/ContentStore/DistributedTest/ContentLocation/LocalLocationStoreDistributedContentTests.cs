@@ -1148,7 +1148,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var masterRedisStore = lls0.CurrentRole == Role.Master ? ls0 : ls1;
                     var workerRedisStore = lls0.CurrentRole == Role.Master ? ls1 : ls0;
 
-                    long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
+                    static long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
                         where TEnum : struct => c1[name].Value - c2[name].Value;
 
                     for (int i = 0; i < 5; i++)
@@ -1279,7 +1279,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     config.EventStore.Epoch = $"Epoch:{iteration}";
                 });
 
-            long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
+            static long diff<TEnum>(CounterCollection<TEnum> c1, CounterCollection<TEnum> c2, TEnum name)
                 where TEnum : struct => c1[name].Value - c2[name].Value;
 
             await RunTestAsync(
@@ -2265,8 +2265,7 @@ namespace ContentStoreTest.Distributed.Sessions
             var testBasePath = FileSystem.GetTempPath();
             var containerName = "checkpoints";
             var checkpointsKey = "checkpoints-eventhub";
-
-            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out var eventHubConnectionString, out var eventHubName))
+            if (!ReadConfiguration(out var storageAccountKey, out var storageAccountName, out _, out _))
             {
                 Output.WriteLine("The test is skipped due to misconfiguration.");
                 return;

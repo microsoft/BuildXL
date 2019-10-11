@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Cache.ContentStore.Utils
@@ -200,10 +199,7 @@ namespace BuildXL.Cache.ContentStore.Utils
                     }
                 }
 
-                ResourcePoolCounters counter = reused ? ResourcePoolCounters.Reused : ResourcePoolCounters.Created;
-                Counter[counter].Increment();
-
-                _context.TraceMessage(Severity.Diagnostic, $"{nameof(ResourcePool<TKey, TObject>)}.{nameof(CreateAsync)} {(reused ? "reused" : "created")} a resource with {returnWrapper.Uses} from a pool of {_resourceDict.Count}");
+                Counter[reused ? ResourcePoolCounters.Reused : ResourcePoolCounters.Created].Increment();
             }
 
             return returnWrapper;

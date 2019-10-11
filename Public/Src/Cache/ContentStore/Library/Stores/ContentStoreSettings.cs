@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -33,38 +33,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool UseNativeBlobEnumeration { get; set; } = false;
 
         /// <summary>
-        /// If true, then <see cref="FileSystemContentStoreInternal"/> will start a self-check to validate that the content in cache is valid at startup.
-        /// </summary>
-        /// <remarks>
-        /// If the property is false, then the self check is still possible but <see cref="FileSystemContentStoreInternal.SelfCheckContentDirectoryAsync(Interfaces.Tracing.Context, System.Threading.CancellationToken)"/>
-        /// method should be called manually.
-        /// </remarks>
-        public bool StartSelfCheckInStartup { get; set; } = false;
-
-        /// <summary>
-        /// An interval between self checks performed by a content store to make sure that all the data on disk matches it's hashes.
-        /// </summary>
-        public TimeSpan SelfCheckFrequency { get; set; } = TimeSpan.FromDays(1);
-
-        /// <summary>
-        /// An epoch used for reseting self check of a content directory.
-        /// </summary>
-        public string SelfCheckEpoch { get; set; } = "E0";
-
-        /// <summary>
-        /// An interval for tracing self check progress.
-        /// </summary>
-        public TimeSpan SelfCheckProgressReportingInterval { get; set; } = TimeSpan.FromMinutes(5);
-
-        /// <summary>
-        /// A number of invalid hashes that the checker will process in one attempt.
-        /// </summary>
-        /// <remarks>
-        /// Used for testing purposes.
-        /// </remarks>
-        public long SelfCheckInvalidFilesLimit { get; set; } = long.MaxValue;
-
-        /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
         public bool OverrideUnixFileAccessMode { get; set; } = false;
@@ -76,5 +44,8 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <nodoc />
         public static ContentStoreSettings DefaultSettings { get; } = new ContentStoreSettings();
+
+        /// <nodoc />
+        public SelfCheckSettings? SelfCheckSettings { get; set; }
     }
 }

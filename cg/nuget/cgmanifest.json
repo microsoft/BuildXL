@@ -123,7 +123,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTest",
-          "Version": "19.9.6.1149"
+          "Version": "19.10.5.1051"
         }
       }
     },
@@ -1654,24 +1654,6 @@
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Tokens",
           "Version": "5.2.2"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.App",
-          "Version": "2.1.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NETCore.App",
-          "Version": "2.1.1"
         }
       }
     },
@@ -4235,15 +4217,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "runtime.osx-x64.Microsoft.NETCore.App",
-          "Version": "2.2.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost",
           "Version": "2.2.0"
         }
@@ -4345,15 +4318,6 @@
         "NuGet": {
           "Name": "runtime.win-x64.Microsoft.DotNet.ILCompiler",
           "Version": "1.0.0-alpha-27527-01"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "runtime.win-x64.Microsoft.NETCore.App",
-          "Version": "2.2.0"
         }
       }
     },

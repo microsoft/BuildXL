@@ -4504,8 +4504,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipInputAssertions,
-            Message = "Source dependency for file at path: {filePath} could not be hashed while processing pip.")]
-        public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath);
+            Message = "Source dependency for file at path: {filePath} could not be hashed while processing pip: {pipDescription}.")]
+        public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription);
     }
 }
 #pragma warning restore CA1823 // Unused field

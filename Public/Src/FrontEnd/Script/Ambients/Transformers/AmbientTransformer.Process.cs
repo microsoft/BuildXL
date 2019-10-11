@@ -1191,13 +1191,25 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.allowPreservedOutputs
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs) == true)
+            var unsafePreserveOutput = Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs);
+            if (unsafePreserveOutput.HasValue)
             {
-                processBuilder.Options |= Process.Options.AllowPreserveOutputs;
+                bool? enabled = unsafePreserveOutput.Value.Item1;
+                int?  trustLevel = unsafePreserveOutput.Value.Item2;
 
-                if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
+                if(trustLevel.HasValue && trustLevel.Value < 0)
                 {
-                    processBuilder.Options |= Process.Options.IncrementalTool;
+                    throw new InputValidationException(I($"Expected '{m_unsafeAllowPreservedOutputs.ToString(StringTable)}' to be boolean or >= 0"), new ErrorContext(name: m_unsafeAllowPreservedOutputs,  objectCtx: unsafeOptionsObjLit));
+                }
+                if ((enabled.HasValue && enabled.Value) || (trustLevel.HasValue && trustLevel.Value > 0))
+                {
+                    processBuilder.Options |= Process.Options.AllowPreserveOutputs;
+                    processBuilder.PreserveOutputsTrustLevel = enabled.HasValue ? (int)PreserveOutputsTrustValue.Lowest : trustLevel.Value;
+
+                    if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
+                    {
+                        processBuilder.Options |= Process.Options.IncrementalTool;
+                    }
                 }
             }
 
@@ -1208,7 +1220,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.requireGlobalDependencies
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) == true)
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) != false)
             {
                 processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             }

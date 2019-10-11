@@ -166,13 +166,15 @@ namespace BuildXL.Cache.Host.Service.Internal
             if (_distributedSettings.IsPinBetterEnabled)
             {
                 pinConfiguration = new PinConfiguration();
-                if (_distributedSettings.PinRisk.HasValue) pinConfiguration.PinRisk = _distributedSettings.PinRisk.Value;
-                if (_distributedSettings.MachineRisk.HasValue) pinConfiguration.MachineRisk = _distributedSettings.MachineRisk.Value;
-                if (_distributedSettings.FileRisk.HasValue) pinConfiguration.FileRisk = _distributedSettings.FileRisk.Value;
-                if (_distributedSettings.MaxIOOperations.HasValue) pinConfiguration.MaxIOOperations = _distributedSettings.MaxIOOperations.Value;
+                if (_distributedSettings.PinRisk.HasValue) { pinConfiguration.PinRisk = _distributedSettings.PinRisk.Value; }
+                if (_distributedSettings.MachineRisk.HasValue) { pinConfiguration.MachineRisk = _distributedSettings.MachineRisk.Value; }
+                if (_distributedSettings.FileRisk.HasValue) { pinConfiguration.FileRisk = _distributedSettings.FileRisk.Value; }
+                if (_distributedSettings.MaxIOOperations.HasValue) { pinConfiguration.MaxIOOperations = _distributedSettings.MaxIOOperations.Value; }
+
                 pinConfiguration.UsePinCache = _distributedSettings.IsPinCachingEnabled;
-                if (_distributedSettings.PinCacheReplicaCreditRetentionMinutes.HasValue) pinConfiguration.PinCacheReplicaCreditRetentionMinutes = _distributedSettings.PinCacheReplicaCreditRetentionMinutes.Value;
-                if (_distributedSettings.PinCacheReplicaCreditRetentionDecay.HasValue) pinConfiguration.PinCacheReplicaCreditRetentionDecay = _distributedSettings.PinCacheReplicaCreditRetentionDecay.Value;
+
+                if (_distributedSettings.PinCacheReplicaCreditRetentionMinutes.HasValue) { pinConfiguration.PinCacheReplicaCreditRetentionMinutes = _distributedSettings.PinCacheReplicaCreditRetentionMinutes.Value; }
+                if (_distributedSettings.PinCacheReplicaCreditRetentionDecay.HasValue) { pinConfiguration.PinCacheReplicaCreditRetentionDecay = _distributedSettings.PinCacheReplicaCreditRetentionDecay.Value; }
             }
 
             var contentHashBumpTime = TimeSpan.FromMinutes(_distributedSettings.ContentHashBumpTimeMinutes);
@@ -192,7 +194,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 configurationModel = new ConfigurationModel(new ContentStoreConfiguration(new MaxSizeQuota(namedCacheSettings.CacheSizeQuotaString)));
             }
 
-            var bandwidthCheckedCopier = new BandwidthCheckedCopier<AbsolutePath>(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
+            var bandwidthCheckedCopier = new BandwidthCheckedCopier(_arguments.Copier, BandwidthChecker.Configuration.FromDistributedContentSettings(_distributedSettings), _logger);
 
             _logger.Debug("Creating a distributed content store for Autopilot");
             var contentStore =
@@ -243,22 +245,32 @@ namespace BuildXL.Cache.Host.Service.Internal
 
         private static ContentStoreSettings FromDistributedSettings(DistributedContentSettings settings)
         {
-            var result = new ContentStoreSettings()
+            return new ContentStoreSettings()
+                   {
+                       UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
+                       CheckFiles = settings.CheckLocalFiles,
+                       UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
+                       SelfCheckSettings = CreateSelfCheckSettings(settings),
+                       OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
+                       UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
+                       TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                   };
+        }
+
+        private static SelfCheckSettings CreateSelfCheckSettings(DistributedContentSettings settings)
+        {
+            var selfCheckSettings = new SelfCheckSettings()
             {
-                UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
-                CheckFiles = settings.CheckLocalFiles,
-                UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
-                SelfCheckEpoch = settings.SelfCheckEpoch,
+                Epoch = settings.SelfCheckEpoch,
                 StartSelfCheckInStartup = settings.StartSelfCheckAtStartup,
-                SelfCheckFrequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
-                OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
-                UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
-                TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                Frequency = TimeSpan.FromMinutes(settings.SelfCheckFrequencyInMinutes),
             };
 
-            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => result.SelfCheckProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+            ApplyIfNotNull(settings.SelfCheckProgressReportingIntervalInMinutes, minutes => selfCheckSettings.ProgressReportingInterval = TimeSpan.FromMinutes(minutes));
+            ApplyIfNotNull(settings.SelfCheckDelayInMilliseconds, milliseconds => selfCheckSettings.HashAnalysisDelay = TimeSpan.FromMilliseconds(milliseconds));
+            ApplyIfNotNull(settings.SelfCheckDefaultHddDelayInMilliseconds, milliseconds => selfCheckSettings.DefaultHddHashAnalysisDelay = TimeSpan.FromMilliseconds(milliseconds));
 
-            return result;
+            return selfCheckSettings;
         }
 
         private async Task ApplySecretSettingsForLlsAsync(RedisContentLocationStoreConfiguration configuration, AbsolutePath localCacheRoot)
@@ -460,19 +472,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             }
 
             return value;
-        }
-
-        private static RetryPolicy CreateSecretsRetrievalRetryPolicy(DistributedContentSettings settings)
-        {
-            return new RetryPolicy(
-                new KeyVaultRetryPolicy(),
-                new ExponentialBackoff(
-                    name: "SecretsRetrievalBackoff",
-                    retryCount: settings.SecretsRetrievalRetryCount,
-                    minBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMinBackoffSeconds),
-                    maxBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalMaxBackoffSeconds),
-                    deltaBackoff: TimeSpan.FromSeconds(settings.SecretsRetrievalDeltaBackoffSeconds),
-                    firstFastRetry: false)); // All retries are subjects to the policy, even the first one
         }
 
         private sealed class KeyVaultRetryPolicy : ITransientErrorDetectionStrategy

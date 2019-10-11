@@ -3133,6 +3133,14 @@ namespace BuildXL.Scheduler
                     return DispatcherKind.ChooseWorkerCpu;
 
                 case PipExecutionStep.MaterializeInputs:
+                    if (runnablePip.PipType == PipType.Ipc)
+                    {
+                        // Send IPC pips to light queue to materialize since they don't often materialize much
+                        // and in the worst case they would only contend with other IPC pips
+                        return DispatcherKind.Light;
+                    }
+
+                    return DispatcherKind.Materialize;
                 case PipExecutionStep.MaterializeOutputs:
                 case PipExecutionStep.PostProcess:
                     return DispatcherKind.Materialize;
@@ -5613,7 +5621,7 @@ namespace BuildXL.Scheduler
                 return false;
             }
 
-            return PipGraph.IsPreservedOutputArtifact(artifact);
+            return PipGraph.IsPreservedOutputArtifact(artifact, m_configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

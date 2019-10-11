@@ -89,6 +89,7 @@ Transformer.execute({
         ],
         hasUntrackedChildProcesses: true,
         allowPreservedOutputs: true,
+        requireGlobalDependencies: true,
     },
     keepOutputsWritable: true,
 });

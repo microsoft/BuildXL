@@ -161,7 +161,7 @@ namespace BuildXL.LogGen
         private bool ParseAndValidateLogSite(IMethodSymbol method, AttributeData attributeData, out LoggingSite loggingSite)
         {
             loggingSite = new LoggingSite();
-            loggingSite.Aliases = this.m_configuration.Aliases;
+            loggingSite.Aliases = m_configuration.Aliases;
             loggingSite.Method = method;
 
             if (!loggingSite.SetPayload(m_errorReport, method.Parameters.Skip(1)))

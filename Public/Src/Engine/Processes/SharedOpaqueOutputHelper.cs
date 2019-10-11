@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
@@ -10,31 +11,157 @@ using static BuildXL.Utilities.FormattableStringEx;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Utility class for identifying a file as being an output of a shared opaque. This helps the scrubber to be more precautious when deleting files under shared opaques.
+    /// Utility class for identifying a file as being an output of a shared opaque.
+    /// This helps the scrubber to be more precautious when deleting files under shared opaques.
     /// </summary>
+    /// <remarks>
+    /// Currently, we use two different strategies when running on Windows and non-Windows platforms
+    ///   - on Windows, we set a magic timestamp as file's creation (birth) date
+    ///   - on Mac, we set an extended attribute with a special name.
+    /// On Mac, some tools tend to change the timestamps (even the birth date) which is the reason for this.
+    ///
+    /// TODO: eventually we should unify this and use the same mechanism for all platforms, if possible.
+    /// </remarks>
     public static class SharedOpaqueOutputHelper
     {
+        private static class Win
+        {
+            /// <summary>
+            /// Flags the given path as being an output under a shared opaque by setting the creation time to 
+            /// <see cref="WellKnownTimestamps.OutputInSharedOpaqueTimestamp"/>.
+            /// </summary>
+            /// <exception cref="BuildXLException">When the timestamp cannot be set</exception>
+            public static void SetPathAsSharedOpaqueOutput(string expandedPath)
+            {
+                try
+                {
+                    // Only the creation time is used to identify a file as the output of a shared opaque
+                    FileUtilities.SetFileTimestamps(expandedPath, new FileTimestamps(WellKnownTimestamps.OutputInSharedOpaqueTimestamp));
+                }
+                catch (BuildXLException ex)
+                {
+                    // On (unsafe) double writes, a race can occur, we give the other contender a second chance
+                    if (IsSharedOpaqueOutput(expandedPath))
+                    {
+                        return;
+                    }
+
+                    // Since these files should be just created outputs, this shouldn't happen and we bail out hard.
+                    throw new BuildXLException(I($"Failed to open output file '{expandedPath}' for writing."), ex);
+                }
+            }
+
+            /// <summary>
+            /// Checks if the given path is an output under a shared opaque by verifying whether <see cref="WellKnownTimestamps.OutputInSharedOpaqueTimestamp"/> is the creation time of the file
+            /// </summary>
+            /// <remarks>
+            /// If the given path is a directory, it is always considered part of a shared opaque
+            /// </remarks>
+            public static bool IsSharedOpaqueOutput(string expandedPath)
+            {
+                try
+                {
+                    var creationTime = FileUtilities.GetFileTimestamps(expandedPath).CreationTime;
+                    return creationTime == WellKnownTimestamps.OutputInSharedOpaqueTimestamp;
+                }
+                catch (BuildXLException ex)
+                {
+                    throw new BuildXLException(I($"Failed to open output file '{expandedPath}' for reading."), ex);
+                }
+            }
+        }
+
+        private static unsafe class Unix
+        {
+            private const string MY_XATTR_NAME = "com.microsoft.buildxl:shared_opaque_output";
+
+            // arbitrary value; in the future, we could store something more useful here (e.g., the producer PipId or something)
+            private const long MY_XATTR_VALUE = 42; 
+
+            // from xattr.h:
+            // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
+            private const int XATTR_NOFOLLOW = 1;
+
+            [DllImport("libc", EntryPoint = "setxattr", SetLastError = true)]
+            private static extern int SetXattr(
+                [MarshalAs(UnmanagedType.LPStr)] string path,
+                [MarshalAs(UnmanagedType.LPStr)] string name,
+                void *value,
+                ulong size,
+                uint position,
+                int options);
+
+            [DllImport("libc", EntryPoint = "getxattr", SetLastError = true)]
+            private static extern long GetXattr(
+                [MarshalAs(UnmanagedType.LPStr)] string path,
+                [MarshalAs(UnmanagedType.LPStr)] string name,
+                void *value,
+                ulong size,
+                uint position,
+                int options);
+
+            /// <summary>
+            /// Flags the given path as being an output under a shared opaque by setting
+            /// <see cref="MY_XATTR_NAME"/> xattr to a <see cref="MY_XATTR_VALUE"/>.
+            /// </summary>
+            public static void SetPathAsSharedOpaqueOutput(string expandedPath)
+            {
+                long value = MY_XATTR_VALUE;
+                var err = SetXattr(expandedPath, MY_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
+                if (err != 0)
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {errorCode}"));
+                }
+            }
+
+            /// <summary>
+            /// Checks if the given path is an output under a shared opaque by checking if
+            /// it contains extended attribute by <see cref="MY_XATTR_NAME"/> name.
+            /// </summary>
+            public static bool IsSharedOpaqueOutput(string expandedPath)
+            {
+                long value = 0;
+                uint valueSize = sizeof(long);
+                var resultSize = GetXattr(expandedPath, MY_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
+                return resultSize == valueSize && value == MY_XATTR_VALUE;
+            }
+        }
+
         /// <summary>
-        /// Flags the given path as being an output under a shared opaque by setting the creation time to <see cref="WellKnownTimestamps.OutputInSharedOpaqueTimestamp"/>
+        /// Marks a given path as "shared opaque output"
         /// </summary>
-        /// <exception cref="BuildXLException">When the timestamp cannot be set</exception>
+        /// <exception cref="BuildXLException">When unsuccessful</exception>
         public static void SetPathAsSharedOpaqueOutput(string expandedPath)
         {
+            // In the case of a no replay, this case can happen if the file got into the cache as a static output,
+            // but later was made a shared opaque output without a content change.
+            // Make sure we allow for attribute writing first
+            var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
+            var writeAttrs = FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes;
+            if (writeAttributesDenied)
+            {
+                FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: true);
+            }
+
             try
             {
-                // Only the creation time is used to identify a file as the output of a shared opaque
-                FileUtilities.SetFileTimestamps(expandedPath, new FileTimestamps(WellKnownTimestamps.OutputInSharedOpaqueTimestamp));
-            }
-            catch (BuildXLException ex)
-            {
-                // On (unsafe) double writes, a race can occur, we give the other contender a second chance
-                if (IsSharedOpaqueOutput(expandedPath))
+                if (OperatingSystemHelper.IsUnixOS)
                 {
-                    return;
+                    Unix.SetPathAsSharedOpaqueOutput(expandedPath);
                 }
-
-                // Since these files should be just created outputs, this shouldn't happen and we bail out hard.
-                throw new BuildXLException(I($"Failed to open output file '{expandedPath}' for writing."), ex);
+                else
+                {
+                    Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                }
+            }
+            finally
+            {
+                // Restore the attributes as they were originally set
+                if (writeAttributesDenied)
+                {
+                    FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: false);
+                }
             }
         }
 
@@ -74,18 +201,9 @@ namespace BuildXL.Processes
                 return true;
             }
 
-            DateTime creationTime;
-
-            try
-            {
-                creationTime = FileUtilities.GetFileTimestamps(expandedPath).CreationTime;
-            }
-            catch (BuildXLException ex)
-            {
-                throw new BuildXLException(I($"Failed to open output file '{expandedPath}' for reading."), ex);
-            }
-
-            return creationTime == WellKnownTimestamps.OutputInSharedOpaqueTimestamp;
+            return OperatingSystemHelper.IsUnixOS
+                ? Unix.IsSharedOpaqueOutput(expandedPath)
+                : Win.IsSharedOpaqueOutput(expandedPath);
         }
 
         /// <summary>
@@ -93,37 +211,13 @@ namespace BuildXL.Processes
         /// </summary>
         public static void EnforceFileIsSharedOpaqueOutput(string expandedPath)
         {
-            // If the file has the right timestamps already, then there is nothing to do.
+            // If the file is already marked, then there is nothing to do.
             if (IsSharedOpaqueOutput(expandedPath))
             {
                 return;
             }
 
-            // In the case of a no replay, this case can happen if the file got into the cache as a static output, but later was made a shared opaque
-            // output without a content change.
-
-#if PLATFORM_WIN
-            // Make sure we allow for attribute writing first
-            var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
-            if (writeAttributesDenied)
-            {
-                FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: true);
-            }
-#endif
-            try
-            {
-                SetPathAsSharedOpaqueOutput(expandedPath);
-            }
-            finally
-            {
-#if PLATFORM_WIN
-                // Restore the attributes as they were originally set
-                if (writeAttributesDenied)
-                {
-                    FileUtilities.SetFileAccessControl(expandedPath, FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes, allow: false);
-                }
-#endif
-            }
+            SetPathAsSharedOpaqueOutput(expandedPath);
         }
     }
 }

@@ -60,7 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         // Local Machine Information
         private readonly MachineLocation _localMachineLocation;
         private readonly string _localMachineLocationHash;
-        private static readonly HashInfo _dataMigrationHashInfo = HashInfoLookup.Find(HashType.Vso0);
+        private static readonly HashInfo DataMigrationHashInfo = HashInfoLookup.Find(HashType.Vso0);
 
         // Test Flags
         internal bool DisableHeartbeat = false;
@@ -763,36 +763,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
         }
 
-        private async Task<IList<ContentHashWithExistence>> CompileExistenceAsync(
-            Context context,
-            IList<ContentHash> contentHashes,
-            Dictionary<ContentHash, Task<RedisValue>> hashToContentLocationMap,
-            CancellationToken cts)
-        {
-            var finalResults = new List<ContentHashWithExistence>();
-
-            foreach (ContentHash contentHash in contentHashes)
-            {
-                bool exists = false;
-
-                RedisValue sizeAndContentLocations = await hashToContentLocationMap[contentHash];
-                if (sizeAndContentLocations != RedisValue.Null)
-                {
-                    exists = await FindExistenceOfLocationMappingAsync(sizeAndContentLocations, cts, context);
-                }
-
-                finalResults.Add(new ContentHashWithExistence(contentHash, exists));
-            }
-
-            return finalResults;
-        }
-
         private async Task<List<ContentHashWithSizeAndLocations>> CheckMasterForLocationsAsync(
             Context context,
             IList<ContentHashWithSizeAndLocations> replicaResults,
             CancellationToken cts)
         {
-            const UrgencyHint masterHint = UrgencyHint.Nominal;
+            const UrgencyHint MasterHint = UrgencyHint.Nominal;
             IRedisBatch batch = _contentRedisDatabaseAdapter.CreateBatchOperation(RedisOperation.CheckMasterForLocations);
             var hashToContentLocationMap = new Dictionary<ContentHash, Task<RedisValue>>();
             var finalResults = new List<ContentHashWithSizeAndLocations>();
@@ -803,7 +779,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
                     string contentHashString = GetContentHashString(result.ContentHash);
                     hashToContentLocationMap[result.ContentHash] =
-                        batch.StringGetAsync(contentHashString, GetCommandFlagsForUrgencyHint(masterHint));
+                        batch.StringGetAsync(contentHashString, GetCommandFlagsForUrgencyHint(MasterHint));
                 }
                 else
                 {
@@ -921,43 +897,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
 
             return await _contentRedisDatabaseAdapter.ExecuteBatchOperationAsync(context, trimBatch, cts);
-        }
-
-        private async Task<bool> FindExistenceOfLocationMappingAsync(
-            byte[] contentLocationsByteArray,
-            CancellationToken cts,
-            Context context)
-        {
-            for (int i = BytesInFileSize; i < contentLocationsByteArray.Length; i++)
-            {
-                byte redisChar = contentLocationsByteArray[i];
-
-                int position = 0;
-                while (redisChar != 0)
-                {
-                    if ((redisChar & MaxCharBitMask) != 0)
-                    {
-                        var found = await GetLocationMappingAsync(context, position, i, cts);
-                        if (found != null)
-                        {
-                            return true;
-                        }
-                    }
-
-                    redisChar <<= 1;
-                    position++;
-                }
-            }
-
-            return false;
-        }
-
-        private Task<MachineLocation?> GetLocationMappingAsync(Context context, int position, int index, CancellationToken cts, int offset = BytesInFileSize)
-        {
-            // Subtract 8 to account for file size stored in Redis
-            var contentLocationId = new MachineId(((index - offset) * 8) + position);
-
-            return GetLocationMappingAsync(context, contentLocationId, cts);
         }
 
         private async Task<MachineLocation?> GetLocationMappingAsync(Context context, MachineId contentLocationId, CancellationToken cts)
@@ -1089,11 +1028,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             return machineId;
         }
 
-        private string GetMachineDataString(byte[] machineData)
-        {
-            return Convert.ToBase64String(machineData);
-        }
-
         private string GetContentHashString(ContentHash contentHash)
         {
             return Convert.ToBase64String(contentHash.ToHashByteArray());
@@ -1104,9 +1038,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             try
             {
                 byte[] hashBytes = Convert.FromBase64String(key);
-                if (hashBytes.Length == _dataMigrationHashInfo.ByteLength)
+                if (hashBytes.Length == DataMigrationHashInfo.ByteLength)
                 {
-                    return new ContentHash(_dataMigrationHashInfo.HashType, hashBytes);
+                    return new ContentHash(DataMigrationHashInfo.HashType, hashBytes);
                 }
             }
             catch (FormatException)
@@ -1121,7 +1055,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         internal async Task UpdateIdentityAsync(Context context)
         {
-            const UrgencyHint urgency = UrgencyHint.Minimum;
+            const UrgencyHint Urgency = UrgencyHint.Minimum;
 
             // Lookup this machine's id
             RedisValue redisValue =
@@ -1129,7 +1063,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     context,
                     $"{ContentLocationKeyPrefix}{_localMachineLocationHash}",
                     CancellationToken.None,
-                    GetCommandFlagsForUrgencyHint(urgency));
+                    GetCommandFlagsForUrgencyHint(Urgency));
 
             MachineId machineId;
             if (redisValue != RedisValue.Null)

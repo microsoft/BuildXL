@@ -8,6 +8,7 @@ source "${MY_DIR}/env.sh"
   --config "$MY_DIR/config.dsc"             \
   --symlink-sdks-into "$MY_DIR/sdk"         \
   --buildxl-bin "$BUILDXL_BIN"              \
+  /useHardLinks+                            \
   /sandboxKind:macOsKext                    \
   /disableProcessRetryOnResourceExhaustion+ \
   "$@"

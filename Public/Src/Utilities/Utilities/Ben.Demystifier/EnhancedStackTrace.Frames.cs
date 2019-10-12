@@ -58,7 +58,6 @@ namespace System.Diagnostics
                     var fileName = frame.GetFileName();
                     var row = frame.GetFileLineNumber();
                     var column = frame.GetFileColumnNumber();
-                    var ilOffset = frame.GetILOffset();
 
                     // This feature is not supported in BuildXL because it requires some dependencies that can't be used today.
 
@@ -241,7 +240,7 @@ namespace System.Diagnostics
             return methodDisplayInfo;
         }
 
-        private static BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+        private static readonly BindingFlags s_bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
 
         private static bool TryResolveGeneratedName(ref MethodBase method, out Type type, out string methodName, out string subMethodName, out GeneratedNameKind kind, out int? ordinal)
         {
@@ -263,21 +262,25 @@ namespace System.Diagnostics
             switch (kind)
             {
                 case GeneratedNameKind.LocalFunction:
+                {
+                    var localNameStart = generatedName.IndexOf((char)kind, closeBracketOffset + 1);
+                    if (localNameStart < 0)
                     {
-                        var localNameStart = generatedName.IndexOf((char)kind, closeBracketOffset + 1);
-                        if (localNameStart < 0) break;
-                        localNameStart += 3;
-
-                        if (localNameStart < generatedName.Length)
-                        {
-                            var localNameEnd = generatedName.IndexOf("|", localNameStart);
-                            if (localNameEnd > 0)
-                            {
-                                subMethodName = generatedName.Substring(localNameStart, localNameEnd - localNameStart);
-                            }
-                        }
                         break;
                     }
+                    
+                    localNameStart += 3;
+
+                    if (localNameStart < generatedName.Length)
+                    {
+                        var localNameEnd = generatedName.IndexOf("|", localNameStart);
+                        if (localNameEnd > 0)
+                        {
+                            subMethodName = generatedName.Substring(localNameStart, localNameEnd - localNameStart);
+                        }
+                    }
+                    break;
+                }
                 case GeneratedNameKind.LambdaMethod:
                     subMethodName = "";
                     break;
@@ -293,11 +296,14 @@ namespace System.Diagnostics
 
             var matchName = methodName;
 
-            var candidateMethods = dt.GetMethods(bindingFlags).Where(m => m.Name == matchName);
-            if (TryResolveSourceMethod(candidateMethods, kind, matchHint, ref method, ref type, out ordinal)) return true;
+            var candidateMethods = dt.GetMethods(s_bindingFlags).Where(m => m.Name == matchName);
+            if (TryResolveSourceMethod(candidateMethods, kind, matchHint, ref method, ref type, out ordinal)) { return true; }
 
-            var candidateConstructors = dt.GetConstructors(bindingFlags).Where(m => m.Name == matchName);
-            if (TryResolveSourceMethod(candidateConstructors, kind, matchHint, ref method, ref type, out ordinal)) return true;
+            var candidateConstructors = dt.GetConstructors(s_bindingFlags).Where(m => m.Name == matchName);
+            if (TryResolveSourceMethod(candidateConstructors, kind, matchHint, ref method, ref type, out ordinal))
+            {
+                return true;
+            }
 
             const int MaxResolveDepth = 10;
             for (var i = 0; i < MaxResolveDepth; i++)
@@ -308,11 +314,11 @@ namespace System.Diagnostics
                     return false;
                 }
 
-                candidateMethods = dt.GetMethods(bindingFlags).Where(m => m.Name == matchName);
-                if (TryResolveSourceMethod(candidateMethods, kind, matchHint, ref method, ref type, out ordinal)) return true;
+                candidateMethods = dt.GetMethods(s_bindingFlags).Where(m => m.Name == matchName);
+                if (TryResolveSourceMethod(candidateMethods, kind, matchHint, ref method, ref type, out ordinal)) { return true; }
 
-                candidateConstructors = dt.GetConstructors(bindingFlags).Where(m => m.Name == matchName);
-                if (TryResolveSourceMethod(candidateConstructors, kind, matchHint, ref method, ref type, out ordinal)) return true;
+                candidateConstructors = dt.GetConstructors(s_bindingFlags).Where(m => m.Name == matchName);
+                if (TryResolveSourceMethod(candidateConstructors, kind, matchHint, ref method, ref type, out ordinal)) { return true; }
 
                 if (methodName == ".cctor")
                 {
@@ -408,7 +414,7 @@ namespace System.Diagnostics
 
                 ordinal = foundOrdinal;
 
-                var methods = method.DeclaringType.GetMethods(bindingFlags);
+                var methods = method.DeclaringType.GetMethods(s_bindingFlags);
 
                 var startName = method.Name.Substring(0, lamdaStart);
                 var count = 0;
@@ -432,7 +438,7 @@ namespace System.Diagnostics
             }
         }
 
-        static string GetMatchHint(GeneratedNameKind kind, MethodBase method)
+        private static string GetMatchHint(GeneratedNameKind kind, MethodBase method)
         {
             var methodName = method.Name;
 
@@ -440,9 +446,9 @@ namespace System.Diagnostics
             {
                 case GeneratedNameKind.LocalFunction:
                     var start = methodName.IndexOf("|");
-                    if (start < 1) return null;
+                    if (start < 1) { return null; }
                     var end = methodName.IndexOf("_", start) + 1;
-                    if (end <= start) return null;
+                    if (end <= start) { return null; }
 
                     return methodName.Substring(start, end - start);
             }
@@ -758,7 +764,7 @@ namespace System.Diagnostics
                 return false;
             }
 
-            var methods = parentType.GetMethods(bindingFlags);
+            var methods = parentType.GetMethods(s_bindingFlags);
 
             foreach (var candidateMethod in methods)
             {

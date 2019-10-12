@@ -20,7 +20,7 @@ namespace BuildXL.Storage.InputChange
     {
         private readonly List<IObserver<ChangedPathInfo>> m_observers = new List<IObserver<ChangedPathInfo>>(2);
         private readonly List<ChangedPathInfo> m_changedPaths = new List<ChangedPathInfo>();
-        private static char[] s_inputSeparator = new[] { '|' };
+        private static readonly char[] s_inputSeparator = new[] { '|' };
 
         /// <summary>
         /// Gets the list of input changes.

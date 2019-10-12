@@ -4431,7 +4431,9 @@ namespace BuildXL.Scheduler
             Contract.Requires(process != null);
 
             return process.AllowPreserveOutputs &&
-                   environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled;
+                   environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled
+                   && process.PreserveOutputsTrustLevel >= environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel;
+
         }
 
         private static bool IsProcessPreservingOutputFile(IPipExecutionEnvironment environment, Process process, FileArtifact fileArtifact, FileOutputData fileOutputData)
@@ -4451,7 +4453,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable);
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel); 
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

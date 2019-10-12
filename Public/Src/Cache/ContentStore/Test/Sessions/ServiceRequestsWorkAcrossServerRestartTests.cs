@@ -24,6 +24,7 @@ using Xunit;
 using Xunit.Abstractions;
 
 #pragma warning disable SA1402 // File may only contain a single class
+#pragma warning disable IDE0040 // Accessibility modifiers required
 
 namespace ContentStoreTest.Sessions
 {

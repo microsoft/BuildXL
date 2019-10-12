@@ -1627,7 +1627,8 @@ namespace BuildXL.Scheduler.Artifacts
 
                     if (sealDirectoryKind == SealDirectoryKind.Opaque)
                     {
-                        if (Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Enabled || !PipArtifacts.IsPreservedOutputByPip(state.PipInfo.UnderlyingPip, directory.Path, Context.PathTable))
+                        if (Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Enabled || 
+                            !PipArtifacts.IsPreservedOutputByPip(state.PipInfo.UnderlyingPip, directory.Path, Context.PathTable, Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel))
                         {
                             // Dynamic directories must be deleted before materializing files
                             // We don't want this to happen for shared dynamic ones
@@ -3298,6 +3299,11 @@ namespace BuildXL.Scheduler.Artifacts
                 return false;
             }
 
+            if (pip is Process process && Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel > process.PreserveOutputsTrustLevel)
+            {
+                return false;
+            }
+
             if (!materializingOutput)
             {
                 // File can be a dynamic output. First get the declared artifact.
@@ -3310,7 +3316,7 @@ namespace BuildXL.Scheduler.Artifacts
             // As the pip did not run yet and sealContents is not populated, we cannot easily get 
             // declared directory artifact for the given dynamic file.
 
-            return PipArtifacts.IsPreservedOutputByPip(pip, file, Context.PathTable, isDynamicFileOutput: !pipId.IsValid);
+            return PipArtifacts.IsPreservedOutputByPip(pip, file, Context.PathTable, Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel, isDynamicFileOutput: !pipId.IsValid);
         }
 
         /// <summary>

@@ -177,8 +177,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>true if the key was found. Otherwise, false.</returns>
         public bool TryGetValue(TKey key, out TValue value)
         {
-            KeyValuePair<TKey, TValue> foundPair;
-            if (BackingSet.TryGetItem(CreateKeyValuePendingItem(key), out foundPair))
+            if (BackingSet.TryGetItem(CreateKeyValuePendingItem(key), out KeyValuePair<TKey, TValue> foundPair))
             {
                 value = foundPair.Value;
                 return true;
@@ -205,8 +204,7 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                TValue value;
-                if (!TryGetValue(key, out value))
+                if (!TryGetValue(key, out TValue value))
                 {
                     throw new KeyNotFoundException("Key not found: " + key);
                 }

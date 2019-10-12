@@ -169,7 +169,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 case AnalyzerKind.Codex:
                     return new CodexAnalyzer();
                 case AnalyzerKind.GraphFragment:
-                    return new GraphFragmentGenerator();
+                    return new PipGraphFragmentGenerator();
                 default:
                     return null;
             }

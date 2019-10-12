@@ -20,11 +20,11 @@ namespace BuildXL.Cache.Host.Service.Internal
     /// </summary>
     public class DistributedCacheSecretRetriever
     {
-        private DistributedContentSettings _distributedSettings;
-        private ILogger _logger;
-        private IDistributedCacheServiceHost _host;
+        private readonly DistributedContentSettings _distributedSettings;
+        private readonly ILogger _logger;
+        private readonly IDistributedCacheServiceHost _host;
 
-        private Lazy<Task<(Dictionary<string, Secret>, string)>> _secrets;
+        private readonly Lazy<Task<(Dictionary<string, Secret>, string)>> _secrets;
 
         /// <nodoc />
         public DistributedCacheSecretRetriever(DistributedCacheServiceArguments arguments)
@@ -45,11 +45,11 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var errorBuilder = new StringBuilder();
 
-            var result = await Impl();
+            var result = await impl();
 
             return (result, errorBuilder.ToString());
 
-            async Task<Dictionary<string, Secret>> Impl()
+            async Task<Dictionary<string, Secret>> impl()
             {
                 _logger.Debug(
                     $"{nameof(_distributedSettings.EventHubSecretName)}: {_distributedSettings.EventHubSecretName}, " +
@@ -57,8 +57,8 @@ namespace BuildXL.Cache.Host.Service.Internal
                     $"{nameof(_distributedSettings.GlobalRedisSecretName)}: {_distributedSettings.GlobalRedisSecretName}, " +
                     $"{nameof(_distributedSettings.SecondaryGlobalRedisSecretName)}: {_distributedSettings.SecondaryGlobalRedisSecretName}.");
 
-                bool invalidConfiguration = AppendIfNull(_distributedSettings.EventHubSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)}");
-                invalidConfiguration |= AppendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");
+                bool invalidConfiguration = appendIfNull(_distributedSettings.EventHubSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.EventHubSecretName)}");
+                invalidConfiguration |= appendIfNull(_distributedSettings.GlobalRedisSecretName, $"{nameof(DistributedContentSettings)}.{nameof(DistributedContentSettings.GlobalRedisSecretName)}");
 
                 if (invalidConfiguration)
                 {
@@ -129,7 +129,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 return secrets;
             }
 
-            bool AppendIfNull(object value, string propertyName)
+            bool appendIfNull(object value, string propertyName)
             {
                 if (value is null)
                 {

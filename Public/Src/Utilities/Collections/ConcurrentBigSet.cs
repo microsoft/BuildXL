@@ -541,26 +541,21 @@ namespace BuildXL.Utilities.Collections
             {
                 int bucketHashCode = GetBucketHashCode(pendingItem.HashCode);
 
-                int bucketNo;
                 int lockNo = 0;
-                int headNodeIndex;
 
                 // Number of nodes searched to find the item or the total number of nodes if the item is not found
-                int findCount;
-                int priorNodeIndex;
                 var result = FindItem(
                     pendingItem,
                     bucketHashCode,
-                    out bucketNo,
-                    out headNodeIndex,
+                    out int bucketNo,
+                    out int headNodeIndex,
                     ref accessors,
-                    out findCount,
-                    out priorNodeIndex);
+                    out int findCount,
+                    out int priorNodeIndex);
                 Contract.Assert(!result.IsFound);
 
                 // now make an item from the lookup value
-                bool remove;
-                TItem item = pendingItem.CreateOrUpdateItem(result.Item, false, out remove);
+                TItem item = pendingItem.CreateOrUpdateItem(result.Item, false, out bool remove);
                 Contract.Assert(!remove, "Remove is only allowed when performing update operation");
                 SetBucketHeadNode(bucketNo, lockNo, bucketHashCode, headNodeIndex, item, ref accessors);
                 int countAfterAdd = Interlocked.Increment(ref m_count);
@@ -590,8 +585,7 @@ namespace BuildXL.Utilities.Collections
             int priorNodeIndex;
             if (!update)
             {
-                int lockWriteCount;
-                using (m_locks.AcquireReadLock(lockNo, out lockWriteCount))
+                using (m_locks.AcquireReadLock(lockNo, out int lockWriteCount))
                 {
                     result = FindItem(pendingItem, bucketHashCode, out bucketNo, out headNodeIndex, ref accessors, out findCount, out priorNodeIndex);
                     if (result.IsFound || !allowAdd)
@@ -604,8 +598,7 @@ namespace BuildXL.Utilities.Collections
             // Prevent reads when performing update. Reads during add are safe, but because update may not be atomic
             // we need to prevent reads.
             bool allowReads = !update;
-            int priorLockWriteCount;
-            using (var writeLock = m_locks.AcquireWriteLock(lockNo, out priorLockWriteCount, allowReads: allowReads))
+            using (var writeLock = m_locks.AcquireWriteLock(lockNo, out int priorLockWriteCount, allowReads: allowReads))
             {
                 // Only attempt another find if a write happened on the lock since the first read.
 
@@ -618,8 +611,7 @@ namespace BuildXL.Utilities.Collections
                 }
 
                 // now make an item from the lookup value
-                bool remove;
-                TItem item = pendingItem.CreateOrUpdateItem(result.Item, result.IsFound, out remove);
+                TItem item = pendingItem.CreateOrUpdateItem(result.Item, result.IsFound, out bool remove);
                 Contract.Assert(update || !remove, "Remove is only allowed when performing update operation");
                 if (!result.IsFound)
                 {
@@ -782,9 +774,7 @@ namespace BuildXL.Utilities.Collections
                 return;
             }
 
-            int splitBucketNo;
-            int targetBucketNo;
-            if (m_buckets.TryGetBucketToSplit(out splitBucketNo, out targetBucketNo))
+            if (m_buckets.TryGetBucketToSplit(out int splitBucketNo, out int targetBucketNo))
             {
                 // Only need to get lock for split bucket since target bucket
                 // will always use the same lock

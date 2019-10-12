@@ -140,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         [DllImport("kernel32", EntryPoint = "OpenEventW", SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
 
-        private static ConstructorInfo EventWaitHandleConstructor = typeof(EventWaitHandle).GetConstructor(
+        private static readonly ConstructorInfo EventWaitHandleConstructor = typeof(EventWaitHandle).GetConstructor(
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
             new[] { typeof(SafeWaitHandle) },
@@ -163,7 +163,10 @@ namespace BuildXL.Cache.ContentStore.Utils
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 if (errorCode == ERROR_FILE_NOT_FOUND || errorCode == ERROR_PATH_NOT_FOUND)
+                {
                     return false;
+                }
+
                 throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
             }
 

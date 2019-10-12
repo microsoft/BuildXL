@@ -18,13 +18,13 @@ namespace ContentStoreTest.Logging
 {
     public class DebugPrintLogTests : TestBase
     {
-        private static readonly object Lock = new object();
-
         public DebugPrintLogTests()
             : base(TestGlobal.Logger)
         {
         }
 #if NET_FRAMEWORK
+        private static readonly object Lock = new object();
+
         [Fact]
         public void FatalMethodSucceeds()
         {

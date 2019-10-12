@@ -290,7 +290,7 @@ namespace BuildXL.Utilities
 
         private int m_objectsInPool;
 
-        private int m_size;
+        private readonly int m_size;
 
         // Storage for the pool objects. The first item is stored in a dedicated field because we
         // expect to be able to satisfy most requests from it.

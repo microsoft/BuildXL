@@ -57,12 +57,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Context context,
                 IReadOnlyList<ContentHash> contentHashes,
                 CancellationToken cts,
+                bool succeedWithOneLocation,
                 UrgencyHint urgencyHint = UrgencyHint.Nominal)
             {
                 return Workflows.RunWithFallback<ContentHash, PinResult>(
                         contentHashes,
                         hashes => PinFromCachedResultsAsync(context, hashes, cts, urgencyHint),
-                        hashes => remotePinAsync(context, hashes, cts, urgencyHint),
+                        hashes => remotePinAsync(context, hashes, cts, succeedWithOneLocation, urgencyHint),
                         result => result.Succeeded);
             }
 
@@ -147,8 +148,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public void Invalidate(ContentHash hash)
         {
-            PinInfo removedInfo;
-            _cachedPins.TryRemove(hash, out removedInfo);
+            _cachedPins.TryRemove(hash, out _);
         }
 
         private Task<IEnumerable<Task<Indexed<PinResult>>>> PinFromCachedResultsAsync(

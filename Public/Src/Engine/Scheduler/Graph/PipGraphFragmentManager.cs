@@ -62,7 +62,8 @@ namespace BuildXL.Scheduler.Graph
         public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
             var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
-            m_taskMap[filePath] = (deserializer, m_taskFactory.Value.StartNew(async () =>
+
+            m_taskMap.GetOrAdd(filePath, deserializer, (path, d) => (d, m_taskFactory.Value.StartNew(async () =>
             {
                 IEnumerable<Task<bool>> dependencyTasks = dependencies.Select(dependency =>
                 {
@@ -104,42 +105,17 @@ namespace BuildXL.Scheduler.Graph
                     Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
                     return false;
                 }
-            }).Unwrap());
+            }).Unwrap()));
 
             return true;
         }
 
         /// <summary>
-        /// GetAllFragmentTasks
+        /// Gets all fragment tasks.
         /// </summary>
         public IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks()
         {
             return m_taskMap.Select(x => x.Value).ToList();
-        }
-
-        /// <summary>
-        /// Adds a single pip graph fragment to the graph. FOR TESTING PURPOSES ONLY.
-        /// </summary>
-        public bool AddFragmentFileToGraph(Stream stream, string description)
-        {
-            var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
-            try
-            {
-                var result = deserializer.DeserializeAsync(
-                    stream,
-                    (fragmentContext, provenance, pipId, pip) => Task.FromResult(AddPipToGraph(fragmentContext, provenance, pipId, pip)),
-                    description).GetAwaiter().GetResult();
-
-                // Always log for tests
-                Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
-
-                return result;
-            }
-            catch (Exception e) when (e is BuildXLException || e is IOException)
-            {
-                Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, nameof(stream), e.ToString());
-                return false;
-            }
         }
 
         private bool AddPipToGraph(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, PipId pipId, Pip pip)

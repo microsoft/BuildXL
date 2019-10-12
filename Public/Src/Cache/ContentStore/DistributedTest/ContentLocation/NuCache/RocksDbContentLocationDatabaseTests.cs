@@ -41,21 +41,5 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 
             DefaultConfiguration = new RocksDbContentLocationDatabaseConfiguration(_workingDirectory.Path / "rocksdb");
         }
-
-        private async Task RunTest(Action<OperationContext, ContentLocationDatabase> action) => await RunCustomTest(DefaultConfiguration, action);
-
-        private async Task RunCustomTest(ContentLocationDatabaseConfiguration configuration, Action<OperationContext, ContentLocationDatabase> action, OperationContext? overwrite = null)
-        {
-            var tracingContext = new Context(TestGlobal.Logger);
-            var operationContext = overwrite ?? new OperationContext(tracingContext);
-
-            var database = ContentLocationDatabase.Create(Clock, configuration, () => new MachineId[] { });
-            await database.StartupAsync(operationContext).ShouldBeSuccess();
-            database.SetDatabaseMode(isDatabaseWriteable: true);
-
-            action(operationContext, database);
-
-            await database.ShutdownAsync(operationContext).ShouldBeSuccess();
-        }
     }
 }

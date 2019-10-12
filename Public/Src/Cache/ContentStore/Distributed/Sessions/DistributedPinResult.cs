@@ -32,7 +32,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <nodoc />
-        public new static DistributedPinResult Success(string message)
+        public static new DistributedPinResult Success(string message)
         {
             return new DistributedPinResult(message);
         }

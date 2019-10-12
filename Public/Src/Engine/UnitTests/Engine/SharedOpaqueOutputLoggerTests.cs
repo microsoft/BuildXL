@@ -11,28 +11,30 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
+using static BuildXL.Processes.SharedOpaqueOutputLogger;
+
 namespace Test.BuildXL.Engine
 {
-    public sealed class SharedOpaqueJournalTests : TemporaryStorageTestBase
+    public sealed class SharedOpaqueOutputLoggerTests : TemporaryStorageTestBase
     {
-        private static int s_journalDirectoryCounter = 0;
+        private static int s_logDirectoryCounter = 0;
 
         private PipExecutionContext Context { get; }
 
         private PathTable PathTable => Context.PathTable;
 
-        public SharedOpaqueJournalTests(ITestOutputHelper output)
+        public SharedOpaqueOutputLoggerTests(ITestOutputHelper output)
             : base(output)
         {
             Context = BuildXLContext.CreateInstanceForTesting();
         }
 
         [Fact]
-        public void FindAllJournalFilesHandlesAbsentFolder()
+        public void FindAllOutputLogFilesHandlesAbsentFolder()
         {
             var dir = Path.Combine(TemporaryDirectory, "absent-qwre");
             XAssert.IsFalse(Directory.Exists(dir));
-            var result = SharedOpaqueJournal.FindAllProcessPipJournalFiles(dir);
+            var result = FindAllProcessPipOutputLogFiles(dir);
             XAssert.ArrayEqual(new string[0], result.ToArray());
         }
 
@@ -42,13 +44,13 @@ namespace Test.BuildXL.Engine
             var myDir = Path.Combine(TemporaryDirectory, nameof(RecordingDeduplicatesPaths));
 
             var path = Path.Combine(TemporaryDirectory, "path1");
-            var journalPath = Path.Combine(myDir, "Pip0");
+            var logFile = Path.Combine(myDir, "Pip0");
             
-            CreateJournalAndRecordPaths(journalPath, new[] { path, path, path });
+            CreateOutputLoggerAndRecordPaths(logFile, new[] { path, path, path });
 
             XAssert.ArrayEqual(
                 new[] { path },
-                SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray());
+                ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray());
         }
 
 
@@ -57,11 +59,11 @@ namespace Test.BuildXL.Engine
         [InlineData("file1", null)]
         [InlineData("file1", new[] { "dir1" })]
         [InlineData("file1", new[] { "dir1", "dir2" })]
-        public void DeserializeIsInverseOfSerialize(string journalFile, string[] rootDirs)
+        public void DeserializeIsInverseOfSerialize(string logFile, string[] rootDirs)
         {
-            var original = new SharedOpaqueJournal(journalFile, rootDirs);
+            var original = new SharedOpaqueOutputLogger(logFile, rootDirs);
             var clone = CloneViaSerialization(original);
-            XAssert.AreEqual(original.JournalPath, clone.JournalPath);
+            XAssert.AreEqual(original.LogPath, clone.LogPath);
             XAssert.ArrayEqual(original.RootDirectories?.ToArray(), clone.RootDirectories?.ToArray());
         }
 
@@ -76,50 +78,50 @@ namespace Test.BuildXL.Engine
                 .Select(i => Path.Combine(TemporaryDirectory, $"path-{i}"))
                 .ToArray();
 
-            var journalPath = Path.Combine(myDir, "Pip0");
-            CreateJournalAndRecordPaths(journalPath, paths);
+            var logFile = Path.Combine(myDir, "Pip0");
+            CreateOutputLoggerAndRecordPaths(logFile, paths);
 
-            var readPaths = SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray();
+            var readPaths = ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray();
             XAssert.ArrayEqual(paths, readPaths);
         }
 
         [Theory]
         [InlineData(20, 20)]
-        public void ConcurrentWritesToJournalsInTheSameFolder(int numJournals, int numPathsPerJournal)
+        public void ConcurrentWritesToLogsInTheSameFolder(int numLogs, int numPathsPerLog)
         {
-            var myDir = Path.Combine(TemporaryDirectory, nameof(ConcurrentWritesToJournalsInTheSameFolder));
+            var myDir = Path.Combine(TemporaryDirectory, nameof(ConcurrentWritesToLogsInTheSameFolder));
 
-            string[][] pathsPerJournal = Enumerable
-                .Range(0, numJournals)
-                .Select(journalIdx => Enumerable
-                    .Range(0, numPathsPerJournal)
-                    .Select(pathIdx => Path.Combine(TemporaryDirectory, $"path-{journalIdx}-{pathIdx}"))
+            string[][] pathsPerLog = Enumerable
+                .Range(0, numLogs)
+                .Select(logIdx => Enumerable
+                    .Range(0, numPathsPerLog)
+                    .Select(pathIdx => Path.Combine(TemporaryDirectory, $"path-{logIdx}-{pathIdx}"))
                     .ToArray())
                 .ToArray();
 
-            string[] journalFiles = Enumerable
-                .Range(0, numJournals)
-                .Select(journalIdx => Path.Combine(myDir, $"Pip{journalIdx}"))
+            string[] logFiles = Enumerable
+                .Range(0, numLogs)
+                .Select(logIdx => Path.Combine(myDir, $"Pip{logIdx}"))
                 .ToArray();
 
             Enumerable
-                .Range(0, numJournals)
+                .Range(0, numLogs)
                 .ToArray()
                 .AsParallel()
-                .ForAll(journalIdx => CreateJournalAndRecordPaths(journalFiles[journalIdx], pathsPerJournal[journalIdx]));
+                .ForAll(logIdx => CreateOutputLoggerAndRecordPaths(logFiles[logIdx], pathsPerLog[logIdx]));
 
-            for (int i = 0; i < numJournals; i++)
+            for (int i = 0; i < numLogs; i++)
             {
-                XAssert.ArrayEqual(pathsPerJournal[i], SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalFiles[i]).ToArray());
+                XAssert.ArrayEqual(pathsPerLog[i], ReadRecordedPathsFromSharedOpaqueOutputLog(logFiles[i]).ToArray());
             }
         }
 
         [Fact]
-        public void ReadingFromAbsentJournalThrowsFileNotFound()
+        public void ReadingFromAbsentLogThrowsFileNotFound()
         {
             var absentFile= "absent-file";
             XAssert.IsFalse(File.Exists(absentFile));
-            Assert.Throws<FileNotFoundException>(() => SharedOpaqueJournal.ReadRecordedWritesFromJournal(absentFile).ToArray());
+            Assert.Throws<FileNotFoundException>(() => ReadRecordedPathsFromSharedOpaqueOutputLog(absentFile).ToArray());
         }
 
         [Fact]
@@ -127,15 +129,15 @@ namespace Test.BuildXL.Engine
         {
             var absentFile = "absent-file2";
             XAssert.IsFalse(File.Exists(absentFile));
-            Assert.Throws<BuildXLException>(() => SharedOpaqueJournal.ReadRecordedWritesFromJournalWrapExceptions(absentFile));
+            Assert.Throws<BuildXLException>(() => ReadRecordedPathsFromSharedOpaqueOutputLogWrapExceptions(absentFile));
         }
 
         [Theory]
         [InlineData(0)]
         [InlineData(10)]
-        public void ReadingFromBogusJournalShouldNotThrow(int numValidRecordsToWriteFirst)
+        public void ReadingFromBogusLogShouldNotThrow(int numValidRecordsToWriteFirst)
         {
-            var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromBogusJournalShouldNotThrow));
+            var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromBogusLogShouldNotThrow));
             Directory.CreateDirectory(myDir);
             XAssert.IsTrue(Directory.Exists(myDir));
 
@@ -144,11 +146,11 @@ namespace Test.BuildXL.Engine
                 .Range(0, numValidRecordsToWriteFirst)
                 .Select(i => Path.Combine(TemporaryDirectory, $"path-{i}"))
                 .ToArray();
-            var journalFile = Path.Combine(myDir, "bogus-journal");
-            CreateJournalAndRecordPaths(journalFile, validRecords);
+            var logFile = Path.Combine(myDir, "bogus-log");
+            CreateOutputLoggerAndRecordPaths(logFile, validRecords);
 
             // append some bogus stuff at the end
-            using (var s = new FileStream(journalFile, FileMode.Open))
+            using (var s = new FileStream(logFile, FileMode.Open))
             using (var bw = new BinaryWriter(s))
             {
                 bw.Seek(0, SeekOrigin.End);
@@ -157,7 +159,7 @@ namespace Test.BuildXL.Engine
             }
 
             // reading should produce valid records and just finish when it encounters the bogus stuff
-            var read = SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalFile).ToArray();
+            var read = SharedOpaqueOutputLogger.ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray();
             XAssert.ArrayEqual(validRecords, read);
         }
 
@@ -184,41 +186,41 @@ namespace Test.BuildXL.Engine
                 .ToList();
             pathToTest = X(pathToTest);
 
-            var journalPath = Path.Combine(myDir, "Pip0");
-            using (var journal = CreateJournal(journalPath, rootDirs))
+            var logPath = Path.Combine(myDir, "Pip0");
+            using (var logger = CreateLogger(logPath, rootDirs))
             {
-                bool recorded = journal.RecordFileWrite(PathTable, pathToTest);
+                bool recorded = logger.RecordFileWrite(PathTable, pathToTest);
                 XAssert.AreEqual(expectedToBeRecorded, recorded);
             }
 
             XAssert.ArrayEqual(
                 expectedToBeRecorded ? new[] { pathToTest } : new string[0],
-                SharedOpaqueJournal.ReadRecordedWritesFromJournal(journalPath).ToArray());
+                ReadRecordedPathsFromSharedOpaqueOutputLog(logPath).ToArray());
         }
 
-        private void CreateJournalAndRecordPaths(string journalPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
+        private void CreateOutputLoggerAndRecordPaths(string logPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
         {
-            using (var journal = CreateJournal(journalPath, rootDirs))
+            using (var logger = CreateLogger(logPath, rootDirs))
             {
-                XAssert.AreEqual(journalPath, journal.JournalPath);
+                XAssert.AreEqual(logPath, logger.LogPath);
 
                 foreach (var path in pathsToRecord)
                 {
-                    journal.RecordFileWrite(PathTable, path);
+                    logger.RecordFileWrite(PathTable, path);
                 }
             }
         }
 
-        private SharedOpaqueJournal CreateJournal(string journalPath = null, IReadOnlyList<string> rootDirs = null)
+        private SharedOpaqueOutputLogger CreateLogger(string logPath = null, IReadOnlyList<string> rootDirs = null)
         {
-            journalPath = journalPath ?? Path.Combine(TemporaryDirectory, $"{s_journalDirectoryCounter++}", "journal");
-            Directory.CreateDirectory(Path.GetDirectoryName(journalPath));
-            return new SharedOpaqueJournal(
-                journalPath: journalPath,
+            logPath = logPath ?? Path.Combine(TemporaryDirectory, $"{s_logDirectoryCounter++}", "log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+            return new SharedOpaqueOutputLogger(
+                logPath: logPath,
                 rootDirectories: rootDirs);
         }
 
-        private static SharedOpaqueJournal CloneViaSerialization(SharedOpaqueJournal original)
+        private static SharedOpaqueOutputLogger CloneViaSerialization(SharedOpaqueOutputLogger original)
         {
             using (var stream = new MemoryStream())
             {
@@ -230,7 +232,7 @@ namespace Test.BuildXL.Engine
                 stream.Seek(0, SeekOrigin.Begin);
                 using (var reader = new BuildXLReader(debug: true, stream, leaveOpen: true))
                 {
-                    return SharedOpaqueJournal.Deserialize(reader);
+                    return SharedOpaqueOutputLogger.Deserialize(reader);
                 }
             }
         }

@@ -15,26 +15,26 @@ using JetBrains.Annotations;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Responsible for keeping a journal of all paths written to by a given process pip.
+    /// Responsible for keeping a log of all paths written to by a given process pip.
     /// 
     /// Paths are flushed to an underlying file as soon as they're reported via <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.
     /// 
-    /// A number of root directories may be set in which case the journal will record only 
+    /// A number of root directories may be set in which case the log will record only 
     /// those paths that fall under one of those directories.  The typical use case is to
     /// use all shared opaque directory outputs of a process as root directories.
     /// </summary>
     /// <remarks>
     /// NOTE: not thread-safe
     /// </remarks>
-    public sealed class SharedOpaqueJournal : IDisposable
+    public sealed class SharedOpaqueOutputLogger : IDisposable
     {
         private readonly HashSet<AbsolutePath> m_recordedPathsCache;
         private readonly Lazy<BuildXLWriter> m_lazyBxlWriter;
 
         /// <summary>
-        /// Absolute path of this journal file.
+        /// Absolute path of this log file.
         /// </summary>
-        public string JournalPath { get; }
+        public string LogPath { get; }
 
         /// <summary>
         /// Only paths under these root directories will be recorded by <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
@@ -45,89 +45,95 @@ namespace BuildXL.Processes
         public IReadOnlyList<string> RootDirectories { get; }
 
         /// <summary>
-        /// Creates a journal for a given process.
+        /// Creates a new output logger for a given process.
         /// 
         /// Shared opaque directory outputs of <paramref name="process"/> are used as root directories and
-        /// <see cref="GetJournalFileForProcess"/> is used as journal base name.
+        /// <see cref="GetOutputLogFileForProcess"/> is used as log base name.
         ///
-        /// <seealso cref="SharedOpaqueJournal(string, IReadOnlyList{string})"/>
+        /// <seealso cref="SharedOpaqueOutputLogger(string, IReadOnlyList{string})"/>
         /// </summary>
-        public SharedOpaqueJournal(PipExecutionContext context, Process process, AbsolutePath journalDirectory)
+        public SharedOpaqueOutputLogger(PipExecutionContext context, Process process, AbsolutePath logDirectory)
             : this(
-                  GetJournalFileForProcess(context.PathTable, journalDirectory, process),
+                  GetOutputLogFileForProcess(context.PathTable, logDirectory, process),
                   process.DirectoryOutputs.Where(d => d.IsSharedOpaque).Select(d => d.Path.ToString(context.PathTable)).ToList())
         {
             Contract.Requires(process != null);
             Contract.Requires(context != null);
-            Contract.Requires(journalDirectory.IsValid);
-            Contract.Requires(Directory.Exists(journalDirectory.ToString(context.PathTable)));
+            Contract.Requires(logDirectory.IsValid);
+            Contract.Requires(Directory.Exists(logDirectory.ToString(context.PathTable)));
         }
 
         /// <summary>
-        /// Creates a new journal.
+        /// Creates a new output logger.
+        /// 
+        /// The underlying file is created only upon first write.
         /// </summary>
-        /// <param name="journalPath">File to which to write recorded accesses.</param>
+        /// <param name="logPath">File to which to save the log.</param>
         /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.</param>
-        public SharedOpaqueJournal(string journalPath, [CanBeNull] IReadOnlyList<string> rootDirectories)
+        public SharedOpaqueOutputLogger(string logPath, [CanBeNull] IReadOnlyList<string> rootDirectories)
         {
-            JournalPath = journalPath;
+            LogPath = logPath;
             RootDirectories = rootDirectories;
             m_recordedPathsCache = new HashSet<AbsolutePath>();
 
             m_lazyBxlWriter = Lazy.Create(() =>
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(JournalPath));
+                Directory.CreateDirectory(Path.GetDirectoryName(LogPath));
                 return new BuildXLWriter(
-                    stream: new FileStream(JournalPath, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
+                    stream: new FileStream(LogPath, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
                     debug: false,
                     logStats: false,
                     leaveOpen: false);
             });
         }
 
+        private const string LogFilePrefix = "Pip";
+        private const string LogFileSuffix = ".outlog";
+
         /// <summary>
-        /// Given a root directory (<paramref name="journalDirectory"/>), returns the full path to the journal file corresponding to process <paramref name="process"/>.
+        /// Given a root directory (<paramref name="searchRootDirectory"/>), returns the full path to the log file corresponding to process <paramref name="process"/>.
         /// </summary>
-        public static string GetJournalFileForProcess(PathTable pathTable, AbsolutePath journalDirectory, Process process)
+        public static string GetOutputLogFileForProcess(PathTable pathTable, AbsolutePath searchRootDirectory, Process process)
         {
-            Contract.Requires(journalDirectory.IsValid);
+            Contract.Requires(searchRootDirectory.IsValid);
 
             var semiStableHashX16 = string.Format(CultureInfo.InvariantCulture, "{0:X16}", process.SemiStableHash);
             var subDirName = semiStableHashX16.Substring(0, 3);
 
-            return journalDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"Pip{semiStableHashX16}.journal").ToString(pathTable);
+            return searchRootDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"{LogFilePrefix}{semiStableHashX16}{LogFileSuffix}").ToString(pathTable);
         }
 
         /// <summary>
-        /// Finds and returns all journal files that exist in directory denoted by <paramref name="directory"/>
+        /// Finds and returns all output log files that exist in directory denoted by <paramref name="directory"/>
         /// </summary>
         /// <remarks>
-        /// CODESYNC: must be consistent with <see cref="GetJournalFileForProcess(PathTable, AbsolutePath, Process)"/>
+        /// CODESYNC: must be consistent with <see cref="GetOutputLogFileForProcess(PathTable, AbsolutePath, Process)"/>
         /// </remarks>
-        public static string[] FindAllProcessPipJournalFiles(string directory)
+        public static string[] FindAllProcessPipOutputLogFiles(string directory)
         {
             return Directory.Exists(directory)
-                ? Directory.EnumerateFiles(directory, "Pip*.journal", SearchOption.AllDirectories).ToArray()
+                ? Directory.EnumerateFiles(directory, $"{LogFilePrefix}*{LogFileSuffix}", SearchOption.AllDirectories).ToArray()
                 : CollectionUtilities.EmptyArray<string>();
         }
 
         /// <summary>
-        /// Returns all paths recorded in the journal file <paramref name="journalFile"/>.
+        /// Returns all paths recorded in the <paramref name="filePath"/> file.
         /// </summary>
         /// <remarks>
         /// Those paths are expected to be absolute paths of files/directories that were written to by the previous build.
         ///
         /// NOTE: this method does not validate the recorded paths in any way.  That means that each returned string may be
-        ///   - an invalid path
         ///   - a path pointing to an absent file
         ///   - a path pointing to a file
         ///   - a path pointing to a directory.
-        ///
-        /// NOTE: the strings in the returned enumerable are neither sorted nor deduplicated.
+        /// 
+        /// NOTE: unless the log file was corrupted (i.e., it was produced by an instance of this class):
+        ///   - the strings in the returned enumerable are all legal paths
+        ///   - the returned collection does not contain any duplicates
         /// </remarks>
-        public static IEnumerable<string> ReadRecordedWritesFromJournal(string journalFile)
+        public static IEnumerable<string> ReadRecordedPathsFromSharedOpaqueOutputLog(string filePath)
         {
-            using (var fileStream = new FileStream(journalFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             using (var bxlReader = new BuildXLReader(stream: fileStream, debug: false, leaveOpen: false))
             {
                 string nextString = null;
@@ -139,17 +145,17 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Same as <see cref="ReadRecordedWritesFromJournal(string)"/> except that all exceptions are wrapped in <see cref="BuildXLException"/>
+        /// Same as <see cref="ReadRecordedPathsFromSharedOpaqueOutputLog(string)"/> except that all exceptions are wrapped in <see cref="BuildXLException"/>
         /// </summary>
-        public static string[] ReadRecordedWritesFromJournalWrapExceptions(string journalFile)
+        public static string[] ReadRecordedPathsFromSharedOpaqueOutputLogWrapExceptions(string filePath)
         {
             try
             {
-                return ReadRecordedWritesFromJournal(journalFile).ToArray();
+                return ReadRecordedPathsFromSharedOpaqueOutputLog(filePath).ToArray();
             }
             catch (Exception e)
             {
-                throw new BuildXLException("Failed to read from shared opaque journal", e);
+                throw new BuildXLException("Failed to read from shared opaque output log", e);
             }
         }
 
@@ -199,15 +205,15 @@ namespace BuildXL.Processes
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {
-            writer.Write(JournalPath);
+            writer.Write(LogPath);
             writer.Write(RootDirectories, (w, list) => w.WriteReadOnlyList(list, (w2, path) => w2.Write(path)));
         }
 
         /// <nodoc />
-        public static SharedOpaqueJournal Deserialize(BuildXLReader reader)
+        public static SharedOpaqueOutputLogger Deserialize(BuildXLReader reader)
         {
-            return new SharedOpaqueJournal(
-                journalPath: reader.ReadString(),
+            return new SharedOpaqueOutputLogger(
+                logPath: reader.ReadString(),
                 rootDirectories: reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString())));
         }
         #endregion

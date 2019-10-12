@@ -42,7 +42,7 @@ namespace BuildXL.Processes
         private readonly IDetoursEventListener m_detoursEventListener;
 
         [CanBeNull]
-        private readonly SharedOpaqueJournal m_writeJournal;
+        private readonly SharedOpaqueOutputLogger m_sharedOpaqueOutputLogger;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
@@ -104,7 +104,7 @@ namespace BuildXL.Processes
             string pipDescription,
             LoggingContext loggingContext,
             [CanBeNull] IDetoursEventListener detoursEventListener,
-            [CanBeNull] SharedOpaqueJournal writeJournal)
+            [CanBeNull] SharedOpaqueOutputLogger sharedOpaqueOutputLogger)
         {
             Contract.Requires(manifest != null);
             Contract.Requires(pathTable != null);
@@ -117,7 +117,7 @@ namespace BuildXL.Processes
             FileUnexpectedAccesses = new HashSet<ReportedFileAccess>();
             m_manifest = manifest;
             m_detoursEventListener = detoursEventListener;
-            m_writeJournal = writeJournal;
+            m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
 
             // For tests we need the StaticContext
             m_loggingContext = loggingContext ?? BuildXL.Utilities.Tracing.Events.StaticContext;
@@ -648,9 +648,9 @@ namespace BuildXL.Processes
                 AbsolutePath.TryCreate(m_pathTable, path, out pathAsAbsolutePath);
             }
 
-            if (pathAsAbsolutePath.IsValid && m_writeJournal != null && (requestedAccess & RequestedAccess.Write) != 0)
+            if (pathAsAbsolutePath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
             {
-                m_writeJournal.RecordFileWrite(m_pathTable, pathAsAbsolutePath);
+                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, pathAsAbsolutePath);
             }
 
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));

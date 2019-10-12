@@ -779,23 +779,23 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var journalFiles = SharedOpaqueJournal.FindAllProcessPipJournalFiles(configuration.Layout.SharedOpaqueJournalDirectory.ToString(scheduler.Context.PathTable));
+            var journalFiles = SharedOpaqueOutputLogger.FindAllProcessPipOutputLogFiles(configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable));
             var distinctRecordedWrites = journalFiles
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(SharedOpaqueJournal.ReadRecordedWritesFromJournalWrapExceptions)
+                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSharedOpaqueOutputLogWrapExceptions)
                 .ToArray();
 
             if (distinctRecordedWrites.Any())
             {
-                Logger.Log.DeletingOutputsFromJournalStarted(loggingContext);
+                Logger.Log.DeletingOutputsFromSharedOpaqueOutputLogStarted(loggingContext);
                 scrubber.DeleteFiles(distinctRecordedWrites);
             }
 
             if (journalFiles.Any())
             {
-                Logger.Log.DeletingSharedOpaqueJournalFilesStarted(loggingContext);
+                Logger.Log.DeletingSharedOpaqueOutputLogFilesStarted(loggingContext);
                 scrubber.DeleteFiles(journalFiles);
             }
 

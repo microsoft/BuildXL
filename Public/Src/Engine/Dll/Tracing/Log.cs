@@ -1869,24 +1869,24 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DeletingOutputsFromJournalStarted,
+            (int)EventId.DeletingOutputsFromSharedOpaqueOutputLogStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in the journal.")]
-        public abstract void DeletingOutputsFromJournalStarted(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in the shared opaque output logs.")]
+        public abstract void DeletingOutputsFromSharedOpaqueOutputLogStarted(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DeletingSharedOpaqueJournalFilesStarted,
+            (int)EventId.DeletingSharedOpaqueOutputLogFilesStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Deleting shared opaque journal files.")]
-        public abstract void DeletingSharedOpaqueJournalFilesStarted(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque output log files.")]
+        public abstract void DeletingSharedOpaqueOutputLogFilesStarted(LoggingContext context);
 
         [GeneratedEvent(
             (int)EventId.ScrubbingStarted,

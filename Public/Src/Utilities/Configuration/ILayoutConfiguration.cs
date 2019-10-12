@@ -90,7 +90,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Where all writes to shared opaque directories will be logged as soon as they happen.
         /// </summary>
-        AbsolutePath SharedOpaqueJournalDirectory { get; }
+        AbsolutePath SharedOpaqueSidebandDirectory { get; }
 
         /// <summary>
         /// Indicates if the engine should emit a warning to let users know that Spotlight indexing on layout configuration

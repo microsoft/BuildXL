@@ -67,9 +67,9 @@ namespace BuildXL.Processes
         public ISandboxConnection SandboxConnection;
 
         /// <summary>
-        /// An optional journal where to record file writes under shared opaque directories as soon as they happen.
+        /// An optional shared opaque output logger to use to record file writes under shared opaque directories as soon as they happen.
         /// </summary>
-        public SharedOpaqueJournal SharedOpaqueOutputsJournal { get; }
+        public SharedOpaqueOutputLogger SharedOpaqueOutputLogger { get; }
 
         /// <summary>
         /// Holds the path remapping information for a process that needs to run in a container
@@ -90,7 +90,7 @@ namespace BuildXL.Processes
             LoggingContext loggingContext = null,
             IDetoursEventListener detoursEventListener = null,
             ISandboxConnection sandboxConnection = null,
-            SharedOpaqueJournal sharedOpaqueOutputsJournal = null)
+            SharedOpaqueOutputLogger sharedOpaqueOutputLogger = null)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(fileStorage != null);
@@ -110,7 +110,7 @@ namespace BuildXL.Processes
             DetoursEventListener = detoursEventListener;
             SandboxConnection = sandboxConnection;
             ContainerConfiguration = containerConfiguration;
-            SharedOpaqueOutputsJournal = sharedOpaqueOutputsJournal;
+            SharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
         }
 
         /// <summary>
@@ -447,7 +447,7 @@ namespace BuildXL.Processes
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
 
-                writer.Write(SharedOpaqueOutputsJournal, (w, v) => v.Serialize(w));
+                writer.Write(SharedOpaqueOutputLogger, (w, v) => v.Serialize(w));
 
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
@@ -487,8 +487,8 @@ namespace BuildXL.Processes
                 SandboxObserverDescriptor standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 (string source, string target)[] redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
-                SharedOpaqueJournal journal = reader.ReadNullable(r => SharedOpaqueJournal.Deserialize(r));
-                FileAccessManifest fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
+                var sharedOpaqueOutputLogger = reader.ReadNullable(r => Processes.SharedOpaqueOutputLogger.Deserialize(r));
+                var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
 
                 return new SandboxedProcessInfo(
                     new PathTable(),
@@ -499,7 +499,7 @@ namespace BuildXL.Processes
                     // TODO: serialize/deserialize container configuration.
                     containerConfiguration: ContainerConfiguration.DisabledIsolation,
                     loggingContext: loggingContext,
-                    sharedOpaqueOutputsJournal: journal,
+                    sharedOpaqueOutputLogger: sharedOpaqueOutputLogger,
                     detoursEventListener: detoursEventListener)
                 {
                     m_arguments = arguments,

@@ -748,7 +748,7 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                using (var sharedOpaqueOutputsJournal = CreateSharedOpaqueJournalIfConfigured())
+                using (var sharedOpaqueOutputLogger = CreateSharedOpaqueOutputLoggerIfConfigured())
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -788,7 +788,7 @@ namespace BuildXL.Processes
                         m_pip.TestRetries,
                         m_loggingContext,
                         sandboxConnection: sandboxConnection,
-                        sharedOpaqueOutputsJournal: sharedOpaqueOutputsJournal)
+                        sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -817,12 +817,12 @@ namespace BuildXL.Processes
             }
         }
 
-        private SharedOpaqueJournal CreateSharedOpaqueJournalIfConfigured()
+        private SharedOpaqueOutputLogger CreateSharedOpaqueOutputLoggerIfConfigured()
         {
-            // don't use this journal if journal root directory is not set up or
+            // don't use this logger if the root directory is not set up in the configuration layout or
             // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
-            return m_layoutConfiguration?.SharedOpaqueJournalDirectory.IsValid == true && m_pip.SemiStableHash != 0
-                ? new SharedOpaqueJournal(m_context, m_pip, m_layoutConfiguration.SharedOpaqueJournalDirectory)
+            return m_layoutConfiguration?.SharedOpaqueSidebandDirectory.IsValid == true && m_pip.SemiStableHash != 0
+                ? new SharedOpaqueOutputLogger(m_context, m_pip, m_layoutConfiguration.SharedOpaqueSidebandDirectory)
                 : null;
         }
 

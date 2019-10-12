@@ -15,8 +15,13 @@ namespace BuildXL.Processes
 
         internal readonly Predicate<string> LinePredicate;
         internal readonly Regex Regex;
-        // GroupName can be used with the Regex and defaults to ErrorMessageGroupName if nothing 
-        // is provided when constructing the OutputFiler with a Regex
+
+        /// <summary>
+        /// The GroupName to be used by the Regex
+        /// </summary>
+        /// <remarks>
+        /// Defaults to ErrorMessageGroupName if nothing is provided when constructing the OutputFiler with a Regex
+        /// </remarks>
         internal readonly string GroupName;
 
         internal OutputFilter(Predicate<string> linePredicate)

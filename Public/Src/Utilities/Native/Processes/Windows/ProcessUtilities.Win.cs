@@ -397,7 +397,7 @@ namespace BuildXL.Native.Processes.Windows
 
         [DllImport(ExternDll.Kernel32, EntryPoint = "WaitNamedPipe", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool ExternWaitNamedPipe(string pipeName, uint timeout);
+        private static extern bool ExternWaitNamedPipe(string pipeName, uint timeout);
 
         [DllImport(ExternDll.BuildXLNatives64, EntryPoint = "RemapDevices", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

@@ -184,10 +184,7 @@ namespace BuildXL.Processes
         /// <nodoc />
         public void Dispose()
         {
-            if (m_lazyBxlWriter.IsValueCreated)
-            {
-                m_lazyBxlWriter.Value.Dispose();
-            }
+            m_lazyBxlWriter.Value.Dispose();
         }
 
         #region Serialization

@@ -164,13 +164,14 @@ namespace Test.BuildXL.Engine
         [InlineData("/x/root1;/x/root2", "/x/out/a", false)]
         [InlineData("/x/root1;/x/root2", "/x/a", false)]
         [InlineData("", "/x/a", false)]
+        [InlineData(null, "/x/a", true)]
         public void TestRootDirectoryFiltering(string rootDirsStr, string pathToTest, bool expectedToBeRecorded)
         {
             var myDir = Path.Combine(TemporaryDirectory, nameof(TestRootDirectoryFiltering));
             Directory.CreateDirectory(myDir);
             XAssert.IsTrue(Directory.Exists(myDir));
 
-            var rootDirs = rootDirsStr
+            var rootDirs = rootDirsStr == null ? null : rootDirsStr
                 .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(p => X(p))
                 .ToList();

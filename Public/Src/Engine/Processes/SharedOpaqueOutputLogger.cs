@@ -26,6 +26,9 @@ namespace BuildXL.Processes
     /// </summary>
     /// <remarks>
     /// NOTE: not thread-safe
+    /// 
+    /// NOTE: must be serializable in order to be compatible with VM execution; for this 
+    ///       reason, this class must not have a field of type <see cref="PathTable"/>.
     /// </remarks>
     public sealed class SharedOpaqueOutputLogger : IDisposable
     {

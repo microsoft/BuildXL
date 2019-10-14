@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Processes;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -47,13 +48,18 @@ namespace Test.BuildXL.Processes.Detours
             };
             IBuildParameters buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars);
 
+            var sidebandLogFile = A("C", "engine-cache", "sideband-logs", "log-1");
+            var loggerRootDirs = new[] { A("C", "out", "dir1"), A("C", "out", "dir2") };
+            var sharedOpaqueOutputLogger = new SharedOpaqueOutputLogger(sidebandLogFile, loggerRootDirs);
+
             SandboxedProcessInfo info = new SandboxedProcessInfo(
                 pt,
                 new StandardFileStorage(standardFiles),
                 A("C", "tool", "tool.exe"),
                 fam,
                 true,
-                null)
+                null,
+                sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
             {
                 Arguments = @"/arg1:val1 /arg2:val2",
                 WorkingDirectory = A("C", "Source"),
@@ -118,6 +124,9 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.AreEqual(standardFiles.StandardOutput, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
             XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
             XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
+
+            XAssert.AreEqual(sidebandLogFile, readInfo.SharedOpaqueOutputLogger.SidebandLogFile);
+            XAssert.ArrayEqual(loggerRootDirs, readInfo.SharedOpaqueOutputLogger.RootDirectories.ToArray());
 
             ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
         }

@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -129,6 +130,41 @@ namespace Test.BuildXL.TestUtilities
         [SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic",
             Justification = "Allow consumers to call it as though it is a member to preserve usage from old TestBase")]
         public string TestDeploymentDir => Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(typeof(BuildXLTestBase).GetTypeInfo().Assembly));
+
+        /// <summary> Returns the cross product of 2 vectors </summary>
+        public static IEnumerable<object[]> CrossProduct(object[] v1, object[] v2) => CrossProductN(v1, v2);
+
+        /// <summary> Returns the cross product of 3 vectors </summary>
+        public static IEnumerable<object[]> CrossProduct(object[] v1, object[] v2, object[] v3) => CrossProductN(v1, v2, v3);
+
+        /// <summary> Returns the cross product of 4 vectors </summary>
+        public static IEnumerable<object[]> CrossProduct(object[] v1, object[] v2, object[] v3, object[] v4) => CrossProductN(v1, v2, v3, v4);
+
+        /// <summary>
+        /// Returns the cross product of N vectors
+        /// </summary>
+        public static IEnumerable<object[]> CrossProductN(params IEnumerable<object>[] vectors)
+        {
+            Contract.Requires(vectors.Length >= 1);
+
+            if (vectors.Length == 1)
+            {
+                foreach (var atom in vectors[0])
+                {
+                    yield return new object[] { atom };
+                }
+            }
+            else
+            {
+                foreach (var rest in CrossProductN(vectors.Take(vectors.Length - 1).ToArray()))
+                {
+                    foreach (var atom in vectors.Last())
+                    {
+                        yield return rest.Concat(new[] { atom }).ToArray();
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Test event listener exposing event counts and messages logged during test execution.

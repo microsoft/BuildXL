@@ -10,10 +10,87 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
 
 namespace BuildXL.Processes
 {
+    /// <summary>
+    /// A disposable reader for sideband files.
+    /// 
+    /// Uses <see cref="FileEnvelope"/> to check the integrity of the given file.
+    /// </summary>
+    public sealed class SharedOpaqueSidebandFileReader : IDisposable
+    {
+        private readonly BuildXLReader m_bxlReader;
+
+        /// <nodoc />
+        public SharedOpaqueSidebandFileReader(string sidebandFile)
+        {
+            Contract.Requires(File.Exists(sidebandFile));
+
+            m_bxlReader = new BuildXLReader(
+                stream: new FileStream(sidebandFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete),
+                debug: false,
+                leaveOpen: false);
+        }
+
+        /// <summary>
+        /// Reads the header and returns if the sideband file has been compromised.
+        /// 
+        /// Even when the sideband file is compromised, it is possible to call <see cref="ReadRecordedPaths"/>
+        /// which will then try to recover as many recorded paths as possible.
+        /// </summary>
+        public bool ReadHeader(bool ignoreChecksum)
+        {
+            var result = SharedOpaqueOutputLogger.FileEnvelope.TryReadHeader(m_bxlReader.BaseStream, ignoreChecksum);
+            return result.Succeeded;
+        }
+
+        /// <summary>
+        /// Returns all paths recorded in this sideband file.
+        /// </summary>
+        /// <remarks>
+        /// Those paths are expected to be absolute paths of files/directories that were written to by the previous build.
+        ///
+        /// NOTE: this method does not validate the recorded paths in any way.  That means that each returned string may be
+        ///   - a path pointing to an absent file
+        ///   - a path pointing to a file
+        ///   - a path pointing to a directory.
+        /// 
+        /// NOTE: if the sideband file was produced by an instance of this class (and wasn't corrupted in any way)
+        ///   - the strings in the returned enumerable are all legal paths
+        ///   - the returned collection does not contain any duplicates
+        /// Whether or not this sideband file is corrupted is determined by the result of the <see cref="ReadHeader"/> method.
+        /// </remarks>
+        public IEnumerable<string> ReadRecordedPaths()
+        {
+            string nextString = null;
+            while ((nextString = ReadStringOrNull()) != null)
+            {
+                yield return nextString;
+            }
+        }
+
+        private string ReadStringOrNull()
+        {
+            try
+            {
+                return m_bxlReader.ReadString();
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+        }
+
+        /// <nodoc />
+        public void Dispose()
+        {
+            m_bxlReader.Dispose();
+        }
+    }
+
     /// <summary>
     /// Responsible for keeping a log of all paths written to by a given process pip.
     /// 
@@ -32,8 +109,15 @@ namespace BuildXL.Processes
     /// </remarks>
     public sealed class SharedOpaqueOutputLogger : IDisposable
     {
+        /// <summary>
+        /// Envelope for serialization
+        /// </summary>
+        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "SharedOpaqueSidebandState", version: 0);
+
         private readonly HashSet<AbsolutePath> m_recordedPathsCache;
         private readonly Lazy<BuildXLWriter> m_lazyBxlWriter;
+        private readonly Lazy<Unit> m_lazyWriteHeader;
+        private readonly FileEnvelopeId m_envelopeId;
 
         /// <summary>
         /// Absolute path of the sideband file this logger writes to.
@@ -79,6 +163,7 @@ namespace BuildXL.Processes
             SidebandLogFile = sidebandLogFile;
             RootDirectories = rootDirectories;
             m_recordedPathsCache = new HashSet<AbsolutePath>();
+            m_envelopeId = FileEnvelopeId.Create();
 
             m_lazyBxlWriter = Lazy.Create(() =>
             {
@@ -88,6 +173,12 @@ namespace BuildXL.Processes
                     debug: false,
                     logStats: false,
                     leaveOpen: false);
+            });
+
+            m_lazyWriteHeader = Lazy.Create(() =>
+            {
+                FileEnvelope.WriteHeader(m_lazyBxlWriter.Value.BaseStream, m_envelopeId);
+                return Unit.Void;
             });
         }
 
@@ -121,37 +212,44 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Returns all paths recorded in the <paramref name="filePath"/> file.
-        /// If file at <paramref name="filePath"/> does not exist, returns an empty iterator.
+        /// Creates a reader for the given sideband file.
         /// </summary>
-        /// <remarks>
-        /// Those paths are expected to be absolute paths of files/directories that were written to by the previous build.
-        ///
-        /// NOTE: this method does not validate the recorded paths in any way.  That means that each returned string may be
-        ///   - a path pointing to an absent file
-        ///   - a path pointing to a file
-        ///   - a path pointing to a directory.
+        public static SharedOpaqueSidebandFileReader CreateSidebandFileReader(string filePath)
+        {
+            Contract.Requires(File.Exists(filePath));
+            return new SharedOpaqueSidebandFileReader(filePath);
+        }
+
+        /// <summary>
+        /// Returns all paths recorded in the <paramref name="filePath"/> file, even if the
+        /// file appears to be corrupted.
         /// 
-        /// NOTE: if the sideband file was produced by an instance of this class (and wasn't corrupted in any way)
-        ///   - the strings in the returned enumerable are all legal paths
-        ///   - the returned collection does not contain any duplicates
-        /// </remarks>
-        public static IEnumerable<string> ReadRecordedPathsFromSidebandFile(string filePath)
+        /// If file at <paramref name="filePath"/> does not exist, returns an empty iterator.
+        /// 
+        /// <seealso cref="SharedOpaqueSidebandFileReader.ReadRecordedPaths"/>
+        /// </summary>
+        public static string[] ReadRecordedPathsFromSidebandFile(string filePath)
         {
             if (!File.Exists(filePath))
             {
-                yield break;
+                return CollectionUtilities.EmptyArray<string>();
             }
 
-            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
-            using (var bxlReader = new BuildXLReader(stream: fileStream, debug: false, leaveOpen: false))
+            using (var reader = CreateSidebandFileReader(filePath))
             {
-                string nextString = null;
-                while ((nextString = ReadStringOrNull(bxlReader)) != null)
-                {
-                    yield return nextString;
-                }
+                reader.ReadHeader(ignoreChecksum: true);
+                return reader.ReadRecordedPaths().ToArray();
             }
+        }
+
+        /// <summary>
+        /// By calling this method a client can ensure that the sideband file will be created even
+        /// if 0 paths are recorded for it.  If this method is not explicitly called, the sideband
+        /// file will only be created if at least one write is recorded to it.
+        /// </summary>
+        public void EnsureHeaderWritten()
+        {
+            Analysis.IgnoreResult(m_lazyWriteHeader.Value);
         }
 
         /// <summary>
@@ -164,7 +262,9 @@ namespace BuildXL.Processes
         /// Records that the file at location <paramref name="path"/> was written to.
         /// </summary>
         /// <returns>
-        /// <code>true</code> if <paramref name="path"/> is within any given root directory (<see cref="RootDirectories"/>) and hence was recorded; <code>false</code> otherwise.
+        /// <code>true</code> if <paramref name="path"/> is within any given root directory
+        /// (<see cref="RootDirectories"/>) and was recorded this time around (i.e., wasn't
+        /// a duplicate of a previously recorded path); <code>false</code> otherwise.
         /// </returns>
         /// <remarks>
         /// NOT THREAD-SAFE.
@@ -175,16 +275,22 @@ namespace BuildXL.Processes
             {
                 if (m_recordedPathsCache.Add(path))
                 {
+                    EnsureHeaderWritten();
                     m_lazyBxlWriter.Value.Write(path.ToString(pathTable));
                     m_lazyBxlWriter.Value.Flush();
+                    return true;
                 }
+            }
 
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return false;
+        }
+
+        /// <summary>
+        /// Don't use, for testing only.
+        /// </summary>
+        internal void CloseWriterWithoutFixingUpHeaderForTestingOnly()
+        {
+            m_lazyBxlWriter.Value.Close();
         }
 
         /// <nodoc />
@@ -197,11 +303,12 @@ namespace BuildXL.Processes
             //     bxl process, and (2) second in the VM process
             //   - the VM process then runs, and writes stuff to its instance of this logger; once it finishes, 
             //     all shared opaque output writes are saved to the underlying sideband file
-            //   - the bxl process disposes its instance of this logger; withot the check below, the Dispose method
+            //   - the bxl process disposes its instance of this logger; without the check below, the Dispose method
             //     creates a BuildXLWriter for the same underlying sideband file and immediately closes it, which
             //     effectively deletes the content of that file.
             if (m_lazyBxlWriter.IsValueCreated)
             {
+                FileEnvelope.FixUpHeader(m_lazyBxlWriter.Value.BaseStream, m_envelopeId);
                 m_lazyBxlWriter.Value.Dispose();
             }
         }
@@ -222,17 +329,5 @@ namespace BuildXL.Processes
                 rootDirectories: reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString())));
         }
         #endregion
-
-        private static string ReadStringOrNull(BuildXLReader bxlReader)
-        {
-            try
-            {
-                return bxlReader.ReadString();
-            }
-            catch (IOException)
-            {
-                return null;
-            }
-        }
     }
 }

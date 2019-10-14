@@ -92,43 +92,46 @@ namespace Test.BuildXL.Processes.Detours
                     null);
             }
 
-            // Verify.
-            XAssert.AreEqual(info.FileName, readInfo.FileName);
-            XAssert.AreEqual(info.Arguments, readInfo.Arguments);
-            XAssert.AreEqual(info.WorkingDirectory, readInfo.WorkingDirectory);
-            var readEnvVars = readInfo.EnvironmentVariables.ToDictionary();
-            XAssert.AreEqual(envVars.Count, readEnvVars.Count);
-            foreach (var kvp in envVars)
+            using (readInfo.SharedOpaqueOutputLogger)
             {
-                XAssert.AreEqual(kvp.Value, readEnvVars[kvp.Key]);
+                // Verify.
+                XAssert.AreEqual(info.FileName, readInfo.FileName);
+                XAssert.AreEqual(info.Arguments, readInfo.Arguments);
+                XAssert.AreEqual(info.WorkingDirectory, readInfo.WorkingDirectory);
+                var readEnvVars = readInfo.EnvironmentVariables.ToDictionary();
+                XAssert.AreEqual(envVars.Count, readEnvVars.Count);
+                foreach (var kvp in envVars)
+                {
+                    XAssert.AreEqual(kvp.Value, readEnvVars[kvp.Key]);
+                }
+
+                XAssert.AreEqual(info.Timeout, readInfo.Timeout);
+                XAssert.AreEqual(info.PipSemiStableHash, readInfo.PipSemiStableHash);
+                XAssert.AreEqual(info.PipDescription, readInfo.PipDescription);
+                XAssert.AreEqual(info.ProcessIdListener, readInfo.ProcessIdListener);
+                XAssert.AreEqual(info.TimeoutDumpDirectory, readInfo.TimeoutDumpDirectory);
+                XAssert.AreEqual(info.SandboxKind, readInfo.SandboxKind);
+
+                XAssert.AreEqual(info.AllowedSurvivingChildProcessNames.Length, readInfo.AllowedSurvivingChildProcessNames.Length);
+                for (int i = 0; i < info.AllowedSurvivingChildProcessNames.Length; ++i)
+                {
+                    XAssert.AreEqual(info.AllowedSurvivingChildProcessNames[i], readInfo.AllowedSurvivingChildProcessNames[i]);
+                }
+
+                XAssert.AreEqual(info.NestedProcessTerminationTimeout, readInfo.NestedProcessTerminationTimeout);
+                XAssert.AreEqual(info.StandardInputSourceInfo, readInfo.StandardInputSourceInfo);
+                XAssert.IsNotNull(readInfo.SandboxedProcessStandardFiles);
+                XAssert.AreEqual(standardFiles.StandardOutput, readInfo.SandboxedProcessStandardFiles.StandardOutput);
+                XAssert.AreEqual(standardFiles.StandardError, readInfo.SandboxedProcessStandardFiles.StandardError);
+                XAssert.AreEqual(standardFiles.StandardOutput, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
+                XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
+                XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
+
+                XAssert.AreEqual(sidebandLogFile, readInfo.SharedOpaqueOutputLogger.SidebandLogFile);
+                XAssert.ArrayEqual(loggerRootDirs, readInfo.SharedOpaqueOutputLogger.RootDirectories.ToArray());
+
+                ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
             }
-
-            XAssert.AreEqual(info.Timeout, readInfo.Timeout);
-            XAssert.AreEqual(info.PipSemiStableHash, readInfo.PipSemiStableHash);
-            XAssert.AreEqual(info.PipDescription, readInfo.PipDescription);
-            XAssert.AreEqual(info.ProcessIdListener, readInfo.ProcessIdListener);
-            XAssert.AreEqual(info.TimeoutDumpDirectory, readInfo.TimeoutDumpDirectory);
-            XAssert.AreEqual(info.SandboxKind, readInfo.SandboxKind);
-
-            XAssert.AreEqual(info.AllowedSurvivingChildProcessNames.Length, readInfo.AllowedSurvivingChildProcessNames.Length);
-            for (int i = 0; i < info.AllowedSurvivingChildProcessNames.Length; ++i)
-            {
-                XAssert.AreEqual(info.AllowedSurvivingChildProcessNames[i], readInfo.AllowedSurvivingChildProcessNames[i]);
-            }
-
-            XAssert.AreEqual(info.NestedProcessTerminationTimeout, readInfo.NestedProcessTerminationTimeout);
-            XAssert.AreEqual(info.StandardInputSourceInfo, readInfo.StandardInputSourceInfo);
-            XAssert.IsNotNull(readInfo.SandboxedProcessStandardFiles);
-            XAssert.AreEqual(standardFiles.StandardOutput, readInfo.SandboxedProcessStandardFiles.StandardOutput);
-            XAssert.AreEqual(standardFiles.StandardError, readInfo.SandboxedProcessStandardFiles.StandardError);
-            XAssert.AreEqual(standardFiles.StandardOutput, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardOutput));
-            XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
-            XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
-
-            XAssert.AreEqual(sidebandLogFile, readInfo.SharedOpaqueOutputLogger.SidebandLogFile);
-            XAssert.ArrayEqual(loggerRootDirs, readInfo.SharedOpaqueOutputLogger.RootDirectories.ToArray());
-
-            ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
         }
 
         private DirectoryTranslator CreateDirectoryTranslator()

@@ -59,10 +59,12 @@ namespace Test.BuildXL.Engine
         [InlineData("file1", new[] { "dir1", "dir2" })]
         public void DeserializeIsInverseOfSerialize(string logFile, string[] rootDirs)
         {
-            var original = new SharedOpaqueOutputLogger(logFile, rootDirs);
-            var clone = CloneViaSerialization(original);
-            XAssert.AreEqual(original.SidebandLogFile, clone.SidebandLogFile);
-            XAssert.ArrayEqual(original.RootDirectories?.ToArray(), clone.RootDirectories?.ToArray());
+            using (var original = new SharedOpaqueOutputLogger(logFile, rootDirs))
+            using (var clone = CloneViaSerialization(original))
+            {
+                XAssert.AreEqual(original.SidebandLogFile, clone.SidebandLogFile);
+                XAssert.ArrayEqual(original.RootDirectories?.ToArray(), clone.RootDirectories?.ToArray());
+            }
         }
 
         [Theory]
@@ -123,12 +125,16 @@ namespace Test.BuildXL.Engine
         }
 
         [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(10)]
-        public void ReadingFromBogusSidebandFileShouldNotThrow(int numValidRecordsToWriteFirst)
+        [MemberData(nameof(CrossProduct), 
+            new object[] { 0, 1, 10 }, 
+            new object[] { true, false }, 
+            new object[] { true, false })]
+        public void ReadingFromCorruptedSidebandFiles(
+            int numValidRecordsToWriteFirst, 
+            bool closeLoggerCleanly, 
+            bool appendBogusBytes)
         {
-            var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromBogusSidebandFileShouldNotThrow));
+            var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromCorruptedSidebandFiles));
             Directory.CreateDirectory(myDir);
             XAssert.IsTrue(Directory.Exists(myDir));
 
@@ -137,16 +143,34 @@ namespace Test.BuildXL.Engine
                 .Range(0, numValidRecordsToWriteFirst)
                 .Select(i => Path.Combine(TemporaryDirectory, $"path-{i}"))
                 .ToArray();
-            var logFile = Path.Combine(myDir, "bogus-log");
-            CreateOutputLoggerAndRecordPaths(logFile, validRecords);
 
-            // append some bogus stuff at the end
-            using (var s = new FileStream(logFile, FileMode.OpenOrCreate))
-            using (var bw = new BinaryWriter(s))
+            var logFile = Path.Combine(myDir, $"bogus-log-close_{closeLoggerCleanly}-append_{appendBogusBytes}");
+            var logger = CreateLogger(logFile);
+            logger.EnsureHeaderWritten();
+            foreach (var path in validRecords)
             {
-                bw.Seek(0, SeekOrigin.End);
-                bw.Write(1231);
-                bw.Flush();
+                XAssert.IsTrue(logger.RecordFileWrite(PathTable, path));
+            }
+
+            if (closeLoggerCleanly)
+            {
+                logger.Dispose();
+            }
+            else
+            {
+                logger.CloseWriterWithoutFixingUpHeaderForTestingOnly();
+            }
+
+            if (appendBogusBytes)
+            {
+                // append some bogus stuff at the end
+                using (var s = new FileStream(logFile, FileMode.OpenOrCreate))
+                using (var bw = new BinaryWriter(s))
+                {
+                    bw.Seek(0, SeekOrigin.End);
+                    bw.Write(1231);
+                    bw.Flush();
+                }
             }
 
             // reading should produce valid records and just finish when it encounters the bogus stuff

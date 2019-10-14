@@ -454,7 +454,9 @@ namespace BuildXL.Processes
             }
         }
 
-        /// <nodoc />
+        /// <summary>
+        /// IMPORTANT: the caller is responsible of disposing the <see cref="SandboxedProcessInfo.SharedOpaqueOutputLogger"/> property of the returned value.
+        /// </summary>
         public static SandboxedProcessInfo Deserialize(Stream stream, LoggingContext loggingContext, IDetoursEventListener detoursEventListener)
         {
             using (var reader = new BuildXLReader(false, stream, true))

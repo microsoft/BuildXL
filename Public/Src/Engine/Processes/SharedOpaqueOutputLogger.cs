@@ -122,6 +122,7 @@ namespace BuildXL.Processes
 
         /// <summary>
         /// Returns all paths recorded in the <paramref name="filePath"/> file.
+        /// If file at <paramref name="filePath"/> does not exist, returns an empty iterator.
         /// </summary>
         /// <remarks>
         /// Those paths are expected to be absolute paths of files/directories that were written to by the previous build.
@@ -137,6 +138,11 @@ namespace BuildXL.Processes
         /// </remarks>
         public static IEnumerable<string> ReadRecordedPathsFromSidebandFile(string filePath)
         {
+            if (!File.Exists(filePath))
+            {
+                yield break;
+            }
+
             using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             using (var bxlReader = new BuildXLReader(stream: fileStream, debug: false, leaveOpen: false))
             {
@@ -184,7 +190,20 @@ namespace BuildXL.Processes
         /// <nodoc />
         public void Dispose()
         {
-            m_lazyBxlWriter.Value.Dispose();
+            // NOTE: it is essential not to call m_lazyBxlWriter.Value.Dispose() if bxlWriter hasn't been created.
+            // 
+            // reason: 
+            //   - when running a process in VM, a logger is created twice for that process: (1) first in the
+            //     bxl process, and (2) second in the VM process
+            //   - the VM process then runs, and writes stuff to its instance of this logger; once it finishes, 
+            //     all shared opaque output writes are saved to the underlying sideband file
+            //   - the bxl process disposes its instance of this logger; withot the check below, the Dispose method
+            //     creates a BuildXLWriter for the same underlying sideband file and immediately closes it, which
+            //     effectively deletes the content of that file.
+            if (m_lazyBxlWriter.IsValueCreated)
+            {
+                m_lazyBxlWriter.Value.Dispose();
+            }
         }
 
         #region Serialization

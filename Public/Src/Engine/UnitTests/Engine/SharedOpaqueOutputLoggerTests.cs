@@ -115,15 +115,16 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
-        public void ReadingFromAbsentSidebandFileThrowsFileNotFound()
+        public void ReadingFromAbsentSidebandFileReturnsEmptyIterator()
         {
             var absentFile = "absent-file";
             XAssert.IsFalse(File.Exists(absentFile));
-            Assert.Throws<FileNotFoundException>(() => ReadRecordedPathsFromSidebandFile(absentFile).ToArray());
+            XAssert.ArrayEqual(new string[0], ReadRecordedPathsFromSidebandFile(absentFile).ToArray());
         }
 
         [Theory]
         [InlineData(0)]
+        [InlineData(1)]
         [InlineData(10)]
         public void ReadingFromBogusSidebandFileShouldNotThrow(int numValidRecordsToWriteFirst)
         {
@@ -140,7 +141,7 @@ namespace Test.BuildXL.Engine
             CreateOutputLoggerAndRecordPaths(logFile, validRecords);
 
             // append some bogus stuff at the end
-            using (var s = new FileStream(logFile, FileMode.Open))
+            using (var s = new FileStream(logFile, FileMode.OpenOrCreate))
             using (var bw = new BinaryWriter(s))
             {
                 bw.Seek(0, SeekOrigin.End);

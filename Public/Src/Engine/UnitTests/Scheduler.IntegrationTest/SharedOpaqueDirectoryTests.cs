@@ -1578,16 +1578,5 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
-
-        private AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
-        {
-            var logFile = SharedOpaqueOutputLogger.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
-            XAssert.IsTrue(File.Exists(logFile));
-            return SharedOpaqueOutputLogger
-                .ReadRecordedPathsFromSidebandFile(logFile)
-                .Select(path => AbsolutePath.Create(Context.PathTable, path))
-                .Distinct()
-                .ToArray();
-        }
     }
 }

@@ -192,12 +192,12 @@ namespace BuildXL.Scheduler
                 // An asymmetric merge that goes up fast but decreases slowly.
                 if (newData > oldData)
                 {
-                    return (uint)(newData + (ulong) oldData) / 2;
+                    return (uint) ( (((ulong)newData) / 2) + (((ulong)oldData) / 2) );
                 }
 
-                return (uint)((((ulong)oldData * 9) + ((ulong)newData * 1)) / 10);
+                return (uint) ( (((ulong)oldData) * 9 / 10) + (((ulong)newData) / 10) );
             }
-            catch(System.OverflowException ex)
+            catch (System.OverflowException ex)
             {
                 throw new BuildXLException(I($"Failed to merge historic perf data result with old '{oldData} and new {newData}' data values!"), ex);
             }

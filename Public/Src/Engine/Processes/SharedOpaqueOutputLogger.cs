@@ -127,7 +127,7 @@ namespace BuildXL.Processes
         ///   - a path pointing to a file
         ///   - a path pointing to a directory.
         /// 
-        /// NOTE: unless the log file was corrupted (i.e., it was produced by an instance of this class):
+        /// NOTE: if the log file was produced by an instance of this class (and wasn't corrupted in any way)
         ///   - the strings in the returned enumerable are all legal paths
         ///   - the returned collection does not contain any duplicates
         /// </remarks>
@@ -167,12 +167,9 @@ namespace BuildXL.Processes
 
         /// <summary>
         /// Records that the file at location <paramref name="path"/> was written to.
-        /// 
-        /// Returns whether the path was recorded or skipped.
         /// </summary>
         /// <returns>
-        /// <code>true</code> if <paramref name="path"/> was recorded, <code>false</code> 
-        /// if the path was filtered out because of <see cref="RootDirectories"/>.
+        /// <code>true</code> if <paramref name="path"/> is within any given root directory (<see cref="RootDirectories"/>) and hence was recorded; <code>false</code> otherwise.
         /// </returns>
         /// <remarks>
         /// NOT THREAD-SAFE.

@@ -53,8 +53,6 @@ namespace Test.BuildXL.Engine
                 ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray());
         }
 
-
-
         [Theory]
         [InlineData("file1", null)]
         [InlineData("file1", new[] { "dir1" })]

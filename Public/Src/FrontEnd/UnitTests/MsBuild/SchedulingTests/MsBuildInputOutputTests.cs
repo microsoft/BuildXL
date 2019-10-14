@@ -139,6 +139,21 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             XAssert.Equals("input2.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
         }
 
+        [Fact]
+        public void GeneratedNugetPropFilesAreUntracked()
+        {
+            var project = CreateProjectWithPredictions(inputs: CreatePath(@"aPath\Project.csproj.nuget.g.props"));
+
+            var processInputs = Start()
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .Dependencies;
+
+            // The only source file should be MSBuild.exe
+            processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) == PathAtom.Create(StringTable, "MSBuild.exe")));
+        }
+
         private IReadOnlyCollection<AbsolutePath> CreatePath(params string[] paths)
         {
             return paths.Select(path => TestPath.Combine(PathTable, RelativePath.Create(PathTable.StringTable, path))).ToList();

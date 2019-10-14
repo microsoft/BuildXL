@@ -75,11 +75,11 @@ namespace BuildXL.Engine
         /// <remarks>
         /// A directory path is valid to scrub if it is under a scrubbable mount.
         /// </remarks>
-        private bool ValidateDirectory(MountPathExpander mpe, string directory, out SemanticPathInfo foundSemanticPathInfo)
+        private bool ValidateDirectory(MountPathExpander mountPathExpander, string directory, out SemanticPathInfo foundSemanticPathInfo)
         {
             foundSemanticPathInfo = SemanticPathInfo.Invalid;
-            return mpe == null ||
-                   (foundSemanticPathInfo = mpe.GetSemanticPathInfo(directory)).IsScrubbable;
+            return mountPathExpander == null ||
+                   (foundSemanticPathInfo = mountPathExpander.GetSemanticPathInfo(directory)).IsScrubbable;
         }
 
         /// <summary>

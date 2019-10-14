@@ -62,12 +62,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             // B should be able to consume the file in the opaque directory. Second build should have both cached
             var result = RunScheduler().AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId);
             AssertWritesJournaled(result, pipA, outputInSharedOpaque);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueOutputLogStarted, count: 0);
-            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueOutputLogFilesStarted, count: 0) ;
+            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 0);
+            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 0) ;
 
             RunScheduler().AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
-            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueOutputLogStarted, count: 1);
-            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueOutputLogFilesStarted, count: 1);
+            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 1);
+            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 1);
 
             // Make sure we can replay the file in the opaque directory
             File.Delete(ArtifactToString(outputInSharedOpaque));
@@ -1581,10 +1581,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 
         private AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
         {
-            var logFile = SharedOpaqueOutputLogger.GetOutputLogFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+            var logFile = SharedOpaqueOutputLogger.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
             XAssert.IsTrue(File.Exists(logFile));
             return SharedOpaqueOutputLogger
-                .ReadRecordedPathsFromSharedOpaqueOutputLog(logFile)
+                .ReadRecordedPathsFromSidebandFile(logFile)
                 .Select(path => AbsolutePath.Create(Context.PathTable, path))
                 .Distinct()
                 .ToArray();

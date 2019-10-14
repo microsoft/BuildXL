@@ -17,7 +17,8 @@ namespace BuildXL.Processes
     /// <summary>
     /// Responsible for keeping a log of all paths written to by a given process pip.
     /// 
-    /// Paths are flushed to an underlying file as soon as they're reported via <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.
+    /// Paths are flushed to an underlying file as soon as they're reported via 
+    /// <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.
     /// 
     /// A number of root directories may be set in which case the log will record only 
     /// those paths that fall under one of those directories.  The typical use case is to
@@ -32,9 +33,9 @@ namespace BuildXL.Processes
         private readonly Lazy<BuildXLWriter> m_lazyBxlWriter;
 
         /// <summary>
-        /// Absolute path of this log file.
+        /// Absolute path of the sideband file this logger writes to.
         /// </summary>
-        public string LogPath { get; }
+        public string SidebandLogFile { get; }
 
         /// <summary>
         /// Only paths under these root directories will be recorded by <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
@@ -48,19 +49,19 @@ namespace BuildXL.Processes
         /// Creates a new output logger for a given process.
         /// 
         /// Shared opaque directory outputs of <paramref name="process"/> are used as root directories and
-        /// <see cref="GetOutputLogFileForProcess"/> is used as log base name.
+        /// <see cref="GetSidebandFileForProcess"/> is used as log base name.
         ///
         /// <seealso cref="SharedOpaqueOutputLogger(string, IReadOnlyList{string})"/>
         /// </summary>
-        public SharedOpaqueOutputLogger(PipExecutionContext context, Process process, AbsolutePath logDirectory)
+        public SharedOpaqueOutputLogger(PipExecutionContext context, Process process, AbsolutePath sidebandRootDirectory)
             : this(
-                  GetOutputLogFileForProcess(context.PathTable, logDirectory, process),
+                  GetSidebandFileForProcess(context.PathTable, sidebandRootDirectory, process),
                   process.DirectoryOutputs.Where(d => d.IsSharedOpaque).Select(d => d.Path.ToString(context.PathTable)).ToList())
         {
             Contract.Requires(process != null);
             Contract.Requires(context != null);
-            Contract.Requires(logDirectory.IsValid);
-            Contract.Requires(Directory.Exists(logDirectory.ToString(context.PathTable)));
+            Contract.Requires(sidebandRootDirectory.IsValid);
+            Contract.Requires(Directory.Exists(sidebandRootDirectory.ToString(context.PathTable)));
         }
 
         /// <summary>
@@ -68,51 +69,51 @@ namespace BuildXL.Processes
         /// 
         /// The underlying file is created only upon first write.
         /// </summary>
-        /// <param name="logPath">File to which to save the log.</param>
+        /// <param name="sidebandLogFile">File to which to save the log.</param>
         /// <param name="rootDirectories">Only paths under one of the root directories are recorded in <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>.</param>
-        public SharedOpaqueOutputLogger(string logPath, [CanBeNull] IReadOnlyList<string> rootDirectories)
+        public SharedOpaqueOutputLogger(string sidebandLogFile, [CanBeNull] IReadOnlyList<string> rootDirectories)
         {
-            LogPath = logPath;
+            SidebandLogFile = sidebandLogFile;
             RootDirectories = rootDirectories;
             m_recordedPathsCache = new HashSet<AbsolutePath>();
 
             m_lazyBxlWriter = Lazy.Create(() =>
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(LogPath));
+                Directory.CreateDirectory(Path.GetDirectoryName(SidebandLogFile));
                 return new BuildXLWriter(
-                    stream: new FileStream(LogPath, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
+                    stream: new FileStream(SidebandLogFile, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete),
                     debug: false,
                     logStats: false,
                     leaveOpen: false);
             });
         }
 
-        private const string LogFilePrefix = "Pip";
-        private const string LogFileSuffix = ".outlog";
+        private const string SidebandFilePrefix = "Pip";
+        private const string SidebandFileSuffix = ".sideband";
 
         /// <summary>
-        /// Given a root directory (<paramref name="searchRootDirectory"/>), returns the full path to the log file corresponding to process <paramref name="process"/>.
+        /// Given a root directory (<paramref name="searchRootDirectory"/>), returns the full path to the sideband file corresponding to process <paramref name="process"/>.
         /// </summary>
-        public static string GetOutputLogFileForProcess(PathTable pathTable, AbsolutePath searchRootDirectory, Process process)
+        public static string GetSidebandFileForProcess(PathTable pathTable, AbsolutePath searchRootDirectory, Process process)
         {
             Contract.Requires(searchRootDirectory.IsValid);
 
             var semiStableHashX16 = string.Format(CultureInfo.InvariantCulture, "{0:X16}", process.SemiStableHash);
             var subDirName = semiStableHashX16.Substring(0, 3);
 
-            return searchRootDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"{LogFilePrefix}{semiStableHashX16}{LogFileSuffix}").ToString(pathTable);
+            return searchRootDirectory.Combine(pathTable, subDirName).Combine(pathTable, $"{SidebandFilePrefix}{semiStableHashX16}{SidebandFileSuffix}").ToString(pathTable);
         }
 
         /// <summary>
-        /// Finds and returns all output log files that exist in directory denoted by <paramref name="directory"/>
+        /// Finds and returns all sideband files that exist in directory denoted by <paramref name="directory"/>
         /// </summary>
         /// <remarks>
-        /// CODESYNC: must be consistent with <see cref="GetOutputLogFileForProcess(PathTable, AbsolutePath, Process)"/>
+        /// CODESYNC: must be consistent with <see cref="GetSidebandFileForProcess(PathTable, AbsolutePath, Process)"/>
         /// </remarks>
-        public static string[] FindAllProcessPipOutputLogFiles(string directory)
+        public static string[] FindAllProcessPipSidebandFiles(string directory)
         {
             return Directory.Exists(directory)
-                ? Directory.EnumerateFiles(directory, $"{LogFilePrefix}*{LogFileSuffix}", SearchOption.AllDirectories).ToArray()
+                ? Directory.EnumerateFiles(directory, $"{SidebandFilePrefix}*{SidebandFileSuffix}", SearchOption.AllDirectories).ToArray()
                 : CollectionUtilities.EmptyArray<string>();
         }
 
@@ -127,11 +128,11 @@ namespace BuildXL.Processes
         ///   - a path pointing to a file
         ///   - a path pointing to a directory.
         /// 
-        /// NOTE: if the log file was produced by an instance of this class (and wasn't corrupted in any way)
+        /// NOTE: if the sideband file was produced by an instance of this class (and wasn't corrupted in any way)
         ///   - the strings in the returned enumerable are all legal paths
         ///   - the returned collection does not contain any duplicates
         /// </remarks>
-        public static IEnumerable<string> ReadRecordedPathsFromSharedOpaqueOutputLog(string filePath)
+        public static IEnumerable<string> ReadRecordedPathsFromSidebandFile(string filePath)
         {
             using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             using (var bxlReader = new BuildXLReader(stream: fileStream, debug: false, leaveOpen: false))
@@ -145,17 +146,17 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Same as <see cref="ReadRecordedPathsFromSharedOpaqueOutputLog(string)"/> except that all exceptions are wrapped in <see cref="BuildXLException"/>
+        /// Same as <see cref="ReadRecordedPathsFromSidebandFile(string)"/> except that all exceptions are wrapped in <see cref="BuildXLException"/>
         /// </summary>
-        public static string[] ReadRecordedPathsFromSharedOpaqueOutputLogWrapExceptions(string filePath)
+        public static string[] ReadRecordedPathsFromSidebandFileWrapExceptions(string filePath)
         {
             try
             {
-                return ReadRecordedPathsFromSharedOpaqueOutputLog(filePath).ToArray();
+                return ReadRecordedPathsFromSidebandFile(filePath).ToArray();
             }
             catch (Exception e)
             {
-                throw new BuildXLException("Failed to read from shared opaque output log", e);
+                throw new BuildXLException($"Failed to read from shared opaque sideband file '{filePath}'", e);
             }
         }
 
@@ -202,7 +203,7 @@ namespace BuildXL.Processes
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {
-            writer.Write(LogPath);
+            writer.Write(SidebandLogFile);
             writer.Write(RootDirectories, (w, list) => w.WriteReadOnlyList(list, (w2, path) => w2.Write(path)));
         }
 
@@ -210,7 +211,7 @@ namespace BuildXL.Processes
         public static SharedOpaqueOutputLogger Deserialize(BuildXLReader reader)
         {
             return new SharedOpaqueOutputLogger(
-                logPath: reader.ReadString(),
+                sidebandLogFile: reader.ReadString(),
                 rootDirectories: reader.ReadNullable(r => r.ReadReadOnlyList(r2 => r2.ReadString())));
         }
         #endregion

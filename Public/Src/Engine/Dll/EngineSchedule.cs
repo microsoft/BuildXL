@@ -779,24 +779,25 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var journalFiles = SharedOpaqueOutputLogger.FindAllProcessPipOutputLogFiles(configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable));
-            var distinctRecordedWrites = journalFiles
+            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
+            var sharedOpaqueSidebandFiles = SharedOpaqueOutputLogger.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+            var distinctRecordedWrites = sharedOpaqueSidebandFiles
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSharedOpaqueOutputLogWrapExceptions)
+                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFileWrapExceptions)
                 .ToArray();
 
             if (distinctRecordedWrites.Any())
             {
-                Logger.Log.DeletingOutputsFromSharedOpaqueOutputLogStarted(loggingContext);
+                Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
                 scrubber.DeleteFiles(distinctRecordedWrites);
             }
 
-            if (journalFiles.Any())
+            if (sharedOpaqueSidebandFiles.Any())
             {
-                Logger.Log.DeletingSharedOpaqueOutputLogFilesStarted(loggingContext);
-                scrubber.DeleteFiles(journalFiles);
+                Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
+                scrubber.DeleteFiles(sharedOpaqueSidebandFiles);
             }
 
             if (pathsToScrub.Count > 0)

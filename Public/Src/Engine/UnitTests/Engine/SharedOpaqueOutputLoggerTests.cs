@@ -30,11 +30,11 @@ namespace Test.BuildXL.Engine
         }
 
         [Fact]
-        public void FindAllOutputLogFilesHandlesAbsentFolder()
+        public void FindAllSidebandFilesHandlesAbsentFolder()
         {
             var dir = Path.Combine(TemporaryDirectory, "absent-qwre");
             XAssert.IsFalse(Directory.Exists(dir));
-            var result = FindAllProcessPipOutputLogFiles(dir);
+            var result = FindAllProcessPipSidebandFiles(dir);
             XAssert.ArrayEqual(new string[0], result.ToArray());
         }
 
@@ -50,7 +50,7 @@ namespace Test.BuildXL.Engine
 
             XAssert.ArrayEqual(
                 new[] { path },
-                ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray());
+                ReadRecordedPathsFromSidebandFile(logFile).ToArray());
         }
 
         [Theory]
@@ -61,7 +61,7 @@ namespace Test.BuildXL.Engine
         {
             var original = new SharedOpaqueOutputLogger(logFile, rootDirs);
             var clone = CloneViaSerialization(original);
-            XAssert.AreEqual(original.LogPath, clone.LogPath);
+            XAssert.AreEqual(original.SidebandLogFile, clone.SidebandLogFile);
             XAssert.ArrayEqual(original.RootDirectories?.ToArray(), clone.RootDirectories?.ToArray());
         }
 
@@ -79,15 +79,15 @@ namespace Test.BuildXL.Engine
             var logFile = Path.Combine(myDir, "Pip0");
             CreateOutputLoggerAndRecordPaths(logFile, paths);
 
-            var readPaths = ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray();
+            var readPaths = ReadRecordedPathsFromSidebandFile(logFile).ToArray();
             XAssert.ArrayEqual(paths, readPaths);
         }
 
         [Theory]
         [InlineData(20, 20)]
-        public void ConcurrentWritesToLogsInTheSameFolder(int numLogs, int numPathsPerLog)
+        public void ConcurrentWritesToSidebandFilesInTheSameFolder(int numLogs, int numPathsPerLog)
         {
-            var myDir = Path.Combine(TemporaryDirectory, nameof(ConcurrentWritesToLogsInTheSameFolder));
+            var myDir = Path.Combine(TemporaryDirectory, nameof(ConcurrentWritesToSidebandFilesInTheSameFolder));
 
             string[][] pathsPerLog = Enumerable
                 .Range(0, numLogs)
@@ -110,16 +110,16 @@ namespace Test.BuildXL.Engine
 
             for (int i = 0; i < numLogs; i++)
             {
-                XAssert.ArrayEqual(pathsPerLog[i], ReadRecordedPathsFromSharedOpaqueOutputLog(logFiles[i]).ToArray());
+                XAssert.ArrayEqual(pathsPerLog[i], ReadRecordedPathsFromSidebandFile(logFiles[i]).ToArray());
             }
         }
 
         [Fact]
-        public void ReadingFromAbsentLogThrowsFileNotFound()
+        public void ReadingFromAbsentSidebandFileThrowsFileNotFound()
         {
             var absentFile= "absent-file";
             XAssert.IsFalse(File.Exists(absentFile));
-            Assert.Throws<FileNotFoundException>(() => ReadRecordedPathsFromSharedOpaqueOutputLog(absentFile).ToArray());
+            Assert.Throws<FileNotFoundException>(() => ReadRecordedPathsFromSidebandFile(absentFile).ToArray());
         }
 
         [Fact]
@@ -127,15 +127,15 @@ namespace Test.BuildXL.Engine
         {
             var absentFile = "absent-file2";
             XAssert.IsFalse(File.Exists(absentFile));
-            Assert.Throws<BuildXLException>(() => ReadRecordedPathsFromSharedOpaqueOutputLogWrapExceptions(absentFile));
+            Assert.Throws<BuildXLException>(() => ReadRecordedPathsFromSidebandFileWrapExceptions(absentFile));
         }
 
         [Theory]
         [InlineData(0)]
         [InlineData(10)]
-        public void ReadingFromBogusLogShouldNotThrow(int numValidRecordsToWriteFirst)
+        public void ReadingFromBogusSidebandFileShouldNotThrow(int numValidRecordsToWriteFirst)
         {
-            var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromBogusLogShouldNotThrow));
+            var myDir = Path.Combine(TemporaryDirectory, nameof(ReadingFromBogusSidebandFileShouldNotThrow));
             Directory.CreateDirectory(myDir);
             XAssert.IsTrue(Directory.Exists(myDir));
 
@@ -157,7 +157,7 @@ namespace Test.BuildXL.Engine
             }
 
             // reading should produce valid records and just finish when it encounters the bogus stuff
-            var read = SharedOpaqueOutputLogger.ReadRecordedPathsFromSharedOpaqueOutputLog(logFile).ToArray();
+            var read = SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFile(logFile).ToArray();
             XAssert.ArrayEqual(validRecords, read);
         }
 
@@ -193,14 +193,14 @@ namespace Test.BuildXL.Engine
 
             XAssert.ArrayEqual(
                 expectedToBeRecorded ? new[] { pathToTest } : new string[0],
-                ReadRecordedPathsFromSharedOpaqueOutputLog(logPath).ToArray());
+                ReadRecordedPathsFromSidebandFile(logPath).ToArray());
         }
 
         private void CreateOutputLoggerAndRecordPaths(string logPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
         {
             using (var logger = CreateLogger(logPath, rootDirs))
             {
-                XAssert.AreEqual(logPath, logger.LogPath);
+                XAssert.AreEqual(logPath, logger.SidebandLogFile);
 
                 foreach (var path in pathsToRecord)
                 {
@@ -214,7 +214,7 @@ namespace Test.BuildXL.Engine
             logPath = logPath ?? Path.Combine(TemporaryDirectory, $"{s_logDirectoryCounter++}", "log");
             Directory.CreateDirectory(Path.GetDirectoryName(logPath));
             return new SharedOpaqueOutputLogger(
-                logPath: logPath,
+                sidebandLogFile: logPath,
                 rootDirectories: rootDirs);
         }
 

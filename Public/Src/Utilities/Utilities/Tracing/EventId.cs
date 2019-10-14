@@ -538,8 +538,8 @@ namespace BuildXL.Utilities.Tracing
         ScrubbingFailedToEnumerateMissingDirectory = 865,
         ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled = 866,
 
-        DeletingOutputsFromSharedOpaqueOutputLogStarted = 867,
-        DeletingSharedOpaqueOutputLogFilesStarted = 868,
+        DeletingOutputsFromSharedOpaqueSidebandFilesStarted = 867,
+        DeletingSharedOpaqueSidebandFilesStarted = 868,
         ScrubbingProgress = 869,
 
         // Config

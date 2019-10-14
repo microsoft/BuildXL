@@ -1869,24 +1869,24 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DeletingOutputsFromSharedOpaqueOutputLogStarted,
+            (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in the shared opaque output logs.")]
-        public abstract void DeletingOutputsFromSharedOpaqueOutputLogStarted(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in the shared opaque sideband files.")]
+        public abstract void DeletingOutputsFromSharedOpaqueSidebandFilesStarted(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DeletingSharedOpaqueOutputLogFilesStarted,
+            (int)EventId.DeletingSharedOpaqueSidebandFilesStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Message = EventConstants.PhasePrefix + "Deleting shared opaque output log files.")]
-        public abstract void DeletingSharedOpaqueOutputLogFilesStarted(LoggingContext context);
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque sideband files.")]
+        public abstract void DeletingSharedOpaqueSidebandFilesStarted(LoggingContext context);
 
         [GeneratedEvent(
             (int)EventId.ScrubbingStarted,

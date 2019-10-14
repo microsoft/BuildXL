@@ -785,7 +785,7 @@ namespace BuildXL.Engine
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFileWrapExceptions)
+                .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFile)
                 .ToArray();
 
             if (distinctRecordedWrites.Any())

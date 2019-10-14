@@ -117,17 +117,9 @@ namespace Test.BuildXL.Engine
         [Fact]
         public void ReadingFromAbsentSidebandFileThrowsFileNotFound()
         {
-            var absentFile= "absent-file";
+            var absentFile = "absent-file";
             XAssert.IsFalse(File.Exists(absentFile));
             Assert.Throws<FileNotFoundException>(() => ReadRecordedPathsFromSidebandFile(absentFile).ToArray());
-        }
-
-        [Fact]
-        public void TestReadWrapExceptions()
-        {
-            var absentFile = "absent-file2";
-            XAssert.IsFalse(File.Exists(absentFile));
-            Assert.Throws<BuildXLException>(() => ReadRecordedPathsFromSidebandFileWrapExceptions(absentFile));
         }
 
         [Theory]

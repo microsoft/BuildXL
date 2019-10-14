@@ -146,21 +146,6 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Same as <see cref="ReadRecordedPathsFromSidebandFile(string)"/> except that all exceptions are wrapped in <see cref="BuildXLException"/>
-        /// </summary>
-        public static string[] ReadRecordedPathsFromSidebandFileWrapExceptions(string filePath)
-        {
-            try
-            {
-                return ReadRecordedPathsFromSidebandFile(filePath).ToArray();
-            }
-            catch (Exception e)
-            {
-                throw new BuildXLException($"Failed to read from shared opaque sideband file '{filePath}'", e);
-            }
-        }
-
-        /// <summary>
         /// <see cref="RecordFileWrite(PathTable, AbsolutePath)"/>
         /// </summary>
         public bool RecordFileWrite(PathTable pathTable, string absolutePath)

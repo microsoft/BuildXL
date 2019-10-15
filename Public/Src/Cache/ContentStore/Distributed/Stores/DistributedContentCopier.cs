@@ -39,6 +39,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
         private readonly TimeSpan _timeoutForPoractiveCopies;
+        private readonly int _maxRetryCount;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
         private readonly ICopyRequester _copyRequester;
@@ -87,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _ioGate = new SemaphoreSlim(_settings.MaxConcurrentCopyOperations);
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
-
+            _maxRetryCount = settings.MaxRetryCount;
             _timeoutForPoractiveCopies = settings.TimeoutForProactiveCopies;
         }
 
@@ -340,6 +341,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
+        private PutResult CreateMaxRetryPutResult() => new ErrorResult($"Maximum total retries of {_maxRetryCount} attempted").AsResult<PutResult>();
 
         /// <nodoc />
         private async Task<(PutResult result, bool retry)> WalkLocationsAndCopyAndPutAsync(
@@ -362,6 +364,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             for (int replicaIndex = 0; replicaIndex < hashInfo.Locations.Count; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];
+
+                // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
+                // We add one because replicaIndex is indexed from zero.
+                // If we reach over maximum retries, return an put result stating so, and no longer retry
+                if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > _maxRetryCount)
+                {
+                    Tracer.Debug(
+                            context,
+                            $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {_maxRetryCount}.");
+                    return (result: CreateMaxRetryPutResult(), retry: false);
+                }
 
                 // if the file is explicitly reported missing by the remote, don't bother retrying.
                 if (missingContentLocations.Contains(location))

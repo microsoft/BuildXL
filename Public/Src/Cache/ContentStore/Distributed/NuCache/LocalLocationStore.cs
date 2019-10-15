@@ -1267,7 +1267,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             }
 
                             // Corner case where they are equal and we have finished should be very unlikely.
-                            isFinished = (addedContent.Count + removedContent.Count) != _configuration.ReconciliationMaxCycleSize;
+                            isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
                         }
 
                         if (!isFinished)

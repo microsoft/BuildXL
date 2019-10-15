@@ -222,6 +222,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         PinConfiguration = pinConfiguration,
                         EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
+                        MaxRetryCount = _distributedSettings.MaxRetryCount,
                         TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
                         ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), _distributedSettings.ProactiveCopyMode),
                         MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,

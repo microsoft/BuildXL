@@ -1249,12 +1249,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             totalAddedContent += addedContent.Count;
                             totalRemovedContent += removedContent.Count;
 
-                        // Only call reconcile if content needs to be updated for machine
-                        if (addedContent.Count != 0 || removedContent.Count != 0)
-                        {
-                            // Create separate event store for reconciliation events so they are dispatched first before
-                            // events in normal event store which may be queued during reconciliation operation.
-                            var reconciliationEventStore = CreateEventStore(_configuration, "reconcile");
+                            // Only call reconcile if content needs to be updated for machine
+                            if (addedContent.Count != 0 || removedContent.Count != 0)
+                            {
+                                // Create separate event store for reconciliation events so they are dispatched first before
+                                // events in normal event store which may be queued during reconciliation operation.
+                                var reconciliationEventStore = CreateEventStore(_configuration, "reconcile");
 
                                 try
                                 {

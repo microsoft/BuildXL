@@ -194,14 +194,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public bool AreBlobsSupported => GlobalStore.AreBlobsSupported;
 
-        private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration)
+        private ContentLocationEventStore CreateEventStore(LocalLocationStoreConfiguration configuration, string subfolder)
         {
             return ContentLocationEventStore.Create(
                 configuration.EventStore,
                 new ContentLocationDatabaseAdapter(Database, ClusterState),
                 GlobalStore.LocalMachineLocation.ToString(),
                 CentralStorage,
-                configuration.Checkpoint.WorkingDirectory / "reconciles"
+                configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder
                 );
         }
 
@@ -279,7 +279,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _checkpointManager = new CheckpointManager(Database, GlobalStore, CentralStorage, _configuration.Checkpoint, Counters);
 
-            EventStore = CreateEventStore(_configuration);
+            EventStore = CreateEventStore(_configuration, "main");
 
             await GlobalStore.StartupAsync(context).ThrowIfFailure();
 
@@ -1249,12 +1249,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             totalAddedContent += addedContent.Count;
                             totalRemovedContent += removedContent.Count;
 
-                            // Only call reconcile if content needs to be updated for machine
-                            if (addedContent.Count != 0 || removedContent.Count != 0)
-                            {
-                                // Create separate event store for reconciliation events so they are dispatched first before
-                                // events in normal event store which may be queued during reconciliation operation.
-                                var reconciliationEventStore = CreateEventStore(_configuration);
+                        // Only call reconcile if content needs to be updated for machine
+                        if (addedContent.Count != 0 || removedContent.Count != 0)
+                        {
+                            // Create separate event store for reconciliation events so they are dispatched first before
+                            // events in normal event store which may be queued during reconciliation operation.
+                            var reconciliationEventStore = CreateEventStore(_configuration, "reconcile");
 
                                 try
                                 {

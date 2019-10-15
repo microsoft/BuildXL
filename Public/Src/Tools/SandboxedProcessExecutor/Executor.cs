@@ -95,22 +95,25 @@ namespace BuildXL.SandboxedProcessExecutor
                 return ExitCode.FailedReadInput;
             }
 
-            if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
+            using (sandboxedProcessInfo.SharedOpaqueOutputLogger)
             {
-                return ExitCode.FailedSandboxPreparation;
-            }
-
-            (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
-
-            if (executeResult.result != null)
-            {
-                if (!TryWriteSandboxedProcessResult(executeResult.result))
+                if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
                 {
-                    return ExitCode.FailedWriteOutput;
+                    return ExitCode.FailedSandboxPreparation;
                 }
-            }
 
-            return executeResult.exitCode;
+                (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
+
+                if (executeResult.result != null)
+                {
+                    if (!TryWriteSandboxedProcessResult(executeResult.result))
+                    {
+                        return ExitCode.FailedWriteOutput;
+                    }
+                }
+
+                return executeResult.exitCode;
+            }
         }
 
         private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)
@@ -121,8 +124,8 @@ namespace BuildXL.SandboxedProcessExecutor
                {
                    using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
                    {
-                        // TODO: Custom DetoursEventListener?
-                        return SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
+                       // TODO: Custom DetoursEventListener?
+                       return SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
                    }
                },
                ex =>

@@ -237,8 +237,9 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                     .RetrievePipsOfType(PipType.Process)
                     .Single(p => RetrieveProcessArguments((Process)p).Contains(SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
 
-                // There should be a statically declared input for test.csproj under the redirected profile
-                Assert.Equal(1, testProj.Dependencies.Count(input => 
+                // There shouldn't be a statically declared input for test.csproj under the redirected profile since the user profile has a corresponding mount
+                // with hash source file disabled, so static declarations under it are skipped. But so the declaration was properly redirected
+                Assert.False(testProj.Dependencies.Any(input => 
                     input.Path.IsWithin(PathTable, redirectedProfile) && 
                     input.Path.GetName(PathTable) == PathAtom.Create(StringTable, "test.csproj"))
                     );

@@ -2476,7 +2476,6 @@ namespace Test.BuildXL.Scheduler
         public async Task ReuseCachedGraphWithSealedDirectory()
         {
             Setup(
-
                 // We assert on Succeeded status rather than one of the lazy-materialization ones.
                 disableLazyOutputMaterialization: true);
             IgnoreWarnings();

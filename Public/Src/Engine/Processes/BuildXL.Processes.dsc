@@ -36,6 +36,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Configuration.dll,
         ],
         internalsVisibleTo: [
+            "Test.BuildXL.Engine",
             "Test.BuildXL.Processes",
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",

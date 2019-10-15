@@ -377,7 +377,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     Tracer.Debug(
                         context,
-                        $"{AttemptTracePrefix(attemptCount)} Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
+                        $"{AttemptTracePrefix(attemptCount)}: Could not copy file with hash {hashInfo.ContentHash.ToShortString()} to temp path {tempLocation} because cancellation was requested.");
                     return (result: CreateCanceledPutResult(), retry: false);
                 }
 

@@ -1869,6 +1869,26 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
+            (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in the shared opaque sideband files.")]
+        public abstract void DeletingOutputsFromSharedOpaqueSidebandFilesStarted(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)EventId.DeletingSharedOpaqueSidebandFilesStarted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque sideband files.")]
+        public abstract void DeletingSharedOpaqueSidebandFilesStarted(LoggingContext context);
+
+        [GeneratedEvent(
             (int)EventId.ScrubbingStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
@@ -1907,6 +1927,16 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + ScrubbingStatusPrefix + " Files processed: {0} ")]
         public abstract void ScrubbingStatus(LoggingContext context, int filesCompleteCount);
+
+        [GeneratedEvent(
+            (int)EventId.ScrubbingProgress,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Stop,
+            Message = EventConstants.PhasePrefix + "{prefix} Files deleted: {numDeleted}/{numTotal} ")]
+        public abstract void ScrubbingProgress(LoggingContext context, string prefix, int numDeleted, int numTotal);
 
         [GeneratedEvent(
             (int)EventId.ScrubbableMountsMayOnlyContainScrubbableMounts,

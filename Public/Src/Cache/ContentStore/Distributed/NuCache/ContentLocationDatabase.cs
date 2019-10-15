@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly Func<IReadOnlyList<MachineId>> _getInactiveMachines;
 
         private Timer _gcTimer;
-        private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> _nagleOperationTracer;
+        private NagleQueue<(ShortHash hash, EntryOperation op, OperationReason reason)> _nagleOperationTracer;
         private readonly ContentLocationDatabaseConfiguration _configuration;
 
         /// <nodoc />
@@ -223,7 +223,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Timeout.InfiniteTimeSpan);
             }
 
-            _nagleOperationTracer = NagleQueue<(ShortHash, EntryOperation, OperationReason, int)>.Create(
+            _nagleOperationTracer = NagleQueue<(ShortHash, EntryOperation, OperationReason)>.Create(
                 ops =>
                 {
                     LogContentLocationOperations(context, Tracer.Name, ops);
@@ -424,14 +424,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         removedEntries++;
                         Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Increment();
                         Delete(context, hash);
-                        LogEntryDeletion(context, hash, entry, OperationReason.GarbageCollect, replicaCount);
+                        LogEntryDeletion(context, hash, entry, OperationReason.GarbageCollect);
                     }
                     else if (filteredEntry.Locations.Count != entry.Locations.Count)
                     {
                         Counters[ContentLocationDatabaseCounters.TotalNumberOfCleanedEntries].Increment();
                         Store(context, hash, entry);
 
-                        _nagleOperationTracer.Enqueue((hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect, entry.Locations.Count - filteredEntry.Locations.Count));
+                        _nagleOperationTracer.Enqueue((hash, EntryOperation.RemoveMachine, OperationReason.GarbageCollect));
                     }
                 }
             }
@@ -676,11 +676,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (existsOnMachine)
                     {
-                        _nagleOperationTracer.Enqueue((hash, initialEntry.Locations.Count == entry.Locations.Count ? EntryOperation.Touch : EntryOperation.AddMachine, reason, 1));
+                        _nagleOperationTracer.Enqueue((hash, initialEntry.Locations.Count == entry.Locations.Count ? EntryOperation.Touch : EntryOperation.AddMachine, reason));
                     }
                     else
                     {
-                        _nagleOperationTracer.Enqueue((hash, EntryOperation.RemoveMachine, reason, 1));
+                        _nagleOperationTracer.Enqueue((hash, machine == null ? EntryOperation.Touch : EntryOperation.RemoveMachine, reason));
                     }
                 }
                 else
@@ -703,7 +703,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Remove the hash when no more locations are registered
                     Delete(context, hash);
                     Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Increment();
-                    LogEntryDeletion(context, hash, entry, reason, priorLocationCount);
+                    LogEntryDeletion(context, hash, entry, reason);
                 }
                 else
                 {
@@ -712,7 +712,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (created)
                     {
                         Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Increment();
-                        _nagleOperationTracer.Enqueue((hash, EntryOperation.Create, reason, 1));
+                        _nagleOperationTracer.Enqueue((hash, EntryOperation.Create, reason));
                     }
                 }
 
@@ -720,10 +720,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void LogEntryDeletion(OperationContext context, ShortHash hash, ContentLocationEntry entry, OperationReason reason, int priorLocationCount)
+        private void LogEntryDeletion(OperationContext context, ShortHash hash, ContentLocationEntry entry, OperationReason reason)
         {
-            _nagleOperationTracer.Enqueue((hash, EntryOperation.Delete, reason, priorLocationCount));
-            context.TraceDebug($"Deleted entry for hash {hash}. Creation Time: '{entry.CreationTimeUtc}', Last Access Time: '{entry.LastAccessTimeUtc}'");
+            _nagleOperationTracer.Enqueue((hash, EntryOperation.Delete, reason));
         }
 
         /// <summary>

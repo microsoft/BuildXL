@@ -165,12 +165,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 //Find list of locations based on reputation
                 //Convert locations from hashInfo into priority queue for available list
                 //Go through list of locations by reputation, and populate available priority queue
-                PriorityQueue<T> availableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
+                // PriorityQueue<T> availableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
 
                 //Create unavailable priority queue, comparable should be based on time needed to wait until
-                PriorityQueue<T> unavailableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
-             
-
+                // PriorityQueue<T> unavailableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
+            
                 //TODO: Change the _retryIntervals Count to 32 in DistributedContentSettings
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
@@ -218,6 +217,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                      *      Increment total retry count
                      *      If index is last element i.e. index = hashInfo.Locations.Count - 1;
                      *          Calculate new wait time
+                     */
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,

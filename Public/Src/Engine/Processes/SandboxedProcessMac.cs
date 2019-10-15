@@ -45,6 +45,9 @@ namespace BuildXL.Processes
             private readonly object m_lock = new object();
             private readonly Timer m_timer;
 
+            /// <summary>Returns whether this timer has been disposed.</summary>
+            public bool IsDisposed => m_disposed;
+
             /// <nodoc />
             public SafeTimer(Timer timer)
             {
@@ -186,6 +189,12 @@ namespace BuildXL.Processes
         private static void UpdatePerfCounters(object state)
         {
             var proc = (SandboxedProcessMac) state;
+
+            if (proc.Process.HasExited || proc.m_perfTimer.IsDisposed)
+            {
+                return;
+            }
+
             var buffer = new Process.ProcessResourceUsage();
 
             // get processor times for the root process itself
@@ -210,11 +219,7 @@ namespace BuildXL.Processes
             proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
 
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            // (must be careful not to do it if the timer has been disposed)
-            if (!proc.Process.HasExited)
-            {
-                proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
-            }
+            proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
         }
 
         /// <inheritdoc />

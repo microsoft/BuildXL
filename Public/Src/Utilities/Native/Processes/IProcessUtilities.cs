@@ -84,6 +84,9 @@ namespace BuildXL.Native.Processes
         /// <summary><see cref="ProcessUtilities.CreateNamedPipe"/></summary>
         SafeFileHandle CreateNamedPipe(string lpName, PipeOpenMode dwOpenMode, PipeMode dwPipeMode, int nMaxInstances, int nOutBufferSize, int nInBufferSize, int nDefaultTimeout, IntPtr lpSecurityAttributes);
 
+        /// <summary><see cref="ProcessUtilities.WaitNamedPipe"/></summary>
+        bool WaitNamedPipe(string pipeName, uint timeout);
+
         /// <summary><see cref="ProcessUtilities.ApplyDriveMappings"/></summary>
         bool ApplyDriveMappings(PathMapping[] mappings);
 

@@ -214,6 +214,9 @@ namespace BuildXL.Native.Processes
             => s_nativeMethods.CreateNamedPipe(lpName, dwOpenMode, dwPipeMode, nMaxInstances, nOutBufferSize, nInBufferSize, nDefaultTimeout, lpSecurityAttributes);
 
         /// <nodoc />
+        public static bool WaitNamedPipe(string pipeName, uint timeout) => s_nativeMethods.WaitNamedPipe(pipeName, timeout);
+
+        /// <nodoc />
         public static bool ApplyDriveMappings(PathMapping[] mappings)
             => s_nativeMethods.ApplyDriveMappings(mappings);
 

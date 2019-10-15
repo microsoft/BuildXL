@@ -139,6 +139,9 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
+        public bool WaitNamedPipe(string pipeName, uint timeout) => throw new NotImplementedException();
+
+        /// <inheritdoc />
         public bool ApplyDriveMappings(PathMapping[] mappings)
             => throw new NotImplementedException();
 

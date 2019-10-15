@@ -17,7 +17,6 @@ using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
-using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.MacOS.Sandbox;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -40,6 +39,42 @@ namespace BuildXL.Processes
             internal PerformanceCollector.Aggregation DiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
         }
 
+        private class SafeTimer : IDisposable
+        {
+            private bool m_disposed = false;
+            private readonly object m_lock = new object();
+            private readonly Timer m_timer;
+
+            /// <nodoc />
+            public SafeTimer(Timer timer)
+            {
+                m_timer = timer;
+            }
+
+            /// <summary>Delegates to <see cref="Timer.Change(TimeSpan, TimeSpan)"/> unless disposed.</summary>
+            public void Change(TimeSpan dueTime, TimeSpan period)
+            {
+                lock (m_lock)
+                {
+                    if (!m_disposed)
+                    {
+                        m_timer.Change(dueTime: dueTime, period: period);
+                    }
+                }
+            }
+
+            /// <nodoc />
+            public void Dispose()
+            {
+                lock (m_lock)
+                {
+                    m_timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                    m_timer.Dispose();
+                    m_disposed = true;
+                }
+            }
+        }
+
         /// <summary>
         /// Interval at which the process is probed for its counters (e.g., CPU time, memory usage, etc.)
         /// </summary>
@@ -49,7 +84,7 @@ namespace BuildXL.Processes
 
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
-        private readonly Timer m_perfTimer;
+        private readonly SafeTimer m_perfTimer;
         private readonly PerfAggregator m_perfAggregator;
 
         private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
@@ -120,11 +155,11 @@ namespace BuildXL.Processes
 
             m_perfAggregator = new PerfAggregator();
 
-            m_perfTimer = new Timer(
+            m_perfTimer = new SafeTimer(new Timer(
                 callback: UpdatePerfCounters,
                 state: this,
                 dueTime: Timeout.InfiniteTimeSpan, // don't automatically start the timer
-                period: Timeout.InfiniteTimeSpan);
+                period: Timeout.InfiniteTimeSpan));
 
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
@@ -167,15 +202,15 @@ namespace BuildXL.Processes
             {
                 proc.m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
                 proc.m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+                proc.m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
+                proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
             }
 
             // get memory usage for the process tree
             proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
 
-            proc.m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
-            proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
-
             // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
+            // (must be careful not to do it if the timer has been disposed)
             if (!proc.Process.HasExited)
             {
                 proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
@@ -304,15 +339,6 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
-            m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-
-            // Any scheduled callback may occur even after Dispose has been called; here we explicitly wait until they all complete
-            // NOTE: we unregister callbacks as soon as the process exits, and since this method is never called before the process 
-            //       exits, in practice this dance is probably not necessary.
-            var allCallbacksCompleted = new EventWaitHandle(initialState: false, mode: EventResetMode.ManualReset);
-            m_perfTimer.Dispose(allCallbacksCompleted);
-            allCallbacksCompleted.WaitOne();
-
             m_perfTimer.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 

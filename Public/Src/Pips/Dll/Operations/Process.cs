@@ -867,7 +867,8 @@ namespace BuildXL.Pips.Operations
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
                 preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
-                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact()
+                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact(),
+                preserveOutputsTrustLevel: reader.ReadInt32()
                 );
         }
 
@@ -917,6 +918,7 @@ namespace BuildXL.Pips.Operations
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
             writer.Write(ChangeAffectedInputListWrittenFilePath);
+            writer.Write(PreserveOutputsTrustLevel);
         }
         #endregion
     }

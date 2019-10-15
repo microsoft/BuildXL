@@ -139,13 +139,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
-                var lastFailureTimes = new List<(MachineLocation, TimeSpan)>();
+                var lastFailureTimes = new List<TimeSpan>();
                 int attemptCount = 0;
+                TimeSpan waitDelay = null;
 
-                foreach(MachineLocation location in hashInfo.Locations)
-                {
-                    lastFailureTimes.Add((location, null));
-                }
                 /*
                 public class Copylocations
         {
@@ -234,6 +231,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         missingContentLocations,
                         lastFailureTimes,
                         attemptCount,
+                        waitDelay,
                         handleCopyAsync);
 
                     if (putResult || operationContext.Token.IsCancellationRequested)
@@ -264,7 +262,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         long waitTicks = _retryIntervals[attemptCount].Ticks;
 
                         // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
-                        TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
+                        waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
 
                         // Log with the original attempt count
                         Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
@@ -357,8 +355,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHashWithSizeAndLocations hashInfo,
             HashSet<MachineLocation> badContentLocations,
             HashSet<MachineLocation> missingContentLocations,
-            List<(MachineLocation, TimeSpan)> lastFailureTimes,
+            List<TimeSpan> lastFailureTimes,
             int attemptCount,
+            TimeSpan waitDelay,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             var cts = context.Token;
@@ -383,6 +382,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             context,
                             $"{AttemptTracePrefix(attemptCount)} Reached maximum number of total retries of {_maxRetryCount}.");
                     return (result: CreateMaxRetryPutResult(), retry: false);
+                }
+
+                if (waitDelay)
+                {
+                    var waitedTime = currentTime - lastFailureTimes[replicaIndex];
+                    if (waitedTime < waitDelay)
+                    {
+                        await Task.Delay(waitDelay - waitedTime, cts);
+                    }
                 }
 
                 // if the file is explicitly reported missing by the remote, don't bother retrying.

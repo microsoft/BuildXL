@@ -754,13 +754,14 @@ namespace BuildXL.Engine
             }
 
             // We don't scrub composite shared directories since scrubbing the non-composite ones is enough to clean up all outputs
-            var sharedOpaqueDirectories = scheduler.PipGraph.AllSealDirectories.Where(directoryArtifact =>
-                directoryArtifact.IsSharedOpaque &&
-                !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId())
-            );
+            var sharedOpaqueDirectories = scheduler.PipGraph.AllSealDirectories
+                .Where(directoryArtifact =>
+                    directoryArtifact.IsSharedOpaque &&
+                    !scheduler.PipGraph.PipTable.IsSealDirectoryComposite(scheduler.PipGraph.GetSealedDirectoryNode(directoryArtifact).ToPipId()))
+                .ToArray();
 
             List<string> outputDirectories = null;
-            if (pathsToScrub.Count > 0 || sharedOpaqueDirectories.Count() > 0)
+            if (pathsToScrub.Count > 0 || sharedOpaqueDirectories.Length > 0)
             {
                 // All directories that can contain outputs should not be deleted. One reason for this is
                 // some pips may probe such directories, and such a probe is recorded by incremental scheduling state.
@@ -772,6 +773,7 @@ namespace BuildXL.Engine
                 outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(scheduler.Context.PathTable)).ToList();
             }
 
+            var pathTable = scheduler.Context.PathTable;
             var scrubber = new DirectoryScrubber(
                 cancellationToken: scheduler.Context.CancellationToken,
                 loggingContext: loggingContext,
@@ -779,13 +781,14 @@ namespace BuildXL.Engine
                 maxDegreeParallelism: Environment.ProcessorCount,
                 tempDirectoryCleaner: tempCleaner);
 
-            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
+            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(pathTable);
             var sharedOpaqueSidebandFiles = SharedOpaqueOutputLogger.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
             var distinctRecordedWrites = sharedOpaqueSidebandFiles
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
                 .SelectMany(SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFile)
+                .Where(path => AbsolutePath.TryCreate(pathTable, path, out var absPath) && sharedOpaqueDirectories.Any(sod => absPath.IsWithin(pathTable, sod)))
                 .ToArray();
 
             if (distinctRecordedWrites.Any())
@@ -820,7 +823,7 @@ namespace BuildXL.Engine
             // TODO: we can consider conflating these two scrubbing passes (first one is optional) into one call to DirectoryScrubber to
             // avoid enumerating the disk twice. But this involves some refactoring of the scrubber, where each path to scrub needs its own
             // isPathInBuild, mountPathExpander being on/off, etc. Revisit if two passes become a perf problem.
-            if (sharedOpaqueDirectories.Count() > 0)
+            if (sharedOpaqueDirectories.Length > 0)
             {
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.

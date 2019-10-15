@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -138,8 +139,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
+                var lastFailureTimes = new List<(MachineLocation, TimeSpan)>();
                 int attemptCount = 0;
 
+                foreach(MachineLocation location in hashInfo.Locations)
+                {
+                    lastFailureTimes.Add((location, null));
+                }
                 /*
                 public class Copylocations
         {
@@ -226,6 +232,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         hashInfo,
                         badContentLocations,
                         missingContentLocations,
+                        lastFailureTimes,
                         attemptCount,
                         handleCopyAsync);
 
@@ -350,6 +357,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHashWithSizeAndLocations hashInfo,
             HashSet<MachineLocation> badContentLocations,
             HashSet<MachineLocation> missingContentLocations,
+            List<(MachineLocation, TimeSpan)> lastFailureTimes,
             int attemptCount,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
@@ -368,7 +376,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
                 // We add one because replicaIndex is indexed from zero.
                 // If we reach over maximum retries, return an put result stating so, and no longer retry
-                if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > _maxRetryCount)
+                var totalRetryCount = attemptCount * hashInfo.Locations.Count + replicaIndex + 1;
+                if (totalRetryCount > _maxRetryCount)
                 {
                     Tracer.Debug(
                             context,

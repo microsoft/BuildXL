@@ -140,9 +140,9 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         [Fact]
-        public void GeneratedNugetPropFilesAreUntracked()
+        public void GeneratedNugetFilesAreUntracked()
         {
-            var project = CreateProjectWithPredictions(inputs: CreatePath(@"aPath\Project.csproj.nuget.g.props"));
+            var project = CreateProjectWithPredictions(inputs: CreatePath(@"aProject\.pkgrefgen\aFile", @"anotherProject\.pkrefgen\anotherFile"));
 
             var processInputs = Start()
                 .Add(project)

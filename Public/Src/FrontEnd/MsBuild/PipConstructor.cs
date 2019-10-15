@@ -60,7 +60,7 @@ namespace BuildXL.FrontEnd.MsBuild
         private readonly string m_frontEndName;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
         private readonly IEnumerable<string> m_userDefinedPassthroughVariables;
-
+        
         private PathTable PathTable => m_context.PathTable;
         private FrontEndEngineAbstraction Engine => m_frontEndHost.Engine;
 
@@ -316,6 +316,8 @@ namespace BuildXL.FrontEnd.MsBuild
             // Predicted output directories for all direct dependencies, plus the output directories for the given project itself
             var knownOutputDirectories = project.ProjectReferences.SelectMany(reference => reference.PredictedOutputFolders).Union(project.PredictedOutputFolders);
 
+            var pkgRefGen = PathAtom.Create(PathTable.StringTable, ".pkgrefgen");
+
             // Add all predicted inputs that are recognized as true source files
             // This is done to make the weak fingerprint stronger. Pips are scheduled so undeclared source reads are allowed. This means
             // we don't actually need accurate (or in fact any) input predictions to run successfully. But we are trying to avoid the degenerate case
@@ -330,11 +332,14 @@ namespace BuildXL.FrontEnd.MsBuild
                     continue;
                 }
 
-                // Nuget restore generates nuget.g.props files that have absolute paths embedded. This blocks shared cache from working when
-                // the project file (and therefore the corresponding .pkgrefgen folder) is placed on machine-dependent folders
-                // Even though untracking this file is not completely safe from a caching perspective, in practice this should be harmless
+                // Nuget restore does not produce deterministic files under the project .pkgrefgen folder, and many times they have absolute paths embedded. 
+                // This blocks shared cache from working when the project file (and therefore the corresponding .pkgrefgen folder) is placed on machine-dependent folders
+                // Even though untracking these generated files is not completely safe from a caching perspective, in practice this should be harmless since the generation
+                // is controlled by files (e.g. project.assents.json or global.json) that are declared as inputs.
                 // In this case, we not only skip declaring it as an input, but we also untrack it as well
-                if (buildInput.GetName(PathTable).ToString(PathTable.StringTable).EndsWith("nuget.g.props", StringComparison.OrdinalIgnoreCase))
+                if (buildInput.GetParent(PathTable) is AbsolutePath parent && 
+                    parent.IsValid && 
+                    parent.GetName(PathTable) == pkgRefGen)
                 {
                     processBuilder.AddUntrackedFile(buildInput);
                     continue;

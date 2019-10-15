@@ -150,6 +150,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         public const string FingerprintStoreDirectory = "FingerprintStore";
 
+        /// <summary>
+        /// <see cref="ILayoutConfiguration.SharedOpaqueSidebandDirectory"/> directory name.
+        /// </summary>
+        public const string SharedOpaqueSidebandDirectory = "SharedOpaqueSidebandState";
+
         #endregion Constants
 
         #region State
@@ -1182,6 +1187,9 @@ namespace BuildXL.Scheduler
                     m_fingerprintStoreCounters,
                     m_runnablePipPerformance,
                     m_testHooks?.FingerprintStoreTestHooks);
+
+            // create the directory where shared opaque outputs journals will be stored
+            FileUtilities.CreateDirectoryWithRetry(configuration.Layout.SharedOpaqueSidebandDirectory.ToString(Context.PathTable));
 
             MasterSpecificExecutionLogTarget masterTarget = null;
 

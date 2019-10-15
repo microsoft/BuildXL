@@ -13,6 +13,7 @@ using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
@@ -36,7 +37,12 @@ namespace BuildXL.Processes
 
         private readonly Dictionary<string, string> m_pathCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new Dictionary<AbsolutePath, bool>();
+
+        [CanBeNull]
         private readonly IDetoursEventListener m_detoursEventListener;
+
+        [CanBeNull]
+        private readonly SharedOpaqueOutputLogger m_sharedOpaqueOutputLogger;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
@@ -97,7 +103,8 @@ namespace BuildXL.Processes
             long pipSemiStableHash,
             string pipDescription,
             LoggingContext loggingContext,
-            IDetoursEventListener detoursEventListener = null)
+            [CanBeNull] IDetoursEventListener detoursEventListener,
+            [CanBeNull] SharedOpaqueOutputLogger sharedOpaqueOutputLogger)
         {
             Contract.Requires(manifest != null);
             Contract.Requires(pathTable != null);
@@ -110,6 +117,7 @@ namespace BuildXL.Processes
             FileUnexpectedAccesses = new HashSet<ReportedFileAccess>();
             m_manifest = manifest;
             m_detoursEventListener = detoursEventListener;
+            m_sharedOpaqueOutputLogger = sharedOpaqueOutputLogger;
 
             // For tests we need the StaticContext
             m_loggingContext = loggingContext ?? BuildXL.Utilities.Tracing.Events.StaticContext;
@@ -634,6 +642,17 @@ namespace BuildXL.Processes
                 path = null;
             }
 
+            var pathAsAbsolutePath = finalPath;
+            if (!pathAsAbsolutePath.IsValid)
+            {
+                AbsolutePath.TryCreate(m_pathTable, path, out pathAsAbsolutePath);
+            }
+
+            if (pathAsAbsolutePath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)
+            {
+                m_sharedOpaqueOutputLogger.RecordFileWrite(m_pathTable, pathAsAbsolutePath);
+            }
+
             Contract.Assume(manifestPath.IsValid || !string.IsNullOrEmpty(path));
 
             if (path != null)
@@ -661,7 +680,7 @@ namespace BuildXL.Processes
                 // non-deterministically deny the access
                 // We store the path as an absolute path in order to guarantee canonicalization: e.g. prefixes like \\?\
                 // are not canonicalized in detours
-                if (path != null && AbsolutePath.TryCreate(m_pathTable, path, out var pathAsAbsolutePath) && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
+                if (path != null && pathAsAbsolutePath.IsValid && !m_overrideAllowedWritePaths.ContainsKey(pathAsAbsolutePath))
                 {
                     // We should override write allowed accesses for this path if the status of the special operation was 'denied'
                     m_overrideAllowedWritePaths[pathAsAbsolutePath] = (status == FileAccessStatus.Denied);
@@ -678,8 +697,8 @@ namespace BuildXL.Processes
                 (requestedAccess & RequestedAccess.Write) != 0 &&
                 status == FileAccessStatus.Allowed &&
                 m_overrideAllowedWritePaths.Count > 0 && // Avoid creating the absolute path if the override allowed writes flag is off
-                AbsolutePath.TryCreate(m_pathTable, path, out var absolutePath) &&
-                m_overrideAllowedWritePaths.TryGetValue(absolutePath, out bool shouldOverrideAllowedAccess) &&
+                pathAsAbsolutePath.IsValid &&
+                m_overrideAllowedWritePaths.TryGetValue(pathAsAbsolutePath, out bool shouldOverrideAllowedAccess) &&
                 shouldOverrideAllowedAccess)
             {
                 status = FileAccessStatus.Denied;

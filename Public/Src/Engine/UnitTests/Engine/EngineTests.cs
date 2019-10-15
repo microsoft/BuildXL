@@ -163,7 +163,10 @@ namespace Test.BuildXL.EngineTests
             var engineCacheFilesList = new List<string>();
             FileUtilities.EnumerateDirectoryEntries(engineCacheDirectory, (file, attributes) =>
             {
-                engineCacheFilesList.Add(file);
+                if (!attributes.HasFlag(FileAttributes.Directory))
+                {
+                    engineCacheFilesList.Add(file);
+                }
             });
 
             var recovery = FailureRecoveryFactory.Create(LoggingContext, Context.PathTable, Configuration);
@@ -187,7 +190,7 @@ namespace Test.BuildXL.EngineTests
             var fileContentTableFile = Path.GetFileName(engineCacheFileContentTablePath);
 
             // Make sure file content table was copied to logs
-            XAssert.IsTrue(logsFilesList.Contains(fileContentTableFile));
+            XAssert.Contains(logsFilesList, fileContentTableFile);
             expectedCount = 1;
 
             // Make sure file content table file exists in the engine cache directory after recovery
@@ -199,7 +202,7 @@ namespace Test.BuildXL.EngineTests
             // Check to make sure all the file from the engine cache directory ended up in the logs directory
             foreach (var file in engineCacheFilesList)
             {
-                XAssert.IsTrue(logsFilesList.Contains(file));
+                XAssert.Contains(logsFilesList, file);
             }
         }
 

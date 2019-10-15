@@ -122,7 +122,8 @@ namespace BuildXL.Processes
                     info.PipSemiStableHash,
                     info.PipDescription,
                     info.LoggingContext,
-                    info.DetoursEventListener) : null;
+                    info.DetoursEventListener,
+                    info.SharedOpaqueOutputLogger) : null;
 
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);

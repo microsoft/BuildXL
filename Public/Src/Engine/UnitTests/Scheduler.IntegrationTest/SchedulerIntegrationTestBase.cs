@@ -598,6 +598,17 @@ namespace Test.BuildXL.Scheduler
             return SchedulePipBuilder(builder);
         }
 
+        protected AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
+        {
+            var logFile = SharedOpaqueOutputLogger.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+            XAssert.IsTrue(File.Exists(logFile));
+            return SharedOpaqueOutputLogger
+                .ReadRecordedPathsFromSidebandFile(logFile)
+                .Select(path => AbsolutePath.Create(Context.PathTable, path))
+                .Distinct()
+                .ToArray();
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (m_expectedErrorCount > 0 // protect from lazy loading ErrorsLoggedById in success cases

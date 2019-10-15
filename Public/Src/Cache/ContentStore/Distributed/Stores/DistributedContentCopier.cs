@@ -267,7 +267,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         // Log with the original attempt count
                         Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
 
-                        await Task.Delay(waitDelay, cts);
+                        //await Task.Delay(waitDelay, cts);
                     }
                     else
                     {
@@ -384,19 +384,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     return (result: CreateMaxRetryPutResult(), retry: false);
                 }
 
-                if (waitDelay)
-                {
-                    var waitedTime = currentTime - lastFailureTimes[replicaIndex];
-                    if (waitedTime < waitDelay)
-                    {
-                        await Task.Delay(waitDelay - waitedTime, cts);
-                    }
-                }
-
                 // if the file is explicitly reported missing by the remote, don't bother retrying.
                 if (missingContentLocations.Contains(location))
                 {
                     continue;
+                }
+
+                //TODO: determine current Time, make sure the values are in seconds
+                if (waitDelay)
+                {
+                    TimeSpan waitedTime = currentTime - lastFailureTimes[replicaIndex];
+                    if (waitedTime < waitDelay)
+                    {
+                        await Task.Delay(waitDelay - waitedTime, cts);
+                    }
                 }
 
                 var sourcePath = _pathTransformer.GeneratePath(hashInfo.ContentHash, location.Data);
@@ -588,6 +589,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 finally
                 {
+                    if(lastFailureTimes.Count <= replicaIndex)
+                    {
+                        lastFailureTimes.Add(currentTime);
+                    }
+                    else
+                    {
+                        lastFailureTimes[replicaIndex] = currentTime;
+                    }
+
                     if (deleteTempFile)
                     {
                         _fileSystem.DeleteFile(tempLocation);

@@ -1416,13 +1416,16 @@ namespace BuildXL.Scheduler
                                             result.PipProperties[pipPropertyKey] = value + pipProperties[pipPropertyKey];
                                         }
                                     }
-                                    else
-                                    {
-                                        result.PipProperties = pipProperties;
-                                    }
 
                                     // Save off the current PipProperties to add back to future loop iterations that reset the result
                                     pipProperties = result.PipProperties;
+                                }
+                                else
+                                {
+                                    if (pipProperties != null)
+                                    {
+                                        result.PipProperties = pipProperties;
+                                    }
                                 }
 
                                 lock (s_telemetryDetoursHeapLock)

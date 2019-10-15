@@ -154,7 +154,7 @@ namespace BuildXL.Scheduler.Distribution
                 result = PipResultStatus.NotMaterialized;
             }
 
-            ReadPipProperties(reader, out var pipProperties);
+            var pipProperties = ReadPipProperties(reader);
             var hasUserRetries = reader.ReadBoolean();
 
             var processExecutionResult = ExecutionResult.CreateSealed(
@@ -622,27 +622,27 @@ namespace BuildXL.Scheduler.Distribution
             writer.WriteCompact(file.RewriteCount);
         }
 
-        private static void ReadPipProperties(BuildXLReader reader, out IReadOnlyDictionary<string, int> pipProperties)
+        private static IReadOnlyDictionary<string, int> ReadPipProperties(BuildXLReader reader)
         {
             bool hasPipProperties = reader.ReadBoolean();
 
             if (!hasPipProperties)
             {
-                pipProperties = null;
+                return null;
             }
             else
             {
                 int count = reader.ReadInt32Compact();
 
-                var tmpPipProperties = new Dictionary<string, int>();
+                var pipProperties = new Dictionary<string, int>();
 
                 for (int i = 0; i < count; i++)
                 {
                     string key = reader.ReadNullableString();
-                    tmpPipProperties[key] = reader.ReadInt32Compact();
+                    pipProperties[key] = reader.ReadInt32Compact();
                 }
 
-                pipProperties = tmpPipProperties;
+                return pipProperties;
             }
         }
 

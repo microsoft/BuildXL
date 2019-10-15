@@ -1210,7 +1210,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             var allLocalStoreContent = allLocalStoreContentInfos
                                 .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
                                 .OrderBy(c => c.hash)
-                                .SkipWhile(hashWithSize => hashWithSize.hash < lastProcessedHash)
+                                .SkipWhile(hashWithSize => lastProcessedHash.HasValue && hashWithSize.hash < lastProcessedHash.Value)
                                 .ToList();
 
                             allLocalStoreContentCount = allLocalStoreContent.Count;
@@ -1244,6 +1244,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
                             Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
+                            totalAddedContent += addedContent.Count;
+                            totalRemovedContent += removedContent.Count;
 
                             // Only call reconcile if content needs to be updated for machine
                             if (addedContent.Count != 0 || removedContent.Count != 0)

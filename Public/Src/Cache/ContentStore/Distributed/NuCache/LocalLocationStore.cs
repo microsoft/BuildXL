@@ -1197,6 +1197,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency);
 
+                        Counters[ContentLocationStoreCounters.ReconciliationCycles].Increment();
+
                         // Pause events in main event store while sending reconciliation events via temporary event store
                         // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
                         // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.

@@ -467,7 +467,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
             const int KeysChunkSize = 100000;
-            var startValue = filter?.StartingPoint?.Value.ToByteArray();
+            var startValue = filter?.StartingPoint?.ToByteArray();
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();

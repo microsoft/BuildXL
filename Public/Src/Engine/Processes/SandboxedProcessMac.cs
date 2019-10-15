@@ -39,45 +39,6 @@ namespace BuildXL.Processes
             internal PerformanceCollector.Aggregation DiskBytesWritten { get; } = new PerformanceCollector.Aggregation();
         }
 
-        private class SafeTimer : IDisposable
-        {
-            private bool m_disposed = false;
-            private readonly object m_lock = new object();
-            private readonly Timer m_timer;
-
-            /// <summary>Returns whether this timer has been disposed.</summary>
-            public bool IsDisposed => m_disposed;
-
-            /// <nodoc />
-            public SafeTimer(Timer timer)
-            {
-                m_timer = timer;
-            }
-
-            /// <summary>Delegates to <see cref="Timer.Change(TimeSpan, TimeSpan)"/> unless disposed.</summary>
-            public void Change(TimeSpan dueTime, TimeSpan period)
-            {
-                lock (m_lock)
-                {
-                    if (!m_disposed)
-                    {
-                        m_timer.Change(dueTime: dueTime, period: period);
-                    }
-                }
-            }
-
-            /// <nodoc />
-            public void Dispose()
-            {
-                lock (m_lock)
-                {
-                    m_timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                    m_timer.Dispose();
-                    m_disposed = true;
-                }
-            }
-        }
-
         /// <summary>
         /// Interval at which the process is probed for its counters (e.g., CPU time, memory usage, etc.)
         /// </summary>
@@ -87,7 +48,7 @@ namespace BuildXL.Processes
 
         private readonly ActionBlock<AccessReport> m_pendingReports;
 
-        private readonly SafeTimer m_perfTimer;
+        private readonly CancellableTimedAction m_perfCollector;
         private readonly PerfAggregator m_perfAggregator;
 
         private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
@@ -158,11 +119,9 @@ namespace BuildXL.Processes
 
             m_perfAggregator = new PerfAggregator();
 
-            m_perfTimer = new SafeTimer(new Timer(
+            m_perfCollector = new CancellableTimedAction(
                 callback: UpdatePerfCounters,
-                state: this,
-                dueTime: Timeout.InfiniteTimeSpan, // don't automatically start the timer
-                period: Timeout.InfiniteTimeSpan));
+                intervalMs: (int)PerfProbeInternal.TotalMilliseconds);
 
             m_reports = new SandboxedProcessReports(
                 info.FileAccessManifest,
@@ -186,11 +145,9 @@ namespace BuildXL.Processes
             ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
         }
 
-        private static void UpdatePerfCounters(object state)
+        private void UpdatePerfCounters()
         {
-            var proc = (SandboxedProcessMac) state;
-
-            if (proc.Process.HasExited || proc.m_perfTimer.IsDisposed)
+            if (Process.HasExited)
             {
                 return;
             }
@@ -198,28 +155,25 @@ namespace BuildXL.Processes
             var buffer = new Process.ProcessResourceUsage();
 
             // get processor times for the root process itself
-            int errCode = Interop.MacOS.Process.GetProcessResourceUsage(proc.ProcessId, ref buffer, includeChildProcesses: false);
+            int errCode = Interop.MacOS.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: false);
             if (errCode == 0)
             {
-                proc.m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
-                proc.m_perfAggregator.UserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+                m_perfAggregator.KernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
+                m_perfAggregator.UserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
             }
 
             // get processor times for the process tree
-            errCode = Interop.MacOS.Process.GetProcessResourceUsage(proc.ProcessId, ref buffer, includeChildProcesses: true);
+            errCode = Interop.MacOS.Process.GetProcessResourceUsage(ProcessId, ref buffer, includeChildProcesses: true);
             if (errCode == 0)
             {
-                proc.m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
-                proc.m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
-                proc.m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
-                proc.m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
+                m_perfAggregator.JobKernelTimeMs.RegisterSample(buffer.SystemTimeNs / 1000);
+                m_perfAggregator.JobUserTimeMs.RegisterSample(buffer.UserTimeNs / 1000);
+                m_perfAggregator.DiskBytesRead.RegisterSample(buffer.DiskBytesRead);
+                m_perfAggregator.DiskBytesWritten.RegisterSample(buffer.DiskBytesWritten);
             }
 
             // get memory usage for the process tree
-            proc.m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, proc.ProcessId));
-
-            // reschedule the timer to fire again in PerfProbeInterval time (2 seconds)
-            proc.m_perfTimer.Change(dueTime: PerfProbeInternal, period: Timeout.InfiniteTimeSpan);
+            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, ProcessId));
         }
 
         /// <inheritdoc />
@@ -231,9 +185,7 @@ namespace BuildXL.Processes
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
 
-            // Stop the perf timer when the process exits
-            // NOTE: even if the timer fires after the process has exited, nothing bad should happen
-            process.Exited += (o, e) => m_perfTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            process.Exited += (o, e) => m_perfCollector.Cancel();
 
             return process;
         }
@@ -263,8 +215,7 @@ namespace BuildXL.Processes
 
             if (MeasureCpuTime)
             {
-                // start the timer now
-                m_perfTimer.Change(dueTime: TimeSpan.FromSeconds(0), period: Timeout.InfiniteTimeSpan);
+                m_perfCollector.Start();
             }
 
             if (!SandboxConnection.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
@@ -344,7 +295,9 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public override void Dispose()
         {
-            m_perfTimer.Dispose();
+            m_perfCollector.Cancel();
+            m_perfCollector.Join();
+            m_perfCollector.Dispose();
             m_timeoutTaskCancelationSource.Cancel();
 
             var reportCount = Counters.GetCounterValue(SandboxedProcessCounters.AccessReportCount);

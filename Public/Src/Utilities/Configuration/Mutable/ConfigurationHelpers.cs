@@ -16,6 +16,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             var rootPath = configFile.GetParent(pathTable);
             var outPath = rootPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "Out"));
             var logsPath = outPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "Logs"));
+            var engineCacheDir = rootPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "cache"), PathAtom.Create(pathTable.StringTable, "engineCache"));
 
             return new CommandLineConfiguration
             {
@@ -32,7 +33,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     ObjectDirectory = rootPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "obj")),
                     CacheDirectory = rootPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "cache")),
                     BuildEngineDirectory = rootPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "bxl.exe")),
-                    EngineCacheDirectory = rootPath.Combine(pathTable, PathAtom.Create(pathTable.StringTable, "cache"), PathAtom.Create(pathTable.StringTable, "engineCache")),
+                    EngineCacheDirectory = engineCacheDir,
                 },
                 Logging =
                 {

@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
@@ -31,6 +33,40 @@ namespace IntegrationTest.BuildXL.Scheduler
             ProcessWithOutputs process = SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
             RunScheduler().AssertCacheHit(process.Process.PipId);
+        }
+
+        [Fact]
+        public void RunSingleProcessWithSharedOpaqueOutputLogging()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirectoryArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+            var outputInSharedOpaque = CreateOutputFileArtifact(sharedOpaqueDir);
+            var source = CreateSourceFile();
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.WriteFile(outputInSharedOpaque, content: "sod-out", doNotInfer: true)
+            });
+            builder.AddOutputDirectory(sharedOpaqueDirectoryArtifact, SealDirectoryKind.SharedOpaque);
+            builder.Options |= Process.Options.RequiresAdmin;
+
+            var pip = SchedulePipBuilder(builder);
+
+            // run once and assert success
+            var result = RunScheduler().AssertSuccess();
+
+            // check that shared opaque outputs have been logged in the sideband file
+            var writesInSidebandFile = GetJournaledWritesForProcess(result, pip.Process);
+            XAssert.Contains(writesInSidebandFile, outputInSharedOpaque);
+            XAssert.ContainsNot(writesInSidebandFile, pip.ProcessOutputs.GetOutputFiles().Select(f => f.Path).ToArray());
+
+            // run again and assert cache hit
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            // assert sideband files were used for scrubbing
+            AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 1);
+            AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 1);
         }
 
         [Fact]

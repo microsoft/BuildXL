@@ -132,7 +132,8 @@ namespace BuildXL.Processes
                 info.PipSemiStableHash,
                 info.PipDescription,
                 info.LoggingContext,
-                info.DetoursEventListener);
+                info.DetoursEventListener,
+                info.SharedOpaqueOutputLogger);
 
             m_pendingReports = new ActionBlock<AccessReport>(
                 HandleAccessReport,
@@ -426,7 +427,7 @@ namespace BuildXL.Processes
                         ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
                     }),
-                    PeakMemoryUsage = (ulong)m_perfAggregator.PeakMemoryBytes.Maximum,
+                    PeakMemoryUsage = Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum),
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
                 };

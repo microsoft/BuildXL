@@ -76,6 +76,22 @@ namespace BuildXL.Processes
         /// </summary>
         public ContainerConfiguration ContainerConfiguration { get; }
 
+        /// <remarks>
+        /// This constructor is never used in this project, but there exist external projects that
+        /// compile against this assembly and already depend on this constructor.
+        /// </remarks>
+        public SandboxedProcessInfo(
+             ISandboxedProcessFileStorage fileStorage,
+             string fileName,
+             bool disableConHostSharing,
+             bool testRetries = false,
+             LoggingContext loggingContext = null,
+             IDetoursEventListener detoursEventListener = null,
+             ISandboxConnection sandboxConnection = null)
+             : this(new PathTable(), fileStorage, fileName, disableConHostSharing, testRetries, loggingContext, detoursEventListener, sandboxConnection)
+        {
+        }
+
         /// <summary>
         /// Creates instance
         /// </summary>

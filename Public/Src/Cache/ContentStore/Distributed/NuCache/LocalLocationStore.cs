@@ -1187,67 +1187,99 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     token.ThrowIfCancellationRequested();
 
-                    // Pause events in main event store while sending reconciliation events via temporary event store
-                    // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
-                    // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
-                    // It is possible that remove event could be sent before reconciliation event and the final state
-                    // in the database would still have missing content [A].
-                    using (EventStore.PauseSendingEvents())
+                    var totalAddedContent = 0;
+                    var totalRemovedContent = 0;
+                    var allLocalStoreContentCount = 0;
+                    ShortHash? lastProcessedHash = null;
+                    var isFinished = false;
+
+                    while (!isFinished)
                     {
-                        var allLocalStoreContentInfos = await _localContentStore.GetContentInfoAsync(token);
-                        token.ThrowIfCancellationRequested();
+                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency);
 
-                        var allLocalStoreContent = allLocalStoreContentInfos.Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size)).OrderBy(c => c.hash).ToList();
+                        Counters[ContentLocationStoreCounters.ReconciliationCycles].Increment();
 
-                        var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, LocalMachineId);
-                        token.ThrowIfCancellationRequested();
-
-                        // Diff the two views of the local machines content (left = local store, right = content location db)
-                        // Then send changes as events
-                        var diffedContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: dbContent, t => t.hash);
-
-                        var addedContent = new List<ShortHashWithSize>();
-                        var removedContent = new List<ShortHash>();
-
-                        foreach (var diffItem in diffedContent)
+                        // Pause events in main event store while sending reconciliation events via temporary event store
+                        // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
+                        // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
+                        // It is possible that remove event could be sent before reconciliation event and the final state
+                        // in the database would still have missing content [A].
+                        using (EventStore.PauseSendingEvents())
                         {
-                            if (diffItem.mode == MergeMode.LeftOnly)
+                            var allLocalStoreContentInfos = await _localContentStore.GetContentInfoAsync(token);
+                            token.ThrowIfCancellationRequested();
+
+                            var allLocalStoreContent = allLocalStoreContentInfos
+                                .Select(c => (hash: new ShortHash(c.ContentHash), size: c.Size))
+                                .OrderBy(c => c.hash)
+                                .SkipWhile(hashWithSize => lastProcessedHash.HasValue && hashWithSize.hash < lastProcessedHash.Value)
+                                .ToList();
+
+                            allLocalStoreContentCount = allLocalStoreContent.Count;
+
+                            var dbContent = Database.EnumerateSortedHashesWithContentSizeForMachineId(context, LocalMachineId, startingPoint: lastProcessedHash);
+                            token.ThrowIfCancellationRequested();
+
+                            // Diff the two views of the local machines content (left = local store, right = content location db)
+                            // Then send changes as events
+                            var diffedContent = NuCacheCollectionUtilities.DistinctDiffSorted(leftItems: allLocalStoreContent, rightItems: dbContent, t => t.hash);
+                            diffedContent = diffedContent.Take(_configuration.ReconciliationMaxCycleSize);
+
+                            var addedContent = new List<ShortHashWithSize>();
+                            var removedContent = new List<ShortHash>();
+
+                            foreach (var diffItem in diffedContent)
                             {
-                                // Content is not in DB but is in the local store need to send add event
-                                addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
+                                lastProcessedHash = diffItem.item.hash;
+
+                                if (diffItem.mode == MergeMode.LeftOnly)
+                                {
+                                    // Content is not in DB but is in the local store need to send add event
+                                    addedContent.Add(new ShortHashWithSize(diffItem.item.hash, diffItem.item.size));
+                                }
+                                else
+                                {
+                                    // Content is in DB but is not local store need to send remove event
+                                    removedContent.Add(diffItem.item.hash);
+                                }
                             }
-                            else
+
+                            Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
+                            Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
+                            totalAddedContent += addedContent.Count;
+                            totalRemovedContent += removedContent.Count;
+
+                            // Only call reconcile if content needs to be updated for machine
+                            if (addedContent.Count != 0 || removedContent.Count != 0)
                             {
-                                // Content is in DB but is not local store need to send remove event
-                                removedContent.Add(diffItem.item.hash);
+                                // Create separate event store for reconciliation events so they are dispatched first before
+                                // events in normal event store which may be queued during reconciliation operation.
+                                var reconciliationEventStore = CreateEventStore(_configuration);
+
+                                try
+                                {
+                                    await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
+
+                                    await reconciliationEventStore.ReconcileAsync(context, LocalMachineId, addedContent, removedContent).ThrowIfFailure();
+                                }
+                                finally
+                                {
+                                    await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
+                                }
                             }
+
+                            // Corner case where they are equal and we have finished should be very unlikely.
+                            isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
                         }
 
-                        Counters[ContentLocationStoreCounters.Reconcile_AddedContent].Add(addedContent.Count);
-                        Counters[ContentLocationStoreCounters.Reconcile_RemovedContent].Add(removedContent.Count);
-
-                        // Only call reconcile if content needs to be updated for machine
-                        if (addedContent.Count != 0 || removedContent.Count != 0)
+                        if (!isFinished)
                         {
-                            // Create separate event store for reconciliation events so they are dispatched first before
-                            // events in normal event store which may be queued during reconciliation operation.
-                            var reconciliationEventStore = CreateEventStore(_configuration);
-
-                            try
-                            {
-                                await reconciliationEventStore.StartupAsync(context).ThrowIfFailure();
-
-                                await reconciliationEventStore.ReconcileAsync(context, LocalMachineId, addedContent, removedContent).ThrowIfFailure();
-                            }
-                            finally
-                            {
-                                await reconciliationEventStore.ShutdownAsync(context).ThrowIfFailure();
-                            }
+                            await delayTask;
                         }
-
-                        MarkReconciled();
-                        return new ReconciliationResult(addedCount: addedContent.Count, removedCount: removedContent.Count, totalLocalContentCount: allLocalStoreContent.Count);
                     }
+
+                    MarkReconciled();
+                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
         }

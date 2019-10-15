@@ -695,6 +695,84 @@ namespace ContentStoreTest.Distributed.Sessions
                 });
         }
 
+        [Fact]
+        public async Task SlowReconciliationTest()
+        {
+            var removeCount = 100;
+            var addCount = 10;
+
+            _enableReconciliation = true;
+            _reconciliationCycleFrequency = TimeSpan.FromMilliseconds(1);
+            _reconciliationMaxCycleSize = 50;
+            ConfigureWithOneMaster();
+
+            await RunTestAsync(
+                new Context(Logger),
+                2,
+                async context =>
+                {
+                    var master = context.GetMaster();
+                    var worker = context.GetFirstWorker();
+                    var workerId = worker.LocalLocationStore.LocalMachineId;
+
+                    var workerSession = context.Sessions[context.GetFirstWorkerIndex()];
+
+                    ThreadSafeRandom.SetSeed(1);
+
+                    var addedHashes = new List<ContentHashWithSize>();
+                    var retainedHashes = new List<ContentHashWithSize>();
+                    var removedHashes = Enumerable.Range(0, removeCount).Select(i => new ContentHashWithSize(ContentHash.Random(), 120)).OrderBy(h => h.Hash).ToList();
+
+                    for (int i = 0; i < addCount; i++)
+                    {
+                        var putResult = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                        addedHashes.Add(new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize));
+                    }
+
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var putResult = await workerSession.PutRandomAsync(context, ContentHashType, false, ContentByteCount, Token).ShouldBeSuccess();
+                        retainedHashes.Add(new ContentHashWithSize(putResult.ContentHash, putResult.ContentSize));
+                    }
+
+                    foreach (var removedHash in removedHashes)
+                    {
+                        // Add hashes to master db that are not present on the worker so during reconciliation remove events will be sent to master for these hashes
+                        master.LocalLocationStore.Database.LocationAdded(context, removedHash.Hash, workerId, removedHash.Size);
+                        HasLocation(master.LocalLocationStore.Database, context, removedHash.Hash, workerId, removedHash.Size).Should()
+                            .BeTrue();
+                    }
+
+                    foreach (var addedHash in addedHashes)
+                    {
+                        // Remove hashes from master db that ARE present on the worker so during reconciliation add events will be sent to master for these hashes
+                        master.LocalLocationStore.Database.LocationRemoved(context, addedHash.Hash, workerId);
+                        HasLocation(master.LocalLocationStore.Database, context, addedHash.Hash, workerId, addedHash.Size).Should()
+                            .BeFalse();
+                    }
+
+                    // Upload and restore checkpoints to trigger reconciliation
+                    await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
+
+                    var expectedCycles = ((removeCount + addCount) / _reconciliationMaxCycleSize) + 1;
+                    worker.LocalLocationStore.Counters[ContentLocationStoreCounters.ReconciliationCycles].Value.Should().Be(expectedCycles);
+
+                    int removedIndex = 0;
+                    foreach (var removedHash in removedHashes)
+                    {
+                        HasLocation(master.LocalLocationStore.Database, context, removedHash.Hash, workerId, removedHash.Size).Should()
+                            .BeFalse($"Index={removedIndex}, Hash={removedHash}");
+                        removedIndex++;
+                    }
+
+                    foreach (var addedHash in addedHashes.Concat(retainedHashes))
+                    {
+                        HasLocation(master.LocalLocationStore.Database, context, addedHash.Hash, workerId, addedHash.Size).Should()
+                            .BeTrue(addedHash.ToString());
+                    }
+                });
+        }
+
         private static bool HasLocation(ContentLocationDatabase db, BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext context, ContentHash hash, MachineId machine, long size)
         {
             if (!db.TryGetEntry(context, hash, out var entry))
@@ -2115,6 +2193,8 @@ namespace ContentStoreTest.Distributed.Sessions
         protected const int SafeToLazilyUpdateMachineCountThreshold = 3;
         protected const int ReplicaCreditInMinutes = 3;
         protected bool _enableReconciliation;
+        protected TimeSpan _reconciliationCycleFrequency = TimeSpan.FromSeconds(3);
+        protected int _reconciliationMaxCycleSize = 100_000;
         protected ContentLocationMode _readMode = ContentLocationMode.LocalLocationStore;
         protected ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
         protected bool _enableSecondaryRedis = false;
@@ -2128,6 +2208,8 @@ namespace ContentStoreTest.Distributed.Sessions
             {
                 MachineExpiry = TimeSpan.FromMinutes(10),
                 EnableReconciliation = _enableReconciliation,
+                ReconciliationCycleFrequency = _reconciliationCycleFrequency,
+                ReconciliationMaxCycleSize = _reconciliationMaxCycleSize,
                 InlinePostInitialization = true,
                 ContentLifetime = TimeSpan.FromMinutes(ReplicaCreditInMinutes),
 

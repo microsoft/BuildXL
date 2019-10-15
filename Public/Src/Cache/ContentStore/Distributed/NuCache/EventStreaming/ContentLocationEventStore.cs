@@ -373,7 +373,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         _fileSystem.DeleteFile(reconcileFilePath);
                     }
                 },
-                Counters[PublishReconcile]);
+                Counters[PublishReconcile],
+                extraEndMessage: _ => $"AddedContent={addedContent.Count}, RemovedContent={removedContent.Count}, TotalContent={addedContent.Count + removedContent.Count}");
         }
 
         /// <summary>

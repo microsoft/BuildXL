@@ -388,6 +388,12 @@ namespace BuildXL.Cache.Host.Configuration
         public bool Unsafe_DisableReconciliation { get; set; } = false;
 
         [DataMember]
+        public int ReconciliationCycleFrequencyMinutes { get; set; } = 30;
+
+        [DataMember]
+        public int ReconciliationMaxCycleSize { get; set; } = 100000;
+
+        [DataMember]
         public bool IsContentLocationDatabaseEnabled { get; set; } = false;
 
         [DataMember]

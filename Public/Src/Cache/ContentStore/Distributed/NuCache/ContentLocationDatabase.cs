@@ -291,7 +291,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Enumeration filter used by <see cref="ContentLocationDatabase.EnumerateEntriesWithSortedKeys"/> to filter out entries by raw value from a database.
         /// </summary>
-        public delegate bool EnumerationFilter(byte[] value);
+        public class EnumerationFilter
+        {
+            /// <nodoc />
+            public Func<byte[], bool> ShouldEnumerate { get; set; }
+
+            /// <nodoc />
+            public ShortHash? StartingPoint { get; set; }
+        }
 
         /// <nodoc />
         protected abstract IEnumerable<(ShortHash key, ContentLocationEntry entry)> EnumerateEntriesWithSortedKeysFromStorage(

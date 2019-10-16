@@ -598,15 +598,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
         }
 
-        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
+        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState, bool force = false)
         {
             var token = context.Token;
+
+            if (!force)
+            {
+                var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+                var latestCheckpointAge = DateTime.UtcNow - latestCheckpoint?.checkpointTime;
+                var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
+
+                if (shouldRestoreInBackground)
+                {
+                    RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
+                    return BoolResult.Success;
+                }
+            }
+
             if (checkpointState.CheckpointAvailable)
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
                     Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState.CheckpointId}'.");
-                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState.CheckpointId);
+                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
                         return possibleCheckpointResult;

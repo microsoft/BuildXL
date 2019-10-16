@@ -94,7 +94,7 @@ namespace BuildXL.Processes
             private const string MY_XATTR_NAME = "com.microsoft.buildxl:shared_opaque_output";
 
             // arbitrary value; in the future, we could store something more useful here (e.g., the producer PipId or something)
-            private const long MY_XATTR_VALUE = 42; 
+            private const long MY_XATTR_VALUE = 42;
 
             // from xattr.h:
             // #define XATTR_NOFOLLOW   0x0001     /* Don't follow symbolic links */
@@ -104,7 +104,7 @@ namespace BuildXL.Processes
             private static extern int SetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
-                void *value,
+                void* value,
                 ulong size,
                 uint position,
                 int options);
@@ -113,7 +113,7 @@ namespace BuildXL.Processes
             private static extern long GetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
-                void *value,
+                void* value,
                 ulong size,
                 uint position,
                 int options);
@@ -148,7 +148,7 @@ namespace BuildXL.Processes
                 }
 
                 // throw if neither SetXattr succeeded nor the path is properly marked
-                if (xattrErrorCode != 0 && !IsSharedOpaqueOutput(expandedPath))
+                if (xattrErrorCode != 0 && !IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: false))
                 {
                     throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}."));
                 }
@@ -158,12 +158,24 @@ namespace BuildXL.Processes
             /// Checks if the given path is an output under a shared opaque by checking if
             /// it contains extended attribute by <see cref="MY_XATTR_NAME"/> name.
             /// </summary>
-            public static bool IsSharedOpaqueOutput(string expandedPath)
+            public static bool IsSharedOpaqueOutput(string expandedPath) => IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: true);
+
+            private static bool IsSharedOpaqueOutputWithFallback(string expandedPath, bool checkFallback)
             {
                 long value = 0;
                 uint valueSize = sizeof(long);
                 var resultSize = GetXattr(expandedPath, MY_XATTR_NAME, &value, valueSize, 0, XATTR_NOFOLLOW);
-                return resultSize == valueSize && value == MY_XATTR_VALUE;
+                if (resultSize == valueSize && value == MY_XATTR_VALUE)
+                {
+                    return true;
+                }
+
+                if (checkFallback && FileUtilities.GetFileTimestamps(expandedPath).CreationTime == WellKnownTimestamps.OutputInSharedOpaqueTimestamp)
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
 

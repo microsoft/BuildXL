@@ -2,6 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
+using System.IO;
+using System.Linq;
 using System.Net;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Interfaces;
@@ -16,6 +20,8 @@ namespace Tool.SymbolDaemon
     /// </summary>
     public static class Program
     {
+        private const string ResponseFilePrefix = "@";
+
         /// <nodoc/>        
         public static int Main(string[] args)
         {
@@ -31,7 +37,26 @@ namespace Tool.SymbolDaemon
 
                 SymbolDaemon.EnsureCommandsInitialized();
 
-                var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(args, new UnixParser());
+                // resolve any response files
+                var resolvedArguments = args.SelectMany(arg =>
+                    {
+                        if (arg.StartsWith(ResponseFilePrefix))
+                        {
+                            string responseFile = arg.Substring(1);
+                            if (!File.Exists(responseFile))
+                            {
+                                Contract.Assert(false, $"Response file '{arg}' is missing.");
+                            }
+
+                            return File.ReadAllLines(responseFile);
+                        }
+                        else
+                        {
+                            return WrapIntoIEnumerable(arg);
+                        }
+                    }).ToArray();
+
+                var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(resolvedArguments, new UnixParser());
                 if (confCommand.Command.NeedsIpcClient)
                 {
                     // Even though NeedsIpcClient is 'true' for the majority of commands,
@@ -66,6 +91,11 @@ namespace Tool.SymbolDaemon
         {
             var daemonConfig = ServicePipDaemon.ServicePipDaemon.CreateDaemonConfig(conf);
             return IpcFactory.GetProvider().GetClient(daemonConfig.Moniker, daemonConfig);
+        }
+
+        private static IEnumerable<T> WrapIntoIEnumerable<T>(T obj)
+        {
+            yield return obj;
         }
     }
 }

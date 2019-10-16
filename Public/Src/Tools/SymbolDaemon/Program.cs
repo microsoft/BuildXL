@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -38,7 +37,7 @@ namespace Tool.SymbolDaemon
 
                 SymbolDaemon.EnsureCommandsInitialized();
 
-                // resolve any response files
+                // resolve response files
                 var resolvedArguments = args.SelectMany(arg =>
                     {
                         if (arg.StartsWith(ResponseFilePrefix))
@@ -48,20 +47,21 @@ namespace Tool.SymbolDaemon
                             {
                                 Contract.Assert(false, $"Response file '{arg}' is missing.");
                             }
-                            
-                            var lines = File.ReadAllLines(responseFile);
-                            // log the file content
-                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- Response file '{responseFile}' ({lines.Length} line(s)) ---");
-                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}{string.Join(Environment.NewLine + SymbolDaemon.SymbolDLogPrefix, lines)}");
+
+                            var content = File.ReadAllText(responseFile);
+                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- Response file '{responseFile}' ---");
+                            Console.WriteLine(content);
                             Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- the end of the response file ---");
-                            return lines;
+
+                            // The arguments inside of the response file might be escaped.
+                            // We need to pass them through the parser to properly handle such cases.
+                            return AbstractParser.CommonSplitArgs(content.Replace(Environment.NewLine, " "));
                         }
                         else
                         {
                             return WrapIntoIEnumerable(arg);
                         }
                     }).ToArray();
-
 
                 var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(resolvedArguments, new UnixParser());
                 if (confCommand.Command.NeedsIpcClient)
@@ -90,7 +90,6 @@ namespace Tool.SymbolDaemon
             catch (ArgumentException e)
             {
                 Error(e.Message);
-                Error(e.ToString());
                 return 3;
             }
         }

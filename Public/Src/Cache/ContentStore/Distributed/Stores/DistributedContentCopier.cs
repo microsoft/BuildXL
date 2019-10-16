@@ -139,9 +139,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
-                var lastFailureTimes = new List<TimeSpan>();
+                var lastFailureTimes = new List<DateTime>();
                 int attemptCount = 0;
-                TimeSpan waitDelay = null;
+                TimeSpan waitDelay = new TimeSpan();
 
                 /*
                 public class Copylocations
@@ -355,7 +355,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHashWithSizeAndLocations hashInfo,
             HashSet<MachineLocation> badContentLocations,
             HashSet<MachineLocation> missingContentLocations,
-            List<TimeSpan> lastFailureTimes,
+            List<DateTime> lastFailureTimes,
             int attemptCount,
             TimeSpan waitDelay,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
@@ -391,7 +391,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
 
                 //TODO: determine current Time, make sure the values are in seconds
-                if (waitDelay)
+                if (waitDelay.Equals(TimeSpan.Zero))
                 {
                     TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];
                     if (waitedTime < waitDelay)

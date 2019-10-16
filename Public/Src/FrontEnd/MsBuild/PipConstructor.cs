@@ -226,7 +226,7 @@ namespace BuildXL.FrontEnd.MsBuild
             using (var processBuilder = ProcessBuilder.Create(PathTable, m_context.GetPipDataBuilder()))
             {
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
-                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, qualifierId, out AbsolutePath outputResultCacheFile, out failureDetail))
+                if (!TryConfigureProcessBuilder(processBuilder, pipConstructionHelper, project, out AbsolutePath outputResultCacheFile, out failureDetail))
                 {
                     scheduledProcess = null;
                     return false;
@@ -504,7 +504,6 @@ namespace BuildXL.FrontEnd.MsBuild
             ProcessBuilder processBuilder, 
             PipConstructionHelper pipConstructionHelper, 
             ProjectWithPredictions project,
-            QualifierId qualifierId,
             out AbsolutePath outputResultCacheFile,
             out string failureDetail)
         {
@@ -538,8 +537,7 @@ namespace BuildXL.FrontEnd.MsBuild
             SetUntrackedFilesAndDirectories(processBuilder);
 
             // Add the log directory and its corresponding files
-            var qualifier = m_context.QualifierTable.GetQualifier(qualifierId);
-            AbsolutePath logDirectory = GetLogDirectory(project, qualifier);
+            AbsolutePath logDirectory = GetLogDirectory(project);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.log"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.wrn"), FileExistence.Optional);
             processBuilder.AddOutputFile(logDirectory.Combine(PathTable, "msbuild.err"), FileExistence.Optional);
@@ -751,7 +749,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
         }
 
-        private AbsolutePath GetLogDirectory(ProjectWithPredictions projectFile, Qualifier qualifier)
+        private AbsolutePath GetLogDirectory(ProjectWithPredictions projectFile)
         {
             var success = Root.TryGetRelative(PathTable, projectFile.FullPath, out var inFolderPathFromEnlistmentRoot);
             Contract.Assert(success);
@@ -764,12 +762,11 @@ namespace BuildXL.FrontEnd.MsBuild
                 .Combine(PathTable, "MSBuild")
                 .Combine(PathTable, inFolderPathFromEnlistmentRoot);
 
-            // Build a string with just the qualifier and global property values (e.g. 'debug-x86'). That should be unique enough.
-            // Projects can be evaluated multiple times with different global properties (but same qualifiers), so just
-            // the qualifier name is not enough
-            List<string> values = qualifier.Values.Select(value => value.ToString(m_context.StringTable))
-                .Union(projectFile.GlobalProperties.Where(kvp => kvp.Key != s_isGraphBuildProperty).Select(kvp => kvp.Value))
-                .Select(value => PipConstructionUtilities.SanitizeStringForSymbol(value))
+            // Build a string with global property values (e.g. 'debug-x86'). That should be unique enough.
+            // Projects can be evaluated multiple times with different global properties
+            List<string> values = projectFile.GlobalProperties
+                .Where(kvp => kvp.Key != s_isGraphBuildProperty)
+                .Select(kvp => PipConstructionUtilities.SanitizeStringForSymbol(kvp.Value))
                 .OrderBy(value => value, StringComparer.Ordinal) // Let's make sure we always produce the same string for the same set of values
                 .ToList();
 

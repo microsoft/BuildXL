@@ -149,6 +149,25 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.True(key1Key2Project.FileOutputs.SequenceEqual(key2Key1Project.FileOutputs));
         }
 
+        [Fact]
+        public void QualifierDoesNotAffectLogDirectory()
+        {
+            var project1 = CreateProjectWithPredictions("Test.proj", 
+                globalProperties: new GlobalProperties(new Dictionary<string, string> { ["TargetFramework"] = "net472" }));
+            var project2 = CreateProjectWithPredictions("Test.proj");
+
+            var targetFrameworkQualifier = FrontEndContext.QualifierTable.CreateQualifier(
+                new Tuple<StringId, StringId>(StringId.Create(StringTable, "TargetFramework"), StringId.Create(StringTable, "net472")));
+
+            // If the qualifier was affecting the log directory, the path to the log file for both projects would be the same, and therefore
+            // they should fail at scheduling.
+            Start(currentQualifier: targetFrameworkQualifier)
+                .Add(project1)
+                .Add(project2)
+                .ScheduleAll()
+                .AssertSuccess();
+        }
+
         [Theory]
         [InlineData(BuildEnvironmentConstants.MsPdbSrvEndpointEnvVar)]
         [InlineData(BuildEnvironmentConstants.MsBuildLogAsyncEnvVar)]

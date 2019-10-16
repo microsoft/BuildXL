@@ -605,7 +605,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (!force)
             {
                 var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
-                var latestCheckpointAge = DateTime.UtcNow - latestCheckpoint?.checkpointTime;
+                var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
                 var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
 
                 if (shouldRestoreInBackground)

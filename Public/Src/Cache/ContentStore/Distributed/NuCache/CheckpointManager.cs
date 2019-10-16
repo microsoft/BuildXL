@@ -351,6 +351,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             if (result)
                             {
+                                // Save latest checkpoint info to file in case we get restarded and want to know about the previous checkpoint.
                                 WriteLatestCheckpointToFile(context, checkpointState);
                             }
 

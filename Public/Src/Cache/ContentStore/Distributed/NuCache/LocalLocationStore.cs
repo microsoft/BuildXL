@@ -610,6 +610,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (shouldRestoreInBackground)
                 {
+                    if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+                    {
+                        Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.id} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+                    }
+
                     RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
                     return BoolResult.Success;
                 }

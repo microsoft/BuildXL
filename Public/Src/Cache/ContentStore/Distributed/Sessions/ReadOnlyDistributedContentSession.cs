@@ -379,14 +379,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
-                // Check globally for existence, but do not copy locally
+                // Check globally for existence, but do not copy locally and do not update content tracker.
                 pinResults = await Workflows.RunWithFallback(
                     contentHashes,
                     hashes => Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint),
                     hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: true, urgencyHint),
-                    result => result.Succeeded,
-                    // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(Settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+                    result => result.Succeeded);
 
                 // Replace operation context with a new cancellation token so it can outlast this call
                 operationContext = new OperationContext(operationContext.TracingContext, default);

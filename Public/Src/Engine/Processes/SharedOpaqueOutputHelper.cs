@@ -104,7 +104,7 @@ namespace BuildXL.Processes
             private static extern int SetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
-                void* value,
+                void *value,
                 ulong size,
                 uint position,
                 int options);
@@ -113,7 +113,7 @@ namespace BuildXL.Processes
             private static extern long GetXattr(
                 [MarshalAs(UnmanagedType.LPStr)] string path,
                 [MarshalAs(UnmanagedType.LPStr)] string name,
-                void* value,
+                void *value,
                 ulong size,
                 uint position,
                 int options);

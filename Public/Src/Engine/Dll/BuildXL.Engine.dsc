@@ -55,6 +55,7 @@ namespace Engine {
         ],
         internalsVisibleTo: [
             "bxlScriptAnalyzer",
+            "BxlPipGraphFragmentGenerator",
             "IntegrationTest.BuildXL.Scheduler",
             "Test.BuildXL.Engine",
             "Test.BuildXL.EngineTestUtilities",

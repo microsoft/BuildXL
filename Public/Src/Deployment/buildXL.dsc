@@ -21,6 +21,7 @@ namespace BuildXL {
             // analyzers
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Tools").BxlScriptAnalyzer.exe,
+            importFrom("BuildXL.Tools").BxlPipGraphFragmentGenerator.exe,
             importFrom("BuildXL.Cache.VerticalStore").Analyzer.exe,
 
             // content placement

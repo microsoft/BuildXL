@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -32,7 +33,7 @@ namespace Tool.SymbolDaemon
             {
                 Console.WriteLine(nameof(SymbolDaemon) + " started at " + DateTime.UtcNow);
                 Console.WriteLine(SymbolDaemon.SymbolDLogPrefix + "Command line arguments: ");
-                Console.WriteLine(string.Join(Environment.NewLine + SymbolDaemon.SymbolDLogPrefix, args));
+                Console.WriteLine(SymbolDaemon.SymbolDLogPrefix + string.Join(Environment.NewLine + SymbolDaemon.SymbolDLogPrefix, args));
                 Console.WriteLine();
 
                 SymbolDaemon.EnsureCommandsInitialized();
@@ -47,14 +48,20 @@ namespace Tool.SymbolDaemon
                             {
                                 Contract.Assert(false, $"Response file '{arg}' is missing.");
                             }
-
-                            return File.ReadAllLines(responseFile);
+                            
+                            var lines = File.ReadAllLines(responseFile);
+                            // log the file content
+                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- Response file '{responseFile}' ({lines.Length} line(s)) ---");
+                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}{string.Join(Environment.NewLine + SymbolDaemon.SymbolDLogPrefix, lines)}");
+                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- the end of the response file ---");
+                            return lines;
                         }
                         else
                         {
                             return WrapIntoIEnumerable(arg);
                         }
                     }).ToArray();
+
 
                 var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(resolvedArguments, new UnixParser());
                 if (confCommand.Command.NeedsIpcClient)

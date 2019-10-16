@@ -77,7 +77,7 @@ namespace Tool.SymbolDaemon
             m_debugEntryCreateBehavior = config.DebugEntryCreateBehavior;
             m_cancellationSource = new CancellationTokenSource();
 
-            m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using drop config: {JsonConvert.SerializeObject(m_config)}"));
+            m_logger.Info(I($"[{nameof(VsoSymbolClient)}] Using symbol config: {JsonConvert.SerializeObject(m_config)}"));
 
             m_symbolClient = CreateSymbolServiceClient();
         }

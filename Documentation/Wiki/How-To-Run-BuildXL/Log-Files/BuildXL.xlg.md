@@ -29,7 +29,7 @@ There are several BuildXL command line arguments that control what is captured i
 
 BuildXL command line argument | Description
 --- | ---
-/logExecution | Instructs BuildXL to generate an execution log with the build.
+/logExecution | Instructs BuildXL to generate an execution log with the build. It is enabled by default.
 /logProcesses | Instructs BuildXL to include process details for all processes launched during the build. This option is required when [ExecutionLogLoadOptions::LoadProcessMonitoringData](#LoadProcessMonitoringData) is set.
 /logProcessData | Instructs BuildXL to include execution timings and IO operation details for all processes launched during the build. This option requires /logProcesses to also be specified.
 /logObservedFileAccesses | Instructs BuildXL to include all file accesses reported during the build. This option is  required when [ExecutionLogLoadOptions::LoadReportedFileAccesses](#LoadReportedFileAccesses) is set.

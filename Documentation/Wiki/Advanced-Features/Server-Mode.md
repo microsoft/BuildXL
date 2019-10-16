@@ -13,5 +13,5 @@ Server mode is controlled by the `/server` flag. Run `bxl.exe /help` for more de
 Since the server process is long running, issues could arise when trying to update bxl.exe and its runtime dependencies if the server is still running. To prevent this, server mode creates a deployment the first time it is run. This is just a copy of bxl.exe and its supporting dependencies. By default the deployment is created in a sibling directory to bxl.exe. The location can be configured via the `/serverDeploymentDir` parameter. See `bxl.exe /help:verbose` for more details.
 
 ### Idle time
-By default the server process will exit when no build has been performed for 60 minutes. This value is configurable with `/serverMaxIdleTimeInMinutes `
+By default the server process will exit when no build has been performed for 60 minutes. This value is configurable with `/serverMaxIdleTimeInMinutes`
 

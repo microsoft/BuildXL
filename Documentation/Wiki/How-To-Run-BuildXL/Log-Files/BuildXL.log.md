@@ -34,7 +34,7 @@ Pip Duration(ms) | Exe Duration(ms)| Queue Duration(ms) | Pip Result   | Schedul
               11 |               0 |                  0 |       Cached |       00:00:12 |       00:00:12 | Pip4814212D6E796253 ...
 ```
 ### Performance Summary
-This section contains a performance summary of the BuildXL run broken down by phases. 
+This section contains a performance summary of the BuildXL run broken down by phases. This is currently only available for single machine builds.
 ```
 [0:16.842] verbose DX0408: Performance Summary:
 Time breakdown:

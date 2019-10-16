@@ -393,7 +393,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 //TODO: determine current Time, make sure the values are in seconds
                 if (waitDelay)
                 {
-                    TimeSpan waitedTime = currentTime - lastFailureTimes[replicaIndex];
+                    TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];
                     if (waitedTime < waitDelay)
                     {
                         await Task.Delay(waitDelay - waitedTime, cts);
@@ -591,11 +591,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     if(lastFailureTimes.Count <= replicaIndex)
                     {
-                        lastFailureTimes.Add(currentTime);
+                        lastFailureTimes.Add(DateTime.Now);
                     }
                     else
                     {
-                        lastFailureTimes[replicaIndex] = currentTime;
+                        lastFailureTimes[replicaIndex] = DateTime.Now;
                     }
 
                     if (deleteTempFile)

@@ -11,9 +11,26 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
-# Upcoming release: 
+# 0.1.0-20191011.9.1 (Release [43540](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=43540)). Released 10/16/2019
+- Support for partial preserve outputs
+- Symbol daemon runner is configured for CloudBuild environment
+- New QTest version (19.10.5.1051)
+- Fix IPC pip ordering for BinaryGraph
+- CBdependencies feature an opt-out instead of opt-in
+- Improve time to first pip for distributed builds
+- Enforce weak fingerprint augmentation for MSBuild-scheduled pips
+- Use xattrs to mark shared opaque outputs on Mac
+
+# 0.1.0-20191003.4 (Release [42310](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=42310)). Released 10/09/2019
 - Removed old Microsoft.ContentStoreApp.exe from deployment (replaced with ContentStoreApp.exe)
-- ...
+- Proper SIGILL handling on macOS
+- Optimizations for Office Mularchy builds
+- Improvements to error messages in ADO
+- Custom pip description in ADO
+- Added -vsNew switch to bxl.ps1
+- Catch obscure file writes on macOS (via the vnode_write listener)
+- Build BuildXL VSCode extension with BuildXL
+- Make QTest SDK public
 
 # 0.1.0-20190925.15.6 (Release [42115](https://mseng.visualstudio.com/Domino/_releaseProgress?releaseId=42115&_a=release-pipeline-progress)). Released 10/02/2019
 - Fix source files missing in drop

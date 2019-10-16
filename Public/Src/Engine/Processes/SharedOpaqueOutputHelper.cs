@@ -147,11 +147,10 @@ namespace BuildXL.Processes
                     Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode, followSymlink);
                 }
 
-                // check if setxattr succeeded and throw if it didn't
-                if (xattrErrorCode != 0)
+                // throw if neither SetXattr succeeded nor the path is properly marked
+                if (xattrErrorCode != 0 && !IsSharedOpaqueOutput(expandedPath))
                 {
-                    var attrs = FileUtilities.GetFileAttributes(expandedPath);
-                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}. Attrs: {attrs}"));
+                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}."));
                 }
             }
 

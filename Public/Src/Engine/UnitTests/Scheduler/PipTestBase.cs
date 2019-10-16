@@ -1196,10 +1196,10 @@ namespace Test.BuildXL.Scheduler
 
         }
 
-        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName)
+        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false)
         {
             Contract.Requires(!string.IsNullOrEmpty(moduleName));
-            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName);
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName, useTopSort);
         }
 
         #region IO Helpers

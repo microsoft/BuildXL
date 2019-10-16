@@ -330,6 +330,16 @@ namespace BuildXL.FrontEnd.MsBuild
                     continue;
                 }
 
+                // Nuget restore generates nuget.g.props files that have absolute paths embedded. This blocks shared cache from working when
+                // the project file (and therefore the corresponding .pkgrefgen folder) is placed on machine-dependent folders
+                // Even though untracking this file is not completely safe from a caching perspective, in practice this should be harmless
+                // In this case, we not only skip declaring it as an input, but we also untrack it as well
+                if (buildInput.GetName(PathTable).ToString(PathTable.StringTable).EndsWith("nuget.g.props", StringComparison.OrdinalIgnoreCase))
+                {
+                    processBuilder.AddUntrackedFile(buildInput);
+                    continue;
+                }
+
                 // If any of the predicted inputs is under an untracked directory scope, don't add it as an input
                 if (processBuilder.GetUntrackedDirectoryScopesSoFar().Any(untrackedDirectory => buildInput.IsWithin(PathTable, untrackedDirectory)))
                 {

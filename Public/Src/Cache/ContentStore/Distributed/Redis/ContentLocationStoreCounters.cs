@@ -154,5 +154,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         IncrementalCheckpointFilesUploadSkipped,
+
+        /// <nodoc />
+        ReconciliationCycles,
     }
 }

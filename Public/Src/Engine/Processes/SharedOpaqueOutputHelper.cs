@@ -33,6 +33,16 @@ namespace BuildXL.Processes
             /// <exception cref="BuildXLException">When the timestamp cannot be set</exception>
             public static void SetPathAsSharedOpaqueOutput(string expandedPath)
             {
+                // In the case of a no replay, this case can happen if the file got into the cache as a static output,
+                // but later was made a shared opaque output without a content change.
+                // Make sure we allow for attribute writing first
+                var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
+                var writeAttrs = FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes;
+                if (writeAttributesDenied)
+                {
+                    FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: true);
+                }
+
                 try
                 {
                     // Only the creation time is used to identify a file as the output of a shared opaque
@@ -48,6 +58,14 @@ namespace BuildXL.Processes
 
                     // Since these files should be just created outputs, this shouldn't happen and we bail out hard.
                     throw new BuildXLException(I($"Failed to open output file '{expandedPath}' for writing."), ex);
+                }
+                finally
+                {
+                    // Restore the attributes as they were originally set
+                    if (writeAttributesDenied)
+                    {
+                        FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: false);
+                    }
                 }
             }
 
@@ -100,18 +118,39 @@ namespace BuildXL.Processes
                 uint position,
                 int options);
 
+            private const Interop.MacOS.IO.FilePermissions S_IWUSR = Interop.MacOS.IO.FilePermissions.S_IWUSR;
+
             /// <summary>
             /// Flags the given path as being an output under a shared opaque by setting
             /// <see cref="MY_XATTR_NAME"/> xattr to a <see cref="MY_XATTR_VALUE"/>.
             /// </summary>
             public static void SetPathAsSharedOpaqueOutput(string expandedPath)
             {
+                bool followSymlink = false;
+                var currentMode = (Interop.MacOS.IO.FilePermissions)Interop.MacOS.IO.GetFilePermissionsForFilePath(expandedPath, followSymlink);
+                bool isWritableByUser = (currentMode & S_IWUSR) != 0;
+
+                // set u+w if not already set
+                if (!isWritableByUser)
+                {
+                    Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode | S_IWUSR, followSymlink);
+                }
+
+                // set xattr
                 long value = MY_XATTR_VALUE;
                 var err = SetXattr(expandedPath, MY_XATTR_NAME, &value, sizeof(long), 0, XATTR_NOFOLLOW);
-                if (err != 0)
+                var xattrErrorCode = err != 0 ? Marshal.GetLastWin32Error() : 0;
+
+                // reset permissions if we changed them
+                if (!isWritableByUser)
                 {
-                    int errorCode = Marshal.GetLastWin32Error();
-                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {errorCode}"));
+                    Interop.MacOS.IO.SetFilePermissionsForFilePath(expandedPath, currentMode, followSymlink);
+                }
+
+                // throw if neither SetXattr succeeded nor the path is properly marked
+                if (xattrErrorCode != 0 && !IsSharedOpaqueOutput(expandedPath))
+                {
+                    throw new BuildXLException(I($"Failed to set '{MY_XATTR_NAME}' extended attribute for file '{expandedPath}'. Error: {xattrErrorCode}."));
                 }
             }
 
@@ -134,34 +173,13 @@ namespace BuildXL.Processes
         /// <exception cref="BuildXLException">When unsuccessful</exception>
         public static void SetPathAsSharedOpaqueOutput(string expandedPath)
         {
-            // In the case of a no replay, this case can happen if the file got into the cache as a static output,
-            // but later was made a shared opaque output without a content change.
-            // Make sure we allow for attribute writing first
-            var writeAttributesDenied = !FileUtilities.HasWritableAttributeAccessControl(expandedPath);
-            var writeAttrs = FileSystemRights.WriteAttributes | FileSystemRights.WriteExtendedAttributes;
-            if (writeAttributesDenied)
+            if (OperatingSystemHelper.IsUnixOS)
             {
-                FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: true);
+                Unix.SetPathAsSharedOpaqueOutput(expandedPath);
             }
-
-            try
+            else
             {
-                if (OperatingSystemHelper.IsUnixOS)
-                {
-                    Unix.SetPathAsSharedOpaqueOutput(expandedPath);
-                }
-                else
-                {
-                    Win.SetPathAsSharedOpaqueOutput(expandedPath);
-                }
-            }
-            finally
-            {
-                // Restore the attributes as they were originally set
-                if (writeAttributesDenied)
-                {
-                    FileUtilities.SetFileAccessControl(expandedPath, writeAttrs, allow: false);
-                }
+                Win.SetPathAsSharedOpaqueOutput(expandedPath);
             }
         }
 

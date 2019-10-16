@@ -748,6 +748,7 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
+                using (var sharedOpaqueOutputLogger = CreateSharedOpaqueOutputLoggerIfConfigured())
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -777,7 +778,7 @@ namespace BuildXL.Processes
                     string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
                     m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
 
-                    SandboxedProcessInfo info = new SandboxedProcessInfo(
+                    var info = new SandboxedProcessInfo(
                         m_pathTable,
                         this,
                         executable,
@@ -786,7 +787,8 @@ namespace BuildXL.Processes
                         m_containerConfiguration,
                         m_pip.TestRetries,
                         m_loggingContext,
-                        sandboxConnection: sandboxConnection)
+                        sandboxConnection: sandboxConnection,
+                        sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -813,6 +815,15 @@ namespace BuildXL.Processes
 
                 m_fileAccessManifest.UnsetMessageCountSemaphore();
             }
+        }
+
+        private SharedOpaqueOutputLogger CreateSharedOpaqueOutputLoggerIfConfigured()
+        {
+            // don't use this logger if the root directory is not set up in the configuration layout or
+            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
+            return m_layoutConfiguration?.SharedOpaqueSidebandDirectory.IsValid == true && m_pip.SemiStableHash != 0
+                ? new SharedOpaqueOutputLogger(m_context, m_pip, m_layoutConfiguration.SharedOpaqueSidebandDirectory)
+                : null;
         }
 
         private bool SandboxedProcessNeedsExecuteExternal

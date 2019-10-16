@@ -251,6 +251,10 @@ namespace BuildXL.Cache.Host.Configuration
 
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies => RetryIntervalForCopiesMs.Select(ms => TimeSpan.FromMilliseconds(ms)).ToList();
 
+        /// <summary>
+        /// Controls the maximum total number of copy retry attempts
+        /// </summary>
+        public int MaxRetryCount { get; set; } = 32;
         #region Grpc Copier
         /// <summary>
         /// Use GRPC for file copies between CASaaS.

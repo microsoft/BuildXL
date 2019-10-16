@@ -141,6 +141,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
 
         /// <summary>
+        /// Controls the maximum total number of copy retry attempts
+        /// </summary>
+        public int MaxRetryCount { get; set; } = 32;
+
+        /// <summary>
         /// The mode in which proactive copy should run
         /// </summary>
         public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;

@@ -90,6 +90,7 @@ namespace Tool.SymbolDaemon
             catch (ArgumentException e)
             {
                 Error(e.Message);
+                Error(e.ToString());
                 return 3;
             }
         }

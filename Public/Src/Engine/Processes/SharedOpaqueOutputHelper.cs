@@ -160,6 +160,7 @@ namespace BuildXL.Processes
             /// </summary>
             public static bool IsSharedOpaqueOutput(string expandedPath) => IsSharedOpaqueOutputWithFallback(expandedPath, checkFallback: true);
 
+            // TODO: delete the fallback logic after a successful transition from old to new logic
             private static bool IsSharedOpaqueOutputWithFallback(string expandedPath, bool checkFallback)
             {
                 long value = 0;

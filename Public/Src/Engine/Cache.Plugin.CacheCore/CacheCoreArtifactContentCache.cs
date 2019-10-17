@@ -370,18 +370,19 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                 async cache =>
                 {
                     Contract.Assert(content.CanSeek);
-                    int addCount = 0;
+                    long initialPos = content.Position;
+                    bool attempted = false;
 
                     var result = await Helpers.RetryOnFailureAsync(
                         async lastAttempt =>
                         {
-                            if (addCount > 0)
+                            if (attempted)
                             {
-                                // Reset stream.
-                                content.Seek(0, SeekOrigin.Begin);
+                                // Reset stream to initial position.
+                                content.Seek(initialPos, SeekOrigin.Begin);
                             }
 
-                            ++addCount;
+                            attempted = true;
                             return await cache.AddToCasAsync(content, new CasHash(contentHash));
                         });
                     return result;

@@ -12,8 +12,6 @@ The most powerful setting to modify is the maximum number of child process pips 
                                 Specifies maxProc in terms of a multiplier of the machine's processor count. The
                                 default is 1.25.
 
-**Note** - In WDG builds, db.exe automatically sets /maxProcMultiplier to 1.5. So that's the effective default if you are in wdg
-
 ## Keeping computer responsive while building
 By default, BuildXL slightly oversaturates the computer as that generally yields the best build time. If you find your machine unresponsive while performing other tasks, the recommendation is to decrease the number to remove the oversaturation. So if your computer has 8 physical cores, you may want to build with /maxProc:6 in order to leave CPU cycles for other processes while building.
 
@@ -22,28 +20,31 @@ Your computer may also be unresponsive due to hard drive contention. Reducing th
 
 ## IO Concurrency limit 
 Some pips are primitives for IO operations. These are:
-* HashSourceFile pips
 * WriteFile pips
 * CopyFile pips
 
-Since these pips are IO intensive and generally not CPU intensive, they have a different concurrency limit settings
+Since these pips are IO intensive and generally not CPU intensive, they have a different concurrency limit settings.
 
     /maxIO:<number of concurrent I/O operations>
                                 Specifies the maximum number of I/O operations that BuildXL will launch at one time. The
-                                default value is 1/4 of the number of processors in the current machine, but at least
-                                1.
+                                default value is 1/4 of the number of processors in the current machine, but at least 1.
     /maxIOMultiplier:<double>   
-                                Specifies maxIO in terms of a multiplier of the machine's processor count. The default
-                                is 0.25.
+                                Specifies maxIO in terms of a multiplier of the machine's processor count. The default is 0.25.
 
-## Low priority
-Processes in Windows use the "Normal" priority by default but can be overridden with another setting. This can be manipulated in Task Manager but BuildXL accepts it as a command line option as well. Generally this is less effective than setting the concurrency limit directly.
+## Cache Concurrency limits
+Since cache operations use different resources (IO, CPU, network) concurrently, they have a different concurrency limit settings.
 
-    /lowPriority[+|-]           Runs the build engine and all tools at a lower priority in order to provide better
-                                responsiveness to interactive processes on the current machine.
+    /maxCacheLookup:<number of concurrent operations>
+                                Specifies the maximum number of cache lookup operations that BuildXL will launch at one time. 
+                                The default value is 2 times the number of processors in the current machine.
+    /maxMaterialize:<number of concurrent operations>   
+                                Specifies the maximum number of concurrent materialize operations (e.g., materialize inputs, storing two-phase cache entries, analyzing pip violations). 
+                                The default value is 2 times the number of processors in the current machine.
 
 ## Memory utilization ##
-BuildXL supports throttling spawned process pips based on machine available RAM. This aims at ensuring builds don't page memory onto disk for machines with low memory to CPU core ratios.
+BuildXL supports throttling spawned process pips based on machine available RAM. This aims at ensuring builds don't page memory onto disk for machines with low memory to CPU core ratios. 
+
+Historic perf information is used to speculatively limit the RAM utilization. If the historic perf information is not available, BuildXL uses the default values that are very conservative. Therefore, this feature is only useful for the non-first builds where we can load historic perf information. 
 
     /maxRamUtilizationPercentage:<number>
                                 Specifies the maximum machine wide RAM utilization allowed before the scheduler will
@@ -53,7 +54,7 @@ BuildXL supports throttling spawned process pips based on machine available RAM.
                                 scheduler will stop scheduling more work to allow resources to be freed. Default is 500
                                 mb.
 
-By default, BuildXL will actively kill processes when the maximum memory utilization is exceeded
+By default, BuildXL will actively kill processes when (i) the maximum memory utilization is exceeded and (ii) there is less available memory than the specified minimum available machine RAM. 
 
     /disableProcessRetryOnResourceExhaustion[+|-]
                                 Specifies that BuildXL should not kill processes when the limits are exceeded. 

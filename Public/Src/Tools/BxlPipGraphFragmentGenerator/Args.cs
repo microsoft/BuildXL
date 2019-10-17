@@ -125,21 +125,21 @@ namespace BuildXL.PipGraphFragmentGenerator
 
             };
 
-            var mappedNamedOptions = new Dictionary<string, NamedOption>();
+            var mappedNamedOptions = new Dictionary<string, NamedOption>(StringComparer.OrdinalIgnoreCase);
             Array.ForEach(
                 namedOptions,
                 o =>
                 {
-                    mappedNamedOptions.Add(o.LongName.ToUpperInvariant(), o);
+                    mappedNamedOptions.Add(o.LongName, o);
                     if (!string.IsNullOrWhiteSpace(o.ShortName))
                     {
-                        mappedNamedOptions.Add(o.ShortName.ToUpperInvariant(), o);
+                        mappedNamedOptions.Add(o.ShortName, o);
                     }
                 });
 
             foreach (Option option in Options)
             {
-                if (!mappedNamedOptions.TryGetValue(option.Name.ToUpperInvariant(), out var namedOption))
+                if (!mappedNamedOptions.TryGetValue(option.Name, out var namedOption))
                 {
                     throw Error(I($"Unsupported option '{option.Name}'"));
                 }

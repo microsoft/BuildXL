@@ -437,7 +437,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             removedEntries++;
                             Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Increment();
                             Delete(context, hash);
-                            LogEntryDeletion(context, hash, entry, OperationReason.GarbageCollect);
+                            LogEntryDeletion(hash, OperationReason.GarbageCollect);
                         }
                         else if(filteredEntry.Locations.Count != entry.Locations.Count)
                         {
@@ -729,7 +729,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Remove the hash when no more locations are registered
                     Delete(context, hash);
                     Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Increment();
-                    LogEntryDeletion(context, hash, entry, reason);
+                    LogEntryDeletion(hash, reason);
                 }
                 else
                 {
@@ -746,7 +746,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void LogEntryDeletion(OperationContext context, ShortHash hash, ContentLocationEntry entry, OperationReason reason)
+        private void LogEntryDeletion(ShortHash hash, OperationReason reason)
         {
             _nagleOperationTracer.Enqueue((hash, EntryOperation.Delete, reason));
         }
@@ -834,12 +834,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         protected byte[] SerializeCore<T>(T instance, Action<T, BuildXLWriter> serializeFunc)
         {
-            using (var pooledWriter = _writerPool.GetInstance())
-            {
-                var writer = pooledWriter.Instance.Writer;
-                serializeFunc(instance, writer);
-                return pooledWriter.Instance.Buffer.ToArray();
-            }
+            using var pooledWriter = _writerPool.GetInstance();
+            var writer = pooledWriter.Instance.Writer;
+            serializeFunc(instance, writer);
+            return pooledWriter.Instance.Buffer.ToArray();
         }
 
         /// <summary>
@@ -850,11 +848,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         protected T DeserializeCore<T>(byte[] bytes, Func<BuildXLReader, T> deserializeFunc)
         {
-            using (PooledObjectWrapper<StreamBinaryReader> pooledReader = _readerPool.GetInstance())
-            {
-                var reader = pooledReader.Instance;
-                return reader.Deserialize(new ArraySegment<byte>(bytes), deserializeFunc);
-            }
+            using PooledObjectWrapper<StreamBinaryReader> pooledReader = _readerPool.GetInstance();
+            var reader = pooledReader.Instance;
+            return reader.Deserialize(new ArraySegment<byte>(bytes), deserializeFunc);
         }
 
         /// <summary>
@@ -882,21 +878,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </remarks>
         public bool HasMachineId(byte[] bytes, int machineId)
         {
-            using (var pooledObjectWrapper = _readerPool.GetInstance())
-            {
-                var pooledReader = pooledObjectWrapper.Instance;
-                return pooledReader.Deserialize(
-                    new ArraySegment<byte>(bytes),
-                    machineId,
-                    (localIndex, reader) =>
-                    {
-                        // It is very important for this lambda to be non-capturing, because it will be called
-                        // many times.
-                        // Avoiding allocations here severely affect performance during reconciliation.
-                        _ = reader.ReadInt64Compact();
-                        return MachineIdSet.HasMachineId(reader, localIndex);
-                    });
-            }
+            using var pooledObjectWrapper = _readerPool.GetInstance();
+            var pooledReader = pooledObjectWrapper.Instance;
+            return pooledReader.Deserialize(
+                new ArraySegment<byte>(bytes),
+                machineId,
+                (localIndex, reader) =>
+                {
+                    // It is very important for this lambda to be non-capturing, because it will be called
+                    // many times.
+                    // Avoiding allocations here severely affect performance during reconciliation.
+                    _ = reader.ReadInt64Compact();
+                    return MachineIdSet.HasMachineId(reader, localIndex);
+                });
         }
     }
 }

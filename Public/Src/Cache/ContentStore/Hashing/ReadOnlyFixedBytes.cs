@@ -294,7 +294,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             char* buffer = stackalloc char[(2 * length) + 1];
             FillBuffer(buffer, offset, length);
 
-            builder.Append(buffer, length);
+            builder.AppendCharStar(length, buffer);
         }
 
         /// <summary>

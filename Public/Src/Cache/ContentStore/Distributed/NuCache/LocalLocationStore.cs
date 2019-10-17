@@ -1195,10 +1195,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     while (!isFinished)
                     {
-                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency);
+                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, context.Token);
 
-                        Counters[ContentLocationStoreCounters.ReconciliationCycles].Increment();
+                        await context.PerformOperationAsync(
+                            Tracer,
+                            operation: performReconciliationCycleAsync,
+                            caller: "PerformReconciliationCycleAsync",
+                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles]).ThrowIfFailure();
 
+                        if (!isFinished)
+                        {
+                            await delayTask;
+                        }
+                    }
+
+                    MarkReconciled();
+                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
+
+                    async Task<BoolResult> performReconciliationCycleAsync()
+                    {
                         // Pause events in main event store while sending reconciliation events via temporary event store
                         // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
                         // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
@@ -1270,16 +1285,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             // Corner case where they are equal and we have finished should be very unlikely.
                             isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
-                        }
 
-                        if (!isFinished)
-                        {
-                            await delayTask;
+                            return BoolResult.Success;
                         }
                     }
-
-                    MarkReconciled();
-                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
         }

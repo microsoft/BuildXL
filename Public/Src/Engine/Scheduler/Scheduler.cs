@@ -1058,7 +1058,8 @@ namespace BuildXL.Scheduler
                 artifact => m_fileContentManager.GetInputContent(artifact).FileContentInfo,
                 extraFingerprintSalts,
                 m_semanticPathExpander,
-                PipGraph.QueryFileArtifactPipData);
+                PipGraph.QueryFileArtifactPipData,
+                process => m_fileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(process));
             m_runningTimeTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.

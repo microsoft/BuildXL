@@ -50,9 +50,15 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public delegate PipData PipDataLookup(FileArtifact artifact);
 
+        /// <summary>
+        /// Refers to a function which maps a process to its source change affected dependencies. 
+        /// </summary>
+        public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedContentsLookup(Process process);
+
         private readonly PathTable m_pathTable;
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
+        private readonly SourceChangeAffectedContentsLookup m_sourceChangeAffectedContentsLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
@@ -98,7 +104,8 @@ namespace BuildXL.Scheduler.Fingerprints
             PipFragmentRenderer.ContentHashLookup contentHashLookup = null,
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
-            PipDataLookup pipDataLookup = null)
+            PipDataLookup pipDataLookup = null,
+            SourceChangeAffectedContentsLookup sourceChangeAffectedContentsLookup = null)
         {
             Contract.Requires(pathTable != null);
 
@@ -111,6 +118,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
             m_environmentVariableComparer = Comparer<EnvironmentVariable>.Create((ev1, ev2) => { return ev1.Name.ToString(pathTable.StringTable).CompareTo(ev2.Name.ToString(pathTable.StringTable)); });
             m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
+            m_sourceChangeAffectedContentsLookup = sourceChangeAffectedContentsLookup ?? new SourceChangeAffectedContentsLookup(process => ReadOnlyArray<AbsolutePath>.Empty);
         }
 
         /// <summary>
@@ -336,6 +344,11 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             fingerprinter.AddCollection<int, ReadOnlyArray<int>>("SuccessExitCodes", process.SuccessExitCodes, (h, i) => h.Add(i));
+
+            if (process.ChangeAffectedInputListWrittenFilePath.IsValid)
+            {
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedContentsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+            }
         }
 
         /// <summary>

@@ -87,13 +87,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             CancellationToken token,
             EnumerationFilter filter = null)
         {
-            foreach (var kvp in _map)
-            {
-                if (filter == null || filter(SerializeContentLocationEntry(kvp.Value)))
-                {
-                    yield return (kvp.Key, kvp.Value);
-                }
-            }
+            return _map
+                .OrderBy(kvp => kvp.Key)
+                .SkipWhile(kvp => filter?.StartingPoint != null && filter.StartingPoint > kvp.Key)
+                .Where(kvp => filter?.ShouldEnumerate == null || filter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true)
+                .Select(kvp => (kvp.Key, kvp.Value));
         }
 
         /// <inheritdoc />

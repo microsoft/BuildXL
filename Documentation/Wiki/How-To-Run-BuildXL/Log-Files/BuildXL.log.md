@@ -17,39 +17,52 @@ Factors limiting concurrency by build time: CPU:72%, Graph shape:0%, Disk:2%, Co
 ### Critical path
 This section shows the longest critical path of Pip operations during the build. Assuming sufficient parallelism, this would be the lower bound to what the build time could be.
 
-The "Pip Duration" is how long BuildXL was processing the pip. This includes cache lookup and post-processing. This will be nonzero even if the pip was a cache hit, since it takes some time to process a cache hit.
+The *Pip Duration* is how long BuildXL was processing the pip. This includes cache lookup and post-processing. This will be nonzero even if the pip was a cache hit, since it takes some time to process a cache hit.
 
-The "Exe Duration" is how long the external process was running. This will only be populated on cache misses
+The *Exe Duration* is how long the external process was running. This will only be populated on cache misses. 
+
+The *Queue Duration* is how long the pip has waited to acquire a slot in the scheduler. 
+
+It also shows the when the pip is scheduled and completed and the time is displayed as relative to the build start time.
+
 ```
-[0:29.175] verbose DX10000: Critical path:
-Pip Duration(ms) | Exe Duration(ms)| Pip Result   | Pip
-             344 |                 |              | *Total
-             344 |               0 |     UpToDate | Pip9DE2529E7B51EAE7, <COPYFILE>, StandardSdk.Transformers.testingTest, debug, C:\src\buildxl\Out\Objects\frontend\Nuget\pkgs\DotNetFxRefAssemblies.Corext.4.5.1.1\System.xml, => System.xml
-
-
+[0:16.488] verbose DX5017: Critical path:
+Pip Duration(ms) | Exe Duration(ms)| Queue Duration(ms) | Pip Result   | Scheduled Time | Completed Time | Pip
+            4849 |            2325 |                182 |              |                |                | *Total
+               2 |               0 |                  0 |     Executed |       00:00:15 |       00:00:15 | Pip7998CDAE90476A13 ...
+            3840 |            2325 |                  3 |     Executed |       00:00:12 |       00:00:15 | Pip1FC84BBAC24D0F71 ...
+              11 |               0 |                  0 |       Cached |       00:00:12 |       00:00:12 | Pip4814212D6E796253 ...
 ```
 ### Performance Summary
-This section contains a performance summary of the BuildXL run broken down by phases. 
+This section contains a performance summary of the BuildXL run broken down by phases. This is currently only available for single machine builds.
 ```
-[0:29.476] verbose DX0408: Performance Summary:
+[0:16.842] verbose DX0408: Performance Summary:
 Time breakdown:
-    Graph Construction:                    41% (12sec)
-        Checking for pip graph reuse:          3% (0sec)
-        Reloading pip graph:                   96% (11sec)
+    Application Initialization:            6% (1sec)
+    Graph Construction:                    38% (6sec)
+        Checking for pip graph reuse:          6% (0sec)
+        Reloading pip graph:                   93% (6sec)
         Create graph:                          0% (0sec)
         Other:                                 1%
-    Execute Phase:                         34% (10sec)
-        Executing processes                    0%
-        Process running overhead:              100%
-            Checking for cache hits:               16%
+    Scrubbing:                             1% (0sec)
+    Scheduler Initialization:              4% (0sec)
+    Execute Phase:                         32% (5sec)
+        Executing processes                    4%
+        Process running overhead:              95%
+            Hashing inputs:                        3%
+            Checking for cache hits:               62%
             Processing outputs:                    0%
-            Replay outputs from cache:             0%
+            Replay outputs from cache:             24%
             Prepare process sandbox:               0%
             Non-process pips:                      0%
-            Other:                                 84%
-    Other:                                 25%
-Process pip cache hit rate: 0%
+            Other:                                 11%
+    Other:                                 19%
+
+Process pip cache hits: 99% (360/361)
+Incremental scheduling up to date rate: 20% (73/361)
 Server mode used: False
+Execute phase utilization: Avg CPU:14% Min Available Ram MB:17249 Avg Disk Active:C:30% D:0% E:4% 
+Factors limiting concurrency by build time: CPU:0%, Graph shape:61%, Disk:0%, Memory:0%, ProjectedMemory:0%, Semaphore:0%, Concurrency limit:0%, Other:39%
 ```
 
 ### Performance Smells

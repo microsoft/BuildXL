@@ -65,6 +65,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public static bool operator !=(ShortHash left, ShortHash right) => !left.Equals(right);
 
         /// <nodoc />
+        public static bool operator <(ShortHash left, ShortHash right) => left.CompareTo(right) < 0;
+
+        /// <nodoc />
+        public static bool operator >(ShortHash left, ShortHash right) => left.CompareTo(right) > 0;
+
+        /// <nodoc />
         public static implicit operator ShortHash(ContentHash hash) => new ShortHash(hash);
 
         /// <nodoc />

@@ -467,7 +467,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
             const int KeysChunkSize = 100000;
-            byte[] startValue = null;
+            var startValue = filter?.StartingPoint?.ToByteArray();
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();
@@ -495,7 +495,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                     startValue = null;
                                     byte[] value = null;
-                                    if (filter != null && filter(value = iterator.Value()))
+                                    if (filter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
                                     {
                                         keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), DeserializeContentLocationEntry(value)));
                                     }

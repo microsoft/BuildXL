@@ -37,33 +37,7 @@ namespace Tool.SymbolDaemon
 
                 SymbolDaemon.EnsureCommandsInitialized();
 
-                // resolve response files
-                var resolvedArguments = args.SelectMany(arg =>
-                    {
-                        if (arg.StartsWith(ResponseFilePrefix))
-                        {
-                            string responseFile = arg.Substring(1);
-                            if (!File.Exists(responseFile))
-                            {
-                                Contract.Assert(false, $"Response file '{arg}' is missing.");
-                            }
-
-                            var content = File.ReadAllText(responseFile);
-                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- Response file '{responseFile}' ---");
-                            Console.WriteLine(content);
-                            Console.WriteLine($"{SymbolDaemon.SymbolDLogPrefix}--- the end of the response file ---");
-
-                            // The arguments inside of the response file might be escaped.
-                            // We need to pass them through the parser to properly handle such cases.
-                            return AbstractParser.CommonSplitArgs(content.Replace(Environment.NewLine, " "));
-                        }
-                        else
-                        {
-                            return WrapIntoIEnumerable(arg);
-                        }
-                    }).ToArray();
-
-                var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(resolvedArguments, new UnixParser());
+                var confCommand = ServicePipDaemon.ServicePipDaemon.ParseArgs(args, new UnixParser());
                 if (confCommand.Command.NeedsIpcClient)
                 {
                     // Even though NeedsIpcClient is 'true' for the majority of commands,
@@ -98,11 +72,6 @@ namespace Tool.SymbolDaemon
         {
             var daemonConfig = ServicePipDaemon.ServicePipDaemon.CreateDaemonConfig(conf);
             return IpcFactory.GetProvider().GetClient(daemonConfig.Moniker, daemonConfig);
-        }
-
-        private static IEnumerable<T> WrapIntoIEnumerable<T>(T obj)
-        {
-            yield return obj;
         }
     }
 }

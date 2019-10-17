@@ -38,6 +38,7 @@ namespace Tool.ServicePipDaemon
         protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
 
         private const string LogFileName = "ServiceDaemon";
+        private const char ResponseFilePrefix = '@';
 
         /// <nodoc/>
         public const string LogPrefix = "(SPD) ";
@@ -443,7 +444,22 @@ namespace Tool.ServicePipDaemon
                 throw new ArgumentException(I($"Command is required. {usageMessage.Value}"));
             }
 
-            var argsQueue = new Queue<string>(args);
+            var argsQueue = new Queue<string>(args.Length);
+            foreach (var arg in args)
+            {
+                if (arg[0] == ResponseFilePrefix)
+                {
+                    foreach (var argFromFile in ProcessResponseFile(arg, parser))
+                    {
+                        argsQueue.Enqueue(argFromFile);
+                    }
+                }
+                else
+                {
+                    argsQueue.Enqueue(arg);
+                }
+            }
+
             string cmdName = argsQueue.Dequeue();
             if (!Commands.TryGetValue(cmdName, out Command cmd))
             {
@@ -457,6 +473,27 @@ namespace Tool.ServicePipDaemon
             logger = logger ?? new ConsoleLogger(Verbose.GetValue(conf), ServicePipDaemon.LogPrefix);
             logger.Verbose("Parsing command line arguments done in {0}", parseTime);
             return new ConfiguredCommand(cmd, conf, logger);
+        }
+
+        private static IEnumerable<string> ProcessResponseFile(string responseFileArgument, IParser parser)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(responseFileArgument));
+            Contract.Requires(responseFileArgument[0] == ResponseFilePrefix);
+
+            string path = responseFileArgument.Substring(1);
+            string content;
+            try
+            {
+                content = System.IO.File.ReadAllText(path, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException(I($"Error while reading the response file '{path}': {ex.Message}."), ex);
+            }
+
+            // The arguments inside of the response file might be escaped.
+            // We need to pass them through the parser to properly handle such cases.
+            return parser.SplitArgs(content.Replace(Environment.NewLine, " "));
         }
 
         /// <summary>

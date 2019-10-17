@@ -519,6 +519,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? LocationEntryExpiryMinutes { get; set; }
 
         [DataMember]
+        public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
+
+        [DataMember]
         public int? MachineExpiryMinutes { get; set; }
 
         [DataMember]

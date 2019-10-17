@@ -426,7 +426,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldRestore || forceRestore)
                     {
-                        result = await RestoreCheckpointStateAsync(context, checkpointState);
+                        result = await RestoreCheckpointStateAsync(context, checkpointState, force: false);
                         if (!result)
                         {
                             return result;
@@ -598,15 +598,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
         }
 
-        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
+        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState, bool force = false)
         {
             var token = context.Token;
+
+            if (!force)
+            {
+                var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+                var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
+                var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
+
+                if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+                }
+
+                if (shouldRestoreInBackground)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} will be restored in the background. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                    RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
+                    return BoolResult.Success;
+                }
+            }
+
             if (checkpointState.CheckpointAvailable)
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
                     Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState.CheckpointId}'.");
-                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState.CheckpointId);
+                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
                         return possibleCheckpointResult;

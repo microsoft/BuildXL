@@ -86,7 +86,14 @@ namespace Tool.SymbolDaemon
             Contract.Requires(!string.IsNullOrEmpty(fileId), "FileID is not provided");
             if (!(debugEntries == null || debugEntries.All(de => de.BlobIdentifier == null)))
             {
-                Contract.Assert(false, $"BlobIdentifier must be null on all DebugEntries (hash: {hash.ToString()})");
+                var s = "debugEntries == null : " + (debugEntries == null) + Environment.NewLine;
+                foreach (var entry in debugEntries)
+                {
+                    s += "BlobIdentifier: " + (entry.BlobIdentifier?.ValueString ?? "NULL_VALUE") + Environment.NewLine;
+                    s += "ClientKey: " + entry.ClientKey + Environment.NewLine;
+                    s += "InformationLevel: " + entry.InformationLevel + Environment.NewLine;
+                }
+                Contract.Assert(false, $"BlobIdentifier must be null on all DebugEntries (hash: {hash.ToString()}, file: {filePath}){Environment.NewLine}{s}");
             }
             Contract.Requires(debugEntries == null || debugEntries.All(de => de.BlobIdentifier == null));
 

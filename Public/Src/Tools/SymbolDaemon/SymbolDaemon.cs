@@ -402,8 +402,6 @@ namespace Tool.SymbolDaemon
             try
             {
                 symbolMetadata = DeserializeSymbolsMetadata(symbolMetadataFile);
-                var s = System.IO.File.ReadAllText(symbolMetadataFile);
-                daemon.Logger.Verbose("symbolMetadataFile - '{0}':{1}{2}", symbolMetadataFile, Environment.NewLine, s);
             }
             catch (Exception e)
             {

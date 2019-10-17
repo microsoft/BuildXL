@@ -80,17 +80,17 @@ namespace Tool.SymbolDaemon
             ContentHash hash,
             IEnumerable<IDebugEntryData> debugEntries)
         {
-            Contract.Requires(symlinkTester != null, "Symlink tester is not provided.");
-            Contract.Requires(bxlClient != null, "BXL API client is not provided");
-            Contract.Requires(!string.IsNullOrEmpty(filePath), "FilePath is not provided");
-            Contract.Requires(!string.IsNullOrEmpty(fileId), "FileID is not provided");
+            Contract.Requires(symlinkTester != null);
+            Contract.Requires(bxlClient != null);
+            Contract.Requires(!string.IsNullOrEmpty(filePath));
+            Contract.Requires(!string.IsNullOrEmpty(fileId));
             // It's not clear whether the symbol endpoint can play nicely with dedup hashes, so locking it down to VSO0 for now.
             Contract.Requires(hash.HashType == HashType.Vso0, "support only VSO0 hashes (for now)");
 
             if (debugEntries != null)
             {
                 var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(hash.ToHashByteArray());
-                Contract.Assert(debugEntries.All(e => e.BlobIdentifier != null) || debugEntries.All(e => e.BlobIdentifier == blobIdentifier));
+                Contract.Assert(debugEntries.All(e => e.BlobIdentifier == blobIdentifier));
                 m_debugEntries = new List<IDebugEntryData>(debugEntries);
             }
 

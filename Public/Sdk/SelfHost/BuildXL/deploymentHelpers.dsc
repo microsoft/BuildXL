@@ -113,6 +113,9 @@ namespace DeploymentHelpers {
 
         /** The settings for this symbol publishing request */
         const settings : SymbolDaemon.SymbolCreateArguments = {
+            debugEntryCreateBehavior :  enabled 
+                ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net472", targetRuntime: "win-x64"}).DebugEntryCreateBehavior.SkipIfExists
+                : undefined,
             symbolServiceConfigFile: Environment.getFileValue("BUILDXL_SYMBOL_CONFIG")
         };
 

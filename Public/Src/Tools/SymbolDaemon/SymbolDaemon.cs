@@ -425,7 +425,7 @@ namespace Tool.SymbolDaemon
 
                         return new IpcResult(
                             IpcResultStatus.GenericError,
-                            I($"Hash '{hash.ToString()}' is not found in metadata file '{symbolMetadataFile}'."));
+                            I($"Hash '{hash.ToString()}' (file: '{files[i]}') is not found in the metadata file '{symbolMetadataFile}'."));
                     }
 
                     symbolFiles.Add(new SymbolFile(
@@ -441,8 +441,8 @@ namespace Tool.SymbolDaemon
                         IpcResultStatus.GenericError,
                         e.DemystifyToString());
                 }
-            }           
-            
+            }
+
             var result = await daemon.AddSymbolFilesAsync(symbolFiles);
 
             return result;

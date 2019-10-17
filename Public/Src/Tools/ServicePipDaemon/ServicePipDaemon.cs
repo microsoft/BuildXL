@@ -31,7 +31,7 @@ namespace Tool.ServicePipDaemon
     {
         /// <nodoc/>
         protected internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
-        
+
         private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
 
         /// <summary>Initialized commands</summary>
@@ -407,9 +407,9 @@ namespace Tool.ServicePipDaemon
             IIpcResult result;
             using (var duration = m_counters.StartStopwatch(DaemonCounter.ServerActionDuration))
             {
-                result = await conf.Command.ServerAction(conf, this); 
+                result = await conf.Command.ServerAction(conf, this);
                 result.ActionDuration = duration.Elapsed;
-            }            
+            }
 
             TimeSpan queueDuration = operation.Timestamp.Daemon_BeforeExecuteTime - operation.Timestamp.Daemon_AfterReceivedTime;
             m_counters.AddToCounter(DaemonCounter.QueueDurationMs, (long)queueDuration.TotalMilliseconds);

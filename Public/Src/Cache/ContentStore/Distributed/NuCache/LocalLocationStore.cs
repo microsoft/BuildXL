@@ -426,7 +426,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldRestore || forceRestore)
                     {
-                        result = await RestoreCheckpointStateAsync(context, checkpointState);
+                        result = await RestoreCheckpointStateAsync(context, checkpointState, force: false);
                         if (!result)
                         {
                             return result;
@@ -608,13 +608,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
                 var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
 
+                if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+                }
+
                 if (shouldRestoreInBackground)
                 {
-                    if (latestCheckpointAge > _configuration.LocationEntryExpiry)
-                    {
-                        Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.id} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
-                    }
-
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} will be restored in the background. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
                     RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
                     return BoolResult.Success;
                 }

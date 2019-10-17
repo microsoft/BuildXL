@@ -375,11 +375,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
             catch (Exception e)
             {
-                _tracer.Debug(context, $"Failed to write latest checkpoint state to disk: {e}");
+                _tracer.Warning(context, $"Failed to write latest checkpoint state to disk: {e}");
             }
         }
 
-        public (string id, DateTime checkpointTime)? GetLatestCheckpointInfo(OperationContext context)
+        public (string checkpointId, DateTime checkpointTime)? GetLatestCheckpointInfo(OperationContext context)
         {
             try
             {

@@ -143,85 +143,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 int attemptCount = 0;
                 TimeSpan waitDelay = new TimeSpan();
 
-                /*
-                public class Copylocations
-        {
-               public Copylocations(MachineLocation location, int priority, int locRetryCount)
-            {
-                this.location = location;
-                this.priority = priority;
-                this.locRetryCount = locRetryCount;
-                this.timeOutTime = null;
-            }
-
-            public void IncrementRetry()
-            {
-                this.locRetryCount++;
-            }
-
-            public int TimeOutTime
-            {
-                get { return this.TimeOutTime; }
-                set { this.TimeOutTime = value; }
-            }
-        }*/
-
-                //Find list of locations based on reputation
-                //Convert locations from hashInfo into priority queue for available list
-                //Go through list of locations by reputation, and populate available priority queue
-                // PriorityQueue<T> availableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
-
-                //Create unavailable priority queue, comparable should be based on time needed to wait until
-                // PriorityQueue<T> unavailableLocs = new PriorityQueue<T>(hashInfo.Locations.Count, IComparable);
-            
-                //TODO: Change the _retryIntervals Count to 32 in DistributedContentSettings
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
                     bool retry;
-
-                    //TODO
-                    //Go through the unavailable locations queue, and reinsert the locations that are done waiting
-                    /*
-                     * for iterate through unavailableLocs priority queue
-                     *      if the timeout for location is smaller than current time
-                     *          pop location from unavailable location
-                     *          insert location back into available locations
-                     */
-
-                    //Determine next best location based on who's free, if no location is free, wait until next one is.
-                    /*
-                     * If availableLocs has size > 0
-                     *      pop first element from availableLocs as selected location
-                     * else
-                     *      wait until first element of unavailableLocs because available
-                     *      pop first element from unavailableLocs
-                     */
-
-                    //Increment number of retry, if reached maximum remove after 
-                    //Tries to copy with WalkLocations and Copy
-
-                    /*Try to copy with WalkLocationsandCopy the popped location
-                     * if Error or no retry break
-                     * Otherwise, increment total counter for retries
-                     * Increment number of retries for selected location
-                     * If location has not reached maximum retries
-                     *      Calculate Wait time (15-45s)
-                     *      Add back into unavailableLocs
-                     */
-
-                    /*
-                     * While retry count less than MaxRetryCount
-                     *      index = retryCount % hashInfo.Locations.Count
-                     *      if wait time:
-                     *          lastFailTime = list[index].lastFailure;
-                     *          alreadyWaitedTIme = curTime - lastFailTime;
-                     *          if alreadyWaitedTime <= waitTime:
-                     *              wait for (waitTime - alreadyWaitedTime)
-                     *      Copy File
-                     *      Increment total retry count
-                     *      If index is last element i.e. index = hashInfo.Locations.Count - 1;
-                     *          Calculate new wait time
-                     */
 
                     (putResult, retry) = await WalkLocationsAndCopyAndPutAsync(
                         operationContext,
@@ -253,10 +177,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                     attemptCount++;
 
-                    //TODO
-                    //If we still have retry attempts, add the previous selected location into queue of unavailable locations to wait
-                    //If Location has max retries, remove from list, don't need add back in.
-
                     if (attemptCount < _retryIntervals.Count)
                     {
                         long waitTicks = _retryIntervals[attemptCount].Ticks;
@@ -266,8 +186,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
                         // Log with the original attempt count
                         Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
-
-                        //await Task.Delay(waitDelay, cts);
                     }
                     else
                     {
@@ -367,7 +285,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             badContentLocations.Clear();
             string lastErrorMessage = null;
 
-            //TODO: Assume we have our selected location, don't need to iterate through anymore
             for (int replicaIndex = 0; replicaIndex < hashInfo.Locations.Count; replicaIndex++)
             {
                 var location = hashInfo.Locations[replicaIndex];
@@ -390,7 +307,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     continue;
                 }
 
-                //TODO: determine current Time, make sure the values are in seconds
                 if (!waitDelay.Equals(TimeSpan.Zero))
                 {
                     TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];

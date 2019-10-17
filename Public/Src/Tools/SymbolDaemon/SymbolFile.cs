@@ -80,10 +80,14 @@ namespace Tool.SymbolDaemon
             ContentHash hash,
             IEnumerable<DebugEntryData> debugEntries)
         {
-            Contract.Requires(symlinkTester != null);
-            Contract.Requires(bxlClient != null);
-            Contract.Requires(!string.IsNullOrEmpty(filePath));
-            Contract.Requires(!string.IsNullOrEmpty(fileId));
+            Contract.Requires(symlinkTester != null, "Symlink tester is not provided.");
+            Contract.Requires(bxlClient != null, "BXL API client is not provided");
+            Contract.Requires(!string.IsNullOrEmpty(filePath), "FilePath is not provided");
+            Contract.Requires(!string.IsNullOrEmpty(fileId), "FileID is not provided");
+            if (!(debugEntries == null || debugEntries.All(de => de.BlobIdentifier == null)))
+            {
+                Contract.Assert(false, $"BlobIdentifier must be null on all DebugEntries (hash: {hash.ToString()})");
+            }
             Contract.Requires(debugEntries == null || debugEntries.All(de => de.BlobIdentifier == null));
 
             // It's not clear whether the symbol endpoint can play nicely with dedup hashes, so locking it down to VSO0 for now.

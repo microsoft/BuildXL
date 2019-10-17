@@ -916,6 +916,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
 #if PLATFORM_OSX
+
             hw.WriteOption(
                 "/kextNumberOfKextConnections:<number>",
                 Strings.HelpText_DisplayHelp_KextNumberOfKextConnections,
@@ -940,6 +941,12 @@ namespace BuildXL
                "/KextThrottleMinAvailableRamMB:<number>",
                Strings.HelpText_DisplayHelp_KextThrottleMinAvailableRamMB,
                HelpLevel.Verbose);
+
+            hw.WriteOption(
+               "/maxMemoryPressureLevel:<option>",
+               Strings.HelpText_DisplayHelp_MaxMemoryPressureLevel,
+               HelpLevel.Verbose);
+
 #endif
 
             hw.WriteOption(
@@ -1019,7 +1026,7 @@ namespace BuildXL
 
             #endregion
 
-            #region Component Governance Manifest 
+            #region Component Governance Manifest
             hw.WriteBanner(Strings.HelpText_DisplayHelp_CgManifestBanner);
 
             hw.WriteOption("/generateCgManifestForNugets:<file>",

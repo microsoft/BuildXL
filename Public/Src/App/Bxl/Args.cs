@@ -17,6 +17,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Interop.MacOS.Memory;
 using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
@@ -523,6 +524,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "kextThrottleMinAvailableRamMB",
                             opt => sandboxConfiguration.KextThrottleMinAvailableRamMB = CommandLineUtilities.ParseUInt32Option(opt, 0, uint.MaxValue)),
+                        OptionHandlerFactory.CreateOption(
+                            "maxMemoryPressureLevel",
+                            opt => schedulingConfiguration.MaximumAllowedMemoryPressureLevel = CommandLineUtilities.ParseEnumOption<PressureLevel>(opt)),
 #endif
                         OptionHandlerFactory.CreateOption2(
                             "help",
@@ -1226,12 +1230,12 @@ namespace BuildXL
                     string abTestingKey = randomOption.Key;
                     string abTestingArgs = randomOption.Value;
 
-                    // Add key and the hash code of the arguments to traceInfo for telemetry purposes. 
+                    // Add key and the hash code of the arguments to traceInfo for telemetry purposes.
                     // As the ID for the AB testing arguments is specified by the user, there is a chance to
-                    // give the same ID to the different set of arguments. That's why, we also add the hash code of 
+                    // give the same ID to the different set of arguments. That's why, we also add the hash code of
                     // the arguments to traceInfo.
                     loggingConfiguration.TraceInfo.Add(
-                        TraceInfoExtensions.ABTesting, 
+                        TraceInfoExtensions.ABTesting,
                         $"{abTestingKey};{abTestingArgs.GetHashCode().ToString()}");
 
                     string[] splittedABTestingArgs = new WinParser().SplitArgs(abTestingArgs);

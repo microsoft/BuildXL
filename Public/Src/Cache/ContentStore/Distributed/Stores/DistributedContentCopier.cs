@@ -391,7 +391,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
 
                 //TODO: determine current Time, make sure the values are in seconds
-                if (waitDelay.Equals(TimeSpan.Zero))
+                if (!waitDelay.Equals(TimeSpan.Zero))
                 {
                     TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];
                     if (waitedTime < waitDelay)

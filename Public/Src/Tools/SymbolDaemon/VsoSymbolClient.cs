@@ -241,7 +241,7 @@ namespace Tool.SymbolDaemon
             m_symbolClient.Dispose();
         }
 
-        private static DebugEntry CreateDebugEntry(DebugEntryData data)
+        private static DebugEntry CreateDebugEntry(IDebugEntryData data)
         {
             return new DebugEntry()
             {

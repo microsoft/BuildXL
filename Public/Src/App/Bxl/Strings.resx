@@ -854,7 +854,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>[macOS] Causes throttling to be triggered whenever available RAM drops below this value. (takes precedence over CPU usage thresholds)</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxMemoryPressureLevel" xml:space="preserve">
-    <value>[macOS] Causes scheduling to pause / cancel pips to free up system resources if specified maximim pressure level is overstepped. Allowed values are 'Normal' (Default), 'Warning' and 'Critical'. NOTE: Using 'Critical' can lead to system instablities and eventual kernel panics due to resource starvation!</value>
+    <value>[macOS] Causes scheduling to pause / cancel pips to free up system resources if specified maximum pressure level is overstepped. Allowed values are 'Normal' (Default), 'Warning' and 'Critical'. NOTE: Using 'Critical' can lead to system instablities and eventual kernel panics due to resource starvation!</value>
   </data>
   <data name="HelpText_DisplayHelp_LogMemory" xml:space="preserve">
     <value>Collects actual memory usage when collection performance counters. This has a negaitve performance impact and should only be used when analyzing memory consumption. Defaults to off.</value>

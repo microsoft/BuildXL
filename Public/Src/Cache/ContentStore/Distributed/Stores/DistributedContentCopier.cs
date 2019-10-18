@@ -141,7 +141,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 var missingContentLocations = new HashSet<MachineLocation>();
                 var lastFailureTimes = new List<DateTime>();
                 int attemptCount = 0;
-                TimeSpan waitDelay = new TimeSpan();
+                TimeSpan waitDelay = TimeSpan.Zero;
 
                 // _retryIntervals controls how many cycles we go through of copying from a list of locations
                 // It also has the increasing wait times between cycles

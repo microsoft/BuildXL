@@ -56,6 +56,35 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
         }
 
         [Fact]
+        public void SucceededWhenPinResultIsSuccess()
+        {
+            Assert.True(new PinResult(PinResult.ResultCode.Success).Succeeded);
+            Assert.Null(new PinResult(PinResult.ResultCode.Success).ErrorMessage);
+
+            Assert.True(new PinResult(contentSize: -1L, lastAccessTime: null).Succeeded);
+            Assert.Null(new PinResult(contentSize: -1L, lastAccessTime: null).ErrorMessage);
+
+            Assert.True(new PinResult(contentSize: -1L, lastAccessTime: null, PinResult.ResultCode.Success).Succeeded);
+            Assert.Null(new PinResult(contentSize: -1L, lastAccessTime: null, PinResult.ResultCode.Success).ErrorMessage);
+        }
+
+        [Fact]
+        public void ErrorWhenPinResultIsNotSuccess()
+        {
+            Assert.False(new PinResult(PinResult.ResultCode.ContentNotFound).Succeeded);
+            Assert.NotNull(new PinResult(PinResult.ResultCode.ContentNotFound).ErrorMessage);
+
+            Assert.False(new PinResult(PinResult.ResultCode.Error).Succeeded);
+            Assert.NotNull(new PinResult(PinResult.ResultCode.Error).ErrorMessage);
+
+            Assert.False(new PinResult(contentSize: -1L, lastAccessTime: null, PinResult.ResultCode.ContentNotFound).Succeeded);
+            Assert.NotNull(new PinResult(contentSize: -1L, lastAccessTime: null, PinResult.ResultCode.ContentNotFound).ErrorMessage);
+
+            Assert.False(new PinResult(contentSize: -1L, lastAccessTime: null, PinResult.ResultCode.Error).Succeeded);
+            Assert.NotNull(new PinResult(contentSize: -1L, lastAccessTime: null, PinResult.ResultCode.Error).ErrorMessage);
+        }
+
+        [Fact]
         public void SucceededFalse()
         {
             Assert.False(new PinResult("error").Succeeded);

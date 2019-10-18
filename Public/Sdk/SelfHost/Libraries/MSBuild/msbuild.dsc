@@ -30,7 +30,7 @@ export const msbuildRuntimeContent = [
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/netcoreapp2.1/MSBuild.runtimeconfig.json`),
     ]
     : [
-        importFrom("DataflowForMSBuild").pkg,
+        importFrom("System.Threading.Tasks.Dataflow").pkg,
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net472/MSBuild.exe`),
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net472/MSBuild.exe.config`),
     ],

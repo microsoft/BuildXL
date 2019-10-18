@@ -437,7 +437,6 @@ config({
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
-                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuild" },
                 { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild", dependentPackageIdsToIgnore: ["*"], dependentPackageIdsToSkip: ["*"]},
                 { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild"},

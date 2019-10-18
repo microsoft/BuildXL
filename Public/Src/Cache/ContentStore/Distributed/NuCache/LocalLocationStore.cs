@@ -426,7 +426,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldRestore || forceRestore)
                     {
-                        result = await RestoreCheckpointStateAsync(context, checkpointState);
+                        result = await RestoreCheckpointStateAsync(context, checkpointState, force: false);
                         if (!result)
                         {
                             return result;
@@ -598,15 +598,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
         }
 
-        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
+        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState, bool force = false)
         {
             var token = context.Token;
+
+            if (!force)
+            {
+                var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+                var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
+                var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
+
+                if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+                }
+
+                if (shouldRestoreInBackground)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} will be restored in the background. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                    RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
+                    return BoolResult.Success;
+                }
+            }
+
             if (checkpointState.CheckpointAvailable)
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
                     Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState.CheckpointId}'.");
-                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState.CheckpointId);
+                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
                         return possibleCheckpointResult;
@@ -1195,10 +1215,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     while (!isFinished)
                     {
-                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency);
+                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, context.Token);
 
-                        Counters[ContentLocationStoreCounters.ReconciliationCycles].Increment();
+                        await context.PerformOperationAsync(
+                            Tracer,
+                            operation: performReconciliationCycleAsync,
+                            caller: "PerformReconciliationCycleAsync",
+                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles]).ThrowIfFailure();
 
+                        if (!isFinished)
+                        {
+                            await delayTask;
+                        }
+                    }
+
+                    MarkReconciled();
+                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
+
+                    async Task<BoolResult> performReconciliationCycleAsync()
+                    {
                         // Pause events in main event store while sending reconciliation events via temporary event store
                         // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
                         // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
@@ -1270,16 +1305,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             // Corner case where they are equal and we have finished should be very unlikely.
                             isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
-                        }
 
-                        if (!isFinished)
-                        {
-                            await delayTask;
+                            return BoolResult.Success;
                         }
                     }
-
-                    MarkReconciled();
-                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
         }
@@ -1374,7 +1403,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.ContentTouched(context, hash, accessTime);
                 }
@@ -1385,7 +1414,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hashWithSize in hashes)
+                foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
                     _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling);
                 }
@@ -1395,7 +1424,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 _clusterState.MarkMachineActive(sender);
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }

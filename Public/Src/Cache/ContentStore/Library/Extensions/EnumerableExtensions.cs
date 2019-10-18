@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -40,6 +41,41 @@ namespace BuildXL.Cache.ContentStore.Extensions
         /// </summary>
         public static IEnumerable<List<T>> GetPages<T>(this IEnumerable<T> allItems, int pageSize)
         {
+            List<T> page = null;
+
+            foreach (T item in allItems)
+            {
+                if (page == null)
+                {
+                    page = new List<T>(pageSize);
+                }
+
+                page.Add(item);
+
+                if (page.Count >= pageSize)
+                {
+                    yield return page;
+                    page = null;
+                }
+            }
+
+            if (page != null)
+            {
+                yield return page;
+            }
+        }
+
+        /// <summary>
+        ///     Break an item list into chunks/pages.
+        /// </summary>
+        public static IEnumerable<IList<T>> GetPages<TKey, T>(this IGrouping<TKey, T> allItems, int pageSize)
+        {
+            if (allItems is IList<T> lst && lst.Count <= pageSize)
+            {
+                yield return lst;
+                yield break;
+            }
+
             List<T> page = null;
 
             foreach (T item in allItems)

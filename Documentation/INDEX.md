@@ -45,10 +45,10 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Filesystem modes and enumerations](Wiki/Advanced-Features/Filesystem-modes-and-Enumerations.md) TODO: groom
 * [Incremental Scheduling](Wiki/Advanced-Features/Incremental-Scheduling.md) TODO: groom
 * [Cancellation](Wiki/How-To-Run-BuildXL/Cancellation-(CtrlC).md)
-* [Resource tuning](Wiki/How-To-Run-BuildXL/Resource-Usage-Configuration.md) todo: groom
-* [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md) TODO: groom
-* [Scheduler Prioritization](Wiki/Advanced-Features/Scheduler-Prioritization.md) TODO: groom
-* [Server Mode](Wiki/Advanced-Features/Server-Mode.md) TODO: groom
+* [Resource tuning](Wiki/How-To-Run-BuildXL/Resource-Usage-Configuration.md) 
+* [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md) 
+* [Scheduler Prioritization](Wiki/Advanced-Features/Scheduler-Prioritization.md)
+* [Server Mode](Wiki/Advanced-Features/Server-Mode.md) 
 * [Timestamp Faking](Wiki/Advanced-Features/Timestamp-Faking.md) TODO: groom
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md) TODO: groom
 * [Service Pips](Wiki/Service-Pips.md)
@@ -56,13 +56,13 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)
-* [Log Files](Wiki/How-To-Run-BuildXL/Log-Files.md) todo: groom
-* [Primary log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.log.md) todo: groom
-* [Stats log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.stats.md) todo: groom
-* [Logging Options](Wiki/How-To-Run-BuildXL/Logging-Options.md)  todo: groom
-* [Execution Log](Wiki/Advanced-Features/Execution-Log-SDK.md) TODO: groom
-* [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) TODO: groom
-* [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md) TODO: groom
+* [Log Files](Wiki/How-To-Run-BuildXL/Log-Files.md)
+* [Primary log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.log.md)
+* [Stats log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.stats.md)
+* [Logging Options](Wiki/How-To-Run-BuildXL/Logging-Options.md)
+* [Execution Log](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md)
+* [Execution Analyzer](wiki/Advanced-Features/Execution-Analyzer.md) 
+* [Cache Miss Analysis](wiki/Advanced-Features/Cache-Miss-Analysis.md)
 
 ## Troubleshooting
 * [DX Error Codes](Wiki/Error-Codes)

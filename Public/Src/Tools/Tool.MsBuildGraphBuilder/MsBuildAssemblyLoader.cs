@@ -23,7 +23,7 @@ namespace MsBuildGraphBuilderTool
         private const string DotNetPublicToken = "cc7b13ffcd2ddd51";
 
         private static readonly Version s_minimumRequiredMsBuildAssemblyVersion = new Version("15.1.0.0");
-        private static readonly Version s_minimumRequiredMsBuildFileVersion = new Version("16.1.42.55196");
+        private static readonly Version s_minimumRequiredMsBuildFileVersion = new Version("16.4.0.51602");
 
         // List of required assemblies
         private const string MicrosoftBuild = "Microsoft.Build.dll";

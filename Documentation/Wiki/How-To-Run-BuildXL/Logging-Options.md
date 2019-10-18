@@ -17,14 +17,14 @@ Routes all errors to an additional log file. Errors will still get logged to the
 /errorlog:path\to\errors.err
 ```
 
-## /nowarn<list>
+## /nowarn
 Disables specific warning messages. The impacted messages will not be logged to the console, primary log file, or warning log file.
 
 ```
 /nowarn:909,2504
 ```
 
-## /warnAsError[+|-]<list>
+## /warnAsError
 Sets whether warnings are promoted to errors. `+` indicates warnings are set as errors, and `-` removes a warning from an earlier option. Individual warnings are specified in a comma separated list. Omitting the sign (`+` or `-`) defaults to `+`. Omitting the list defaults to selecting all warnings.
 
 ```
@@ -36,7 +36,7 @@ Sets whether warnings are promoted to errors. `+` indicates warnings are set as 
 ```
 
 # Log routing
-## /customlog:<file>;<id list>
+## /customlog
 Routes specific messages to an additional log. Messages will continue to be written in the primary log. Can be applied to any BuildXL error code regardless of severity.
 ```
 /customlog:c:\mylog.txt;32;421;532

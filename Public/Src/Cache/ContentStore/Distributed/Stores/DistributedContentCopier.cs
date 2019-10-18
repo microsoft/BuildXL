@@ -143,6 +143,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 int attemptCount = 0;
                 TimeSpan waitDelay = new TimeSpan();
 
+                // _retryIntervals controls how many cycles we go through of copying from a list of locations
+                // It also has the increasing wait times between cycles
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
                     bool retry;
@@ -181,6 +183,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         long waitTicks = _retryIntervals[attemptCount].Ticks;
 
+                        // Every location uses the same waitDelay per cycle
                         // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
                         waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
 
@@ -307,6 +310,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     continue;
                 }
 
+                // If there is a wait time, determine how much longer we need to wait
                 if (!waitDelay.Equals(TimeSpan.Zero))
                 {
                     TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];
@@ -505,6 +509,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 finally
                 {
+                    // If the replicaIndex hasn't been tried before it won't have a value in lastFailureTimes so add it.
+                    // Otherwise replace the old failure time with the current time.
                     if(lastFailureTimes.Count <= replicaIndex)
                     {
                         lastFailureTimes.Add(DateTime.Now);

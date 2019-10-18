@@ -511,7 +511,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 {
                     // If the replicaIndex hasn't been tried before it won't have a value in lastFailureTimes so add it.
                     // Otherwise replace the old failure time with the current time.
-                    if(lastFailureTimes.Count <= replicaIndex)
+                    if (lastFailureTimes.Count <= replicaIndex)
                     {
                         lastFailureTimes.Add(DateTime.Now);
                     }

@@ -51,7 +51,7 @@ namespace BuildXL.Scheduler.Fingerprints
         public delegate PipData PipDataLookup(FileArtifact artifact);
 
         /// <summary>
-        /// Refers to a function which maps a process to its source change affected dependencies. 
+        /// Refers to a function which maps a process to its source-change-affected dependencies. 
         /// </summary>
         public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedContentsLookup(Process process);
 

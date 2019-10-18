@@ -52,16 +52,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertSuccess();
 
-            ResetPipGraphBuilder();
-            SchedulePipBuilder(pipBuilderA);
-            SchedulePipBuilder(pipBuilderB);
-
             RunScheduler().AssertCacheHit();
 
-            ResetPipGraphBuilder();
-            SchedulePipBuilder(pipBuilderA);
             pipBuilderB.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
-            SchedulePipBuilder(pipBuilderB);
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
@@ -90,7 +83,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Process A.
             FileArtifact aInput = CreateSourceFile(root: dirPath, prefix: "pip-a-input-file");
             FileArtifact aOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-a-out-file");
-            File.WriteAllText(aInput.Path.ToString(Context.PathTable), "pipA");
 
             var pipBuilderA = CreatePipBuilder(new[] { Operation.ReadFile(aInput), Operation.WriteFile(aOutput) });
             var pipA = SchedulePipBuilder(pipBuilderA);
@@ -98,8 +90,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Process B.
             FileArtifact bInput = CreateSourceFile(root: dirPath, prefix: "pip-b-input-file");
             FileArtifact bOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-b-out-file");
-            File.WriteAllText(bInput.Path.ToString(Context.PathTable), "pipBOrigin");
-
+            File.WriteAllText(ArtifactToString(bInput), "pipBOrigin");
             var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(bInput), Operation.WriteFile(bOutput) });
             var pipB = SchedulePipBuilder(pipBuilderB);
 
@@ -118,22 +109,27 @@ namespace IntegrationTest.BuildXL.Scheduler
             var pipC = SchedulePipBuilder(pipBuilderC);
             Configuration.Schedule.InputChanges = changeList.Path;
 
-            // Build1 with change in aInput
-            File.WriteAllText(changeList.Path.ToString(Context.PathTable), aInput.Path.ToString(Context.PathTable));
+            // Build0
+            File.WriteAllText(ArtifactToString(changeList), "");
             var result = RunScheduler();
             result.AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId, pipC.Process.PipId);
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            var expectedAffectedInput = "";
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            ResetPipGraphBuilder();
+            // Build1 with change in aInput
+            File.WriteAllText(ArtifactToString(aInput), "pipA");
+            File.WriteAllText(ArtifactToString(changeList), ArtifactToString(aInput));
+            result = RunScheduler();
+            result.AssertCacheMiss(pipA.Process.PipId, pipC.Process.PipId);
+            result.AssertCacheHit(pipB.Process.PipId);
+            actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
             // Build2 with change in bInput
-            File.WriteAllText(bInput.Path.ToString(Context.PathTable), "pipBChange");
-            File.WriteAllText(changeList.Path.ToString(Context.PathTable), bInput.Path.ToString(Context.PathTable));
-            pipA = SchedulePipBuilder(pipBuilderA);
-            pipB = SchedulePipBuilder(pipBuilderB);
-            pipC = SchedulePipBuilder(pipBuilderC);
+            File.WriteAllText(ArtifactToString(bInput), "pipBChange");
+            File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
 
             result = RunScheduler();
             result.AssertCacheHit(pipA.Process.PipId);
@@ -143,14 +139,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             expectedAffectedInput = bOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            ResetPipGraphBuilder();
-
             // Build3 revert change in bInput
-            File.WriteAllText(bInput.Path.ToString(Context.PathTable), "pipBOrigin");
-            File.WriteAllText(changeList.Path.ToString(Context.PathTable), bInput.Path.ToString(Context.PathTable));
-            pipA = SchedulePipBuilder(pipBuilderA);
-            pipB = SchedulePipBuilder(pipBuilderB);
-            pipC = SchedulePipBuilder(pipBuilderC);
+            File.WriteAllText(ArtifactToString(bInput), "pipBOrigin");
+            File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
 
             result = RunScheduler();
             result.AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);

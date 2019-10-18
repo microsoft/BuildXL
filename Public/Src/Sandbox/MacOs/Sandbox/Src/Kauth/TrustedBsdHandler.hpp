@@ -15,11 +15,13 @@ public:
 
     int HandleLookup(const char *path);
 
-    int HandleReadlink(vnode_t symlinkVNode);
+    int HandleReadVnode(vnode_t vnode, FileOperation operationToReport, bool isVnodeDir);
 
     int HandleVNodeCreateEvent(const char *fullPath, const bool isDir, const bool isSymlink);
 
-    int HandleVnodeWrite(vnode_t vnode);
+    int HandleVnodeWrite(vnode_t vnode, FileOperation operation);
+
+    int HandleWritePath(const char *path, FileOperation operation);
 
     void HandleProcessWantsToFork(const pid_t parentProcessPid);
 

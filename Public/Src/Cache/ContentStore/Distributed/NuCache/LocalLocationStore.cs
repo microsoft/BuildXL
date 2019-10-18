@@ -1403,7 +1403,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.ContentTouched(context, hash, accessTime);
                 }
@@ -1414,7 +1414,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hashWithSize in hashes)
+                foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
                     _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling);
                 }
@@ -1424,7 +1424,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 _clusterState.MarkMachineActive(sender);
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }

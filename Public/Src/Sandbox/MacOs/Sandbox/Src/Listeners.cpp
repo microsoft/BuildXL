@@ -294,7 +294,7 @@ int Listeners::mpo_vnode_check_clone(kauth_cred_t cred,
     int result = handler.HandleReadVnode(vp, kOpMacVNodeCloneSource, /*isVnodeDir*/ false);
     if (result != KERN_SUCCESS)
     {
-        return KERN_SUCCESS;
+        return result;
     }
 
     char destPath[MAXPATHLEN];

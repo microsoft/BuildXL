@@ -11,6 +11,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Management;
+using System.Net;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
@@ -28,7 +29,7 @@ namespace BuildXL.Processes
         /// </summary>
         private static readonly object s_dumpProcessLock = new object();
 
-        private static readonly string[] s_skipProcesses = {
+        private static readonly HashSet<string> s_skipProcesses = new HashSet<string>() {
             "conhost", // Conhost dump causes native error 0x8007012b (Only part of a ReadProcessMemory or WriteProcessMemory request was completed) - Build 1809
         };
 
@@ -205,15 +206,16 @@ namespace BuildXL.Processes
                 {
                     processName = p.ProcessName;
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
                     if (!p.HasExited)
                     {
-                        throw;
+                        primaryDumpCreationException = ex;
+                        return false;
                     }
                 }
 
-                if (processName == null || s_skipProcesses.Contains(processName, StringComparer.InvariantCultureIgnoreCase) || p.StartTime > treeDumpInitiateTime)
+                if (processName == null || s_skipProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase) || p.StartTime > treeDumpInitiateTime)
                 {
                     // Ignore processes explicitly configured to be skipped or 
                     // that were created after the tree dump was initiated in case of the likely rare

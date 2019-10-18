@@ -15,16 +15,29 @@ config({
 });
 ```
 
-In a future feature, the configuration file will allow users to specify default values for the build parameters.
-
 ## Command-Line
-Each environment variable can be overwritten on the command-line using the `/p` option:
-```
-bxl.exe /p:x=1
+Each environment variable can be specified on the command-line using the `/p` option:
+
+`bxl.exe /p:x=1`
+
+The /p option will override environment variables that may have already been specified from the context under which bxl.exe was launched.
+
+## Specifying environment variables to be passed to Process pips
+In BuildXL each tool that runs in the engine starts with a basic environment variable set. Basically the minimum needed to run a process on Windows (see list below). Any additional state needs to be specified when the pip is added to the build graph.
+
+```ts
+    let result = Transformer.execute({
+            tool: args.tool,
+            description: args.description,
+            // ...
+            environmentVariables:[ {}] ,
+
+});
 ```
 
-## Windows fixed environment variables.
-In BuildXL each tool that runs in the engine starts with a basic environment variable set. Basically the minimum needed to run a process on Windows. The list is:
+Environment variables can be marked as Passthrough, meaning the environment variable value is not considered when fingerprinting the process.
+
+### Windows fixed environment variables.
 | Variable | Value | Note |
 |--|--|--|
 | NUMBER_OF_PROCESSORS | Passthrough | This allows the tool to parallelize as needed. BuildXL reserves the right in the future to tweak this number on the fly to maximize resource utilization on the machine. |
@@ -45,7 +58,6 @@ In BuildXL each tool that runs in the engine starts with a basic environment var
 `$(SYSDIR)` in the table is defined as the result of [GetSystemDirectory()](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724373(v=vs.85).aspx) 
 `$(WINDOWS)` in the table is defined as the result of [SHGetFolderPath()](https://msdn.microsoft.com/en-us/library/windows/desktop/bb762181(v=vs.85).aspx) with [CSIDL_WINDOWS](https://msdn.microsoft.com/en-us/library/windows/desktop/bb762494(v=vs.85).aspx)
 
-The [Tool guidelines (EDN04)](../Tool-guidelines-(EDN04)) state that the tools should be deterministic regardless of these values varying across invocations.
 
 # Other build systems
 For example in MSBuild you can write:

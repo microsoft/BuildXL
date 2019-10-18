@@ -99,8 +99,8 @@ int TrustedBsdHandler::HandleWritePath(const char *path, FileOperation operation
 
 // TODO: We could take advantage of knowing what's on critical path, and not slow down those processes
 //       This information could be conveyed via the FileAccessManifest
-void TrustedBsdHandler::HandleProcessWantsToFork(const pid_t parentProcessPid){
-
+void TrustedBsdHandler::HandleProcessWantsToFork(const pid_t parentProcessPid)
+{
     // Only throttle when the root process wants to fork
     // TODO: this should be configurable via FAM
     if (parentProcessPid == GetProcessId())

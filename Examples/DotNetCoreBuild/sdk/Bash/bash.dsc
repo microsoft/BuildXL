@@ -55,7 +55,7 @@ export function runBashCommand(hint: string, bashArguments: Argument[], printDeb
     };
     const result = Transformer.execute(exeArgs);
     if (printDebug) {
-        Debug.writeLine(` *** ${Debug.dumpData(exeArgs.tool.exe)} ${Debug.dumpArgs(exeArgs.arguments)}`);
+        //Debug.writeLine(` *** ${Debug.dumpData(exeArgs.tool.exe)} ${Debug.dumpArgs(exeArgs.arguments)}`);
     }
     return result;
 }

@@ -82,6 +82,10 @@ param(
     [switch]$DeployStandaloneTest = $false,
 
     [Parameter(Mandatory=$false)]
+    [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
+    [string]$SharedCacheMode = "Disable",
+
+    [Parameter(Mandatory=$false)]
     [switch]$DevCache = $false,
 
     [Parameter(Mandatory=$false)]
@@ -182,9 +186,15 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
-$useSharedCache = ($DevCache -and $isMicrosoftInternal);
+if ($DevCache) {
+    if ($SharedCacheMode -eq "Disable") {
+        $SharedCacheMode = "Consume";
+    }
+}
+
+$useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
 $useL3Cache = $useSharedCache;
-$publishToSharedCache = $false;
+$publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
     # PatchDev is the same as deploy dev except no cleaning of deployment

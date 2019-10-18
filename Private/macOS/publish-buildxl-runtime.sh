@@ -116,28 +116,6 @@ function updateRequiredKextVersion() {
         ' = "'$_newVersion'"'
 }
 
-function updateNugetCgmanifestFile() {
-    local _newVersion=$1
-    
-    local _srcFile=${buildxlDir}/cg/nuget/cgmanifest.json
-    if [[ ! -f $_srcFile ]]; then
-        echo "[ERROR] File '$_srcFile' not found"
-        exit 1
-    fi
-
-    local key="runtime.osx-x64.BuildXL"
-    local matchLineNumber=$(grep -n "$key" $_srcFile | cut -d: -f1)
-    if [[ -z $matchLineNumber ]]; then
-        echo "[ERROR] no nuget '$key' found in file '$_srcFile'"
-        exit 1
-    fi
-
-    local lineToReplace=$matchLineNumber
-    ((lineToReplace++))
-
-    updateFileAtLine "$_srcFile" $lineToReplace "\"Version\":.*" "\"Version\": \"$_newVersion\""
-}
-
 function buildBuildXLBinaries() {
     local _buildScript=${buildxlDir}/bxl.sh
 
@@ -375,7 +353,6 @@ updateKextVersionSourceFile $version
 updateRequiredKextVersion $version
 buildBuildXLBinaries
 updateBuildXLConfigDscFile $version
-updateNugetCgmanifestFile $version
 
 for conf in debug release
 do
@@ -413,6 +390,13 @@ rm -rf $nugetDestDir
 if [[ -n $(which mono) && -f "$nugetExe" ]]; then
     echo "Publishing ${nupkgFile} to ${nugetFeed}"
     mono "${nugetExe}" push "${nupkgFile}" -Source "${nugetFeed}" -ApiKey "AzureDevOps"
+    if [[ $? != 0 ]]; then
+        echo "publishing nuget failed"
+        exit 1
+    fi
+
+    echo "Building with /phase:Schedule to confirm that the new nuget can be downloaded and to regenerate cg/nuget/cgmanifest.json"
+    ${buildxlDir}/bxl.sh --internal --minimal /phase:Schedule
 else
     echo " !!! Must publish $nupkgFile manually to feed: '${nugetFeed}'"
 fi

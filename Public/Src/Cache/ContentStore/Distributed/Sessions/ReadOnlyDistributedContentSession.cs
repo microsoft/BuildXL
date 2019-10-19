@@ -377,16 +377,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             IEnumerable<Task<Indexed<PinResult>>> pinResults = null;
 
+            IEnumerable<Task<Indexed<PinResult>>> intermediateResult = null;
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
-                // Check globally for existence, but do not copy locally
+                // Check globally for existence, but do not copy locally and do not update content tracker.
                 pinResults = await Workflows.RunWithFallback(
                     contentHashes,
-                    hashes => Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint),
+                    async hashes => {
+                        intermediateResult = await Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint);
+                        return intermediateResult;
+                        },
                     hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: true, urgencyHint),
-                    result => result.Succeeded,
-                    // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(Settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+                    result => result.Succeeded);
 
                 // Replace operation context with a new cancellation token so it can outlast this call
                 operationContext = new OperationContext(operationContext.TracingContext, default);
@@ -395,7 +397,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // Default pin action
             var pinTask = Workflows.RunWithFallback(
                     contentHashes,
-                    hashes => pinResults == null ? Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint) : Task.FromResult(pinResults),
+                    hashes => intermediateResult == null ? Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint) : Task.FromResult(intermediateResult),
                     hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: false, urgencyHint),
                     result => result.Succeeded,
                     // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.

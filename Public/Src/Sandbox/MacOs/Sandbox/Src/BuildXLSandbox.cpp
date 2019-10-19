@@ -127,9 +127,14 @@ void BuildXLSandbox::InitializePolicyStructures()
 
         .mpo_vnode_check_create           = Listeners::mpo_vnode_check_create,
 
+        // reason: some obscure cases like
+        //   /bin/csh <(source <(ls > lsout.txt))
+        // (but when using physical files instead of process substitution)
         .mpo_vnode_check_write            = Listeners::mpo_vnode_check_write,
 
         .mpo_vnode_check_readlink         = Listeners::mpo_vnode_check_readlink,
+
+        .mpo_vnode_check_clone            = Listeners::mpo_vnode_check_clone,
     };
 
     policyConfiguration_ =

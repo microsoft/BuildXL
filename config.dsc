@@ -417,27 +417,26 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.137.0-preview"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "16.3.0-preview-19415-01",
+                { id: "Microsoft.Build", version: "16.4.0-preview-19516-02",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
                     dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow", "System.Memory"],
                 },
-                { id: "Microsoft.Build.Runtime", version: "16.3.0-preview-19415-01",
+                { id: "Microsoft.Build.Runtime", version: "16.4.0-preview-19516-02",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
                     dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow"],
                 },
-                { id: "Microsoft.Build.Tasks.Core", version: "16.3.0-preview-19415-01",
+                { id: "Microsoft.Build.Tasks.Core", version: "16.4.0-preview-19516-02",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
                     dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow"],
                 },
-                { id: "Microsoft.Build.Utilities.Core", version: "16.3.0-preview-19415-01"},
-                { id: "Microsoft.Build.Framework", version: "16.3.0-preview-19415-01"},
+                { id: "Microsoft.Build.Utilities.Core", version: "16.4.0-preview-19516-02"},
+                { id: "Microsoft.Build.Framework", version: "16.4.0-preview-19516-02"},
                 { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4", dependentPackageIdsToIgnore: ["System.Memory"], dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
-                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuild" },
                 { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild", dependentPackageIdsToIgnore: ["*"], dependentPackageIdsToSkip: ["*"]},
                 { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild"},

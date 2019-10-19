@@ -99,7 +99,7 @@ namespace BuildXL.Scheduler.Distribution
                 var pipScope = runnablePip.Environment.State.GetScope(runnablePip.Process);
                 var cacheableProcess = runnablePip.CacheableProcess ?? pipScope.GetCacheableProcess(runnablePip.Process, runnablePip.Environment);
 
-                return await PipExecutor.PostProcessExecution(
+                return await PipExecutor.PostProcessExecutionAsync(
                     operationContext: runnablePip.OperationContext,
                     environment: runnablePip.Environment,
                     state: pipScope,

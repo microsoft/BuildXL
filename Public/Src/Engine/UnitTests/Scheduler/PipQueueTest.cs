@@ -673,7 +673,7 @@ namespace Test.BuildXL.Scheduler
                                 out _,
                                 out _);
 
-                            executionResult = await PipExecutor.PostProcessExecution(operationContext, environment, pipScope, cacheableProcess, executionResult);
+                            executionResult = await PipExecutor.PostProcessExecutionAsync(operationContext, environment, pipScope, cacheableProcess, executionResult);
                             PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.Description, executionResult);
                         }
 

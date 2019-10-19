@@ -2585,7 +2585,7 @@ namespace BuildXL.Processes
                 () =>
                 {
                     Contract.Assume(m_pip.ResponseFileData.IsValid, "ResponseFile path requires having ResponseFile data");
-                    return m_pip.ResponseFileData.ToString(m_context.PathTable);
+                    return m_pip.ResponseFileData.ToString(m_pipDataRenderer);
                 },
                 Tracing.Logger.Log.PipProcessResponseFileCreationFailed);
 

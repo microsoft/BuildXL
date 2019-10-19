@@ -1195,7 +1195,8 @@ namespace ContentStoreTest.Distributed.Sessions
                         CreateCheckpointInterval = TimeSpan.FromMinutes(1),
                         RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
                         HeartbeatInterval = Timeout.InfiniteTimeSpan,
-                        MasterLeaseExpiryTime = masterLeaseExpiryTime
+                        MasterLeaseExpiryTime = masterLeaseExpiryTime,
+                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
                     };
                     config.CentralStore = centralStoreConfiguration;
                 });
@@ -1352,6 +1353,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
                         HeartbeatInterval = Timeout.InfiniteTimeSpan,
                         MasterLeaseExpiryTime = masterLeaseExpiryTime,
+                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
                     };
                     config.CentralStore = centralStoreConfiguration;
                     config.EventStore.Epoch = $"Epoch:{iteration}";
@@ -2184,6 +2186,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         RestoreCheckpointInterval = TimeSpan.FromMinutes(1),
                         HeartbeatInterval = Timeout.InfiniteTimeSpan,
                         Role = role,
+                        RestoreCheckpointAgeThreshold = TimeSpan.Zero,
                     };
                     config.CentralStore = centralStoreConfiguration;
                 });

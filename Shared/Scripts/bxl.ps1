@@ -83,7 +83,10 @@ param(
 
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Consume",
+    [string]$SharedCacheMode = "Disable",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$DevCache = $false,
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -112,9 +115,7 @@ param(
 
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
-    [switch]$UseL3Cache = $true,
-	
-	[Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$false)]
 	[switch]$UseDedupStore = $false,
 	
     [string]$VsoAccount = "mseng",
@@ -185,7 +186,14 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
-$disableSharedCache = ($SharedCacheMode -eq "Disable" -or (-not $isMicrosoftInternal));
+if ($DevCache) {
+    if ($SharedCacheMode -eq "Disable") {
+        $SharedCacheMode = "Consume";
+    }
+}
+
+$useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
+$useL3Cache = $useSharedCache;
 $publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
@@ -466,7 +474,7 @@ $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifest
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache (!$disableSharedCache) -PublishToSharedCache $publishToSharedCache -UseL3Cache $UseL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -UseL3Cache $useL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }

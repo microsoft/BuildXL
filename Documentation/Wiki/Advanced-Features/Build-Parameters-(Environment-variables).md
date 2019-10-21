@@ -20,7 +20,7 @@ Each environment variable can be specified on the command-line using the `/p` op
 
 `bxl.exe /p:x=1`
 
-The /p option will override environment variables that may have already been specified from the context under which bxl.exe was launched.
+The `/p` option will override environment variables that may have already been specified from the context under which bxl.exe was launched.
 
 ## Specifying environment variables to be passed to Process pips
 In BuildXL each tool that runs in the engine starts with a basic environment variable set. Basically the minimum needed to run a process on Windows (see list below). Any additional state needs to be specified when the pip is added to the build graph.

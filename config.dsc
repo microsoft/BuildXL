@@ -41,6 +41,12 @@ config({
             configuration: {
                 toolUrl: "https://dist.nuget.org/win-x86-commandline/v4.9.4/NuGet.exe",
                 hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
+                credentialProviders: [ 
+					{  
+					  toolUrl: "Shared/Tools/CredentialProviderBuildXL.exe", 
+					  hash: "6FE1A045BC90874749C63EBA0918A48B684EE35E855D81DD9B6B85333FF2E5F300" 
+					} 
+				]
             },
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal

@@ -50,7 +50,11 @@ namespace BuildXL.Processes
         {
             FullEnvironmentVariables = GetFactory(ReportDuplicateVariable).PopulateFromEnvironment();
 
+#if PLATFORM_WIN
             var comspec = Path.Combine(SpecialFolderUtilities.SystemDirectory, "cmd.exe");
+            var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
+#endif
+
             var path =
                 string.Join(
                     OperatingSystemHelper.IsUnixOS ? ":" : ";",
@@ -66,7 +70,7 @@ namespace BuildXL.Processes
 #endif
                 );
 
-            var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
+
 
             // the environment variable names below should use the casing appropriate for the target OS
             // (on Windows it won't matter, but on Unix-like systems, including Cygwin environment on Windows,

@@ -41,8 +41,13 @@ namespace Npm {
         };
     }
 
+    export interface NpmInstallResult {
+        installDir: OpaqueDirectory;
+        newPackageLock: DerivedFile;
+    }
+
     @@public
-    export function npmInstall(rootDir: StaticDirectory): OpaqueDirectory {
+    export function npmInstall(rootDir: StaticDirectory, packageLock: DerivedFile): NpmInstallResult {
         const wd = rootDir.root;
         const nodeModulesPath = d`${wd}/node_modules`;
         const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
@@ -50,6 +55,7 @@ namespace Npm {
         const arguments: Argument[] = [
             Cmd.argument(Artifact.input(Node.npmCli)),
             Cmd.argument("install"),
+            Cmd.argument("--no-audit"),
             Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
         ];
 
@@ -58,6 +64,7 @@ namespace Npm {
             workingDirectory: wd,
             dependencies: [ rootDir ],
             outputs: [
+                { artifact: packageLock, existence: "required" }, // rewritten file in place
                 { directory: wd, kind: "shared" },
                 npmCachePath, // Place the cache path as an output directory so it is cleaned each time.
             ],
@@ -68,7 +75,10 @@ namespace Npm {
             ],
         });
 
-        return result.getOutputDirectory(wd);
+        return {
+            installDir: result.getOutputDirectory(wd),
+            newPackageLock: result.getOutputFile(packageLock.path)
+        };
     }
 
     @@public

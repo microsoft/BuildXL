@@ -11,6 +11,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Management;
+using System.Net;
 using System.Runtime.InteropServices;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes.Windows;
@@ -28,7 +29,7 @@ namespace BuildXL.Processes
         /// </summary>
         private static readonly object s_dumpProcessLock = new object();
 
-        private static readonly string[] s_skipProcesses = {
+        private static readonly HashSet<string> s_skipProcesses = new HashSet<string>() {
             "conhost", // Conhost dump causes native error 0x8007012b (Only part of a ReadProcessMemory or WriteProcessMemory request was completed) - Build 1809
         };
 
@@ -199,7 +200,22 @@ namespace BuildXL.Processes
 
                 Process p = maybeProcess.Result;
 
-                if (s_skipProcesses.Contains(p.ProcessName, StringComparer.InvariantCultureIgnoreCase) || p.StartTime > treeDumpInitiateTime)
+                // In NetCore the process name cannot be accessed after the process exits. Noop if the process has exited
+                string processName = null;
+                try
+                {
+                    processName = p.ProcessName;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    if (!p.HasExited)
+                    {
+                        primaryDumpCreationException = ex;
+                        return false;
+                    }
+                }
+
+                if (processName == null || s_skipProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase) || p.StartTime > treeDumpInitiateTime)
                 {
                     // Ignore processes explicitly configured to be skipped or 
                     // that were created after the tree dump was initiated in case of the likely rare
@@ -254,51 +270,52 @@ namespace BuildXL.Processes
         /// <exception cref="BuildXLException">May throw a BuildXLException on failure</exception>
         internal static List<KeyValuePair<string, int>> GetProcessTreeIds(int parentProcessId, int maxTreeDepth)
         {
-            List<KeyValuePair<string, int>> result = new List<KeyValuePair<string, int>>();
-
-            var maybeProcess = TryGetProcesById(parentProcessId);
-            if (!maybeProcess.Succeeded)
-            {
-                maybeProcess.Failure.Throw();
-            }
-
-            Process p = maybeProcess.Result;
-            result.Add(new KeyValuePair<string, int>("1_" + p.ProcessName + ".exe", p.Id));
-            foreach (var child in GetChildProcessTreeIds(parentProcessId, maxTreeDepth - 1))
-            {
-                result.Add(new KeyValuePair<string, int>("1_" + child.Key, child.Value));
-            }
-
-            return result;
+            return GetChildProcessTreeIds(parentProcessId, maxTreeDepth, isRootQuery: true);
         }
 
-        internal static List<KeyValuePair<string, int>> GetChildProcessTreeIds(int parentProcessId, int maxTreeDepth)
+        private static List<KeyValuePair<string, int>> GetChildProcessTreeIds(int idToQuery, int maxTreeDepth, bool isRootQuery)
         {
             List<KeyValuePair<string, int>> result = new List<KeyValuePair<string, int>>();
 
             // If we don't have access to get the process tree, we'll still at least get the root process. 
             try
             {
-                if (maxTreeDepth > 0)
+                if (isRootQuery || maxTreeDepth > 0)
                 {
-                    using (var searcher = new ManagementObjectSearcher("select * from win32_process where ParentProcessId=" + parentProcessId))
+                    string queryBase = isRootQuery ? "select * from win32_process where ProcessId=" :
+                        "select * from win32_process where ParentProcessId=";
+                    using (var searcher = new ManagementObjectSearcher(queryBase + idToQuery))
                     {
-                        var childProcesses = searcher.Get();
+                        var processes = searcher.Get();
 
                         int counter = 0;
-                        foreach (ManagementObject item in childProcesses)
+                        foreach (ManagementObject item in processes)
                         {
                             counter++;
                             int processId = Convert.ToInt32(item["ProcessId"].ToString(), CultureInfo.InvariantCulture);
                             string processName = item["Name"].ToString();
+
+                            // Skip any processes that aren't being run by the current username
+                            ManagementBaseObject getOwner = item.InvokeMethod("GetOwner", null, null);
+                            object user = getOwner["User"];
+                            if (user == null || user.ToString() != Environment.UserName)
+                            {
+                                continue;
+                            }
+
                             result.Add(new KeyValuePair<string, int>(counter.ToString(CultureInfo.InvariantCulture) + "_" + processName, processId));
 
-                            foreach (var child in GetChildProcessTreeIds(processId, maxTreeDepth - 1))
+                            foreach (var child in GetChildProcessTreeIds(processId, maxTreeDepth - 1, false))
                             {
                                 result.Add(new KeyValuePair<string, int>(counter.ToString(CultureInfo.InvariantCulture) + "_" + child.Key, child.Value));
                             }
                         }
                     }
+                }
+
+                if (isRootQuery && result.Count == 0)
+                {
+                    throw new ArgumentException($"Process with an Id of {idToQuery} is inaccessible or not running.");
                 }
 
                 return result;

@@ -30,7 +30,7 @@ In BuildXL each tool that runs in the engine starts with a basic environment var
             tool: args.tool,
             description: args.description,
             // ...
-            environmentVariables:[ {}] ,
+            environmentVariables:[{}] ,
 
 });
 ```

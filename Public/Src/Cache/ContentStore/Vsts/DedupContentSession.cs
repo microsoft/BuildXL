@@ -49,7 +49,6 @@ namespace BuildXL.Cache.ContentStore.Vsts
         {
             _artifactFileSystem = VstsFileSystem.Instance;
             _uploadSession = DedupStoreClient.CreateUploadSession(
-                DedupStoreClient,
                 new KeepUntilBlobReference(EndDateTime),
                 new AppTraceSourceContextAdapter(context, "CreateUploadSession", SourceLevels.All),
                 _artifactFileSystem);

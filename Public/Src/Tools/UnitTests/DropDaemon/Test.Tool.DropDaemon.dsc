@@ -23,7 +23,6 @@ namespace Test.Tool.DropDaemon {
             importFrom("ItemStore.Shared").pkg,
             importFrom("Drop.App.Core").pkg,
             importFrom("Drop.Client").pkg,
-            importFrom("Drop.RemotableClient.Interfaces").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             ...BuildXLSdk.visualStudioServicesArtifactServicesSharedPkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,

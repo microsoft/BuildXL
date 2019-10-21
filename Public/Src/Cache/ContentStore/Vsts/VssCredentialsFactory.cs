@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return CreateVssCredentialsForUserName(baseUri);
             }
 #endif // NET_CORE
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
+            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null)
                 .ConfigureAwait(false);
         }
 #else

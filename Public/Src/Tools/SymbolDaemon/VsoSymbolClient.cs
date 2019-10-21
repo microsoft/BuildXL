@@ -11,6 +11,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
@@ -46,7 +47,7 @@ namespace Tool.SymbolDaemon
 
         private VssCredentials GetCredentials() =>
             new VsoCredentialHelper(m => m_logger.Verbose(m))
-                .GetCredentials(m_config.Service, true, null);
+                .GetCredentials(m_config.Service, true, null, null, PromptBehavior.Never);
 
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(

@@ -35,7 +35,6 @@ export namespace DropDaemon {
             importFrom("ArtifactServices.App.Shared.Cache").pkg,
             importFrom("Drop.App.Core").pkg,
             importFrom("Drop.Client").pkg,
-            importFrom("Drop.RemotableClient.Interfaces").pkg,
             importFrom("ItemStore.Shared").pkg,
             importFrom("Microsoft.ApplicationInsights").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,

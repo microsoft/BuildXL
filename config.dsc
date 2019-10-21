@@ -48,6 +48,8 @@ config({
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.
+
+                    "BuildXL.Testing": "https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Testing/nuget/v3/index.json" // DELETE ME
                   }
                 : {
                     "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",

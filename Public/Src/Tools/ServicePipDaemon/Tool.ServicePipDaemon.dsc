@@ -16,6 +16,8 @@ namespace ServicePipDaemon {
         rootNamespace: "Tool.ServicePipDaemon",        
         sources: globR(d`.`, "*.cs"),
         references:[            
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Common.dll,
             importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
             importFrom("BuildXL.Utilities").dll,

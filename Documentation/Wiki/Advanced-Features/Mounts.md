@@ -35,7 +35,7 @@ config({
 ```
 
 ### Mount permissions
-The isReadable and isWritable mount settings do not automatically give all pips access to read/write files without specifying those accesses. They are more like rule for what pips are allowed to specify. For example the `pictures` mount above has the `isReadable` property set to true. That means you may define a pip that reads from a path under this mount. However if a pip does not specify the read it makes under pictures, it will still get a Disallowed File Access at runtime.
+The `isReadable` and `isWritable` mount settings do not automatically give all pips access to read/write files without specifying those accesses. They are more like rule for what pips are allowed to specify. For example the `pictures` mount above has the `isReadable` property set to true. That means you may define a pip that reads from a path under this mount. However if a pip does not specify the read it makes under pictures, it will still get a Disallowed File Access at runtime.
 
 ### System Mounts
 BuildXL has a few behavioral changes for system mounts. The primary one is that it may tokenize those paths. So if a system mount is at different locations on disk across different machines, they still may get cache hits if using the same shared cache.

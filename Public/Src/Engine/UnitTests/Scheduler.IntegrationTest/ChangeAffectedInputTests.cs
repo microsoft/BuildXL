@@ -54,7 +54,10 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             RunScheduler().AssertCacheHit();
 
+            ResetPipGraphBuilder();
+            SchedulePipBuilder(pipBuilderA);
             pipBuilderB.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
+            SchedulePipBuilder(pipBuilderB);
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
@@ -117,7 +120,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             var expectedAffectedInput = "";
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            // Build1 with change in aInput
+            // Build1 with change in aInput. Dependencies of pipA and pipB changed, so they get cache miss. 
+            // m_changeAffectedInputListWrittenFile of pipC contains aOutput
             File.WriteAllText(ArtifactToString(aInput), "pipA");
             File.WriteAllText(ArtifactToString(changeList), ArtifactToString(aInput));
             result = RunScheduler();
@@ -127,7 +131,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            // Build2 with change in bInput
+            // Build2 with change in bInput. Dependencies of pipB and pipC changed, so they get cache miss.
+            // m_changeAffectedInputListWrittenFile of pipC contains bOutput
             File.WriteAllText(ArtifactToString(bInput), "pipBChange");
             File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
 
@@ -139,7 +144,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             expectedAffectedInput = bOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            // Build3 revert change in bInput
+            // Build3 revert change in bInput. pipB get cache hit of build0.  
+            // m_changeAffectedInputListWrittenFile of pipC contains bOutput
             File.WriteAllText(ArtifactToString(bInput), "pipBOrigin");
             File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
 

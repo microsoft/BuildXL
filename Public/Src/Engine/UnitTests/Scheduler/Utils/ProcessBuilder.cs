@@ -38,6 +38,7 @@ namespace Test.BuildXL.Scheduler.Utils
         private IEnumerable<FileArtifact> m_directoryDependenciesToConsume;
         private Func<ProcessBuilder, PipData> m_argumentsFactory;
         private IEnumerable<AbsolutePath> m_preserveOutputWhitelist;
+        private FileArtifact m_changeAffectedInputListWrittenFile;
 
         public IEnumerable<FileArtifactWithAttributes> Outputs
         {
@@ -186,6 +187,12 @@ namespace Test.BuildXL.Scheduler.Utils
             return this;
         }
 
+        public ProcessBuilder WithChangeAffectedInputListWrittenFile(FileArtifact changeAffectedInputListWrittenFile)
+        {
+            m_changeAffectedInputListWrittenFile = changeAffectedInputListWrittenFile;
+            return this;
+        }
+
         public Process Build()
         {
             Contract.Assert(m_executable != null, "WithExecutable method should be called before calling Build() method");
@@ -218,7 +225,8 @@ namespace Test.BuildXL.Scheduler.Utils
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                     options: m_options, 
                     serviceInfo: m_serviceInfo,
-                    preserveOutputWhitelist: ReadOnlyArray<AbsolutePath>.From(m_preserveOutputWhitelist ?? Enumerable.Empty<AbsolutePath>()));
+                    preserveOutputWhitelist: ReadOnlyArray<AbsolutePath>.From(m_preserveOutputWhitelist ?? Enumerable.Empty<AbsolutePath>()),
+                    changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
         }
 
         private IEnumerable<FileArtifact> CreateDependencies()

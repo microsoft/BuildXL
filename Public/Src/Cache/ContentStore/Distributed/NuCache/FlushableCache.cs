@@ -1,10 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Collections;
@@ -120,13 +122,37 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 using (counters[FlushableCacheCounters.FlushingTime].Start()) {
+                    var threads = _configuration.FlushDegreeOfParallelism;
+                    if (threads <= 0)
+                    {
+                        threads = Environment.ProcessorCount;
+                    }
+
                     if (_configuration.FlushSingleTransaction)
                     {
-                        _database.PersistBatch(context, _flushingCache);
+                        if (_configuration.FlushDegreeOfParallelism == 1 || _flushingCache.Count <= _configuration.FlushTransactionSize)
+                        {
+                            _database.PersistBatch(context, _flushingCache);
+                        }
+                        else
+                        {
+                            var actionBlock = new ActionBlockSlim<IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>>>(threads, kvs =>
+                            {
+                                _database.PersistBatch(context, kvs);
+                            });
+
+                            foreach (var kvs in _flushingCache.GetPages(_configuration.FlushTransactionSize))
+                            {
+                                actionBlock.Post(kvs);
+                            }
+
+                            actionBlock.Complete();
+                            actionBlock.CompletionAsync().Wait();
+                        }
                     }
                     else
                     {
-                        var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(_configuration.FlushDegreeOfParallelism, kv =>
+                        var actionBlock = new ActionBlockSlim<KeyValuePair<ShortHash, ContentLocationEntry>>(threads, kv =>
                         {
                             // Do not lock on GetLock here, as it will cause a deadlock with
                             // SetMachineExistenceAndUpdateDatabase. It is correct not do take any locks as well, because

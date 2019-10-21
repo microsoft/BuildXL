@@ -56,6 +56,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         ///     Initializes a new instance of the <see cref="PinResult"/> class.
         /// </summary>
         public PinResult(long contentSize = -1, DateTime? lastAccessTime = null, ResultCode code = ResultCode.Success)
+            : base(code == ResultCode.Success ? null : code.ToString(), diagnostics: null)
         {
             ContentSize = contentSize;
             LastAccessTime = lastAccessTime ?? DateTime.MinValue;
@@ -78,6 +79,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             : base(errorMessage, diagnostics)
         {
             Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.Requires(code != ResultCode.Success, "This constructor should be used for error cases only.");
+
             Code = code;
         }
 
@@ -114,6 +117,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
         /// <nodoc />
         public ResultCode ErrorCode => Code;
+
+        /// <inheritdoc />
+        public override bool Succeeded => Code == ResultCode.Success;
 
         /// <inheritdoc />
         public bool Equals(PinResult other)

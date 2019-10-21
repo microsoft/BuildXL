@@ -201,6 +201,8 @@ namespace Test.BuildXL.Scheduler
                     processExecutionResult.TwoPhaseCachingInfo.CacheEntry.ReferencedContent[i],
                     deserializedProcessExecutionResult.TwoPhaseCachingInfo.CacheEntry.ReferencedContent[i]);
             }
+
+            XAssert.AreEqual(9, deserializedProcessExecutionResult.PipProperties["Bar"]);
         }
 
         private (FileArtifact, FileMaterializationInfo, PipOutputOrigin) CreateRandomOutputContent()

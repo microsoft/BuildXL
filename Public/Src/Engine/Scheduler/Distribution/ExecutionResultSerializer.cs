@@ -638,7 +638,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 for (int i = 0; i < count; i++)
                 {
-                    string key = reader.ReadNullableString();
+                    string key = reader.ReadString();
                     pipProperties[key] = reader.ReadInt32Compact();
                 }
 
@@ -662,7 +662,7 @@ namespace BuildXL.Scheduler.Distribution
 
                 foreach (string key in pipProperties.Keys)
                 {
-                    writer.WriteNullableString(key);
+                    writer.Write(key);
                     writer.WriteCompact(pipProperties[key]);
                 }
             }

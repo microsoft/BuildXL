@@ -193,7 +193,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly string ScriptExtension = OperatingSystemHelper.IsUnixOS ? ".sh" : ".bat";
         private readonly string FileDeleteOperation = OperatingSystemHelper.IsUnixOS ? "rm -Rf" : "del /F/S/Q";
         private readonly string DirectoryDeleteOperation = OperatingSystemHelper.IsUnixOS ? "rm -Rf" : "rmdir /S/Q";
-        private readonly string MoveOperation = OperatingSystemHelper.IsUnixOS ? "mv -f " : "move ";
+        private readonly string MoveOperation = OperatingSystemHelper.IsUnixOS ? "mv -f" : "move";
         private readonly string ScriptVariableExportKeyword = OperatingSystemHelper.IsUnixOS ? "export" : "set";
         private readonly string DirectoryCreationCommand = OperatingSystemHelper.IsUnixOS ? "mkdir -p" : "mkdir";
         private readonly string ChangeDirectoryCommand = OperatingSystemHelper.IsUnixOS ? "cd" : "cd /D";
@@ -238,7 +238,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine($"{CommentPrefix} Save Files");
             foreach (var fileOutput in pip.FileOutputs)
             {
-                writer.Write($"{MoveOperation}");
+                writer.Write($"{MoveOperation} ");
                 writer.Write($"\"{fileOutput.Path.ToString(PathTable)}\" ");
                 writer.Write($"\"{Path.Combine(directory, fileOutput.Path.ToString(PathTable).Replace(':', '_'))}\"");
                 writer.WriteLine();
@@ -248,7 +248,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine($"{CommentPrefix} Save Directories");
             foreach (var directoryOutput in pip.DirectoryOutputs)
             {
-                writer.Write($"{MoveOperation}");
+                writer.Write($"{MoveOperation} ");
                 writer.Write($"\"{directoryOutput.Path.ToString(PathTable)}\" ");
                 writer.Write($"\"{Path.Combine(directory, directoryOutput.Path.ToString(PathTable).Replace(':', '_'))}\"");
                 writer.WriteLine();
@@ -301,7 +301,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine($"{CommentPrefix} Restore Files");
             foreach (var fileOutput in pip.FileOutputs)
             {
-                writer.Write($"{MoveOperation}");
+                writer.Write($"{MoveOperation} ");
                 writer.Write($"\"{Path.Combine(directory, fileOutput.Path.ToString(PathTable).Replace(':', '_'))}\" ");
                 writer.Write($"\"{fileOutput.Path.ToString(PathTable)}\"");
                 writer.WriteLine();
@@ -311,7 +311,7 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine($"{CommentPrefix} Restore Directories");
             foreach (var directoryOutput in pip.DirectoryOutputs)
             {
-                writer.Write($"{MoveOperation}");
+                writer.Write($"{MoveOperation} ");
                 writer.Write($"\"{Path.Combine(directory, directoryOutput.Path.ToString(PathTable).Replace(':', '_'))}\" ");
                 writer.Write($"\"{directoryOutput.Path.ToString(PathTable)}\"");
                 writer.WriteLine();

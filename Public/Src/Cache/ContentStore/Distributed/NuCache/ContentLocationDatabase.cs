@@ -90,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private int _isFlushInProgress = 0;
 
-        private readonly EventWaitHandle _flushEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+        private readonly ManualResetEventSlim _flushEvent = new ManualResetEventSlim(false);
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -621,7 +621,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 if (blocking)
                 {
                     // If the flush is blocking, then we need to wait until it is over for correctness
-                    _flushEvent.WaitOne();
+                    _flushEvent.Wait();
                     return true;
                 }
 

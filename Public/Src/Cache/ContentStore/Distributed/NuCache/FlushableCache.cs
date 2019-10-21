@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (_configuration.FlushSingleTransaction)
                     {
-                        if (_configuration.FlushDegreeOfParallelism == 1)
+                        if (_configuration.FlushDegreeOfParallelism == 1 || _flushingCache.Count <= _configuration.FlushTransactionSize)
                         {
                             _database.PersistBatch(context, _flushingCache);
                         }

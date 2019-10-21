@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
@@ -997,6 +998,24 @@ namespace Test.BuildXL.Storage
 
             XAssert.IsFalse(FileUtilities.FileExistsNoFollow(directorySymlinkPath));
             XAssert.IsFalse(FileUtilities.DirectoryExistsNoFollow(directorySymlinkPath));
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void HasWritableAccessControlTest()
+        {
+            string testFilePath = Path.Combine(TemporaryDirectory, "testFile.txt");
+            File.WriteAllText(testFilePath, "hello");
+
+            XAssert.IsTrue(FileUtilities.HasWritableAccessControl(testFilePath));
+            XAssert.IsTrue(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+
+            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteData, false);
+            XAssert.IsTrue(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+            XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
+
+            FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
+            XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
+            XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
         }
 
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)

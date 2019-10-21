@@ -50,6 +50,8 @@ namespace Test.BuildXL.Scheduler
                     TimeSpan.FromMinutes(3),
                     TimeSpan.FromMinutes(3),
                     12324,
+                    12324,
+                    12324,
                     33,
                     7),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
@@ -123,7 +125,10 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
                 r => r.PerformanceInformation.UserTime,
                 r => r.PerformanceInformation.KernelTime,
-                r => r.PerformanceInformation.PeakMemoryUsage,
+                r => r.PerformanceInformation.PeakVirtualMemoryUsage,
+                r => r.PerformanceInformation.PeakWorkingSet,
+                r => r.PerformanceInformation.PeakPagefileUsage,
+
                 r => r.PerformanceInformation.NumberOfProcesses,
 
                 r => r.FileAccessViolationsNotWhitelisted.Count,

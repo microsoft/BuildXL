@@ -731,10 +731,10 @@ namespace BuildXL.Execution.Analyzer
                         m_writer.WriteValue(processPerformance.KernelTime.Ticks);
                     }
 
-                    if (processPerformance.PeakMemoryUsage != 0)
+                    if (processPerformance.PeakWorkingSet != 0)
                     {
                         m_writer.WritePropertyName("peakMemory");
-                        m_writer.WriteValue(processPerformance.PeakMemoryUsage);
+                        m_writer.WriteValue(processPerformance.PeakWorkingSet);
                     }
 
                     if (processPerformance.IO.GetAggregateIO().TransferCount > 0)

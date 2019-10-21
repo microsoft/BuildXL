@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler
@@ -139,6 +140,7 @@ namespace BuildXL.Scheduler
             }
 
             using (scope)
+            using (new StoppableTimer(() => scope.RefreshRamUsage(), 0, 2000))
             {
                 var result = await execute(scope.Token, registerQueryRamUsageMb: scope.RegisterQueryRamUsageMb);
                 scope.Complete();

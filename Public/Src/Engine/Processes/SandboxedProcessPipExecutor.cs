@@ -399,11 +399,11 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// <see cref="SandboxedProcess.GetActivePeakMemoryUsage"/>
+        /// <see cref="SandboxedProcess.GetActivePeakWorkingSet"/>
         /// </summary>
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
-            return m_activeProcess?.GetActivePeakMemoryUsage();
+            return m_activeProcess?.GetActivePeakWorkingSet();
         }
 
         private static Task<Regex> GetRegexAsync(ExpandedRegexDescriptor descriptor)

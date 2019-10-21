@@ -180,7 +180,7 @@ namespace BuildXL.Processes
         public string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
             try
             {
@@ -189,7 +189,7 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                return Dispatch.GetActivePeakMemoryUsage(Process.Handle, ProcessId);
+                return Dispatch.GetActivePeakWorkingSet(Process.Handle, ProcessId);
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch

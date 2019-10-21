@@ -173,6 +173,22 @@ namespace BuildXL.Scheduler.Distribution
         private int? m_totalMemoryMb;
 
         /// <summary>
+        /// The total amount of available memory on the worker
+        /// </summary>
+        public int? ActualAvailableMemoryMb;
+
+        /// <summary>
+        /// Percentage of available commit used.
+        /// </summary>
+        public int? ActualCommitPercent;
+
+        /// <summary>
+        /// The machine's total commit in MB
+        /// </summary>
+        public int? ActualCommitTotalMB;
+
+
+        /// <summary>
         /// Gets the estimate RAM usage on the machine
         /// </summary>
         public int EstimatedAvailableRamMb
@@ -189,6 +205,14 @@ namespace BuildXL.Scheduler.Distribution
                 return (int)(((long)availablePercentFactor * TotalMemoryMb.Value) / ProcessExtensions.PercentageResourceLimit);
             }
         }
+        
+        /// <summary>
+        /// Default memory usage for process pips in case of no historical ram usage info 
+        /// </summary>
+        /// <remarks>
+        /// If there is no historical ram usage for the process pips, we assume that 80% of memory is used if all process slots are occupied.
+        /// </remarks>
+        internal int DefaultMemoryUsagePerProcess => (int)((TotalMemoryMb ?? 0) * 0.8 / Math.Max(TotalProcessSlots, Environment.ProcessorCount));
 
         /// <summary>
         /// Listen for status change events on the worker
@@ -528,10 +552,9 @@ namespace BuildXL.Scheduler.Distribution
                 return 0;
             }
 
-            var defaultExpectedRamUsage = TotalMemoryMb.Value / Math.Max(TotalProcessSlots, Environment.ProcessorCount);
             var expectedUsage = runnableProcess.ExpectedRamUsageMb != null
-                ? (int) (runnableProcess.ExpectedRamUsageMb * 1.25) // Multiply by 1.25 to give some slack
-                : defaultExpectedRamUsage;
+                ? (int) (runnableProcess.ExpectedRamUsageMb * 1.05) // 5% more to give some slack
+                : DefaultMemoryUsagePerProcess;
             return expectedUsage;
         }
 

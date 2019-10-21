@@ -1146,6 +1146,11 @@ namespace BuildXL.Scheduler.Tracing
         public int MachineRamUtilizationMB;
 
         /// <summary>
+        /// Available Ram in MB
+        /// </summary>
+        public int MachineAvailableRamMB;
+
+        /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
         /// current size not necessarily the maximum size. So even if this hits 100%, the machine may still be able to
         /// commit more as the page file expands.
@@ -1276,6 +1281,11 @@ namespace BuildXL.Scheduler.Tracing
             {
                 writer.Write(pipsSucceeded);
             }
+
+            writer.Write(MachineRamUtilizationMB);
+            writer.Write(MachineAvailableRamMB);
+            writer.Write(CommitPercent);
+            writer.Write(CommitTotalMB);
         }
 
         /// <inheritdoc />
@@ -1321,6 +1331,11 @@ namespace BuildXL.Scheduler.Tracing
             {
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
+
+            MachineRamUtilizationMB = reader.ReadInt32();
+            MachineAvailableRamMB = reader.ReadInt32();
+            CommitPercent = reader.ReadInt32();
+            CommitTotalMB = reader.ReadInt32();
         }
     }
 

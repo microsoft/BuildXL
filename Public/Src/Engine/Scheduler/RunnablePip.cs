@@ -470,7 +470,9 @@ namespace BuildXL.Scheduler
                         ioCounters: performanceInformation.IO,
                         userTime: performanceInformation.UserTime,
                         kernelTime: performanceInformation.KernelTime,
-                        peakMemoryUsage: performanceInformation.PeakMemoryUsage,
+                        peakVirtualMemoryUsage: performanceInformation.PeakVirtualMemoryUsage,
+                        peakWorkingSet: performanceInformation.PeakWorkingSet,
+                        peakPagefileUsage: performanceInformation.PeakPagefileUsage,
                         numberOfProcesses: performanceInformation.NumberOfProcesses,
                         workerId: performanceInformation.WorkerId);
                 }
@@ -489,7 +491,9 @@ namespace BuildXL.Scheduler
                             ioCounters: default(IOCounters),
                             userTime: TimeSpan.Zero,
                             kernelTime: TimeSpan.Zero,
-                            peakMemoryUsage: 0,
+                            peakVirtualMemoryUsage: 0,
+                            peakWorkingSet: 0,
+                            peakPagefileUsage: 0,
                             numberOfProcesses: 0,
                             workerId: 0);
                 }

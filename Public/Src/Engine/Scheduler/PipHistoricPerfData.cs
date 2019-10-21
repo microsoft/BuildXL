@@ -58,7 +58,8 @@ namespace BuildXL.Scheduler
 
             m_entryTimeToLive = DefaultTimeToLive;
             DurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds));
-            PeakMemoryInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.PeakMemoryUsage / 1024);
+            // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
+            PeakMemoryInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.PeakWorkingSet / 1024);
             DiskIOInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.IO.GetAggregateIO().TransferCount / 1024);
 
             double cpuTime = executionPerformance.KernelTime.TotalMilliseconds + executionPerformance.UserTime.TotalMilliseconds;

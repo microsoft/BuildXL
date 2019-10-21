@@ -78,6 +78,8 @@ namespace Test.BuildXL.Scheduler
                                                         userTime,
                                                         kernelTime,
                                                         peakMemoryUsage,
+                                                        peakMemoryUsage,
+                                                        peakMemoryUsage,
                                                         numberOfProcesses,
                                                         workerId);
                                                     var data = new PipHistoricPerfData(performance);
@@ -127,6 +129,8 @@ namespace Test.BuildXL.Scheduler
                         TimeSpan.FromMilliseconds(execTime),
                         TimeSpan.FromMilliseconds(execTime / 2),
                         1024 * 1024,
+                        1024 * 1024,
+                        1024 * 1024,
                         1,
                         workerId: 0);
 
@@ -166,6 +170,8 @@ namespace Test.BuildXL.Scheduler
                 default(IOCounters),
                 TimeSpan.FromMilliseconds(execTime),
                 TimeSpan.FromMilliseconds(execTime / 2),
+                1024 * 1024,
+                1024 * 1024,
                 1024 * 1024,
                 1,
                 workerId: 0);

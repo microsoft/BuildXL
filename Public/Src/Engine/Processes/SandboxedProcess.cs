@@ -69,6 +69,8 @@ namespace BuildXL.Processes
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
+        private ulong m_maxPeakWorkingSet;
+        private ulong m_maxPeakPagefileUsage;
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
@@ -181,10 +183,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        /// <remarks>
-        /// Gets the peak memory usage for the job object associated with the detoured process while the process is active.
-        /// </remarks>
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
             using (m_queryJobDataLock.AcquireReadLock())
             {
@@ -197,9 +196,58 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                return detouredProcess.GetJobObject()?.GetPeakMemoryUsage();
+                ulong? currentPeakWorkingSet = null;
+                ulong? currentPeakPagefileUsage = null;
+
+                var jobObject = detouredProcess.GetJobObject();
+                if (jobObject == null || !jobObject.TryGetProcessIds(out uint[] childProcessIds) || childProcessIds.Length == 0)
+                {
+                    return null;
+                }
+
+                foreach (uint processId in childProcessIds)
+                {
+                    using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
+                        ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION,
+                        false,
+                        processId))
+                    {
+                        if (processHandle.IsInvalid)
+                        {
+                            // we are too late: could not open process
+                            continue;
+                        }
+
+                        if (!jobObject.ContainsProcess(processHandle))
+                        {
+                            // we are too late: process id got reused by another process
+                            continue;
+                        }
+
+                        int exitCode;
+                        if (!ProcessUtilities.GetExitCodeProcess(processHandle, out exitCode))
+                        {
+                            // we are too late: process id got reused by another process
+                            continue;
+                        }
+
+                        var memoryUsage = Interop.Dispatch.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                        if (memoryUsage != null)
+                        {
+                            currentPeakWorkingSet = (currentPeakWorkingSet ?? 0) + memoryUsage.PeakWorkingSetSize;
+                            currentPeakPagefileUsage = (currentPeakPagefileUsage ?? 0) + memoryUsage.PeakPagefileUsage;
+
+                        }
+                    }
+                }
+
+                m_maxPeakWorkingSet = Math.Max(m_maxPeakWorkingSet, currentPeakWorkingSet ?? 0);
+                m_maxPeakPagefileUsage = Math.Max(m_maxPeakPagefileUsage, currentPeakPagefileUsage ?? 0);
+
+                return currentPeakWorkingSet;
             }
         }
+
 
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize()
@@ -454,7 +502,7 @@ namespace BuildXL.Processes
             JobObject jobObject = m_detouredProcess.GetJobObject();
             if (jobObject != null)
             {
-                jobAccountingInformation = jobObject.GetAccountingInformation();
+                jobAccountingInformation = jobObject.GetAccountingInformation(m_maxPeakWorkingSet, m_maxPeakPagefileUsage);
             }
 
             ProcessTimes primaryProcessTimes = m_detouredProcess.GetTimesForPrimaryProcess();

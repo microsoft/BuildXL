@@ -231,7 +231,7 @@ namespace BuildXL.Scheduler
         /// There is at least one worker in the list of workers: LocalWorker.
         /// LocalWorker must be at the beginning of the list. All other workers must be remote.
         /// </remarks>
-        public IEnumerable<Worker> Workers => m_workers;
+        public IList<Worker> Workers => m_workers;
 
         private AllWorker m_allWorker;
 
@@ -823,6 +823,10 @@ namespace BuildXL.Scheduler
         #endregion
 
         #region Statistics
+
+        private long m_totalPeakVirtualMemoryUsageMb;
+        private long m_totalPeakWorkingSetMb;
+        private long m_totalPeakPagefileUsageMb;
 
         private readonly object m_statusLock = new object();
 
@@ -1719,6 +1723,10 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
+            statistics.Add("TotalPeakMemoryUsage", m_totalPeakVirtualMemoryUsageMb);
+            statistics.Add("TotalPeakWorkingSet", m_totalPeakWorkingSetMb);
+            statistics.Add("TotalPeakPagefileUsage", m_totalPeakPagefileUsageMb);
+
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
             return new SchedulerPerformanceInfo
@@ -1773,7 +1781,8 @@ namespace BuildXL.Scheduler
             {
                 { "Cpu Percent", data => data.CpuPercent },
                 { "Mem Percent", data => data.RamPercent },
-                { "Mem MB", data => data.MachineRamUtilizationMB },
+                { "Used Mem MB", data => data.MachineRamUtilizationMB },
+                { "Free Mem MB", data => data.MachineAvailableRamMB },
                 { "Commit Percent", data => data.CommitPercent },
                 { "Commit MB", data => data.CommitTotalMB },
                 { "NetworkBandwidth", data => m_perfInfo.MachineBandwidth },
@@ -1858,7 +1867,11 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total RAM Mb"), _ => worker.TotalMemoryMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} ~Free RAM Mb"), _ => worker.EstimatedAvailableRamMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Estimated Free RAM Mb"), _ => worker.EstimatedAvailableRamMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Free RAM Mb"), _ => worker.ActualAvailableMemoryMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Commit Total Mb"), _ => worker.ActualCommitTotalMB ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Commit Percent"), _ => worker.ActualCommitPercent ?? 0, includeInSnapshot: false);
+
                         rows.Add(I($"W{worker.WorkerId} Status"), _ => worker.Status, includeInSnapshot: false);
 
                         var snapshot = worker.PipStateSnapshot;
@@ -2031,6 +2044,7 @@ namespace BuildXL.Scheduler
                     ProcessWorkingSetMB = m_perfInfo.ProcessWorkingSetMB,
                     RamPercent = m_perfInfo.RamUsagePercentage ?? 0,
                     MachineRamUtilizationMB = (m_perfInfo.TotalRamMb.HasValue && m_perfInfo.AvailableRamMb.HasValue) ? m_perfInfo.TotalRamMb.Value - m_perfInfo.AvailableRamMb.Value : 0,
+                    MachineAvailableRamMB = m_perfInfo.AvailableRamMb ?? 0,
                     CommitPercent = m_perfInfo.CommitUsagePercentage ?? 0,
                     CommitTotalMB = m_perfInfo.CommitTotalMb ?? 0,
                     CpuWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CPU),
@@ -3598,7 +3612,7 @@ namespace BuildXL.Scheduler
                             // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
                             var expectedRamUsageMb = Math.Max(
                                     worker.GetExpectedRamUsageMb(processRunnable),
-                                    Math.Max(1, executionResult.PerformanceInformation?.PeakMemoryUsageMb ?? 0));
+                                    Math.Max(1, executionResult.PerformanceInformation?.PeakWorkingSetMb ?? 0));
 
                             processRunnable.ExpectedRamUsageMb = expectedRamUsageMb;
 
@@ -3647,6 +3661,23 @@ namespace BuildXL.Scheduler
 
                         if (!IsDistributedWorker)
                         {
+                            var expectedRamUsage = runnablePip.Worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
+                            
+                            Logger.Log.PeakMemoryUsage(
+                                operationContext, 
+                                runnablePip.Description,
+                                (int)executionResult.PerformanceInformation.NumberOfProcesses,
+                                (int)executionResult.PerformanceInformation.ProcessExecutionTime.TotalSeconds,
+                                runnablePip.Worker.DefaultMemoryUsagePerProcess, 
+                                expectedRamUsage,
+                                executionResult.PerformanceInformation.PeakVirtualMemoryUsageMb,
+                                executionResult.PerformanceInformation.PeakWorkingSetMb,
+                                executionResult.PerformanceInformation.PeakPagefileUsageMb);
+
+                            m_totalPeakVirtualMemoryUsageMb += executionResult.PerformanceInformation.PeakVirtualMemoryUsageMb;
+                            m_totalPeakWorkingSetMb += executionResult.PerformanceInformation.PeakWorkingSetMb;
+                            m_totalPeakPagefileUsageMb += executionResult.PerformanceInformation.PeakPagefileUsageMb;
+
                             // File violation analysis needs to happen on the master as it relies on
                             // graph-wide data such as detecting duplicate
                             executionResult = PipExecutor.AnalyzeFileAccessViolations(

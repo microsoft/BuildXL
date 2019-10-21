@@ -643,7 +643,7 @@ config({
             name: a`CgNpmRoot`,
             path: p`cg/npm`,
             trackSourceFileChanges: true,
-            isWritable: true,
+            isWritable: false,
             isReadable: true
         },
         {

@@ -13,7 +13,7 @@ When using these features BuildXL ensures that the results produced by tools run
 
 ## What can go wrong?
 Ttechnically when using these unsafe flags you can end up with unexpected outputs. For example:
-If you use the flag `unsafe_preserveoutputs` you are asking BuildXL not to delete the output files before running a process. Let's say your tool has some internal timestamp based instrumentality like build.exe. Now if one of the output files happens to end up with a timestamp far into the future, no matter how you change the inputs the tool will not reproduce any outputs.
+If you use the flag `/unsafe_preserveOutputs` you are asking BuildXL not to delete the output files before running a process. Let's say your tool has some internal timestamp based instrumentality like build.exe. Now if one of the output files happens to end up with a timestamp far into the future, no matter how you change the inputs the tool will not reproduce any outputs.
 
 ## How to recover
 Since BuildXL adds the unsafe options into the cache fingerprint you should get back to a proper reliable build by doing a build without any of the unsafe flags.

@@ -119,7 +119,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 monikerRenderer: m => m,
                 // Use the hash lookup delegate that was passed as an argument.
                 // PipFragmentRenderer can accept a null value here, and it has special logic for such cases.
-                contentHashLookup);
+                m_contentHashLookup);
         }
 
         /// <summary>

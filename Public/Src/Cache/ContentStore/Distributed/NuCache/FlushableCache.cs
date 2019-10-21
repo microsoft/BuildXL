@@ -90,6 +90,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public async Task<CounterCollection<FlushableCacheCounters>> FlushAsync(OperationContext context)
         {
+            // Make it likely that this runs in a separate thread other than the one that triggered the flush
+            await Task.Yield();
+
             // This lock is required to ensure no flushes happen concurrently. We may loose updates if that happens.
             // AcquireAsync is used so as to avoid multiple concurrent tasks just waiting; this way we return the
             // task to the thread pool in between.

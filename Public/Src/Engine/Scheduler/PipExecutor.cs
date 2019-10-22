@@ -1345,7 +1345,7 @@ namespace BuildXL.Scheduler
                             int retryCount = 0;
                             bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
-                            Dictionary<string, int> pipProperties = null;
+                            var aggregatePipProperties = new Dictionary<string, int>();
 
                             // Retry pip count up to limit if we produce result without detecting file access.
                             // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
@@ -1406,23 +1406,16 @@ namespace BuildXL.Scheduler
 
                                 if (result.PipProperties != null)
                                 {
-                                    if (pipProperties != null)
+                                    foreach (var kvp in result.PipProperties)
                                     {
-                                        foreach (string pipPropertyKey in pipProperties.Keys)
+                                        if (aggregatePipProperties.TryGetValue(kvp.Key, out var value))
                                         {
-                                            result.PipProperties.TryGetValue(pipPropertyKey, out int value);
-                                            result.PipProperties[pipPropertyKey] = value + pipProperties[pipPropertyKey];
+                                            aggregatePipProperties[kvp.Key] = value + kvp.Value;
                                         }
-                                    }
-
-                                    // Save off the current PipProperties to add back to future loop iterations that reset the result
-                                    pipProperties = result.PipProperties;
-                                }
-                                else
-                                {
-                                    if (pipProperties != null)
-                                    {
-                                        result.PipProperties = pipProperties;
+                                        else
+                                        {
+                                            aggregatePipProperties.Add(kvp.Key, kvp.Value);
+                                        }
                                     }
                                 }
 
@@ -1578,6 +1571,11 @@ namespace BuildXL.Scheduler
                             {
                                 counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPipsCount);
                                 result.HadUserRetries = true;
+                            }
+
+                            if (aggregatePipProperties.Count > 0)
+                            {
+                                result.PipProperties = aggregatePipProperties;
                             }
 
                             return result;

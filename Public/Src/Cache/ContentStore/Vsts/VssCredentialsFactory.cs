@@ -6,9 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-#if NET_CORE
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
-#endif
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if PLATFORM_WIN

@@ -192,7 +192,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheMiss].Value.Should().Be(1);
                 database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheHit].Value.Should().Be(0);
 
-                database.ForceCacheFlush(context);
+                database.ForceCacheFlush(context).Should().BeTrue();
                 database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Value.Should().Be(1);
 
                 database.TryGetEntry(context, hash, out var entry).Should().BeTrue();
@@ -221,12 +221,12 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                     database.LocationAdded(context, new ShortHash(ContentHash.Random()), new MachineId(1), 200);
                 }
 
-                database.ForceCacheFlush(context);
+                database.ForceCacheFlush(context, blocking: true).Should().BeTrue();
                 database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Value.Should().Be(1);
                 database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Value.Should().Be(100);
 
                 // The second flush will discard the flushing cache, and we haven't added anything in-between
-                database.ForceCacheFlush(context);
+                database.ForceCacheFlush(context).Should().BeTrue();
                 database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Value.Should().Be(2);
                 database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Value.Should().Be(100);
             });

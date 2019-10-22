@@ -90,6 +90,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             Code = resultCode;
         }
 
+        /// <nodoc />
+        public DeleteResult(ResultBase other, string message)
+            : base(other, message)
+        {
+            Code = ResultCode.Error;
+        }
+
         /// <summary>
         /// Gets a classification of the result of the call.
         /// </summary>

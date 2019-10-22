@@ -185,8 +185,6 @@ namespace BuildXL.Processes
             process.StartInfo.Arguments = string.Empty;
             process.StartInfo.RedirectStandardInput = true;
 
-            process.Exited += (o, e) => m_perfCollector.Cancel();
-
             return process;
         }
 

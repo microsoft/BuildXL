@@ -116,6 +116,12 @@ namespace BuildXL.Scheduler
         };
 
         /// <summary>
+        /// The max count of PipIds for telemetry fields recording a list if impact pips
+        /// </summary>
+        /// TODO(kenbreid) Determine the correct number
+        private const int MaxListOfPipIdsForTelemetry = 100; 
+
+        /// <summary>
         /// Prefix used by the IDE integration for the name of EventHandles marking a value's successful completion
         /// </summary>
         public const string IdeSuccessPrefix = "Success";
@@ -296,6 +302,10 @@ namespace BuildXL.Scheduler
         private int m_unresponsivenessFactor = 0;
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
+
+        private Dictionary<string, int> PipProperties = new Dictionary<string, int>();
+        private HashSet<string> PipsSucceedingAfterUserRetry = new HashSet<string>();
+        private HashSet<string> PipsFailingAfterLastUserRetry = new HashSet<string>();
 
         /// <summary>
         /// Enables distribution for the master node
@@ -1645,6 +1655,10 @@ namespace BuildXL.Scheduler
             m_pipExecutionStepCounters.LogAsStatistics("PipExecutionStep", loggingContext);
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
+
+            // TODO(kenbreid) if userretries > 0, Log ProcessRetries event
+
+            // TODO(kenbreid) if PipProperties != null and Count > 0, Log ProcessPattern event
 
             m_apiServer?.LogStats(loggingContext);
             m_dropPipTracker?.LogStats(loggingContext);
@@ -3607,18 +3621,26 @@ namespace BuildXL.Scheduler
 
                         if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
                         {
-                            //TODO create and/or update global pip Properties counters
+                            //TODO(kenbreid) create and/or update global pip Properties counters
                         }
 
                         if (executionResult.HasUserRetries)
                         {
                             if (executionResult.Result == PipResultStatus.Succeeded)
                             {
-                                //TODO update PipsSucceedingAfterUserRetry
+                                PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesSucceededPipsCount);
+                                if (PipsSucceedingAfterUserRetry.Count < MaxListOfPipIdsForTelemetry)
+                                {
+                                    PipsSucceedingAfterUserRetry.Add(processRunnable.PipId.Value.ToString());
+                                }
                             }
                             else if (executionResult.Result == PipResultStatus.Failed)
                             {
-                                //TODO update PipsFailingAfterLastUserRetry
+                                PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesFailedPipsCount);
+                                if (PipsFailingAfterLastUserRetry.Count < MaxListOfPipIdsForTelemetry)
+                                {
+                                    PipsFailingAfterLastUserRetry.Add(processRunnable.PipId.Value.ToString());
+                                }
                             }
                         }
 

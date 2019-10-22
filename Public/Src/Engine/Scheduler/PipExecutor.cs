@@ -1576,7 +1576,7 @@ namespace BuildXL.Scheduler
 
                             if (userRetry)
                             {
-                                counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPips);
+                                counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPipsCount);
                                 result.HadUserRetries = true;
                             }
 

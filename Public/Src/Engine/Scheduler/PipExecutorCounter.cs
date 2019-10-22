@@ -635,7 +635,17 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The total count of unique pips impacted by user allowed retries.
         /// </summary>
-        ProcessUserRetriesImpactedPips,
+        ProcessUserRetriesImpactedPipsCount,
+
+        /// <summary>
+        /// The count of pips that eventually succeeded for user allowed retries
+        /// </summary>
+        ProcessUserRetriesSucceededPipsCount,
+
+        /// <summary>
+        /// The count of pips that still failed after exhausting all user allowed tretries
+        /// </summary>
+        ProcessUserRetriesFailedPipsCount,
 
         /// <summary>
         /// The total pip execution time that was later retried for because users allowed them to be retried.

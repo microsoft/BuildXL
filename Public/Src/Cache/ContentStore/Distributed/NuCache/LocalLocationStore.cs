@@ -1349,7 +1349,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
 
                 // We can safely ignore errors, because there is nothing more we can do here.
-                await HeartbeatAsync(context, forceRestore: true);
+                await HeartbeatAsync(context, forceRestore: true).IgnoreFailure();
             }
         }
 

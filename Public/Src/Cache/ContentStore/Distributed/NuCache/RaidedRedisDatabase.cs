@@ -70,28 +70,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public async Task<BoolResult> ExecuteRedisAsync(OperationContext context, Func<RedisDatabaseAdapter, Task<BoolResult>> executeAsync, [CallerMemberName]string caller = null)
         {
-            Task<BoolResult> primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync);
+            (var primaryResult, var secondaryResult) = await ExecuteRaidedAsync(
+                context,
+                executeAsync,
+                concurrent: true);
 
-            Task<BoolResult> secondaryResultTask = BoolResult.SuccessTask;
-            if (HasSecondary)
-            {
-                secondaryResultTask = ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync);
-            }
-
-            await Task.WhenAll(primaryResultTask, secondaryResultTask);
-
-            var primaryResult = await primaryResultTask;
-            if (SecondaryRedisDb == null)
+            if (!HasSecondary)
             {
                 return primaryResult;
-            }
-
-            var secondaryResult = await secondaryResultTask;
-
-            if (primaryResult.Succeeded != secondaryResult.Succeeded)
-            {
-                var failingRedisDb = GetDbName(primaryResult.Succeeded ? SecondaryRedisDb : PrimaryRedisDb);
-                Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {primaryResult & secondaryResult}");
             }
 
             return primaryResult | secondaryResult;

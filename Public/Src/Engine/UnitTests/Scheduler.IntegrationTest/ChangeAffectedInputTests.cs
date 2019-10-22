@@ -21,13 +21,27 @@ namespace IntegrationTest.BuildXL.Scheduler
         public ChangeAffectedInputTests(ITestOutputHelper output) : base(output)
         {
             Environment.SetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType", "DynamicCodeCov");
+            Configuration.Schedule.IncrementalScheduling = false;
         }
 
-        [Fact]
-        public void DirectAffectedFileInputTest()
+        public void EnableIncrementalScheduling()
+        {
+            Configuration.Schedule.IncrementalScheduling = true;
+            Configuration.Schedule.SkipHashSourceFile = false;
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void DirectAffectedFileInputTest(bool enableIncrementalScheduling)
         {
             // aInput->(pipA)->aOutput->(pipB)->bOutput
             // Execepted change affected input for pipB is aOutput.
+
+            if (enableIncrementalScheduling)
+            {
+                EnableIncrementalScheduling();
+            }
 
             // Process A.
             var dir = Path.Combine(ObjectRoot, "Dir");
@@ -70,14 +84,19 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
-        [Fact]
-        public void RevertChangeCacheMissTest()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void RevertChangeCacheMissTest(bool enableIncrementalScheduling)
         {
             // aInput-->(pipA)-->aOutput-->(pipC)-->cOutput
             //                            /                         
             // bInput-->(pipB)-->bOutput--
+            if (enableIncrementalScheduling)
+            {
+                EnableIncrementalScheduling();
+            }
 
-            
             var dir = Path.Combine(ObjectRoot, "Dir");
             var dirPath = AbsolutePath.Create(Context.PathTable, dir);
 
@@ -158,14 +177,21 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
-        [Fact]
-        public void DirectAffectedDiretoryInputTest()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void DirectAffectedDiretoryInputTest(bool enableIncrementalScheduling)
         {
             // aInputDir -> (pipA) -> aOutputDir -> (PipB) -> bOutputDir
             //  |- pip-a-input-file   |- pip-a-out-file       |- pip-b-out-file           
             //                        |- aSubOutputDir
             //                         |- pip-a-out-in-sub-file
             // Execepted change affected input for pipB is pip-a-out-file and pip-a-out-in-sub-file
+
+            if (enableIncrementalScheduling)
+            {
+                EnableIncrementalScheduling();
+            }
 
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
@@ -237,15 +263,22 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(InputAccessType.DynamicFileAccess)]
-        [InlineData(InputAccessType.DirectoryInput)]
-        public void TransitiveAffectedDirectoryInputTest(InputAccessType pipBInputAccessType)
+        [InlineData(InputAccessType.DynamicFileAccess, false)]
+        [InlineData(InputAccessType.DynamicFileAccess, true)]
+        [InlineData(InputAccessType.DirectoryInput, false)]
+        [InlineData(InputAccessType.DirectoryInput, true)]
+        public void TransitiveAffectedDirectoryInputTest(InputAccessType pipBInputAccessType, bool enableIncrementalScheduling)
         {
             // aInputDir -> (pipA) -> aOutputDir -> (pipB) -> bOutputDir -> (pipC) -> pip-c-out-file           
             //  |- pip-a-input-file    |- pip-a-out-file       |- pip-b-out-file   
             //                         |- aSubOutputDir
             //                            |- pip-a-out-in-sub-file
             // Execepted change affected input for pipC is pip-b-out-file
+
+            if (enableIncrementalScheduling)
+            {
+                EnableIncrementalScheduling();
+            }
 
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
@@ -319,16 +352,23 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(InputAccessType.DynamicFileAccess, true)]
-        [InlineData(InputAccessType.DynamicFileAccess, false)]
+        [InlineData(InputAccessType.DynamicFileAccess, true, true)]
+        [InlineData(InputAccessType.DynamicFileAccess, true, false)]
+        [InlineData(InputAccessType.DynamicFileAccess, false, true)]
+        [InlineData(InputAccessType.DynamicFileAccess, false, false)]
         [InlineData(InputAccessType.DirectoryInput)]
-        public void TransitiveAffectedDirectoryInputWithSealTest(InputAccessType pipBInputAccessType, bool accessExistingFile = false)
+        public void TransitiveAffectedDirectoryInputWithSealTest(InputAccessType pipBInputAccessType, bool enableIncrementalScheduling = false, bool accessExistingFile = false)
         {
             // aInputDir -> (pipA) ->pip-a-out-file-> (copy) ->pip-a-output-file-copy -> (seal) -> copyDir -> (pipB)     ->   bOutputDir -> (pipC) -> pip-c-out-file           
             //  |- pip-a-input-file                                                 /               |- pip-a-output-file-copy  |- pip-b-out-file   
             //                                                         existing-file                |- existing-file
             //                            
-            // Execepted change affected input for pipC is pip-b-out-file or ""      
+            // Execepted change affected input for pipC is pip-b-out-file or ""    
+
+            if (enableIncrementalScheduling)
+            {
+                EnableIncrementalScheduling();
+            }
 
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
@@ -410,9 +450,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
-        [Fact]
-        public void AffectedSourceInsideSourceSealDirectory()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void AffectedSourceInsideSourceSealDirectory(bool enableIncrementalScheduling)
         {
+            if (enableIncrementalScheduling)
+            {
+                EnableIncrementalScheduling();
+            }
+
             var sourceDirectory = CreateUniqueDirectory(SourceRootPath);
             var fileInsideSourceDirectory = CreateSourceFile(sourceDirectory, "file_");
             var sourceSealDirectory = CreateSourceSealDirectory(sourceDirectory, SealDirectoryKind.SourceTopDirectoryOnly, "file_*");

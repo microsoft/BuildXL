@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Operations
@@ -37,6 +38,9 @@ namespace BuildXL.Pips.Operations
 
         /// <nodoc/>
         public static readonly Func<string, string> MaxMonikerRenderer = _ => s_longestIpcMoniker;
+
+        // Assumed max length of a rendered VSO hash.
+        private static readonly FileContentInfo s_longestContentHash = new FileContentInfo(ContentHashingUtilities.ZeroHash, FileContentInfo.LengthAndExistence.MaxSupportedLength);
 
         /// <summary>
         /// Gets the default invalid pip data
@@ -224,12 +228,16 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(stringTable != null);
 
-            var renderer = new PipFragmentRenderer(s_maxPathExpander, stringTable, MaxMonikerRenderer);
+            var renderer = new PipFragmentRenderer(
+                s_maxPathExpander,
+                stringTable,
+                MaxMonikerRenderer,
+                hashLookup: _ => s_longestContentHash);
             int computedLength = GetMaxLength(this, renderer);
 
 #if DEBUG
             // Expensive check on in DEBUG builds: costs 6% percent of entire runtime
-            string actualValue = ToString(s_maxPathExpander, stringTable, MaxMonikerRenderer);
+            string actualValue = ToString(renderer);
             Contract.Assert(computedLength == actualValue.Length);
 #endif
 

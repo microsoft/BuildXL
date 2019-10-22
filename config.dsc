@@ -44,7 +44,7 @@ config({
                 credentialProviders: [ 
 					{  
 					  toolUrl: "Shared/Tools/CredentialProviderBuildXL.exe", 
-					  hash: "AEC89C11221E911F0E38557335CB2BFAA2C9D4DF4F01D3BB14AABECCB5ABDBF7" 
+					  hash: "6FE1A045BC90874749C63EBA0918A48B684EE35E855D81DD9B6B85333FF2E5F300" 
 					} 
 				]
             },

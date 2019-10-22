@@ -1,15 +1,11 @@
 ﻿Param(
  [Parameter(mandatory=$true)]
- [String]$name,
+ [String]$1esPat,
  [Parameter(mandatory=$true)]
- [String]$value,
+ [String]$cbPat,
  [Parameter(mandatory=$true)]
- [String]$name2,
- [Parameter(mandatory=$true)]
- [String]$value2,
- [Parameter(mandatory=$true)]
- [String]$arg
+ [String]$args
 )
-[Environment]::SetEnvironmentVariable($name, $value, "Process")
-[Environment]::SetEnvironmentVariable($name2, $value2, "Process")
-.\RunCheckInTests.cmd /lab $arg /internal
+[Environment]::SetEnvironmentVariable("1ESSHAREDASSETS_BUILDXL_FEED_PAT", $1esPat, "Process")
+[Environment]::SetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT", $cbPat, "Process")
+.\RunCheckInTests.cmd /lab $args /internal

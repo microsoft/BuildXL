@@ -283,6 +283,12 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine();
 
             writer.WriteLine($"{CommentPrefix} Delete Directories");
+
+            if (pip.DirectoryOutputs.Any(dir => dir.IsSharedOpaque))
+            {
+                writer.WriteLine($"echo \"!!! Pip uses shared opqaue output directories, deleting those could cause issues as potential inputs could be deleted too - proceed with caution !!!\"");
+            }
+
             foreach (var directory in GetOutputDirectories(pip))
             {
                 var directoryPath = directory.ToString(PathTable);

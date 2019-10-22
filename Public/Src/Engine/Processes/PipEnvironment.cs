@@ -70,8 +70,6 @@ namespace BuildXL.Processes
 #endif
                 );
 
-
-
             // the environment variable names below should use the casing appropriate for the target OS
             // (on Windows it won't matter, but on Unix-like systems, including Cygwin environment on Windows,
             // it matters, and has to be all upper-cased). See also doc comment for IBuildParameters.Select

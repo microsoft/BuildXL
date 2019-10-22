@@ -24,8 +24,8 @@ export const pkgs = isMicrosoftInternal ? [
     // Artifact packages and dependencies
     { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
-    { id: "Microsoft.VisualStudio.Services.Client", version: "17.150.20190501.2-release", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
-    { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: "17.150.20190501.2-release", dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
+    { id: "Microsoft.VisualStudio.Services.Client", version: "16.159.0-internal201910211", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
+    { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: "16.159.0-internal201910211", dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
 
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.

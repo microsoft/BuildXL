@@ -4058,6 +4058,10 @@ namespace BuildXL.Scheduler
 
         private async Task<PipResult> ExecuteNonProcessPipAsync(RunnablePip runnablePip)
         {
+            Contract.Requires(runnablePip.Pip != null);
+            Contract.Requires(runnablePip.OperationContext.IsValid);
+            Contract.Requires(runnablePip.Environment != null);
+
             var pip = runnablePip.Pip;
             var operationContext = runnablePip.OperationContext;
             var environment = runnablePip.Environment;

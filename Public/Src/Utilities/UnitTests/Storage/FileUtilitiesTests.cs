@@ -1015,7 +1015,7 @@ namespace Test.BuildXL.Storage
 
             FileUtilities.SetFileAccessControl(testFilePath, FileSystemRights.WriteAttributes, false);
             XAssert.IsFalse(FileUtilities.HasWritableAccessControl(testFilePath));
-            XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath));
+            XAssert.IsFalse(FileUtilities.HasWritableAttributeAccessControl(testFilePath)); 
         }
 
         private void AssertNonexistent(Possible<PathExistence, NativeFailure> maybeFileExistence)

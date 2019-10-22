@@ -46,6 +46,8 @@ config({
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                    // Don't check this in. Remove once the packages are visible from the aggregated feed.
+                    "nuget.org" : "http://api.nuget.org/v3/index.json",
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
@@ -68,7 +70,7 @@ config({
                 { id: "Bond.Runtime.CSharp", version: "8.0.0" },
                 { id: "CLAP", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.1.7.1" },
+                { id: "RuntimeContracts", version: "0.1.9.1" },
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5"},
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5"},
@@ -98,9 +100,10 @@ config({
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
+                
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
-                { id: "RuntimeContracts.Analyzer", version: "0.1.7.1" },
+                { id: "RuntimeContracts.Analyzer", version: "0.1.9.4" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 

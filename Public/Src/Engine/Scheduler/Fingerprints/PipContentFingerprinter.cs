@@ -30,8 +30,8 @@ namespace BuildXL.Scheduler.Fingerprints
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null,
-            SourceChangeAffectedContentsLookup sourceChangeAffectedContentsLookup = null)
-            : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedContentsLookup)
+            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null)
+            : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedInputsLookup)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(contentHashLookup != null);

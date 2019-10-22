@@ -286,7 +286,7 @@ namespace Test.BuildXL.Scheduler
             var baselineProcess = GetDefaultProcessBuilder(pathTable, executable).Build();
             var processWithChangeAffectedInputListWrittenFile = GetDefaultProcessBuilder(pathTable, executable).WithChangeAffectedInputListWrittenFile(changeAffectedInputListWrittenFile).Build();
 
-            var sourceChangeAffectedContentsLookup = new PipFingerprinter.SourceChangeAffectedContentsLookup(process =>
+            var sourceChangeAffectedInputsLookup = new PipFingerprinter.SourceChangeAffectedInputsLookup(process =>
             {
                 if (process.ChangeAffectedInputListWrittenFilePath.IsValid)
                 {
@@ -301,12 +301,11 @@ namespace Test.BuildXL.Scheduler
                 m_context.PathTable,
                 GetContentHashLookup(executable),
                 ExtraFingerprintSalts.Default(),
-                sourceChangeAffectedContentsLookup: sourceChangeAffectedContentsLookup)
+                sourceChangeAffectedInputsLookup: sourceChangeAffectedInputsLookup)
             {
                 FingerprintTextEnabled = true
             };
 
-            System.Diagnostics.Debugger.Launch();
             string fingerprintText;
             var baselineFingerprint = fingerprinter.ComputeWeakFingerprint(baselineProcess, out fingerprintText);
             XAssert.IsFalse(fingerprintText.ToUpper().Contains(changeAffectedDll.ToString(m_context.PathTable).ToUpper()));

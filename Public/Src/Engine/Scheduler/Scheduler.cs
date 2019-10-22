@@ -1059,7 +1059,7 @@ namespace BuildXL.Scheduler
                 extraFingerprintSalts,
                 m_semanticPathExpander,
                 PipGraph.QueryFileArtifactPipData,
-                process => m_fileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(process));
+                process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process));
             m_runningTimeTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.
@@ -2306,7 +2306,7 @@ namespace BuildXL.Scheduler
                         outputContents = runnablePip.ExecutionResult.OutputContent.SelectList(o => o.fileArtifact).ToReadOnlyArray();
                     }
 
-                    m_fileContentManager.SourceChangeAffectedContents.ReportSourceChangeAffectedFiles(
+                    m_fileContentManager.SourceChangeAffectedInputs.ReportSourceChangeAffectedFiles(
                         pip,
                         result.DynamicallyObservedFiles,
                         outputContents);
@@ -5018,7 +5018,7 @@ namespace BuildXL.Scheduler
                     m_configuration.Layout.SourceDirectory.ToString(Context.PathTable),
                     DirectoryTranslator);
 
-                    m_fileContentManager.SourceChangeAffectedContents.InitialAffectedOutputList(inputChangeList, Context.PathTable);
+                    m_fileContentManager.SourceChangeAffectedInputs.InitialAffectedOutputList(inputChangeList, Context.PathTable);
             }
 
             IncrementalSchedulingStateFactory incrementalSchedulingStateFactory = null;

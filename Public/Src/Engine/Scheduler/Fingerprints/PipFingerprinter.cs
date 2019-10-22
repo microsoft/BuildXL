@@ -51,14 +51,14 @@ namespace BuildXL.Scheduler.Fingerprints
         public delegate PipData PipDataLookup(FileArtifact artifact);
 
         /// <summary>
-        /// Refers to a function which maps a process to its source-change-affected dependencies. 
+        /// Refers to a function which maps a process to its source-change-affected inputs. 
         /// </summary>
-        public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedContentsLookup(Process process);
+        public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedInputsLookup(Process process);
 
         private readonly PathTable m_pathTable;
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
-        private readonly SourceChangeAffectedContentsLookup m_sourceChangeAffectedContentsLookup;
+        private readonly SourceChangeAffectedInputsLookup m_sourceChangeAffectedInputsLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
@@ -105,7 +105,7 @@ namespace BuildXL.Scheduler.Fingerprints
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null,
-            SourceChangeAffectedContentsLookup sourceChangeAffectedContentsLookup = null)
+            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null)
         {
             Contract.Requires(pathTable != null);
 
@@ -118,7 +118,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
             m_environmentVariableComparer = Comparer<EnvironmentVariable>.Create((ev1, ev2) => { return ev1.Name.ToString(pathTable.StringTable).CompareTo(ev2.Name.ToString(pathTable.StringTable)); });
             m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
-            m_sourceChangeAffectedContentsLookup = sourceChangeAffectedContentsLookup ?? new SourceChangeAffectedContentsLookup(process => ReadOnlyArray<AbsolutePath>.Empty);
+            m_sourceChangeAffectedInputsLookup = sourceChangeAffectedInputsLookup ?? new SourceChangeAffectedInputsLookup(process => ReadOnlyArray<AbsolutePath>.Empty);
         }
 
         /// <summary>
@@ -347,7 +347,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
             if (process.ChangeAffectedInputListWrittenFilePath.IsValid)
             {
-                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedContentsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedInputsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
             }
         }
 

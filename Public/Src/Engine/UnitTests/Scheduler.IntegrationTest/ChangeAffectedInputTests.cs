@@ -21,34 +21,20 @@ namespace IntegrationTest.BuildXL.Scheduler
         public ChangeAffectedInputTests(ITestOutputHelper output) : base(output)
         {
             Environment.SetEnvironmentVariable("[Sdk.BuildXL]qCodeCoverageEnumType", "DynamicCodeCov");
-            Configuration.Schedule.IncrementalScheduling = false;
         }
 
-        public void EnableIncrementalScheduling()
-        {
-            Configuration.Schedule.IncrementalScheduling = true;
-            Configuration.Schedule.SkipHashSourceFile = false;
-        }
-
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void DirectAffectedFileInputTest(bool enableIncrementalScheduling)
+        [Fact]
+        public void DirectAffectedFileInputTest()
         {
             // aInput->(pipA)->aOutput->(pipB)->bOutput
-            // Execepted change affected input for pipB is aOutput.
-
-            if (enableIncrementalScheduling)
-            {
-                EnableIncrementalScheduling();
-            }
+            // Expected change affected input for pipB is aOutput.
 
             // Process A.
             var dir = Path.Combine(ObjectRoot, "Dir");
             var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
             FileArtifact aInput = CreateSourceFile(root: dirPath, prefix: "pip-a-input-file");
             FileArtifact aOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-a-out-file");
-
             var pipBuilderA= CreatePipBuilder(new[] { Operation.ReadFile(aInput), Operation.WriteFile(aOutput) });
             SchedulePipBuilder(pipBuilderA);
 
@@ -57,45 +43,38 @@ namespace IntegrationTest.BuildXL.Scheduler
             AbsolutePath changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderB = CreatePipBuilder(new[] 
             { 
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exist.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true), 
                 Operation.ReadFile(aOutput), 
                 Operation.WriteFile(bOutput) 
             });
             SchedulePipBuilder(pipBuilderB);
-
             RunScheduler().AssertSuccess();
 
-            RunScheduler().AssertCacheHit();
-
+            // reset the graph, so we can SetChangeAffectedInputListWrittenFile for pipB
             ResetPipGraphBuilder();
             SchedulePipBuilder(pipBuilderA);
             pipBuilderB.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
-            SchedulePipBuilder(pipBuilderB);
+            var pipB = SchedulePipBuilder(pipBuilderB);
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
             Configuration.Schedule.InputChanges = inputChangesFile.Path;
 
-            RunScheduler().AssertCacheMiss();
+            // changeAffectedWrittenFile of pipB contains aOutput, expecting cache miss
+            RunScheduler().AssertCacheMiss(pipB.Process.PipId);
 
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
             var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void RevertChangeCacheMissTest(bool enableIncrementalScheduling)
+        [Fact]
+        public void RevertChangeCacheMissTest()
         {
             // aInput-->(pipA)-->aOutput-->(pipC)-->cOutput
             //                            /                         
             // bInput-->(pipB)-->bOutput--
-            if (enableIncrementalScheduling)
-            {
-                EnableIncrementalScheduling();
-            }
 
             var dir = Path.Combine(ObjectRoot, "Dir");
             var dirPath = AbsolutePath.Create(Context.PathTable, dir);
@@ -121,7 +100,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             AbsolutePath changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderC = CreatePipBuilder(new[]
             { 
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exist.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(aOutput),
                 Operation.ReadFile(bOutput),
@@ -139,7 +118,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             var expectedAffectedInput = "";
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            // Build1 with change in aInput. Dependencies of pipA and pipB changed, so they get cache miss. 
+            // Build1 with change in aInput. 
+            // Dependencies of pipA and pipB changed, so they get cache miss. 
             // m_changeAffectedInputListWrittenFile of pipC contains aOutput
             File.WriteAllText(ArtifactToString(aInput), "pipA");
             File.WriteAllText(ArtifactToString(changeList), ArtifactToString(aInput));
@@ -150,7 +130,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
-            // Build2 with change in bInput. Dependencies of pipB and pipC changed, so they get cache miss.
+            // Build2 with change in bInput. 
+            // Dependencies of pipB and pipC changed, so they get cache miss.
             // m_changeAffectedInputListWrittenFile of pipC contains bOutput
             File.WriteAllText(ArtifactToString(bInput), "pipBChange");
             File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
@@ -177,21 +158,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void DirectAffectedDiretoryInputTest(bool enableIncrementalScheduling)
+        [Fact]
+        public void DirectAffectedDiretoryInputTest()
         {
             // aInputDir -> (pipA) -> aOutputDir -> (PipB) -> bOutputDir
             //  |- pip-a-input-file   |- pip-a-out-file       |- pip-b-out-file           
             //                        |- aSubOutputDir
             //                         |- pip-a-out-in-sub-file
-            // Execepted change affected input for pipB is pip-a-out-file and pip-a-out-in-sub-file
-
-            if (enableIncrementalScheduling)
-            {
-                EnableIncrementalScheduling();
-            }
+            // Expected change affected inputs for pipB is pip-a-out-file and pip-a-out-in-sub-file
 
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
@@ -263,23 +237,17 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(InputAccessType.DynamicFileAccess, false)]
-        [InlineData(InputAccessType.DynamicFileAccess, true)]
-        [InlineData(InputAccessType.DirectoryInput, false)]
-        [InlineData(InputAccessType.DirectoryInput, true)]
-        public void TransitiveAffectedDirectoryInputTest(InputAccessType pipBInputAccessType, bool enableIncrementalScheduling)
+        [InlineData(InputAccessType.DynamicFileAccess)]
+        [InlineData(InputAccessType.DirectoryInput)]
+        public void TransitiveAffectedDirectoryInputTest(InputAccessType pipBInputAccessType)
         {
             // aInputDir -> (pipA) -> aOutputDir -> (pipB) -> bOutputDir -> (pipC) -> pip-c-out-file           
             //  |- pip-a-input-file    |- pip-a-out-file       |- pip-b-out-file   
             //                         |- aSubOutputDir
             //                            |- pip-a-out-in-sub-file
-            // Execepted change affected input for pipC is pip-b-out-file
+            // Expected change affected input for pipC is pip-b-out-file
 
-            if (enableIncrementalScheduling)
-            {
-                EnableIncrementalScheduling();
-            }
-
+            // Creating an input dir for pipA
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
             var aInputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aInputDirPath);
@@ -287,10 +255,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(ArtifactToString(aInputFile), "pipABuild1");
             var sealInputDir = SealDirectory(aInputDirPath, SealDirectoryKind.SourceAllDirectories);
 
+            // Creating an output dir Artifact(containing a outfile and a sub output dir) for pipB
+            // This output dir will be input dir for pipB
             var aOutputDir = Path.Combine(ObjectRoot, "aOutputDir");
             var aOutputDirPath = AbsolutePath.Create(Context.PathTable, aOutputDir);
             var aOutputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aOutputDirPath);
-
             var aOutputFileInOutputeDir = CreateOutputFileArtifact(root: aOutputDir, prefix: "pip-a-out-file");
 
             var aOutputSubDir = Path.Combine(aOutputDir, "aSubOutputDir");
@@ -298,11 +267,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             var aOutputSubDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aOutputSubDirPath);
             var aOutputFileInOutputSubDir = CreateOutputFileArtifact(root: aOutputSubDir, prefix: "pip-a-out-in-sub-file");
 
+            // Creating an output dir for pipB, this will be the input dir for pipC
             var bOutDir = Path.Combine(ObjectRoot, "bOutputDir");
             var bOutDirPath = AbsolutePath.Create(Context.PathTable, bOutDir);
             var bOutDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(bOutDirPath);
             var bOutFileArtifact = CreateOutputFileArtifact(root: bOutDirArtifact, prefix: "pip-b-out-file");
 
+            // pipC output a file
             var cOutFileArtifact = CreateOutputFileArtifact(prefix: "pip-c-out-file");
             var expectedAffectedInput = "";
 
@@ -352,24 +323,19 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(InputAccessType.DynamicFileAccess, true, true)]
-        [InlineData(InputAccessType.DynamicFileAccess, true, false)]
-        [InlineData(InputAccessType.DynamicFileAccess, false, true)]
-        [InlineData(InputAccessType.DynamicFileAccess, false, false)]
+        [InlineData(InputAccessType.DynamicFileAccess, true)]
+        [InlineData(InputAccessType.DynamicFileAccess, false)]
         [InlineData(InputAccessType.DirectoryInput)]
-        public void TransitiveAffectedDirectoryInputWithSealTest(InputAccessType pipBInputAccessType, bool enableIncrementalScheduling = false, bool accessExistingFile = false)
+        public void TransitiveAffectedDirectoryInputWithSealTest(InputAccessType pipBInputAccessType, bool accessExistingFile = false)
         {
             // aInputDir -> (pipA) ->pip-a-out-file-> (copy) ->pip-a-output-file-copy -> (seal) -> copyDir -> (pipB)     ->   bOutputDir -> (pipC) -> pip-c-out-file           
             //  |- pip-a-input-file                                                 /               |- pip-a-output-file-copy  |- pip-b-out-file   
             //                                                         existing-file                |- existing-file
             //                            
-            // Execepted change affected input for pipC is pip-b-out-file or ""    
+            // Expected change affected input for pipC is pip-b-out-file or ""    
 
-            if (enableIncrementalScheduling)
-            {
-                EnableIncrementalScheduling();
-            }
-
+            // Creating an output dir Artifact(containing a outfile and a sub output dir) for pipB
+            // This output dir will be input dir for pipB
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
             var aInputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aInputDirPath);
@@ -398,6 +364,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var expectedAffectedInput = "";
 
+            // pipA
             var pipBuilderA = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(aInputFile, doNotInfer: true),
@@ -406,9 +373,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderA.AddInputDirectory(sealInputDir);
             var pipA = SchedulePipBuilder(pipBuilderA);
 
+            // copy pip
             var copiedFile = CopyFile(aOutputFileInOutputeDir, copyFilePath);
+
+            // seal dir pip
             var sealedaOutput = SealDirectory(copyDirPath, SealDirectoryKind.Full, aExistingFileInOutputeDir, copiedFile);
 
+
+            // pipB
             var operations = new List<Operation>() { };
             if (pipBInputAccessType == InputAccessType.DynamicFileAccess)
             {
@@ -428,10 +400,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderB.AddOutputDirectory(bOutDirArtifact, SealDirectoryKind.Opaque);
             var pipB = SchedulePipBuilder(pipBuilderB);
 
+
+            // pipC
             var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderC = CreatePipBuilder(new Operation[]
             {
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exist.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(bOutFileArtifact, doNotInfer: true),
                 Operation.WriteFile(cOutFileArtifact),
@@ -450,16 +424,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void AffectedSourceInsideSourceSealDirectory(bool enableIncrementalScheduling)
+        [Fact]
+        public void AffectedSourceInsideSourceSealDirectory()
         {
-            if (enableIncrementalScheduling)
-            {
-                EnableIncrementalScheduling();
-            }
-
             var sourceDirectory = CreateUniqueDirectory(SourceRootPath);
             var fileInsideSourceDirectory = CreateSourceFile(sourceDirectory, "file_");
             var sourceSealDirectory = CreateSourceSealDirectory(sourceDirectory, SealDirectoryKind.SourceTopDirectoryOnly, "file_*");
@@ -468,7 +435,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilder = CreatePipBuilder(new Operation[]
             {
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exist.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(fileInsideSourceDirectory, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact()),

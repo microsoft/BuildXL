@@ -335,7 +335,7 @@ namespace BuildXL.Utilities.Tracing
                 catch (IOException ex)
                 {
                     // We know that the problem is in the console. No need to guess by calling AnalyzeExceptionRootCause
-                    throw new BuildXLException(ex.Message, ExceptionRootCause.ConsoleNotConnected);
+                    throw new BuildXLException("IOException caught in " + nameof(WriteOutputLine), ex, ExceptionRootCause.ConsoleNotConnected);
                 }
             }
         }

@@ -61,6 +61,29 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        /// Helper for transforming Task{T} to Task{Result{T}}
+        /// </summary>
+        public static async Task<Result<T>> AsSuccessAsync<T>(this Task<T> task)
+        {
+            var result = await task;
+            return Result.Success(result);
+        }
+
+        /// <summary>
+        /// Maps result into different result type or propagates error to result type
+        /// </summary>
+        public static TResult Then<T, TResult>(this Result<T> result, Func<T, TResult> selector)
+            where TResult : ResultBase
+        {
+            if (result.Succeeded)
+            {
+                return selector(result.Value);
+            }
+
+            return new ErrorResult(result).AsResult<TResult>();
+        }
+
+        /// <summary>
         /// Throws <see cref="ResultPropagationException"/> if <paramref name="result"/> is not successful.
         /// </summary>
         public static T ThrowIfFailure<T>(this Result<T> result)
@@ -130,6 +153,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public static Task IgnoreFailure<T>(this Task<T> task) where T : ResultBase
         {
             return task;
+        }
+
+        /// <summary>
+        /// Gets the value from <paramref name="result"/> if operation succeeded or default value if it did not succeed.
+        /// </summary>
+        public static T GetValueOrDefault<T>(this Result<T> result, T defaultValue = default)
+        {
+            return result.Succeeded ? result.Value : defaultValue;
         }
 
         /// <summary>

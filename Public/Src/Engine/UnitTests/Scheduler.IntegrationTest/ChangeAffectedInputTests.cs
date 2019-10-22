@@ -164,7 +164,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
             // Build3 revert change in bInput. pipB get cache hit of build0.  
-            // m_changeAffectedInputListWrittenFile of pipC contains bOutput
+            // m_changeAffectedInputListWrittenFile of pipC contains bOutput, aOutput cache hit from build1, bOutput from build0. So pipC get cache miss.
             File.WriteAllText(ArtifactToString(bInput), "pipBOrigin");
             File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
 

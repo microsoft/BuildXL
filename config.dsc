@@ -46,8 +46,6 @@ config({
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                 ? {
                     "BuildXL.Selfhost": "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
-                    // Don't check this in. Remove once the packages are visible from the aggregated feed.
-                    "nuget.org" : "http://api.nuget.org/v3/index.json",
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }

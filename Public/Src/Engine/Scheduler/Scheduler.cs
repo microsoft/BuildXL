@@ -303,7 +303,8 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
-        private Dictionary<string, int> m_aggregatedPipProperties = new Dictionary<string, int>();
+        private Dictionary<string, int> m_aggregatedPipPropertiesCount = new Dictionary<string, int>();
+        private Dictionary<string, HashSet<string>> m_addgregatepipsPerPipProperty = new Dictionary<string, HashSet<string>>();
         private HashSet<string> m_pipsSucceedingAfterUserRetry = new HashSet<string>();
         private HashSet<string> m_pipsFailingAfterLastUserRetry = new HashSet<string>();
 
@@ -1658,12 +1659,32 @@ namespace BuildXL.Scheduler
 
             if (PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessUserRetries) > 0)
             {
-                // TODO(kenbreid) Log ProcessRetries event
+                string pipsSucceedingAfterUserRetry = string.Join(",", m_pipsSucceedingAfterUserRetry);
+                string pipsFailingAfterLastUserRetry = string.Join(",", m_pipsFailingAfterLastUserRetry);
+
+                // TODO(kenbreid) Original plan for ProcessRetries event is as follows:
+
+                //• ProcessRetries event – This is a single event for the build session which will fire only if retries took place. It has the following columns
+                //    o PipsSucceedingAfterUserRetry – csv of semistable hashes that succeeded after a user retry
+                //    o PipsFailingAfterLastUserRetry – csv of semistable hashes of pips failed after a user retry
+                //    o ProcessUserRetriesImpactedPipsCount – count of distinct pips impacted by user retries
+                //    o ProcessUserRetries – count of user retries performed
+                //    o RetriedUserExecutionDurationMs – sum retried process wall clock time of all user retried pips
+                //    o RetriedInternalExecutionDurationMs – sum retried process wall clock time of all pips retried for internal failures
+
+                // Logger.Log.ProcessRetries(loggingContext, pipsSucceedingAfterUserRetry, pipsFailingAfterLastUserRetry);
             }
 
-            if (m_aggregatedPipProperties.Count > 0)
+            if (m_aggregatedPipPropertiesCount.Count > 0)
             {
-                // TODO(kenbreid) Log ProcessPattern event
+                // TODO(kenbreid) Original plan for ProcessPattern event is as follows:
+
+                //• ProcessPattern event – Single session level event that will give counters for various interesting things that happen during the build. tern_. If the regex has a match for that capture group a counter gets incremented. At the end of the build session a single event is sent with a summary of the hits for those user defined patterns. Columns would be:
+                //   o [PatternName]Count – Count of all pips that had a result for user defined capture group ProcessPattern_[ExtactedInformation]_EndProperty is determined by looking for patterns in tool output streams. When a pip fails (including prior to a retry), BuildXL would apply the regular expression to the output to look for specific capture groups that are prefixed with 
+                //   o [PatternName]Pips – SemiStable hashes corresponding to the counter. This is separate from count because it may need to be truncated
+                //   o All additional patterns
+
+                // Logger.Log.ProcessPattern(loggingContext, m_aggregatedPipPropertiesCount, m_addgregatepipsPerPipProperty);
             }
 
             m_apiServer?.LogStats(loggingContext);
@@ -3627,12 +3648,24 @@ namespace BuildXL.Scheduler
 
                         if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
                         {
-                            foreach (var kvp in executionResult.PipProperties) {
-                                 if (m_aggregatedPipProperties.TryGetValue(kvp.Key, out var value)) {
-                                     m_aggregatedPipProperties[kvp.Key] = value + kvp.Value;
-                                 } else {
-                                     m_aggregatedPipProperties.Add(kvp.Key, kvp.Value);
-                                 }
+                            foreach (var kvp in executionResult.PipProperties)
+                            {
+                                if (m_aggregatedPipPropertiesCount.TryGetValue(kvp.Key, out var value))
+                                {
+                                    m_aggregatedPipPropertiesCount[kvp.Key] = value + kvp.Value;
+                                    m_addgregatepipsPerPipProperty.TryGetValue(kvp.Key, out var existingPips);
+
+                                    if (existingPips.Count < MaxListOfPipIdsForTelemetry)
+                                    {
+                                        existingPips.Add(processRunnable.Process.FormattedSemiStableHash);
+                                        m_addgregatepipsPerPipProperty[kvp.Key] = existingPips;
+                                    }
+                                }
+                                else
+                                {
+                                    m_aggregatedPipPropertiesCount.Add(kvp.Key, kvp.Value);
+                                    m_addgregatepipsPerPipProperty.Add(kvp.Key, new HashSet<string> { processRunnable.Process.FormattedSemiStableHash });
+                                }
                             }
                         }
 
@@ -3643,7 +3676,7 @@ namespace BuildXL.Scheduler
                                 PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesSucceededPipsCount);
                                 if (m_pipsSucceedingAfterUserRetry.Count < MaxListOfPipIdsForTelemetry)
                                 {
-                                    m_pipsSucceedingAfterUserRetry.Add(processRunnable.PipId.Value.ToString());
+                                    m_pipsSucceedingAfterUserRetry.Add(processRunnable.Process.FormattedSemiStableHash);
                                 }
                             }
                             else if (executionResult.Result == PipResultStatus.Failed)
@@ -3651,7 +3684,7 @@ namespace BuildXL.Scheduler
                                 PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesFailedPipsCount);
                                 if (m_pipsFailingAfterLastUserRetry.Count < MaxListOfPipIdsForTelemetry)
                                 {
-                                    m_pipsFailingAfterLastUserRetry.Add(processRunnable.PipId.Value.ToString());
+                                    m_pipsFailingAfterLastUserRetry.Add(processRunnable.Process.FormattedSemiStableHash);
                                 }
                             }
                         }

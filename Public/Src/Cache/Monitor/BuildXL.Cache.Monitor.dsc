@@ -5,12 +5,12 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier : BuildXLSdk.NetCoreAppQualifier;
+export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451;
 
 export {BuildXLSdk};
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet451;
 
     @@public
     export const deployment: Deployment.Definition =

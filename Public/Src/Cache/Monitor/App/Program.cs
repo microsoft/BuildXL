@@ -1,16 +1,29 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Logging;
+using BuildXL.Cache.Monitor.App.Rules;
 
 namespace BuildXL.Cache.Monitor.App
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static Task Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            var logger = new Logger(new ILog[] {
+                new ConsoleLog(printSeverity: true),
+            });
+            
+            var scheduler = new Scheduler(new SchedulerSettings(), logger, SystemClock.Instance);
+
+            AddRules(scheduler);
+
+            return scheduler.RunAsync();
+        }
+
+        private static void AddRules(Scheduler scheduler)
+        {
+            scheduler.Add(new PrintRule(), TimeSpan.FromSeconds(1));
         }
     }
 }

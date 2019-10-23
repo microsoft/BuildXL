@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {

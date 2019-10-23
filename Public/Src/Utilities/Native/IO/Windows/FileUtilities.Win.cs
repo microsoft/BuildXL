@@ -1509,7 +1509,6 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
-#if NET_FRAMEWORK
             FileSystemRights fileSystemRights =
                 FileSystemRights.WriteData |
                 FileSystemRights.AppendData |
@@ -1517,9 +1516,6 @@ namespace BuildXL.Native.IO.Windows
                 FileSystemRights.WriteExtendedAttributes;
 
             return CheckFileSystemRightsForPath(path, fileSystemRights);
-#else
-            return true;
-#endif
         }
 
 
@@ -1529,15 +1525,11 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
-#if NET_FRAMEWORK
             FileSystemRights fileSystemRights =
                 FileSystemRights.WriteAttributes |
                 FileSystemRights.WriteExtendedAttributes;
 
             return CheckFileSystemRightsForPath(path, fileSystemRights);
-#else
-            return true;
-#endif
         }
 
         private bool CheckFileSystemRightsForPath(string path, FileSystemRights fileSystemRights)

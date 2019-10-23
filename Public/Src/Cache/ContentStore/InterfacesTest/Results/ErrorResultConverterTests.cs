@@ -52,7 +52,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 
         private class CustomError : ResultBase
         {
-
         }
     }
 }

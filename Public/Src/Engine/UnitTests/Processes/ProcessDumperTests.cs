@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -22,6 +23,39 @@ namespace Test.BuildXL.Processes
             : base(output)
         {
             m_testOutputHelper = output;
+        }
+
+        /// <summary>
+        /// Don't crash when dumping a process that's already exited
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void DumpProcessThatHasExited()
+        {
+            string cmdPath = Environment.GetEnvironmentVariable("comspec");
+            Process p = Process.Start(cmdPath, " /c");
+            p.WaitForExit();
+            Exception dumpException;
+            bool result = ProcessDumper.TryDumpProcessAndChildren(p.Id, TemporaryDirectory, out dumpException);
+            XAssert.IsFalse(result, "Expected failure since there is no process to dump");
+        }
+
+        /// <summary>
+        /// Don't dump processes that are running under a different user. This provides protection from dumping system processes
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void OnlyDumpUnderSameUsername()
+        {
+            string cmdPath = Environment.GetEnvironmentVariable("comspec");
+            Process p = Process.Start(cmdPath, " /c");
+            p.WaitForExit();
+            var startTime = p.StartTime;
+
+            Process systemProcess = Process.GetProcessesByName("System")[0];
+            XAssert.IsNotNull(systemProcess);
+
+            Exception exception;
+
+            bool result = ProcessDumper.TryDumpProcessAndChildren(systemProcess.Id, TemporaryDirectory, out exception);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
@@ -213,13 +247,13 @@ namespace Test.BuildXL.Processes
             string dumpPath = Path.Combine(TemporaryDirectory, "dumps2");
             Directory.CreateDirectory(dumpPath);
 
-            var nonExistentProcessId = -1;
+            var nonExistentProcessId = 999999999;
             Exception failure;
             bool ok = ProcessDumper.TryDumpProcessAndChildren(nonExistentProcessId, dumpPath, out failure);
             XAssert.IsFalse(ok, "Expected dump to fail");
             XAssert.IsNotNull(failure);
             XAssert.AreEqual(typeof(BuildXLException), failure.GetType());
-            var failureSnippet = $"ArgumentException: Process with an Id of {nonExistentProcessId} is not running";
+            var failureSnippet = $"ArgumentException: Process with an Id of {nonExistentProcessId} is inaccessible or not running";
             XAssert.IsTrue(failure.ToString().Contains(failureSnippet), $"Expected error to contain '{failureSnippet}' but it doesn't: '{failure}'");
         }
 

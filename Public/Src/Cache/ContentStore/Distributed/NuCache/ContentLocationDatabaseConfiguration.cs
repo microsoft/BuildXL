@@ -40,7 +40,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         ///
         /// Only useful when <see cref="ContentCacheEnabled"/> is true.
         /// </summary>
-        public int FlushDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
+        public int FlushDegreeOfParallelism { get; set; } = 1;
+
+        /// <summary>
+        /// Number of entries to pool together into a single transaction when doing multithreaded transactional flush.
+        /// </summary>
+        public int FlushTransactionSize { get; set; } = 100_000;
 
         /// <summary>
         /// Whether to use a single transaction to the underlying store when flushing instead of one transaction per

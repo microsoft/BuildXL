@@ -77,18 +77,19 @@ namespace Test.BuildXL.Processes
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
 
-            var process = CreateAndStartSandboxedProcess(processInfo);
-            var taskCancelationSource = new CancellationTokenSource();
+            using (var process = CreateAndStartSandboxedProcess(processInfo))
+            using (var taskCancelationSource = new CancellationTokenSource())
+            {
+                // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
+                // has been reached.
+                ContinouslyPostAccessReports(process, taskCancelationSource.Token);
+                var result = await process.GetResultAsync();
 
-            // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
-            // has been reached.
-            ContinouslyPostAccessReports(process, taskCancelationSource.Token);
-            var result = await process.GetResultAsync();
+                taskCancelationSource.Cancel();
 
-            taskCancelationSource.Cancel();
-
-            XAssert.IsTrue(result.Killed, "Expected process to have been killed");
-            XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
+                XAssert.IsTrue(result.Killed, "Expected process to have been killed");
+                XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
+            }
         }
 
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
@@ -99,18 +100,19 @@ namespace Test.BuildXL.Processes
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
-            var process = CreateAndStartSandboxedProcess(processInfo, measureTime: true);
-            var taskCancelationSource = new CancellationTokenSource();
+            using (var process = CreateAndStartSandboxedProcess(processInfo, measureTime: true))
+            using (var taskCancelationSource = new CancellationTokenSource())
+            {
+                // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
+                // has been reached, including the stuck root process
+                ContinouslyPostAccessReports(process, taskCancelationSource.Token);
+                var result = await process.GetResultAsync();
 
-            // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
-            // has been reached, including the stuck root process
-            ContinouslyPostAccessReports(process, taskCancelationSource.Token);
-            var result = await process.GetResultAsync();
+                taskCancelationSource.Cancel();
 
-            taskCancelationSource.Cancel();
-
-            XAssert.IsTrue(result.Killed, "Expected process to have been killed");
-            XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
+                XAssert.IsTrue(result.Killed, "Expected process to have been killed");
+                XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
+            }
         }
 
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
@@ -122,86 +124,87 @@ namespace Test.BuildXL.Processes
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
 
-            var process = CreateAndStartSandboxedProcess(processInfo);
-            var taskCancelationSource = new CancellationTokenSource();
-
-            var time = Sandbox.GetMachAbsoluteTime();
-
-            var childProcessPath = "/dummy/exe2";
-            var instructions = new List<ReportInstruction>()
+            using (var process = CreateAndStartSandboxedProcess(processInfo))
+            using (var taskCancelationSource = new CancellationTokenSource())
             {
-                new ReportInstruction() {
-                    Process = process,
-                    Operation = FileOperation.OpProcessStart,
-                    Stats = new Sandbox.AccessReportStatistics()
-                    {
-                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(1).Ticks * 100),
-                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(2).Ticks * 100),
-                    },
-                    Pid = 1235,
-                    Path = childProcessPath,
-                    Allowed = true
-                },
-                new ReportInstruction() {
-                    Process = process,
-                    Operation = FileOperation.OpProcessExit,
-                    Stats = new Sandbox.AccessReportStatistics()
-                    {
-                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(3).Ticks * 100),
-                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(4).Ticks * 100),
-                    },
-                    Pid = process.ProcessId,
-                    Path = "/dummy/exe",
-                    Allowed = true
-                },
-                new ReportInstruction() {
-                    Process = process,
-                    Operation = FileOperation.OpKAuthCreateDir,
-                    Stats = new Sandbox.AccessReportStatistics()
-                    {
-                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(5).Ticks * 100),
-                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(6).Ticks * 100),
-                    },
-                    Pid = 1235,
-                    Path = childProcessPath,
-                    Allowed = true
-                },
-                new ReportInstruction() {
-                    Process = process,
-                    Operation = FileOperation.OpProcessExit,
-                    Stats = new Sandbox.AccessReportStatistics()
-                    {
-                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(7).Ticks * 100),
-                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(8).Ticks * 100),
-                    },
-                    Pid = 1235,
-                    Path = childProcessPath,
-                    Allowed = true
-                },
-                new ReportInstruction() {
-                    Process = process,
-                    Operation = FileOperation.OpProcessTreeCompleted,
-                    Stats = new Sandbox.AccessReportStatistics()
-                    {
-                        EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(9).Ticks * 100),
-                        DequeueTime = time + ((ulong) TimeSpan.FromSeconds(10).Ticks * 100),
-                    },
-                    Pid = process.ProcessId,
-                    Path = "/dummy/exe",
-                    Allowed = true
-                },
-            };
+                var time = Sandbox.GetMachAbsoluteTime();
 
-            ContinouslyPostAccessReports(process, taskCancelationSource.Token, instructions);
-            var result = await process.GetResultAsync();
-            taskCancelationSource.Cancel();
+                var childProcessPath = "/dummy/exe2";
+                var instructions = new List<ReportInstruction>()
+                {
+                    new ReportInstruction() {
+                        Process = process,
+                        Operation = FileOperation.OpProcessStart,
+                        Stats = new Sandbox.AccessReportStatistics()
+                        {
+                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(1).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(2).Ticks * 100),
+                        },
+                        Pid = 1235,
+                        Path = childProcessPath,
+                        Allowed = true
+                    },
+                    new ReportInstruction() {
+                        Process = process,
+                        Operation = FileOperation.OpProcessExit,
+                        Stats = new Sandbox.AccessReportStatistics()
+                        {
+                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(3).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(4).Ticks * 100),
+                        },
+                        Pid = process.ProcessId,
+                        Path = "/dummy/exe",
+                        Allowed = true
+                    },
+                    new ReportInstruction() {
+                        Process = process,
+                        Operation = FileOperation.OpKAuthCreateDir,
+                        Stats = new Sandbox.AccessReportStatistics()
+                        {
+                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(5).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(6).Ticks * 100),
+                        },
+                        Pid = 1235,
+                        Path = childProcessPath,
+                        Allowed = true
+                    },
+                    new ReportInstruction() {
+                        Process = process,
+                        Operation = FileOperation.OpProcessExit,
+                        Stats = new Sandbox.AccessReportStatistics()
+                        {
+                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(7).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(8).Ticks * 100),
+                        },
+                        Pid = 1235,
+                        Path = childProcessPath,
+                        Allowed = true
+                    },
+                    new ReportInstruction() {
+                        Process = process,
+                        Operation = FileOperation.OpProcessTreeCompleted,
+                        Stats = new Sandbox.AccessReportStatistics()
+                        {
+                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(9).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(10).Ticks * 100),
+                        },
+                        Pid = process.ProcessId,
+                        Path = "/dummy/exe",
+                        Allowed = true
+                    },
+                };
 
-            XAssert.IsTrue(result.Killed, "Expected process to have been killed");
-            XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
-            XAssert.IsNotNull(result.SurvivingChildProcesses, "Expected surviving child processes");
-            XAssert.IsTrue(result.SurvivingChildProcesses.Any(p => p.Path == childProcessPath),
-                $"Expected surviving child processes to contain {childProcessPath}; " +
-                $"instead it contains: {string.Join(", ", result.SurvivingChildProcesses.Select(p => p.Path))}");
+                ContinouslyPostAccessReports(process, taskCancelationSource.Token, instructions);
+                var result = await process.GetResultAsync();
+                taskCancelationSource.Cancel();
+
+                XAssert.IsTrue(result.Killed, "Expected process to have been killed");
+                XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
+                XAssert.IsNotNull(result.SurvivingChildProcesses, "Expected surviving child processes");
+                XAssert.IsTrue(result.SurvivingChildProcesses.Any(p => p.Path == childProcessPath),
+                    $"Expected surviving child processes to contain {childProcessPath}; " +
+                    $"instead it contains: {string.Join(", ", result.SurvivingChildProcesses.Select(p => p.Path))}");
+            }
         }
 
         private SandboxedProcessInfo CreateProcessInfoWithSandboxConnection(Operation op)

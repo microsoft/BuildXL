@@ -52,6 +52,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
         }
 
+        /// <nodoc />
+        public EvictResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
         /// <summary>
         ///     Gets number of bytes evicted.
         /// </summary>

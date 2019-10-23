@@ -98,6 +98,13 @@ public:
                                      kauth_cred_t file_cred,
                                      struct vnode *vp,
                                      struct label *label);
+
+    static int mpo_vnode_check_clone(kauth_cred_t cred,
+                                     struct vnode *dvp,
+                                     struct label *dlabel,
+                                     struct vnode *vp,
+                                     struct label *label,
+                                     struct componentname *cnp);
 };
 
 #endif /* Listeners_hpp */

@@ -365,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
-                                $"trusted={_settings.UseTrustedHash} " +
+                                $"trusted={(result.Size ?? hashInfo.Size) >= _settings.TrustedHashFileSizeBoundary)} " +
                                 (result.Succeeded ? $"attempt={attemptCount} replica={replicaIndex} " : string.Empty) +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
@@ -545,7 +545,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             try
             {
                 // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
-                if (_settings.UseTrustedHash && hashInfo.Size >= _settings.TrustedHashFileSizeBoundary)
+                if (hashInfo.Size >= _settings.TrustedHashFileSizeBoundary)
                 {
                     // If we know that the file is large, then hash concurrently from the start
                     bool hashEntireFileConcurrently = _settings.ParallelHashingFileSizeBoundary >= 0 && hashInfo.Size > _settings.ParallelHashingFileSizeBoundary;

@@ -530,9 +530,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
-        [DataMember]
-        public bool UseTrustedHash { get; set; } = true;
-
         // Files smaller than this will use the untrusted hash
         [DataMember]
         public int TrustedHashFileSizeBoundary = 100000;

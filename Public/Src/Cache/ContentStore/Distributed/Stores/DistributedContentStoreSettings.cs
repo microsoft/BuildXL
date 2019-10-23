@@ -100,12 +100,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
         /// <summary>
-        /// Whether the underlying content store should be told to trust a hash when putting content.
-        /// </summary>
-        public bool UseTrustedHash { get; set; } = false;
-
-
-        /// <summary>
         /// Files smaller than this should use the untrusted hash.
         /// </summary>
         public long TrustedHashFileSizeBoundary { get; set; } = -1;

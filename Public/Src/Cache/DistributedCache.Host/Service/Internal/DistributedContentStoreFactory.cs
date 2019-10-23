@@ -216,7 +216,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.RedisBatchPageSize,
                     new DistributedContentStoreSettings()
                     {
-                        UseTrustedHash = _distributedSettings.UseTrustedHash,
                         CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
                         TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
                         ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,

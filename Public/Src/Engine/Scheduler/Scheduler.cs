@@ -303,9 +303,9 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
-        private Dictionary<string, int> PipProperties = new Dictionary<string, int>();
-        private HashSet<string> PipsSucceedingAfterUserRetry = new HashSet<string>();
-        private HashSet<string> PipsFailingAfterLastUserRetry = new HashSet<string>();
+        private Dictionary<string, int> m_aggregatedPipProperties = new Dictionary<string, int>();
+        private HashSet<string> m_pipsSucceedingAfterUserRetry = new HashSet<string>();
+        private HashSet<string> m_pipsFailingAfterLastUserRetry = new HashSet<string>();
 
         /// <summary>
         /// Enables distribution for the master node
@@ -1656,9 +1656,15 @@ namespace BuildXL.Scheduler
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
 
-            // TODO(kenbreid) if userretries > 0, Log ProcessRetries event
+            if (PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessUserRetries) > 0)
+            {
+                // TODO(kenbreid) Log ProcessRetries event
+            }
 
-            // TODO(kenbreid) if PipProperties != null and Count > 0, Log ProcessPattern event
+            if (m_aggregatedPipProperties.Count > 0)
+            {
+                // TODO(kenbreid) Log ProcessPattern event
+            }
 
             m_apiServer?.LogStats(loggingContext);
             m_dropPipTracker?.LogStats(loggingContext);
@@ -3621,7 +3627,13 @@ namespace BuildXL.Scheduler
 
                         if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
                         {
-                            //TODO(kenbreid) create and/or update global pip Properties counters
+                            foreach (var kvp in executionResult.PipProperties) {
+                                 if (m_aggregatedPipProperties.TryGetValue(kvp.Key, out var value)) {
+                                     m_aggregatedPipProperties[kvp.Key] = value + kvp.Value;
+                                 } else {
+                                     m_aggregatedPipProperties.Add(kvp.Key, kvp.Value);
+                                 }
+                            }
                         }
 
                         if (executionResult.HasUserRetries)
@@ -3629,17 +3641,17 @@ namespace BuildXL.Scheduler
                             if (executionResult.Result == PipResultStatus.Succeeded)
                             {
                                 PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesSucceededPipsCount);
-                                if (PipsSucceedingAfterUserRetry.Count < MaxListOfPipIdsForTelemetry)
+                                if (m_pipsSucceedingAfterUserRetry.Count < MaxListOfPipIdsForTelemetry)
                                 {
-                                    PipsSucceedingAfterUserRetry.Add(processRunnable.PipId.Value.ToString());
+                                    m_pipsSucceedingAfterUserRetry.Add(processRunnable.PipId.Value.ToString());
                                 }
                             }
                             else if (executionResult.Result == PipResultStatus.Failed)
                             {
                                 PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesFailedPipsCount);
-                                if (PipsFailingAfterLastUserRetry.Count < MaxListOfPipIdsForTelemetry)
+                                if (m_pipsFailingAfterLastUserRetry.Count < MaxListOfPipIdsForTelemetry)
                                 {
-                                    PipsFailingAfterLastUserRetry.Add(processRunnable.PipId.Value.ToString());
+                                    m_pipsFailingAfterLastUserRetry.Add(processRunnable.PipId.Value.ToString());
                                 }
                             }
                         }

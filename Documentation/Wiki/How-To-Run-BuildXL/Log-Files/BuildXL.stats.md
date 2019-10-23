@@ -1,17 +1,17 @@
-The `BuildXL.stats` file contains (string, ulong) pairs for various stats that happen throughout the build. It is a simple format that is machine parsable. The data contained within the log may change but the schema of the file is locked.
+The `BuildXL.stats` file contains (string, ulong) pairs for various stats that happen throughout the build. It is a simple format that is machine parsable. The data contained within the log may change, but the schema of the file is locked.
 
 ## Units and Conventions
 Convention | Description
 --- | ---
-*Ms | Suffix noting that the stat is how long something took in milliseconds
-TimeTo* | Prefix indicating the wall clock time from the beginning of the build starting until some event happens.
-*Count | A count of how many times something happened within the build session.
+*Ms* | Suffix noting that the stat is how long something took in milliseconds
+*TimeTo* | Prefix indicating the wall clock time from the beginning of the build starting until some event happens.
+*Count* | A count of how many times something happened within the build session.
 
 ## Phase stats
-Some stats are logged in a standard way at the end of each engine phase. They are prefixed with the phase name, but the remaining items are consistent
+Some stats are logged in a standard way at the end of each engine phase. They are prefixed with the phase name, but the remaining items are consistent.
 
 Statistic Name | Description
---- | --- | ---
+--- | ---
 DurationMs | Duration the phase lasted
 ProcessAverageThreadCount | Average total thread count of the bxl.exe process during that phase
 ProcessMaximumPrivateMB| Maximum private MB of memory held by the bxl.exe process during the phase

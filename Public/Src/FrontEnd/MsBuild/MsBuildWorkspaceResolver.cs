@@ -56,6 +56,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private IDictionary<string, string> m_userDefinedEnvironment;
 
+        private bool m_processEnvironmentUsed;
+
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
         /// </summary>
@@ -171,7 +173,7 @@ namespace BuildXL.FrontEnd.MsBuild
             m_configuration = configuration;
 
             m_resolverSettings = resolverSettings as IMsBuildResolverSettings;
-            m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables);
+            m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables, out m_processEnvironmentUsed);
 
             Contract.Assert(m_resolverSettings != null);
 
@@ -620,13 +622,17 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private void TrackFilesAndEnvironment(ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
-            // Register all build parameters passed to the graph construction process
-            // Observe passthrough variables are explicitly skipped: we don't want the engine to track them
+            // Register all build parameters passed to the graph construction process if they were retrieved from the process environment
+            // Otherwise, if build parameters were defined by the main config file, then there is nothing to register: if the definition
+            // in the config file actually accessed the environment, that was already registered during config evaluation.
             // TODO: we actually need the build parameters *used* by the graph construction process, but for now this is a compromise to keep
             // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
-            foreach (string key in m_userDefinedEnvironment.Keys)
+            if (m_processEnvironmentUsed)
             {
-                m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
+                foreach (string key in m_userDefinedEnvironment.Keys)
+                {
+                    m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
+                }
             }
 
             FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, MsBuildFrontEnd.Name, fileAccesses, frontEndFolder);

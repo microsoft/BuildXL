@@ -31,6 +31,12 @@ namespace BuildXL.Cache.ContentStore.Tracing
         {
         }
 
+        /// <nodoc />
+        public CalibrateResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
         /// <summary>
         ///     Gets size.
         /// </summary>

@@ -1,40 +1,5 @@
-dominoinvocation
-| where EventInfo_Time > ago(60d)
-| extend OfficeBuildType = case(
-            Environment contains "EnlistmentBuild", "enlist",
-            Environment contains "MetaBuild", "meta",
-            Environment contains "ProductBuild", "product", 
-            ""),
-    Codebase = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
-    EnvironmentShort = extract("([^;]*)", 1 , Environment),
-    CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
-    Role = extract("(distributedBuildRole:)([^ ]*)", 2 , CommandLine),
-    Infra = case(
-        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
-        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
-        Environment contains "Self" and UserName != "tsebuild", "Dev",
-        "Lab")
-    | extend Customer = 
-        case(
-            EnvironmentShort contains "Office", "Office",
-            EnvironmentShort contains "OSGTools", "OsgTools",
-            EnvironmentShort contains "OSG", "WDG",
-            EnvironmentShort contains "Self", "TSE",
-            "Unknown")
-    | project SessionId, OfficeBuildType, Codebase, Customer, CBQueue, Role, Infra, SessionIdentifier , RelatedSessionIdentifier , User, UserName , EventInfo_Time , BuildInfo_IsDeveloperBuild
-| extend UniqueSession = case(
-    isempty(RelatedSessionIdentifier), SessionId,
-    RelatedSessionIdentifier)
-| where BuildInfo_IsDeveloperBuild == "False"
-// For CB, only look at non-probation queue
-| join kind = leftouter (
-    database("CloudBuildProd").BuildInfo
-| where InProbation == 0
-) on $left.UniqueSession == $right.BuildId
-| where Infra != "CB" or isempty(BuildQueue) == false
-| extend U = strcat(User, UserName), Month = startofmonth(EventInfo_Time)   
-| summarize UniqueSessions = dcount(UniqueSession), UniqueUsers = dcount(U) by Month, Customer, Infra
+AnnotatedSessions(ago(60d), ago(0d))
+| where MSRReportable == 1
+| extend Month = startofmonth(TimeBucket)
+| summarize UniqueSessions = dcount(UniqueSession), UniqueUsers = dcount(UserName) by Month, Customer, Infra
 | order by Month asc nulls last, Customer, Infra
-
- 
- 

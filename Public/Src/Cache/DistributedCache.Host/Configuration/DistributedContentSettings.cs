@@ -425,6 +425,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ContentLocationDatabaseFlushDegreeOfParallelism { get; set; }
 
         [DataMember]
+        public int? ContentLocationDatabaseFlushTransactionSize { get; set; }
+
+        [DataMember]
         public bool? ContentLocationDatabaseFlushSingleTransaction { get; set; }
 
         [DataMember]
@@ -517,6 +520,9 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? LocationEntryExpiryMinutes { get; set; }
+
+        [DataMember]
+        public int? RestoreCheckpointAgeThresholdMinutes { get; set; }
 
         [DataMember]
         public int? MachineExpiryMinutes { get; set; }

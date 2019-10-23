@@ -3,6 +3,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -101,6 +102,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
         public override string ToString()
         {
             return $"{HashType.Serialize()}{ContentHash.SerializedDelimiter.ToString()}{Value.ToHex(1, HashLength)}";
+        }
+
+        /// <nodoc />
+        public void ToString(StringBuilder sb)
+        {
+            sb.Append(HashType.Serialize())
+                .Append(ContentHash.SerializedDelimiter.ToString());
+            Value.ToHex(sb, 1, HashLength);
         }
 
         /// <inheritdoc />

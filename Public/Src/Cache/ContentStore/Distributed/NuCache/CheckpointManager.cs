@@ -42,6 +42,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly AbsolutePath _checkpointStagingDirectory;
         private readonly AbsolutePath _incrementalCheckpointDirectory;
         private readonly AbsolutePath _incrementalCheckpointInfoFile;
+        private readonly AbsolutePath _lastCheckpointFile;
 
         private CounterCollection<ContentLocationStoreCounters> Counters { get; }
 
@@ -67,6 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _fileSystem = new PassThroughFileSystem();
             _checkpointStagingDirectory = configuration.WorkingDirectory / "staging";
             _incrementalCheckpointDirectory = configuration.WorkingDirectory / "incremental";
+            _lastCheckpointFile = configuration.WorkingDirectory / "lastCheckpoint.txt";
             _fileSystem.CreateDirectory(_incrementalCheckpointDirectory);
 
             _incrementalCheckpointInfoFile = _incrementalCheckpointDirectory / "checkpointInfo.txt";
@@ -300,9 +302,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restores the checkpoint for a given checkpoint id.
         /// </summary>
-        public Task<BoolResult> RestoreCheckpointAsync(OperationContext context, string checkpointId)
+        public Task<BoolResult> RestoreCheckpointAsync(OperationContext context, CheckpointState checkpointState)
         {
             context = context.CreateNested();
+            var checkpointId = checkpointState.CheckpointId;
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
@@ -344,7 +347,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             }
 
                             // Restoring the checkpoint
-                            return _database.RestoreCheckpoint(context, extractedCheckpointDirectory);
+                            var result = _database.RestoreCheckpoint(context, extractedCheckpointDirectory);
+
+                            if (result)
+                            {
+                                // Save latest checkpoint info to file in case we get restarded and want to know about the previous checkpoint.
+                                WriteLatestCheckpointToFile(context, checkpointState);
+                            }
+
+                            return result;
                         }
                     }
                     finally
@@ -354,6 +365,36 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 },
                 extraStartMessage: $"CheckpointId=[{checkpointId}]",
                 extraEndMessage: _ => $"CheckpointId=[{checkpointId}]");
+        }
+
+        private void WriteLatestCheckpointToFile(OperationContext context, CheckpointState checkpointState)
+        {
+            try
+            {
+                _fileSystem.WriteAllText(_lastCheckpointFile, $"{checkpointState.CheckpointId},{checkpointState.CheckpointTime}");
+            }
+            catch (Exception e)
+            {
+                _tracer.Warning(context, $"Failed to write latest checkpoint state to disk: {e}");
+            }
+        }
+
+        public (string checkpointId, DateTime checkpointTime)? GetLatestCheckpointInfo(OperationContext context)
+        {
+            try
+            {
+                var checkpointText = _fileSystem.ReadAllText(_lastCheckpointFile);
+                var segments = checkpointText.Split(',');
+                var id = segments[0];
+                var date = DateTime.Parse(segments[1]);
+
+                return (id, date);
+            }
+            catch (Exception e)
+            {
+                _tracer.Debug(context, $"Failed to read latest checkpoint state from disk: {e}");
+                return null;
+            }
         }
 
         private static void RestoreFullCheckpointAsync(AbsolutePath checkpointFile, AbsolutePath extractedCheckpointDirectory)

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Hashing
 {
@@ -24,14 +25,14 @@ namespace BuildXL.Cache.ContentStore.Hashing
                 {"DEDUPNODEORCHUNK", HashType.DedupNodeOrChunk},
             };
 
+        private static readonly Dictionary<HashType, string> ValueToName = NameToValue.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
         /// <summary>
         ///     Lookup a hash type by case-insensitive name string.
         /// </summary>
         public static HashType FindHashTypeByName(this string name)
         {
-            HashType hashType;
-
-            if (!Enum.TryParse(name, true, out hashType))
+            if (!Enum.TryParse(name, true, out HashType hashType))
             {
                 throw new ArgumentException($"HashType by name={name} is not recognized.");
             }
@@ -44,6 +45,11 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// </summary>
         public static string Serialize(this HashType hashType)
         {
+            if (ValueToName.TryGetValue(hashType, out var result))
+            {
+                return result;
+            }
+
             return hashType.ToString().ToUpperInvariant();
         }
 

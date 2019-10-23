@@ -113,6 +113,60 @@ export const testSealedPartialDir = readFileFromDirectory(
     "src-file1.txt");
 
 // =============================================================================
+// Detecting obscure writes into a shared opaque directory
+// =============================================================================
+
+@@public
+export const testSourceCshWithRedirect = Bash.isMacOS && (() => {
+    const sod = Context.getNewOutputDirectory("sod-csh");
+
+    const sodOutput = p`${sod}/csh-out.txt`;
+
+    // ${sod}/cshToSource.csh :
+    //   ls > ${sod}/csh-out.txt
+    // (NOTE: using 'echo' instead of 'ls' would not result in MAC_VNODE_WRITE against the 'csh-out.txt' file)
+    const cshToSource = Transformer.writeData(
+        p`${sod}/cshToSource.csh`,
+        {
+            contents: [ "/bin/ls", ">", sodOutput ],
+            separator: " "
+        });
+
+    // ${sod}/execute.sh :
+    //   source ${sod}/cshToSource.csh
+    const scriptToExecute = Transformer.writeData(
+        p`${sod}\execute.sh`,
+        {
+            contents: [ "source", cshToSource.path ],
+            separator: " "
+        });
+
+    // execute:
+    //   /bin/csh ${sod}/execute.sh
+    Transformer.execute({
+        tool: {
+            exe: f`/bin/csh`,
+            dependsOnCurrentHostOSDirectories: true,
+            prepareTempDirectory: true
+        },
+        arguments: [
+            Cmd.argument(Artifact.none(scriptToExecute))
+        ],
+        workingDirectory: sod,
+        dependencies: [
+            cshToSource,
+            scriptToExecute
+        ],
+        outputs: [
+            { kind: "shared", directory: sod }
+        ],
+        implicitOutputs: [
+            sodOutput // this ensures the build fails if no write file accesses were received for this file
+        ]
+    });
+})();
+
+// =============================================================================
 // Helper functions
 // =============================================================================
 

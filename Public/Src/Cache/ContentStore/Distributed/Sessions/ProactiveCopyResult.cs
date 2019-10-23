@@ -25,6 +25,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
         }
 
+        /// <nodoc />
+        public ProactiveCopyResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
         private static string GetErrorMessage(BoolResult ringCopyResult, BoolResult outsideRingCopyResult)
         {
             if (!ringCopyResult.Succeeded || !outsideRingCopyResult.Succeeded)

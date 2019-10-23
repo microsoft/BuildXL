@@ -2,10 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
@@ -137,8 +139,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 PutResult putResult = null;
                 var badContentLocations = new HashSet<MachineLocation>();
                 var missingContentLocations = new HashSet<MachineLocation>();
+                var lastFailureTimes = new List<DateTime>();
                 int attemptCount = 0;
+                TimeSpan waitDelay = TimeSpan.Zero;
 
+                // _retryIntervals controls how many cycles we go through of copying from a list of locations
+                // It also has the increasing wait times between cycles
                 while (attemptCount < _retryIntervals.Count && (putResult == null || !putResult))
                 {
                     bool retry;
@@ -149,7 +155,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         hashInfo,
                         badContentLocations,
                         missingContentLocations,
+                        lastFailureTimes,
                         attemptCount,
+                        waitDelay,
                         handleCopyAsync);
 
                     if (putResult || operationContext.Token.IsCancellationRequested)
@@ -175,13 +183,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     {
                         long waitTicks = _retryIntervals[attemptCount].Ticks;
 
+                        // Every location uses the same waitDelay per cycle
                         // Randomize the wait delay to `[0.5 * delay, 1.5 * delay)`
-                        TimeSpan waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
+                        waitDelay = TimeSpan.FromTicks((long)((waitTicks / 2) + (waitTicks * ThreadSafeRandom.Generator.NextDouble())));
 
                         // Log with the original attempt count
                         Tracer.Warning(operationContext, $"{AttemptTracePrefix(attemptCount - 1)} All replicas {hashInfo.Locations.Count} failed. Retrying for hash {hashInfo.ContentHash.ToShortString()} in {waitDelay.TotalMilliseconds}ms...");
-
-                        await Task.Delay(waitDelay, cts);
                     }
                     else
                     {
@@ -269,7 +276,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             ContentHashWithSizeAndLocations hashInfo,
             HashSet<MachineLocation> badContentLocations,
             HashSet<MachineLocation> missingContentLocations,
+            List<DateTime> lastFailureTimes,
             int attemptCount,
+            TimeSpan waitDelay,
             Func<(CopyFileResult copyResult, AbsolutePath tempLocation, int attemptCount), Task<PutResult>> handleCopyAsync)
         {
             var cts = context.Token;
@@ -286,7 +295,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 // Currently everytime we increment attemptCount's value, we go through every location in hashInfo and try to copy.
                 // We add one because replicaIndex is indexed from zero.
                 // If we reach over maximum retries, return an put result stating so, and no longer retry
-                if ((attemptCount * hashInfo.Locations.Count + replicaIndex + 1) > _maxRetryCount)
+                var totalRetryCount = attemptCount * hashInfo.Locations.Count + replicaIndex + 1;
+                if (totalRetryCount > _maxRetryCount)
                 {
                     Tracer.Debug(
                             context,
@@ -298,6 +308,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 if (missingContentLocations.Contains(location))
                 {
                     continue;
+                }
+
+                // If there is a wait time, determine how much longer we need to wait
+                if (!waitDelay.Equals(TimeSpan.Zero))
+                {
+                    TimeSpan waitedTime = DateTime.Now - lastFailureTimes[replicaIndex];
+                    if (waitedTime < waitDelay)
+                    {
+                        await Task.Delay(waitDelay - waitedTime, cts);
+                    }
                 }
 
                 var sourcePath = _pathTransformer.GeneratePath(hashInfo.ContentHash, location.Data);
@@ -489,6 +509,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 }
                 finally
                 {
+                    // If the replicaIndex hasn't been tried before it won't have a value in lastFailureTimes so add it.
+                    // Otherwise replace the old failure time with the current time.
+                    if (lastFailureTimes.Count <= replicaIndex)
+                    {
+                        lastFailureTimes.Add(DateTime.Now);
+                    }
+                    else
+                    {
+                        lastFailureTimes[replicaIndex] = DateTime.Now;
+                    }
+
                     if (deleteTempFile)
                     {
                         _fileSystem.DeleteFile(tempLocation);

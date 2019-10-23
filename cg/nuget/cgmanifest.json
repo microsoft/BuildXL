@@ -2058,7 +2058,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
-          "Version": "17.150.20190501.2-release"
+          "Version": "16.159.0-internal201910211"
         }
       }
     },
@@ -2067,7 +2067,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
-          "Version": "17.150.20190501.2-release"
+          "Version": "16.159.0-internal201910211"
         }
       }
     },

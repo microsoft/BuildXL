@@ -70,7 +70,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss();
 
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            var expectedAffectedInput = aOutput.Path.ToString(Context.PathTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
@@ -138,8 +138,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             string[] actualAffectedSortedInputs = File.ReadAllLines(changeAffectedWrittenFile.ToString(Context.PathTable)).OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
             string[] expectedAffectedInputs = 
             { 
-                aOutputFileInOutputSubDir.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable),
-                aOutputFileInOutputeDir.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable) 
+                aOutputFileInOutputSubDir.Path.ToString(Context.PathTable),
+                aOutputFileInOutputeDir.Path.ToString(Context.PathTable)
             };
 
             string[] expectedAffectedSortedInputs = expectedAffectedInputs.OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
@@ -204,7 +204,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (pipBInputAccessType == InputAccessType.DynamicFileAccess)
             {
                 operations.Add(Operation.ReadFile(aOutputFileInOutputeDir, doNotInfer: true));
-                expectedAffectedInput = bOutFileArtifact.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+                expectedAffectedInput = bOutFileArtifact.Path.ToString(Context.PathTable);
             }
             operations.Add(Operation.WriteFile(bOutFileArtifact, doNotInfer: true));
             var pipBuilderB = CreatePipBuilder(operations);
@@ -295,7 +295,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 else
                 {
                     operations.Add(Operation.ReadFile(copiedFile, doNotInfer: true));
-                    expectedAffectedInput = bOutFileArtifact.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+                    expectedAffectedInput = bOutFileArtifact.Path.ToString(Context.PathTable);
                 }
             }
             operations.Add(Operation.WriteFile(bOutFileArtifact, doNotInfer: true));
@@ -352,7 +352,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
 
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            XAssert.AreEqual(Path.GetFileName(ArtifactToString(fileInsideSourceDirectory)), actualAffectedInput);
+            XAssert.AreEqual(ArtifactToString(fileInsideSourceDirectory), actualAffectedInput);
         }
     }
 }

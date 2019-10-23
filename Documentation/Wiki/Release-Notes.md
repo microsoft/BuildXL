@@ -11,6 +11,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
+# 0.1.0-20191019.0.2 (Release [44428](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=44428)). Released 10/23/2019
+-	Journal for shared opaque outputs.
+-	Add preserveoutput trust level to process serializer and pip dump.
+-	PipGraphFragmentGenerator: tool for generating pip graph fragment from specs
+-	Fix access control check with scrubbing in NetCore builds
+-	Fix the rendering of pip arguments for cache purposes
+-	[macOS] Allow VM max memory pressure level to be configurable
+
 # 0.1.0-20191011.9.1 (Release [43540](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=43540)). Released 10/16/2019
 - Support for partial preserve outputs
 - Symbol daemon runner is configured for CloudBuild environment

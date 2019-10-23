@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
         /// </summary>
-        public bool UseEmptyFileHashShortcut { get; set; } = true;
+        public const bool UseEmptyFileHashShortcut = true;
 
         /// <summary>
         /// Whether the shortcuts for redundant put files are used.

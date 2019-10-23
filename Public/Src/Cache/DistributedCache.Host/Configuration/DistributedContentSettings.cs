@@ -546,8 +546,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
-        [DataMember]
-        public bool EmptyFileHashShortcutEnabled { get; set; } = true;
 
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;

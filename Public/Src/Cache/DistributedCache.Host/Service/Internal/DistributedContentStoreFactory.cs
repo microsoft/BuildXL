@@ -222,7 +222,6 @@ namespace BuildXL.Cache.Host.Service.Internal
                         ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
                         MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
                         PinConfiguration = pinConfiguration,
-                        EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         MaxRetryCount = _distributedSettings.MaxRetryCount,
                         TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
@@ -250,7 +249,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             return new ContentStoreSettings()
                    {
-                       UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
                        CheckFiles = settings.CheckLocalFiles,
                        UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
                        SelfCheckSettings = CreateSelfCheckSettings(settings),

@@ -104,10 +104,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public bool UseTrustedHash { get; set; } = false;
 
-        /// <summary>
-        /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
-        /// </summary>
-        public bool EmptyFileHashShortcutEnabled { get; set; } = false;
 
         /// <summary>
         /// Files smaller than this should use the untrusted hash.

@@ -1657,6 +1657,9 @@ namespace ContentStoreTest.Distributed.Sessions
         [Fact]
         public async Task DualRedundancyGlobalRedisTest()
         {
+            // Disable cluster state storage in DB to ensure it doesn't interfere with testing
+            // Redis cluster state resiliency
+            _storeClusterStateInDatabase = false;
             _enableSecondaryRedis = true;
             ConfigureWithOneMaster();
             int machineCount = 3;
@@ -1672,6 +1675,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var workerSession = sessions[context.GetFirstWorkerIndex()];
                     var master = context.GetMaster();
                     var worker = context.GetFirstWorker();
+                    var masterGlobalStore = ((RedisGlobalStore)master.LocalLocationStore.GlobalStore);
 
                     // Heartbeat the master to ensure cluster state is mirrored to secondary
                     TestClock.UtcNow += _configurations[0].ClusterStateMirrorInterval + TimeSpan.FromSeconds(1);
@@ -1680,7 +1684,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var keys = _primaryGlobalStoreDatabase.Keys.ToList();
 
                     // Delete cluster state from primary
-                    (await _primaryGlobalStoreDatabase.KeyDeleteAsync(((RedisGlobalStore)master.LocalLocationStore.GlobalStore).FullyQualifiedClusterStateKey)).Should().BeTrue();
+                    (await _primaryGlobalStoreDatabase.KeyDeleteAsync(masterGlobalStore.FullyQualifiedClusterStateKey)).Should().BeTrue();
 
                     var masterClusterState = master.LocalLocationStore.ClusterState;
 
@@ -1696,6 +1700,26 @@ namespace ContentStoreTest.Distributed.Sessions
                         masterClusterState.TryResolve(machineId, out var masterResolvedMachineLocation).Should().BeTrue();
                         machineLocation.Should().BeEquivalentTo(masterResolvedMachineLocation);
                     }
+
+                    // Registering new machine should assign a new id which is greater than current ids (i.e. register machine operation
+                    // should operate against secondary key which should have full set of data)
+                    var newMachineId1 = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\1"));
+                    newMachineId1.Should().Be(clusterState.MaxMachineId + 1);
+
+                    // Heartbeat the master to ensure cluster state is restored to primary
+                    TestClock.UtcNow += _configurations[0].ClusterStateMirrorInterval + TimeSpan.FromSeconds(1);
+                    await master.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
+
+                    // Delete cluster state from secondary (now primary should be only remaining copy)
+                    (await _secondaryGlobalStoreDatabase.KeyDeleteAsync(masterGlobalStore.FullyQualifiedClusterStateKey)).Should().BeTrue();
+
+                    // Try to register machine again should give same machine id
+                    var newMachineId1AfterDelete = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\1"));
+                    newMachineId1AfterDelete.Should().Be(newMachineId1);
+
+                    // Registering another machine should assign an id 1 more than the last machine id despite the cluster state deletion
+                    var newMachineId2 = await masterGlobalStore.RegisterMachineAsync(context, new MachineLocation(@"\\TestLocations\2"));
+                    newMachineId2.Should().Be(newMachineId1 + 1);
 
                     // Ensure resiliency to removal from both primary and secondary
                     await verifyContentResiliency(_primaryGlobalStoreDatabase, _secondaryGlobalStoreDatabase);
@@ -2202,6 +2226,7 @@ namespace ContentStoreTest.Distributed.Sessions
         protected ContentLocationMode _writeMode = ContentLocationMode.LocalLocationStore;
         protected bool _enableSecondaryRedis = false;
         protected AbsolutePath _testDatabasePath = null;
+        protected bool _storeClusterStateInDatabase = true;
 
         private RedisContentLocationStoreConfiguration CreateRedisContentLocationStoreConfiguration(
             AbsolutePath storeLocationRoot,
@@ -2224,7 +2249,7 @@ namespace ContentStoreTest.Distributed.Sessions
                                // Don't GC
                                GarbageCollectionInterval = Timeout.InfiniteTimeSpan,
                                TestInitialCheckpointPath = _testDatabasePath,
-
+                               StoreClusterState = _storeClusterStateInDatabase
                            },
                 CentralStore = new LocalDiskCentralStoreConfiguration(storeLocationRoot, "chkpoints"),
                 SafeToLazilyUpdateMachineCountThreshold = SafeToLazilyUpdateMachineCountThreshold,

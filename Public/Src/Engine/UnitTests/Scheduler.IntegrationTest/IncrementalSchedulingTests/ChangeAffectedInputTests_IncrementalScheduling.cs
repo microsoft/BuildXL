@@ -15,6 +15,5 @@ namespace IntegrationTest.BuildXL.Scheduler
             Configuration.Schedule.IncrementalScheduling = true;
             Configuration.Schedule.SkipHashSourceFile = false;
         }
-
     }
 }

@@ -2672,7 +2672,7 @@ namespace BuildXL.Processes
                     m_pip.ChangeAffectedInputListWrittenFilePath,
                     () => string.Join(
                         Environment.NewLine,
-                        changeAffectedInputs.Select(i => i.ToString(m_pathTable)).Distinct().OrderBy(n => n)),
+                        changeAffectedInputs.Select(i => i.ToString(m_pathTable))),
                     Tracing.Logger.Log.PipProcessChangeAffectedInputsWrittenFileCreationFailed);
 
         private async Task<bool> WritePipAuxiliaryFileAsync(

@@ -196,17 +196,16 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             result = RunScheduler(schedulerState: result.SchedulerState).AssertNotScheduled(pipA.Process.PipId);
 
             AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState, count: 3);
-            
 
-            foreach (ReuseKind kind in Enum.GetValues(typeof(ReuseKind)))
+            foreach (ReuseFromEngineStateKind kind in Enum.GetValues(typeof(ReuseFromEngineStateKind)))
             {
-                if (kind == ReuseKind.Reusable)
+                if (kind == ReuseFromEngineStateKind.Reusable)
                 {
-                    AssertLogContains(false, "Attempt to reuse existing incremental scheduling state: " + kind);
+                    AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + kind);
                 }
                 else
                 {
-                    AssertLogNotContains(false, "Attempt to reuse existing incremental scheduling state: " + kind);
+                    AssertLogNotContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + kind);
                 }
             }
         }

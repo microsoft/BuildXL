@@ -17,7 +17,7 @@ using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Exceptions;
 using Microsoft.Build.Execution;
-using Microsoft.Build.Experimental.Graph;
+using Microsoft.Build.Graph;
 using Microsoft.Build.Prediction;
 using Newtonsoft.Json;
 using ProjectGraphWithPredictionsResult = BuildXL.FrontEnd.MsBuild.Serialization.ProjectGraphWithPredictionsResult<string>;

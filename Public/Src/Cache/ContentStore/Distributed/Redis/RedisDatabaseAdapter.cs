@@ -155,6 +155,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
+        HashDeleteAndRestore,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
         CompareExchange,
 
         /// <nodoc />

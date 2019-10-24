@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionStringResult" /> class.
         /// </summary>
-        private ConnectionStringResult(ResultBase other, string message)
+        public ConnectionStringResult(ResultBase other, string message)
             : base(other, message)
         {
         }

@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -37,7 +36,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.FormattableStringEx;
-using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 
 namespace BuildXL.Scheduler
 {
@@ -566,7 +564,7 @@ namespace BuildXL.Scheduler
             using (operationContext.StartOperation(PipExecutorCounter.IpcSendAndHandleDuration))
             {
                 // execute async
-                ipcResult = await IpcSendAndHandleErrors(client, operation);
+                ipcResult = await IpcSendAndHandleErrorsAsync(client, operation);
             }
 
             ExecutionResult executionResult = new ExecutionResult
@@ -682,7 +680,7 @@ namespace BuildXL.Scheduler
             return executionResult;
         }
 
-        private static async Task<IIpcResult> IpcSendAndHandleErrors(IClient client, IIpcOperation operation)
+        private static async Task<IIpcResult> IpcSendAndHandleErrorsAsync(IClient client, IIpcOperation operation)
         {
             try
             {
@@ -855,7 +853,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Analyze pip violations and store two-phase cache entry.
         /// </summary>
-        public static async Task<ExecutionResult> PostProcessExecution(
+        public static async Task<ExecutionResult> PostProcessExecutionAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -1633,7 +1631,7 @@ namespace BuildXL.Scheduler
                     // are supposed to be untracked (but the user forgot to specify it in the spec). Those paths will be tracked by
                     // file change tracker because the observed input processor may try to probe and track those paths.
                     observedInputValidationResult =
-                        await ValidateObservedFileAccesses(
+                        await ValidateObservedFileAccessesAsync(
                             operationContext,
                             environment,
                             state,
@@ -1778,7 +1776,7 @@ namespace BuildXL.Scheduler
                 if (!succeeded && observedInputValidationResult.Status == ObservedInputProcessingStatus.Success)
                 {
                     var pathSet = observedInputValidationResult.GetPathSet(state.UnsafeOptions);
-                    var pathSetHash = await environment.State.Cache.SerializePathSet(pathSet);
+                    var pathSetHash = await environment.State.Cache.SerializePathSetAsync(pathSet);
 
                     // This strong fingerprint is meaningless and not-cached, but compute it for the sake of
                     // execution analyzer logic that rely on having a successful strong fingerprint
@@ -2014,7 +2012,7 @@ namespace BuildXL.Scheduler
                             {
                                 using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDuration))
                                 {
-                                    maybePathSet = await TryLoadPathSetFromContentCache(
+                                    maybePathSet = await TryLoadPathSetFromContentCacheAsync(
                                         operationContext,
                                         environment,
                                         description,
@@ -2770,7 +2768,7 @@ namespace BuildXL.Scheduler
             return locality == PublishedEntryRefLocality.Local ? 1 : 2;
         }
 
-        private static async Task<ObservedPathSet?> TryLoadPathSetFromContentCache(
+        private static async Task<ObservedPathSet?> TryLoadPathSetFromContentCacheAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             string processDescription,
@@ -3579,7 +3577,7 @@ namespace BuildXL.Scheduler
         /// Validates that all observed file accesses of a pip's execution are allowable, based on the pip's declared dependencies and configuration.
         /// Note that **<paramref name="observedFileAccesses"/> may be sorted in place**.
         /// </summary>
-        private static async Task<ObservedInputProcessingResult> ValidateObservedFileAccesses(
+        private static async Task<ObservedInputProcessingResult> ValidateObservedFileAccessesAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -4260,7 +4258,7 @@ namespace BuildXL.Scheduler
                     // An assertion for the dynamic outputs
                     Contract.Assert(metadata.DynamicOutputs.Sum(a => a.Count) == numDynamicOutputs);
 
-                    var entryStore = await TryCreateTwoPhaseCacheEntryAndStoreMetadata(
+                    var entryStore = await TryCreateTwoPhaseCacheEntryAndStoreMetadataAsync(
                         operationContext,
                         environment,
                         state,
@@ -4493,7 +4491,7 @@ namespace BuildXL.Scheduler
         /// Some cache implementations may enforce that this content is stored in order to accept an entry.
         /// Returns 'null' if the supporting metadata cannot be stored.
         /// </summary>
-        private static async Task<TwoPhaseCachingInfo> TryCreateTwoPhaseCacheEntryAndStoreMetadata(
+        private static async Task<TwoPhaseCachingInfo> TryCreateTwoPhaseCacheEntryAndStoreMetadataAsync(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -4646,7 +4644,7 @@ namespace BuildXL.Scheduler
                     environment.ReportCacheDescriptorHit(result.Result.ConflictingEntry.OriginatingCache);
 
                     CacheEntry conflictingEntry = result.Result.ConflictingEntry;
-                    return await ConvergeFromCache(operationContext, pip, environment, state, cachingInfo, process, conflictingEntry);
+                    return await ConvergeFromCacheAsync(operationContext, pip, environment, state, cachingInfo, process, conflictingEntry);
                 }
 
                 Contract.Assert(result.Result.Status == CacheEntryPublishStatus.Published);
@@ -4680,7 +4678,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static async Task<StoreCacheEntryResult> ConvergeFromCache(
+        private static async Task<StoreCacheEntryResult> ConvergeFromCacheAsync(
             OperationContext operationContext,
             CacheablePip pip,
             IPipExecutionEnvironment environment,

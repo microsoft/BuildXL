@@ -2,6 +2,7 @@ import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
 import {DropDaemonRunner, DropRunner, DropCreateResult, FileInfo, DirectoryInfo, Result as DropOperationResult, DropOperationArguments} from "BuildXL.Tools.DropDaemon";
+import * as SymbolDaemon from "BuildXL.Tools.SymbolDaemon";
 
 namespace DeploymentHelpers {
 
@@ -48,6 +49,15 @@ namespace DeploymentHelpers {
                 deploymentOptions);
         }
 
+        if (Symbols.enabled) {
+            Symbols.indexAndPublishSymbols(
+                Symbols.runner,    
+                Symbols.createResult,
+                {},
+                args.definition,
+                deploymentOptions);
+        }
+
         return deployedToDisk;
     }
 
@@ -89,5 +99,40 @@ namespace DeploymentHelpers {
             const directoriesToAdd = flattenedResult.flattenedOpaques.forEach(kvp => <DirectoryInfo>{dropPath: kvp[0], directory: kvp[1].opaque});
             const directoryResults = runner.addDirectoriesToDrop(createResult, args, directoriesToAdd);
         };
+    }
+
+    namespace Symbols {
+        /** Whether this build should publish symbols or not */
+        export const enabled = Environment.hasVariable("BUILDXL_SYMBOL_ENABLED")
+            // The config file contains the details about a symbol endpoint; so if the file is missing, we cannot publish symbols
+            ? Environment.getBooleanValue("BUILDXL_SYMBOL_ENABLED") && Environment.getFileValue("BUILDXL_SYMBOL_CONFIG") !== undefined
+            : false;
+
+        /** The runner that preforms the publishing */
+        export const runner = enabled ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net472", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
+
+        /** The settings for this symbol publishing request */
+        const settings : SymbolDaemon.SymbolCreateArguments = {
+            debugEntryCreateBehavior :  enabled 
+                ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net472", targetRuntime: "win-x64"}).DebugEntryCreateBehavior.SkipIfExists
+                : undefined,
+            symbolServiceConfigFile: Environment.getFileValue("BUILDXL_SYMBOL_CONFIG")
+        };
+
+        /** The symbol create result */
+        export const createResult = enabled ? runner.createSymbol(settings) : undefined;
+
+        export function indexAndPublishSymbols(
+            runner : SymbolDaemon.SymbolRunner,
+            createResult : SymbolDaemon.SymbolCreateResult,
+            args : SymbolDaemon.OperationArguments,
+            deployment: Deployment.Definition, 
+            deploymentOptions?: Deployment.DeploymentOptions) : void
+        {
+            const flattenedResult = Deployment.flatten(deployment, undefined, deploymentOptions);
+
+            const filesToAdd = flattenedResult.flattenedFiles.forEach(kvp => kvp[1].file);
+            const result = runner.addFilesToSymbol(createResult, args, filesToAdd);            
+        }
     }
 }

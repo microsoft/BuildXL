@@ -321,6 +321,8 @@ namespace Tool.SymbolDaemon
                 for (int i = 0; i < hashCount; i++)
                 {
                     ContentHash.TryParse(reader.ReadLine(), out var hash);
+                    Contract.Assert(hash.HashType == HashType.Vso0);
+                    var blobIdentifier = new Microsoft.VisualStudio.Services.BlobStore.Common.BlobIdentifier(hash.ToHashByteArray());
                     int debugEntryCount = int.Parse(reader.ReadLine());
 
                     var symbols = new HashSet<DebugEntryData>(debugEntryCount, DebugEntryDataComparer.Instance);
@@ -328,7 +330,12 @@ namespace Tool.SymbolDaemon
 
                     for (int j = 0; j < debugEntryCount; j++)
                     {
-                        symbols.Add(DeserializeDebugEntryData(reader.ReadLine()));
+                        var entry = DeserializeDebugEntryData(reader.ReadLine());
+                        if (entry.BlobIdentifier == null)
+                        {
+                            entry.BlobIdentifier = blobIdentifier;
+                        }
+                        symbols.Add(entry);
                     }
                 }
             }
@@ -403,18 +410,38 @@ namespace Tool.SymbolDaemon
                    I($"Failed to deserialize symbol metadata file: {e.DemystifyToString()}"));
             }
 
-            var symbolFiles = Enumerable
-                .Range(0, files.Length)
-                .Select(i =>
+            List<SymbolFile> symbolFiles = new List<SymbolFile>(files.Length);
+            for (int i = 0; i < files.Length; i++)
+            {
+                try
                 {
                     var hash = FileContentInfo.Parse(hashes[i]).Hash;
-                    return new SymbolFile(
+                    if (!symbolMetadata.TryGetValue(hash, out var debugEntries))
+                    {
+                        daemon.Logger.Verbose("Symbol metadata file - {0}{1}{2}",
+                            symbolMetadataFile,
+                            Environment.NewLine,
+                            System.IO.File.ReadAllText(symbolMetadataFile));
+
+                        return new IpcResult(
+                            IpcResultStatus.GenericError,
+                            I($"Hash '{hash.ToString()}' (file: '{files[i]}') is not found in the metadata file '{symbolMetadataFile}'."));
+                    }
+
+                    symbolFiles.Add(new SymbolFile(
                         daemon.ApiClient,
                         files[i],
                         fileIds[i],
                         hash,
-                        symbolMetadata[hash]);
-                }).ToList();
+                        debugEntries));
+                }
+                catch (Exception e)
+                {
+                    return new IpcResult(
+                        IpcResultStatus.GenericError,
+                        e.DemystifyToString());
+                }
+            }
 
             var result = await daemon.AddSymbolFilesAsync(symbolFiles);
 

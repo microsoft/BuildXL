@@ -92,14 +92,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         public static void LogContentLocationOperations(
             OperationContext context,
             string tracerName,
-            IEnumerable<(ShortHash hash, EntryOperation op, OperationReason reason, int modificationCount)> operations)
+            IEnumerable<(ShortHash hash, EntryOperation op, OperationReason reason)> operations)
         {
             foreach (var group in operations.GroupBy(t => (t.op, t.reason)))
             {
                 foreach (var page in group.GetPages(ShortHashTracingDefaultBatchSize))
                 {
-                    var results = string.Join(", ", page.GroupBy(t => t.hash).Select(g => $"{g.Key.ToString()}={g.Sum(o => o.modificationCount)}"));
-                    context.TraceDebug($"{tracerName}: Handling operation {PrintOperation(group.Key)}({page.Count()}): [{results}]");
+                    using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
+                    var sb = stringBuilderPoolInstance.Instance;
+                    sb.Append(tracerName)
+                        .Append(": Handling operation ")
+                        .Append(PrintOperation(group.Key))
+                        .Append("(")
+                        .Append(page.Count())
+                        .Append(") [");
+
+                    sb.AppendSequence(page.Select(p => p.hash), (builder, hash) => hash.ToString(builder));
+
+                    sb.Append("]");
+                    context.TraceDebug(sb.ToString());
                 }
             }
         }
@@ -107,7 +118,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         /// <nodoc />
         public static void LogProcessEventsOverview(this OperationContext context, CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters, int duration)
         {
-            var sb = new StringBuilder();
+            using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
+            var sb = stringBuilderPoolInstance.Instance;
             sb.Append($"TotalMessagesSize={eventStoreCounters[ReceivedMessagesTotalSize].Value}, ")
                 .Append($"DeserializationDuration={(long)eventStoreCounters[Deserialization].Duration.TotalMilliseconds}ms, ")
                 .Append($"#Events={eventStoreCounters[DispatchEvents].Value}, ")
@@ -125,7 +137,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         /// <nodoc />
         public static void LogSendEventsOverview(this OperationContext context, CounterCollection<ContentLocationEventStoreCounters> eventStoreCounters, int duration)
         {
-            var sb = new StringBuilder();
+            using var stringBuilderPoolInstance = Pools.StringBuilderPool.GetInstance();
+            var sb = stringBuilderPoolInstance.Instance;
             sb.Append($"TotalMessagesSize={eventStoreCounters[SentMessagesTotalSize].Value}, ")
                 .Append($"SerializationDuration={(long)eventStoreCounters[Serialization].Duration.TotalMilliseconds}ms, ")
                 .Append($"#Events={eventStoreCounters[SentEventsCount].Value}, ")

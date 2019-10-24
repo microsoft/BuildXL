@@ -662,6 +662,74 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(ExtraFingerprintSalts.ArePipWarningsPromotedToErrors(config));
         }
 
+        [Fact]
+        public void TestVsoHashesInArgumentsRenderedProperly()
+        {
+            var executablePath = X("/x/pkgs/tool.exe");
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executablePath));
+
+            var dependencies = new HashSet<FileArtifact>() { executable };
+            var pb = GetDefaultProcessBuilder(pathTable, executable)
+                .WithDependencies(dependencies);
+
+            var inputFilePath = X("/x/pkgs/input.txt");
+            var inputFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, inputFilePath));
+
+            PipDataBuilder b = new PipDataBuilder(pathTable.StringTable);
+            b.AddVsoHash(inputFile);
+
+            pb.WithArguments(b.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+            var process = pb.Build();
+
+            MountPathExpander expander = new MountPathExpander(pathTable);
+
+            var inputFileHash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(1));
+            var anotherFileHash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(3));
+
+            PipFragmentRenderer.ContentHashLookup hashLookup = file =>
+                {
+                    if (file == inputFile)
+                    {
+                        return inputFileHash;
+                    }
+                    else
+                    {
+                        return anotherFileHash;
+                    }
+                };
+
+            var fingerprinter1 = new PipContentFingerprinter(
+                 m_context.PathTable,
+                 hashLookup,
+                 ExtraFingerprintSalts.Default(),
+                 pathExpander: expander)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            var contentFingerprint1 = fingerprinter1.ComputeWeakFingerprint(process, out string fingerprintText1);
+            fingerprintText1 = fingerprintText1.ToUpperInvariant();
+
+            // 'change' the input file => the rendering of an argument should result in a different value => should compute a different fingerprint 
+            inputFileHash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(2));
+
+            var fingerprinter2 = new PipContentFingerprinter(
+                 m_context.PathTable,
+                 hashLookup,
+                 ExtraFingerprintSalts.Default(),
+                 pathExpander: expander)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            var contentFingerprint2 = fingerprinter2.ComputeWeakFingerprint(process, out string fingerprintText2);
+            fingerprintText2 = fingerprintText2.ToUpperInvariant();
+
+            XAssert.AreNotEqual(fingerprintText1, fingerprintText2, $"fp1: '{fingerprintText1}'; fp2: '{fingerprintText2}'");
+            XAssert.AreNotEqual(contentFingerprint1, contentFingerprint2);
+        }
+
         private ProcessBuilder GetDefaultProcessBuilder(PathTable pathTable, FileArtifact executable)
         {
             return (new ProcessBuilder())

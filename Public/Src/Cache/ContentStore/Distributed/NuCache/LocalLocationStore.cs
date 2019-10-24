@@ -33,6 +33,7 @@ using static BuildXL.Cache.ContentStore.Utils.DateTimeUtilities;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
+using System.Runtime.CompilerServices;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -302,13 +303,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
                 // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.FromResult(await ProcessStateAsync(context, inline: true));
+                _postInitializationTask = Task.FromResult(await HeartbeatAsync(context, inline: true));
             }
             else
             {
                 // Perform the initial process state which starts the heartbeat timer and initializes role and checkpoint state
                 // The initial processing step should be done asynchronously, because otherwise the startup may take way too much time (like, minutes).
-                _postInitializationTask = Task.Run(() => ProcessStateAsync(context, inline: true));
+                _postInitializationTask = Task.Run(() => HeartbeatAsync(context, inline: true));
             }
 
             Database.DatabaseInvalidated = OnContentLocationDatabaseInvalidation;
@@ -366,24 +367,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return result;
         }
 
-        /// <nodoc />
-        internal async Task<BoolResult> HeartbeatAsync(OperationContext context)
-        {
-            using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
-            {
-                // This makes sure that the heartbeat is only run once for each call to this function. It is a
-                // non-blocking check.
-                if (!acquired)
-                {
-                    return BoolResult.Success;
-                }
-
-                return await context.PerformOperationAsync(
-                    Tracer,
-                    () => ProcessStateAsync(context, inline: false));
-            }
-        }
-
         /// <summary>
         /// Releases current master role (other workers now can pick it up) and changes the current role to a newly acquired one.
         /// </summary>
@@ -395,12 +378,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Restore checkpoint.
         /// </summary>
-        internal async Task<BoolResult> RestoreCheckpointAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> ProcessStateAsync(OperationContext context, CheckpointState checkpointState, bool inline, bool forceRestore = false)
         {
             return await RunOutOfBandAsync(
                 inline,
                 ref _pendingProcessCheckpointTask,
-                async () =>
+                context.CreateOperation(Tracer, async () =>
                 {
                     BoolResult result = BoolResult.Success;
 
@@ -426,7 +409,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldRestore || forceRestore)
                     {
-                        result = await RestoreCheckpointStateAsync(context, checkpointState);
+                        result = await RestoreCheckpointStateAsync(context, checkpointState, force: false);
                         if (!result)
                         {
                             return result;
@@ -480,10 +463,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     CurrentRole = newRole;
 
                     return result;
-                });
+                }));
         }
 
-        private async Task<BoolResult> ProcessStateAsync(OperationContext context, bool inline, bool forceRestore = false)
+        internal async Task<BoolResult> HeartbeatAsync(OperationContext context, bool inline = false, bool forceRestore = false)
         {
             var result = await context.PerformOperationAsync(Tracer, () => processStateCoreAsync());
 
@@ -504,15 +487,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 try
                 {
-                    var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
-
-                    if (!checkpointState)
+                    using (SemaphoreSlimToken.TryWait(_heartbeatGate, 0, out var acquired))
                     {
-                        // The error is already logged.
-                        return checkpointState;
-                    }
+                        // This makes sure that the heartbeat is only run once for each call to this function. It is a
+                        // non-blocking check.
+                        if (!acquired)
+                        {
+                            return BoolResult.Success;
+                        }
 
-                    return await RestoreCheckpointAsync(context, checkpointState.Value, inline, forceRestore);
+                        var checkpointState = await GlobalStore.GetCheckpointStateAsync(context);
+
+                        if (!checkpointState)
+                        {
+                            // The error is already logged.
+                            return checkpointState;
+                        }
+
+                        return await ProcessStateAsync(context, checkpointState.Value, inline, forceRestore);
+                    }
                 }
                 finally
                 {
@@ -562,11 +555,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return (_clock.UtcNow - lastTime) >= interval;
         }
 
-        private Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, Func<Task<BoolResult>> runAsync)
+        private Task<BoolResult> RunOutOfBandAsync(bool inline, ref Task<BoolResult> pendingTask, PerformAsyncOperationBuilder<BoolResult> operation, [CallerMemberName] string caller = null)
         {
             if (_configuration.InlinePostInitialization || inline)
             {
-                return runAsync();
+                operation.AppendStartMessage(extraStartMessage: "inlined=true");
+                return operation.RunAsync(caller);
             }
 
             if (pendingTask != null)
@@ -581,7 +575,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return BoolResult.SuccessTask;
             }
 
-            pendingTask = Task.Run(() => runAsync());
+            pendingTask = Task.Run(() => operation.RunAsync(caller));
             return BoolResult.SuccessTask;
         }
 
@@ -598,15 +592,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
         }
 
-        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
+        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState, bool force = false)
         {
             var token = context.Token;
+
+            if (!force)
+            {
+                var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+                var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
+                var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
+
+                if (latestCheckpointAge > _configuration.LocationEntryExpiry)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+                }
+
+                if (shouldRestoreInBackground)
+                {
+                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} will be restored in the background. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                    RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
+                    return BoolResult.Success;
+                }
+            }
+
             if (checkpointState.CheckpointAvailable)
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
                     Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState.CheckpointId}'.");
-                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState.CheckpointId);
+                    var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
                         return possibleCheckpointResult;
@@ -1195,10 +1209,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     while (!isFinished)
                     {
-                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency);
+                        var delayTask = Task.Delay(_configuration.ReconciliationCycleFrequency, context.Token);
 
-                        Counters[ContentLocationStoreCounters.ReconciliationCycles].Increment();
+                        await context.PerformOperationAsync(
+                            Tracer,
+                            operation: performReconciliationCycleAsync,
+                            caller: "PerformReconciliationCycleAsync",
+                            counter: Counters[ContentLocationStoreCounters.ReconciliationCycles]).ThrowIfFailure();
 
+                        if (!isFinished)
+                        {
+                            await delayTask;
+                        }
+                    }
+
+                    MarkReconciled();
+                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
+
+                    async Task<BoolResult> performReconciliationCycleAsync()
+                    {
                         // Pause events in main event store while sending reconciliation events via temporary event store
                         // to ensure reconciliation does cause some content to be lost due to apply reconciliation changes
                         // in the wrong order. For instance, if a machine has content [A] and [A] is removed during reconciliation.
@@ -1270,16 +1299,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                             // Corner case where they are equal and we have finished should be very unlikely.
                             isFinished = (addedContent.Count + removedContent.Count) < _configuration.ReconciliationMaxCycleSize;
-                        }
 
-                        if (!isFinished)
-                        {
-                            await delayTask;
+                            return BoolResult.Success;
                         }
                     }
-
-                    MarkReconciled();
-                    return new ReconciliationResult(addedCount: totalAddedContent, removedCount: totalRemovedContent, totalLocalContentCount: allLocalStoreContentCount);
                 },
                 Counters[ContentLocationStoreCounters.Reconcile]);
         }
@@ -1326,7 +1349,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Error(context, $"Content location database has been invalidated. Forcing a restore from the last checkpoint. Error: {failure.DescribeIncludingInnerFailures()}");
 
                 // We can safely ignore errors, because there is nothing more we can do here.
-                await HeartbeatAsync(context).IgnoreErrors();
+                await HeartbeatAsync(context, forceRestore: true).IgnoreFailure();
             }
         }
 
@@ -1374,7 +1397,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.ContentTouched(context, hash, accessTime);
                 }
@@ -1385,7 +1408,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 _clusterState.MarkMachineActive(sender);
 
-                foreach (var hashWithSize in hashes)
+                foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
                     _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling);
                 }
@@ -1395,7 +1418,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             public void LocationRemoved(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, bool reconciling)
             {
                 _clusterState.MarkMachineActive(sender);
-                foreach (var hash in hashes)
+                foreach (var hash in hashes.AsStructEnumerable())
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }

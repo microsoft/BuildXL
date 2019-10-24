@@ -2159,16 +2159,12 @@ namespace BuildXL.Scheduler
             }
 
 #if PLATFORM_OSX
-
             Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
             var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-            bool isMemoryPressureCritical = result && (pressureLevel > Memory.PressureLevel.Warning);
-
-            if (!resourceAvailable || isMemoryPressureCritical)
-#else
-            if (!resourceAvailable)
+            resourceAvailable &= !(result && (pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel));
 #endif
 
+            if (!resourceAvailable)
             {
                 if (LocalWorker.ResourcesAvailable)
                 {
@@ -4063,6 +4059,10 @@ namespace BuildXL.Scheduler
 
         private async Task<PipResult> ExecuteNonProcessPipAsync(RunnablePip runnablePip)
         {
+            Contract.Requires(runnablePip.Pip != null);
+            Contract.Requires(runnablePip.OperationContext.IsValid);
+            Contract.Requires(runnablePip.Environment != null);
+
             var pip = runnablePip.Pip;
             var operationContext = runnablePip.OperationContext;
             var environment = runnablePip.Environment;
@@ -4235,7 +4235,7 @@ namespace BuildXL.Scheduler
         public DirectoryTranslator DirectoryTranslator { get; }
 
         /// <summary>
-        /// Gets the execution information for the producer pip of the given file. 
+        /// Gets the execution information for the producer pip of the given file.
         /// </summary>
         public string GetProducerInfoForFailedMaterializeFile(in FileArtifact artifact)
         {
@@ -4255,8 +4255,8 @@ namespace BuildXL.Scheduler
                 PipExecutionCounters.IncrementCounter(PipExecutorCounter.NumFilesFailedToMaterializeDueToEarlyWorkerRelease);
             }
 
-            string whenWorkerReleased = isWorkerReleasedEarly ? 
-                $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" : 
+            string whenWorkerReleased = isWorkerReleasedEarly ?
+                $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" :
                 "N/A";
 
             return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";

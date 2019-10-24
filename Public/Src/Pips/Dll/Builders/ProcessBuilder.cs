@@ -670,7 +670,7 @@ namespace BuildXL.Pips.Builders
                 weight: Weight,
                 priority: Priority,
                 preserveOutputWhitelist: PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile,
+                changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel: PreserveOutputsTrustLevel);
 
             return true;

@@ -345,9 +345,10 @@ namespace BuildXL.Scheduler.Fingerprints
 
             fingerprinter.AddCollection<int, ReadOnlyArray<int>>("SuccessExitCodes", process.SuccessExitCodes, (h, i) => h.Add(i));
 
-            if (process.ChangeAffectedInputListWrittenFilePath.IsValid)
+            if (process.ChangeAffectedInputListWrittenFile.IsValid)
             {
                 fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedInputsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+                fingerprinter.Add("ChangeAffectedInputListWrittenFile", process.ChangeAffectedInputListWrittenFile);
             }
         }
 

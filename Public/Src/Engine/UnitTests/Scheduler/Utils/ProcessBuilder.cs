@@ -226,7 +226,7 @@ namespace Test.BuildXL.Scheduler.Utils
                     options: m_options, 
                     serviceInfo: m_serviceInfo,
                     preserveOutputWhitelist: ReadOnlyArray<AbsolutePath>.From(m_preserveOutputWhitelist ?? Enumerable.Empty<AbsolutePath>()),
-                    changeAffectedInputListWrittenFilePath: m_changeAffectedInputListWrittenFile);
+                    changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile);
         }
 
         private IEnumerable<FileArtifact> CreateDependencies()

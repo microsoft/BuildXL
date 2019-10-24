@@ -288,7 +288,7 @@ namespace Test.BuildXL.Scheduler
 
             var sourceChangeAffectedInputsLookup = new PipFingerprinter.SourceChangeAffectedInputsLookup(process =>
             {
-                if (process.ChangeAffectedInputListWrittenFilePath.IsValid)
+                if (process.ChangeAffectedInputListWrittenFile.IsValid)
                 {
                     return ReadOnlyArray<AbsolutePath>.From(new AbsolutePath[] { changeAffectedDll });
                 }
@@ -741,6 +741,8 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            FileArtifact changeAffectedInputListWrittenFile = source.Vary(p => p.ChangeAffectedInputListWrittenFile);
+
             bool hasUntrackedChildProcesses = source.Vary(p => p.HasUntrackedChildProcesses);
             bool producesPathIndepenentOutputs = source.Vary(p => p.ProducesPathIndependentOutputs);
             bool outputsMustBeWritable = source.Vary(p => p.OutputsMustRemainWritable);
@@ -824,7 +826,8 @@ namespace Test.BuildXL.Scheduler
                 options: options,
                 doubleWritePolicy: doubleWritePolicy,
                 containerIsolationLevel: containerIsolationLevel,
-                preserveOutputWhitelist: preserveOutputWhitelist);
+                preserveOutputWhitelist: preserveOutputWhitelist,
+                changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

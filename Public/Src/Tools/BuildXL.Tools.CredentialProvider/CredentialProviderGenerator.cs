@@ -5,10 +5,10 @@ namespace BuildXL.Tools.CredentialProvider
 {
     class CredentialProviderGenerator
     {
-        private static Dictionary<string, string> ValidPackageSources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        private readonly static Dictionary<string, string> ValidPackageSources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json", "1ESSHAREDASSETS_BUILDXL_FEED_PAT" },
-            { "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json", "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT" }
+            ["https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json"] = "1ESSHAREDASSETS_BUILDXL_FEED_PAT",
+            ["https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"] = "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT"
         };
 
         public static int Main(string[] args)
@@ -17,16 +17,15 @@ namespace BuildXL.Tools.CredentialProvider
 
             if (string.IsNullOrWhiteSpace(uri))
             {
+                EmitErrorOutput("The passed Uri value parameter is blank or null");
                 return 2;
             }
 
-            if (!ValidPackageSources.ContainsKey(uri))
+            if (!ValidPackageSources.TryGetValue(uri, out var envVar))
             {
                 EmitErrorOutput("The Uri value parameter is not supported in this credential provider");
                 return 1;
             }
-
-            var envVar = ValidPackageSources[uri];
 
             var pat = Environment.GetEnvironmentVariable(envVar);
             if (string.IsNullOrWhiteSpace(pat))
@@ -61,6 +60,8 @@ namespace BuildXL.Tools.CredentialProvider
 
         private static void EmitOutput(string pat)
         {
+            // Pats will be printed to the standard output since nuget.exe picks up this infromation from the std output
+            // Nuget Credential Provider requirements available here: https://docs.microsoft.com/en-us/nuget/reference/extensibility/nuget-exe-credential-providers
             Console.Out.WriteLine($"{{ \"Username\":\"DoesNotReallyMatterForPATs\",\"Password\":\"{pat}\",\"Message\":\"\"}}");
         }
 

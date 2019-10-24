@@ -33,28 +33,45 @@ private:
      *
      *   toupper(ch) - 32
      */
-    static const uint s_pathNodeChildrenCount = 65;
+    static const uint s_pathNodeMaxKey = 65;
 
     /*! For 10 digits */
-    static const uint s_uintNodeChildrenCount = 10;
+    static const uint s_uintNodeMaxKey = 10;
 
     /*! Arbitrary value */
     OSObject *record_;
 
     /*! The length of the 'children_' array (i.e., the the number of allocated nodes) */
-    uint childrenLength_;
+    uint maxKey_;
 
-    /*! Pre-allocated pointers to all possible children nodes. */
-    Node **children_;
+    /*! The key by which the parent can find this node */
+    uint key_;
 
-    uint length()     const { return childrenLength_; }
-    Node** children() const { return children_; }
+    /*! Used only when modifying this node's list of children */
+    IORecursiveLock *lock_;
 
-    bool init(uint numChildren);
-    static Node* create(uint numChildren);
+    /*! Pointer to the next sibling. */
+    Node *next_;
 
-    static Node* createUintNode() { return create(s_uintNodeChildrenCount); }
-    static Node* createPathNode() { return create(s_pathNodeChildrenCount); }
+    /*! Pointer to the first child node */
+    Node *children_;
+
+    /*!
+     * Checks if a child node of 'node' exists at position 'idx'.
+     * If no such child node exists and 'createIfMissing' is true,
+     * a new child node is created and saved at position 'idx'.
+     *
+     * @param key Must be between 0 (inclusive) and 'node.maxKey_' (exclusive); otherwise this method returns NULL
+     * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
+     * @result True IFF this node contains a child node with key 'key' after this method returns.
+     */
+    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock = nullptr);
+
+    bool init(uint numChildren, uint key);
+    static Node* create(uint numChildren, uint key);
+
+    static Node* createUintNode(uint key) { return create(s_uintNodeMaxKey, key); }
+    static Node* createPathNode(uint key) { return create(s_pathNodeMaxKey, key); }
 
 protected:
 
@@ -100,22 +117,22 @@ public:
 
     static void getUintNodeCounts(uint *count, double *sizeMB)
     {
-        getNodeCounts(Node::s_numUintNodes, Node::s_uintNodeChildrenCount, count, sizeMB);
+        getNodeCounts(Node::s_numUintNodes, count, sizeMB);
     }
 
     static void getPathNodeCounts(uint *count, double *sizeMB)
     {
-        getNodeCounts(Node::s_numPathNodes, Node::s_pathNodeChildrenCount, count, sizeMB);
+        getNodeCounts(Node::s_numPathNodes, count, sizeMB);
     }
 
 private:
 
     static const uint BytesInAMegabyte = 1 << 20;
 
-    static void getNodeCounts(uint count, uint numChildren, uint *outCount, double *outSizeMB)
+    static void getNodeCounts(uint count, uint *outCount, double *outSizeMB)
     {
         *outCount = count;
-        *outSizeMB = (1.0 * count * (sizeof(Node) + numChildren * sizeof(Node*))) / BytesInAMegabyte;
+        *outSizeMB = 1.0 * count * sizeof(Node) / BytesInAMegabyte;
     }
 
     typedef enum { kUintTrie, kPathTrie } TrieKind;
@@ -141,18 +158,6 @@ private:
 
     /*! Invokes the 'onChangeCallback_' if it's set and 'newCount' is different from 'oldCount' */
     void triggerOnChange(int oldCount, int newCount) const;
-
-    /*!
-     * Checks if a child node of 'node' exists at position 'idx'.
-     * If no such child node exists and 'createIfMissing' is true,
-     * a new child node is created and saved at position 'idx'.
-     *
-     * @param node The parent node.  Must not be null.
-     * @param idx Must be between 0 (inclusive) and 'node.length()' (exclusive); otherwise this method returns false.
-     * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
-     * @result True IFF 'node' contains a child node at position 'idx' after this method returns.
-     */
-    bool findChildNode(Node *node, int idx, bool createIfMissing);
 
     /*!
      * Ensures that 'node' has its 'record_' field set to a non-null value.
@@ -262,10 +267,10 @@ private:
     Node* findExistingNodeForPath(const char *key) { return findPathNode(key, false); }
 
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
-    Node* createNode()
+    Node* createNode(uint key)
     {
-        return kind_ == kUintTrie ? Node::createUintNode() :
-               kind_ == kPathTrie ? Node::createPathNode() :
+        return kind_ == kUintTrie ? Node::createUintNode(key) :
+               kind_ == kPathTrie ? Node::createPathNode(key) :
                nullptr;
     }
 

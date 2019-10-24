@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "Trie.hpp"
+#include "Monitor.hpp"
 
 #define super OSObject
 
@@ -12,15 +13,15 @@ OSDefineMetaClassAndStructors(Node, OSObject)
 uint Node::s_numUintNodes = 0;
 uint Node::s_numPathNodes = 0;
 
-Node* Node::create(uint numChildren)
+Node* Node::create(uint maxKey, uint key)
 {
     Node *instance = new Node;
     if (instance != nullptr)
     {
-        if (numChildren == s_uintNodeChildrenCount)      OSIncrementAtomic(&s_numUintNodes);
-        else if (numChildren == s_pathNodeChildrenCount) OSIncrementAtomic(&s_numPathNodes);
+        if (maxKey == s_uintNodeMaxKey)      OSIncrementAtomic(&s_numUintNodes);
+        else if (maxKey == s_pathNodeMaxKey) OSIncrementAtomic(&s_numPathNodes);
 
-        if (!instance->init(numChildren))
+        if (!instance->init(maxKey, key))
         {
             OSSafeReleaseNULL(instance);
         }
@@ -29,20 +30,26 @@ Node* Node::create(uint numChildren)
     return instance;
 }
 
-bool Node::init(uint numChildren)
+bool Node::init(uint maxKey, uint key)
 {
     if (!super::init())
     {
         return false;
     }
 
-    record_ = nullptr;
-    childrenLength_ = numChildren;
-    children_ = IONew(Node*, numChildren);
+    assert(key < maxKey);
 
-    for (int i = 0; i < childrenLength_; i++)
+    key_    = key;
+    maxKey_ = maxKey;
+    record_ = nullptr;
+
+    next_     = nullptr;
+    children_ = nullptr;
+
+    lock_ = IORecursiveLockAlloc();
+    if (!lock_)
     {
-        children_[i] = nullptr;
+        return false;
     }
 
     return true;
@@ -50,20 +57,68 @@ bool Node::init(uint numChildren)
 
 void Node::free()
 {
-    for (int i = 0; i < childrenLength_; i++)
-    {
-        children_[i] = nullptr;
-    }
-
-    IODelete(children_, Node*, childrenLength_);
+    // intentionally not calling OSSafeReleaseNULL on children_ and next_
+    // because Trie is responsible for releasing all its nodes
+    next_ = nullptr;
     children_ = nullptr;
 
     OSSafeReleaseNULL(record_);
+    IORecursiveLockFree(lock_);
 
-    if (length() == s_uintNodeChildrenCount)      OSDecrementAtomic(&s_numUintNodes);
-    else if (length() == s_pathNodeChildrenCount) OSDecrementAtomic(&s_numPathNodes);
+    if (maxKey_ == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);
+    else if (maxKey_ == s_pathNodeMaxKey) OSDecrementAtomic(&s_numPathNodes);
 
     super::free();
+}
+
+Node* Node::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
+{
+    if (key < 0 || key >= maxKey_)
+    {
+        return nullptr;
+    }
+
+    Monitor __monitor(lock); // this will only acquire the lock if lock is not null
+
+    Node *prev = nullptr;
+    Node *curr = children_;
+    while (curr != nullptr && curr->key_ != key)
+    {
+        prev = curr;
+        curr = curr->next_;
+    }
+
+    if (curr != nullptr)
+    {
+        // found it
+        assert(curr->key_ == key);
+        return curr;
+    }
+    else if (!createIfMissing)
+    {
+        // didn't find it and shouldn't create it
+        return nullptr;
+    }
+    else if (lock == nullptr)
+    {
+        // didn't find it and didn't acquire lock --> must do it all over again with a lock
+        return findChild(key, createIfMissing, lock_);
+    }
+    else
+    {
+        // didn't find it and we are holding the lock -> create a new node and link it
+        Node *newNode = Node::create(maxKey_, key);
+        if (prev != nullptr)
+        {
+            prev->next_ = newNode;
+        }
+        else
+        {
+            assert(children_ == nullptr);
+            children_ = newNode;
+        }
+        return newNode;
+    }
 }
 
 // ================================== class Trie ==================================
@@ -91,8 +146,11 @@ bool Trie::init(TrieKind kind)
         return false;
     }
 
+    size_ = 0;
     kind_ = kind;
-    root_ = createNode();
+    onChangeData_ = nullptr;
+    onChangeCallback_ = nullptr;
+    root_ = createNode(0);
     if (root_ == nullptr)
     {
         return false;
@@ -112,43 +170,6 @@ void Trie::free()
     size_ = 0;
 
     super::free();
-}
-
-bool Trie::findChildNode(Node *node, int idx, bool createIfMissing)
-{
-    if (idx < 0 || idx >= node->length())
-    {
-        return false;
-    }
-
-    bool childNodeExists = node->children()[idx] != nullptr;
-
-    if (childNodeExists)
-    {
-        return true;
-    }
-
-    // child is missing
-    if (!createIfMissing)
-    {
-        return false;
-    }
-
-    Node* newNode = createNode();
-
-    // This should never happen except if we run out of memory.
-    if (newNode == nullptr)
-    {
-        return false;
-    }
-
-    if (!OSCompareAndSwapPtr(nullptr, newNode, &node->children()[idx]))
-    {
-        // someone else created this child node before us --> release 'newNode' that we created for nothing
-        OSSafeReleaseNULL(newNode);
-    }
-
-    return true;
 }
 
 Trie::TrieResult Trie::makeSentinel(Node *node, void *factoryArgs, factory_fn factory)
@@ -556,11 +577,11 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
     while ((ch = *path++) != '\0')
     {
         int idx = s_char2idx[ch];
-        if (!findChildNode(currNode, idx, createIfMissing))
+        currNode = currNode->findChild(idx, createIfMissing);
+        if (currNode == nullptr)
         {
             return nullptr;
         }
-        currNode = currNode->children()[idx];
     }
 
     return currNode;
@@ -571,16 +592,14 @@ Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
     Node *currNode = root_;
     while (true)
     {
-        assert(currNode->length() == 10);
+        assert(currNode->maxKey_ == 10);
 
         int lsd = key % 10;
-
-        if (!findChildNode(currNode, lsd, createIfMissing))
+        currNode = currNode->findChild(lsd, createIfMissing);
+        if (!currNode)
         {
             return nullptr;
         }
-
-        currNode = currNode->children()[lsd];
 
         if (key < 10)
         {
@@ -711,13 +730,15 @@ void Trie::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
         uint64_t key = stack->key;
         uint32_t depth = stack->depth;
 
-        Node *curr = pop(&stack);
-        for (int i = 0; i < curr->length(); ++i)
+        Node *toVisit = pop(&stack);
+        Node *curr = toVisit->children_;
+        while (curr)
         {
-            push(&stack, curr->children()[i], computeKey ? (i * pow10(depth) + key) : 0, depth + 1);
+            push(&stack, curr, computeKey ? (curr->key_ * pow10(depth) + key) : 0, depth + 1);
+            curr = curr->next_;
         }
 
         // the callback may deallocate 'curr' node, hence this must be the last statement in this loop
-        callback(this, callbackArgs, key, curr);
+        callback(this, callbackArgs, key, toVisit);
     }
 }

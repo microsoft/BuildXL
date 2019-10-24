@@ -69,8 +69,9 @@ namespace BuildXL.Processes
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
-        private ulong m_maxPeakWorkingSet;
-        private ulong m_maxPeakPagefileUsage;
+
+        private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
+        private readonly PerformanceCollector.Aggregation m_peakPagefileUsage = new PerformanceCollector.Aggregation();
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
@@ -236,18 +237,16 @@ namespace BuildXL.Processes
                         {
                             currentPeakWorkingSet = (currentPeakWorkingSet ?? 0) + memoryUsage.PeakWorkingSetSize;
                             currentPeakPagefileUsage = (currentPeakPagefileUsage ?? 0) + memoryUsage.PeakPagefileUsage;
-
                         }
                     }
                 }
 
-                m_maxPeakWorkingSet = Math.Max(m_maxPeakWorkingSet, currentPeakWorkingSet ?? 0);
-                m_maxPeakPagefileUsage = Math.Max(m_maxPeakPagefileUsage, currentPeakPagefileUsage ?? 0);
+                m_peakWorkingSet.RegisterSample(currentPeakWorkingSet ?? 0);
+                m_peakPagefileUsage.RegisterSample(currentPeakPagefileUsage ?? 0);
 
                 return currentPeakWorkingSet;
             }
         }
-
 
         /// <inheritdoc />
         public long GetDetoursMaxHeapSize()
@@ -502,7 +501,7 @@ namespace BuildXL.Processes
             JobObject jobObject = m_detouredProcess.GetJobObject();
             if (jobObject != null)
             {
-                jobAccountingInformation = jobObject.GetAccountingInformation(m_maxPeakWorkingSet, m_maxPeakPagefileUsage);
+                jobAccountingInformation = jobObject.GetAccountingInformation(Convert.ToUInt64(m_peakWorkingSet.Maximum), Convert.ToUInt64(m_peakPagefileUsage.Maximum));
             }
 
             ProcessTimes primaryProcessTimes = m_detouredProcess.GetTimesForPrimaryProcess();

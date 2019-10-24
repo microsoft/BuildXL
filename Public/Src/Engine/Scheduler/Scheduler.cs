@@ -3662,7 +3662,11 @@ namespace BuildXL.Scheduler
                         if (!IsDistributedWorker)
                         {
                             var expectedRamUsage = runnablePip.Worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
-                            
+
+                            int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb;
+                            int peakWorkingSetMb = executionResult.PerformanceInformation.MemoryCounters.PeakWorkingSetMb;
+                            int peakPagefileUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakPagefileUsageMb;
+
                             Logger.Log.PeakMemoryUsage(
                                 operationContext, 
                                 runnablePip.Description,
@@ -3670,13 +3674,13 @@ namespace BuildXL.Scheduler
                                 (int)executionResult.PerformanceInformation.ProcessExecutionTime.TotalSeconds,
                                 runnablePip.Worker.DefaultMemoryUsagePerProcess, 
                                 expectedRamUsage,
-                                executionResult.PerformanceInformation.PeakVirtualMemoryUsageMb,
-                                executionResult.PerformanceInformation.PeakWorkingSetMb,
-                                executionResult.PerformanceInformation.PeakPagefileUsageMb);
+                                peakVirtualMemoryUsageMb,
+                                peakWorkingSetMb,
+                                peakPagefileUsageMb);
 
-                            m_totalPeakVirtualMemoryUsageMb += executionResult.PerformanceInformation.PeakVirtualMemoryUsageMb;
-                            m_totalPeakWorkingSetMb += executionResult.PerformanceInformation.PeakWorkingSetMb;
-                            m_totalPeakPagefileUsageMb += executionResult.PerformanceInformation.PeakPagefileUsageMb;
+                            m_totalPeakVirtualMemoryUsageMb += peakVirtualMemoryUsageMb;
+                            m_totalPeakWorkingSetMb += peakWorkingSetMb;
+                            m_totalPeakPagefileUsageMb += peakPagefileUsageMb;
 
                             // File violation analysis needs to happen on the master as it relies on
                             // graph-wide data such as detecting duplicate

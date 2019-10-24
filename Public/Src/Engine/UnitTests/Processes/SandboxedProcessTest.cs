@@ -266,9 +266,9 @@ namespace Test.BuildXL.Processes
                         "Expected a non-zero user+kernel time.");
                 }
 
-                XAssert.AreNotEqual<ulong>(0, accounting.PeakVirtualMemoryUsage, "Expecting non-zero memory usage");
-                XAssert.AreNotEqual<ulong>(0, accounting.PeakWorkingSet, "Expecting non-zero memory usage");
-                XAssert.AreNotEqual<ulong>(0, accounting.PeakPagefileUsage, "Expecting non-zero pagefile usage");
+                XAssert.AreNotEqual<ulong>(0, accounting.MemoryCounters.PeakVirtualMemoryUsage, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual<ulong>(0, accounting.MemoryCounters.PeakWorkingSet, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual<ulong>(0, accounting.MemoryCounters.PeakPagefileUsage, "Expecting non-zero pagefile usage");
 
                 // Prior to Win10, cmd.exe launched within a job but its associated conhost.exe was exempt from the job.
                 // That changed with Bug #633552

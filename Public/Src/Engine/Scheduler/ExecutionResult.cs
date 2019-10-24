@@ -621,9 +621,7 @@ namespace BuildXL.Scheduler
                             ioCounters: jobAccounting.IO,
                             userTime: jobAccounting.UserTime,
                             kernelTime: jobAccounting.KernelTime,
-                            peakVirtualMemoryUsage: jobAccounting.PeakVirtualMemoryUsage,
-                            peakWorkingSet: jobAccounting.PeakWorkingSet,
-                            peakPagefileUsage: jobAccounting.PeakPagefileUsage,
+                            memoryCounters: jobAccounting.MemoryCounters,
                             numberOfProcesses: jobAccounting.NumberOfProcesses,
                             workerId: 0);
                     }

@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -109,19 +110,9 @@ namespace BuildXL.Processes
             public TimeSpan KernelTime;
 
             /// <summary>
-            /// Peak virtual memory usage considering all processes (highest point-in-time sum of the memory usage of all job processes).
+            /// Memory counters
             /// </summary>
-            public ulong PeakVirtualMemoryUsage;
-
-            /// <summary>
-            /// Peak working set considering all processes (highest point-in-time sum of the memory usage of all job processes).
-            /// </summary>
-            public ulong PeakWorkingSet;
-
-            /// <summary>
-            /// Peak pagefile usage considering all processes (highest point-in-time sum of the memory usage of all job processes).
-            /// </summary>
-            public ulong PeakPagefileUsage;
+            public ProcessMemoryCounters MemoryCounters; 
 
             /// <summary>
             /// Number of processes started within or added to the job. This includes both running and already-terminated processes, if any.
@@ -134,9 +125,7 @@ namespace BuildXL.Processes
                 IO.Serialize(writer);
                 writer.Write(UserTime);
                 writer.Write(KernelTime);
-                writer.Write(PeakVirtualMemoryUsage);
-                writer.Write(PeakWorkingSet);
-                writer.Write(PeakPagefileUsage);
+                MemoryCounters.Serialize(writer);
                 writer.Write(NumberOfProcesses);
             }
 
@@ -148,9 +137,7 @@ namespace BuildXL.Processes
                     IO = IOCounters.Deserialize(reader),
                     UserTime = reader.ReadTimeSpan(),
                     KernelTime = reader.ReadTimeSpan(),
-                    PeakVirtualMemoryUsage = reader.ReadUInt64(),
-                    PeakWorkingSet = reader.ReadUInt64(),
-                    PeakPagefileUsage = reader.ReadUInt64(),
+                    MemoryCounters = ProcessMemoryCounters.Deserialize(reader),
                     NumberOfProcesses = reader.ReadUInt32()
                 };
             }
@@ -374,9 +361,7 @@ namespace BuildXL.Processes
                        KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                        UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
                        NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                       PeakVirtualMemoryUsage = GetPeakVirtualMemoryUsage(),
-                       PeakWorkingSet = peakWorkingSetUsage,
-                       PeakPagefileUsage = peakPagefileUsage
+                       MemoryCounters = new ProcessMemoryCounters(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
             };
         }
 

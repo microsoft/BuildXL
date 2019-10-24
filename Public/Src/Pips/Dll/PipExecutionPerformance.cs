@@ -188,34 +188,9 @@ namespace BuildXL.Pips
         public TimeSpan KernelTime { get; }
 
         /// <summary>
-        /// Peak working set (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
+        /// Memory counters
         /// </summary>
-        public ulong PeakWorkingSet { get; }
-
-        /// <summary>
-        /// <see cref="PeakWorkingSet"/> in megabytes
-        /// </summary>
-        public int PeakWorkingSetMb => (int)(PeakWorkingSet / (1024 * 1024));
-
-        /// <summary>
-        /// Peak working set (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
-        /// </summary>
-        public ulong PeakPagefileUsage { get; }
-
-        /// <summary>
-        /// <see cref="PeakPagefileUsage"/> in megabytes
-        /// </summary>
-        public int PeakPagefileUsageMb => (int)(PeakPagefileUsage / (1024 * 1024));
-
-        /// <summary>
-        /// Peak memory usage (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
-        /// </summary>
-        public ulong PeakVirtualMemoryUsage { get; }
-
-        /// <summary>
-        /// <see cref="PeakVirtualMemoryUsage"/> in megabytes
-        /// </summary>
-        public int PeakVirtualMemoryUsageMb => (int)(PeakVirtualMemoryUsage / (1024 * 1024));
+        public ProcessMemoryCounters MemoryCounters { get; }
 
         /// <summary>
         /// Number of processes that executed as part of the pip (the entry-point process may start children).
@@ -248,9 +223,7 @@ namespace BuildXL.Pips
             IOCounters ioCounters,
             TimeSpan userTime,
             TimeSpan kernelTime,
-            ulong peakVirtualMemoryUsage,
-            ulong peakWorkingSet,
-            ulong peakPagefileUsage,
+            ProcessMemoryCounters memoryCounters,
             uint numberOfProcesses,
             uint workerId)
             : base(level, executionStart, executionStop, workerId)
@@ -267,9 +240,7 @@ namespace BuildXL.Pips
             IO = ioCounters;
             UserTime = userTime;
             KernelTime = kernelTime;
-            PeakVirtualMemoryUsage = peakVirtualMemoryUsage;
-            PeakWorkingSet = peakWorkingSet;
-            PeakPagefileUsage = peakPagefileUsage;
+            MemoryCounters = memoryCounters;
             NumberOfProcesses = numberOfProcesses;
         }
 
@@ -305,9 +276,7 @@ namespace BuildXL.Pips
             IO.Serialize(writer);
             writer.Write(UserTime);
             writer.Write(KernelTime);
-            writer.Write(PeakVirtualMemoryUsage);
-            writer.Write(PeakWorkingSet);
-            writer.Write(PeakPagefileUsage);
+            MemoryCounters.Serialize(writer);
             writer.WriteCompact(NumberOfProcesses);
         }
 
@@ -320,9 +289,7 @@ namespace BuildXL.Pips
             IOCounters ioCounters = IOCounters.Deserialize(reader);
             TimeSpan userTime = reader.ReadTimeSpan();
             TimeSpan kernelTime = reader.ReadTimeSpan();
-            ulong peakMemoryUsage = reader.ReadUInt64();
-            ulong peakWorkingSet = reader.ReadUInt64();
-            ulong peakPagefileUsage = reader.ReadUInt64();
+            ProcessMemoryCounters memoryCounters = ProcessMemoryCounters.Deserialize(reader);
 
             uint numberOfProcesses = reader.ReadUInt32Compact();
 
@@ -336,9 +303,7 @@ namespace BuildXL.Pips
                 ioCounters: ioCounters,
                 userTime: userTime,
                 kernelTime: kernelTime,
-                peakVirtualMemoryUsage: peakMemoryUsage,
-                peakWorkingSet: peakWorkingSet,
-                peakPagefileUsage: peakPagefileUsage,
+                memoryCounters: memoryCounters,
                 numberOfProcesses: numberOfProcesses,
                 workerId: workerId);
         }

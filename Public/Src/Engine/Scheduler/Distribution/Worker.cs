@@ -187,7 +187,6 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public int? ActualCommitTotalMB;
 
-
         /// <summary>
         /// Gets the estimate RAM usage on the machine
         /// </summary>

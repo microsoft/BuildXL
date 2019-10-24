@@ -14,6 +14,7 @@ using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
@@ -411,7 +412,7 @@ namespace BuildXL.Processes
                         ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
                     }),
-                    PeakWorkingSet = Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum),
+                    MemoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0),
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
                 };

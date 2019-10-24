@@ -365,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
-                                $"trusted={(result.Size ?? hashInfo.Size) >= _settings.TrustedHashFileSizeBoundary)} " +
+                                $"trusted={(result.Size ?? hashInfo.Size) >= _settings.TrustedHashFileSizeBoundary} " +
                                 (result.Succeeded ? $"attempt={attemptCount} replica={replicaIndex} " : string.Empty) +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +

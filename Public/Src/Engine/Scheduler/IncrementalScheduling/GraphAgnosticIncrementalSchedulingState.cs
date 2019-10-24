@@ -226,7 +226,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <summary>
         /// Envelope for serialization
         /// </summary>
-        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: nameof(GraphAgnosticIncrementalSchedulingState), version: (int) PipFingerprintingVersion.TwoPhaseV2 + 3);
+        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: nameof(GraphAgnosticIncrementalSchedulingState), version: (int) PipFingerprintingVersion.TwoPhaseV2 + 4);
 
         /// <summary>
         /// Log messages like '>>> Build file changed: X.cpp' are very useful to know what's going on internally, but only if there's not too many of them.

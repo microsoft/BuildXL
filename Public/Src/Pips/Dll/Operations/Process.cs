@@ -117,8 +117,8 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// File path of which the source shange affected inputs are written into.
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public FileArtifact ChangeAffectedInputListWrittenFilePath { get; }
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public FileArtifact ChangeAffectedInputListWrittenFile { get; }
 
         /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
@@ -412,7 +412,7 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact changeAffectedInputListWrittenFilePath = default,
+            FileArtifact changeAffectedInputListWrittenFile = default,
             int? preserveOutputsTrustLevel = null)
         {
             Contract.Requires(executable.IsValid);
@@ -515,7 +515,7 @@ namespace BuildXL.Pips.Operations
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
-            ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
+            ChangeAffectedInputListWrittenFile = changeAffectedInputListWrittenFile;
 
             if (PreserveOutputWhitelist.Length != 0)
             {
@@ -620,7 +620,7 @@ namespace BuildXL.Pips.Operations
                 weight,
                 priority,
                 preserveOutputWhitelist ?? PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
 
         }
@@ -867,7 +867,7 @@ namespace BuildXL.Pips.Operations
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
                 preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
-                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact(),
+                changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
                 preserveOutputsTrustLevel: reader.ReadInt32()
                 );
         }
@@ -917,7 +917,7 @@ namespace BuildXL.Pips.Operations
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
-            writer.Write(ChangeAffectedInputListWrittenFilePath);
+            writer.Write(ChangeAffectedInputListWrittenFile);
             writer.Write(PreserveOutputsTrustLevel);
         }
         #endregion

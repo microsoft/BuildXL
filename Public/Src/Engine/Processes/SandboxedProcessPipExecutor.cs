@@ -2669,7 +2669,7 @@ namespace BuildXL.Processes
             changeAffectedInputs == null
                 ? Task.FromResult(true)
                 : WritePipAuxiliaryFileAsync(
-                    m_pip.ChangeAffectedInputListWrittenFilePath,
+                    m_pip.ChangeAffectedInputListWrittenFile,
                     () => string.Join(
                         Environment.NewLine,
                         changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).Distinct().OrderBy(n => n)),

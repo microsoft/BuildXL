@@ -196,9 +196,8 @@ private:
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
     Node* createNode(uint key)
     {
-        return kind_ == kUintTrie ? Node::createUintNode(key) :
-               kind_ == kPathTrie ? Node::createPathNode(key) :
-               nullptr;
+        auto maxKey = kind_ == kUintTrie ? Node::s_uintNodeMaxKey : Node::s_pathNodeMaxKey;
+        return NodeLight::create(maxKey, key);
     }
 
     /*!

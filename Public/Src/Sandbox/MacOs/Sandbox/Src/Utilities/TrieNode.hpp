@@ -9,10 +9,10 @@
 #include "BuildXLSandboxShared.hpp"
 
 #define Node BXL_CLASS(Node)
+#define NodeLight BXL_CLASS(NodeLight)
 #define Trie BXL_CLASS(Trie)
 
 class Node;
-
 typedef void (*traverse_fn)(void*, uint64_t key, Node*);
 
 /*!
@@ -23,12 +23,13 @@ class Node : public OSObject
 {
     OSDeclareDefaultStructors(Node);
 
-private:
-
     friend class Trie;
+
+protected:
 
     static uint s_numUintNodes;
     static uint s_numPathNodes;
+    static uint s_numLightNodes;
 
     /*!
      * The value 65 is chosen so that all ASCII characters between 32 (' ') and 122 ('z')
@@ -45,6 +46,31 @@ private:
     /*! Arbitrary value */
     OSObject *record_;
 
+    /*!
+     * Checks if a child node of 'node' exists at position 'idx'.
+     * If no such child node exists and 'createIfMissing' is true,
+     * a new child node is created and saved at position 'idx'.
+     *
+     * @param key Must be between 0 (inclusive) and 'node.maxKey_' (exclusive); otherwise this method returns NULL
+     * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
+     * @result True IFF this node contains a child node with key 'key' after this method returns.
+     */
+    virtual Node* findChild(uint key, bool createIfMissing) { return nullptr; }
+
+    /*! Calls 'callback' for every node in the tree rooted in this node (the traversal is pre-order) */
+    virtual void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) {}
+
+    bool init() override;
+    void free() override;
+};
+
+/* =================== class NodeLight ====================== */
+
+class NodeLight : public Node
+{
+    OSDeclareDefaultStructors(NodeLight);
+
+private:
     /*! The length of the 'children_' array (i.e., the the number of allocated nodes) */
     uint maxKey_;
 
@@ -55,32 +81,27 @@ private:
     IORecursiveLock *lock_;
 
     /*! Pointer to the next sibling. */
-    Node *next_;
+    NodeLight *next_;
 
     /*! Pointer to the first child node */
-    Node *children_;
+    NodeLight *children_;
 
-    /*!
-     * Checks if a child node of 'node' exists at position 'idx'.
-     * If no such child node exists and 'createIfMissing' is true,
-     * a new child node is created and saved at position 'idx'.
-     *
-     * @param key Must be between 0 (inclusive) and 'node.maxKey_' (exclusive); otherwise this method returns NULL
-     * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
-     * @result True IFF this node contains a child node with key 'key' after this method returns.
-     */
-    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock = nullptr);
+    NodeLight* findChild(uint key, bool createIfMissing, IORecursiveLock *lock);
 
-    bool init(uint numChildren, uint key);
-    static Node* create(uint numChildren, uint key);
+    bool init(uint maxKey, uint key);
 
-    static Node* createUintNode(uint key) { return create(s_uintNodeMaxKey, key); }
-    static Node* createPathNode(uint key) { return create(s_pathNodeMaxKey, key); }
+public:
 
-    /*! Calls 'callback' for every node in the trie during a pre-order traversal. */
-    void traverse(bool computeKey, void *callbackArgs, traverse_fn callback);
+    static NodeLight* create(uint numChildren, uint key);
 
 protected:
+
+    Node* findChild(uint key, bool createIfMissing) override
+    {
+        return findChild(key, createIfMissing, nullptr);
+    }
+
+    void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
 
     void free() override;
 };

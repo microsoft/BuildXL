@@ -475,8 +475,6 @@ Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
     Node *currNode = root_;
     while (true)
     {
-        assert(currNode->maxKey_ == 10);
-
         int lsd = key % 10;
         currNode = currNode->findChild(lsd, createIfMissing);
         if (!currNode)

@@ -4,42 +4,54 @@
 #include "Monitor.hpp"
 #include "TrieNode.hpp"
 
-#define super OSObject
-
 OSDefineMetaClassAndStructors(Node, OSObject)
+OSDefineMetaClassAndStructors(NodeLight, Node)
 
 uint Node::s_numUintNodes = 0;
 uint Node::s_numPathNodes = 0;
+uint Node::s_numLightNodes = 0;
 
-Node* Node::create(uint maxKey, uint key)
+bool Node::init()
 {
-    Node *instance = new Node;
-    if (instance != nullptr)
-    {
-        if (maxKey == s_uintNodeMaxKey)      OSIncrementAtomic(&s_numUintNodes);
-        else if (maxKey == s_pathNodeMaxKey) OSIncrementAtomic(&s_numPathNodes);
-
-        if (!instance->init(maxKey, key))
-        {
-            OSSafeReleaseNULL(instance);
-        }
-    }
-
-    return instance;
-}
-
-bool Node::init(uint maxKey, uint key)
-{
-    if (!super::init())
+    if (!OSObject::init())
     {
         return false;
     }
 
-    assert(key < maxKey);
+    record_ = nullptr;
+    return true;
+}
+
+NodeLight* NodeLight::create(uint maxKey, uint key)
+{
+    NodeLight *instance = new NodeLight;
+    if (instance == nullptr)
+    {
+        goto error;
+    }
+
+    if (!instance->init(maxKey, key))
+    {
+        goto error;
+    }
+
+    OSIncrementAtomic(&s_numLightNodes);
+    return instance;
+
+error:
+    OSSafeReleaseNULL(instance);
+    return nullptr;
+}
+
+bool NodeLight::init(uint maxKey, uint key)
+{
+    if (!Node::init())
+    {
+        return false;
+    }
 
     key_    = key;
     maxKey_ = maxKey;
-    record_ = nullptr;
 
     next_     = nullptr;
     children_ = nullptr;
@@ -55,31 +67,28 @@ bool Node::init(uint maxKey, uint key)
 
 void Node::free()
 {
+    OSSafeReleaseNULL(record_);
+    OSObject::free();
+}
+
+void NodeLight::free()
+{
     // intentionally not calling OSSafeReleaseNULL on children_ and next_
     // because Trie is responsible for releasing all its nodes
     next_ = nullptr;
     children_ = nullptr;
 
-    OSSafeReleaseNULL(record_);
-    IORecursiveLockFree(lock_);
+    OSDecrementAtomic(&s_numLightNodes);
 
-    if (maxKey_ == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);
-    else if (maxKey_ == s_pathNodeMaxKey) OSDecrementAtomic(&s_numPathNodes);
-
-    super::free();
+    Node::free();
 }
 
-Node* Node::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
+NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
 {
-    if (key < 0 || key >= maxKey_)
-    {
-        return nullptr;
-    }
-
     Monitor __monitor(lock); // this will only acquire the lock if lock is not null
 
-    Node *prev = nullptr;
-    Node *curr = children_;
+    NodeLight *prev = nullptr;
+    NodeLight *curr = children_;
     while (curr != nullptr && curr->key_ != key)
     {
         prev = curr;
@@ -105,7 +114,7 @@ Node* Node::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
     else
     {
         // didn't find it and we are holding the lock -> create a new node and link it
-        Node *newNode = Node::create(maxKey_, key);
+        NodeLight *newNode = NodeLight::create(maxKey_, key);
         if (prev != nullptr)
         {
             prev->next_ = newNode;
@@ -175,7 +184,7 @@ static uint64_t pow10(int exp)
     return result;
 }
 
-void Node::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
+void NodeLight::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
 {
     Stack *stack = nullptr;
     push(&stack, this, /*key*/ 0, /*depth*/ 0);
@@ -184,8 +193,8 @@ void Node::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
         uint64_t key = stack->key;
         uint32_t depth = stack->depth;
 
-        Node *toVisit = pop(&stack);
-        Node *curr = toVisit->children_;
+        NodeLight *toVisit = (NodeLight*)pop(&stack);
+        NodeLight *curr = toVisit->children_;
         while (curr)
         {
             push(&stack, curr, computeKey ? (curr->key_ * pow10(depth) + key) : 0, depth + 1);

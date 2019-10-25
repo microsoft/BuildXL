@@ -3612,7 +3612,7 @@ namespace BuildXL.Scheduler
                             // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
                             var expectedRamUsageMb = Math.Max(
                                     worker.GetExpectedRamUsageMb(processRunnable),
-                                    Math.Max(1, executionResult.PerformanceInformation?.PeakWorkingSetMb ?? 0));
+                                    Math.Max(1, executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0));
 
                             processRunnable.ExpectedRamUsageMb = expectedRamUsageMb;
 

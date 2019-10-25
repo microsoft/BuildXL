@@ -10,6 +10,7 @@
 
 #define Node BXL_CLASS(Node)
 #define NodeLight BXL_CLASS(NodeLight)
+#define NodeFast BXL_CLASS(NodeFast)
 #define Trie BXL_CLASS(Trie)
 
 class Node;
@@ -71,9 +72,6 @@ class NodeLight : public Node
     OSDeclareDefaultStructors(NodeLight);
 
 private:
-    /*! The length of the 'children_' array (i.e., the the number of allocated nodes) */
-    uint maxKey_;
-
     /*! The key by which the parent can find this node */
     uint key_;
 
@@ -88,11 +86,11 @@ private:
 
     NodeLight* findChild(uint key, bool createIfMissing, IORecursiveLock *lock);
 
-    bool init(uint maxKey, uint key);
+    bool init(uint key);
 
 public:
 
-    static NodeLight* create(uint numChildren, uint key);
+    static NodeLight* create(uint key);
 
 protected:
 
@@ -103,6 +101,38 @@ protected:
 
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
 
+    void free() override;
+};
+
+/* =================== class NodeLight ====================== */
+
+class NodeFast : public Node
+{
+    OSDeclareDefaultStructors(NodeFast);
+
+private:
+    /*! The length of the 'children_' array (i.e., the the number of allocated nodes) */
+    uint childrenLength_;
+
+    /*! Pre-allocated pointers to all possible children nodes. */
+    NodeFast **children_;
+
+    uint length()     const { return childrenLength_; }
+    NodeFast** children() const { return children_; }
+
+    bool init(uint key);
+
+    static NodeFast* create(uint numChildren);
+
+public:
+
+    static NodeFast* createUintNode() { return create(s_uintNodeMaxKey); }
+    static NodeFast* createPathNode() { return create(s_pathNodeMaxKey); }
+
+protected:
+
+    Node* findChild(uint key, bool createIfMissing) override;
+    void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
     void free() override;
 };
 

@@ -5,6 +5,7 @@
 #define Trie_hpp
 
 #include "TrieNode.hpp"
+#include "SysCtl.hpp"
 
 #define Trie BXL_CLASS(Trie)
 
@@ -43,27 +44,27 @@ public:
         kTrieResultFailure,
     } TrieResult;
 
-    static void getUintNodeCounts(uint *count, double *sizeMB)
+    static void getUintNodeCounts(CountAndSize *cnt)
     {
-        getNodeCounts(Node::s_numUintNodes, count, sizeMB);
+        cnt->count = Node::s_numUintNodes;
+        cnt->size = sizeof(NodeFast) + Node::s_uintNodeMaxKey * sizeof(NodeFast*);
     }
 
-    static void getPathNodeCounts(uint *count, double *sizeMB)
+    static void getPathNodeCounts(CountAndSize *cnt)
     {
-        getNodeCounts(Node::s_numPathNodes, count, sizeMB);
+        cnt->count = Node::s_numPathNodes;
+        cnt->size = sizeof(NodeFast) + Node::s_pathNodeMaxKey * sizeof(NodeFast*);
+    }
+
+    static void getLightNodeCounts(CountAndSize *cnt)
+    {
+        cnt->count = NodeLight::metaClass->getInstanceCount();
+        cnt->size = sizeof(NodeLight);
     }
 
 private:
 
-    static const uint BytesInAMegabyte = 1 << 20;
-
-    static void getNodeCounts(uint count, uint *outCount, double *outSizeMB)
-    {
-        *outCount = count;
-        *outSizeMB = 1.0 * count * sizeof(Node) / BytesInAMegabyte;
-    }
-
-    typedef enum { kUintTrie, kPathTrie } TrieKind;
+    typedef enum { kUintTrie, kPathTrie, kLightTrie } TrieKind;
 
     /*! The root of the tree. */
     Node *root_;
@@ -196,8 +197,10 @@ private:
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
     Node* createNode(uint key)
     {
-        auto maxKey = kind_ == kUintTrie ? Node::s_uintNodeMaxKey : Node::s_pathNodeMaxKey;
-        return NodeLight::create(maxKey, key);
+        return kind_ == kUintTrie  ? (Node*)NodeFast::createUintNode() :
+               kind_ == kPathTrie  ? (Node*)NodeFast::createPathNode() :
+               kind_ == kLightTrie ? (Node*)NodeLight::create(key) :
+               nullptr;
     }
 
     /*!
@@ -237,14 +240,12 @@ public:
 
     OSObject* get(const char *path)
     {
-        if (kind_ != kPathTrie) return nullptr;
         return get(findExistingNodeForPath(path));
     }
 
     template<typename T>
     T* getAs(const char *key)
     {
-        if (kind_ != kPathTrie) return nullptr;
         return OSDynamicCast(T, get(key));
     }
 
@@ -260,25 +261,21 @@ public:
      */
     OSObject* getOrAdd(const char *path, void *factoryArgs, factory_fn factory, TrieResult *result = nullptr)
     {
-        if (kind_ != kPathTrie) return nullptr;
         return getOrAdd(findOrCreateNodeForPath(path), factoryArgs, factory, result);
     }
 
     TrieResult replace(const char *path, const OSObject *value)
     {
-        if (kind_ != kPathTrie) return kTrieResultFailure;
         return replace(findOrCreateNodeForPath(path), value);
     }
 
     TrieResult insert(const char *path, const OSObject *value)
     {
-        if (kind_ != kPathTrie) return kTrieResultFailure;
         return insert(findOrCreateNodeForPath(path), value);
     }
 
     TrieResult remove(const char *key)
     {
-        if (kind_ != kPathTrie) return kTrieResultFailure;
         return remove(findExistingNodeForPath(key));
     }
 
@@ -286,38 +283,32 @@ public:
 
     OSObject* get(uint64_t key)
     {
-        if (kind_ != kUintTrie) return nullptr;
         return get(findExistingNodeForUint(key));
     }
 
     template<typename T>
     T* getAs(uint64_t key)
     {
-        if (kind_ != kUintTrie) return nullptr;
         return OSDynamicCast(T, get(key));
     }
 
     OSObject* getOrAdd(uint64_t key, void *factoryArgs, factory_fn factory, TrieResult *result = nullptr)
     {
-        if (kind_ != kUintTrie) return nullptr;
         return getOrAdd(findOrCreateNodeForUint(key), factoryArgs, factory, result);
     }
 
     TrieResult replace(uint64_t key, const OSObject *value)
     {
-        if (kind_ != kUintTrie) return kTrieResultFailure;
         return replace(findOrCreateNodeForUint(key), value);
     }
 
     TrieResult insert(uint64_t key, const OSObject *value)
     {
-        if (kind_ != kUintTrie) return kTrieResultFailure;
         return insert(findOrCreateNodeForUint(key), value);
     }
 
     TrieResult remove(uint64_t key)
     {
-        if (kind_ != kUintTrie) return kTrieResultFailure;
         return remove(findExistingNodeForUint(key));
     }
 

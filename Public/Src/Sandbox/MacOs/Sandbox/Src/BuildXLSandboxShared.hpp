@@ -158,6 +158,11 @@ typedef struct {
 } ReportCounters;
 
 typedef struct {
+    uint count;
+    double size;
+} CountAndSize;
+
+typedef struct {
     DurationCounter findTrackedProcess;
     DurationCounter setLastLookedUpPath;
     DurationCounter checkPolicy;
@@ -171,10 +176,9 @@ typedef struct {
     Counter numForks;
     Counter numCacheHits;
     Counter numCacheMisses;
-    uint numUintTrieNodes;
-    uint numPathTrieNodes;
-    double uintTrieSizeMB;
-    double pathTrieSizeMB;
+    CountAndSize uintNodes;
+    CountAndSize pathNodes;
+    CountAndSize lightNodes;
 } AllCounters;
 
 typedef struct {

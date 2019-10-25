@@ -30,7 +30,7 @@ bool Trie::init(TrieKind kind)
     }
 
     size_ = 0;
-    kind_ = kind;
+    kind_ = g_bxl_enable_light_trie ? TrieKind::kLightTrie : kind;
     onChangeData_ = nullptr;
     onChangeCallback_ = nullptr;
     root_ = createNode(0);
@@ -185,7 +185,7 @@ Trie::TrieResult Trie::remove(Node *node)
  for (int ch = 0; ch < 256; ch++)
  {
      int idx = toupper(ch) - 32;
-     if (idx < 0 || idx >= 65) idx = -1;
+     if (idx < 0 || idx >= 65) idx += 500;
      printf("    %2d, // '%c' (\\%2d)\n", idx, ch < 32 || ch > 126 ? 0 : ch, ch);
  }
  printf("};\n");
@@ -455,11 +455,21 @@ static_assert(UCHAR_MAX == 255, "max unsigned char is not 255");
 
 Node* Trie::findPathNode(const char *path, bool createIfMissing)
 {
+    if (kind_ == kUintTrie)
+    {
+        log_error("Requested to find a path node in a unit trie; path: %s", path);
+        return nullptr;
+    }
+
     Node *currNode = root_;
     unsigned char ch;
     while ((ch = *path++) != '\0')
     {
         int idx = s_char2idx[ch];
+        if (idx < 0 || idx >= Node::s_pathNodeMaxKey)
+        {
+            return nullptr;
+        }
         currNode = currNode->findChild(idx, createIfMissing);
         if (currNode == nullptr)
         {
@@ -472,6 +482,12 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
 
 Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
 {
+    if (kind_ == kPathTrie)
+    {
+        log_error("Requested to find a uint node in a path trie; key: %lld", key);
+        return nullptr;
+    }
+
     Node *currNode = root_;
     while (true)
     {

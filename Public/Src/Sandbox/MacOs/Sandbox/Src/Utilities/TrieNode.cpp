@@ -6,23 +6,13 @@
 
 OSDefineMetaClassAndStructors(Node, OSObject)
 OSDefineMetaClassAndStructors(NodeLight, Node)
+OSDefineMetaClassAndStructors(NodeFast, Node)
 
 uint Node::s_numUintNodes = 0;
 uint Node::s_numPathNodes = 0;
 uint Node::s_numLightNodes = 0;
 
-bool Node::init()
-{
-    if (!OSObject::init())
-    {
-        return false;
-    }
-
-    record_ = nullptr;
-    return true;
-}
-
-NodeLight* NodeLight::create(uint maxKey, uint key)
+NodeLight* NodeLight::create(uint key)
 {
     NodeLight *instance = new NodeLight;
     if (instance == nullptr)
@@ -30,7 +20,7 @@ NodeLight* NodeLight::create(uint maxKey, uint key)
         goto error;
     }
 
-    if (!instance->init(maxKey, key))
+    if (!instance->init(key))
     {
         goto error;
     }
@@ -43,7 +33,40 @@ error:
     return nullptr;
 }
 
-bool NodeLight::init(uint maxKey, uint key)
+NodeFast* NodeFast::create(uint numChildren)
+{
+    NodeFast *instance = new NodeFast;
+    if (instance == nullptr)
+    {
+        goto error;
+    }
+
+    if (!instance->init(numChildren))
+    {
+        goto error;
+    }
+
+    if (numChildren == s_uintNodeMaxKey)      OSIncrementAtomic(&s_numUintNodes);
+    else if (numChildren == s_pathNodeMaxKey) OSIncrementAtomic(&s_numPathNodes);
+    return instance;
+
+error:
+    OSSafeReleaseNULL(instance);
+    return nullptr;
+}
+
+bool Node::init()
+{
+    if (!OSObject::init())
+    {
+        return false;
+    }
+
+    record_ = nullptr;
+    return true;
+}
+
+bool NodeLight::init(uint key)
 {
     if (!Node::init())
     {
@@ -51,7 +74,6 @@ bool NodeLight::init(uint maxKey, uint key)
     }
 
     key_    = key;
-    maxKey_ = maxKey;
 
     next_     = nullptr;
     children_ = nullptr;
@@ -60,6 +82,24 @@ bool NodeLight::init(uint maxKey, uint key)
     if (!lock_)
     {
         return false;
+    }
+
+    return true;
+}
+
+bool NodeFast::init(uint numChildren)
+{
+    if (!Node::init())
+    {
+        return false;
+    }
+
+    childrenLength_ = numChildren;
+    children_ = IONew(NodeFast*, numChildren);
+
+    for (int i = 0; i < childrenLength_; i++)
+    {
+        children_[i] = nullptr;
     }
 
     return true;
@@ -79,6 +119,22 @@ void NodeLight::free()
     children_ = nullptr;
 
     OSDecrementAtomic(&s_numLightNodes);
+
+    Node::free();
+}
+
+void NodeFast::free()
+{
+    for (int i = 0; i < childrenLength_; i++)
+    {
+        children_[i] = nullptr;
+    }
+
+    IODelete(children_, NodeFast*, childrenLength_);
+    children_ = nullptr;
+
+    if (length() == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);
+    else if (length() == s_pathNodeMaxKey) OSDecrementAtomic(&s_numPathNodes);
 
     Node::free();
 }
@@ -114,7 +170,7 @@ NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock 
     else
     {
         // didn't find it and we are holding the lock -> create a new node and link it
-        NodeLight *newNode = NodeLight::create(maxKey_, key);
+        NodeLight *newNode = NodeLight::create(key);
         if (prev != nullptr)
         {
             prev->next_ = newNode;
@@ -126,6 +182,42 @@ NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock 
         }
         return newNode;
     }
+}
+
+Node* NodeFast::findChild(uint key, bool createIfMissing)
+{
+    if (key < 0 || key >= length())
+    {
+        return nullptr;
+    }
+
+    NodeFast *childNode = children()[key];
+    if (childNode != nullptr)
+    {
+        return childNode;
+    }
+
+    // child is missing
+    if (!createIfMissing)
+    {
+        return nullptr;
+    }
+
+    NodeFast* newNode = NodeFast::create(length());
+
+    // This should never happen except if we run out of memory.
+    if (newNode == nullptr)
+    {
+        return nullptr;
+    }
+
+    if (!OSCompareAndSwapPtr(nullptr, newNode, &children()[key]))
+    {
+        // someone else created this child node before us --> release 'newNode' that we created for nothing
+        OSSafeReleaseNULL(newNode);
+    }
+
+    return children()[key];
 }
 
 typedef struct Stack {
@@ -203,5 +295,25 @@ void NodeLight::traverse(bool computeKey, void *callbackArgs, traverse_fn callba
 
         // the callback may deallocate 'curr' node, hence this must be the last statement in this loop
         callback(callbackArgs, key, toVisit);
+    }
+}
+
+void NodeFast::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
+{
+    Stack *stack = nullptr;
+    push(&stack, this, /*key*/ 0, /*depth*/ 0);
+    while (stack != nullptr)
+    {
+        uint64_t key = stack->key;
+        uint32_t depth = stack->depth;
+
+        NodeFast *curr = (NodeFast*)pop(&stack);
+        for (int i = 0; i < curr->length(); ++i)
+        {
+            push(&stack, curr->children()[i], computeKey ? (i * pow10(depth) + key) : 0, depth + 1);
+        }
+
+        // the callback may deallocate 'curr' node, hence this must be the last statement in this loop
+        callback(callbackArgs, key, curr);
     }
 }

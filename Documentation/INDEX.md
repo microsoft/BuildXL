@@ -53,6 +53,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Symlinks and Junctions](Wiki/Advanced-Features/Symlinks-and-Junctions.md)
 * [Service Pips](Wiki/Service-Pips.md)
 * [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
+* [Determinism Probe](Wiki/Advanced-Features/Determinism-Probe.md)
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)

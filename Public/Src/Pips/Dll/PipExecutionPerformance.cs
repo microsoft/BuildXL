@@ -212,6 +212,11 @@ namespace BuildXL.Pips
         /// </summary>
         public ulong? CacheDescriptorId { get; }
 
+        /// <summary>
+        /// Processor used in % (150 means one processor fully used and the other half used)
+        /// </summary>
+        public ushort ProcessorsInPercents { get; }
+
         /// <nodoc />
         public ProcessPipExecutionPerformance(
             PipExecutionLevel level,
@@ -242,6 +247,11 @@ namespace BuildXL.Pips
             KernelTime = kernelTime;
             MemoryCounters = memoryCounters;
             NumberOfProcesses = numberOfProcesses;
+
+            var durationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, ProcessExecutionTime.TotalMilliseconds));
+            double cpuTime = KernelTime.TotalMilliseconds + UserTime.TotalMilliseconds;
+            double processorPercentage = durationInMs == 0 ? 0 : cpuTime / durationInMs;
+            ProcessorsInPercents = (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
         }
 
         /// <summary>

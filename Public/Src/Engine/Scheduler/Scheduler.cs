@@ -3666,12 +3666,14 @@ namespace BuildXL.Scheduler
                             int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb;
                             int peakWorkingSetMb = executionResult.PerformanceInformation.MemoryCounters.PeakWorkingSetMb;
                             int peakPagefileUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakPagefileUsageMb;
-
-                            Logger.Log.PeakMemoryUsage(
+                            RunningTimeTable[123].
+                            Logger.Log.ProcessPipExecutionInfo(
                                 operationContext, 
                                 runnablePip.Description,
                                 (int)executionResult.PerformanceInformation.NumberOfProcesses,
+                                (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
                                 (int)executionResult.PerformanceInformation.ProcessExecutionTime.TotalSeconds,
+                                executionResult.PerformanceInformation.ProcessorsInPercents,
                                 runnablePip.Worker.DefaultMemoryUsagePerProcess, 
                                 expectedRamUsage,
                                 peakVirtualMemoryUsageMb,
@@ -4193,6 +4195,8 @@ namespace BuildXL.Scheduler
                     {
                         runnableProcess.ExpectedRamUsageMb = (int)(perfData.PeakMemoryInKB / 1024);
                     }
+
+                    runnableProcess.ExpectedDurationMs = perfData.DurationInMs;
                 }
 
                 // Find the estimated setup time for the pip on each builder.

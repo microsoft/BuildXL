@@ -61,10 +61,7 @@ namespace BuildXL.Scheduler
             // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
             PeakMemoryInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.MemoryCounters.PeakWorkingSet / 1024);
             DiskIOInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.IO.GetAggregateIO().TransferCount / 1024);
-
-            double cpuTime = executionPerformance.KernelTime.TotalMilliseconds + executionPerformance.UserTime.TotalMilliseconds;
-            double processorPercentage = DurationInMs == 0 ? 0 : cpuTime / DurationInMs;
-            ProcessorsInPercents = (ushort)Math.Min(ushort.MaxValue, processorPercentage * 100.0);
+            ProcessorsInPercents = executionPerformance.ProcessorsInPercents;
         }
 
         private PipHistoricPerfData(byte timeToLive, uint durationInMs, uint peakMemoryInKB, ushort processorsInPercents, uint diskIOInKB)

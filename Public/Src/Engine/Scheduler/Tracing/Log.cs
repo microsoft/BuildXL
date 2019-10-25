@@ -4507,13 +4507,13 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)LogEventId.PeakMemoryUsage,
+            (ushort)LogEventId.ProcessPipExecutionInfo,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, DurationSeconds: {durationSec}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
-        internal abstract void PeakMemoryUsage(LoggingContext loggingContext, string pipDescription, int numProcesses, int durationSec, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
+        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, int numProcesses, int expectedDurationSec, int actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
     }
 }
 #pragma warning restore CA1823 // Unused field

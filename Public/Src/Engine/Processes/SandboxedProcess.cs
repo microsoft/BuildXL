@@ -128,7 +128,7 @@ namespace BuildXL.Processes
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-
+            
             m_processIdListener = info.ProcessIdListener;
             m_detouredProcess =
                 new DetouredProcess(
@@ -147,7 +147,10 @@ namespace BuildXL.Processes
                     info.DisableConHostSharing,
                     info.LoggingContext,
                     info.TimeoutDumpDirectory,
-                    info.ContainerConfiguration);
+                    info.ContainerConfiguration,
+                    // If there is any process configured to breakway from the sandbox, then we need to allow
+                    // this to happen at the job object level
+                    setJobBreakawayOk: m_fileAccessManifest.ChildProcessesToBreakawayFromSandbox?.Any() == true);
         }
 
         /// <inheritdoc />

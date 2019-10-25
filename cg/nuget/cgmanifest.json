@@ -2517,7 +2517,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RuntimeContracts",
-          "Version": "0.1.7.1"
+          "Version": "0.1.9.1"
         }
       }
     },
@@ -2526,7 +2526,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "RuntimeContracts.Analyzer",
-          "Version": "0.1.7.1"
+          "Version": "0.1.9.4"
         }
       }
     },

@@ -242,6 +242,30 @@ namespace BuildXL.Utilities.Tasks
         }
 
         /// <summary>
+        /// "Swallow" an exception that happen in fire-and-forget task.
+        /// </summary>
+        public static Task IgnoreErrorsAndReturnCompletion(this Task task)
+        {
+            return task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    // Ignore the exception if task if faulted
+                    Analysis.IgnoreArgument(t.Exception);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Convenience method for creating a task with a result after a given task completes
+        /// </summary>
+        public static async Task<T> WithResultAsync<T>(this Task task, T result)
+        {
+            await task;
+            return result;
+        }
+
+        /// <summary>
         /// Waits for the given task to complete within the given timeout, throwing a <see cref="TimeoutException"/> if the timeout expires before the task completes
         /// </summary>
         public static Task WithTimeoutAsync(this Task task, TimeSpan timeout)

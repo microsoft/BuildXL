@@ -240,7 +240,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Holds change affected artifacts of the build
         /// </summary>
-        public SourceChangeAffectedContents SourceChangeAffectedContents { get; }
+        public SourceChangeAffectedInputs SourceChangeAffectedInputs { get; }
 
         #endregion
 
@@ -266,7 +266,7 @@ namespace BuildXL.Scheduler.Artifacts
                 m_outputMaterializationExclusionMap.TryAdd(outputMaterializationExclusionRoot.Value, Unit.Void);
             }
 
-            SourceChangeAffectedContents = new SourceChangeAffectedContents(this);
+            SourceChangeAffectedInputs = new SourceChangeAffectedInputs(this);
         }
 
         /// <summary>

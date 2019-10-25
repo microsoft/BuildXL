@@ -181,7 +181,12 @@ namespace BuildXL.Processes
         }
 
         private const int MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs = 3;
-        private static readonly TimeSpan SleepDurationBetweenMarkingAttempts = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan SleepDurationBetweenMarkingAttempts = TimeSpan.FromMilliseconds(10);
+
+        private static TimeSpan Multiply(TimeSpan timeSpan, int multiplier)
+        {
+            return TimeSpan.FromMilliseconds(multiplier * timeSpan.TotalMilliseconds);
+        }
 
         /// <summary>
         /// Marks a given path as "shared opaque output"
@@ -207,7 +212,7 @@ namespace BuildXL.Processes
                 // wait a bit between attempts
                 if (attempt > 1)
                 {
-                    System.Threading.Thread.Sleep(SleepDurationBetweenMarkingAttempts);
+                    System.Threading.Thread.Sleep(Multiply(SleepDurationBetweenMarkingAttempts, attempt - 1));
                 }
 
                 try

@@ -359,6 +359,15 @@ namespace BuildXL.Scheduler.Fingerprints
                 fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedInputsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
                 fingerprinter.Add("ChangeAffectedInputListWrittenFile", process.ChangeAffectedInputListWrittenFile);
             }
+
+            if (process.ChildProcessesToBreakawayFromSandbox != null)
+            {
+                fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
+                    "ChildProcessesToBreakawayFromSandbox", 
+                    process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(), 
+                    (h, p) => h.Add(p),
+                    m_pathTable.StringTable.OrdinalComparer);
+            }
         }
 
         /// <summary>

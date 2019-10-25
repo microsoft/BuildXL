@@ -1867,8 +1867,9 @@ BOOL WINAPI Detoured_CreateProcessW(
             
             if (result != g_processNamesToBreakAwayFromJob->end())
             {
+#if SUPER_VERBOSE
                 Dbg(L"Allowing process to breakaway from job object. Image name: '%s'", imageName.c_str());
-
+#endif
                 return Real_CreateProcessW(
                     lpApplicationName,
                     lpCommandLine,

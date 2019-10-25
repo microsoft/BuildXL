@@ -367,7 +367,7 @@ typedef struct ManifestChildProcessesToBreakAwayFromJob_t
 {
     GENERATE_TAG("ChildProcessesToBreakAwayFromJob", 0xABCDEF03)
 
-        inline size_t GetSize() const
+    inline size_t GetSize() const
     {
         // This conditional compilation here and in ManifestInternalDetoursErrorNotificationFileString_t are necessary because calling sizeof() on
         // an empty struct yields undefined behaviour according to the C99 standard. The optimized code the compiler produces returns 1, which is obviously wrong!

@@ -50,7 +50,9 @@ namespace Test.BuildXL.Processes
             {
                 // If we didn't let infinite waiter escape, we should have killed it when the job object was finalized
                 XAssert.IsTrue(result.Killed);
-                result.SurvivingChildProcesses.Any(process => process?.Path != null && string.Equals(System.IO.Path.GetFileName(process.Path), InfiniteWaiterToolName, StringComparison.InvariantCultureIgnoreCase));
+                XAssert.Contains(
+                    result.SurvivingChildProcesses.Select(p => p?.Path).Where(p => p != null).Select(p => System.IO.Path.GetFileName(p).ToUpperInvariant()),
+                    InfiniteWaiterToolName.ToUpperInvariant());
             }
             else
             {
@@ -59,11 +61,11 @@ namespace Test.BuildXL.Processes
                 XAssert.IsTrue(result.SurvivingChildProcesses == null);
 
                 // Let's retrieve the child process and confirm it survived
-                var dummyWaiterInfo = RetrieveChildProcessesCreatedBySpawnExe(result).Single();
+                var infiniteWaiterInfo = RetrieveChildProcessesCreatedBySpawnExe(result).Single();
                 // The fact that this does not throw confirms survival
-                var dummyWaiter = Process.GetProcessById(dummyWaiterInfo.pid);
+                var dummyWaiter = Process.GetProcessById(infiniteWaiterInfo.pid);
                 // Just being protective, let's make sure we are talking about the same process
-                XAssert.AreEqual(dummyWaiterInfo.processName, dummyWaiter.ProcessName);
+                XAssert.AreEqual(infiniteWaiterInfo.processName, dummyWaiter.ProcessName);
 
                 // Now let's kill the surviving process, since we don't want it to linger around unnecesarily
                 dummyWaiter.Kill();
@@ -96,10 +98,15 @@ namespace Test.BuildXL.Processes
             var result = RunProcess(info).GetAwaiter().GetResult();
             XAssert.AreEqual(0, result.ExitCode);
 
+            var observedAccesses = result.FileAccesses
+                .Where(reportedAccess => reportedAccess.Path != null)
+                .Select(reportedAccess => AbsolutePath.TryCreate(Context.PathTable, reportedAccess.Path, out AbsolutePath result) ? result : AbsolutePath.Invalid);
+
             // We should see the access that happens on the main test process
-            XAssert.IsTrue(result.FileAccesses.Any(fa => !string.IsNullOrEmpty(fa.Path) && AbsolutePath.TryCreate(Context.PathTable, fa.Path, out AbsolutePath result) && result == srcFile1.Path));
+            XAssert.Contains(observedAccesses, srcFile1.Path);
             // We shouldn't see the access that happens on the spawned process
-            XAssert.IsFalse(result.FileAccesses.Any(fa => !string.IsNullOrEmpty(fa.Path) && AbsolutePath.TryCreate(Context.PathTable, fa.Path, out AbsolutePath result) && result == srcFile2.Path));
+            XAssert.ContainsNot(observedAccesses, srcFile2.Path);
+
             // Only a single process should be reported: the parent one
             var testProcess = result.Processes.Single();
             XAssert.AreEqual(TestProcessToolName.ToLowerInvariant(), System.IO.Path.GetFileName(testProcess.Path).ToLowerInvariant());

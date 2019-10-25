@@ -105,6 +105,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public long TrustedHashFileSizeBoundary { get; set; } = -1;
 
         /// <summary>
+        /// Whether the underlying content store should be told to trust a hash when putting content.
+        /// </summary>
+        /// <remarks>
+        /// When trusted, then distributed file copier will hash the file and the store won't re-hash the file.
+        /// </remarks>
+        public bool UseTrustedHash(long fileSize)
+        {
+            // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
+            return fileSize >= TrustedHashFileSizeBoundary;
+        }
+
+        /// <summary>
         /// Files longer than this will be hashed concurrently with the download.
         /// All bytes downloaded before this boundary is met will be hashed inline.
         /// </summary>

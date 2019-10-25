@@ -654,7 +654,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         PutResult innerPutResult;
                         long actualSize = copyFileResult.Size ?? hashInfo.Size;
-                        if (actualSize >= Settings.TrustedHashFileSizeBoundary && Inner is ITrustedContentSession trustedInner)
+                        if (Settings.UseTrustedHash(actualSize) && Inner is ITrustedContentSession trustedInner)
                         {
                             // The file has already been hashed, so we can trust the hash of the file.
                             innerPutResult = await trustedInner.PutTrustedFileAsync(context, new ContentHashWithSize(hashInfo.ContentHash, actualSize), tempLocation, FileRealizationMode.Move, cts, urgencyHint);

@@ -10,217 +10,6 @@ OSDefineMetaClassAndStructors(NodeFast, Node)
 
 uint Node::s_numUintNodes = 0;
 uint Node::s_numPathNodes = 0;
-uint Node::s_numLightNodes = 0;
-
-NodeLight* NodeLight::create(uint key)
-{
-    NodeLight *instance = new NodeLight;
-    if (instance == nullptr)
-    {
-        goto error;
-    }
-
-    if (!instance->init(key))
-    {
-        goto error;
-    }
-
-    OSIncrementAtomic(&s_numLightNodes);
-    return instance;
-
-error:
-    OSSafeReleaseNULL(instance);
-    return nullptr;
-}
-
-NodeFast* NodeFast::create(uint numChildren)
-{
-    NodeFast *instance = new NodeFast;
-    if (instance == nullptr)
-    {
-        goto error;
-    }
-
-    if (!instance->init(numChildren))
-    {
-        goto error;
-    }
-
-    if (numChildren == s_uintNodeMaxKey)      OSIncrementAtomic(&s_numUintNodes);
-    else if (numChildren == s_pathNodeMaxKey) OSIncrementAtomic(&s_numPathNodes);
-    return instance;
-
-error:
-    OSSafeReleaseNULL(instance);
-    return nullptr;
-}
-
-bool Node::init()
-{
-    if (!OSObject::init())
-    {
-        return false;
-    }
-
-    record_ = nullptr;
-    return true;
-}
-
-bool NodeLight::init(uint key)
-{
-    if (!Node::init())
-    {
-        return false;
-    }
-
-    key_    = key;
-
-    next_     = nullptr;
-    children_ = nullptr;
-
-    lock_ = IORecursiveLockAlloc();
-    if (!lock_)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool NodeFast::init(uint numChildren)
-{
-    if (!Node::init())
-    {
-        return false;
-    }
-
-    childrenLength_ = numChildren;
-    children_ = IONew(NodeFast*, numChildren);
-
-    for (int i = 0; i < childrenLength_; i++)
-    {
-        children_[i] = nullptr;
-    }
-
-    return true;
-}
-
-void Node::free()
-{
-    OSSafeReleaseNULL(record_);
-    OSObject::free();
-}
-
-void NodeLight::free()
-{
-    // Intentionally not calling OSSafeReleaseNULL on children_ and next_
-    // because Trie is responsible for releasing all its nodes
-    //
-    // If we did try to release children_ and next_ here, we'd exceed max allowed stack depth.
-    next_ = nullptr;
-    children_ = nullptr;
-
-    OSDecrementAtomic(&s_numLightNodes);
-
-    Node::free();
-}
-
-void NodeFast::free()
-{
-    for (int i = 0; i < childrenLength_; i++)
-    {
-        children_[i] = nullptr;
-    }
-
-    IODelete(children_, NodeFast*, childrenLength_);
-    children_ = nullptr;
-
-    if (length() == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);
-    else if (length() == s_pathNodeMaxKey) OSDecrementAtomic(&s_numPathNodes);
-
-    Node::free();
-}
-
-NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
-{
-    Monitor __monitor(lock); // this will only acquire the lock if lock is not null
-
-    NodeLight *prev = nullptr;
-    NodeLight *curr = children_;
-    while (curr != nullptr && curr->key_ != key)
-    {
-        prev = curr;
-        curr = curr->next_;
-    }
-
-    if (curr != nullptr)
-    {
-        // found it
-        assert(curr->key_ == key);
-        return curr;
-    }
-    else if (!createIfMissing)
-    {
-        // didn't find it and shouldn't create it
-        return nullptr;
-    }
-    else if (lock == nullptr)
-    {
-        // didn't find it and didn't acquire lock --> must do it all over again with a lock
-        return findChild(key, createIfMissing, lock_);
-    }
-    else
-    {
-        // didn't find it and we are holding the lock -> create a new node and link it
-        NodeLight *newNode = NodeLight::create(key);
-        if (prev != nullptr)
-        {
-            prev->next_ = newNode;
-        }
-        else
-        {
-            assert(children_ == nullptr);
-            children_ = newNode;
-        }
-        return newNode;
-    }
-}
-
-Node* NodeFast::findChild(uint key, bool createIfMissing)
-{
-    if (key < 0 || key >= length())
-    {
-        return nullptr;
-    }
-
-    NodeFast *childNode = children()[key];
-    if (childNode != nullptr)
-    {
-        return childNode;
-    }
-
-    // child is missing
-    if (!createIfMissing)
-    {
-        return nullptr;
-    }
-
-    NodeFast* newNode = NodeFast::create(length());
-
-    // This should never happen except if we run out of memory.
-    if (newNode == nullptr)
-    {
-        return nullptr;
-    }
-
-    if (!OSCompareAndSwapPtr(nullptr, newNode, &children()[key]))
-    {
-        // someone else created this child node before us --> release 'newNode' that we created for nothing
-        OSSafeReleaseNULL(newNode);
-    }
-
-    return children()[key];
-}
 
 typedef struct Stack {
     Node *node;
@@ -278,6 +67,107 @@ static uint64_t pow10(int exp)
     return result;
 }
 
+// ============================== class NodeLight ==============================
+
+NodeLight* NodeLight::create(uint key)
+{
+    NodeLight *instance = new NodeLight;
+    if (instance == nullptr)
+    {
+        goto error;
+    }
+
+    if (!instance->init(key))
+    {
+        goto error;
+    }
+
+    return instance;
+
+error:
+    OSSafeReleaseNULL(instance);
+    return nullptr;
+}
+
+bool NodeLight::init(uint key)
+{
+    if (!Node::init())
+    {
+        return false;
+    }
+
+    key_      = key;
+    next_     = nullptr;
+    children_ = nullptr;
+
+    lock_ = IORecursiveLockAlloc();
+    if (!lock_)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+void NodeLight::free()
+{
+    // Intentionally not calling OSSafeReleaseNULL on children_ and next_
+    // because Trie is responsible for releasing all its nodes
+    //
+    // If we did try to release children_ and next_ here, we'd potentially
+    // exceed max allowed stack depth.
+    next_ = nullptr;
+    children_ = nullptr;
+
+    IORecursiveLockFree(lock_);
+    Node::free();
+}
+
+NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
+{
+    Monitor __monitor(lock); // this will only acquire the lock if lock is not null
+
+    NodeLight *prev = nullptr;
+    NodeLight *curr = children_;
+    while (curr != nullptr && curr->key_ != key)
+    {
+        prev = curr;
+        curr = curr->next_;
+    }
+
+    if (curr != nullptr)
+    {
+        // found it
+        assert(curr->key_ == key);
+        return curr;
+    }
+    else if (!createIfMissing)
+    {
+        // didn't find it and shouldn't create it
+        return nullptr;
+    }
+    else if (lock == nullptr)
+    {
+        // didn't find it and didn't acquire lock --> must do it all over again with a lock
+        return findChild(key, createIfMissing, lock_);
+    }
+    else
+    {
+        // didn't find it and we are holding the lock -> create a new node and link it
+        NodeLight *newNode = NodeLight::create(key);
+        if (prev != nullptr)
+        {
+            prev->next_ = newNode;
+        }
+        else
+        {
+            assert(children_ == nullptr);
+            children_ = newNode;
+        }
+        return newNode;
+    }
+}
+
 void NodeLight::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
 {
     Stack *stack = nullptr;
@@ -298,6 +188,100 @@ void NodeLight::traverse(bool computeKey, void *callbackArgs, traverse_fn callba
         // the callback may deallocate 'curr' node, hence this must be the last statement in this loop
         callback(callbackArgs, key, toVisit);
     }
+}
+
+// ============================== class NodeFast ==============================
+
+NodeFast* NodeFast::create(uint numChildren)
+{
+    NodeFast *instance = new NodeFast;
+    if (instance == nullptr)
+    {
+        goto error;
+    }
+
+    if (!instance->init(numChildren))
+    {
+        goto error;
+    }
+
+    if (numChildren == s_uintNodeMaxKey)      OSIncrementAtomic(&s_numUintNodes);
+    else if (numChildren == s_pathNodeMaxKey) OSIncrementAtomic(&s_numPathNodes);
+    return instance;
+
+error:
+    OSSafeReleaseNULL(instance);
+    return nullptr;
+}
+
+bool NodeFast::init(uint numChildren)
+{
+    if (!Node::init())
+    {
+        return false;
+    }
+
+    childrenLength_ = numChildren;
+    children_ = IONew(NodeFast*, numChildren);
+
+    for (int i = 0; i < childrenLength_; i++)
+    {
+        children_[i] = nullptr;
+    }
+
+    return true;
+}
+
+void NodeFast::free()
+{
+    for (int i = 0; i < childrenLength_; i++)
+    {
+        children_[i] = nullptr;
+    }
+
+    IODelete(children_, NodeFast*, childrenLength_);
+    children_ = nullptr;
+
+    if (length() == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);
+    else if (length() == s_pathNodeMaxKey) OSDecrementAtomic(&s_numPathNodes);
+
+    Node::free();
+}
+
+Node* NodeFast::findChild(uint key, bool createIfMissing)
+{
+    if (key < 0 || key >= length())
+    {
+        return nullptr;
+    }
+
+    NodeFast *childNode = children()[key];
+    if (childNode != nullptr)
+    {
+        return childNode;
+    }
+
+    // child is missing
+    if (!createIfMissing)
+    {
+        return nullptr;
+    }
+
+    NodeFast* newNode = NodeFast::create(length());
+
+    // This should never happen except if we run out of memory.
+    if (newNode == nullptr)
+    {
+        return nullptr;
+    }
+
+    if (!OSCompareAndSwapPtr(nullptr, newNode, &children()[key]))
+    {
+        // someone else created this child node before us --> release 'newNode' that we created for nothing
+        OSSafeReleaseNULL(newNode);
+    }
+
+    return children()[key];
 }
 
 void NodeFast::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)

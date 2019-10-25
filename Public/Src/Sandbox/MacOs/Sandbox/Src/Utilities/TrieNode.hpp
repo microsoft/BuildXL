@@ -30,7 +30,6 @@ protected:
 
     static uint s_numUintNodes;
     static uint s_numPathNodes;
-    static uint s_numLightNodes;
 
     /*!
      * The value 65 is chosen so that all ASCII characters between 32 (' ') and 122 ('z')
@@ -61,8 +60,17 @@ protected:
     /*! Calls 'callback' for every node in the tree rooted in this node (the traversal is pre-order) */
     virtual void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) = 0;
 
-    bool init() override;
-    void free() override;
+    bool init() override
+    {
+        record_ = nullptr;
+        return OSObject::init();
+    }
+
+    void free() override
+    {
+        OSSafeReleaseNULL(record_);
+        OSObject::free();
+    }
 };
 
 /* =================== class NodeLight ====================== */

@@ -62,7 +62,7 @@ public:
 
     static void getLightNodeCounts(CountAndSize *cnt)
     {
-        cnt->count = Node::s_numLightNodes; //  NodeLight::metaClass->getInstanceCount();
+        cnt->count = NodeLight::metaClass->getInstanceCount();
         cnt->size = sizeof(NodeLight);
     }
 

@@ -4,7 +4,7 @@
 #include "Monitor.hpp"
 #include "TrieNode.hpp"
 
-OSDefineMetaClassAndStructors(Node, OSObject)
+OSDefineMetaClassAndAbstractStructors(Node, OSObject)
 OSDefineMetaClassAndStructors(NodeLight, Node)
 OSDefineMetaClassAndStructors(NodeFast, Node)
 
@@ -113,8 +113,10 @@ void Node::free()
 
 void NodeLight::free()
 {
-    // intentionally not calling OSSafeReleaseNULL on children_ and next_
+    // Intentionally not calling OSSafeReleaseNULL on children_ and next_
     // because Trie is responsible for releasing all its nodes
+    //
+    // If we did try to release children_ and next_ here, we'd exceed max allowed stack depth.
     next_ = nullptr;
     children_ = nullptr;
 

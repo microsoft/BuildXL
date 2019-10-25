@@ -22,7 +22,7 @@ typedef void (*traverse_fn)(void*, uint64_t key, Node*);
  */
 class Node : public OSObject
 {
-    OSDeclareDefaultStructors(Node);
+    OSDeclareAbstractStructors(Node);
 
     friend class Trie;
 
@@ -56,10 +56,10 @@ protected:
      * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
      * @result True IFF this node contains a child node with key 'key' after this method returns.
      */
-    virtual Node* findChild(uint key, bool createIfMissing) { return nullptr; }
+    virtual Node* findChild(uint key, bool createIfMissing) = 0;
 
     /*! Calls 'callback' for every node in the tree rooted in this node (the traversal is pre-order) */
-    virtual void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) {}
+    virtual void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) = 0;
 
     bool init() override;
     void free() override;
@@ -104,7 +104,7 @@ protected:
     void free() override;
 };
 
-/* =================== class NodeLight ====================== */
+/* =================== class NodeFast ====================== */
 
 class NodeFast : public Node
 {

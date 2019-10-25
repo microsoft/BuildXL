@@ -62,7 +62,7 @@ public:
 
     static void getLightNodeCounts(CountAndSize *cnt)
     {
-        cnt->count = NodeLight::metaClass->getInstanceCount();
+        cnt->count = Node::s_numLightNodes; //  NodeLight::metaClass->getInstanceCount();
         cnt->size = sizeof(NodeLight);
     }
 
@@ -76,9 +76,9 @@ private:
 
     uint mergeKindAndImpl(TrieKind knd, TrieImpl impl) { return kKindBitMask * knd + kImplBitMask * impl; }
 
-    bool isUintTrie()  { return (kind_ & kKindBitMask) == 0; }
+    bool isUintTrie()  { return (kind_ & kKindBitMask) == kUintTrie; }
     bool isPathTrie()  { return !isUintTrie(); }
-    bool isFastTrie()  { return (kind_ & kImplBitMask) == 0; }
+    bool isFastTrie()  { return (kind_ & kImplBitMask) == kFastTrie; }
     bool isLightTrie() { return !isFastTrie(); }
 
     /*! The root of the tree. */

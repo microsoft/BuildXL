@@ -3666,7 +3666,7 @@ namespace BuildXL.Scheduler
                             int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb;
                             int peakWorkingSetMb = executionResult.PerformanceInformation.MemoryCounters.PeakWorkingSetMb;
                             int peakPagefileUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakPagefileUsageMb;
-                            RunningTimeTable[123].
+
                             Logger.Log.ProcessPipExecutionInfo(
                                 operationContext, 
                                 runnablePip.Description,

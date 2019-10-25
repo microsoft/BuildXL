@@ -14,7 +14,6 @@ int g_bxl_verbose_logging = 0;
 int g_bxl_enable_cache = 1;
 int g_bxl_enable_light_trie = 1;
 
-
 SYSCTL_INT(_kern,                               // parent
            OID_AUTO,                            // oid
            bxl_enable_counters,                 // name

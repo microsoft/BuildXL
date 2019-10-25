@@ -30,7 +30,7 @@ bool Trie::init(TrieKind kind)
     }
 
     size_ = 0;
-    kind_ = g_bxl_enable_light_trie ? TrieKind::kLightTrie : kind;
+    kind_ = mergeKindAndImpl(kind, g_bxl_enable_light_trie ? kLightTrie : kFastTrie);
     onChangeData_ = nullptr;
     onChangeCallback_ = nullptr;
     root_ = createNode(0);
@@ -185,7 +185,7 @@ Trie::TrieResult Trie::remove(Node *node)
  for (int ch = 0; ch < 256; ch++)
  {
      int idx = toupper(ch) - 32;
-     if (idx < 0 || idx >= 65) idx += 500;
+     if (idx < 0 || idx >= 65) idx = -1;
      printf("    %2d, // '%c' (\\%2d)\n", idx, ch < 32 || ch > 126 ? 0 : ch, ch);
  }
  printf("};\n");
@@ -455,9 +455,9 @@ static_assert(UCHAR_MAX == 255, "max unsigned char is not 255");
 
 Node* Trie::findPathNode(const char *path, bool createIfMissing)
 {
-    if (kind_ == kUintTrie)
+    if (!isPathTrie())
     {
-        log_error("Requested to find a path node in a unit trie; path: %s", path);
+        log_error("Requested to find a path node in a non-path trie; tree kind: %d, path: %s", kind_, path);
         return nullptr;
     }
 
@@ -482,9 +482,9 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
 
 Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
 {
-    if (kind_ == kPathTrie)
+    if (!isUintTrie())
     {
-        log_error("Requested to find a uint node in a path trie; key: %lld", key);
+        log_error("Requested to find a uint node in a non-uint trie; trie kind: %d, key: %lld", kind_, key);
         return nullptr;
     }
 
@@ -529,7 +529,7 @@ void Trie::forEach(void *callbackArgs, for_each_fn callback)
 {
     typedef struct { for_each_fn callback; void *args; } State;
     State state = { .callback = callback, .args = callbackArgs };
-    traverse(/*computeKey*/ kind_ != kPathTrie, /*callbackArgs*/ &state, [](void *s, uint64_t key, Node *node)
+    traverse(/*computeKey*/ isUintTrie(), /*callbackArgs*/ &state, [](void *s, uint64_t key, Node *node)
              {
                  State *state = (State*)s;
                  OSObject *record = node->record_;

@@ -10,18 +10,22 @@
 #define Trie BXL_CLASS(Trie)
 
 /*!
- * A thread-safe, lock-free, dictionary implementation.
+ * A thread-safe dictionary, implementated as a trie tree.
  *
  * Only 2 types of keys are allowed: (1) an unsigned integer, and (2) an ascii path.
  *
- * A value must be a pointer to an arbitrary OSObject.  Once an OSObject is added
- * to this trie, it is automatically retained by this trie; once it is removed, it is
- * automatically released by this trie; this is analogous to how OSDictionary works.
+ * Additionally, two different implementations are provided: fast and light.  The former
+ * is lock-free and fast but has a potentially huge memory footprint; the latter has a
+ * much smaller memory footprint, is not lock-free, but still has good performance.
+ *
+ * Each node in a tree can be assigned a record which must be a pointer to an arbitrary OSObject.
+ * Once an OSObject is added to a trie, it is automatically retained by the trie; once it is removed,
+ * it is automatically released by this trie; this is analogous to how OSDictionary works.
  *
  * Paths are considered case-insensitive.  Attempting to add a path with a non-ascii
  * character will fail gracefully by returning 'kTrieResultFailure'.
  *
- * Thread-safe.  Non-blocking.
+ * Thread-safe.
  */
 class Trie : public OSObject
 {
@@ -64,24 +68,35 @@ public:
 
 private:
 
-    typedef enum { kUintTrie, kPathTrie, kLightTrie } TrieKind;
+    const uint kKindBitMask = 1;
+    const uint kImplBitMask = 1 << 1;
+
+    typedef enum { kUintTrie = 0, kPathTrie = 1 } TrieKind;
+    typedef enum { kFastTrie = 0, kLightTrie = 1 } TrieImpl;
+
+    uint mergeKindAndImpl(TrieKind knd, TrieImpl impl) { return kKindBitMask * knd + kImplBitMask * impl; }
+
+    bool isUintTrie()  { return (kind_ & kKindBitMask) == 0; }
+    bool isPathTrie()  { return !isUintTrie(); }
+    bool isFastTrie()  { return (kind_ & kImplBitMask) == 0; }
+    bool isLightTrie() { return !isFastTrie(); }
 
     /*! The root of the tree. */
     Node *root_;
 
-    /*! The kind of keys this tree accepts */
-    TrieKind kind_;
+    /*! Encodes the kind (see 'TreeKind') and implementation (see 'TreeImpl') */
+    uint kind_;
 
-    /*! This is the size of the tree (i.e., number of values stored) and not the number of nodes in the tree. */
+    /*! The size of the tree (i.e., number of records stored) and not the number of nodes in the tree. */
     uint size_;
 
-    /*! Callback function (and associated payload) to call whenever count changes. */
+    /*! Callback function to call whenever the size of the tree changes. */
     on_change_fn onChangeCallback_;
 
     /*! Payload for the 'onChangeCallback_' function */
     void *onChangeData_;
 
-    /*! Creates and initialized a new Trie.  The return value indicates the success of the operation. */
+    /*! Initialized a new Trie.  The return value indicates the success of the operation. */
     bool init(TrieKind kind);
 
     /*! Invokes the 'onChangeCallback_' if it's set and 'newCount' is different from 'oldCount' */
@@ -91,12 +106,12 @@ private:
      * Ensures that 'node' has its 'record_' field set to a non-null value.
      * If not already set, uses the 'factory' function to create a new value and assign it to the 'record_' field.
      *
-     * @param node The node that must become sentinel.
+     * @param node The node that must become a sentinel.
      * @param factoryArgs Arguments to pass to the 'factory' function
      * @param factory Function to call to create a record to assign to 'node' in the case when no record has already been assigned.
      * @result
-     *    - kTrieResultAlreadyExists : if 'node' already has a record
-     *    - kTrieResultInserted      : if a new record was created and assigned to 'node'.
+     *    - kTrieResultAlreadyExists : if 'node' already has a record (MUST NOT assume that 'factory' wasn't called in this case)
+     *    - kTrieResultInserted      : if a new record was created and assigned to 'node' (SAFE to assume that 'factory' was called).
      */
     TrieResult makeSentinel(Node *node, void *factoryArgs, factory_fn factory);
 
@@ -197,9 +212,9 @@ private:
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
     Node* createNode(uint key)
     {
-        return kind_ == kUintTrie  ? (Node*)NodeFast::createUintNode() :
-               kind_ == kPathTrie  ? (Node*)NodeFast::createPathNode() :
-               kind_ == kLightTrie ? (Node*)NodeLight::create(key) :
+        return isLightTrie() ? (Node*)NodeLight::create(key) :
+               isUintTrie()  ? (Node*)NodeFast::createUintNode() :
+               isPathTrie()  ? (Node*)NodeFast::createPathNode() :
                nullptr;
     }
 

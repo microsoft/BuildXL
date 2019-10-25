@@ -230,7 +230,7 @@ namespace BuildXL.Processes
             {
                 // IOException can happen if the process is forcefully killed while we're feeding its std in.
                 // When that happens, instead of crashing, just make sure the process is killed.
-                LogProcessState($"IOException caught while feeding the standard input: {e.Message}");
+                LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
                 await KillAsync();
             }
         }

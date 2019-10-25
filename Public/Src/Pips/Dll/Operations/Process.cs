@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -413,7 +414,8 @@ namespace BuildXL.Pips.Operations
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
             FileArtifact changeAffectedInputListWrittenFile = default,
-            int? preserveOutputsTrustLevel = null)
+            int? preserveOutputsTrustLevel = null,
+            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -468,6 +470,8 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(additionalTempDirectories.Length == additionalTempDirectories.Distinct().Count());
             Contract.RequiresForAll(semaphores, s => s.IsValid);
             Contract.Requires(semaphores.Length == semaphores.Distinct().Count());
+            Contract.Requires(!(childProcessesToBreakawayFromSandbox?.Length > 0) || ProcessUtilities.SandboxSupportsProcessBreakaway(), 
+                "A process is only allowed to specify child processes to breakaway if the underlying sandbox allows for it");
 #endif
 
             Provenance = provenance;
@@ -524,6 +528,7 @@ namespace BuildXL.Pips.Operations
 
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty; 
         }
 
         /// <summary>
@@ -718,6 +723,16 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; }
 
+
+        /// <summary>
+        /// Process names that will break away from the sandbox when spawned by the main process
+        /// </summary>
+        /// <remarks>
+        /// The accesses of processes that break away from them sandbox won't be observed.
+        /// Processes that breakaway can survive the lifespan of the sandbox
+        /// </remarks>
+        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
+
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
         /// Default value is 30 seconds (SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout).
@@ -868,7 +883,8 @@ namespace BuildXL.Pips.Operations
                 priority: reader.ReadInt32Compact(),
                 preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
                 changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
-                preserveOutputsTrustLevel: reader.ReadInt32()
+                preserveOutputsTrustLevel: reader.ReadInt32(),
+                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom())
                 );
         }
 
@@ -919,6 +935,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
             writer.Write(ChangeAffectedInputListWrittenFile);
             writer.Write(PreserveOutputsTrustLevel);
+            writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
         }
         #endregion
     }

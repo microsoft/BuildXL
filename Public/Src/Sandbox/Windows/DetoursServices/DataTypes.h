@@ -361,6 +361,26 @@ typedef struct ManifestTranslatePathsStrings_t
 typedef const ManifestTranslatePathsStrings_t * PManifestTranslatePathsStrings;
 
 // ==========================================================================
+// == ManifestChildProcessesToBreakAwayFromJob
+// ==========================================================================
+typedef struct ManifestChildProcessesToBreakAwayFromJob_t
+{
+    GENERATE_TAG("ChildProcessesToBreakAwayFromJob", 0xABCDEF03)
+
+        inline size_t GetSize() const
+    {
+        // This conditional compilation here and in ManifestInternalDetoursErrorNotificationFileString_t are necessary because calling sizeof() on
+        // an empty struct yields undefined behaviour according to the C99 standard. The optimized code the compiler produces returns 1, which is obviously wrong!
+#if (MAC_OS_SANDBOX || MAC_OS_LIBRARY) && !_DEBUG
+        return 0;
+#else
+        return sizeof(ManifestChildProcessesToBreakAwayFromJob_t);
+#endif
+    }
+} ManifestChildProcessesToBreakAwayFromJob_t;
+typedef const ManifestChildProcessesToBreakAwayFromJob_t* PManifestChildProcessesToBreakAwayFromJob;
+
+// ==========================================================================
 // == ManifestInternalDetoursErrorNotificationFileString
 // ==========================================================================
 typedef struct ManifestInternalDetoursErrorNotificationFileString_t

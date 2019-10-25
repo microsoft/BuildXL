@@ -193,7 +193,9 @@ namespace BuildXL.Processes
         /// <param name="terminateOnClose">If set, the job and all children will be terminated when the last handle to the job closes.</param>
         /// <param name="priorityClass">Forces a priority class onto all child processes in the job.</param>
         /// <param name="failCriticalErrors">If set, applies the effects of <c>SEM_NOGPFAULTERRORBOX</c> to all child processes in the job.</param>
-        internal void SetLimitInformation(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null, bool failCriticalErrors = false)
+        /// <param name="allowProcessesToBreakAway">Whether to apply <c>JOB_OBJECT_LIMIT_BREAKAWAY_OK</c> to the job object, so processes can escape from the job
+        /// by setting <c>CREATE_BREAKAWAY_FROM_JOB</c> on process creation</param>
+        internal void SetLimitInformation(bool? terminateOnClose = null, ProcessPriorityClass? priorityClass = null, bool failCriticalErrors = false, bool allowProcessesToBreakAway = false)
         {
             // There is a race in here; but that shouldn't matter in the way we use JobObjects in BuildXL.
             var limitInfo = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
@@ -228,6 +230,11 @@ namespace BuildXL.Processes
             if (failCriticalErrors)
             {
                 limitInfo.LimitFlags |= JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
+            }
+
+            if (allowProcessesToBreakAway)
+            {
+                limitInfo.LimitFlags |= JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_BREAKAWAY_OK;
             }
 
             if (!Native.Processes.ProcessUtilities.SetInformationJobObject(

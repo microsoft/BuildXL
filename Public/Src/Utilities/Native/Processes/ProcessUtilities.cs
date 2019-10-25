@@ -281,6 +281,16 @@ namespace BuildXL.Native.Processes
         public static bool OSSupportsNestedJobs()
             => s_nativeMethods.OSSupportsNestedJobs();
 
+        /// <summary>
+        /// Returns whether the sandbox implementation supports configuring child processes to break away from the sandbox
+        /// </summary>
+        /// <remarks>
+        /// Temporary until we implement process breakaway for Mac. 
+        /// In theory we should be able to support this feature for all cases.
+        /// </remarks>
+        public static bool SandboxSupportsProcessBreakaway() 
+            => s_nativeMethods.SandboxSupportsProcessBreakaway();
+
         #region Helium containers
 
         /// <summary>

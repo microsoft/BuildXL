@@ -180,19 +180,56 @@ namespace BuildXL.Processes
             }
         }
 
+        private const int MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs = 3;
+        private static readonly TimeSpan SleepDurationBetweenMarkingAttempts = TimeSpan.FromMilliseconds(100);
+
         /// <summary>
         /// Marks a given path as "shared opaque output"
         /// </summary>
+        /// <remarks>
+        /// Retries are needed because: (Win|Unix).SetPathAsSharedOpaqueOutput does something like
+        ///   - check if file has write access rights
+        ///   - if it doesn't, give it those rights
+        ///   - mark the file as shared opaque output
+        ///   - ...
+        /// There is a race between checking and setting access rights, so it is possible that
+        /// here we check its rights, we see that it has the correct rights, then someone else 
+        /// (e.g., the cache) revokes those rights, and so we fail to mark the file as shared opaque output.
+        /// </remarks>
         /// <exception cref="BuildXLException">When unsuccessful</exception>
         public static void SetPathAsSharedOpaqueOutput(string expandedPath)
         {
-            if (OperatingSystemHelper.IsUnixOS)
+            int attempt = 0;
+            while (true)
             {
-                Unix.SetPathAsSharedOpaqueOutput(expandedPath);
-            }
-            else
-            {
-                Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                attempt += 1;
+
+                // wait a bit between attempts
+                if (attempt > 1)
+                {
+                    System.Threading.Thread.Sleep(SleepDurationBetweenMarkingAttempts);
+                }
+
+                try
+                {
+                    if (OperatingSystemHelper.IsUnixOS)
+                    {
+                        Unix.SetPathAsSharedOpaqueOutput(expandedPath);
+                    }
+                    else
+                    {
+                        Win.SetPathAsSharedOpaqueOutput(expandedPath);
+                    }
+
+                    return;
+                } 
+                catch (BuildXLException e)
+                {
+                    if (attempt >= MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs)
+                    {
+                        throw new BuildXLException($"Exceeded max number of attempts ({MaxNumberOfAttemptsForMarkingSharedOpaqueOutputs}) to mark '{expandedPath}' as shared opaque output", e);
+                    }
+                }
             }
         }
 

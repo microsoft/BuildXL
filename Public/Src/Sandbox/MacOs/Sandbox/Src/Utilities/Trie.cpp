@@ -529,7 +529,7 @@ void Trie::forEach(void *callbackArgs, for_each_fn callback)
 {
     typedef struct { for_each_fn callback; void *args; } State;
     State state = { .callback = callback, .args = callbackArgs };
-    traverse(/*computeKey*/ kind_ == kUintTrie, /*callbackArgs*/ &state, [](void *s, uint64_t key, Node *node)
+    traverse(/*computeKey*/ kind_ != kPathTrie, /*callbackArgs*/ &state, [](void *s, uint64_t key, Node *node)
              {
                  State *state = (State*)s;
                  OSObject *record = node->record_;

@@ -8,7 +8,7 @@ using System.IO;
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
     /// <summary>
-    /// Stream capable of recording the bytes read from its inner stream.
+    /// Stream capable of recording the bytes read from or written to its inner stream.
     /// </summary>
     internal class RecordingStream : Stream
     {
@@ -66,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public override bool CanSeek => _inner.CanSeek;
 
         /// <inheritdoc />
-        public override bool CanWrite => false;
+        public override bool CanWrite => _inner.CanWrite;
 
         /// <inheritdoc />
         public override long Length => _inner.Length;
@@ -102,6 +102,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public override void SetLength(long value) => _inner.SetLength(value);
 
         /// <inheritdoc />
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException("The stream does not support writing.");
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            _inner.Write(buffer, offset, count);
+
+            if (FixedSizeStream && _readBytes + count > _capacity)
+            {
+                throw new InvalidOperationException($"Cannot exceed capacity set to {_capacity} bytes.");
+            }
+            else
+            {
+                _readBytes += count;
+                _memoryStream.Write(buffer, offset, count);
+            }
+        }
     }
 }

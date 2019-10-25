@@ -10,10 +10,10 @@ source "$MY_DIR/env.sh"
 declare arg_kextSourceDir=""
 declare arg_kextDeployDir=""
 declare arg_noReload=""
-declare arg_enableCounters="0"
-declare arg_verboseLogging="0"
-declare arg_enableCache="1"
-declare arg_enableLightTrie="1"
+declare arg_enableCounters=""
+declare arg_verboseLogging=""
+declare arg_enableCache=""
+declare arg_enableLightTrie=""
 
 # Prints out BuildXLSandbox bundle id if it is currently loaded, or empty string otherwise.
 function getRunningBuildXLSandboxBundleId { # (bundleId)
@@ -206,7 +206,7 @@ fi
 loadBuildXLSandbox "$finalKextFolder" "$bundleId"
 
 # turn sysctl knobs
-sysctl kern.bxl_enable_counters=$arg_enableCounters
-sysctl kern.bxl_verbose_logging=$arg_verboseLogging
-sysctl kern.bxl_enable_cache=$arg_enableCache
-sysctl kern.bxl_enable_light_trie=$arg_enableLightTrie
+if [[ -n $arg_enableCounters ]];  then sysctl kern.bxl_enable_counters=$arg_enableCounters; fi
+if [[ -n $arg_verboseLogging ]];  then sysctl kern.bxl_verbose_logging=$arg_verboseLogging; fi
+if [[ -n $arg_enableCache ]];     then sysctl kern.bxl_enable_cache=$arg_enableCache; fi
+if [[ -n $arg_enableLightTrie ]]; then sysctl kern.bxl_enable_light_trie=$arg_enableLightTrie; fi

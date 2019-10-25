@@ -141,6 +141,11 @@ public:
      */
     inline CacheRecord* cacheLookup(const char *path)
     {
+        if (!g_bxl_enable_cache)
+        {
+            return nullptr;
+        }
+
         OSObject *value = pathCache_->getOrAdd(path, nullptr, CacheRecordFactory);
         return OSDynamicCast(CacheRecord, value);
     }

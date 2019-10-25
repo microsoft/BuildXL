@@ -1,81 +1,31 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef PathCache_hpp
-#define PathCache_hpp
+#ifndef Trie_hpp
+#define Trie_hpp
 
-#include <IOKit/IOLib.h>
-#include <IOKit/IOService.h>
-#include "BuildXLSandboxShared.hpp"
+#include "TrieNode.hpp"
+#include "SysCtl.hpp"
 
-#define Node BXL_CLASS(Node)
 #define Trie BXL_CLASS(Trie)
 
 /*!
- * A node in a Trie.
- * Only accessible to its friend class Trie.
- */
-class Node : public OSObject
-{
-    OSDeclareDefaultStructors(Node);
-
-private:
-
-    friend class Trie;
-
-    static uint s_numUintNodes;
-    static uint s_numPathNodes;
-
-    /*!
-     * The value 65 is chosen so that all ASCII characters between 32 (' ') and 122 ('z')
-     * get a unique entry in the 'children_' array.  The formula for mapping a character
-     * ch to an array index is:
-     *
-     *   toupper(ch) - 32
-     */
-    static const uint s_pathNodeChildrenCount = 65;
-
-    /*! For 10 digits */
-    static const uint s_uintNodeChildrenCount = 10;
-
-    /*! Arbitrary value */
-    OSObject *record_;
-
-    /*! The length of the 'children_' array (i.e., the the number of allocated nodes) */
-    uint childrenLength_;
-
-    /*! Pre-allocated pointers to all possible children nodes. */
-    Node **children_;
-
-    uint length()     const { return childrenLength_; }
-    Node** children() const { return children_; }
-
-    bool init(uint numChildren);
-    static Node* create(uint numChildren);
-
-    static Node* createUintNode() { return create(s_uintNodeChildrenCount); }
-    static Node* createPathNode() { return create(s_pathNodeChildrenCount); }
-
-protected:
-
-    void free() override;
-};
-
-// ================================== class Trie ==================================
-
-/*!
- * A thread-safe, lock-free, dictionary implementation.
+ * A thread-safe dictionary, implementated as a trie tree.
  *
  * Only 2 types of keys are allowed: (1) an unsigned integer, and (2) an ascii path.
  *
- * A value must be a pointer to an arbitrary OSObject.  Once an OSObject is added
- * to this trie, it is automatically retained by this trie; once it is removed, it is
- * automatically released by this trie; this is analogous to how OSDictionary works.
+ * Additionally, two different implementations are provided: fast and light.  The former
+ * is lock-free and fast but has a potentially huge memory footprint; the latter has a
+ * much smaller memory footprint, is not lock-free, but still has good performance.
+ *
+ * Each node in a tree can be assigned a record which must be a pointer to an arbitrary OSObject.
+ * Once an OSObject is added to a trie, it is automatically retained by the trie; once it is removed,
+ * it is automatically released by this trie; this is analogous to how OSDictionary works.
  *
  * Paths are considered case-insensitive.  Attempting to add a path with a non-ascii
  * character will fail gracefully by returning 'kTrieResultFailure'.
  *
- * Thread-safe.  Non-blocking.
+ * Thread-safe.
  */
 class Trie : public OSObject
 {
@@ -98,72 +48,70 @@ public:
         kTrieResultFailure,
     } TrieResult;
 
-    static void getUintNodeCounts(uint *count, double *sizeMB)
+    static void getUintNodeCounts(CountAndSize *cnt)
     {
-        getNodeCounts(Node::s_numUintNodes, Node::s_uintNodeChildrenCount, count, sizeMB);
+        cnt->count = Node::s_numUintNodes;
+        cnt->size = sizeof(NodeFast) + Node::s_uintNodeMaxKey * sizeof(NodeFast*);
     }
 
-    static void getPathNodeCounts(uint *count, double *sizeMB)
+    static void getPathNodeCounts(CountAndSize *cnt)
     {
-        getNodeCounts(Node::s_numPathNodes, Node::s_pathNodeChildrenCount, count, sizeMB);
+        cnt->count = Node::s_numPathNodes;
+        cnt->size = sizeof(NodeFast) + Node::s_pathNodeMaxKey * sizeof(NodeFast*);
+    }
+
+    static void getLightNodeCounts(CountAndSize *cnt)
+    {
+        cnt->count = NodeLight::metaClass->getInstanceCount();
+        cnt->size = sizeof(NodeLight);
     }
 
 private:
 
-    static const uint BytesInAMegabyte = 1 << 20;
+    const uint kKindBitMask = 1;
+    const uint kImplBitMask = 1 << 1;
 
-    static void getNodeCounts(uint count, uint numChildren, uint *outCount, double *outSizeMB)
-    {
-        *outCount = count;
-        *outSizeMB = (1.0 * count * (sizeof(Node) + numChildren * sizeof(Node*))) / BytesInAMegabyte;
-    }
+    typedef enum { kUintTrie = 0, kPathTrie = 1 } TrieKind;
+    typedef enum { kFastTrie = 0, kLightTrie = 1 } TrieImpl;
 
-    typedef enum { kUintTrie, kPathTrie } TrieKind;
-    typedef void (*traverse_fn)(Trie*, void*, uint64_t key, Node*);
+    uint mergeKindAndImpl(TrieKind knd, TrieImpl impl) { return kKindBitMask * knd + kImplBitMask * impl; }
+
+    bool isUintTrie()  { return (kind_ & kKindBitMask) == kUintTrie; }
+    bool isPathTrie()  { return !isUintTrie(); }
+    bool isFastTrie()  { return (kind_ & kImplBitMask) == kFastTrie; }
+    bool isLightTrie() { return !isFastTrie(); }
 
     /*! The root of the tree. */
     Node *root_;
 
-    /*! The kind of keys this tree accepts */
-    TrieKind kind_;
+    /*! Encodes the kind (see 'TreeKind') and implementation (see 'TreeImpl') */
+    uint kind_;
 
-    /*! This is the size of the tree (i.e., number of values stored) and not the number of nodes in the tree. */
+    /*! The size of the tree (i.e., number of records stored) and not the number of nodes in the tree. */
     uint size_;
 
-    /*! Callback function (and associated payload) to call whenever count changes. */
+    /*! Callback function to call whenever the size of the tree changes. */
     on_change_fn onChangeCallback_;
 
     /*! Payload for the 'onChangeCallback_' function */
     void *onChangeData_;
 
-    /*! Creates and initialized a new Trie.  The return value indicates the success of the operation. */
+    /*! Initialized a new Trie.  The return value indicates the success of the operation. */
     bool init(TrieKind kind);
 
     /*! Invokes the 'onChangeCallback_' if it's set and 'newCount' is different from 'oldCount' */
     void triggerOnChange(int oldCount, int newCount) const;
 
     /*!
-     * Checks if a child node of 'node' exists at position 'idx'.
-     * If no such child node exists and 'createIfMissing' is true,
-     * a new child node is created and saved at position 'idx'.
-     *
-     * @param node The parent node.  Must not be null.
-     * @param idx Must be between 0 (inclusive) and 'node.length()' (exclusive); otherwise this method returns false.
-     * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
-     * @result True IFF 'node' contains a child node at position 'idx' after this method returns.
-     */
-    bool findChildNode(Node *node, int idx, bool createIfMissing);
-
-    /*!
      * Ensures that 'node' has its 'record_' field set to a non-null value.
      * If not already set, uses the 'factory' function to create a new value and assign it to the 'record_' field.
      *
-     * @param node The node that must become sentinel.
+     * @param node The node that must become a sentinel.
      * @param factoryArgs Arguments to pass to the 'factory' function
      * @param factory Function to call to create a record to assign to 'node' in the case when no record has already been assigned.
      * @result
-     *    - kTrieResultAlreadyExists : if 'node' already has a record
-     *    - kTrieResultInserted      : if a new record was created and assigned to 'node'.
+     *    - kTrieResultAlreadyExists : if 'node' already has a record (MUST NOT assume that 'factory' wasn't called in this case)
+     *    - kTrieResultInserted      : if a new record was created and assigned to 'node' (SAFE to assume that 'factory' was called).
      */
     TrieResult makeSentinel(Node *node, void *factoryArgs, factory_fn factory);
 
@@ -262,10 +210,11 @@ private:
     Node* findExistingNodeForPath(const char *key) { return findPathNode(key, false); }
 
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
-    Node* createNode()
+    Node* createNode(uint key)
     {
-        return kind_ == kUintTrie ? Node::createUintNode() :
-               kind_ == kPathTrie ? Node::createPathNode() :
+        return isLightTrie() ? (Node*)NodeLight::create(key) :
+               isUintTrie()  ? (Node*)NodeFast::createUintNode() :
+               isPathTrie()  ? (Node*)NodeFast::createPathNode() :
                nullptr;
     }
 
@@ -306,14 +255,12 @@ public:
 
     OSObject* get(const char *path)
     {
-        if (kind_ != kPathTrie) return nullptr;
         return get(findExistingNodeForPath(path));
     }
 
     template<typename T>
     T* getAs(const char *key)
     {
-        if (kind_ != kPathTrie) return nullptr;
         return OSDynamicCast(T, get(key));
     }
 
@@ -329,25 +276,21 @@ public:
      */
     OSObject* getOrAdd(const char *path, void *factoryArgs, factory_fn factory, TrieResult *result = nullptr)
     {
-        if (kind_ != kPathTrie) return nullptr;
         return getOrAdd(findOrCreateNodeForPath(path), factoryArgs, factory, result);
     }
 
     TrieResult replace(const char *path, const OSObject *value)
     {
-        if (kind_ != kPathTrie) return kTrieResultFailure;
         return replace(findOrCreateNodeForPath(path), value);
     }
 
     TrieResult insert(const char *path, const OSObject *value)
     {
-        if (kind_ != kPathTrie) return kTrieResultFailure;
         return insert(findOrCreateNodeForPath(path), value);
     }
 
     TrieResult remove(const char *key)
     {
-        if (kind_ != kPathTrie) return kTrieResultFailure;
         return remove(findExistingNodeForPath(key));
     }
 
@@ -355,38 +298,32 @@ public:
 
     OSObject* get(uint64_t key)
     {
-        if (kind_ != kUintTrie) return nullptr;
         return get(findExistingNodeForUint(key));
     }
 
     template<typename T>
     T* getAs(uint64_t key)
     {
-        if (kind_ != kUintTrie) return nullptr;
         return OSDynamicCast(T, get(key));
     }
 
     OSObject* getOrAdd(uint64_t key, void *factoryArgs, factory_fn factory, TrieResult *result = nullptr)
     {
-        if (kind_ != kUintTrie) return nullptr;
         return getOrAdd(findOrCreateNodeForUint(key), factoryArgs, factory, result);
     }
 
     TrieResult replace(uint64_t key, const OSObject *value)
     {
-        if (kind_ != kUintTrie) return kTrieResultFailure;
         return replace(findOrCreateNodeForUint(key), value);
     }
 
     TrieResult insert(uint64_t key, const OSObject *value)
     {
-        if (kind_ != kUintTrie) return kTrieResultFailure;
         return insert(findOrCreateNodeForUint(key), value);
     }
 
     TrieResult remove(uint64_t key)
     {
-        if (kind_ != kUintTrie) return kTrieResultFailure;
         return remove(findExistingNodeForUint(key));
     }
 
@@ -396,4 +333,4 @@ public:
     static Trie* createPathTrie() { return create(kPathTrie); }
 };
 
-#endif /* PathCache_hpp */
+#endif /* Trie_hpp */

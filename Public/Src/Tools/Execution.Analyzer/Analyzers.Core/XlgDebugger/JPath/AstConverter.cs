@@ -44,7 +44,24 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         public override Expr VisitMapExpr([NotNull] JPathParser.MapExprContext context)
         {
-            return new MapExpr(context.Lhs.Accept(this), (Selector)context.Selector.Accept(this));
+            return new MapExpr(context.Lhs.Accept(this), context.Sub.Accept(this));
+        }
+
+        public override Expr VisitObjLitExpr([NotNull] JPathParser.ObjLitExprContext context)
+        {
+            return context.Obj.Accept(this);
+        }
+
+        public override Expr VisitObjLitProps([NotNull] JPathParser.ObjLitPropsContext context)
+        {
+            return new ObjLit(props: context._Props.Select(p => p.Accept(this)).Cast<PropVal>());
+        }
+
+        public override Expr VisitPropertyValue([NotNull] JPathParser.PropertyValueContext context)
+        {
+            return new PropVal(
+                name: (context.Name?.Accept(this) as Selector)?.PropertyNames?.First(),
+                value: context.Value.Accept(this));
         }
 
         public override Expr VisitRangeExpr([NotNull] JPathParser.RangeExprContext context)
@@ -115,7 +132,12 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         public override Expr VisitStrLitExpr([NotNull] JPathParser.StrLitExprContext context)
         {
-            return new StrLit(context.Value.Text.Trim('"', '\''));
+            return new StrLit(ExtractStringFromStringLiteralToken(context.Value));
+        }
+
+        private string ExtractStringFromStringLiteralToken(IToken token)
+        {
+            return token.Text.Trim('"', '\'');
         }
 
         public override Expr VisitSubExpr([NotNull] JPathParser.SubExprContext context)
@@ -223,6 +245,22 @@ namespace BuildXL.Execution.Analyzer.JPath
                 name: context.Var.Text,
                 value: context.Val.Accept(this),
                 sub: null);
+        }
+
+        public override Expr VisitSaveToFileExpr([NotNull] JPathParser.SaveToFileExprContext context)
+            => SaveOrAppend(context.File, context.Input, append: false);
+        public override Expr VisitAppendToFileExpr([NotNull] JPathParser.AppendToFileExprContext context)
+            => SaveOrAppend(context.File, context.Input, append: true);
+
+        private Expr SaveOrAppend(IToken file, JPathParser.ExprContext input, bool append)
+        {
+            return new FuncAppExpr(
+                func: new FuncObj(append ? LibraryFunctions.AppendFunction : LibraryFunctions.SaveFunction),
+                args: new Expr[]
+                {
+                    new StrLit(ExtractStringFromStringLiteralToken(file)),
+                    input.Accept(this)
+                });
         }
     }
 }

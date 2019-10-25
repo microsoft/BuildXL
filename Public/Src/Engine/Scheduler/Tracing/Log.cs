@@ -3673,8 +3673,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.Performance),
-            Message = "Attempt to reuse existing incremental scheduling state from engine state: {reason}")]
-        public abstract void IncrementalSchedulingReuseState(LoggingContext context, string reason);
+            Message = "Attempt to reuse existing incremental scheduling state from engine state: {reason} | Engine state id (if reuseable): {engineStateIdIfReusable}")]
+        public abstract void IncrementalSchedulingReuseState(LoggingContext context, string reason, string engineStateIdIfReusable);
 
         [GeneratedEvent(
             (int)EventId.IncrementalSchedulingSaveState,

@@ -276,6 +276,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             bool pipGraphChanged,
             PipGraphSequenceNumber pipGraphSequenceNumber,
             int indexToGraphLogs,
+            Guid engineStateId,
             ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
@@ -295,7 +296,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             Contract.Requires(dirtiedPips != null);
 
             m_loggingContext = loggingContext;
-            m_engineStateId = Guid.NewGuid();
+            m_engineStateId = engineStateId;
             m_atomicSaveToken = atomicSaveToken;
             PipGraph = pipGraph;
             m_internalPathTable = internalPathTable;
@@ -365,6 +366,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 false,
                 pipGraphSequenceNumber,
                 indexToGraphLogs,
+                Guid.NewGuid(),
                 tempDirectoryCleaner);
         }
 
@@ -1320,7 +1322,10 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             GraphAgnosticIncrementalSchedulingStateId newIncrementalSchedulingStateId = GraphAgnosticIncrementalSchedulingStateId.Create(pipGraph.Context.PathTable, configuration, preserveOutputSalt);
             ReuseFromEngineStateKind reuseKind = CheckIfIncrementalSchedulingIsReusableFromEngineState(pipGraph, newIncrementalSchedulingStateId, incrementalSchedulingPath);
 
-            Tracing.Logger.Log.IncrementalSchedulingReuseState(loggingContext, reuseKind.ToString());
+            Tracing.Logger.Log.IncrementalSchedulingReuseState(
+                loggingContext, 
+                reuseKind.ToString(),
+                reuseKind == ReuseFromEngineStateKind.Reusable ? m_engineStateId.ToString() : string.Empty);
 
             if (reuseKind != ReuseFromEngineStateKind.Reusable)
             {
@@ -1346,6 +1351,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 false,
                 m_pipGraphSequenceNumber,
                 m_indexToGraphLogs,
+                Guid.NewGuid(), // Renew engine state id to avoid cross talk with different build server.
                 tempDirectoryCleaner);
         }
 
@@ -1388,6 +1394,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             DirtyNodeTracker.DirtyNodeTrackerSerializedState dirtyNodeTrackerSerializedState = default;
             PipGraphSequenceNumber pipGraphSequenceNumber = PipGraphSequenceNumber.Zero;
             int indexToGraphLogs = default;
+            Guid engineStateId = default;
 
             // Step 1: Load exisiting incremental scheduling state.
             var loadStateStopwatch = new StopwatchVar();
@@ -1400,7 +1407,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     reader =>
                     {
                         // TODO: Loading can be parallelized if we split the state into multiple files.
-                        Analysis.IgnoreResult(reader.ReadGuid(), "Read engine state id is irrelevant for full reload of incremental scheduling state");
+                        engineStateId = reader.ReadGuid();
                         loadedAtomicSaveToken = FileEnvelopeId.Deserialize(reader);
                         loadedGraphId = reader.ReadGuid();
                         var stringTableTask = StringTable.DeserializeAsync(reader);
@@ -1547,6 +1554,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 loadedGraphId != pipGraph.GraphId,
                 pipGraphSequenceNumber,
                 indexToGraphLogs,
+                analysisModeOnly ? engineStateId : Guid.NewGuid(), // Renew if not analysis mode.
                 tempDirectoryCleaner);
         }
 

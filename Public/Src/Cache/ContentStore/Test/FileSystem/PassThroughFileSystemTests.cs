@@ -25,6 +25,7 @@ namespace ContentStoreTest.FileSystem
         }
 
         [Fact]
+        [Trait("Category", "WindowsOSOnly")] 
         public async Task TestDeleteWithOpenFileStream()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))

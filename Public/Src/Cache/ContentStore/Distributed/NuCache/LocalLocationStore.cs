@@ -600,17 +600,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
                 var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
-                var shouldRestoreInBackground = latestCheckpointAge < _configuration.Checkpoint.RestoreCheckpointAgeThreshold;
+
+                // Only skip if this is the first restore and it is sufficiently recent
+                var shouldSkipRestore = _lastRestoreTime == default 
+                    && latestCheckpoint != null 
+                    && latestCheckpoint?.checkpointTime.IsRecent(_clock.UtcNow, _configuration.Checkpoint.RestoreCheckpointAgeThreshold) == true;
 
                 if (latestCheckpointAge > _configuration.LocationEntryExpiry)
                 {
                     Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
                 }
 
-                if (shouldRestoreInBackground)
+                if (shouldSkipRestore)
                 {
-                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} will be restored in the background. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
-                    RestoreCheckpointStateAsync(context, checkpointState, force: true).FireAndForget(context);
+                    Tracer.Debug(context, $"First checkpoint {latestCheckpoint.Value.checkpointId} will be skipped. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
                     return BoolResult.Success;
                 }
             }
@@ -619,7 +622,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 if (_lastCheckpointId != checkpointState.CheckpointId)
                 {
-                    Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState.CheckpointId}'.");
+                    Tracer.Debug(context, $"Restoring the checkpoint '{checkpointState}'.");
                     var possibleCheckpointResult = await _checkpointManager.RestoreCheckpointAsync(context, checkpointState);
                     if (!possibleCheckpointResult)
                     {
@@ -630,7 +633,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
                 else
                 {
-                    Tracer.Debug(context, $"Checkpoint '{checkpointState.CheckpointId}' already restored.");
+                    Tracer.Debug(context, $"Checkpoint '{checkpointState}' already restored.");
                 }
 
                 if (_localContentStore != null && !_reconciled && _configuration.EnableReconciliation)

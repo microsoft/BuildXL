@@ -126,6 +126,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Sets a key to a given value in the global info map
+        /// </summary>
+        public abstract void SetGlobalEntry(string key, string value);
+
+        /// <summary>
+        /// Attempts to get a value from the global info map
+        /// </summary>
+        public abstract bool TryGetGlobalEntry(string key, out string value); 
+
+        /// <summary>
         /// Factory method that creates an instance of a <see cref="ContentLocationDatabase"/> based on an optional <paramref name="configuration"/> instance.
         /// </summary>
         public static ContentLocationDatabase Create(IClock clock, ContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)

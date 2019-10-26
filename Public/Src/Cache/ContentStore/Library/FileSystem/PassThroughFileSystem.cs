@@ -59,6 +59,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <summary>
+        /// Enables POSIX delete semantics as first-level deletion for delete operations
+        /// </summary>
+        public static void EnablePosixDelete()
+        {
+            FileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="PassThroughFileSystem"/> class.
         /// </summary>
         public PassThroughFileSystem()

@@ -49,7 +49,8 @@ function setMinimal() {
 
 function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
-    
+    arg_Positional+=("/remoteTelemetry+")
+
     for arg in "$@" 
     do
         to_lower=`printf '%s\n' "$arg" | awk '{ print tolower($0) }'`

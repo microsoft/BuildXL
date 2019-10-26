@@ -32,7 +32,6 @@ function setBxlCmdArgs {
     g_bxlCmdArgs=(
         # some defaults
         /sandboxKind:none
-        /remoteTelemetry+
         /enableIncrementalFrontEnd-
         /useHardLinks-
         # some environment variables

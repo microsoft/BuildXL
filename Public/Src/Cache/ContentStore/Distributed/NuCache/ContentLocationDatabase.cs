@@ -337,7 +337,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             context.PerformOperation(Tracer,
                 () =>
                 {
-                    using (var cancellableContext = TrackShutdown(context))
+                    using (var cancellableContext = TrackShutdown(context.CreateNested()))
                     {
                         if (_isMetadataGarbageCollectionEnabled)
                         {
@@ -397,6 +397,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ShortHash? lastHash = null;
             int maxHashFirstByteDifference = 0;
 
+            long[] aggregateSizeByLogSize = new long[64];
+            long[] aggregateUniqueSizeByLogSize = new long[aggregateSizeByLogSize.Length];
+            int[] countsByLogSize = new int[aggregateSizeByLogSize.Length];
+
             // Enumerate over all hashes...
             foreach (var hash in EnumerateSortedKeys(context))
             {
@@ -416,6 +420,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 uniqueContentSize += entry.ContentSize;
                 totalContentSize += entry.ContentSize * replicaCount;
                 totalContentCount += replicaCount;
+
+                int logSize = (int)Math.Log(Math.Max(1, entry.ContentSize), 2);
+                countsByLogSize[logSize]++;
+                aggregateSizeByLogSize[logSize] += entry.ContentSize * replicaCount;
+                aggregateUniqueSizeByLogSize[logSize] += entry.ContentSize;
+
 
                 // Filter out inactive machines.
                 var filteredEntry = FilterInactiveMachines(entry);
@@ -439,7 +449,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             removedEntries++;
                             Counters[ContentLocationDatabaseCounters.TotalNumberOfCollectedEntries].Increment();
                             Delete(context, hash);
-                            LogEntryDeletion(hash, OperationReason.GarbageCollect);
+                            LogEntryDeletion(hash, OperationReason.GarbageCollect, entry.ContentSize);
                         }
                         else if(filteredEntry.Locations.Count != entry.Locations.Count)
                         {
@@ -467,7 +477,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Counters[ContentLocationDatabaseCounters.TotalNumberOfScannedEntries].Add(uniqueContentCount);
 
             Tracer.Debug(context, $"Overall DB Stats: UniqueContentCount={uniqueContentCount}, UniqueContentSize={uniqueContentSize}, "
-                + $"TotalContentCount={totalContentCount}, TotalContentSize={totalContentSize}, MaxHashFirstByteDifference={maxHashFirstByteDifference}");
+                + $"TotalContentCount={totalContentCount}, TotalContentSize={totalContentSize}, MaxHashFirstByteDifference={maxHashFirstByteDifference}" 
+                + $", UniqueContentAddedSize={Counters[ContentLocationDatabaseCounters.UniqueContentAddedSize].Value}"
+                + $", TotalNumberOfCreatedEntries={Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Value}"
+                + $", TotalContentAddedSize={Counters[ContentLocationDatabaseCounters.TotalContentAddedSize].Value}"
+                + $", UniqueContentRemovedSize={Counters[ContentLocationDatabaseCounters.UniqueContentRemovedSize].Value}"
+                + $", TotalNumberOfDeletedEntries={Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Value}"
+                + $", TotalContentRemovedSize={Counters[ContentLocationDatabaseCounters.TotalContentRemovedSize].Value}"
+                );
+
+            for (int logSize = 0; logSize < countsByLogSize.Length; logSize++)
+            {
+                if (countsByLogSize[logSize] != 0)
+                {
+                    Tracer.Debug(context, $"DB Content Stat: Log2_Size={logSize}, Count={countsByLogSize[logSize]}, UniqueSize={aggregateUniqueSizeByLogSize[logSize]}, TotalSize={aggregateSizeByLogSize[logSize]}, IsComplete={!context.Token.IsCancellationRequested}");
+                }
+            }
 
             Tracer.GarbageCollectionFinished(
                 context,
@@ -775,12 +800,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     created = true;
                 }
 
+                if (machine != null)
+                {
+                    if (existsOnMachine)
+                    {
+                        Counters[ContentLocationDatabaseCounters.TotalContentAddedSize].Add(entry.ContentSize);
+                    }
+                    else
+                    {
+                        Counters[ContentLocationDatabaseCounters.TotalContentRemovedSize].Add(entry.ContentSize);
+                    }
+                }
+
                 if (entry.Locations.Count == 0)
                 {
                     // Remove the hash when no more locations are registered
                     Delete(context, hash);
-                    Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Increment();
-                    LogEntryDeletion(hash, reason);
+                    LogEntryDeletion(hash, reason, entry.ContentSize);
                 }
                 else
                 {
@@ -789,6 +825,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (created)
                     {
                         Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Increment();
+                        Counters[ContentLocationDatabaseCounters.UniqueContentAddedSize].Add(entry.ContentSize);
                         _nagleOperationTracer.Enqueue((hash, EntryOperation.Create, reason));
                     }
                 }
@@ -797,8 +834,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private void LogEntryDeletion(ShortHash hash, OperationReason reason)
+        private void LogEntryDeletion(ShortHash hash, OperationReason reason, long size)
         {
+            Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Increment();
+            Counters[ContentLocationDatabaseCounters.UniqueContentRemovedSize].Add(size);
             _nagleOperationTracer.Enqueue((hash, EntryOperation.Delete, reason));
         }
 

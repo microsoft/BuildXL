@@ -116,5 +116,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         GarbageCollectContent,
+
+        /// <summary>
+        /// Amount of unique content added in bytes
+        /// </summary>
+        UniqueContentAddedSize,
+
+        /// <summary>
+        /// Amount of content added in bytes
+        /// </summary>
+        TotalContentAddedSize,
+
+        /// <summary>
+        /// Amount of unique content removed in bytes
+        /// </summary>
+        UniqueContentRemovedSize,
+
+        /// <summary>
+        /// Amount of content removed in bytes
+        /// </summary>
+        TotalContentRemovedSize,
     }
 }

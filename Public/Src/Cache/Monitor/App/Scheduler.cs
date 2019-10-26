@@ -6,19 +6,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Monitor.App.Rules;
 
 namespace BuildXL.Cache.Monitor.App
 {
-    internal class SchedulerSettings
-    {
-        public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
-    }
-
     internal class Scheduler
     {
+        public class Settings
+        {
+            public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
+        }
+
         private class Entry
         {
             public DateTime LastRunTimeUtc { get; set; } = DateTime.MinValue;
@@ -30,11 +28,11 @@ namespace BuildXL.Cache.Monitor.App
 
         private readonly ILogger _logger;
         private readonly IClock _clock;
-        private readonly SchedulerSettings _settings;
+        private readonly Settings _settings;
 
         private readonly ConcurrentDictionary<IRule, Entry> _schedule = new ConcurrentDictionary<IRule, Entry>();
 
-        public Scheduler(SchedulerSettings settings, ILogger logger, IClock clock)
+        public Scheduler(Settings settings, ILogger logger, IClock clock)
         {
             Contract.RequiresNotNull(settings);
             Contract.RequiresNotNull(logger);

@@ -18,6 +18,8 @@ namespace BuildXL.Scheduler.Tracing
 
         private readonly Scheduler m_scheduler;
 
+        private readonly int m_workerId;
+
         /// <summary>
         /// Handle the events from workers
         /// </summary>
@@ -26,7 +28,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <inheritdoc/>
         public override IExecutionLogTarget CreateWorkerTarget(uint workerId)
         {
-            return this;
+            return new MasterSpecificExecutionLogTarget(m_loggingContext, m_scheduler, (int)workerId);
         }
 
         /// <summary>
@@ -34,10 +36,12 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public MasterSpecificExecutionLogTarget(
             LoggingContext loggingContext,
-            Scheduler scheduler)
+            Scheduler scheduler,
+            int workerId = 0)
         {
             m_loggingContext = loggingContext;
             m_scheduler = scheduler;
+            m_workerId = workerId;
         }
 
         /// <inheritdoc/>
@@ -55,6 +59,16 @@ namespace BuildXL.Scheduler.Tracing
                 m_loggingContext,
                 process.GetDescription(m_scheduler.Context),
                 descriptionFailure);
+        }
+
+        /// <inheritdoc/>
+        public override void StatusReported(StatusEventData data)
+        {
+            var worker = m_scheduler.Workers[m_workerId];
+
+            worker.ActualAvailableMemoryMb = data.MachineAvailableRamMB;
+            worker.ActualCommitPercent = data.CommitPercent;
+            worker.ActualCommitTotalMB = data.CommitTotalMB;
         }
     }
 }

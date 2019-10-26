@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using BuildXL.Native.IO;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -109,9 +110,9 @@ namespace BuildXL.Processes
             public TimeSpan KernelTime;
 
             /// <summary>
-            /// Peak memory usage considering all processes (highest point-in-time sum of the memory usage of all job processes).
+            /// Memory counters
             /// </summary>
-            public ulong PeakMemoryUsage;
+            public ProcessMemoryCounters MemoryCounters; 
 
             /// <summary>
             /// Number of processes started within or added to the job. This includes both running and already-terminated processes, if any.
@@ -124,7 +125,7 @@ namespace BuildXL.Processes
                 IO.Serialize(writer);
                 writer.Write(UserTime);
                 writer.Write(KernelTime);
-                writer.Write(PeakMemoryUsage);
+                MemoryCounters.Serialize(writer);
                 writer.Write(NumberOfProcesses);
             }
 
@@ -136,7 +137,7 @@ namespace BuildXL.Processes
                     IO = IOCounters.Deserialize(reader),
                     UserTime = reader.ReadTimeSpan(),
                     KernelTime = reader.ReadTimeSpan(),
-                    PeakMemoryUsage = reader.ReadUInt64(),
+                    MemoryCounters = ProcessMemoryCounters.Deserialize(reader),
                     NumberOfProcesses = reader.ReadUInt32()
                 };
             }
@@ -348,7 +349,7 @@ namespace BuildXL.Processes
         /// Gets accounting information of this job object (aggregate resource usage by all processes ever in the job).
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public AccountingInformation GetAccountingInformation()
+        public AccountingInformation GetAccountingInformation(ulong peakWorkingSetUsage, ulong peakPagefileUsage)
         {
             var info = default(JOBOBJECT_BASIC_AND_IO_ACCOUNTING_INFORMATION);
             if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
@@ -367,8 +368,8 @@ namespace BuildXL.Processes
                        KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                        UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
                        NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                       PeakMemoryUsage = GetPeakMemoryUsage(),
-                   };
+                       MemoryCounters = new ProcessMemoryCounters(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
+            };
         }
 
         /// <summary>
@@ -379,7 +380,7 @@ namespace BuildXL.Processes
         /// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms684156(v=vs.85).aspx
         /// </remarks>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public ulong GetPeakMemoryUsage()
+        public ulong GetPeakVirtualMemoryUsage()
         {
             var info = default(JOBOBJECT_EXTENDED_LIMIT_INFORMATION);
 

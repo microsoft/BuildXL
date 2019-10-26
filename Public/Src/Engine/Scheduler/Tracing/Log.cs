@@ -321,7 +321,6 @@ namespace BuildXL.Scheduler.Tracing
             Message = "[{pipDescription}] Adding augmenting path set '{pathSetHash}' with '{pathCount}' (from {pathSetCount} path sets with min {minPathCount} and max {maxPathCount} paths). Weak fingerprint={weakFingerprint}. Result={result}.")]
         internal abstract void AddAugmentingPathSet(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, int pathCount, int pathSetCount, int minPathCount, int maxPathCount, string result);
 
-
         [GeneratedEvent(
             (ushort)EventId.PipFailedDueToServicesFailedToRun,
             EventGenerators = EventGenerators.LocalOnly,
@@ -4506,6 +4505,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipInputAssertions,
             Message = "Source dependency for file at path: {filePath} could not be hashed while processing pip: {pipDescription}.")]
         public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ProcessPipExecutionInfo,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
+        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, int numProcesses, int expectedDurationSec, int actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
     }
 }
 #pragma warning restore CA1823 // Unused field

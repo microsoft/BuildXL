@@ -109,7 +109,7 @@ namespace BuildXL.Execution.Analyzer
 
                 processPipExecPerformance.UserTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.UserTime);
                 processPipExecPerformance.KernelTime = Google.Protobuf.WellKnownTypes.Duration.FromTimeSpan(performance.KernelTime);
-                processPipExecPerformance.PeakMemoryUsage = performance.PeakMemoryUsage;
+                processPipExecPerformance.PeakMemoryUsage = performance.MemoryCounters.PeakWorkingSet;
                 processPipExecPerformance.NumberOfProcesses = performance.NumberOfProcesses;
 
                 processPipExecPerformance.FileMonitoringViolationCounters = new Xldb.Proto.FileMonitoringViolationCounters()

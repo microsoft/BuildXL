@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Antlr4.Runtime;
 using BuildXL.Utilities.Collections;
+using JetBrains.Annotations;
 
 namespace BuildXL.Execution.Analyzer.JPath
 {
@@ -155,6 +156,58 @@ namespace BuildXL.Execution.Analyzer.JPath
     }
 
     /// <summary>
+    /// Wrapper around <see cref="Evaluator.Function"/>.
+    /// </summary>
+    public sealed class FuncObj : Expr
+    {
+        /// <nodoc />
+        public Evaluator.Function Function { get; }
+
+        /// <nodoc />
+        public FuncObj(Evaluator.Function func)
+        {
+            Function = func;
+        }
+
+        /// <inheritdoc />
+        public override string Print() => $"{Function.Name}(...)";
+    }
+
+    public sealed class PropVal : Expr
+    {
+        [CanBeNull] public string Name { get; }
+        public Expr Value { get; }
+
+        public PropVal([CanBeNull] string name, Expr value)
+        {
+            Contract.Requires(value != null);
+            Name = name;
+            Value = value;
+        }
+
+        public override string Print() => Name != null 
+            ? $"{Name}: {Value.Print()}"
+            : $"{Value.Print()}";
+    }
+
+    public sealed class ObjLit : Expr
+    {
+        public IReadOnlyList<PropVal> Props { get; }
+
+        public ObjLit(IEnumerable<PropVal> props)
+        {
+            Props = new List<PropVal>(props);
+        }
+
+        public override string Print()
+        {
+            var props = string.Join(", ", Props.Select(p => p.Print()));
+            return $"{{ {props} }}";
+        }
+    }
+
+
+    /// <summary>
     /// Selects a contiguous range from an array.
     /// 
     /// Syntax example 1: arrayExpr[-2..-1]
@@ -204,18 +257,18 @@ namespace BuildXL.Execution.Analyzer.JPath
         /// <summary>Collection to map <see cref="PropertySelector"/> over.</summary>
         public Expr Lhs { get; }
 
-        /// <summary>Property to select from each value in <see cref="Lhs"/></summary>
-        public Selector PropertySelector { get; }
+        /// <summary>Expression to evaluate against each value in <see cref="Lhs"/></summary>
+        public Expr Sub { get; }
 
         /// <nodoc />
-        public MapExpr(Expr lhs, Selector propertyName)
+        public MapExpr(Expr lhs, Expr sub)
         {
             Lhs = lhs;
-            PropertySelector = propertyName;
+            Sub = sub;
         }
 
         /// <inheritdoc />
-        public override string Print() => $"{Lhs.Print()}.{PropertySelector.Print()}";
+        public override string Print() => $"{Lhs.Print()}.{Sub.Print()}";
     }
 
     /// <summary>

@@ -24,13 +24,13 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             public string KustoTableIngestionMappingName { get; set; }
 
-            public TimeSpan FlushInterval { get; set; } = TimeSpan.FromSeconds(30);
+            public TimeSpan FlushInterval { get; set; } = TimeSpan.FromSeconds(5);
 
             public int BatchSize { get; set; } = 1000;
 
             public bool Validate()
             {
-                if (string.IsNullOrEmpty(KustoDatabaseName) || string.IsNullOrEmpty(KustoTableName) || string.IsNullOrEmpty(KustoTableIngestionMappingName))
+                if (string.IsNullOrEmpty(KustoDatabaseName) || string.IsNullOrEmpty(KustoTableName))
                 {
                     return false;
                 }
@@ -47,8 +47,9 @@ namespace BuildXL.Cache.Monitor.App.Notifications
         private static readonly List<Tuple<string, string>> KustoTableColumns = new List<Tuple<string, string>>()
             {
                 new Tuple<string, string>("PreciseTimeStamp", "System.DateTime"),
-                new Tuple<string, string>("Severity", "System.Int64"),
+                new Tuple<string, string>("Severity", "System.Int32"),
                 new Tuple<string, string>("SeverityFriendly", "System.String"),
+                new Tuple<string, string>("Environment", "System.String"),
                 new Tuple<string, string>("Stamp", "System.String"),
                 new Tuple<string, string>("Message", "System.String"),
             };
@@ -69,6 +70,11 @@ namespace BuildXL.Cache.Monitor.App.Notifications
                 {
                     ColumnName = "SeverityFriendly",
                     JsonPath = "$.SeverityFriendly",
+                },
+                new JsonColumnMapping()
+                {
+                    ColumnName = "Environment",
+                    JsonPath = "$.Environment",
                 },
                 new JsonColumnMapping()
                 {
@@ -103,9 +109,17 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             _kustoIngestionProperties = new KustoIngestionProperties(_settings.KustoDatabaseName, _settings.KustoTableName)
             {
-                JSONMappingReference = _settings.KustoTableIngestionMappingName,
                 Format = DataSourceFormat.json,
             };
+
+            if (string.IsNullOrEmpty(_settings.KustoTableIngestionMappingName))
+            {
+                _kustoIngestionProperties.JsonMapping = KustoJsonMapping;
+            }
+            else
+            {
+                _kustoIngestionProperties.JSONMappingReference = _settings.KustoTableIngestionMappingName;
+            }
 
             _queue = NagleQueue<Notification>.Create(FlushAsync, 1, settings.FlushInterval, settings.BatchSize);
         }

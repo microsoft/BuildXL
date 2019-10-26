@@ -5,6 +5,7 @@ using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using Kusto.Data;
+using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
 using Kusto.Ingest;
 
@@ -28,7 +29,6 @@ namespace BuildXL.Cache.Monitor.App
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitor",
-                KustoTableIngestionMappingName = "MonitorIngestionMapping",
             };
 
             public Scheduler.Settings Scheduler { get; set; } = new Scheduler.Settings();
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.Monitor.App
             }
         }
 
-        private static async Task Main(string[] args)
+        private static void Main(string[] args)
         {
             var settings = LoadSettings();
 
@@ -60,25 +60,26 @@ namespace BuildXL.Cache.Monitor.App
 
             var kustoIngestConnectionString = new KustoConnectionStringBuilder(settings.KustoIngestionClusterUrl)
                 .WithAadApplicationKeyAuthentication(settings.ApplicationClientId, settings.ApplicationKey, settings.Authority);
+            // TODO(jubayard): use streaming ingestion instead of direct ingestion. There seems to be some assembly
+            // issues when attempting to do that
+            using var ingestClient = KustoIngestFactory.CreateDirectIngestClient(kustoIngestConnectionString);
+
+            var notifier = new KustoNotifier(settings.KustoNotifier, logger, ingestClient);
 
             var kustoConnectionString = new KustoConnectionStringBuilder(settings.KustoClusterUrl)
                 .WithAadApplicationKeyAuthentication(settings.ApplicationClientId, settings.ApplicationKey, settings.Authority);
 
-            // TODO(jubayard): use streaming ingestion instead of direct ingestion. There seems to be some assembly
-            // issues when attempting to do that
-            using var ingestClient = KustoIngestFactory.CreateDirectIngestClient(kustoIngestConnectionString);
-            var notifier = new KustoNotifier(settings.KustoNotifier, logger, ingestClient);
+            //using (var adminClient = KustoClientFactory.CreateCslAdminProvider(kustoConnectionString))
+            //{
+            //    notifier.PrepareForIngestion(adminClient);
+            //}
 
-            using (var adminClient = KustoClientFactory.CreateCslAdminProvider(kustoConnectionString))
-            {
-                notifier.PrepareForIngestion(adminClient);
-            }
-
+            using var kustoQueryClient = KustoClientFactory.CreateCslQueryProvider(kustoConnectionString);
             var scheduler = new Scheduler(settings.Scheduler, logger, clock);
 
-            AddRules(scheduler, notifier);
+            AddRules(scheduler, notifier, kustoQueryClient);
 
-            await scheduler.RunAsync();
+            scheduler.RunAsync().Wait();
         }
 
         private static Settings LoadSettings()
@@ -86,7 +87,7 @@ namespace BuildXL.Cache.Monitor.App
             return new Settings();
         }
 
-        private static void AddRules(Scheduler scheduler, INotifier notifier)
+        private static void AddRules(Scheduler scheduler, INotifier notifier, ICslQueryProvider cslQueryProvider)
         {
             scheduler.Add(new PrintRule(notifier), TimeSpan.FromSeconds(1));
         }

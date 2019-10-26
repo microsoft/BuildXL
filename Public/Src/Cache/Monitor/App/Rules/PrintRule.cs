@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Notifications;
 
@@ -22,7 +23,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
         public async Task Run()
         {
             await Task.Delay(TimeSpan.FromSeconds(5));
-            _notifier.Emit(new Notification(SystemClock.Instance.UtcNow, ContentStore.Interfaces.Logging.Severity.Debug, "None!", "YEYE!"));
+            _notifier.Emit(new Notification(SystemClock.Instance.UtcNow, Severity.Debug, Notifications.Environment.CI, "None!", "YEYE!"));
         }
     }
 }

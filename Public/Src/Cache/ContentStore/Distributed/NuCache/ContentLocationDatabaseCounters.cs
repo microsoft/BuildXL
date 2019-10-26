@@ -128,6 +128,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         TotalContentAddedSize,
 
         /// <summary>
+        /// Count of content added
+        /// </summary>
+        TotalContentAddedCount,
+
+        /// <summary>
         /// Amount of unique content removed in bytes
         /// </summary>
         UniqueContentRemovedSize,
@@ -136,5 +141,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// Amount of content removed in bytes
         /// </summary>
         TotalContentRemovedSize,
+
+        /// <summary>
+        /// Amount of content removed
+        /// </summary>
+        TotalContentRemovedCount,
     }
 }

@@ -397,9 +397,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             ShortHash? lastHash = null;
             int maxHashFirstByteDifference = 0;
 
-            long[] aggregateSizeByLogSize = new long[64];
-            long[] aggregateUniqueSizeByLogSize = new long[aggregateSizeByLogSize.Length];
-            int[] countsByLogSize = new int[aggregateSizeByLogSize.Length];
+            long[] totalSizeByLogSize = new long[64];
+            long[] uniqueSizeByLogSize = new long[totalSizeByLogSize.Length];
+            int[] countsByLogSize = new int[totalSizeByLogSize.Length];
 
             // Enumerate over all hashes...
             foreach (var hash in EnumerateSortedKeys(context))
@@ -423,8 +423,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 int logSize = (int)Math.Log(Math.Max(1, entry.ContentSize), 2);
                 countsByLogSize[logSize]++;
-                aggregateSizeByLogSize[logSize] += entry.ContentSize * replicaCount;
-                aggregateUniqueSizeByLogSize[logSize] += entry.ContentSize;
+                totalSizeByLogSize[logSize] += entry.ContentSize * replicaCount;
+                uniqueSizeByLogSize[logSize] += entry.ContentSize;
 
 
                 // Filter out inactive machines.
@@ -481,16 +481,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 + $", UniqueContentAddedSize={Counters[ContentLocationDatabaseCounters.UniqueContentAddedSize].Value}"
                 + $", TotalNumberOfCreatedEntries={Counters[ContentLocationDatabaseCounters.TotalNumberOfCreatedEntries].Value}"
                 + $", TotalContentAddedSize={Counters[ContentLocationDatabaseCounters.TotalContentAddedSize].Value}"
+                + $", TotalContentAddedCount={Counters[ContentLocationDatabaseCounters.TotalContentAddedCount].Value}"
                 + $", UniqueContentRemovedSize={Counters[ContentLocationDatabaseCounters.UniqueContentRemovedSize].Value}"
                 + $", TotalNumberOfDeletedEntries={Counters[ContentLocationDatabaseCounters.TotalNumberOfDeletedEntries].Value}"
                 + $", TotalContentRemovedSize={Counters[ContentLocationDatabaseCounters.TotalContentRemovedSize].Value}"
+                + $", TotalContentRemovedCount={Counters[ContentLocationDatabaseCounters.TotalContentRemovedCount].Value}"
                 );
 
             for (int logSize = 0; logSize < countsByLogSize.Length; logSize++)
             {
                 if (countsByLogSize[logSize] != 0)
                 {
-                    Tracer.Debug(context, $"DB Content Stat: Log2_Size={logSize}, Count={countsByLogSize[logSize]}, UniqueSize={aggregateUniqueSizeByLogSize[logSize]}, TotalSize={aggregateSizeByLogSize[logSize]}, IsComplete={!context.Token.IsCancellationRequested}");
+                    Tracer.Debug(context, $"DB Content Stat: Log2_Size={logSize}, Count={countsByLogSize[logSize]}, UniqueSize={uniqueSizeByLogSize[logSize]}, TotalSize={totalSizeByLogSize[logSize]}, IsComplete={!context.Token.IsCancellationRequested}");
                 }
             }
 
@@ -804,10 +806,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     if (existsOnMachine)
                     {
+                        Counters[ContentLocationDatabaseCounters.TotalContentAddedCount].Increment();
                         Counters[ContentLocationDatabaseCounters.TotalContentAddedSize].Add(entry.ContentSize);
                     }
                     else
                     {
+                        Counters[ContentLocationDatabaseCounters.TotalContentRemovedCount].Increment();
                         Counters[ContentLocationDatabaseCounters.TotalContentRemovedSize].Add(entry.ContentSize);
                     }
                 }

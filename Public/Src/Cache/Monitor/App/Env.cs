@@ -1,6 +1,6 @@
 ﻿namespace BuildXL.Cache.Monitor.App.Notifications
 {
-    public enum Environment
+    internal enum Env
     {
         CI,
         Test,

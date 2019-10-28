@@ -20,7 +20,7 @@ namespace App {
             // CLAP only exists for full framework net35. Ignoring the fact that this doesn't work on netcoreapp
             importFrom("CLAP").withQualifier({targetFramework:"net472"}).pkg, 
 
-            importFrom("System.Interactive.Async").pkg,
+            //importFrom("System.Interactive.Async").pkg,
 
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").dll,
@@ -44,7 +44,7 @@ namespace App {
             ),
 
             importFrom("Microsoft.Azure.Management.Kusto").pkg,
-            importFrom("System.Data.Common").pkg,
+            //importFrom("System.Data.Common").pkg,
             importFrom("Microsoft.IdentityModel.Clients.ActiveDirectory").pkg,
 
             importFrom("Newtonsoft.Json").pkg,

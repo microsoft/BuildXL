@@ -7,38 +7,61 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Rules;
+using Microsoft.WindowsAzure.Storage.Blob.Protocol;
 
 namespace BuildXL.Cache.Monitor.App
 {
     internal class Scheduler
     {
-        public class Settings
+        public class Configuration
         {
             public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
         }
 
         private class Entry
         {
-            public DateTime LastRunTimeUtc { get; set; } = DateTime.MinValue;
-
-            public int Enabled = 1;
+            public IRule Rule { get; set; }
 
             public TimeSpan PollingPeriod { get; set; }
+
+            private int _binaryEnabled = 1;
+
+            private long _binaryLastRunTimeUtc = DateTime.MinValue.ToBinary();
+
+            public bool Enabled
+            {
+                get => _binaryEnabled == 1;
+                set => Interlocked.Exchange(ref _binaryEnabled, value ? 1 : 0);
+            }
+
+            public DateTime LastRunTimeUtc
+            {
+                get => DateTime.FromBinary(_binaryLastRunTimeUtc);
+                set => Interlocked.Exchange(ref _binaryLastRunTimeUtc, value.ToBinary());
+            }
+
+            public Entry(IRule rule, TimeSpan pollingPeriod)
+            {
+                Contract.RequiresNotNull(rule);
+
+                Rule = rule;
+                PollingPeriod = pollingPeriod;
+            }
         };
 
         private readonly ILogger _logger;
         private readonly IClock _clock;
-        private readonly Settings _settings;
+        private readonly Configuration _configuration;
 
-        private readonly ConcurrentDictionary<IRule, Entry> _schedule = new ConcurrentDictionary<IRule, Entry>();
+        private readonly IDictionary<string, Entry> _schedule = new Dictionary<string, Entry>();
 
-        public Scheduler(Settings settings, ILogger logger, IClock clock)
+        public Scheduler(Configuration configuration, ILogger logger, IClock clock)
         {
-            Contract.RequiresNotNull(settings);
+            Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(clock);
 
-            _settings = settings;
+            _configuration = configuration;
             _logger = logger;
             _clock = clock;
         }
@@ -46,11 +69,9 @@ namespace BuildXL.Cache.Monitor.App
         public void Add(IRule rule, TimeSpan pollingPeriod)
         {
             Contract.RequiresNotNull(rule);
-            Contract.Requires(pollingPeriod > _settings.PollingPeriod);
+            Contract.Requires(pollingPeriod > _configuration.PollingPeriod);
 
-            _schedule[rule] = new Entry() {
-                PollingPeriod = pollingPeriod,
-            };
+            _schedule[rule.Identifier] = new Entry(rule, pollingPeriod);
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default) {
@@ -58,44 +79,49 @@ namespace BuildXL.Cache.Monitor.App
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                var tasks = new List<Task>();
+                var now = _clock.UtcNow;
 
                 foreach (var kvp in _schedule)
                 {
-                    var rule = kvp.Key;
+                    var rule = kvp.Value.Rule;
                     var entry = kvp.Value;
 
-                    if (!ShouldRun(entry))
+                    if (!ShouldRun(entry, now))
                     {
+                        //_logger.Debug($"{rule.Identifier} - {entry.LastRunTimeUtc} - {now} - {entry.PollingPeriod}");
                         continue;
                     }
 
-                    Interlocked.Exchange(ref entry.Enabled, 0);
+                    entry.Enabled = false;
 
                     _ = Task.Run(async () =>
                       {
                           try
                           {
-                              _logger.Debug($"Running rule `{rule.Name}`");
+                              _logger.Debug($"Running rule `{rule.Identifier}`");
                               await rule.Run();
 
-                              Interlocked.Exchange(ref entry.Enabled, 1);
-                              _logger.Debug($"Rule `{rule.Name}` finished running successfully");
+                              // The fact that this is done atomically and in this order is the only reason we don't
+                              // need to use locks.
+                              entry.LastRunTimeUtc = _clock.UtcNow;
+                              entry.Enabled = true;
+
+                              _logger.Debug($"Rule `{rule.Identifier}` finished running successfully");
                           }
                           catch (Exception exception)
                           {
-                              _logger.Error($"Rule `{rule.Name}` threw an exception and has been disabled. Exception: {exception}");
+                              _logger.Error($"Rule `{rule.Identifier}` threw an exception and has been disabled. Exception: {exception}");
                           }
                       });
                 }
 
-                await Task.Delay(_settings.PollingPeriod);
+                await Task.Delay(_configuration.PollingPeriod);
             }
         }
 
-        private bool ShouldRun(Entry entry)
+        private bool ShouldRun(Entry entry, DateTime now)
         {
-            return entry.Enabled == 1 || entry.LastRunTimeUtc + entry.PollingPeriod >= _clock.UtcNow;
+            return entry.Enabled && entry.LastRunTimeUtc + entry.PollingPeriod <= now;
         }
     }
 }

@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Utils;
 using Kusto.Data.Common;
-using Kusto.Data.Exceptions;
 using Kusto.Ingest;
 using Newtonsoft.Json;
 
@@ -16,7 +15,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 {
     internal class KustoNotifier : INotifier
     {
-        public class Settings
+        public class Configuration
         {
             public string KustoDatabaseName { get; set; }
 
@@ -26,40 +25,32 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             public TimeSpan FlushInterval { get; set; } = TimeSpan.FromSeconds(5);
 
-            public int BatchSize { get; set; } = 1000;
+            public int BatchSize { get; set; } = 10;
 
-            public bool Validate()
-            {
-                if (string.IsNullOrEmpty(KustoDatabaseName) || string.IsNullOrEmpty(KustoTableName))
-                {
-                    return false;
-                }
-
-                if (BatchSize <= 0)
-                {
-                    return false;
-                }
-
-                return true;
-            }
+            public int MaxDegreeOfParallelism { get; set; } = 1;
         }
-
-        private static readonly List<Tuple<string, string>> KustoTableColumns = new List<Tuple<string, string>>()
-            {
-                new Tuple<string, string>("PreciseTimeStamp", "System.DateTime"),
-                new Tuple<string, string>("Severity", "System.Int32"),
-                new Tuple<string, string>("SeverityFriendly", "System.String"),
-                new Tuple<string, string>("Environment", "System.String"),
-                new Tuple<string, string>("Stamp", "System.String"),
-                new Tuple<string, string>("Message", "System.String"),
-            };
 
         private static readonly List<JsonColumnMapping> KustoJsonMapping = new List<JsonColumnMapping>()
             {
                 new JsonColumnMapping()
                 {
-                    ColumnName = "PreciseTimeStamp",
-                    JsonPath = "$.PreciseTimeStamp",
+                    ColumnName = "RuleIdentifier",
+                    JsonPath = "$.RuleIdentifier",
+                },
+                new JsonColumnMapping()
+                {
+                    ColumnName = "RuleRunTimeUtc",
+                    JsonPath = "$.RuleRunTimeUtc",
+                },
+                new JsonColumnMapping()
+                {
+                    ColumnName = "CreationTimeUtc",
+                    JsonPath = "$.CreationTimeUtc",
+                },
+                new JsonColumnMapping()
+                {
+                    ColumnName = "EventTimeUtc",
+                    JsonPath = "$.EventTimeUtc",
                 },
                 new JsonColumnMapping()
                 {
@@ -89,76 +80,41 @@ namespace BuildXL.Cache.Monitor.App.Notifications
             };
 
         private readonly ILogger _logger;
-        private readonly Settings _settings;
+        private readonly Configuration _configuration;
         private readonly IKustoIngestClient _kustoIngestClient;
 
         private readonly KustoIngestionProperties _kustoIngestionProperties;
 
         private readonly NagleQueue<Notification> _queue;
 
-        public KustoNotifier(Settings settings, ILogger logger, IKustoIngestClient kustoIngestClient)
+        public KustoNotifier(Configuration configuration, ILogger logger, IKustoIngestClient kustoIngestClient)
         {
-            Contract.RequiresNotNull(settings);
+            Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(kustoIngestClient);
-            Contract.Requires(settings.Validate());
 
-            _settings = settings;
+            _configuration = configuration;
             _logger = logger;
             _kustoIngestClient = kustoIngestClient;
 
-            _kustoIngestionProperties = new KustoIngestionProperties(_settings.KustoDatabaseName, _settings.KustoTableName)
+            _kustoIngestionProperties = new KustoIngestionProperties(_configuration.KustoDatabaseName, _configuration.KustoTableName)
             {
                 Format = DataSourceFormat.json,
             };
 
-            if (string.IsNullOrEmpty(_settings.KustoTableIngestionMappingName))
+            if (string.IsNullOrEmpty(_configuration.KustoTableIngestionMappingName))
             {
                 _kustoIngestionProperties.JsonMapping = KustoJsonMapping;
             }
             else
             {
-                _kustoIngestionProperties.JSONMappingReference = _settings.KustoTableIngestionMappingName;
+                _kustoIngestionProperties.JSONMappingReference = _configuration.KustoTableIngestionMappingName;
             }
 
-            _queue = NagleQueue<Notification>.Create(FlushAsync, 1, settings.FlushInterval, settings.BatchSize);
-        }
-
-        public void PrepareForIngestion(ICslAdminProvider kustoAdminClient)
-        {
-            try
-            {
-                _logger.Debug($"Creating Kusto table named `{_settings.KustoTableName}` on database `{_settings.KustoDatabaseName}`");
-                var command = CslCommandGenerator.GenerateTableCreateCommand(_settings.KustoTableName, KustoTableColumns);
-                kustoAdminClient.ExecuteControlCommand(databaseName: _settings.KustoDatabaseName, command: command);
-            }
-            catch (KustoBadRequestException exception)
-            {
-                // Happens when the DB has already been prepared for execution
-                // TODO(jubayard): type should match Kusto.Common.Svc.Exceptions.EntityAlreadyExistsException, but can't find the field in the exception
-                if (!exception.Message.Contains("already exists"))
-                {
-                    throw;
-                }
-            }
-
-            try
-            {
-                _logger.Debug($"Creating Kusto table/json mapping named `{_settings.KustoTableIngestionMappingName}` for table `{_settings.KustoTableName}` on database `{_settings.KustoDatabaseName}`");
-                var command = CslCommandGenerator.GenerateTableJsonMappingCreateCommand(_settings.KustoTableName, _settings.KustoTableIngestionMappingName, KustoJsonMapping, removeOldestIfRequired: true);
-                kustoAdminClient.ExecuteControlCommand(databaseName: _settings.KustoDatabaseName, command: command);
-            }
-            catch (KustoBadRequestException exception)
-            {
-                // Happens when the DB has already been prepared for execution
-                // TODO: type should match Kusto.Common.Svc.Exceptions.EntityAlreadyExistsException, but it doesn't happen in practice...
-                if (!exception.Message.Contains("already exists"))
-                {
-                    throw;
-                }
-            }
-
-            _logger.Debug("Kusto is ready for ingestion");
+            _queue = NagleQueue<Notification>.Create(FlushAsync,
+                _configuration.MaxDegreeOfParallelism,
+                _configuration.FlushInterval,
+                _configuration.BatchSize);
         }
 
         public void Emit(Notification notification)
@@ -196,7 +152,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
         private async Task<IEnumerable<IngestionStatus>> KustoIngestAsync(IReadOnlyList<Notification> notifications)
         {
-            Contract.Assert(notifications.Count > 0);
+            Contract.Requires(notifications.Count > 0);
 
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream, encoding: Encoding.UTF8);

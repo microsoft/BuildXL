@@ -683,7 +683,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     urgencyHint,
                                     stream =>
                                     {
-                                        recorder = new RecordingStream(inner: stream, size: actualSize);
+                                        recorder = RecordingStream.ReadRecordingStream(inner: stream, size: actualSize);
                                         return recorder;
                                     });
 

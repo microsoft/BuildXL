@@ -670,7 +670,7 @@ namespace BuildXL.Pips.Operations
         public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
 
         /// <summary>
-        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
+        /// Whether this process consumes /unsafe_GlobalPassthroughEnvVars and /unsafe_GlobalUntrackedScopes passed from the command line
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;

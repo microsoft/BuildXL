@@ -27,14 +27,14 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void DirectAffectedFileInputTest()
         {
             // aInput->(pipA)->aOutput->(pipB)->bOutput
-            // Execepted change affected input for pipB is aOutput.
+            // Expected change affected input for pipB is aOutput.
 
             // Process A.
             var dir = Path.Combine(ObjectRoot, "Dir");
             var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
             FileArtifact aInput = CreateSourceFile(root: dirPath, prefix: "pip-a-input-file");
             FileArtifact aOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-a-out-file");
-
             var pipBuilderA= CreatePipBuilder(new[] { Operation.ReadFile(aInput), Operation.WriteFile(aOutput) });
             SchedulePipBuilder(pipBuilderA);
 
@@ -43,34 +43,120 @@ namespace IntegrationTest.BuildXL.Scheduler
             AbsolutePath changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderB = CreatePipBuilder(new[] 
             { 
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exists.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true), 
                 Operation.ReadFile(aOutput), 
                 Operation.WriteFile(bOutput) 
             });
             SchedulePipBuilder(pipBuilderB);
-
             RunScheduler().AssertSuccess();
 
+            // reset the graph, so we can SetChangeAffectedInputListWrittenFile for pipB
             ResetPipGraphBuilder();
-            SchedulePipBuilder(pipBuilderA);
-            SchedulePipBuilder(pipBuilderB);
-
-            RunScheduler().AssertCacheHit();
-
-            ResetPipGraphBuilder();
-            SchedulePipBuilder(pipBuilderA);
+            var pipA = SchedulePipBuilder(pipBuilderA);
             pipBuilderB.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
-            SchedulePipBuilder(pipBuilderB);
+            var pipB = SchedulePipBuilder(pipBuilderB);
 
             var inputChangesFile = CreateOutputFileArtifact();
             File.WriteAllText(ArtifactToString(inputChangesFile), ArtifactToString(aInput));
             Configuration.Schedule.InputChanges = inputChangesFile.Path;
 
-            RunScheduler().AssertCacheMiss();
+            // changeAffectedWrittenFile of pipB contains aOutput, expecting cache miss
+            var result = RunScheduler();
+            result.AssertCacheMiss(pipB.Process.PipId);
+            result.AssertCacheHit(pipA.Process.PipId);
 
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
             var expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
+        }
+
+        [Fact]
+        public void RevertChangeCacheMissTest()
+        {
+            // aInput-->(pipA)-->aOutput-->(pipC)-->cOutput
+            //                            /                         
+            // bInput-->(pipB)-->bOutput--
+
+            var dir = Path.Combine(ObjectRoot, "Dir");
+            var dirPath = AbsolutePath.Create(Context.PathTable, dir);
+
+            FileArtifact changeList = CreateSourceFile(root: dirPath, prefix: "changeList-file");
+
+            // Process A.
+            FileArtifact aInput = CreateSourceFile(root: dirPath, prefix: "pip-a-input-file");
+            FileArtifact aOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-a-out-file");
+
+            var pipBuilderA = CreatePipBuilder(new[] { Operation.ReadFile(aInput), Operation.WriteFile(aOutput) });
+            var pipA = SchedulePipBuilder(pipBuilderA);
+
+            // Process B.
+            FileArtifact bInput = CreateSourceFile(root: dirPath, prefix: "pip-b-input-file");
+            FileArtifact bOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-b-out-file");
+            File.WriteAllText(ArtifactToString(bInput), "pipBOrigin");
+            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(bInput), Operation.WriteFile(bOutput) });
+            var pipB = SchedulePipBuilder(pipBuilderB);
+
+            // Process C.
+            FileArtifact cOutput = CreateOutputFileArtifact(root: dirPath, prefix: "pip-c-out-file");
+            AbsolutePath changeAffectedWrittenFile = CreateUniqueObjPath("change");
+            var pipBuilderC = CreatePipBuilder(new[]
+            { 
+                // Ensure that pip reads the changeAffectedWrittenFile if it exists.
+                Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
+                Operation.ReadFile(aOutput),
+                Operation.ReadFile(bOutput),
+                Operation.WriteFile(cOutput)
+            });
+            pipBuilderC.SetChangeAffectedInputListWrittenFile(changeAffectedWrittenFile);
+            var pipC = SchedulePipBuilder(pipBuilderC);
+            Configuration.Schedule.InputChanges = changeList.Path;
+
+            // Build0
+            File.WriteAllText(ArtifactToString(changeList), "");
+            var result = RunScheduler();
+            result.AssertCacheMiss(pipA.Process.PipId, pipB.Process.PipId, pipC.Process.PipId);
+            var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            var expectedAffectedInput = "";
+            XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
+
+            // Build1 with change in aInput. 
+            // Dependencies of pipA and pipB changed, so they get cache miss. 
+            // m_changeAffectedInputListWrittenFile of pipC contains aOutput
+            File.WriteAllText(ArtifactToString(aInput), "pipA");
+            File.WriteAllText(ArtifactToString(changeList), ArtifactToString(aInput));
+            result = RunScheduler();
+            result.AssertCacheMiss(pipA.Process.PipId, pipC.Process.PipId);
+            result.AssertCacheHit(pipB.Process.PipId);
+            actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
+
+            // Build2 with change in bInput. 
+            // Dependencies of pipB and pipC changed, so they get cache miss.
+            // m_changeAffectedInputListWrittenFile of pipC contains bOutput
+            File.WriteAllText(ArtifactToString(bInput), "pipBChange");
+            File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
+
+            result = RunScheduler();
+            result.AssertCacheHit(pipA.Process.PipId);
+            result.AssertCacheMiss(pipB.Process.PipId, pipC.Process.PipId);
+
+            actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            expectedAffectedInput = bOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
+
+            // Build3 reverts change in bInput. pipB get cache hit of build0.  
+            // m_changeAffectedInputListWrittenFile of pipC contains bOutput, aOutput cache hit from build1, bOutput from build0. So pipC get cache miss.
+            File.WriteAllText(ArtifactToString(bInput), "pipBOrigin");
+            File.WriteAllText(ArtifactToString(changeList), ArtifactToString(bInput));
+
+            result = RunScheduler();
+            result.AssertCacheHit(pipA.Process.PipId, pipB.Process.PipId);
+            result.AssertCacheMiss(pipC.Process.PipId);
+
+            actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            expectedAffectedInput = bOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
@@ -81,7 +167,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             //  |- pip-a-input-file   |- pip-a-out-file       |- pip-b-out-file           
             //                        |- aSubOutputDir
             //                         |- pip-a-out-in-sub-file
-            // Execepted change affected input for pipB is pip-a-out-file and pip-a-out-in-sub-file
+            // Expected change affected inputs for pipB is pip-a-out-file and pip-a-out-in-sub-file
 
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
@@ -119,7 +205,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderB = CreatePipBuilder(new Operation[]
             {
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exists.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(aOutputFileInOutputSubDir, doNotInfer: true),
                 Operation.WriteFile(bOutFileArtifact, doNotInfer: true),
@@ -161,8 +247,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             //  |- pip-a-input-file    |- pip-a-out-file       |- pip-b-out-file   
             //                         |- aSubOutputDir
             //                            |- pip-a-out-in-sub-file
-            // Execepted change affected input for pipC is pip-b-out-file
+            // Expected change affected input for pipC is pip-b-out-file
 
+            // Creating an input dir for pipA
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
             var aInputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aInputDirPath);
@@ -170,10 +257,11 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(ArtifactToString(aInputFile), "pipABuild1");
             var sealInputDir = SealDirectory(aInputDirPath, SealDirectoryKind.SourceAllDirectories);
 
+            // Creating an output dir Artifact (containing a outfile and a sub output dir) for pipB
+            // This output dir will be input dir for pipB
             var aOutputDir = Path.Combine(ObjectRoot, "aOutputDir");
             var aOutputDirPath = AbsolutePath.Create(Context.PathTable, aOutputDir);
             var aOutputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aOutputDirPath);
-
             var aOutputFileInOutputeDir = CreateOutputFileArtifact(root: aOutputDir, prefix: "pip-a-out-file");
 
             var aOutputSubDir = Path.Combine(aOutputDir, "aSubOutputDir");
@@ -181,11 +269,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             var aOutputSubDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aOutputSubDirPath);
             var aOutputFileInOutputSubDir = CreateOutputFileArtifact(root: aOutputSubDir, prefix: "pip-a-out-in-sub-file");
 
+            // Creating an output dir for pipB, this will be the input dir for pipC
             var bOutDir = Path.Combine(ObjectRoot, "bOutputDir");
             var bOutDirPath = AbsolutePath.Create(Context.PathTable, bOutDir);
             var bOutDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(bOutDirPath);
             var bOutFileArtifact = CreateOutputFileArtifact(root: bOutDirArtifact, prefix: "pip-b-out-file");
 
+            // pipC output a file
             var cOutFileArtifact = CreateOutputFileArtifact(prefix: "pip-c-out-file");
             var expectedAffectedInput = "";
 
@@ -215,7 +305,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderC = CreatePipBuilder(new Operation[]
             {
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exists.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(bOutFileArtifact, doNotInfer: true),
                 Operation.WriteFile(cOutFileArtifact),
@@ -244,8 +334,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             //  |- pip-a-input-file                                                 /               |- pip-a-output-file-copy  |- pip-b-out-file   
             //                                                         existing-file                |- existing-file
             //                            
-            // Execepted change affected input for pipC is pip-b-out-file or ""      
+            // Expected change affected input for pipC is pip-b-out-file or ""    
 
+            // Creating an output dir Artifact (containing a outfile and a sub output dir) for pipB
+            // This output dir will be input dir for pipB
             var aInputDir = Path.Combine(ObjectRoot, "input");
             var aInputDirPath = AbsolutePath.Create(Context.PathTable, aInputDir);
             var aInputDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(aInputDirPath);
@@ -274,6 +366,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var expectedAffectedInput = "";
 
+            // pipA
             var pipBuilderA = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(aInputFile, doNotInfer: true),
@@ -282,9 +375,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderA.AddInputDirectory(sealInputDir);
             var pipA = SchedulePipBuilder(pipBuilderA);
 
+            // copy pip
             var copiedFile = CopyFile(aOutputFileInOutputeDir, copyFilePath);
+
+            // seal dir pip
             var sealedaOutput = SealDirectory(copyDirPath, SealDirectoryKind.Full, aExistingFileInOutputeDir, copiedFile);
 
+
+            // pipB
             var operations = new List<Operation>() { };
             if (pipBInputAccessType == InputAccessType.DynamicFileAccess)
             {
@@ -304,10 +402,12 @@ namespace IntegrationTest.BuildXL.Scheduler
             pipBuilderB.AddOutputDirectory(bOutDirArtifact, SealDirectoryKind.Opaque);
             var pipB = SchedulePipBuilder(pipBuilderB);
 
+
+            // pipC
             var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilderC = CreatePipBuilder(new Operation[]
             {
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exists.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(bOutFileArtifact, doNotInfer: true),
                 Operation.WriteFile(cOutFileArtifact),
@@ -337,7 +437,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             var changeAffectedWrittenFile = CreateUniqueObjPath("change");
             var pipBuilder = CreatePipBuilder(new Operation[]
             {
-                // Ensure that pip reads the changeAffectedWrittenFile.
+                // Ensure that pip reads the changeAffectedWrittenFile if it exists.
                 Operation.ReadFile(FileArtifact.CreateSourceFile(changeAffectedWrittenFile), doNotInfer: true),
                 Operation.ReadFile(fileInsideSourceDirectory, doNotInfer: true),
                 Operation.WriteFile(CreateOutputFileArtifact()),

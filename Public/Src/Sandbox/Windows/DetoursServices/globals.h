@@ -6,7 +6,7 @@
 #include "DataTypes.h"
 #include "DetouredFunctionTypes.h"
 #include "DetouredProcessInjector.h"
-
+#include "UtilityHelpers.h"
 #include <vector>
 
 using std::vector;
@@ -44,6 +44,8 @@ extern uint64_t g_FileAccessManifestPipId;
 
 extern PCManifestRecord g_manifestTreeRoot;
 
+extern PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFromJob;
+extern std::unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob;
 extern PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 extern vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples;
 

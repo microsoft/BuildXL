@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Antlr4.Runtime;
 using BuildXL.FrontEnd.Script.Debugger;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
@@ -100,6 +101,7 @@ namespace BuildXL.Execution.Analyzer.JPath
             // implicit conversions
 
             public static implicit operator Result(int scalar)       => Scalar(scalar);
+            public static implicit operator Result(long scalar)      => Scalar(scalar);
             public static implicit operator Result(bool scalar)      => Scalar(scalar);
             public static implicit operator Result(string scalar)    => Scalar(scalar);
             public static implicit operator Result(Regex scalar)     => Scalar(scalar);
@@ -306,6 +308,20 @@ namespace BuildXL.Execution.Analyzer.JPath
             /// <summary>Switch value or null if no switch is present</summary>
             public Result GetSwitch(string switchName) => m_opts.FirstOrDefault(opt => opt.Name == switchName)?.Value;
 
+            /// <summary>Switch value as string or default value if no switch is present</summary>
+            public string GetStrSwitch(string switchName, string defaultValue) => GetSwitchOrDefault(switchName, sw => Eval.ToString(sw), defaultValue);
+
+            /// <summary>Switch value as number or default value if no switch is present</summary>
+            public long GetNumSwitch(string switchName, long defaultValue) => GetSwitchOrDefault(switchName, sw => Eval.ToNumber(sw), defaultValue);
+
+            private T GetSwitchOrDefault<T>(string switchName, Func<Result, T> eval, T defaultValue)
+            {
+                Result sw = GetSwitch(switchName);
+                return sw != null
+                    ? eval(sw)
+                    : defaultValue;
+            }
+
             /// <summary>
             /// Returns all objects from all args
             /// </summary>
@@ -351,7 +367,7 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             #region Helper methods delegating to Eval
 
-            public int ToInt(object obj) => Eval.ToInt(obj);
+            public long ToNumber(object obj) => Eval.ToNumber(obj);
             public bool ToBool(object obj) => Eval.ToBool(obj);
             public string ToString(object obj) => Eval.ToString(obj);
             public object ToScalar(Result res) => Eval.ToScalar(res);
@@ -482,7 +498,7 @@ namespace BuildXL.Execution.Analyzer.JPath
                                     case string str:             return new[] { str }; // string is IEnumerable, so exclude it here
                                     case IEnumerable ie2:        return ie2.Cast<object>();
                                     default:
-                                        return new[] { prop.Value };
+                                    return new[] { prop.Value };
                                 }
                             })
                             .ToList();
@@ -519,7 +535,7 @@ namespace BuildXL.Execution.Analyzer.JPath
                             return Result.Empty;
                         }
 
-                        return array.ToList().GetRange(index: begin, count: end - begin + 1);
+                        return array.ToList().GetRange(index: (int)begin, count: (int)(end - begin + 1));
 
                     case FilterExpr filterExpr:
                         if (filterExpr.Lhs != null)
@@ -533,7 +549,22 @@ namespace BuildXL.Execution.Analyzer.JPath
                             .ToList();
 
                     case MapExpr mapExpr:
-                        return InNewEnv(mapExpr.Lhs, mapExpr.PropertySelector);
+                        var lhs = Eval(mapExpr.Lhs);
+                        return lhs
+                            .Select(obj => InNewEnv(Result.Scalar(obj), mapExpr.Sub))
+                            .SelectMany(result => result) // automatically flatten
+                            .ToArray();
+
+                    case ObjLit objLit:
+                        var props = objLit.Props
+                            .Select((prop, idx) => new Property(
+                                name: prop.Name ?? $"Item{idx}",
+                                value: Eval(prop.Value)))
+                            .ToArray();
+                        return new ObjectInfo(properties: props);
+
+                    case FuncObj funcObj:
+                        return funcObj.Function;
 
                     case FuncAppExpr funcExpr:
                         var funcResult = Eval(funcExpr.Func);
@@ -600,7 +631,7 @@ namespace BuildXL.Execution.Analyzer.JPath
             }
         }
 
-        private int IEval(Expr expr) => ToInt(Eval(expr), source: expr);
+        private long IEval(Expr expr) => ToNumber(Eval(expr), source: expr);
         private bool BEval(Expr expr) => ToBool(Eval(expr), source: expr);
 
         private Result EvalUnaryExpr(UnaryExpr expr)
@@ -609,7 +640,7 @@ namespace BuildXL.Execution.Analyzer.JPath
             switch (expr.Op.Type)
             {
                 case JPathLexer.NOT:   return !ToBool(result, expr);
-                case JPathLexer.MINUS: return -ToInt(result, expr);
+                case JPathLexer.MINUS: return -ToNumber(result, expr);
 
                 default:
                     throw ApplyError(expr.Op);
@@ -667,31 +698,22 @@ namespace BuildXL.Execution.Analyzer.JPath
         public bool Matches(string lhsStr, Result rhs)
         {
             var rhsVal = ToScalar(rhs);
-            switch (rhsVal)
+            return rhsVal switch
             {
-                case string str: return lhsStr.ToUpperInvariant().Contains(str.ToUpperInvariant());
-                case Regex regex: return regex.Match(lhsStr).Success;
-                default:
-                    throw TypeError(rhsVal, "string | Regex");
-            }
+                string str  => lhsStr.ToUpperInvariant().Contains(str.ToUpperInvariant()),
+                Regex regex => regex.Match(lhsStr).Success,
+                _           => throw TypeError(rhsVal, "string | Regex")
+            };
         }
 
         /// <summary>
-        /// Uses the current environment to resolve <paramref name="obj"/> and returns its "preview" string.
+        /// Uses the current environment to resolve <paramref name="obj"/>.
         /// 
         /// Every object can be resolved to something, so this function never fails.
         /// </summary>
-        public string PreviewObj(object obj)
-        {
-            var env = TopEnv;
-            if (env == null)
-            {
-                return obj?.ToString() ?? "<null>";
-            }
+        public string PreviewObj(object obj) => Resolve(obj)?.Preview ?? obj?.ToString() ?? "<null>";
 
-            var objInfo = env.Resolver(obj);
-            return objInfo.Preview;
-        }
+        internal ObjectInfo Resolve(object obj) => TopEnv?.Resolver?.Invoke(obj);
 
         /// <summary>
         /// Returns the single value if <paramref name="value"/> is scalar; otherwise throws.
@@ -712,17 +734,22 @@ namespace BuildXL.Execution.Analyzer.JPath
         /// A <see cref="Result"/> can be converted only if it is a scalar value.
         /// Other than that, only numeric values can be converted to int.
         /// </summary>
-        public int ToInt(object obj, Expr source = null)
+        public long ToNumber(object obj, Expr source = null)
         {
-            switch (obj)
+            checked
             {
-                case Result r when r.IsScalar: return ToInt(ToScalar(r), source);
-                case int i:                    return i;
-                case long l:                   return (int)l;
-                case byte b:                   return b;
-                case short s:                  return s;
-                default:
-                    throw TypeError(obj, "int", source);
+                switch (obj)
+                {
+                    case Result r when r.IsScalar: return ToNumber(ToScalar(r), source);
+                    case int i:                    return i;
+                    case uint ui:                  return (long)ui;
+                    case long l:                   return l;
+                    case ulong ul:                 return (long)ul;
+                    case byte b:                   return b;
+                    case short s:                  return s;
+                    default:
+                        throw TypeError(obj, "int", source);
+                }
             }
         }
 

@@ -270,6 +270,9 @@ namespace BuildXL.Native.Processes.Windows
         public bool OSSupportsNestedJobs()
             => IO.Windows.FileSystemWin.StaticIsOSVersionGreaterOrEqual(IO.Windows.FileSystemWin.MinWindowsVersionThatSupportsNestedJobs);
 
+        /// <inheritdoc/>
+        public bool SandboxSupportsProcessBreakaway() => true;
+
         internal static void Assert64Process()
         {
             Contract.Assert(IntPtr.Size == 8, "BuildXL is 64 bit process only.");

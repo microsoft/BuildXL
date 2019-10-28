@@ -336,6 +336,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public override void SetGlobalEntry(string key, string value)
+        {
+            _keyValueStore.Use(store =>
+            {
+                if (value == null)
+                {
+                    store.Remove(key, nameof(Columns.ClusterState));
+                }
+                else
+                {
+                    store.Put(key, value, nameof(Columns.ClusterState));
+                }
+            }).ThrowOnError();
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetGlobalEntry(string key, out string value)
+        {
+            value = _keyValueStore.Use(store =>
+            {
+                if (store.TryGetValue(key, out var value, nameof(Columns.ClusterState)))
+                {
+                    return value;
+                }
+                else
+                {
+                    return null;
+                }
+            }).ThrowOnError();
+            return value != null;
+        }
+
+        /// <inheritdoc />
         protected override void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write)
         {
             _keyValueStore.Use(

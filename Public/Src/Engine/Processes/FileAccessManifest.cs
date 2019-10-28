@@ -48,13 +48,14 @@ namespace BuildXL.Processes
         /// <summary>
         /// Creates an empty instance.
         /// </summary>
-        public FileAccessManifest(PathTable pathTable, DirectoryTranslator translateDirectories = null)
+        public FileAccessManifest(PathTable pathTable, DirectoryTranslator translateDirectories = null, IReadOnlyCollection<string> childProcessesToBreakawayFromSandbox = null)
         {
             Contract.Requires(pathTable != null);
 
             m_pathTable = pathTable;
             m_rootNode = Node.CreateRootNode();
             DirectoryTranslator = translateDirectories;
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox;
 
             // We are pedantic by default. It's otherwise easy to silently do nothing in e.g. tests.
             FailUnexpectedFileAccesses = true;
@@ -393,6 +394,11 @@ namespace BuildXL.Processes
         public long PipId { get; set; }
 
         /// <summary>
+        /// List of child processes that will break away from the sandbox
+        /// </summary>
+        public IReadOnlyCollection<string> ChildProcessesToBreakawayFromSandbox { get; set; }
+
+        /// <summary>
         /// Sets message count semaphore.
         /// </summary>
         public bool SetMessageCountSemaphore(string semaphoreName)
@@ -531,6 +537,7 @@ namespace BuildXL.Processes
 
         private const uint ErrorDumpLocationCheckedCode = 0xABCDEF03;
         private const uint TranslationPathStringCheckedCode = 0xABCDEF02;
+        private const uint ChildProcessesBreakAwayStringCheckedCode = 0xABCDEF03;
         private const uint FlagsCheckedCode = 0xF1A6B10C; // Flag block
         private const uint PipIdCheckedCode = 0xF1A6B10E;
 
@@ -601,6 +608,50 @@ namespace BuildXL.Processes
             directoryTranslator.Seal();
 
             return directoryTranslator;
+        }
+
+        [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Justification = "Architecture strings are USASCII")]
+        private static void WriteChildProcessesToBreakAwayFromSandbox(BinaryWriter writer, IReadOnlyCollection<string> processNames)
+        {
+#if DEBUG
+            writer.Write(ChildProcessesBreakAwayStringCheckedCode);
+#endif
+
+            // Write the number of process names
+            uint processNamesLen = (uint)(processNames?.Count ?? 0);
+            writer.Write(processNamesLen);
+
+            if (processNamesLen > 0)
+            {
+                foreach (string processName in processNames)
+                {
+                    WriteChars(writer, processName);
+                }
+            }
+        }
+
+        private static IReadOnlyCollection<string> ReadChildProcessesToBreakAwayFromSandbox(BinaryReader reader)
+        {
+#if DEBUG
+            uint code = reader.ReadUInt32();
+            Contract.Assert(ChildProcessesBreakAwayStringCheckedCode == code);
+#endif
+
+            uint length = reader.ReadUInt32();
+
+            if (length == 0)
+            {
+                return null;
+            }
+
+            var childProcesses = new List<string>((int)length);
+
+            for (int i = 0; i < length; ++i)
+            {
+                childProcesses.Add(ReadChars(reader));
+            }
+
+            return childProcesses;
         }
 
         [SuppressMessage("Microsoft.Naming", "CA2204:LiteralsShouldBeSpelledCorrectly")]
@@ -785,6 +836,7 @@ namespace BuildXL.Processes
             {
                 WriteDebugFlagBlock(writer, ref debugFlagsMatch);
                 WriteInjectionTimeoutBlock(writer, timeoutMins);
+                WriteChildProcessesToBreakAwayFromSandbox(writer, ChildProcessesToBreakawayFromSandbox);
                 WriteTranslationPathStrings(writer, DirectoryTranslator);
                 WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
                 WriteFlagsBlock(writer, m_fileAccessManifestFlag);
@@ -808,6 +860,7 @@ namespace BuildXL.Processes
 
             using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
             {
+                WriteChildProcessesToBreakAwayFromSandbox(writer, ChildProcessesToBreakawayFromSandbox);
                 WriteTranslationPathStrings(writer, DirectoryTranslator);
                 WriteErrorDumpLocation(writer, InternalDetoursErrorNotificationFile);
                 WriteFlagsBlock(writer, m_fileAccessManifestFlag);
@@ -828,6 +881,7 @@ namespace BuildXL.Processes
 
             using (var reader = new BinaryReader(stream, Encoding.Unicode, true))
             {
+                IReadOnlyCollection<string> childProcessesToBreakAwayFromSandbox = ReadChildProcessesToBreakAwayFromSandbox(reader);
                 DirectoryTranslator directoryTranslator = ReadTranslationPathStrings(reader);
                 string internalDetoursErrorNotificationFile = ReadErrorDumpLocation(reader);
                 FileAccessManifestFlag fileAccessManifestFlag = ReadFlagsBlock(reader);
@@ -843,7 +897,7 @@ namespace BuildXL.Processes
                     sealedManifestTreeBlock = ms.ToArray();
                 }
 
-                return new FileAccessManifest(new PathTable(), directoryTranslator)
+                return new FileAccessManifest(new PathTable(), directoryTranslator, childProcessesToBreakAwayFromSandbox)
                 {
                     InternalDetoursErrorNotificationFile = internalDetoursErrorNotificationFile,
                     PipId = pipId,

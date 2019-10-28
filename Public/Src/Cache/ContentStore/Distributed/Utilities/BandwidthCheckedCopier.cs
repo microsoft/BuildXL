@@ -46,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         {
             if (_inner is ITraceableAbsolutePathFileCopier traceable)
             {
-                return _checker.CheckBandwidthAtIntervalAsync(context, token => traceable.CopyToAsync(context, sourcePath, destinationStream, expectedContentSize), destinationStream);
+                return _checker.CheckBandwidthAtIntervalAsync(context, token => traceable.CopyToAsync(context.WithCancellationToken(token), sourcePath, destinationStream, expectedContentSize), destinationStream);
             }
 
             return _checker.CheckBandwidthAtIntervalAsync(context, token => _inner.CopyToAsync(sourcePath, destinationStream, expectedContentSize, token), destinationStream);

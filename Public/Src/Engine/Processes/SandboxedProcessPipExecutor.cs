@@ -252,7 +252,10 @@ namespace BuildXL.Processes
             m_rootMappings = rootMappings;
             m_workingDirectory = pip.WorkingDirectory.ToString(m_pathTable);
             m_fileAccessManifest =
-                new FileAccessManifest(m_pathTable, directoryTranslator)
+                new FileAccessManifest(
+                    m_pathTable, 
+                    directoryTranslator, 
+                    m_pip.ChildProcessesToBreakawayFromSandbox.Select(process => process.ToString(context.StringTable)).ToReadOnlyArray())
                 {
                     MonitorNtCreateFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
@@ -399,11 +402,11 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// <see cref="SandboxedProcess.GetActivePeakMemoryUsage"/>
+        /// <see cref="SandboxedProcess.GetActivePeakWorkingSet"/>
         /// </summary>
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
-            return m_activeProcess?.GetActivePeakMemoryUsage();
+            return m_activeProcess?.GetActivePeakWorkingSet();
         }
 
         private static Task<Regex> GetRegexAsync(ExpandedRegexDescriptor descriptor)

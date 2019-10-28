@@ -176,6 +176,9 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; set; } = ReadOnlyArray<PathAtom>.Empty;
 
+        /// <nodoc />
+        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; } = ReadOnlyArray<PathAtom>.Empty;
+
         private readonly AbsolutePath m_realUserProfilePath;
         private readonly AbsolutePath m_redirectedUserProfilePath;
 
@@ -671,7 +674,8 @@ namespace BuildXL.Pips.Builders
                 priority: Priority,
                 preserveOutputWhitelist: PreserveOutputWhitelist,
                 changeAffectedInputListWrittenFile: m_changeAffectedInputListWrittenFile,
-                preserveOutputsTrustLevel: PreserveOutputsTrustLevel);
+                preserveOutputsTrustLevel: PreserveOutputsTrustLevel,
+                childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox);
 
             return true;
         }

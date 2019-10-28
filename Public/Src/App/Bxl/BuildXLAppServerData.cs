@@ -58,7 +58,7 @@ namespace BuildXL
         /// <summary>
         /// Creates an instance of <see cref="BuildXLAppServerData"/>.
         /// </summary>
-        public BuildXLAppServerData(
+        private BuildXLAppServerData(
             IReadOnlyList<string> rawArgs,
             IReadOnlyList<KeyValuePair<string, string>> environmentVariables,
             ServerModeStatusAndPerf serverModeStatusAndPerf,

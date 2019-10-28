@@ -11,7 +11,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
-using System.Reflection;
 using System.Runtime;
 using System.Security.Principal;
 using System.Text;
@@ -733,6 +732,7 @@ namespace BuildXL
                 sb.Append(serverBinaryHash.ToHex());
 
                 // The identity needs to include whether the server process is elevated in case the client switches elevation
+                sb.Append(Delimiter);
                 sb.Append("Elevated:" + CurrentProcess.IsElevated);
 
                 // Include HashType because client may switch between VSO or Dedup hashes
@@ -864,8 +864,7 @@ namespace BuildXL
             public ExitKind RunWithArgs(
                 IReadOnlyList<string> rawArgs,
                 List<KeyValuePair<string, string>> environmentVariables,
-                ServerModeStatusAndPerf serverModeStatusAndPerf,
-                string serverDeploymentDirectory)
+                ServerModeStatusAndPerf serverModeStatusAndPerf)
             {
                 Contract.Requires(rawArgs != null);
 

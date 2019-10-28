@@ -3,11 +3,11 @@ The NUGET_CREDENTIALPROVIDERS_PATH should be updated to point to the latest Cred
 
 Notes for future changes:
 
-Please use modify the url in the following command and test your newly generated exe file for your changes:
+Please modify the url in the following command and test your newly generated exe file for your changes:
 CredentialProviderBuildXL.exe -uri https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json -verbosity detailed
 
-To build the BuildXL.Tools.CredentialProvider project locally for testing simply run "dotnet build -r win10-x64". 
-The newly generated CredentialProviderBuildXL.exe file can be found inside BuildXL.Tools.CredentialProvider\bin\Debug\netcoreapp2.1\win10-x64
+To build the BuildXL.Tools.CredentialProvider project locally for testing simply run "dotnet build -r win-x64". 
+The newly generated CredentialProviderBuildXL.exe file can be found inside BuildXL.Tools.CredentialProvider\bin\Debug\netcoreapp2.1\win-x64
 
 Any error will return a non-zero exit code and will print out some error text.
 Valid outputs are printed on the console in json format as expected by nuget.exe 

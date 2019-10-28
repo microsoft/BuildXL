@@ -426,7 +426,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 totalSizeByLogSize[logSize] += entry.ContentSize * replicaCount;
                 uniqueSizeByLogSize[logSize] += entry.ContentSize;
 
-
                 // Filter out inactive machines.
                 var filteredEntry = FilterInactiveMachines(entry);
 

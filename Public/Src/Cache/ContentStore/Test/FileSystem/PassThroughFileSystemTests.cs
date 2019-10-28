@@ -28,7 +28,7 @@ namespace ContentStoreTest.FileSystem
         [Trait("Category", "WindowsOSOnly")] 
         public async Task TestDeleteWithOpenFileStream()
         {
-            using (var testDirectory = new DisposableDirectory(FileSystem))
+            using (var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir"))
             {
                 var path = testDirectory.Path / Guid.NewGuid().ToString();
                 var otherPath = testDirectory.Path / Guid.NewGuid().ToString();

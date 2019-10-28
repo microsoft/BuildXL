@@ -883,11 +883,6 @@ namespace BuildXL
 
                 logFunction(Strings.App_Main_Snapshot, m_configuration.Export.SnapshotFile);
             }
-
-            if (trackingListener.HasFailuresOrWarnings)
-            {
-                Logger.Log.DisplayHelpLink(loggingContext, Strings.DX_Help_Link_Prefix, Strings.DX_Help_Link);
-            }
         }
 
         private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext> configureLogging = null)

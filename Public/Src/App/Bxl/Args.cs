@@ -533,9 +533,7 @@ namespace BuildXL
                             "?",
                             opt =>
                             {
-                                var help = ParseHelpOption(opt);
-                                configuration.Help = help.Key;
-                                configuration.HelpCode = help.Value;
+                                configuration.Help = ParseHelpOption(opt);
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
@@ -1901,19 +1899,14 @@ namespace BuildXL
                    };
         }
 
-        internal static KeyValuePair<HelpLevel, int> ParseHelpOption(CommandLineUtilities.Option opt)
+        internal static HelpLevel ParseHelpOption(CommandLineUtilities.Option opt)
         {
             if (string.IsNullOrWhiteSpace(opt.Value))
             {
-                return new KeyValuePair<HelpLevel, int>(HelpLevel.Standard, 0);
+                return HelpLevel.Standard;
             }
 
-            string trimmed = opt.Value.TrimStart('d');
-            trimmed = trimmed.TrimStart('x');
-
-            return int.TryParse(trimmed, out int dxCode)
-                ? new KeyValuePair<HelpLevel, int>(HelpLevel.DxCode, dxCode)
-                : new KeyValuePair<HelpLevel, int>(CommandLineUtilities.ParseEnumOption<HelpLevel>(opt), 0);
+            return CommandLineUtilities.ParseEnumOption<HelpLevel>(opt);
         }
 
         public void Dispose()

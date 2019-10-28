@@ -2181,7 +2181,7 @@ namespace BuildXL.Scheduler
                 {
                     // If the memory pressure level is not above the configured level but we've infered resources are not available earlier,
                     // we reset the resource availability and override the decision by looking at the current pressure level only!
-                    resourceAvailable = !(pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel));
+                    resourceAvailable = !(pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel);
                 }
                 else
                 {

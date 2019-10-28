@@ -506,6 +506,13 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("Untracked Scopes", pip.UntrackedScopes)),
 
                 m_html.CreateBlock(
+                    "Global Dependencies",
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables != null ? 
+                        m_html.CreateRow("Passthrough Environment Variables", m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables) : null),
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes != null ?
+                        m_html.CreateRow("Untracked Scopes", m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes) : null)),
+
+                m_html.CreateBlock(
                     "Service details",
                     m_html.CreateRow("Is Service ", pip.IsService),
                     m_html.CreateRow("ShutdownProcessPipId", pip.ShutdownProcessPipId),

@@ -374,7 +374,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
             catch (Exception e)
             {
-                _tracer.Warning(context, $"Failed to write latest checkpoint state '{checkpointState?.ToString()}' to disk: {e}");
+                _tracer.Warning(context, $"Failed to write latest checkpoint state '{checkpointState?.ToString()}' to database: {e}");
             }
         }
 

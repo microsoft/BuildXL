@@ -409,7 +409,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     if (shouldRestore || forceRestore)
                     {
-                        result = await RestoreCheckpointStateAsync(context, checkpointState, force: false);
+                        result = await RestoreCheckpointStateAsync(context, checkpointState);
                         if (!result)
                         {
                             return result;
@@ -517,7 +517,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
         }
-        
+
 
         internal Task<BoolResult> UpdateClusterStateAsync(OperationContext context)
         {
@@ -592,30 +592,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return await _checkpointManager.CreateCheckpointAsync(context, currentSequencePoint);
         }
 
-        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState, bool force = false)
+        private async Task<BoolResult> RestoreCheckpointStateAsync(OperationContext context, CheckpointState checkpointState)
         {
-            var token = context.Token;
+            var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
+            var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
 
-            if (!force)
+            // Only skip if this is the first restore and it is sufficiently recent
+            // NOTE: _lastRestoreTime will be set since skipping this operation will return successful result.
+            var shouldSkipRestore = _lastRestoreTime == default
+                && latestCheckpoint != null
+                && latestCheckpoint.Value.checkpointTime.IsRecent(_clock.UtcNow, _configuration.Checkpoint.RestoreCheckpointAgeThreshold);
+
+            if (latestCheckpointAge > _configuration.LocationEntryExpiry)
             {
-                var latestCheckpoint = _checkpointManager.GetLatestCheckpointInfo(context);
-                var latestCheckpointAge = _clock.UtcNow - latestCheckpoint?.checkpointTime;
+                Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
+            }
 
-                // Only skip if this is the first restore and it is sufficiently recent
-                var shouldSkipRestore = _lastRestoreTime == default 
-                    && latestCheckpoint != null 
-                    && latestCheckpoint?.checkpointTime.IsRecent(_clock.UtcNow, _configuration.Checkpoint.RestoreCheckpointAgeThreshold) == true;
-
-                if (latestCheckpointAge > _configuration.LocationEntryExpiry)
-                {
-                    Tracer.Debug(context, $"Checkpoint {latestCheckpoint.Value.checkpointId} age is {latestCheckpointAge}, which is larger than location expiry {_configuration.LocationEntryExpiry}");
-                }
-
-                if (shouldSkipRestore)
-                {
-                    Tracer.Debug(context, $"First checkpoint {latestCheckpoint.Value.checkpointId} will be skipped. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
-                    return BoolResult.Success;
-                }
+            if (shouldSkipRestore)
+            {
+                Tracer.Debug(context, $"First checkpoint {latestCheckpoint.Value.checkpointId} will be skipped. Age=[{latestCheckpointAge}], Threshold=[{_configuration.Checkpoint.RestoreCheckpointAgeThreshold}]");
+                return BoolResult.Success;
             }
 
             if (checkpointState.CheckpointAvailable)
@@ -647,7 +643,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     else
                     {
-                        Task.Run(() => ReconcileAsync(context), token).FireAndForget(context);
+                        Task.Run(() => ReconcileAsync(context), context.Token).FireAndForget(context);
                     }
                 }
             }

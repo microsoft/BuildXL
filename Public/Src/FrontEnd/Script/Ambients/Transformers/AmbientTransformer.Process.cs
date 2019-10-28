@@ -507,6 +507,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
             processBuilder.AdditionalTempDirectories = ProcessOptionalPathArray(obj, m_executeAdditionalTempDirectories, strict: false, skipUndefined: true);
 
+
+            // Set the default value before processing unsafteOption in case unsafeOption doesn't exist.
+            processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             // Unsafe options.
             var unsafeOptions = Converter.ExtractObjectLiteral(obj, m_executeUnsafe, allowUndefined: true);
             if (unsafeOptions != null)
@@ -1220,9 +1223,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.requireGlobalDependencies
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) != false)
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) == false)
             {
-                processBuilder.Options |= Process.Options.RequireGlobalDependencies;
+                processBuilder.Options &= ~Process.Options.RequireGlobalDependencies;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables

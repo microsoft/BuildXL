@@ -8,7 +8,8 @@ To run BuildXL on macOS you need to install:
 * Microsoft [.NET Core SDK](https://dotnet.microsoft.com/download) for macOS
 * The latest [Mono](https://www.mono-project.com/download/stable/) runtime
 * If you want to run and load the sandbox to enable fully observed and cacheable builds, you also have to [turn off System Integrity Protection](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/ConfiguringSystemIntegrityProtection/ConfiguringSystemIntegrityProtection.html) (SIP) on macOS. SIP blocks the installation of the unsigned kernel extension (or Kext) produced by the build.
-* XCode 10.3. Obtanable from https://developer.apple.com/download/more/. After downloading, either adjust this path to where you have placed the tool or put everything into your /Applications folder, renaming the app to 'Xcode_10.3' so the xcodebuild executable can be found
+* Latest version of xcode
+* XCode 10.3. Obtainable from https://developer.apple.com/download/more/. After downloading, either adjust this path to where you have placed the tool or put everything into your /Applications folder, renaming the app to 'Xcode_10.3' so the xcodebuild executable can be found
 
 # Performing a build
 `bxl.cmd` (and `./bxl.sh`) are the entry points to building BuildXL. They provide some shorthands for common tasks to prevent developers from needing to specify longer command line options. While most examples below are based off of bxl.cmd for Windows, there will most times be a bxl.sh equivalent for macOS.

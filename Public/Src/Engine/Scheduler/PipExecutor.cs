@@ -2304,7 +2304,7 @@ namespace BuildXL.Scheduler
                 RunnableFromCacheResult runnableFromCacheResult;
 
                 bool isCacheHit = cacheHitData != null;
-                
+
                 if (!isCacheHit)
                 {
                     var pathSetCount = strongFingerprintComputationList.Count;
@@ -2327,7 +2327,7 @@ namespace BuildXL.Scheduler
                         {
                             ContentHash weakAugmentingPathSetHash = weakAugmentingPathSetHashResult.Result;
 
-                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we 
+                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we
                             // could compute augmented weak fingerprint and perform the cache lookup as above
                             (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint)
                                         = await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
@@ -4421,7 +4421,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel); 
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

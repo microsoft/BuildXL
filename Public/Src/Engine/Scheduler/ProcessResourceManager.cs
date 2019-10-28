@@ -270,7 +270,12 @@ namespace BuildXL.Scheduler
 
             public int QueryRamUsageMb()
             {
-                return m_queryRamUsageMb?.Invoke() ?? 0;
+                if (!m_cancellation.IsCancellationRequested && !m_cancelled && !m_completed && !m_isDisposed)
+                {
+                    return m_queryRamUsageMb?.Invoke() ?? 0;
+                }
+
+                return 0;
             }
 
             public void RefreshRamUsage()

@@ -96,6 +96,23 @@ namespace BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Updates the ram usage indicators for all cancelable resource scopes
+        /// </summary>
+        public void UpdateRamUsageForResourceScopes()
+        {
+            lock (m_syncLock)
+            {
+                foreach (var scope in m_pipResourceScopes.Values)
+                {
+                    if (scope.CanCancel)
+                    {
+                        scope.RefreshRamUsage();
+                    }
+                }
+            }
+        }
+
         private void FreeResourcesByPreference(
             IComparer<ResourceScope> scopeComparer,
             ref int requiredRam,
@@ -140,7 +157,6 @@ namespace BuildXL.Scheduler
             }
 
             using (scope)
-            using (new StoppableTimer(() => scope.RefreshRamUsage(), 0, 2000))
             {
                 var result = await execute(scope.Token, registerQueryRamUsageMb: scope.RegisterQueryRamUsageMb);
                 scope.Complete();

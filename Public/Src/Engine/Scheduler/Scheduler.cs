@@ -1959,8 +1959,6 @@ namespace BuildXL.Scheduler
                 m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ?? default(PerformanceCollector.MachinePerfInfo);
                 UpdateResourceAvailability(m_perfInfo);
 
-                var resourceManager = State.ResourceManager;
-
                 // Of the pips in choose worker, how many could be executing on the the local worker but are not due to
                 // resource constraints
                 int pipsWaitingOnResources = Math.Min(
@@ -2145,6 +2143,7 @@ namespace BuildXL.Scheduler
         private void UpdateResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo)
         {
             var resourceManager = State.ResourceManager;
+            resourceManager.UpdateRamUsageForResourceScopes();
 
             if (LocalWorker.TotalMemoryMb == null)
             {
@@ -2177,9 +2176,14 @@ namespace BuildXL.Scheduler
             {
                 Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
                 var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-                resourceAvailable = !(result && (pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel));
 
-                if (!result)
+                if (result)
+                {
+                    // If the memory pressure level is not above the configured level but we've infered resources are not available earlier,
+                    // we reset the resource availability and override the decision by looking at the current pressure level only!
+                    resourceAvailable = !(pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel));
+                }
+                else
                 {
                     Logger.Log.UnableToGetMemoryPressureLevel(
                             m_executePhaseLoggingContext,
@@ -3682,13 +3686,13 @@ namespace BuildXL.Scheduler
                             int peakPagefileUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakPagefileUsageMb;
 
                             Logger.Log.ProcessPipExecutionInfo(
-                                operationContext, 
+                                operationContext,
                                 runnablePip.Description,
                                 (int)executionResult.PerformanceInformation.NumberOfProcesses,
                                 (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
                                 (int)executionResult.PerformanceInformation.ProcessExecutionTime.TotalSeconds,
                                 executionResult.PerformanceInformation.ProcessorsInPercents,
-                                runnablePip.Worker.DefaultMemoryUsagePerProcess, 
+                                runnablePip.Worker.DefaultMemoryUsagePerProcess,
                                 expectedRamUsage,
                                 peakVirtualMemoryUsageMb,
                                 peakWorkingSetMb,

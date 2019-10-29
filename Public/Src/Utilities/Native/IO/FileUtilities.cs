@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
@@ -1191,7 +1192,8 @@ namespace BuildXL.Native.IO
 
             if (!await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true))
             {
-                return new Failure<string>(I($"Failed to make exclusive link for '{originalPath}' because renaming '{temporaryPath}' failed"));
+                int errorCode = Marshal.GetLastWin32Error();
+                return new Failure<string>(I($"Failed to make exclusive link for '{originalPath}' because renaming '{temporaryPath}' failed with error code: [{errorCode}]"));
             }
 
             return Unit.Void;

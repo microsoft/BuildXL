@@ -57,7 +57,7 @@ namespace BuildXL.Cache.Monitor.App
             };
 
             public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration() {
-                PersistState = true,
+                PersistState = false,
                 PersistStatePath = @"C:\work\Scheduler.json",
                 PersistClearFailedEntriesOnLoad = true,
             };
@@ -108,21 +108,35 @@ namespace BuildXL.Cache.Monitor.App
         /// </summary>
         private void Schedule()
         {
-            Add(kustoConfiguration =>
-            {
-                return new LastProducedCheckpointRule(new LastProducedCheckpointRule.Configuration(kustoConfiguration));
-            }, pollingPeriod: TimeSpan.FromMinutes(30));
+            //Add(kustoConfiguration =>
+            //{
+            //    var configuration = new LastProducedCheckpointRule.Configuration(kustoConfiguration);
+            //    return (
+            //        Rule: new LastProducedCheckpointRule(configuration),
+            //        PollingPeriod: configuration.WarningAge);
+            //});
+
+            //Add(kustoConfiguration =>
+            //{
+            //    var configuration = new LastRestoredCheckpointRule.Configuration(kustoConfiguration);
+            //    return (
+            //        Rule: new LastRestoredCheckpointRule(configuration),
+            //        PollingPeriod: configuration.ErrorAge);
+            //});
 
             Add(kustoConfiguration =>
             {
-                return new LastRestoredCheckpointRule(new LastRestoredCheckpointRule.Configuration(kustoConfiguration));
-            }, pollingPeriod: TimeSpan.FromMinutes(30));
+                var configuration = new CheckpointSizeRule.Configuration(kustoConfiguration);
+                return (
+                    Rule: new CheckpointSizeRule(configuration),
+                    PollingPeriod: configuration.AnomalyDetectionHorizon);
+            });
         }
 
         /// <summary>
         /// Schedules a rule to be run over different stamps and environments.
         /// </summary>
-        private void Add(Func<KustoRuleConfiguration, IRule> generator, TimeSpan pollingPeriod)
+        private void Add(Func<KustoRuleConfiguration, (IRule Rule, TimeSpan PollingPeriod)> generator)
         {
             // TODO(jubayard): this could be done more efficiently by not creating a KustoRuleConfiguration for every
             // call (i.e. first getting the list of rules, and then creating the instances).
@@ -144,7 +158,8 @@ namespace BuildXL.Cache.Monitor.App
                         Stamp = stamp,
                     };
 
-                    _scheduler.Add(generator(configuration), pollingPeriod);
+                    var (rule, pollingPeriod) = generator(configuration);
+                    _scheduler.Add(rule, pollingPeriod);
                 }
             }
         }

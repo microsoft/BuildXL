@@ -34,10 +34,12 @@ namespace BuildXL.Cache.Monitor.App.Rules
             _configuration = configuration;
         }
 
+#pragma warning disable CS0649
         private class Result
         {
             public DateTime PreciseTimeStamp;
         }
+#pragma warning restore CS0649
 
         public override async Task Run()
         {
@@ -63,26 +65,26 @@ namespace BuildXL.Cache.Monitor.App.Rules
                     $"No checkpoints have been produced for at least {_configuration.LookbackPeriod}",
                     ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: now);
+
+                return;
             }
-            else
+
+            var age = now - results[0].PreciseTimeStamp;
+
+            if (age >= _configuration.WarningAge)
             {
-                var age = now - results[0].PreciseTimeStamp;
-
-                if (age >= _configuration.WarningAge)
+                var severity = Severity.Warning;
+                var threshold = _configuration.WarningAge;
+                if (age >= _configuration.ErrorAge)
                 {
-                    var severity = Severity.Warning;
-                    var threshold = _configuration.WarningAge;
-                    if (age >= _configuration.ErrorAge)
-                    {
-                        severity = Severity.Error;
-                        threshold = _configuration.ErrorAge;
-                    }
-
-                    Emit(severity,
-                        $"Checkpoint age `{age}` is above acceptable threshold `{threshold}`",
-                        ruleRunTimeUtc: ruleRunTimeUtc,
-                        eventTimeUtc: results[0].PreciseTimeStamp);
+                    severity = Severity.Error;
+                    threshold = _configuration.ErrorAge;
                 }
+
+                Emit(severity,
+                    $"Checkpoint age `{age}` is above acceptable threshold `{threshold}`",
+                    ruleRunTimeUtc: ruleRunTimeUtc,
+                    eventTimeUtc: results[0].PreciseTimeStamp);
             }
         }
     }

@@ -37,11 +37,13 @@ namespace BuildXL.Cache.Monitor.App.Rules
             _configuration = configuration;
         }
 
+#pragma warning disable CS0649
         private class Result
         {
             public string Machine;
             public DateTime? LastRestoreTime;
         }
+#pragma warning restore CS0649
 
         public override async Task Run()
         {

@@ -18,9 +18,6 @@ namespace Script.Ambients {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
         ],
-        runTestArgs: { 
-            parallelBucketCount: 20,
-            weight: 2
-        },
+        runTestArgs: { weight: 2 },
     });
 }

@@ -10,7 +10,6 @@ namespace Test {
         assemblyName: "BuildXL.Cache.ContentStore.Test",
         sources: globR(d`.`,"*.cs"),
         runTestArgs: {
-            parallelBucketCount: 20,
             parallelGroups: categoriesToRunInParallel,
         },
         skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,

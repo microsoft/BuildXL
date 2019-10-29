@@ -25,8 +25,7 @@ namespace Script.Interpretation {
             importFrom("BuildXL.FrontEnd").Sdk.dll,
         ],
         //increase weight for frequent timeout pip
-        runTestArgs: { 
-            parallelBucketCount: 20,
+        runTestArgs: {
             weight: 8,
         },
     });

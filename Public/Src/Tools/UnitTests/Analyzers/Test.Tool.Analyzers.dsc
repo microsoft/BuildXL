@@ -40,9 +40,6 @@ namespace Test.Tool.Analyzers {
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe
         ],
-        runTestArgs: {
-            parallelBucketCount: 20,
-            weight: 2
-        },
+        runTestArgs: { weight: 2 },
     });
 }

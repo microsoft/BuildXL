@@ -188,23 +188,31 @@ namespace BuildXL.Cache.Monitor.App
 
             _logger.Debug($"Loading previous state from `{_configuration.PersistStatePath}`");
 
-            using var stream = File.OpenText(_configuration.PersistStatePath);
-            var serializer = CreateSerializer();
-
-            var state = (Dictionary<string, PersistableEntry>)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
-            foreach (var kvp in state)
+            try
             {
-                var ruleIdentifier = kvp.Key;
-                var storedEntry = kvp.Value;
+                using var stream = File.OpenText(_configuration.PersistStatePath);
+                var serializer = CreateSerializer();
 
-                if (!_schedule.TryGetValue(ruleIdentifier, out var entry))
+                var state = (Dictionary<string, PersistableEntry>)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
+                foreach (var kvp in state)
                 {
-                    _logger.Warning($"Rule `{ruleIdentifier}` was found in persisted state but not on the in-memory state. Skipping it");
-                    continue;
-                }
+                    var ruleIdentifier = kvp.Key;
+                    var storedEntry = kvp.Value;
 
-                Overwrite(ruleIdentifier, storedEntry, entry);
+                    if (!_schedule.TryGetValue(ruleIdentifier, out var entry))
+                    {
+                        _logger.Warning($"Rule `{ruleIdentifier}` was found in persisted state but not on the in-memory state. Skipping it");
+                        continue;
+                    }
+
+                    Overwrite(ruleIdentifier, storedEntry, entry);
+                }
             }
+            catch (Exception exception)
+            {
+                _logger.Error($"Failed to load scheduler state from `{_configuration.PersistStatePath}`; running as if it didn't exist. Exception: {exception}");
+            }
+
         }
 
         private void Overwrite(string ruleIdentifier, PersistableEntry storedEntry, Entry entry)
@@ -230,6 +238,8 @@ namespace BuildXL.Cache.Monitor.App
                     }
                 }
 
+                Contract.Assert(storedEntry.LastRunTimeUtc >= DateTime.MinValue);
+                Contract.Assert(storedEntry.LastRunTimeUtc <= _clock.UtcNow);
                 entry.LastRunTimeUtc = storedEntry.LastRunTimeUtc;
 
                 if (entry.PollingPeriod != storedEntry.PollingPeriod)

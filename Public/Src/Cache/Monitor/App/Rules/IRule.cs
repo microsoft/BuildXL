@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using BuildXL.Cache.Monitor.App.Notifications;
 
 namespace BuildXL.Cache.Monitor.App.Rules
 {

@@ -116,14 +116,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return base.GetHashCode() ^ ContentHash.GetHashCode() ^ ContentSize.GetHashCode();
+            return base.GetHashCode() ^ ContentHash.GetHashCode() ^ ContentSize.GetHashCode() ^ ContentAlreadyExistsInCache.GetHashCode();
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize}{this.GetDiagnosticsMessageForTracing()}"
+                ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize} {nameof(ContentAlreadyExistsInCache)}={ContentAlreadyExistsInCache}{this.GetDiagnosticsMessageForTracing()}"
                 : GetErrorString();
         }
 

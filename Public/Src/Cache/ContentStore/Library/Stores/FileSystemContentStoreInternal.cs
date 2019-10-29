@@ -1486,7 +1486,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (failed)
             {
-                return (false, contentExistsInCache);
+                return (Success: false, ContentAlreadyExistsInCache: contentExistsInCache);
             }
 
             if (addedContentSize > 0)
@@ -1499,7 +1499,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _announcer.ContentAdded(new ContentHashWithSize(contentHash, addedContentSize));
             }
 
-            return (true, contentExistsInCache);
+            return (Success: true, ContentAlreadyExistsInCache: contentExistsInCache);
         }
 
         /// <inheritdoc />

@@ -5,9 +5,17 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Stores
 {
+    public class AgeBucket
+    {
+        public readonly DateTime MinAge;
+        public readonly DateTime MaxAge;
+        public int Index;
+    }
+
     /// <summary>
     /// A wrapper for content hashes and its last-access time.
     /// </summary>
@@ -27,7 +35,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// Number of replicas content exists at in the datacenter.
         /// </summary>
-        public readonly long ReplicaCount;
+        public readonly int ReplicaCount;
+
+        public readonly long Cost;
 
         /// <summary>
         /// Whether or not the content is evictable as determined by the datacenter.
@@ -35,9 +45,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public readonly bool SafeToEvict;
 
         /// <summary>
+        /// Indicates whether this replica is considered important and thus retention should be prioritized
+        /// </summary>
+        public readonly bool IsImportantReplica;
+
+        /// <summary>
         /// The effective last access time of the content
         /// </summary>
         public readonly DateTime? EffectiveLastAccessTime;
+
+        public readonly AgeBucket AgeBucket;
 
         /// <nodoc />
         public TimeSpan Age => DateTime.UtcNow - LastAccessTime;
@@ -48,19 +65,79 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.
         /// </summary>
-        public ContentHashWithLastAccessTimeAndReplicaCount(ContentHash contentHash, DateTime lastAccessTime, long replicaCount = 1, bool safeToEvict = false, DateTime? effectiveLastAccessTime = null)
+        public ContentHashWithLastAccessTimeAndReplicaCount(ContentHash contentHash,
+            DateTime lastAccessTime,
+            int replicaCount = 1,
+            bool safeToEvict = false,
+            DateTime? effectiveLastAccessTime = null,
+            bool isImportantReplica = false)
         {
             ContentHash = contentHash;
             LastAccessTime = lastAccessTime;
             ReplicaCount = replicaCount;
             SafeToEvict = safeToEvict;
             EffectiveLastAccessTime = effectiveLastAccessTime;
+            IsImportantReplica = isImportantReplica;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return $"[ContentHash={ContentHash.ToShortString()} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount}]";
+            return $"[ContentHash={ContentHash.ToShortString()} LastAccessTime={LastAccessTime} EffectiveLastAccessTime={EffectiveLastAccessTime} ReplicaCount={ReplicaCount} IsImportantReplica={IsImportantReplica}]";
+        }
+
+        /// <summary>
+        /// Object comprarer for last-access times.
+        /// </summary>
+        public class AgeBucketingPrecedenceComparer : IComparer<ContentHashWithLastAccessTimeAndReplicaCount>
+        {
+            private readonly int _replicaCreditInMinutes;
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ByLastAccessTime"/> class.
+            /// </summary>
+            public ByLastAccessTime(int replicaCreditInMinutes)
+            {
+                _replicaCreditInMinutes = replicaCreditInMinutes;
+            }
+
+            /// <summary>
+            /// Returns the effective last-access time.
+            /// </summary>
+            public DateTime GetEffectiveLastAccessTime(ContentHashWithLastAccessTimeAndReplicaCount hashInfo)
+            {
+                if (hashInfo.EffectiveLastAccessTime != null)
+                {
+                    return hashInfo.EffectiveLastAccessTime.Value;
+                }
+
+                if (hashInfo.ReplicaCount <= 0)
+                {
+                    return DateTime.MinValue;
+                }
+
+                if (hashInfo.ReplicaCount == 1)
+                {
+                    return hashInfo.LastAccessTime;
+                }
+
+                var totalCredit = TimeSpan.FromMinutes(_replicaCreditInMinutes * (hashInfo.ReplicaCount - 1));
+                return hashInfo.LastAccessTime.Subtract(totalCredit);
+            }
+
+            /// <inheritdoc />
+            public int Compare(ContentHashWithLastAccessTimeAndReplicaCount x, ContentHashWithLastAccessTimeAndReplicaCount y)
+            {
+                int compareResult;
+                if (!CollectionUtilities.IsCompareEquals(x.AgeBucket.Index, y.AgeBucket.Index, out compareResult)
+                    || !CollectionUtilities.IsCompareEquals(x.IsImportantReplica, y.IsImportantReplica, out compareResult)
+                    || !CollectionUtilities.IsCompareEquals(x.Cost, y.Cost, out compareResult))
+                {
+                    return compareResult;
+                }
+
+                return 0;
+            }
         }
 
         /// <summary>

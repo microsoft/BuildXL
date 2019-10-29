@@ -114,6 +114,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public MachineReputationTrackerConfiguration ReputationTrackerConfiguration { get; set; } = new MachineReputationTrackerConfiguration();
 
         /// <summary>
+        /// Specifies whether tiered eviction comparison should be used when ordering content for eviction
+        /// </summary>
+        public bool UseTieredDistributedEviction { get; set; }
+
+        /// <summary>
+        /// Controls the desired number of replicas to retain
+        /// </summary>
+        public int DesiredReplicaRetention { get; set; }
+
+        /// <summary>
         /// Estimated decay time for content re-use.
         /// </summary>
         /// <remarks><para>This is used in the optimal distributed eviction algorithm.</para></remarks>
@@ -129,6 +139,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The minimum age of content before it is eagerly touched.
         /// </summary>
         public TimeSpan TouchFrequency { get; set; } = TimeSpan.FromHours(2);
+
+        /// <summary>
+        /// The target number of replicas which should be marked as important
+        /// </summary>
+        public int ImportantReplicaCount = 0;
 
         /// <summary>
         /// The threshold of machine locations over which additions are not sent to the global store but instead.

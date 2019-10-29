@@ -25,6 +25,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Gets whether the local content store contains the content specified by the hash
         /// </summary>
         bool Contains(ContentHash hash);
+
+        /// <summary>
+        /// Gets the information about the content hash if present
+        /// </summary>
+        bool TryGetContentInfo(ContentHash hash, out ContentInfo info);
     }
 
     /// <summary>

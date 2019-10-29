@@ -209,6 +209,21 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
+        public bool TryGetContentInfo(ContentHash hash, out ContentInfo info)
+        {
+            if (Store.TryGetFileInfo(hash, out var fileInfo))
+            {
+                info = new ContentInfo(hash, fileInfo.FileSize, DateTime.FromFileTimeUtc(fileInfo.LastAccessedFileTimeUtc));
+                return true;
+            }
+            else
+            {
+                info = default;
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
         public Task<OpenStreamResult> StreamContentAsync(Context context, ContentHash contentHash)
         {
             return Store.OpenStreamAsync(context, contentHash, pinRequest: null);

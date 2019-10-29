@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 
 namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
@@ -25,6 +26,13 @@ namespace BuildXL.Cache.ContentStore.UtilitiesCore.Internal
             public static readonly List<T> EmptyList = new List<T>();
 
             public static readonly T[] EmptyArray = new T[] { };
+        }
+
+        public static bool IsCompareEquals<T>(T x1, T x2, out int compareResult)
+            where T : IComparable<T>
+        {
+            compareResult = x1.CompareTo(x2);
+            return compareResult == 0;
         }
     }
 }

@@ -1139,6 +1139,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         DateTime lastAccessTime = contentHash.LastAccessTime;
                         int replicaCount = 1;
                         DateTime? effectiveLastAccessTime = null;
+                        long size = 0;
+                        bool isImportantReplica = true;
+
+                        if (_localContentStore != null && _localContentStore.TryGetContentInfo(contentHash.Hash, out var contentInfo))
+                        {
+                            size = contentInfo.Size;
+                        }
 
                         if (TryGetContentLocations(context, contentHash.Hash, out var entry))
                         {
@@ -1146,19 +1153,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             DateTime distributedLastAccessTime = entry.LastAccessTimeUtc.ToDateTime();
                             lastAccessTime = distributedLastAccessTime > lastAccessTime ? distributedLastAccessTime : lastAccessTime;
 
-                            // TODO[LLS]: Maybe some machines should be primary replicas for the content and not prioritize deletion (bug 1365340)
-                            // just because there are many replicas
+                            isImportantReplica = IsImportantReplica(contentHash.Hash, entry, _configuration.DesiredReplicaRetention);
                             replicaCount = entry.Locations.Count;
 
-                            // Incorporate both replica count and size into an evictability metric.
-                            // It's better to eliminate big content (more bytes freed per eviction) and it's better to eliminate content with more replicas (less chance
-                            // of all replicas being inaccessible).
-                            // A simple model with exponential decay of likelihood-to-use and a fixed probability of each replica being inaccessible shows that the metric
-                            //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
-                            // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
-                            // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
-                            TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(1, replicaCount) * logInverseMachineRisk + Math.Log(Math.Max(1, entry.ContentSize))));
-                            effectiveLastAccessTime = lastAccessTime - totalReplicaPenalty;
+                            if (size == 0)
+                            {
+                                size = entry.ContentSize;
+                            }
 
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupHit].Increment();
                         }
@@ -1167,12 +1168,63 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             Counters[ContentLocationStoreCounters.EffectiveLastAccessTimeLookupMiss].Increment();
                         }
 
+                        effectiveLastAccessTime = GetEffectiveLastAccessTime(lastAccessTime, replicaCount, size, isImportantReplica);
+
                         effectiveLastAccessTimes.Add(new ContentHashWithLastAccessTimeAndReplicaCount(contentHash.Hash, lastAccessTime, replicaCount, effectiveLastAccessTime: effectiveLastAccessTime ?? lastAccessTime));
                     }
 
                     return Result.Success<IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount>>(effectiveLastAccessTimes);
                 }, Counters[ContentLocationStoreCounters.GetEffectiveLastAccessTimes],
                 traceOperationStarted: false);
+        }
+
+        private DateTime GetEffectiveLastAccessTime(DateTime lastAccessTime, int replicaCount, long size, bool isImportantReplica)
+        {
+            if (_configuration.UseTieredDistributedEviction)
+            {
+                // Incorporate both replica count and size into an evictability metric.
+                // It's better to eliminate big content (more bytes freed per eviction) and it's better to eliminate content with more replicas (less chance
+                // of all replicas being inaccessible).
+                // A simple model with exponential decay of likelihood-to-use and a fixed probability of each replica being inaccessible shows that the metric
+                //   evictability = age + (time decay parameter) * (-log(risk of content unavailability) * (number of replicas) + log(size of content))
+                // minimizes the increase in the probability of (content wanted && all replicas inaccessible) / per bytes freed.
+                // Since this metric is just the age plus a computed quantity, it can be intrepreted as an "effective age".
+                TimeSpan totalReplicaPenalty = TimeSpan.FromMinutes(_configuration.ContentLifetime.TotalMinutes * (Math.Max(1, replicaCount) * logInverseMachineRisk + Math.Log(Math.Max(1, size))));
+                return lastAccessTime - totalReplicaPenalty;
+            }
+            else
+            {
+                if (isImportantReplica)
+                {
+
+                }
+                else
+                {
+
+                }
+            }
+        }
+
+        private bool IsImportantReplica(ContentHash hash, ContentLocationEntry entry, long desiredReplicaCount)
+        {
+            // TODO: Should we mark the entry as an important replica if LLS is sufficiently old
+            if (entry.Locations.Count <= desiredReplicaCount)
+            {
+                return true;
+            }
+            else
+            {
+                long replicaHash = unchecked((uint)HashCodeHelper.Combine(hash[0] | hash[1] << 8, LocalMachineId.Index));
+                long importantReplicaRange = (desiredReplicaCount * uint.MaxValue) / entry.Locations.Count;
+                if (replicaHash <= importantReplicaRange)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
 
         /// <summary>

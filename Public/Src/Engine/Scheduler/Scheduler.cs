@@ -824,9 +824,9 @@ namespace BuildXL.Scheduler
 
         #region Statistics
 
-        private long m_totalPeakVirtualMemoryUsageMb;
-        private long m_totalPeakWorkingSetMb;
-        private long m_totalPeakPagefileUsageMb;
+        private ulong m_totalPeakVirtualMemoryUsageMb;
+        private ulong m_totalPeakWorkingSetMb;
+        private ulong m_totalPeakPagefileUsageMb;
 
         private readonly object m_statusLock = new object();
 
@@ -1724,9 +1724,9 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
-            statistics.Add("TotalPeakMemoryUsage", m_totalPeakVirtualMemoryUsageMb);
-            statistics.Add("TotalPeakWorkingSet", m_totalPeakWorkingSetMb);
-            statistics.Add("TotalPeakPagefileUsage", m_totalPeakPagefileUsageMb);
+            statistics.Add("TotalPeakMemoryUsage", (long)m_totalPeakVirtualMemoryUsageMb);
+            statistics.Add("TotalPeakWorkingSet", (long)m_totalPeakWorkingSetMb);
+            statistics.Add("TotalPeakPagefileUsage", (long)m_totalPeakPagefileUsageMb);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
@@ -3678,9 +3678,9 @@ namespace BuildXL.Scheduler
                                 peakWorkingSetMb,
                                 peakPagefileUsageMb);
 
-                            m_totalPeakVirtualMemoryUsageMb += peakVirtualMemoryUsageMb;
-                            m_totalPeakWorkingSetMb += peakWorkingSetMb;
-                            m_totalPeakPagefileUsageMb += peakPagefileUsageMb;
+                            m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
+                            m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
+                            m_totalPeakPagefileUsageMb += (ulong)peakPagefileUsageMb;
 
                             // File violation analysis needs to happen on the master as it relies on
                             // graph-wide data such as detecting duplicate
@@ -4295,7 +4295,7 @@ namespace BuildXL.Scheduler
                 $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" :
                 "N/A";
 
-            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";
+            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} - {worker.Name} ({worker.Status} - WhenReleased: {whenWorkerReleased})";
         }
 
         /// <inheritdoc />

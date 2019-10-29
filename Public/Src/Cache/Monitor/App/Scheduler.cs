@@ -244,7 +244,7 @@ namespace BuildXL.Cache.Monitor.App
 
                 if (entry.PollingPeriod != storedEntry.PollingPeriod)
                 {
-                    _logger.Warning($"Rule `{ruleIdentifier}` has a mismatch between persisted and in-memory polling periods (`{storedEntry.PollingPeriod}` vs `{entry.PollingPeriod}`)");
+                    _logger.Warning($"Rule `{ruleIdentifier}` has a mismatch between persisted and in-memory polling periods (`{storedEntry.PollingPeriod}` vs `{entry.PollingPeriod}`). Using the in-memory one.");
                 }
             }
         }

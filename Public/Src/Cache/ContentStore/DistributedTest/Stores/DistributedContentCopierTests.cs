@@ -44,7 +44,7 @@ namespace ContentStoreTest.Distributed.Stores
             {
                 var(distributedCopier, mockFileCopier) = await CreateAsync(context, directory.Path);
 
-                var hash = ContentHash.Random();
+                var hash = VsoHashInfo.Instance.EmptyHash;
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
                     hash,
                     size: 42,
@@ -72,7 +72,7 @@ namespace ContentStoreTest.Distributed.Stores
                 var(distributedCopier, mockFileCopier) = await CreateAsync(context, directory.Path);
 
                 var hash = ContentHash.Random();
-                var wrongHash = ContentHash.Random();
+                var wrongHash = VsoHashInfo.Instance.EmptyHash;
                 var hashWithLocations = new ContentHashWithSizeAndLocations(
                     hash,
                     size: 42,

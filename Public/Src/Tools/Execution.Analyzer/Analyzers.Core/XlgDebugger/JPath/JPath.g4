@@ -40,7 +40,7 @@ CONCAT    : '++' ;
 INTERSECT : '&'  ;
 
 IntLit
-    : [0-9]+ ;
+    : '-'?[0-9]+ ;
 
 StrLit
     : '\'' ~[']* '\''
@@ -127,12 +127,21 @@ literal
     | Value=IntLit                                    #IntLitExpr
     ;
 
+propVal
+    : (Name=prop ':')? Value=expr                     #PropertyValue
+    ;
+
+objLit
+    : '{' Props+=propVal (',' Props+=propVal)* '}'    #ObjLitProps
+    ;    
+
 expr
     : '$'                                             #RootExpr
     | Var=VarId                                       #VarExpr
     | Sub=selector                                    #SelectorExpr
+    | Obj=objLit                                      #ObjLitExpr
     | Lit=literal                                     #LiteralExpr
-    | Lhs=expr '.' Selector=selector                  #MapExpr
+    | Lhs=expr '.' Sub=expr                           #MapExpr
     | Lhs=expr '[' Filter=logicExpr ']'               #FilterExpr
     | Lhs=expr '[' Index=intExpr ']'                  #IndexExpr
     | Lhs=expr '[' Begin=intExpr '..' End=intExpr ']' #RangeExpr
@@ -141,6 +150,8 @@ expr
     | Func=expr '(' Args+=expr (',' Args+=expr)* ')'  #FuncAppExprParen
     | Func=expr OptName=Opt (OptValue=literal)?       #FuncOptExpr
     | Input=expr '|' Func=expr                        #PipeExpr
+    | Input=expr '|>' File=StrLit                     #SaveToFileExpr
+    | Input=expr '|>>' File=StrLit                    #AppendToFileExpr
     | Lhs=expr Op=anyBinaryOp Rhs=expr                #BinExpr
     | '(' Sub=expr ')'                                #SubExpr
     | 'let' Var=VarId ':=' Val=expr 'in' Sub=expr?    #LetExpr 

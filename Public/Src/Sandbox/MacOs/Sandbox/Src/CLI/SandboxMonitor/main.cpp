@@ -69,6 +69,16 @@ string renderCounter(DurationCounter cnt)
     return str.str();
 }
 
+static const uint BytesInAMegabyte = 1 << 20;
+
+string renderCountAndSize(CountAndSize cnt)
+{
+    stringstream str;
+    str << to_string(cnt.count)
+        << " (" << renderDouble((1.0 * cnt.size * cnt.count)/BytesInAMegabyte) << " MB)";
+    return str.str();
+}
+
 string to_string(Counter cnt)         { return to_string(cnt.count()); }
 string to_string(DurationCounter cnt) { return renderCounterMicros(cnt); }
 string to_string(string str)          { return str; }
@@ -344,8 +354,9 @@ int main(int argc, const char * argv[])
                    << ", #HardLink retries: " << to_string(response.counters.numHardLinkRetries)
                    << ", #CoalescedReports: " << to_string(response.counters.reportCounters.numCoalescedReports)
                    << " (" << renderDouble(PERCENT(response.counters.reportCounters.numCoalescedReports.count(), response.counters.reportCounters.totalNumSent.count())) << "%)"
-                   << ", #UintTrieNodes: " << to_string(response.counters.numUintTrieNodes) << " (" << renderDouble(response.counters.uintTrieSizeMB) << " MB)"
-                   << ", #PathTrieNodes: " << to_string(response.counters.numPathTrieNodes) << " (" << renderDouble(response.counters.pathTrieSizeMB) << " MB)"
+                   << ", #UintTrieNodes: " << renderCountAndSize(response.counters.uintNodes)
+                   << ", #PathTrieNodes: " << renderCountAndSize(response.counters.pathNodes)
+                   << ", #LightTrieNodes: " << renderCountAndSize(response.counters.lightNodes)
                    << ", #FreeListNodes: " << to_string(response.counters.reportCounters.freeListNodeCount)
                    << " (" << renderDouble(response.counters.reportCounters.freeListSizeMB) << " MB)"
                    << endl;

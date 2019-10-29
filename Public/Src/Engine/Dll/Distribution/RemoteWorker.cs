@@ -720,7 +720,7 @@ namespace BuildXL.Engine.Distribution
 
                         var hash = new FileArtifactKeyedHash
                         {
-                            IsSourceAffected = environment.State.FileContentManager.SourceChangeAffectedContents.IsSourceChangedAffectedFile(file),
+                            IsSourceAffected = environment.State.FileContentManager.SourceChangeAffectedInputs.IsSourceChangedAffectedFile(file),
                             RewriteCount = file.RewriteCount,
                             PathValue = file.Path.Value.Value,
                             PathString = isDynamicFile ? file.Path.ToString(pathTable) : null,

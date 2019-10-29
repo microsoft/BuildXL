@@ -68,7 +68,7 @@ config({
                 { id: "Bond.Runtime.CSharp", version: "8.0.0" },
                 { id: "CLAP", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.1.7.1" },
+                { id: "RuntimeContracts", version: "0.1.9.1" },
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5"},
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5"},
@@ -80,8 +80,8 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "3.0.0" },
-                { id: "Microsoft.NETCore.Compilers", version: "3.1.0-beta3-final" },
+                { id: "Microsoft.Net.Compilers", version: "3.3.1" },
+                { id: "Microsoft.NETCore.Compilers", version: "3.3.1" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },
@@ -98,9 +98,10 @@ config({
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
+                
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
-                { id: "RuntimeContracts.Analyzer", version: "0.1.7.1" },
+                { id: "RuntimeContracts.Analyzer", version: "0.1.9.4" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 

@@ -46,7 +46,7 @@ export function withRuntimeContracts(args: Managed.Arguments, contractsLevel?: C
         tools: {
             csc: {
                 analyzers: [
-                    ...dlls(importFrom("RuntimeContracts.Analyzer").withQualifier({targetFramework: 'netstandard1.3'}).pkg)
+                    ...dlls(importFrom("RuntimeContracts.Analyzer").withQualifier({targetFramework: 'netstandard2.0'}).pkg)
                 ]
             },
         }});
@@ -80,7 +80,7 @@ export function getContractsSymbols(level: ContractsLevel, enableContractsQuanti
 
 /** Returns analyzers dll for RuntimeContracts nuget package. */
 export function getAnalyzers() : Managed.Binary[] {
-    return dlls(importFrom("RuntimeContracts.Analyzer").withQualifier({targetFramework: 'netstandard1.3'}).pkg);
+    return dlls(importFrom("RuntimeContracts.Analyzer").withQualifier({targetFramework: 'netstandard2.0'}).pkg);
 }
 
 function dlls(nugetPackage: NugetPackage): Managed.Binary[] {

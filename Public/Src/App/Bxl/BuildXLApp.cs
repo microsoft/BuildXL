@@ -118,9 +118,9 @@ namespace BuildXL
     /// </summary>
     internal sealed class BuildXLApp : IDisposable
     {
-        // We give the failure completion logic a generous 60 seconds to complete since in some cases taking a crash dump
+        // We give the failure completion logic a generous 300 seconds to complete since in some cases taking a crash dump
         // can take quite a while
-        private const int FailureCompletionTimeoutMs = 60 * 1000;
+        private const int FailureCompletionTimeoutMs = 300 * 1000;
 
         // 24K buffer size means that internally, the StreamWriter will use 48KB for a char[] array, and 73731 bytes for an encoding byte array buffer --- all buffers <85000 bytes, and therefore are not in large object heap
         private const int LogFileBufferSize = 24 * 1024;

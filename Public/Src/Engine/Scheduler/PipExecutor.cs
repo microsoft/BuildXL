@@ -1335,8 +1335,8 @@ namespace BuildXL.Scheduler
                                     }
                                 });
 
-                            IReadOnlyList<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
-                                ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
+                            IReadOnlyList<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFile.IsValid
+                                ? environment.State.FileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(pip)
                                 : null;
 
                             int remainingUserRetries = pip.RetryExitCodes.Length > 0 ? configuration.Schedule.ProcessRetries : 0;
@@ -1382,10 +1382,10 @@ namespace BuildXL.Scheduler
                                 registerQueryRamUsageMb(
                                     () =>
                                     {
-                                        using (operationContext.StartAsyncOperation(PipExecutorCounter.QueryRamUsageDuration))
+                                        using (counters[PipExecutorCounter.QueryRamUsageDuration].Start())
                                         {
                                             lastObservedPeakRamUsage =
-                                                (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakMemoryUsage() ?? 0));
+                                                (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakWorkingSet() ?? 0));
                                         }
 
                                         return lastObservedPeakRamUsage;
@@ -1541,7 +1541,7 @@ namespace BuildXL.Scheduler
                                         processDescription,
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                                         peakMemoryMb:
-                                            (int)ByteSizeFormatter.ToMegabytes((long)(result.JobAccountingInformation?.PeakMemoryUsage ?? 0)),
+                                            (int)ByteSizeFormatter.ToMegabytes((long)(result.JobAccountingInformation?.MemoryCounters.PeakWorkingSet ?? 0)),
                                         expectedMemoryMb: expectedRamUsageMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
@@ -2304,7 +2304,7 @@ namespace BuildXL.Scheduler
                 RunnableFromCacheResult runnableFromCacheResult;
 
                 bool isCacheHit = cacheHitData != null;
-                
+
                 if (!isCacheHit)
                 {
                     var pathSetCount = strongFingerprintComputationList.Count;
@@ -2327,7 +2327,7 @@ namespace BuildXL.Scheduler
                         {
                             ContentHash weakAugmentingPathSetHash = weakAugmentingPathSetHashResult.Result;
 
-                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we 
+                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we
                             // could compute augmented weak fingerprint and perform the cache lookup as above
                             (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint)
                                         = await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
@@ -4421,7 +4421,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel); 
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

@@ -70,6 +70,9 @@ namespace BuildXL.Processes
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
 
+        private readonly PerformanceCollector.Aggregation m_peakWorkingSet = new PerformanceCollector.Aggregation();
+        private readonly PerformanceCollector.Aggregation m_peakPagefileUsage = new PerformanceCollector.Aggregation();
+
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "We own these objects.")]
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
@@ -128,7 +131,7 @@ namespace BuildXL.Processes
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-
+            
             m_processIdListener = info.ProcessIdListener;
             m_detouredProcess =
                 new DetouredProcess(
@@ -147,7 +150,10 @@ namespace BuildXL.Processes
                     info.DisableConHostSharing,
                     info.LoggingContext,
                     info.TimeoutDumpDirectory,
-                    info.ContainerConfiguration);
+                    info.ContainerConfiguration,
+                    // If there is any process configured to breakway from the sandbox, then we need to allow
+                    // this to happen at the job object level
+                    setJobBreakawayOk: m_fileAccessManifest.ChildProcessesToBreakawayFromSandbox?.Any() == true);
         }
 
         /// <inheritdoc />
@@ -181,10 +187,7 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        /// <remarks>
-        /// Gets the peak memory usage for the job object associated with the detoured process while the process is active.
-        /// </remarks>
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
             using (m_queryJobDataLock.AcquireReadLock())
             {
@@ -197,7 +200,54 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                return detouredProcess.GetJobObject()?.GetPeakMemoryUsage();
+                ulong? currentPeakWorkingSet = null;
+                ulong? currentPeakPagefileUsage = null;
+
+                var jobObject = detouredProcess.GetJobObject();
+                if (jobObject == null || !jobObject.TryGetProcessIds(out uint[] childProcessIds) || childProcessIds.Length == 0)
+                {
+                    return null;
+                }
+
+                foreach (uint processId in childProcessIds)
+                {
+                    using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
+                        ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION,
+                        false,
+                        processId))
+                    {
+                        if (processHandle.IsInvalid)
+                        {
+                            // we are too late: could not open process
+                            continue;
+                        }
+
+                        if (!jobObject.ContainsProcess(processHandle))
+                        {
+                            // we are too late: process id got reused by another process
+                            continue;
+                        }
+
+                        int exitCode;
+                        if (!ProcessUtilities.GetExitCodeProcess(processHandle, out exitCode))
+                        {
+                            // we are too late: process id got reused by another process
+                            continue;
+                        }
+
+                        var memoryUsage = Interop.Dispatch.GetMemoryUsageCounters(processHandle.DangerousGetHandle());
+                        if (memoryUsage != null)
+                        {
+                            currentPeakWorkingSet = (currentPeakWorkingSet ?? 0) + memoryUsage.PeakWorkingSetSize;
+                            currentPeakPagefileUsage = (currentPeakPagefileUsage ?? 0) + memoryUsage.PeakPagefileUsage;
+                        }
+                    }
+                }
+
+                m_peakWorkingSet.RegisterSample(currentPeakWorkingSet ?? 0);
+                m_peakPagefileUsage.RegisterSample(currentPeakPagefileUsage ?? 0);
+
+                return currentPeakWorkingSet;
             }
         }
 
@@ -454,7 +504,7 @@ namespace BuildXL.Processes
             JobObject jobObject = m_detouredProcess.GetJobObject();
             if (jobObject != null)
             {
-                jobAccountingInformation = jobObject.GetAccountingInformation();
+                jobAccountingInformation = jobObject.GetAccountingInformation(Convert.ToUInt64(m_peakWorkingSet.Maximum), Convert.ToUInt64(m_peakPagefileUsage.Maximum));
             }
 
             ProcessTimes primaryProcessTimes = m_detouredProcess.GetTimesForPrimaryProcess();

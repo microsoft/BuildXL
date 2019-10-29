@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -16,9 +17,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// </summary>
         public static AbsolutePath SwapRoot(this AbsolutePath path, AbsolutePath sourceRoot, AbsolutePath destinationRoot)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(sourceRoot != null);
-            Contract.Requires(destinationRoot != null);
+            Contract.RequiresNotNull(path);
+            Contract.RequiresNotNull(sourceRoot);
+            Contract.RequiresNotNull(destinationRoot);
 
             var x = path.Path.IndexOf(sourceRoot.Path, StringComparison.OrdinalIgnoreCase);
             if (x < 0)

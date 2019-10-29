@@ -22,6 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
     public sealed class MemoryContentLocationDatabase : ContentLocationDatabase
     {
         private readonly ConcurrentDictionary<ShortHash, ContentLocationEntry> _map = new ConcurrentDictionary<ShortHash, ContentLocationEntry>();
+        private readonly ConcurrentDictionary<string, string> _globalEntryMap = new ConcurrentDictionary<string, string>();
 
         /// <inheritdoc />
         public MemoryContentLocationDatabase(IClock clock, MemoryContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
@@ -35,6 +36,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             // Intentionally doing nothing.
             Tracer.Info(context, "Initializing in-memory content location database.");
             return BoolResult.Success;
+        }
+
+        /// <inheritdoc />
+        public override void SetGlobalEntry(string key, string value)
+        {
+            if (value == null)
+            {
+                _globalEntryMap.TryRemove(key, out _);
+            }
+            else
+            {
+                _globalEntryMap[key] = value;
+            }
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetGlobalEntry(string key, out string value)
+        {
+            return _globalEntryMap.TryGetValue(key, out value);
         }
 
         /// <inheritdoc />

@@ -6,7 +6,7 @@
 #include "FileAccessHelpers.h"
 
 // Immutable, typed, and canonical path string. The represented path is absolute, free of .. and . traversals, redundant path separators, etc.
-// A canonicalized path is indepenent of the current directory (which is mutable and process global).
+// A canonicalized path is independent of the current directory (which is mutable and process global).
 // Since the path is immutable, the underlying storage for the path string is shared among instances under copy construction and assignment.
 struct CanonicalizedPath {
     CanonicalizedPath()

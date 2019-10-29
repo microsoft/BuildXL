@@ -617,8 +617,9 @@ IntrospectResponse BuildXLSandbox::Introspect() const
         .pips                = {0}
     };
 
-    Trie::getUintNodeCounts(&result.counters.numUintTrieNodes, &result.counters.uintTrieSizeMB);
-    Trie::getPathNodeCounts(&result.counters.numPathTrieNodes, &result.counters.pathTrieSizeMB);
+    Trie::getUintNodeCounts(&result.counters.uintNodes);
+    Trie::getPathNodeCounts(&result.counters.pathNodes);
+    Trie::getLightNodeCounts(&result.counters.lightNodes);
 
     ReportCounters *reportCounters = &result.counters.reportCounters;
     reportCounters->freeListSizeMB =

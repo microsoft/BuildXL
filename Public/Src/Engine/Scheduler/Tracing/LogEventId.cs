@@ -79,6 +79,8 @@ namespace BuildXL.Scheduler.Tracing
         HistoricMetadataCacheCloseCalled = 3663,
         HistoricMetadataCacheLoadFailed = 3664,
 
+        UnableToGetMemoryPressureLevel = 3665,
+
         PipCacheMetadataBelongToAnotherPip = 3700,
 
         PipIpcFailedDueToInfrastructureError = 3701,
@@ -138,7 +140,7 @@ namespace BuildXL.Scheduler.Tracing
         AllowedSameContentDoubleWrite = 5044,
 
         InitiateWorkerRelease = 5045,
-        WorkerReleasedEarly = 5046, 
+        WorkerReleasedEarly = 5046,
         DependencyViolationWriteOnExistingFile = 5047,
         FailedToAddFragmentPipToGraph = 5048,
         ExceptionOnAddingFragmentPipToGraph = 5049,
@@ -149,6 +151,7 @@ namespace BuildXL.Scheduler.Tracing
         PipSourceDependencyCannotBeHashed = 5053,
 
         ProblematicWorkerExit = 5070,
+        ProcessPipExecutionInfo = 5071,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

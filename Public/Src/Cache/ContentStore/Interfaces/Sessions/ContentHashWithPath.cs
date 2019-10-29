@@ -9,7 +9,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Utils;
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
     /// <summary>
-    /// Container for a individual memmber of BulkPlace call
+    /// Container for a individual member of BulkPlace call
     /// </summary>
     public readonly struct ContentHashWithPath : IEquatable<ContentHashWithPath>
     {

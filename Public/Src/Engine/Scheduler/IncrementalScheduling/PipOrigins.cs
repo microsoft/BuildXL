@@ -74,20 +74,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         }
 
         /// <summary>
-        /// Tries to add origin.
-        /// </summary>
-        public PipStableId GetOrAddOrigin(in ContentFingerprint fingerprint, (long semiStableHash, int pipGraphIndex) origin)
-        {
-            var result = m_pipOrigins.GetOrAdd(fingerprint, origin);
-            return CreateStableId(result.Index);
-        }
-
-        /// <summary>
-        /// Updates pip origin, and gets back pip id.
-        /// </summary>
-        public void Update(in ContentFingerprint fingerprint, (long semiStableHash, int pipGraphIndex) origin) => m_pipOrigins[fingerprint] = origin;
-
-        /// <summary>
         /// Adds or updates pip origin, and gets back pip id.
         /// </summary>
         public PipStableId AddOrUpdate(in ContentFingerprint fingerprint, (long semiStableHash, int pipGraphIndex) origin)

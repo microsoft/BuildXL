@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BuildXL.Execution.Analyzer.JPath;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;
@@ -11,22 +12,32 @@ namespace BuildXL.Execution.Analyzer
 {
     public static class LibraryFunctions
     {
+        public static readonly Function SaveFunction = new Function(name: "save", minArity: 2, func: Save);
+        public static readonly Function AppendFunction = new Function(name: "append", minArity: 2, func: Append);
+
         public static readonly IReadOnlyList<Function> All = new List<Function>
         {
-             new Function(name: "sum",   minArity: 1, func: Sum),
-             new Function(name: "cut",   minArity: 1, func: Cut),
-             new Function(name: "count", minArity: 1, func: Count),
-             new Function(name: "uniq",  minArity: 1, func: Uniq),
-             new Function(name: "sort",  minArity: 1, func: Sort),
-             new Function(name: "join",  minArity: 1, func: Join),
-             new Function(name: "grep",  minArity: 2, func: Grep),
+             new Function(name: "sum",    minArity: 1, func: Sum),
+             new Function(name: "cut",    minArity: 1, func: Cut),
+             new Function(name: "count",  minArity: 1, func: Count),
+             new Function(name: "uniq",   minArity: 1, func: Uniq),
+             new Function(name: "sort",   minArity: 1, func: Sort),
+             new Function(name: "join",   minArity: 1, func: Join),
+             new Function(name: "grep",   minArity: 2, func: Grep),
+             new Function(name: "strcat", minArity: 1, func: StrCat),
+             new Function(name: "head",   minArity: 1, func: Head),
+             new Function(name: "tail",   minArity: 1, func: Tail),
+             new Function(name: "toJson", minArity: 1, func: ToJson),
+             new Function(name: "toCsv",  minArity: 1, func: ToCsv),
+             SaveFunction,
+             AppendFunction
         };
 
         private static Result Sum(Evaluator.Args args)
         {
             return args
                 .Flatten()
-                .Select(obj => args.ToInt(obj))
+                .Select(obj => args.ToNumber(obj))
                 .Sum();
         }
 
@@ -82,7 +93,7 @@ namespace BuildXL.Execution.Analyzer
             var objs = args.Flatten();
 
             var ordered = args.HasSwitch("n") // numeric sorting (otherwise string sorting)
-                ? objs.OrderBy(args.ToInt)
+                ? objs.OrderBy(args.ToNumber)
                 : objs.OrderBy(args.Preview);
 
             var finalOrder = args.HasSwitch("r") // reverse
@@ -92,12 +103,65 @@ namespace BuildXL.Execution.Analyzer
             return finalOrder.ToArray();
         }
 
-        private static Result Join(Evaluator.Args args)
+        private static Result Join(Evaluator.Args args) => StrCat(args, defaultSeparator: Environment.NewLine);
+
+        private static Result StrCat(Evaluator.Args args) => StrCat(args, defaultSeparator: string.Empty);
+
+        private static Result StrCat(Evaluator.Args args, string defaultSeparator)
         {
-            var separator = args.GetSwitch("d");
             return string.Join(
-                separator != null ? args.ToString(separator) : Environment.NewLine,
+                args.GetStrSwitch("d", defaultSeparator),
                 args.Flatten().Select(args.Preview));
+        }
+
+        private static Result Head(Evaluator.Args args)
+        {
+            var numElements = (int)args.GetNumSwitch("n", 10);
+            return args.Flatten().Take(numElements).ToArray();
+        }
+
+        private static Result Tail(Evaluator.Args args)
+        {
+            var numElements = (int)args.GetNumSwitch("n", 10);
+            var flattened = args.Flatten().ToList();
+            return flattened.Skip(flattened.Count - numElements).ToArray();
+        }
+
+        private static Result ToJson(Evaluator.Args args)
+        {
+            return Newtonsoft.Json.JsonConvert.SerializeObject(ExtractObjects(args), Newtonsoft.Json.Formatting.Indented);
+        }
+
+        private static Result ToCsv(Evaluator.Args args)
+        {
+            return string.Join(
+                Environment.NewLine,
+                ExtractObjects(args).Select(dict => string.Join(
+                    ",", 
+                    dict.Values.Select(v => v?.ToString()).Select(csvEscape))));
+
+            static string csvEscape(string str)
+            {
+                return '"' + str?.Replace("\"", "\"\"") ?? string.Empty + '"';
+            }
+        }
+
+        private static Dictionary<string, object>[] ExtractObjects(Evaluator.Args args)
+        {
+            return args
+                .Flatten()
+                .Select(o => args.Eval.Resolve(o))
+                .Select(o => o.Properties.ToDictionary(p => p.Name, p => extractValue(p.Value)))
+                .ToArray();
+
+            static object extractValue(object val)
+            {
+                return val switch
+                {
+                    Result r => r.IsScalar ? r.Value.First() : r.Value.ToArray(),
+                    _        => val,
+                };
+            }
         }
 
         private static Result Grep(Evaluator.Args args)
@@ -109,6 +173,28 @@ namespace BuildXL.Execution.Analyzer
                 .SelectMany(result => result)
                 .Where(obj => flip ^ args.Matches(args.Preview(obj), pattern))
                 .ToArray();
+        }
+
+        private static Result Save(Evaluator.Args args) => SaveToFile(args, append: false);
+        private static Result Append(Evaluator.Args args) => SaveToFile(args, append: true);
+
+        private static Result SaveToFile(Evaluator.Args args, bool append)
+        {
+            var fileName = args.Eval.ToString(args[0]);
+            var lines = args
+                .Skip(1)
+                .SelectMany(result => result)
+                .Select(args.Preview)
+                .ToList();
+            if (append)
+            {
+                File.AppendAllLines(fileName, lines, System.Text.Encoding.UTF8);
+            }
+            else
+            {
+                File.WriteAllLines(fileName, lines, System.Text.Encoding.UTF8);
+            }
+            return $"Saved {lines.Count} lines to file '{Path.GetFullPath(fileName)}'";
         }
     }
 }

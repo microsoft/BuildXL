@@ -1382,7 +1382,7 @@ namespace BuildXL.Scheduler
                                 registerQueryRamUsageMb(
                                     () =>
                                     {
-                                        using (operationContext.StartAsyncOperation(PipExecutorCounter.QueryRamUsageDuration))
+                                        using (counters[PipExecutorCounter.QueryRamUsageDuration].Start())
                                         {
                                             lastObservedPeakRamUsage =
                                                 (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakWorkingSet() ?? 0));

@@ -1219,7 +1219,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "Failed to get the current memory pressure level - resource cancelation will be skipped all together! Available RAM MB: {availableRam} < {minimumAvailableRam})" +
+            Message = "Failed to get the current memory pressure level - resource cancelation will only take /minimumAvailableRam and /maximumRamUtilization into account! Available RAM MB: {availableRam} < {minimumAvailableRam})" +
             " && (used RAM percentage: {ramUtilization} > {maximumRamUtilization}) ")]
         internal abstract void UnableToGetMemoryPressureLevel(
             LoggingContext loggingContext,

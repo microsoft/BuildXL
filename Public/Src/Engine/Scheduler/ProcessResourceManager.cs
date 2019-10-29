@@ -96,6 +96,23 @@ namespace BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Updates the ram usage indicators for all cancelable resource scopes
+        /// </summary>
+        public void UpdateRamUsageForResourceScopes()
+        {
+            lock (m_syncLock)
+            {
+                foreach (var scope in m_pipResourceScopes.Values)
+                {
+                    if (scope.CanCancel)
+                    {
+                        scope.RefreshRamUsage();
+                    }
+                }
+            }
+        }
+
         private void FreeResourcesByPreference(
             IComparer<ResourceScope> scopeComparer,
             ref int requiredRam,
@@ -140,7 +157,6 @@ namespace BuildXL.Scheduler
             }
 
             using (scope)
-            using (new StoppableTimer(() => scope.RefreshRamUsage(), 0, 2000))
             {
                 var result = await execute(scope.Token, registerQueryRamUsageMb: scope.RegisterQueryRamUsageMb);
                 scope.Complete();
@@ -227,6 +243,7 @@ namespace BuildXL.Scheduler
             private Func<int> m_queryRamUsageMb;
             private bool m_completed;
             private bool m_cancelled;
+            private readonly object m_refreshLock = new object();
 
             public readonly PipId PipId;
             public readonly int ExpectedRamUsageMb;
@@ -270,7 +287,10 @@ namespace BuildXL.Scheduler
 
             public int QueryRamUsageMb()
             {
-                return m_queryRamUsageMb?.Invoke() ?? 0;
+                lock(m_refreshLock)
+                {
+                    return m_queryRamUsageMb?.Invoke() ?? 0;
+                }
             }
 
             public void RefreshRamUsage()
@@ -305,9 +325,13 @@ namespace BuildXL.Scheduler
 
             public void Dispose()
             {
-                Contract.Assert(!m_completed || m_queryRamUsageMb != null, "Must register query ram usage before completion");
-                m_queryRamUsageMb = null;
-                m_isDisposed = true;
+                lock(m_refreshLock)
+                {
+                    Contract.Assert(!m_completed || m_queryRamUsageMb != null, "Must register query ram usage before completion");
+                    m_queryRamUsageMb = null;
+                    m_isDisposed = true;
+                }
+
                 m_cancellation.Dispose();
                 m_resourceManager.FreeExecution(PipId);
             }

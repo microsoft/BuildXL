@@ -36,6 +36,9 @@ namespace Test.BuildXL.FingerprintStore {
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
         ],
-        runTestArgs: { weight: 2 },
+        runTestArgs: {
+            parallelBucketCount: 20,
+            weight: 2 
+        },
     });
 }

@@ -25,9 +25,9 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             public TimeSpan FlushInterval { get; set; } = TimeSpan.FromSeconds(5);
 
-            public int BatchSize { get; set; } = 10;
+            public int BatchSize { get; set; } = 1000;
 
-            public int MaxDegreeOfParallelism { get; set; } = 1;
+            public int MaxDegreeOfParallelism { get; set; } = 5;
         }
 
         private static readonly List<JsonColumnMapping> KustoJsonMapping = new List<JsonColumnMapping>()
@@ -136,7 +136,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
                 var statistics = statuses.GroupBy(status => status.Status).ToDictionary(kvp => kvp.Key, kvp => kvp.Count());
                 var statisticsLine = string.Join(", ", statistics.Select(kvp => $"{kvp.Key}={kvp.Value}"));
                 var severity = Severity.Debug;
-                if (!statistics.TryGetValue(Status.Succeeded, out var succeeded) || succeeded < notifications.Count)
+                if (statistics.TryGetValue(Status.Failed, out var failed) && failed > 0)
                 {
                     severity = Severity.Error;
                 }

@@ -108,6 +108,11 @@ namespace BuildXL.Cache.Monitor.App
             {
                 return new LastProducedCheckpointRule(new LastProducedCheckpointRule.Configuration(kustoConfiguration));
             }, pollingPeriod: TimeSpan.FromMinutes(30));
+
+            Add(kustoConfiguration =>
+            {
+                return new LastRestoredCheckpointRule(new LastRestoredCheckpointRule.Configuration(kustoConfiguration));
+            }, pollingPeriod: TimeSpan.FromMinutes(30));
         }
 
         /// <summary>

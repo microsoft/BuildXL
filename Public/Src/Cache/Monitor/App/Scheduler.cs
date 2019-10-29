@@ -72,6 +72,8 @@ namespace BuildXL.Cache.Monitor.App
             Contract.Requires(pollingPeriod > _configuration.PollingPeriod);
 
             _schedule[rule.Identifier] = new Entry(rule, pollingPeriod);
+
+            // TODO(jubayard): persist scheduler state.
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default) {

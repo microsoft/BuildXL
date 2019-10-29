@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,9 +15,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
-            public TimeSpan CreateCheckpointWarningAge { get; set; } = TimeSpan.FromMinutes(30);
+            public TimeSpan WarningAge { get; set; } = TimeSpan.FromMinutes(30);
 
-            public TimeSpan CreateCheckpointErrorAge { get; set; } = TimeSpan.FromMinutes(45);
+            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(45);
         }
 
         private readonly Configuration _configuration;
@@ -32,7 +31,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             _configuration = configuration;
         }
 
-        private class CreateCheckpointResult
+        private class Result
         {
             public DateTime PreciseTimeStamp;
         }
@@ -52,7 +51,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | project PreciseTimeStamp
                 | summarize PreciseTimeStamp=max(PreciseTimeStamp)
                 | where not(isnull(PreciseTimeStamp))";
-            var results = (await QuerySingleResultSetAsync<CreateCheckpointResult>(query)).ToList();
+            var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
@@ -66,14 +65,14 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
                 var age = now - results[0].PreciseTimeStamp;
 
-                if (age >= _configuration.CreateCheckpointWarningAge)
+                if (age >= _configuration.WarningAge)
                 {
                     var severity = Severity.Warning;
-                    var threshold = _configuration.CreateCheckpointWarningAge;
-                    if (age >= _configuration.CreateCheckpointErrorAge)
+                    var threshold = _configuration.WarningAge;
+                    if (age >= _configuration.ErrorAge)
                     {
                         severity = Severity.Error;
-                        threshold = _configuration.CreateCheckpointErrorAge;
+                        threshold = _configuration.ErrorAge;
                     }
 
                     Emit(severity,

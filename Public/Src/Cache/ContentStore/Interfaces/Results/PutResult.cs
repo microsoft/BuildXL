@@ -15,12 +15,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="PutResult" /> class.
         /// </summary>
-        public PutResult(ContentHash contentHash, long contentSize)
+        public PutResult(ContentHash contentHash, long contentSize, bool contentAlreadyExistsInCache = false)
         {
             Contract.Requires(contentHash.HashType != HashType.Unknown);
 
             ContentHash = contentHash;
             ContentSize = contentSize;
+            ContentAlreadyExistsInCache = contentAlreadyExistsInCache;
         }
 
         /// <summary>
@@ -78,6 +79,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public readonly long ContentSize;
 
+        /// <summary>
+        /// Whether the content existed in the cache prior to this put.
+        /// </summary>
+        public readonly bool ContentAlreadyExistsInCache;
+
         /// <inheritdoc />
         public bool Equals(PutResult other)
         {
@@ -85,7 +91,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 base.Equals(other)
                 && other != null
                 && ContentHash == other.ContentHash
-                && ContentSize == other.ContentSize;
+                && ContentSize == other.ContentSize
+                && ContentAlreadyExistsInCache == other.ContentAlreadyExistsInCache;
         }
 
         /// <inheritdoc />

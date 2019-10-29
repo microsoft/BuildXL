@@ -332,6 +332,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     return (result: CreateCanceledPutResult(), retry: false);
                 }
 
+                // Both Puts will attempt to Move the file into the cache. If the Put is successful, then the temporary file
+                // does not need to be deleted. If anything else goes wrong, then the temporary file must be removed.
+                bool deleteTempFile = true;
+
                 try
                 {
                     if (cts.IsCancellationRequested)
@@ -480,6 +484,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     continue;
                                 }
 
+                                if (!putResult.ContentAlreadyExistsInCache)
+                                {
+                                    // Don't delete the temporary file! It no longer exists after the Put moved it into the cache
+                                    deleteTempFile = false;
+                                }
+
                                 // Successful case
                                 return (result: putResult, retry: false);
                             }
@@ -513,9 +523,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         lastFailureTimes[replicaIndex] = DateTime.Now;
                     }
 
-                    // Always attempt to delete the temp location. If the temp file no longer exists, then
-                    // this is a no-op.
-                    _fileSystem.DeleteFile(tempLocation);
+                    if (deleteTempFile)
+                    {
+                        _fileSystem.DeleteFile(tempLocation);
+                    }
                 }
             }
 

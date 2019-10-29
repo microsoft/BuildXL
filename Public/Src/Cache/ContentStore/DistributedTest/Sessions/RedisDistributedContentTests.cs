@@ -139,6 +139,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
+                    ShouldInlinePutBlob = true,
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,
@@ -395,12 +396,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     var fileString = Encoding.Default.GetString(file);
 
                     await session0.PutContentAsync(context, fileString).ShouldBeSuccess();
-                    await Task.Delay(500); // Wait for put blob
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
                     Assert.Equal(1, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
 
                     await session1.PutContentAsync(context, fileString).ShouldBeSuccess();
-                    await Task.Delay(500); // Wait for put blob
                     var counters1 = redisStore1.GetCounters(context).ToDictionaryIntegral();
                     Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
                     Assert.Equal(1, counters1["RedisContentLocationStore.BlobAdapter.SkippedBlobs.Count"]);
@@ -424,7 +423,6 @@ namespace ContentStoreTest.Distributed.Sessions
                     var redisStore1 = (RedisContentLocationStore)session1.ContentLocationStore;
 
                     var putResult = await session0.PutRandomAsync(context, HashType.Vso0, false, 10, CancellationToken.None).ShouldBeSuccess();
-                    await Task.Delay(500); // Wait for put blob
                     var counters0 = redisStore0.GetCounters(context).ToDictionaryIntegral();
                     Assert.Equal(1, counters0["RedisContentLocationStore.BlobAdapter.PutBlob.Count"]);
 

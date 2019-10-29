@@ -236,8 +236,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 if (result && recorder != null)
                 {
-                    // Fire and forget since this step is optional.
-                    ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).FireAndForget(context);
+                    if (Settings.ShouldInlinePutBlob)
+                    {
+                        var putBlobResult = await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
+                    }
+                    else
+                    {
+                        // Fire and forget since this step is optional.
+                        ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).FireAndForget(context);
+                    }
                 }
             }
             else
@@ -253,7 +260,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // It is important to register location before requesting the proactive copy; otherwise, we can fail the proactive copy.
             var registerResult = await RegisterPutAsync(context, UrgencyHint.Nominal, result);
 
-            // Only perform proactive copy to other machines if we didn't put the blob into Redis and we succeeded in registering our location.
+            // Only perform proactive copy to other machines if we succeeded in registering our location.
             if (registerResult && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
             {
                 // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.

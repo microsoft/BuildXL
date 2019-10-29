@@ -24,7 +24,7 @@ namespace ContentStoreTest.FileSystem
         {
         }
 
-        [Fact]
+        [Fact(Skip = "Test does not work on all versions of Windows where BuildXL tests run")]
         [Trait("Category", "WindowsOSOnly")] 
         public async Task TestDeleteWithOpenFileStream()
         {

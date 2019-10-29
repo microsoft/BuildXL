@@ -217,7 +217,7 @@ namespace BuildXL.Cache.Monitor.App
                 Contract.Assert(!entry.Running);
 
                 Contract.Assert(!entry.Failed);
-                if (!storedEntry.Failed)
+                if (storedEntry.Failed)
                 {
                     if (_configuration.PersistClearFailedEntriesOnLoad)
                     {

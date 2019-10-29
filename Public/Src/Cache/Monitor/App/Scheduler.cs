@@ -1,13 +1,15 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.Monitor.App.Rules;
-using Microsoft.WindowsAzure.Storage.Blob.Protocol;
+using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -15,30 +17,33 @@ namespace BuildXL.Cache.Monitor.App
     {
         public class Configuration
         {
+            public bool PersistState { get; set; } = false;
+
+            public string PersistStatePath { get; set; } = null;
+
+            public bool PersistClearFailedEntriesOnLoad { get; set; } = false;
+
             public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
         }
 
+        /// <summary>
+        /// Stores all necessary information to perform scheduling of rules.
+        /// </summary>
+        /// 
+        /// WARNING(jubayard): whenever this class gets updated, <see cref="PersistableEntry"/> should also.
         private class Entry
         {
-            public IRule Rule { get; set; }
+            public readonly object Lock = new object();
 
-            public TimeSpan PollingPeriod { get; set; }
+            public IRule Rule { get; }
 
-            private int _binaryEnabled = 1;
+            public TimeSpan PollingPeriod { get; }
 
-            private long _binaryLastRunTimeUtc = DateTime.MinValue.ToBinary();
+            public bool Running { get; set; } = false;
 
-            public bool Enabled
-            {
-                get => _binaryEnabled == 1;
-                set => Interlocked.Exchange(ref _binaryEnabled, value ? 1 : 0);
-            }
+            public DateTime LastRunTimeUtc { get; set; }
 
-            public DateTime LastRunTimeUtc
-            {
-                get => DateTime.FromBinary(_binaryLastRunTimeUtc);
-                set => Interlocked.Exchange(ref _binaryLastRunTimeUtc, value.ToBinary());
-            }
+            public bool Failed { get; set; } = false;
 
             public Entry(IRule rule, TimeSpan pollingPeriod)
             {
@@ -47,6 +52,8 @@ namespace BuildXL.Cache.Monitor.App
                 Rule = rule;
                 PollingPeriod = pollingPeriod;
             }
+
+            public bool ShouldRun(DateTime now) => !Failed && !Running && LastRunTimeUtc + PollingPeriod <= now;
         };
 
         private readonly ILogger _logger;
@@ -72,11 +79,17 @@ namespace BuildXL.Cache.Monitor.App
             Contract.Requires(pollingPeriod > _configuration.PollingPeriod);
 
             _schedule[rule.Identifier] = new Entry(rule, pollingPeriod);
-
-            // TODO(jubayard): persist scheduler state.
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default) {
+            if (_configuration.PersistState)
+            {
+                LoadState();
+
+                // Force a persist before the run begins, since we need to consolidate the two states.
+                PersistState();
+            }
+
             _logger.Debug("Starting to monitor");
 
             while (!cancellationToken.IsCancellationRequested)
@@ -88,42 +101,169 @@ namespace BuildXL.Cache.Monitor.App
                     var rule = kvp.Value.Rule;
                     var entry = kvp.Value;
 
-                    if (!ShouldRun(entry, now))
+                    lock (entry.Lock)
                     {
-                        //_logger.Debug($"{rule.Identifier} - {entry.LastRunTimeUtc} - {now} - {entry.PollingPeriod}");
-                        continue;
-                    }
+                        if (!entry.ShouldRun(now))
+                        {
+                            continue;
+                        }
 
-                    entry.Enabled = false;
+                        entry.Running = true;
+                    }
 
                     _ = Task.Run(async () =>
                       {
+                          // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
+                          await Task.Yield();
+
+                          Exception exception = null;
                           try
                           {
                               _logger.Debug($"Running rule `{rule.Identifier}`");
                               await rule.Run();
-
-                              // The fact that this is done atomically and in this order is the only reason we don't
-                              // need to use locks.
-                              entry.LastRunTimeUtc = _clock.UtcNow;
-                              entry.Enabled = true;
-
-                              _logger.Debug($"Rule `{rule.Identifier}` finished running successfully");
                           }
-                          catch (Exception exception)
+                          catch (Exception thrownException)
                           {
-                              _logger.Error($"Rule `{rule.Identifier}` threw an exception and has been disabled. Exception: {exception}");
+                              exception = thrownException;
+                          }
+                          finally
+                          {
+                              lock (entry.Lock)
+                              {
+                                  entry.LastRunTimeUtc = _clock.UtcNow;
+                                  entry.Running = false;
+
+                                  if (exception != null)
+                                  {
+                                      entry.Failed = true;
+                                      _logger.Error($"Rule `{rule.Identifier}` threw an exception and has been disabled. Exception: {exception}");
+                                  }
+                                  else
+                                  {
+                                      entry.Failed = false;
+                                      _logger.Debug($"Rule `{rule.Identifier}` finished running successfully @ `{entry.LastRunTimeUtc}`");
+                                  }
+                              }
                           }
                       });
+                }
+
+                if (_configuration.PersistState)
+                {
+                    PersistState();
                 }
 
                 await Task.Delay(_configuration.PollingPeriod);
             }
         }
 
-        private bool ShouldRun(Entry entry, DateTime now)
+        #region Persistance
+        private struct PersistableEntry
         {
-            return entry.Enabled && entry.LastRunTimeUtc + entry.PollingPeriod <= now;
+            public TimeSpan PollingPeriod;
+
+            public bool Failed;
+
+            public DateTime LastRunTimeUtc;
+
+            public PersistableEntry(Entry entry) {
+                lock (entry.Lock)
+                {
+                    PollingPeriod = entry.PollingPeriod;
+                    Failed = entry.Failed;
+                    LastRunTimeUtc = entry.LastRunTimeUtc;
+                }
+            }
+        };
+
+        private void LoadState()
+        {
+            ValidatePersistanceContract();
+
+            if (!File.Exists(_configuration.PersistStatePath))
+            {
+                _logger.Warning($"No previous state available at `{_configuration.PersistStatePath}`");
+                return;
+            }
+
+            _logger.Debug($"Loading previous state from `{_configuration.PersistStatePath}`");
+
+            using var stream = File.OpenText(_configuration.PersistStatePath);
+            var serializer = CreateSerializer();
+
+            var state = (Dictionary<string, PersistableEntry>)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
+            foreach (var kvp in state)
+            {
+                var ruleIdentifier = kvp.Key;
+                var storedEntry = kvp.Value;
+
+                if (!_schedule.TryGetValue(ruleIdentifier, out var entry))
+                {
+                    _logger.Warning($"Rule `{ruleIdentifier}` was found in persisted state but not on the in-memory state. Skipping it");
+                    continue;
+                }
+
+                Overwrite(ruleIdentifier, storedEntry, entry);
+            }
         }
+
+        private void Overwrite(string ruleIdentifier, PersistableEntry storedEntry, Entry entry)
+        {
+            Contract.RequiresNotNullOrEmpty(ruleIdentifier);
+            Contract.RequiresNotNull(entry);
+
+            lock (entry.Lock)
+            {
+                Contract.Assert(!entry.Running);
+
+                Contract.Assert(!entry.Failed);
+                if (!storedEntry.Failed)
+                {
+                    if (_configuration.PersistClearFailedEntriesOnLoad)
+                    {
+                        _logger.Debug($"Rule `{ruleIdentifier}` is disabled in the persisted state, but clearing is allowed. Clearing in-memory");
+                    }
+                    else
+                    {
+                        _logger.Warning($"Rule `{ruleIdentifier}` is disabled in the persisted state. Disabling in the in-memory state as well");
+                        entry.Failed = false;
+                    }
+                }
+
+                entry.LastRunTimeUtc = storedEntry.LastRunTimeUtc;
+
+                if (entry.PollingPeriod != storedEntry.PollingPeriod)
+                {
+                    _logger.Warning($"Rule `{ruleIdentifier}` has a mismatch between persisted and in-memory polling periods (`{storedEntry.PollingPeriod}` vs `{entry.PollingPeriod}`)");
+                }
+            }
+        }
+
+        private void PersistState()
+        {
+            ValidatePersistanceContract();
+
+            using var stream = File.CreateText(_configuration.PersistStatePath);
+            var state = CreateSerializer();
+
+            state.Serialize(stream, _schedule.ToDictionary(kvp => kvp.Key, kvp => new PersistableEntry(kvp.Value)));
+        }
+
+        private void ValidatePersistanceContract()
+        {
+            Contract.Requires(_configuration.PersistState);
+            Contract.RequiresNotNull(_configuration.PersistStatePath);
+            Contract.Requires(_configuration.PersistStatePath.EndsWith(".json"));
+        }
+
+        private static JsonSerializer CreateSerializer()
+        {
+            return new JsonSerializer
+            {
+                Formatting = Formatting.Indented,
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc
+            };
+        }
+        #endregion
     }
 }

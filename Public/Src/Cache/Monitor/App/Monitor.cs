@@ -56,7 +56,11 @@ namespace BuildXL.Cache.Monitor.App
                 KustoTableName = "BuildXLCacheMonitor",
             };
 
-            public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration();
+            public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration() {
+                PersistState = true,
+                PersistStatePath = @"C:\work\Scheduler.json",
+                PersistClearFailedEntriesOnLoad = true,
+            };
         }
 
         private readonly Configuration _configuration;

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -17,6 +18,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// Default fudge factor for replicas.
         /// </summary>
         public const int DefaultReplicaCreditInMinutes = 180;
+
+        /// <summary>
+        /// Default minimum age needed before eviction is allowed for a candidate
+        /// </summary>
+        public const TimeSpan DefaultMinAgeBeforeEviction = TimeSpan.FromMinutes(30);
 
         /// <summary>
         /// Distributed store used in a next-gen distributed eviction logic based on a local location store.
@@ -59,6 +65,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         public readonly int ReplicaCreditInMinutes;
 
         /// <summary>
+        /// Minimum age before a chosen candidate can be evicted.
+        /// </summary>
+        public readonly TimeSpan MinAgeBeforeEviction;
+
+        /// <summary>
         /// Whether or not Distributed Eviction was successfully set up.
         /// </summary>
         public bool IsInitialized;
@@ -70,6 +81,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             TrimOrGetLastAccessTimeAsync trimOrGetLastAccessTimeAsync,
             int locationStoreBatchSize,
             int? replicaCreditInMinutes,
+            TimeSpan? minAgeBeforeEviction,
             IDistributedLocationStore distributedStore)
         {
             Contract.Assert(trimOrGetLastAccessTimeAsync != null);
@@ -77,6 +89,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             TrimOrGetLastAccessTimeAsync = trimOrGetLastAccessTimeAsync;
             LocationStoreBatchSize = locationStoreBatchSize;
             ReplicaCreditInMinutes = replicaCreditInMinutes ?? DefaultReplicaCreditInMinutes;
+            MinAgeBeforeEviction = minAgeBeforeEviction ?? DefaultMinAgeBeforeEviction;
             IsInitialized = false;
             DistributedStore = distributedStore;
         }

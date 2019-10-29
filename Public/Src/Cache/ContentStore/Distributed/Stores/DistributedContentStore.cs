@@ -95,6 +95,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             int locationStoreBatchSize,
             DistributedContentStoreSettings settings,
             int? replicaCreditInMinutes = null,
+            TimeSpan? minAgeBeforeEviction = null,
             IClock clock = null,
             bool enableRepairHandling = false,
             TimeSpan? contentHashBumpTime = null,
@@ -133,8 +134,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     contentLocationStore);
             };
 
-            _enableDistributedEviction = replicaCreditInMinutes != null;
-            var distributedEvictionSettings = _enableDistributedEviction ? SetUpDistributedEviction(replicaCreditInMinutes, locationStoreBatchSize) : null;
+            _enableDistributedEviction = replicaCreditInMinutes != null && minAgeBeforeEviction != null;
+            var distributedEvictionSettings = _enableDistributedEviction ? SetUpDistributedEviction(replicaCreditInMinutes, minAgeBeforeEviction, locationStoreBatchSize) : null;
 
             var enableTouch = contentHashBumpTime.HasValue;
             if (enableTouch)
@@ -454,7 +455,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
         }
 
-        private DistributedEvictionSettings SetUpDistributedEviction(int? replicaCreditInMinutes, int locationStoreBatchSize)
+        private DistributedEvictionSettings SetUpDistributedEviction(int? replicaCreditInMinutes, TimeSpan? minAgeBeforeEviction, int locationStoreBatchSize)
         {
             Contract.Assert(_enableDistributedEviction);
 
@@ -463,6 +464,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     _contentLocationStore.TrimOrGetLastAccessTimeAsync(context, contentHashesWithInfo, cts, urgencyHint),
                 locationStoreBatchSize,
                 replicaCreditInMinutes,
+                minAgeBeforeEviction,
                 this);
         }
 

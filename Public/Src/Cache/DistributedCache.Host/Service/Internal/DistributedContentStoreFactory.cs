@@ -231,6 +231,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,
                     },
                     replicaCreditInMinutes: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.ReplicaCreditInMinutes : null,
+                    minAgeBeforeEviction: _distributedSettings.IsDistributedEvictionEnabled ? _distributedSettings.MinAgeBeforeEviction : null,
                     enableRepairHandling: _distributedSettings.IsRepairHandlingEnabled,
                     contentHashBumpTime: lazyTouchContentHashBumpTime,
                     contentStoreSettings: contentStoreSettings);

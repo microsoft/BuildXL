@@ -48,7 +48,7 @@ REM Generate test solution
 set DistributedBuildTestURL =https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
 
 if EXIST %MSENG_GIT_PAT% (
-    set DistributedBuildTestURL =http://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
+    set DistributedBuildTestURL =https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
 )
 
 call "%ProgramFiles%\Git\cmd\git" clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1

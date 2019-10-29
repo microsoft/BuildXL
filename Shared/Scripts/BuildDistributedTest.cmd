@@ -45,18 +45,12 @@ if EXIST %TEST_SOLUTION_ROOT% (
 
 REM Generate test solution
 
-set DistributedBuildTestURL=https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
 if DEFINED MSENG_GIT_PAT (
-    set DistributedBuildTestURL=https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
+    call "%ProgramFiles%\Git\cmd\git" clone https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+) else (
+    call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
 )
 
-echo MSENG_GIT_PAT: %MSENG_GIT_PAT%
-echo DistributedBuildTestURL:  %DistributedBuildTestURL% 
-set DistributedBuildTestURL
-echo %DistributedBuildTestURL% %TEST_SOLUTION_ROOT%
-echo git clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1
-
-call "%ProgramFiles%\Git\cmd\git" clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1
 if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )

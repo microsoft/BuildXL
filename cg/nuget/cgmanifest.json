@@ -1707,7 +1707,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.Compilers",
-          "Version": "3.1.0-beta3-final"
+          "Version": "3.3.1"
         }
       }
     },
@@ -1815,7 +1815,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Net.Compilers",
-          "Version": "3.0.0"
+          "Version": "3.3.1"
         }
       }
     },
@@ -4191,7 +4191,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.BuildXL",
-          "Version": "2.2.99"
+          "Version": "2.4.99"
         }
       }
     },

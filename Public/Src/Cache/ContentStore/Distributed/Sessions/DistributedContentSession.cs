@@ -228,7 +228,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     if (stream.CanSeek && stream.Length <= ContentLocationStore.MaxBlobSize)
                     {
-                        recorder = new RecordingStream(inner: stream, size: stream.Length);
+                        recorder = RecordingStream.ReadRecordingStream(inner: stream, size: stream.Length);
                         return recorder;
                     }
 

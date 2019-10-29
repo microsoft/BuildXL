@@ -28,7 +28,7 @@ namespace Test.BuildXL.Executables.TestProcess
         private const string WaitToFinishMoniker = "wait";
         private const string AllUppercasePath = "allUpper";
         private const string UseLongPathPrefix = "useLongPathPrefix";
-
+        private const string SpawnExePrefix = "[SpawnExe]";
         /// <summary>
         /// Returns an <code>IEnumerable</code> containing <paramref name="operation"/>
         /// <paramref name="count"/> number of times.
@@ -167,9 +167,14 @@ namespace Test.BuildXL.Executables.TestProcess
             EchoCurrentDirectory,
 
             /// <summary>
-            /// Spawns a child process
+            /// Spawns a child process that supports a list of <see cref="Operation"></see>
             /// </summary>
             Spawn,
+
+            /// <summary>
+            /// Spawns a given exe as a child process
+            /// </summary>
+            SpawnExe,
 
             /// <summary>
             /// Like WriteFile with 'content' being Environment.NewLine
@@ -424,6 +429,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Spawn:
                         DoSpawn();
+                        return;
+                    case Type.SpawnExe:
+                        DoSpawnExe();
                         return;
                     case Type.AppendNewLine:
                         DoWriteFile(Environment.NewLine);
@@ -695,6 +703,20 @@ namespace Test.BuildXL.Executables.TestProcess
         {
             var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
             return new Operation(Type.Spawn, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null);
+        }
+
+        /// <summary>
+        /// Creates an operation that spawns a child process using a given executable name.
+        /// </summary>
+        /// <remarks>
+        /// The child is launched in a fire-and-forget manner, the parent process doesn't wait for it to finish
+        /// </remarks>
+        /// <param name="pathTable">Needed for rendering child process operations</param>
+        /// <param name="exeLocation">Path to the executable to launch</param>
+        /// <param name="arguments">Arguments to pass to the spawned process</param>
+        public static Operation SpawnExe(PathTable pathTable, FileOrDirectoryArtifact exeLocation, string arguments = null)
+        {
+            return new Operation(Type.SpawnExe, path: exeLocation, additionalArgs: arguments);
         }
 
         /// <summary>
@@ -1082,6 +1104,27 @@ namespace Test.BuildXL.Executables.TestProcess
             }
         }
 
+        private void DoSpawnExe()
+        {
+            var process = new Process();
+
+            process.StartInfo = new ProcessStartInfo
+            {
+                FileName = PathAsString,
+                Arguments = AdditionalArgs,
+                RedirectStandardError = false,
+                RedirectStandardOutput = false,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            process.Start();
+            // Log the the process that was launched with its id so it can be retrieved by bxl tests later
+            // This is used when the child process is launched to breakaway from the job object, so we actually
+            // don't get its information back as part of a reported process
+            LogSpawnExeChildProcess(process);
+        }
+
         private void DoFail()
         {
             int exitCode = int.TryParse(Content, out var result) ? result : -1;
@@ -1208,6 +1251,36 @@ namespace Test.BuildXL.Executables.TestProcess
             return escapeResult
                 ? CommandLineEscaping.EscapeAsCommandLineWord(sb.ToString())
                 : sb.ToString();
+        }
+
+        /// <summary>
+        /// Retrieves all process (process name and pid) spawn by calling SpawnExe from the parent process standard output
+        /// </summary>
+        /// <remarks>
+        /// Useful when the spawn process is configured to breakaway, and therefore we have no detours to track them
+        /// </remarks>
+        public static IEnumerable<(string processName, int pid)> RetrieveChildProcessesCreatedBySpawnExe(string processStandardOutput)
+        {
+            var result = new List<(string processName, int pid)>();
+            var prefixLength = SpawnExePrefix.Length;
+            foreach (string line in processStandardOutput.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (line.StartsWith(SpawnExePrefix))
+                {
+                    int separatorIndex = line.IndexOf(':');
+                    result.Add((line.Substring(prefixLength, separatorIndex - prefixLength), int.Parse(line.Substring(separatorIndex + 1))));
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Keep in sync with <see cref="RetrieveChildProcessesCreatedBySpawnExe"/>
+        /// </summary>
+        private void LogSpawnExeChildProcess(Process childProcess)
+        {
+            Console.WriteLine($"{SpawnExePrefix}{childProcess.ProcessName}:{childProcess.Id}");
         }
 
         /*** TO STRING HELPER FUNCTIONS ***/

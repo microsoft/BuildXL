@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 {
@@ -18,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// Be aware, that this is a static event, meaning that if a short-lived object will subscribe and not unsubscribe from it,
         /// it will cause effectively a memory leak.
         /// </remarks>
-        public static event EventHandler<CriticalErrorEventArgs> OnCriticalError;
+        public static event EventHandler<CriticalErrorEventArgs>? OnCriticalError;
 
         /// <nodoc />
         public static void RaiseCriticalError(ResultBase result)
@@ -33,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// Be aware, that this is a static event, meaning that if a short-lived object will subscribe and not unsubscribe from it,
         /// it will cause effectively a memory leak.
         /// </remarks>
-        public static event EventHandler<RecoverableErrorEventArgs> OnRecoverableError;
+        public static event EventHandler<RecoverableErrorEventArgs>? OnRecoverableError;
 
         /// <nodoc />
         public static void RaiseRecoverableError(ResultBase result)

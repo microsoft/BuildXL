@@ -149,6 +149,7 @@ namespace BuildXL.Scheduler.Tracing
         PipSourceDependencyCannotBeHashed = 5053,
 
         ProblematicWorkerExit = 5070,
+        ProcessPipExecutionInfo = 5071,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

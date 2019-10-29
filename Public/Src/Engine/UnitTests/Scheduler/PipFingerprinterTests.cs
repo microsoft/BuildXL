@@ -275,6 +275,47 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreNotEqual(baselineFingerprint, fingerprintWithPipDataDependency);
         }
 
+        [Fact]
+        public void TestSourceChangeAffectedContentsFingerprinting()
+        {
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/pkgs/tool.exe")));
+            var changeAffectedInputListWrittenFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, X("/x/obj/working/changeAffectedInputList.txt")));
+            var changeAffectedDll = AbsolutePath.Create(pathTable, X("/x/pkgs/changeAffected.dll"));
+
+            var baselineProcess = GetDefaultProcessBuilder(pathTable, executable).Build();
+            var processWithChangeAffectedInputListWrittenFile = GetDefaultProcessBuilder(pathTable, executable).WithChangeAffectedInputListWrittenFile(changeAffectedInputListWrittenFile).Build();
+
+            var sourceChangeAffectedInputsLookup = new PipFingerprinter.SourceChangeAffectedInputsLookup(process =>
+            {
+                if (process.ChangeAffectedInputListWrittenFile.IsValid)
+                {
+                    return ReadOnlyArray<AbsolutePath>.From(new AbsolutePath[] { changeAffectedDll });
+                }
+
+                return ReadOnlyArray<AbsolutePath>.Empty;
+            });
+
+            // TODO: Maybe test that version is included in the fingerprint.
+            var fingerprinter = new PipContentFingerprinter(
+                m_context.PathTable,
+                GetContentHashLookup(executable),
+                ExtraFingerprintSalts.Default(),
+                sourceChangeAffectedInputsLookup: sourceChangeAffectedInputsLookup)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            string fingerprintText;
+            var baselineFingerprint = fingerprinter.ComputeWeakFingerprint(baselineProcess, out fingerprintText);
+            XAssert.IsFalse(fingerprintText.ToUpper().Contains(changeAffectedDll.ToString(m_context.PathTable).ToUpper()));
+
+            var fingerprintChangeAffectedInputList = fingerprinter.ComputeWeakFingerprint(processWithChangeAffectedInputListWrittenFile, out fingerprintText);
+            XAssert.IsTrue(fingerprintText.ToUpper().Contains(changeAffectedDll.ToString(m_context.PathTable).ToUpper()));
+
+            XAssert.AreNotEqual(baselineFingerprint, fingerprintChangeAffectedInputList);
+        }
+
         private (string, string) CreateProcessAndFingerprintsWithPathArg(string pathArg, bool pathAsStringLIteral)
         {
             var pathTable = new PathTable();
@@ -768,6 +809,8 @@ namespace Test.BuildXL.Scheduler
                 }
             }
 
+            FileArtifact changeAffectedInputListWrittenFile = source.Vary(p => p.ChangeAffectedInputListWrittenFile);
+
             bool hasUntrackedChildProcesses = source.Vary(p => p.HasUntrackedChildProcesses);
             bool producesPathIndepenentOutputs = source.Vary(p => p.ProducesPathIndependentOutputs);
             bool outputsMustBeWritable = source.Vary(p => p.OutputsMustRemainWritable);
@@ -851,7 +894,8 @@ namespace Test.BuildXL.Scheduler
                 options: options,
                 doubleWritePolicy: doubleWritePolicy,
                 containerIsolationLevel: containerIsolationLevel,
-                preserveOutputWhitelist: preserveOutputWhitelist);
+                preserveOutputWhitelist: preserveOutputWhitelist,
+                changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

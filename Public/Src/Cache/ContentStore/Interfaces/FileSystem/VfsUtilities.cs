@@ -2,10 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -39,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// <summary>
         /// Gets whether a path is contained in another path and returns the relative path from <paramref name="candidateParent"/> if <paramref name="path"/> is a subpath.
         /// </summary>
-        public static bool TryGetRelativePath(this string path, string candidateParent, out string relativePath)
+        public static bool TryGetRelativePath(this string path, string candidateParent, [NotNullWhen(true)]out string? relativePath)
         {
             if (path.IsPathWithin(candidateParent))
             {

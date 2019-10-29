@@ -26,7 +26,7 @@ namespace BuildXL.Execution.Analyzer
         public Analyzer InitializeDebugLogsAnalyzer()
         {
             int port = XlgDebuggerPort;
-            bool enableCaching = true;
+            bool enableCaching = false;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("port", StringComparison.OrdinalIgnoreCase) ||

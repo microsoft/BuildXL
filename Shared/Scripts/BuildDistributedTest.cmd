@@ -50,14 +50,13 @@ if DEFINED MSENG_GIT_PAT (
     set DistributedBuildTestURL=https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
 )
 
+echo MSENG_GIT_PAT: %MSENG_GIT_PAT%
+echo DistributedBuildTestURL:  %DistributedBuildTestURL% 
 set DistributedBuildTestURL
-echo DistributedBuildTestURL per:  %DistributedBuildTestURL% 
-echo DistributedBuildTestURL:  DistributedBuildTestURL
-echo DistributedBuildTestURL dol:  $DistributedBuildTestURL
 echo %DistributedBuildTestURL% %TEST_SOLUTION_ROOT%
-echo git clone DistributedBuildTestURL %TEST_SOLUTION_ROOT% 2>&1
+echo git clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1
 
-call "%ProgramFiles%\Git\cmd\git" clone DistributedBuildTestURL %TEST_SOLUTION_ROOT% 2>&1
+call "%ProgramFiles%\Git\cmd\git" clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1
 if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )

@@ -92,6 +92,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
             return await clientWrapper.Value.CopyToAsync(context, contentHash, destinationStream, context.Token);
         }
 
+        // TODO: Add interfaces
+        /// <inheritdoc />
+        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, AbsolutePath sourcePath, MachineLocation targetMachine)
+        {
+            var targetPath = new AbsolutePath(targetMachine.Path);
+            var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];
+
+            using var clientWrapper = await _clientCache.CreateAsync(targetMachineName, _grpcPort, _useCompression);
+            using var stream = File.OpenRead(sourcePath.Path);
+            return await clientWrapper.Value.PushFileAsync(context, hash, stream);
+        }
+
         /// <inheritdoc />
         public async Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {

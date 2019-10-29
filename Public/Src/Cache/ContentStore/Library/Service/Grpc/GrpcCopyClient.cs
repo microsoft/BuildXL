@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using ContentStore.Grpc;
+using Google.Protobuf;
 using Grpc.Core;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
@@ -255,6 +256,75 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 return new BoolResult(r);
             }
+        }
+
+        /// <summary>
+        /// Pushes content to another machine.
+        /// </summary>
+        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Stream source)
+        {
+            try
+            {
+                var call = _client.PushFile(cancellationToken: context.Token);
+                var requestStream = call.RequestStream;
+                var responseStream = call.ResponseStream;
+
+                await requestStream.WriteAsync(
+                    new PushFileRequest
+                    {
+                        ContentHash = hash.ToByteString(),
+                        HashType = (int)hash.HashType,
+                        TraceId = context.TracingContext.Id.ToString()
+                    });
+
+                await responseStream.MoveNext(context.Token);
+                var firstResponse = responseStream.Current;
+                if (!firstResponse.ShouldCopy)
+                {
+                    return BoolResult.Success;
+                }
+
+                var bufferSize = 64 * 1024; // TODO: Determine buffer size in config.
+                await StreamContentAsync(source, new byte[bufferSize], requestStream, context.Token);
+                await requestStream.CompleteAsync();
+
+                await responseStream.MoveNext(context.Token);
+                var finalResponse = responseStream.Current;
+
+                return finalResponse.Header.Succeeded
+                    ? BoolResult.Success
+                    : new BoolResult(finalResponse.Header.ErrorMessage);
+            }
+            catch (RpcException r)
+            {
+                return new BoolResult(r);
+            }
+        }
+
+        private async Task StreamContentAsync(Stream input, byte[] buffer, IClientStreamWriter<PushFileRequest> requestStream, CancellationToken ct)
+        {
+            Contract.Requires(!(input is null));
+            Contract.Requires(!(requestStream is null));
+
+            int chunkSize = 0;
+
+            // Pre-fill buffer with the file's first chunk
+            await readNextChunk();
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (chunkSize == 0) { break; }
+
+                ByteString content = ByteString.CopyFrom(buffer, 0, chunkSize);
+                var request = new PushFileRequest() { Content = content };
+
+                // Read the next chunk while waiting for the response
+                await Task.WhenAll(readNextChunk(), requestStream.WriteAsync(request));
+            }
+
+            async Task<int> readNextChunk() { chunkSize = await input.ReadAsync(buffer, 0, buffer.Length, ct); return chunkSize; }
         }
 
         private async Task<(long Chunks, long Bytes)> StreamContentAsync(Stream targetStream, IAsyncStreamReader<CopyFileResponse> replyStream, CancellationToken ct)

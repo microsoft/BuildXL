@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -318,8 +319,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             OperationStarted();
 
-            OperationStarted();
-
             DateTime startTime = DateTime.UtcNow;
             Context cacheContext = new Context(new Guid(request.TraceId), Logger);
             ContentHash hash = request.ContentHash.ToContentHash((HashType)request.HashType);
@@ -342,6 +341,67 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, $"No stores implement {nameof(ICopyRequestHandler)}.") };
+        }
+
+        private ConcurrentDictionary<ContentHash, bool> _ongoingPushes = new ConcurrentDictionary<ContentHash, bool>();
+
+        /// <summary>
+        /// Handles a request to copy content to this machine.
+        /// </summary>
+        public async Task HandlePushFileAsync(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, CancellationToken token)
+        {
+            OperationStarted();
+
+            var startTime = DateTime.UtcNow;
+
+            await requestStream.MoveNext();
+            var firstRequest = requestStream.Current;
+            var hash = firstRequest.ContentHash.ToContentHash((HashType)firstRequest.HashType);
+            var cacheContext = new Context(new Guid(firstRequest.TraceId), Logger);
+
+            if (!_ongoingPushes.TryAdd(hash, true)) // TODO: Check if content is already here
+            {
+                // Copy does not need to happen as it is already happening on another request or is already there.
+                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
+                return;
+            }
+
+            var store = _contentStoreByCacheName.Values.OfType<IPushFileHandler>().FirstOrDefault();
+
+            if (store == null)
+            {
+                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
+                return;
+            }
+
+            await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = true });
+
+            var tempFile = new AbsolutePath("Some temp path"); // TODO
+
+            using (var stream = File.Open(tempFile.Path, FileMode.OpenOrCreate, FileAccess.Write))
+            {
+                while (await requestStream.MoveNext())
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    var request = requestStream.Current;
+                    var bytes = request.Content.ToByteArray();
+                    await stream.WriteAsync(bytes, 0, bytes.Length);
+                }
+            }
+
+            var result = await store.HandlePushFileAsync(cacheContext, hash, tempFile, token);
+
+            var response = result
+                ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
+                : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
+
+            await responseStream.WriteAsync(response);
+
+            _ongoingPushes.TryRemove(hash, out _);
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);
@@ -692,6 +752,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             /// <inheritdoc />
             public override Task<RequestCopyFileResponse> RequestCopyFile(RequestCopyFileRequest request, ServerCallContext context) => _contentServer.RequestCopyFileAsync(request, context.CancellationToken);
+
+            /// <inheritdoc />
+            public override Task PushFile(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext context) => _contentServer.HandlePushFileAsync(requestStream, responseStream, context.CancellationToken);
 
             /// <inheritdoc />
             public override Task<HelloResponse> Hello(HelloRequest request, ServerCallContext context) => _contentServer.HelloAsync(request, context.CancellationToken);

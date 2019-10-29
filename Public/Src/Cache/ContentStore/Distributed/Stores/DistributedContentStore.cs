@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
     /// A store that is based on content locations for opaque file locations.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler
+    public class DistributedContentStore<T> : StartupShutdownBase, IContentStore, IRepairStore, IDistributedLocationStore, IStreamStore, ICopyRequestHandler, IPushFileHandler
         where T : PathBase
     {
         /// <summary>
@@ -604,6 +604,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 },
                 traceOperationStarted: false,
                 extraEndMessage: _ => $"Hash=[{hash.ToShortString()}]");
+        }
+
+        /// <inheritdoc />
+        public async Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath path, CancellationToken token)
+        {
+            if (InnerContentStore is IPushFileHandler inner)
+            {
+                var result = await inner.HandlePushFileAsync(context, hash, path, token);
+                if (!result)
+                {
+                    return result;
+                }
+
+                var registerResult = await _contentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, result.ContentSize) }, token, UrgencyHint.Nominal);
+                if (!registerResult)
+                {
+                    return new PutResult(registerResult);
+                }
+
+                return result;
+            }
+
+            return new PutResult(new InvalidOperationException($"{nameof(InnerContentStore)} does not implement {nameof(IPushFileHandler)}"), hash);
         }
     }
 }

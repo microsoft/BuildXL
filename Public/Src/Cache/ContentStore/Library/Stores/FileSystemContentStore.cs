@@ -24,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     ///     An <see cref="IContentStore"/> implemented over <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
-    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore, IStreamStore
+    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore, IStreamStore, IPushFileHandler
     {
         private const string Component = nameof(FileSystemContentStore);
 
@@ -235,5 +235,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) { }
+
+        /// <inheritdoc />
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath path, CancellationToken token)
+        {
+            return Store.PutFileAsync(context, path, FileRealizationMode.Copy, hash, pinRequest: null);
+        }
     }
 }

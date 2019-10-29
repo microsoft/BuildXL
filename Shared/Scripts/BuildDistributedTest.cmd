@@ -50,6 +50,9 @@ if DEFINED MSENG_GIT_PAT (
     set DistributedBuildTestURL=https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest
 )
 
+set DistributedBuildTestURL
+echo DistributedBuildTestURL:  %DistributedBuildTestURL% 
+echo %DistributedBuildTestURL% %TEST_SOLUTION_ROOT%
 echo git clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1
 
 call "%ProgramFiles%\Git\cmd\git" clone %DistributedBuildTestURL% %TEST_SOLUTION_ROOT% 2>&1

@@ -37,7 +37,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initial length to get active processes.
         /// </summary>
-        public const int InitialProcessIdListLength = 256; // arbitrary number
+        public const int InitialProcessIdListLength = 1024; // the number needed to make the bufferSizeForProcessIdList 4KB. 
 
         /// <summary>
         /// Nested jobs are only supported on Win8/Server2012 or higher.

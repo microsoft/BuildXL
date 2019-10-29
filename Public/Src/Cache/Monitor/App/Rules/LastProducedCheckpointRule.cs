@@ -15,6 +15,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
+            public string LookbackPeriod { get; set; } = "6h";
+
             public TimeSpan WarningAge { get; set; } = TimeSpan.FromMinutes(30);
 
             public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(45);
@@ -44,7 +46,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             // which is why we need to filter it out.
             var query =
                 $@"CloudBuildLogEvent
-                | where PreciseTimeStamp > ago(1h)
+                | where PreciseTimeStamp > ago({_configuration.LookbackPeriod})
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.MasterServiceName}""
                 | where Message contains ""CreateCheckpointAsync stop""
@@ -57,7 +59,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             if (results.Count == 0)
             {
                 Emit(Severity.Fatal,
-                    $"Master hasn't produced checkpoints for over an hour",
+                    $"No checkpoints have been produced for at least {_configuration.LookbackPeriod}",
                     ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: now);
             }

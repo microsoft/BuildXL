@@ -94,7 +94,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
 
                 Contract.Assert(!FixedSizeStream || _memoryStream.Position == _capacity, "RecordingStream should record the entire content of a stream.");
-                return FixedSizeStream ? _recordedBytes : _memoryStream.GetBuffer();
+                return FixedSizeStream ? _recordedBytes : _memoryStream.ToArray();
             }
         }
 

@@ -39,6 +39,23 @@ namespace ContentStoreTest.Distributed.Sessions
         }
 
         [Fact]
+        public void BytesAreReadAndRecordedNonFixed()
+        {
+            var bytes = new byte[] { 74, 117, 97, 110, 32, 67, 97, 114, 108, 111, 115, 32, 59, 41 };
+            var inner = new MemoryStream();
+            inner.Write(bytes, 0, bytes.Length);
+            inner.Position = 0;
+
+            var wrapper = RecordingStream.ReadRecordingStream(inner, size: null);
+            var buffer = new byte[bytes.Length];
+            var bytesRead = wrapper.Read(buffer, 0, bytes.Length);
+
+            Assert.Equal(bytes.Length, bytesRead);
+            Assert.Equal(bytes, buffer);
+            Assert.Equal(bytes, wrapper.RecordedBytes);
+        }
+
+        [Fact]
         public void BytesAreReadAndRecorded()
         {
             var bytes = new byte[] { 74, 117, 97, 110, 32, 67, 97, 114, 108, 111, 115, 32, 59, 41 };

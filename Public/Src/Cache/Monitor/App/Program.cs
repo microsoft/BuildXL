@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace BuildXL.Cache.Monitor.App
 {
     internal class Program

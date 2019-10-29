@@ -3,6 +3,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.App.Rules
 {
@@ -15,7 +16,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
-            public string LookbackPeriod { get; set; } = "6h";
+            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(1);
 
             public TimeSpan WarningAge { get; set; } = TimeSpan.FromMinutes(30);
 
@@ -46,7 +47,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             // which is why we need to filter it out.
             var query =
                 $@"CloudBuildLogEvent
-                | where PreciseTimeStamp > ago({_configuration.LookbackPeriod})
+                | where PreciseTimeStamp > ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)})
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.MasterServiceName}""
                 | where Message contains ""CreateCheckpointAsync stop""

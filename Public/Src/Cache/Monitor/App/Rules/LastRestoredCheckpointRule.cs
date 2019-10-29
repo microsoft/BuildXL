@@ -4,6 +4,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.App.Rules
 {
@@ -16,9 +17,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
-            public string LookbackPeriod { get; set; } = "1d";
+            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromDays(1);
 
-            public string ActivityThreshold { get; set; } = "1h";
+            public TimeSpan ActivityThreshold { get; set; } = TimeSpan.FromHours(1);
 
             public int FatalMissingMachinesThreshold { get; set; } = 20;
 
@@ -49,12 +50,12 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var query =
                 $@"
                 let Events = CloudBuildLogEvent
-                | where PreciseTimeStamp > ago({_configuration.LookbackPeriod})
+                | where PreciseTimeStamp > ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)})
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.ServiceName}"";
                 let Machines = Events
                 | summarize LastActivityTime=max(PreciseTimeStamp) by Machine
-                | where LastActivityTime >= ago({_configuration.ActivityThreshold})
+                | where LastActivityTime >= ago({CslTimeSpanLiteral.AsCslString(_configuration.ActivityThreshold)})
                 | project-away LastActivityTime;
                 let Restores = Events
                 | where Message has ""RestoreCheckpointAsync stop""

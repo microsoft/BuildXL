@@ -908,7 +908,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (placeLinkResult == CreateHardLinkResult.Success)
                     {
-                        return new PutResult(contentHash, fileInfo.FileSize)
+                        return new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true)
                         {
                             Diagnostics = "FastPath"
                         };

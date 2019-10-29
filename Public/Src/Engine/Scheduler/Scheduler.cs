@@ -3599,9 +3599,7 @@ namespace BuildXL.Scheduler
                         {
                             var perfInfo = executionResult.PerformanceInformation;
 
-                            if (perfInfo != null)
-                            {
-                                m_groupedPipCounters.AddToCounters(
+                            m_groupedPipCounters.AddToCounters(
                                     processRunnable.Process,
                                     new[]
                                     {
@@ -3610,7 +3608,6 @@ namespace BuildXL.Scheduler
                                     },
                                     new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
                                 );
-                            }
                         }
 
                         // The pip was canceled
@@ -3679,20 +3676,20 @@ namespace BuildXL.Scheduler
 
                         if (!IsDistributedWorker)
                         {
-                            var expectedRamUsage = runnablePip.Worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
+                            var expectedRamUsage = worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
 
-                            int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb;
-                            int peakWorkingSetMb = executionResult.PerformanceInformation.MemoryCounters.PeakWorkingSetMb;
-                            int peakPagefileUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakPagefileUsageMb;
+                            int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakVirtualMemoryUsageMb ?? 0;
+                            int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
+                            int peakPagefileUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakPagefileUsageMb ?? 0;
 
                             Logger.Log.ProcessPipExecutionInfo(
                                 operationContext,
                                 runnablePip.Description,
-                                (int)executionResult.PerformanceInformation.NumberOfProcesses,
+                                (int)(executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
                                 (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
-                                (int)executionResult.PerformanceInformation.ProcessExecutionTime.TotalSeconds,
-                                executionResult.PerformanceInformation.ProcessorsInPercents,
-                                runnablePip.Worker.DefaultMemoryUsagePerProcess,
+                                (int)(executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
+                                executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
+                                worker.DefaultMemoryUsagePerProcess, 
                                 expectedRamUsage,
                                 peakVirtualMemoryUsageMb,
                                 peakWorkingSetMb,

@@ -17,4 +17,5 @@ Transformer.execute({
         {name: "COMPLUS_OnlyUseLatestClr", value: "1"},
         {name: "COMPLUS_Version", value: "41.42.43.44"},
     ],
+    unsafe: {requireGlobalDependencies: true},
 });

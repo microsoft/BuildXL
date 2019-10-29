@@ -1,0 +1,38 @@
+
+Transformer.sealDirectory({root: d`./src/seal2`, files: [f`./src/seal2/file2`]});
+Transformer.execute({
+    tool: {exe: f`./src/tool/tool.exe`},
+    arguments: {
+        escaping: "CRuntimeArgumentRules",
+        separator: " ",
+        items: [],
+    },
+    workingDirectory: d`./Out/working`,
+    dependencies: [
+        f`./src/tool/nested.exe`,
+        f`./src/tool/tool.exe`,
+        f`./src/tool/helper.dll`,
+        d`./src/seal2`,
+    ],
+    implicitOutputs: [f`./Out/outputFile1.txt`],
+    environmentVariables: [{name: "TEMP", value: p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`}, {name: "TMP", value: p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`}],
+    tempDirectory: d`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`,
+    unsafe: {
+        untrackedPaths: [p`./src/tool/untrackedFile.txt`],
+        untrackedScopes: [
+            p`./src/tool/untrackedDirectory`,
+            p`./src/tool/untrackedDirectoryScope`,
+            p`\${Context.getMount('Windows').path}`,
+            p`\${Context.getMount('InternetCache').path}`,
+            p`\${Context.getMount('InternetHistory').path}`,
+            p`\${Context.getMount('ProgramFiles').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramFilesX86').path}/Windows Defender`,
+            p`\${Context.getMount('ProgramData').path}/Microsoft/Windows Defender`,
+            p`\${Context.getMount('AppData').path}`,
+            p`\${Context.getMount('LocalAppData').path}`,
+            p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`,
+        ],
+        allowPreservedOutputs: true,
+        requireGlobalDependencies: true,
+    },
+});

@@ -145,5 +145,6 @@ Transformer.execute({
         d`./src/artifactDirSIn`,
     ],
     implicitOutputs: [f`./Out/artifactPathOut`, f`./Out/file1.out`, d`./Out/artifactDirOut`],
+    unsafe: {requireGlobalDependencies: true},
 });
 Transformer.sealDynamicDirectory({root: d`./Out/artifactDirOut`});

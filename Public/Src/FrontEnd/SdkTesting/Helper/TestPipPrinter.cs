@@ -341,7 +341,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 properties.Add(new PropertyAssignment("additionalTempDirectories", Generate(pip.AdditionalTempDirectories, tempDir => Generate(tempDir, "d"))));
             }
 
-            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses)
+            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses || pip.RequireGlobalDependencies)
             {
                 var unsafeProperties = new List<IObjectLiteralElement>();
                 if (pip.UntrackedPaths.Length > 0)

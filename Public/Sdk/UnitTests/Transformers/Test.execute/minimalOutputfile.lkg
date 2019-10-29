@@ -9,4 +9,5 @@ Transformer.execute({
     workingDirectory: d`./Out/working`,
     dependencies: [f`./src/tool.exe`],
     implicitOutputs: [f`./Out/file.out`],
+    unsafe: {requireGlobalDependencies: true},
 });

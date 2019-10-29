@@ -525,5 +525,70 @@ namespace Sdk.Tests {
             nestedProcessTerminationTimeoutMs: 5000,
         });
     }
+
+    @@Testing.unitTest()
+    export function executeWithRequireGlobalDependenciesTrue() {
+        const result = Transformer.execute({
+            tool: mostFields,
+            description: "executeWithRequireGlobalDependenciesTrue",
+            arguments: [],
+            workingDirectory: d`out/working`,
+            dependencies: [],
+            outputs: [
+                f`out/outputFile1.txt`,
+            ],
+            unsafe: {
+                requireGlobalDependencies: true,
+            },           
+        });
+    }
+
+    @@Testing.unitTest()
+    export function executeWithRequireGlobalDependenciesFalse() {
+        const result = Transformer.execute({
+            tool: mostFields,
+            description: "executeWithRequireGlobalDependenciesTrue",
+            arguments: [],
+            workingDirectory: d`out/working`,
+            dependencies: [],
+            outputs: [
+                f`out/outputFile1.txt`,
+            ],
+            unsafe: {
+                requireGlobalDependencies: false,
+            },
+        });
+    }
+
+    @@Testing.unitTest()
+    export function executeWithRequireGlobalDependenciesDefault() {
+        const result = Transformer.execute({
+            tool: mostFields,
+            description: "executeWithRequireGlobalDependenciesTrue",
+            arguments: [],
+            workingDirectory: d`out/working`,
+            dependencies: [],
+            outputs: [
+                f`out/outputFile1.txt`,
+            ],            
+        });
+    }
+
+    @@Testing.unitTest()
+    export function executeWithRequireGlobalDependenciesDefaultInUnsafe() {
+        const result = Transformer.execute({
+            tool: mostFields,
+            description: "executeWithRequireGlobalDependenciesTrue",
+            arguments: [],
+            workingDirectory: d`out/working`,
+            dependencies: [],
+            outputs: [
+                f`out/outputFile1.txt`,
+            ],
+            unsafe: {
+                allowPreservedOutputs: true,
+            },
+        });
+    }
 }
 

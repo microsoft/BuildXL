@@ -12,7 +12,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
 
-namespace BuildXL.Processes
+namespace BuildXL.Processes.Sideband
 {
     /// <summary>
     /// Responsible for keeping a log of all paths written to by a given process pip.

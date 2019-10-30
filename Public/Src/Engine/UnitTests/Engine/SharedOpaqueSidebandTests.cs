@@ -5,13 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
-using static BuildXL.Processes.SidebandWriter;
+using static BuildXL.Processes.Sideband.SidebandWriter;
 
 namespace Test.BuildXL.Engine
 {

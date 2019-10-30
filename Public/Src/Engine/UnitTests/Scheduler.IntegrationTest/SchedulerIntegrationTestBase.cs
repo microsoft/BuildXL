@@ -15,6 +15,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;

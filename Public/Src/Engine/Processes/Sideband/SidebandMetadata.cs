@@ -4,7 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 
-namespace BuildXL.Processes
+namespace BuildXL.Processes.Sideband
 {
     /// <summary>
     /// Metadata associated with a sideband file.

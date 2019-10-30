@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;

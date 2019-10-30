@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;

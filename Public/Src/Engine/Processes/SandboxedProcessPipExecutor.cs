@@ -19,6 +19,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;

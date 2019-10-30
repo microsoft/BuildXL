@@ -5,11 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading;
 using BuildXL.Utilities;
 
-using static BuildXL.Processes.Sideband.SidebandUtils;
-
-namespace BuildXL.Processes
+namespace BuildXL.Processes.Sideband
 {
     /// <summary>
     /// A disposable reader for sideband files.
@@ -21,6 +20,15 @@ namespace BuildXL.Processes
         private readonly BuildXLReader m_bxlReader;
 
         private int m_readCounter = 0;
+
+        private void IncrementAndAssertOrder(Func<int, bool> condition, string errorMessage)
+        {
+            var currentValue = Interlocked.Increment(ref m_readCounter);
+            if (!condition(currentValue))
+            {
+                throw Contract.AssertFailure($"{errorMessage}. Current counter: " + currentValue);
+            }
+        }
 
         /// <nodoc />
         public SidebandReader(string sidebandFile)
@@ -41,7 +49,7 @@ namespace BuildXL.Processes
         /// </summary>
         public bool ReadHeader(bool ignoreChecksum)
         {
-            AssertOrder(ref m_readCounter, cnt => cnt == 1, "Read header must be called first");
+            IncrementAndAssertOrder(cnt => cnt == 1, "Read header must be called first");
             var result = SidebandWriter.FileEnvelope.TryReadHeader(m_bxlReader.BaseStream, ignoreChecksum);
             return result.Succeeded;
         }
@@ -53,7 +61,7 @@ namespace BuildXL.Processes
         /// </summary>
         public SidebandMetadata ReadMetadata()
         {
-            AssertOrder(ref m_readCounter, cnt => cnt == 2, "ReadMetadata must be called second, right after ReadHeader");
+            IncrementAndAssertOrder(cnt => cnt == 2, "ReadMetadata must be called second, right after ReadHeader");
             return SidebandMetadata.Deserialize(m_bxlReader);
         }
 
@@ -77,7 +85,7 @@ namespace BuildXL.Processes
         /// </remarks>
         public IEnumerable<string> ReadRecordedPaths()
         {
-            AssertOrder(ref m_readCounter, cnt => cnt > 2, "ReadRecordedPaths must be called after ReadHeader and ReadMetadata");
+            IncrementAndAssertOrder(cnt => cnt > 2, "ReadRecordedPaths must be called after ReadHeader and ReadMetadata");
             string nextString = null;
             while ((nextString = ReadStringOrNull()) != null)
             {

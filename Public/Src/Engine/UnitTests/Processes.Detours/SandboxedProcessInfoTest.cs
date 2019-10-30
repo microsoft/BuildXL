@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;

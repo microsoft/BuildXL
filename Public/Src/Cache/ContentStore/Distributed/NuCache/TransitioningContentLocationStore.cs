@@ -27,7 +27,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// <see cref="IContentLocationStore"/> implementation that supports old redis and new local location store.
     /// </summary>
-    internal class TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore
+    internal class
+        TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore
     {
         private readonly LocalLocationStore _localLocationStore;
         private readonly RedisContentLocationStore _redisContentLocationStore;
@@ -313,7 +314,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
             var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
 
-            return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer);
+            return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer)
+                .Where(candidate => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge));
+        }
+
+        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge)
+        {
+            if (candidate.Age > evictionMinAge)
+            {
+                return true;
+            }
+
+            // Trace this!
+
+            context.Debug($"");
+            return false;
         }
 
         /// <inheritdoc />

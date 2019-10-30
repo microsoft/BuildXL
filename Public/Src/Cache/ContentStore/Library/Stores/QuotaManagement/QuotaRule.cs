@@ -190,13 +190,13 @@ namespace BuildXL.Cache.ContentStore.Stores
                     break;
                 }
 
-                if (contentHashInfo.Age < _distributedEvictionSettings.MinimumEvictionTime)
-                {
+                //if (contentHashInfo.Age < _distributedEvictionSettings.MinimumEvictionTime)
+                //{
                     // Print eviction size, reserveSize??
                     // Print number of files previously returned for eviction this cycle
                     // Print pool size, min/max ages and effective ages
                     // ReplicaCount (contentHashInfo.ReplicaCount), Size, and Effective Age (contentHashInfo.EffectiveAge)
-                }
+                //}
 
                 var r = await _evictAsync(context, contentHashInfo, OnlyUnlinked);
                 if (!r.Succeeded)

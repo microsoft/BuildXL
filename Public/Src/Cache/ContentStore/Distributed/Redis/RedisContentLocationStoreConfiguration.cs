@@ -115,6 +115,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Indicates the mode used when reading content locations
         /// </summary>
         public ContentLocationMode ReadMode { get; set; } = ContentLocationMode.Redis;
+        public TimeSpan EvictionMinAge { get; set; }
 
         /// <nodoc />
         public bool HasWriteMode(ContentLocationMode mode)

@@ -259,6 +259,7 @@ namespace ContentStoreTest.Stores
                 (context, contentHashesWithInfo, cts, urgencyHint) => null,
                 locationStoreBatchSize: 42,
                 replicaCreditInMinutes: null,
+                minAgeBeforeEviction: null,
                 distributedStore: mock);
         }
 

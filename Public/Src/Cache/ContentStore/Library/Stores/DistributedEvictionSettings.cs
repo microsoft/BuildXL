@@ -22,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Default minimum age needed before eviction is allowed for a candidate
         /// </summary>
-        public const TimeSpan DefaultMinAgeBeforeEviction = TimeSpan.FromMinutes(30);
+        public TimeSpan DefaultMinAgeBeforeEviction = TimeSpan.FromMinutes(30);
 
         /// <summary>
         /// Distributed store used in a next-gen distributed eviction logic based on a local location store.

@@ -982,24 +982,6 @@ namespace BuildXL.Engine
             return initResult;
         }
 
-        private RangedNodeSet GetFilteredNodes(LoggingContext loggingContext, SchedulerState state, RootFilter filter)
-        {
-            // If the previous state is not null and root filter matches, do not need to filter nodes again.
-            if (state?.RootFilter != null && state.RootFilter.Matches(filter))
-            {
-                return state.FilterPassingNodes;
-            }
-            else if (Scheduler.PipGraph.FilterNodesToBuild(loggingContext, filter, out var filterPassingNodes))
-            {
-                return filterPassingNodes;
-            }
-            else
-            {
-                Contract.Assume(loggingContext.ErrorWasLogged, "PipGraph.FilterNodesToBuild returned false but didn't log an error");
-                return null;
-            }
-        }
-
         /// <summary>
         /// Gets the data used to do partial evaluation. This must be included in the pip fingerprint
         /// </summary>

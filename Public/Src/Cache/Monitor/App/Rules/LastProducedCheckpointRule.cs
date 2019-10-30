@@ -38,6 +38,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
         private class Result
         {
             public DateTime PreciseTimeStamp;
+            public string Machine;
         }
 #pragma warning restore CS0649
 
@@ -54,7 +55,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | where Service == ""{Constants.MasterServiceName}""
                 | where Message contains ""CreateCheckpointAsync stop""
                 | project PreciseTimeStamp
-                | summarize PreciseTimeStamp=max(PreciseTimeStamp)
+                | summarize (PreciseTimeStamp, Machine)=arg_max(PreciseTimeStamp, Machine)
                 | where not(isnull(PreciseTimeStamp))";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
@@ -80,7 +81,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 }
 
                 Emit(severity,
-                    $"Newest checkpoint age `{age}` above threshold `{threshold}`",
+                    $"Newest checkpoint age `{age}` above threshold `{threshold}`. Master is {results[0].Machine}",
                     ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: results[0].PreciseTimeStamp);
             }

@@ -97,19 +97,23 @@ namespace BuildXL.Cache.Monitor.App.Rules
             if (missing.Count > 0)
             {
                 var severity = missing.Count < _configuration.FatalMissingMachinesThreshold ? Severity.Error : Severity.Fatal;
-                var machinesCsv = string.Join(", ", missing.Select(m => $"`{m}`"));
+                var formattedMissing = missing.Select(m => $"`{m}`");
+                var machinesCsv = string.Join(", ", formattedMissing);
+                var shortMachinesCsv = string.Join(", ", formattedMissing.Take(5));
                 Emit(severity,
                     $"Found {missing.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but without checkpoints restored in at least `{_configuration.LookbackPeriod}`: {machinesCsv}",
-                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`",
+                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`. Examples: {shortMachinesCsv}",
                     ruleRunTimeUtc: ruleRunTimeUtc);
             }
 
             if (failures.Count > 0)
             {
-                var machinesCsv = string.Join(", ", failures.Select(f => $"`{f.Item1}` ({f.Item2})"));
+                var formattedFailures = failures.Select(f => $"`{f.Item1}` ({f.Item2})");
+                var machinesCsv = string.Join(", ", formattedFailures);
+                var shortMachinesCsv = string.Join(", ", formattedFailures.Take(5));
                 Emit(Severity.Error,
                     $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorAge}`): {machinesCsv}",
-                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorAge}`",
+                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorAge}`. Examples: {shortMachinesCsv}",
                     ruleRunTimeUtc: ruleRunTimeUtc);
             }
         }

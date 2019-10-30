@@ -139,9 +139,7 @@ namespace BuildXL.Cache.Monitor.App
 
         private Logger CreateLogger()
         {
-            var logs = new List<ILog>() {
-                new ConsoleLog(useShortLayout: false, printSeverity: true),
-            };
+            var logs = new List<ILog>();
 
             if (!string.IsNullOrEmpty(_configuration.LogFilePath))
             {
@@ -154,6 +152,9 @@ namespace BuildXL.Cache.Monitor.App
                     ColumnKind.Message,
                 }));
             }
+
+            // NOTE(jubayard): making sure things get logged to file first
+            logs.Add(new ConsoleLog(useShortLayout: false, printSeverity: true));
 
             return new Logger(logs.ToArray());
         }

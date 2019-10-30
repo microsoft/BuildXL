@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Monitor.App
@@ -11,13 +13,24 @@ namespace BuildXL.Cache.Monitor.App
         private static void Main(string[] args)
         {
             var configurationFilePath = @"C:\work\Monitor\Configuration.json";
-            var backupFilePath = @"C:\work\Monitor\SampleConfiguration.json";
+            var backupFilePath = @"C:\work\Monitor\BackupConfiguration.json";
 
-            var configuration = LoadConfiguration();
-            PersistConfiguration(configuration, backupFilePath);
+            var cancellationToken = new CancellationToken();
+            RunMonitorAsync(null, backupFilePath, cancellationToken).Wait();
+        }
 
-            using var monitor = new Monitor(configuration);
-            monitor.Run().Wait();
+        private static async Task RunMonitorAsync(string configurationFilePath = null, string backupFilePath = null, CancellationToken cancellationToken = default)
+        {
+            var configuration = LoadConfiguration(configurationFilePath);
+            if (!string.IsNullOrEmpty(backupFilePath))
+            {
+                PersistConfiguration(configuration, backupFilePath, force: true);
+            }
+
+            using (var monitor = new Monitor(configuration))
+            {
+                await monitor.Run(cancellationToken);
+            }
         }
 
         private static Monitor.Configuration LoadConfiguration(string configurationFilePath = null)
@@ -57,12 +70,12 @@ namespace BuildXL.Cache.Monitor.App
             return configuration;
         }
 
-        private static void PersistConfiguration(Monitor.Configuration configuration, string configurationFilePath)
+        private static void PersistConfiguration(Monitor.Configuration configuration, string configurationFilePath, bool force = false)
         {
             Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNullOrEmpty(configurationFilePath);
 
-            if (File.Exists(configurationFilePath))
+            if (File.Exists(configurationFilePath) && !force)
             {
                 throw new ArgumentException($"File `{configurationFilePath}` already exists. Not overwriting it.",
                     nameof(configurationFilePath));

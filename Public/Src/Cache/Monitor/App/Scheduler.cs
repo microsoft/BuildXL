@@ -206,15 +206,19 @@ namespace BuildXL.Cache.Monitor.App
                     Contract.Assert(entry.State == State.Running);
                     entry.State = failed ? State.Failed : State.Waiting;
 
-                    var errorMessage = "";
-                    if (failed)
-                    {
-                        // TODO(jubayard): In unclear circumstances, this log is actually not displayed.
-                        // Probably only when the exception is too long.
-                        errorMessage = $". An exception has been caught and the rule has been disabled. Exception: {exception}";
-                    }
 
-                    _logger.Debug($"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run{errorMessage}");
+                    var logMessage = $"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run";
+                    if (!failed)
+                    {
+                        _logger.Debug(logMessage);
+                    }
+                    else
+                    {
+                        // NOTE(jubayard): for very long exceptions, the description overwhelms the buffer.
+                        _logger.Flush();
+                        _logger.Error($"{logMessage}. An exception has been caught and the rule has been disabled. Exception: {exception}");
+                        _logger.Flush();
+                    }
                 }
             }
         }

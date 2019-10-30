@@ -1063,7 +1063,8 @@ namespace BuildXL.Scheduler
                 extraFingerprintSalts,
                 m_semanticPathExpander,
                 PipGraph.QueryFileArtifactPipData,
-                process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process));
+                process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process),
+                pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default);
             m_runningTimeTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.

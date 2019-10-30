@@ -23,6 +23,7 @@ using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.Fingerprints;
@@ -1398,7 +1399,10 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
+                                using (var sidebandWriter = CreateSidebandWriterIfConfigured(environment, pip))
+                                {
+                                    result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
+                                }
 
                                 ++retryCount;
 
@@ -1805,6 +1809,25 @@ namespace BuildXL.Scheduler
 
                 return processExecutionResult;
             }
+        }
+
+        private static SidebandWriter CreateSidebandWriterIfConfigured(IPipExecutionEnvironment env, Process pip)
+        {
+            // don't use this writer if the root directory is not set up in the configuration layout or
+            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
+            var conf = env.Configuration.Layout;
+            return conf?.SharedOpaqueSidebandDirectory.IsValid == true && pip.SemiStableHash != 0
+                ? new SidebandWriter(CreateSidebandMetadata(env, pip), env.Context, pip, conf.SharedOpaqueSidebandDirectory)
+                : null;
+        }
+
+        private static SidebandMetadata CreateSidebandMetadata(IPipExecutionEnvironment env, Process pip)
+        {
+            var fp = env.ContentFingerprinter.StaticFingerprintLookup(pip.PipId);
+            return new SidebandMetadata(
+                pip.PipId.Value, 
+                // in some tests the static fingerprint can have 0 length in which case ToByteArray() throws
+                fp.Length > 0 ? fp.ToByteArray() : new byte[0]);
         }
 
         private static void ReportFileAccesses(ExecutionResult processExecutionResult, FileAccessReportingContext fileAccessReportingContext)

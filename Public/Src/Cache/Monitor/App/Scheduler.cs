@@ -8,9 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
-using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Monitor.App.Rules;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -18,15 +18,21 @@ namespace BuildXL.Cache.Monitor.App
     {
         public class Configuration
         {
-            public bool PersistState { get; set; } = false;
-
             public string PersistStatePath { get; set; } = null;
 
             public bool PersistClearFailedEntriesOnLoad { get; set; } = false;
 
             public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
 
-            public int MaximumConcurrency { get; set; } = 5;
+            public int MaximumConcurrency { get; set; } = 10;
+        }
+
+        private enum State
+        {
+            Waiting,
+            Scheduled,
+            Running,
+            Failed,
         }
 
         /// <summary>
@@ -42,11 +48,9 @@ namespace BuildXL.Cache.Monitor.App
 
             public TimeSpan PollingPeriod { get; }
 
-            public bool Running { get; set; } = false;
+            public State State { get; set; } = State.Waiting;
 
             public DateTime LastRunTimeUtc { get; set; }
-
-            public bool Failed { get; set; } = false;
 
             public Entry(IRule rule, TimeSpan pollingPeriod)
             {
@@ -56,7 +60,7 @@ namespace BuildXL.Cache.Monitor.App
                 PollingPeriod = pollingPeriod;
             }
 
-            public bool ShouldRun(DateTime now) => !Failed && !Running && LastRunTimeUtc + PollingPeriod <= now;
+            public bool ShouldSchedule(DateTime now) => State == State.Waiting && LastRunTimeUtc + PollingPeriod <= now;
         };
 
         private readonly ILogger _logger;
@@ -88,23 +92,32 @@ namespace BuildXL.Cache.Monitor.App
             _schedule[rule.Identifier] = new Entry(rule, pollingPeriod);
         }
 
-        public async Task RunAsync(CancellationToken cancellationToken = default) {
-            if (_configuration.PersistState)
+        public async Task RunAsync(CancellationToken cancellationToken = default)
+        {
+            if (IsPersistanceEnabled())
             {
-                LoadState();
+                LoadState(_configuration.PersistStatePath);
 
-                // Force a persist before the run begins, since we need to consolidate the two states.
-                PersistState();
+                // Persist before the run begins, store the reconciliation
+                SaveState(_configuration.PersistStatePath);
             }
 
             _logger.Debug("Starting to monitor");
 
+            Dictionary<State, int> oldStates = null;
             while (!cancellationToken.IsCancellationRequested)
             {
                 var now = _clock.UtcNow;
 
-                var runningRules = new List<string>();
-                var failedRules = new List<string>();
+                // Approximate count of rules in each state. They do not necessarily sum to the total, because rules
+                // may change state as we are computing the dictionary.
+                var states = new Dictionary<State, int>() {
+                    { State.Running, 0 },
+                    { State.Scheduled, 0 },
+                    { State.Waiting, 0 },
+                    { State.Failed, 0 },
+                };
+
                 foreach (var kvp in _schedule)
                 {
                     var rule = kvp.Value.Rule;
@@ -112,104 +125,112 @@ namespace BuildXL.Cache.Monitor.App
 
                     lock (entry.Lock)
                     {
-                        if (entry.Running)
-                        {
-                            runningRules.Add(rule.Identifier);
-                        }
+                        states[entry.State] += 1;
 
-                        if (entry.Failed)
+                        if (!entry.ShouldSchedule(now))
                         {
-                            failedRules.Add(rule.Identifier);
-                        }
-
-                        if (!entry.ShouldRun(now))
-                        {   
                             continue;
                         }
 
-                        entry.Running = true;
+                        Contract.Assert(entry.State == State.Waiting);
+                        entry.State = State.Scheduled;
                     }
 
                     _ = Task.Run(async () =>
-                      {
-                          // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
-                          await Task.Yield();
-
-                          var stopwatch = new Stopwatch();
-
-                          var failed = false;
-                          Exception exception = null;
-                          try
-                          {
-                              await _runGate.WaitAsync();
-
-                              _logger.Debug($"Running rule `{rule.Identifier}`. `{_runGate.CurrentCount}` more allowed to run");
-
-                              stopwatch.Restart();
-                              await rule.Run();
-                          }
-                          catch (Exception thrownException)
-                          {
-                              failed = true;
-                              exception = thrownException;
-                          }
-                          finally
-                          {
-                              stopwatch.Stop();
-
-                              _runGate.Release();
-
-                              lock (entry.Lock)
-                              {
-                                  entry.LastRunTimeUtc = _clock.UtcNow;
-                                  entry.Running = false;
-                                  entry.Failed = failed;
-
-                                  var errorMessage = "";
-                                  if (failed)
-                                  {
-                                      // TODO(jubayard): In unclear circumstances, this log is actually not displayed.
-                                      // Probably only when the exception is too long.
-                                      errorMessage = $". An exception has been caught and the rule has been disabled. Exception: {exception}";
-
-                                      if (errorMessage.Length > 2000)
-                                      {
-                                          errorMessage = $". An exception has been caught and the rule has been disabled";
-                                      }
-                                  }
-
-                                  _logger.Debug($"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run{errorMessage}");
-                              }
-                          }
-                      });
+                    {
+                        // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
+                        await Task.Yield();
+                        await RunRuleAsync(entry);
+                    });
                 }
 
-                if (runningRules.Count > 0)
+                if (oldStates == null || states.Any(kvp => oldStates[kvp.Key] != kvp.Value))
                 {
-                    _logger.Debug($"Currently scheduled `{runningRules.Count}` rules");
+                    var statesString = string.Join(", ", states.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+                    _logger.Debug($"Scheduler state: {statesString}");
+                    oldStates = states;
                 }
 
-                if (failedRules.Count > 0)
+                if (IsPersistanceEnabled())
                 {
-                    var rulesCsv = string.Join(", ", failedRules);
-                    _logger.Debug($"Currently failed `{failedRules.Count}` rules: {rulesCsv}");
+                    SaveState(_configuration.PersistStatePath);
                 }
 
-                if (_configuration.PersistState)
+                if (!cancellationToken.IsCancellationRequested)
                 {
-                    PersistState();
+                    await Task.Delay(_configuration.PollingPeriod);
+                }
+            }
+
+            // TODO(jubayard): probably wait until all rules are done?...
+        }
+
+        private async Task RunRuleAsync(Entry entry)
+        {
+            Contract.AssertNotNull(entry);
+
+            var rule = entry.Rule;
+            var stopwatch = new Stopwatch();
+            var failed = false;
+            Exception exception = null;
+            try
+            {
+                await _runGate.WaitAsync();
+
+                lock (entry.Lock)
+                {
+                    Contract.Assert(entry.State == State.Scheduled);
+                    entry.State = State.Running;
                 }
 
-                await Task.Delay(_configuration.PollingPeriod);
+                _logger.Debug($"Running rule `{rule.Identifier}`. `{_runGate.CurrentCount}` more allowed to run");
+
+                stopwatch.Restart();
+                await rule.Run();
+            }
+            catch (Exception thrownException)
+            {
+                failed = true;
+                exception = thrownException;
+            }
+            finally
+            {
+                stopwatch.Stop();
+
+                _runGate.Release();
+
+                lock (entry.Lock)
+                {
+                    entry.LastRunTimeUtc = _clock.UtcNow;
+
+                    Contract.Assert(entry.State == State.Running);
+                    entry.State = failed ? State.Failed : State.Waiting;
+
+                    var errorMessage = "";
+                    if (failed)
+                    {
+                        // TODO(jubayard): In unclear circumstances, this log is actually not displayed.
+                        // Probably only when the exception is too long.
+                        errorMessage = $". An exception has been caught and the rule has been disabled. Exception: {exception}";
+                    }
+
+                    _logger.Debug($"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run{errorMessage}");
+                }
             }
         }
 
         #region Persistance
+        private bool IsPersistanceEnabled()
+        {
+            return !string.IsNullOrEmpty(_configuration.PersistStatePath) && _configuration.PersistStatePath.EndsWith(".json");
+        }
+
         private struct PersistableEntry
         {
             public TimeSpan PollingPeriod;
 
-            public bool Failed;
+            [JsonConverter(typeof(StringEnumConverter))]
+            public State State;
 
             public DateTime LastRunTimeUtc;
 
@@ -217,27 +238,27 @@ namespace BuildXL.Cache.Monitor.App
                 lock (entry.Lock)
                 {
                     PollingPeriod = entry.PollingPeriod;
-                    Failed = entry.Failed;
+                    State = entry.State;
                     LastRunTimeUtc = entry.LastRunTimeUtc;
                 }
             }
         };
 
-        private void LoadState()
+        private void LoadState(string stateFilePath)
         {
-            ValidatePersistanceContract();
+            Contract.RequiresNotNullOrEmpty(stateFilePath);
 
-            if (!File.Exists(_configuration.PersistStatePath))
+            if (!File.Exists(stateFilePath))
             {
-                _logger.Warning($"No previous state available at `{_configuration.PersistStatePath}`");
+                _logger.Warning($"No previous state available at `{stateFilePath}`");
                 return;
             }
 
-            _logger.Debug($"Loading previous state from `{_configuration.PersistStatePath}`");
+            _logger.Debug($"Loading previous state from `{stateFilePath}`");
 
             try
             {
-                using var stream = File.OpenText(_configuration.PersistStatePath);
+                using var stream = File.OpenText(stateFilePath);
                 var serializer = CreateSerializer();
 
                 var state = (Dictionary<string, PersistableEntry>)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
@@ -258,27 +279,26 @@ namespace BuildXL.Cache.Monitor.App
                         continue;
                     }
 
-                    Overwrite(ruleIdentifier, storedEntry, entry);
+                    Reconcile(ruleIdentifier, storedEntry, entry);
                 }
             }
             catch (Exception exception)
             {
-                _logger.Error($"Failed to load scheduler state from `{_configuration.PersistStatePath}`; running as if it didn't exist. Exception: {exception}");
+                _logger.Error($"Failed to load scheduler state from `{stateFilePath}`; running as if it didn't exist. Exception: {exception}");
             }
 
         }
 
-        private void Overwrite(string ruleIdentifier, PersistableEntry storedEntry, Entry entry)
+        private void Reconcile(string ruleIdentifier, PersistableEntry storedEntry, Entry entry)
         {
             Contract.RequiresNotNullOrEmpty(ruleIdentifier);
             Contract.RequiresNotNull(entry);
 
             lock (entry.Lock)
             {
-                Contract.Assert(!entry.Running);
+                Contract.Assert(entry.State == State.Waiting);
 
-                Contract.Assert(!entry.Failed);
-                if (storedEntry.Failed)
+                if (storedEntry.State == State.Failed)
                 {
                     if (_configuration.PersistClearFailedEntriesOnLoad)
                     {
@@ -290,7 +310,7 @@ namespace BuildXL.Cache.Monitor.App
                     else
                     {
                         _logger.Warning($"Rule `{ruleIdentifier}` is disabled in the persisted state. Disabling in the in-memory state as well");
-                        entry.Failed = false;
+                        entry.State = State.Failed;
                     }
                 }
 
@@ -305,21 +325,15 @@ namespace BuildXL.Cache.Monitor.App
             }
         }
 
-        private void PersistState()
+        private void SaveState(string stateFilePath)
         {
-            ValidatePersistanceContract();
+            Contract.RequiresNotNullOrEmpty(stateFilePath);
 
-            using var stream = File.CreateText(_configuration.PersistStatePath);
-            var state = CreateSerializer();
+            using var stream = File.CreateText(stateFilePath);
+            var serializer = CreateSerializer();
 
-            state.Serialize(stream, _schedule.ToDictionary(kvp => kvp.Key, kvp => new PersistableEntry(kvp.Value)));
-        }
-
-        private void ValidatePersistanceContract()
-        {
-            Contract.Requires(_configuration.PersistState);
-            Contract.RequiresNotNull(_configuration.PersistStatePath);
-            Contract.Requires(_configuration.PersistStatePath.EndsWith(".json"));
+            var schedule = _schedule.ToDictionary(kvp => kvp.Key, kvp => new PersistableEntry(kvp.Value));
+            serializer.Serialize(stream, schedule);
         }
 
         private static JsonSerializer CreateSerializer()
@@ -332,9 +346,23 @@ namespace BuildXL.Cache.Monitor.App
         }
         #endregion
 
-        public void Dispose()
+        #region IDisposable Support
+        private bool _disposedValue = false;
+
+        protected virtual void Dispose(bool disposing)
         {
-            _runGate.Dispose();
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _runGate.Dispose();
+                }
+
+                _disposedValue = true;
+            }
         }
+
+        public void Dispose() => Dispose(true);
+        #endregion
     }
 }

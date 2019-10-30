@@ -4,13 +4,12 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Monitor.App.Analysis;
 using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.App.Rules
 {
-    internal class HeartBeatingMachinesRule : KustoRuleBase
+    internal class ActiveMachinesRule : KustoRuleBase
     {
         public class Configuration : KustoRuleConfiguration
         {
@@ -19,9 +18,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
-            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(2);
+            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(12);
 
-            public TimeSpan AnomalyDetectionHorizon { get; set; } = TimeSpan.FromMinutes(30);
+            public TimeSpan AnomalyDetectionHorizon { get; set; } = TimeSpan.FromHours(1);
 
             public int DistinctCountPrecision { get; set; } = 1;
 
@@ -40,9 +39,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         private readonly Configuration _configuration;
 
-        public override string Identifier => $"{nameof(HeartBeatingMachinesRule)}:{_configuration.Environment}/{_configuration.Stamp}";
+        public override string Identifier => $"{nameof(ActiveMachinesRule)}:{_configuration.Environment}/{_configuration.Stamp}";
 
-        public HeartBeatingMachinesRule(Configuration configuration)
+        public ActiveMachinesRule(Configuration configuration)
             : base(configuration)
         {
             Contract.RequiresNotNull(configuration);
@@ -109,8 +108,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var value = (long)Math.Ceiling(valueDouble);
 
                 Emit(Severity.Warning,
-                    $"Number of machines is `{value}`, which is out of the expected range [`{lookbackMin}`, `{lookbackMax}`]",
-                    $"Number of machines outside of expected range: `{value}`",
+                    $"`{value}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });
         }

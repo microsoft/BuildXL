@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Logging;
@@ -10,6 +11,7 @@ using Kusto.Data;
 using Kusto.Data.Common;
 using Kusto.Data.Net.Client;
 using Kusto.Ingest;
+using static BuildXL.Cache.ContentStore.Logging.CsvFileLog;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -79,6 +81,8 @@ namespace BuildXL.Cache.Monitor.App
 
         public class Configuration
         {
+            public string LogFilePath { get; set; } = @"C:\work\Monitor\Monitor.log";
+
             public string KustoClusterUrl { get; set; } = "https://cbuild.kusto.windows.net";
 
             public string KustoIngestionClusterUrl { get; set; } = "https://cbuild.kusto.windows.net";
@@ -96,8 +100,7 @@ namespace BuildXL.Cache.Monitor.App
             };
 
             public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration() {
-                PersistState = true,
-                PersistStatePath = @"C:\work\Scheduler.json",
+                PersistStatePath = @"C:\work\Monitor\SchedulerState.json",
                 PersistClearFailedEntriesOnLoad = true,
             };
         }
@@ -108,7 +111,7 @@ namespace BuildXL.Cache.Monitor.App
         private readonly Logger _logger;
 
         private readonly Scheduler _scheduler;
-        private readonly INotifier _notifier;
+        private readonly KustoNotifier _notifier;
 
         private readonly IKustoIngestClient _kustoIngestClient;
         private readonly ICslQueryProvider _cslQueryProvider;
@@ -118,9 +121,7 @@ namespace BuildXL.Cache.Monitor.App
             Contract.RequiresNotNull(configuration);
             _configuration = configuration;
 
-            _logger = new Logger(new ILog[] {
-                new ConsoleLog(useShortLayout: false, printSeverity: true),
-            });
+            _logger = CreateLogger();
 
             // TODO(jubayard): use streaming ingestion instead of direct ingestion. There seems to be some assembly
             // issues when attempting to do that
@@ -136,46 +137,67 @@ namespace BuildXL.Cache.Monitor.App
             _scheduler = new Scheduler(_configuration.Scheduler, _logger, _clock);
         }
 
-        public Task Run()
+        private Logger CreateLogger()
         {
-            Schedule();
-            return _scheduler.RunAsync();
+            var logs = new List<ILog>() {
+                new ConsoleLog(useShortLayout: false, printSeverity: true),
+            };
+
+            if (!string.IsNullOrEmpty(_configuration.LogFilePath))
+            {
+                logs.Add(new CsvFileLog(_configuration.LogFilePath, new List<ColumnKind>() {
+                    ColumnKind.PreciseTimeStamp,
+                    ColumnKind.ProcessId,
+                    ColumnKind.ThreadId,
+                    ColumnKind.LogLevel,
+                    ColumnKind.LogLevelFriendly,
+                    ColumnKind.Message,
+                }));
+            }
+
+            return new Logger(logs.ToArray());
+        }
+
+        public Task Run(CancellationToken cancellationToken = default)
+        {
+            CreateSchedule();
+            return _scheduler.RunAsync(cancellationToken);
         }
 
         /// <summary>
         /// Creates the schedule of rules that will be run. Also responsible for configuring them.
         /// </summary>
-        private void Schedule()
+        private void CreateSchedule()
         {
-            //Add(kustoConfiguration =>
-            //{
-            //    var configuration = new LastProducedCheckpointRule.Configuration(kustoConfiguration);
-            //    return (
-            //        Rule: new LastProducedCheckpointRule(configuration),
-            //        PollingPeriod: configuration.WarningAge);
-            //});
-
-            //Add(kustoConfiguration =>
-            //{
-            //    var configuration = new LastRestoredCheckpointRule.Configuration(kustoConfiguration);
-            //    return (
-            //        Rule: new LastRestoredCheckpointRule(configuration),
-            //        PollingPeriod: configuration.ErrorAge);
-            //});
-
-            //Add(kustoConfiguration =>
-            //{
-            //    var configuration = new CheckpointSizeRule.Configuration(kustoConfiguration);
-            //    return (
-            //        Rule: new CheckpointSizeRule(configuration),
-            //        PollingPeriod: configuration.AnomalyDetectionHorizon);
-            //});
+            Add(kustoConfiguration =>
+            {
+                var configuration = new LastProducedCheckpointRule.Configuration(kustoConfiguration);
+                return (
+                    Rule: new LastProducedCheckpointRule(configuration),
+                    PollingPeriod: configuration.WarningAge);
+            });
 
             Add(kustoConfiguration =>
             {
-                var configuration = new HeartBeatingMachinesRule.Configuration(kustoConfiguration);
+                var configuration = new LastRestoredCheckpointRule.Configuration(kustoConfiguration);
                 return (
-                    Rule: new HeartBeatingMachinesRule(configuration),
+                    Rule: new LastRestoredCheckpointRule(configuration),
+                    PollingPeriod: configuration.ErrorAge);
+            });
+
+            Add(kustoConfiguration =>
+            {
+                var configuration = new CheckpointSizeRule.Configuration(kustoConfiguration);
+                return (
+                    Rule: new CheckpointSizeRule(configuration),
+                    PollingPeriod: configuration.AnomalyDetectionHorizon);
+            });
+
+            Add(kustoConfiguration =>
+            {
+                var configuration = new ActiveMachinesRule.Configuration(kustoConfiguration);
+                return (
+                    Rule: new ActiveMachinesRule(configuration),
                     PollingPeriod: configuration.AnomalyDetectionHorizon);
             });
         }
@@ -211,11 +233,29 @@ namespace BuildXL.Cache.Monitor.App
             }
         }
 
-        public void Dispose()
+        #region IDisposable Support
+        private bool _disposedValue = false;
+
+        protected virtual void Dispose(bool disposing)
         {
-            _kustoIngestClient?.Dispose();
-            _cslQueryProvider?.Dispose();
-            _logger?.Dispose();
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _scheduler?.Dispose();
+                    _notifier?.Dispose();
+                    _kustoIngestClient?.Dispose();
+                    _cslQueryProvider?.Dispose();
+                    _logger?.Dispose();
+                }
+
+                _disposedValue = true;
+            }
         }
+
+        public void Dispose() => Dispose(true);
+        #endregion
+
+
     }
 }

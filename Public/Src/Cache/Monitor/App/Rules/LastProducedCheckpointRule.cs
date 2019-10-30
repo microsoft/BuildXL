@@ -16,7 +16,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
-            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(1);
+            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(2);
 
             public TimeSpan WarningAge { get; set; } = TimeSpan.FromMinutes(30);
 
@@ -80,7 +80,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 }
 
                 Emit(severity,
-                    $"Checkpoint age `{age}` above threshold `{threshold}`",
+                    $"Newest checkpoint age `{age}` above threshold `{threshold}`",
                     ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: results[0].PreciseTimeStamp);
             }

@@ -134,9 +134,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             var range = new CheckRange<long>(Comparer<long>.Default, _configuration.MinimumValidSizeBytes, _configuration.MaximumValidSizeBytes);
             range.Check(prediction.Select(r => r.TotalSize), (index, value) => {
-                Emit(Severity.Fatal,
+                Emit(Severity.Warning,
                     $"Checkpoint size is `{value.ToSizeExpression()}`, which is outside of the valid range [`{_configuration.MinimumValidSize}`, `{_configuration.MaximumValidSize}`]",
-                    $"Checkpoint size out of range: `{value.ToSizeExpression()}`",
+                    $"Checkpoint size out of valid range: `{value.ToSizeExpression()}`",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });
 

@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             public int FatalMissingMachinesThreshold { get; set; } = 20;
 
-            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(30);
+            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(45);
         }
 
         private readonly Configuration _configuration;
@@ -72,7 +72,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             if (results.Count == 0)
             {
                 Emit(Severity.Fatal,
-                    $"No machines logged content in the last day",
+                    $"No machines logged anything in the last day",
                     ruleRunTimeUtc: ruleRunTimeUtc);
                 return;
             }

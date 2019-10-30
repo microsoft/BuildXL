@@ -13,7 +13,7 @@ using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Monitor.App.Notifications
 {
-    internal class KustoNotifier : INotifier
+    internal class KustoNotifier : INotifier, IDisposable
     {
         public class Configuration
         {
@@ -177,5 +177,24 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             return ingestion.GetIngestionStatusCollection();
         }
+
+        #region IDisposable Support
+        private bool _disposedValue = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    _queue.Dispose();
+                }
+
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose() => Dispose(true);
+        #endregion
     }
 }

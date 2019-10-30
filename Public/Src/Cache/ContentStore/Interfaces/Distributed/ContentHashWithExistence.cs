@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using BuildXL.Cache.ContentStore.Hashing;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
 {

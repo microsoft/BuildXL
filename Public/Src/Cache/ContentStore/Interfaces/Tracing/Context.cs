@@ -5,6 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
 {
@@ -37,7 +38,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, [CallerMemberName]string caller = null)
+        public Context(Context other, [CallerMemberName]string? caller = null)
             : this(other, Guid.NewGuid(), caller)
         {
         }
@@ -45,7 +46,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="Context"/> class.
         /// </summary>
-        public Context(Context other, Guid id, [CallerMemberName]string caller = null)
+        public Context(Context other, Guid id, [CallerMemberName]string? caller = null)
         {
             Id = id;
             Logger = other.Logger;
@@ -53,13 +54,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Tracing
         }
 
         /// <nodoc />
-        public Context CreateNested([CallerMemberName]string caller = null)
+        public Context CreateNested([CallerMemberName]string? caller = null)
         {
             return new Context(this, caller);
         }
 
         /// <nodoc />
-        public Context CreateNested(Guid id, [CallerMemberName]string caller = null)
+        public Context CreateNested(Guid id, [CallerMemberName]string? caller = null)
         {
             return new Context(this, id, caller);
         }

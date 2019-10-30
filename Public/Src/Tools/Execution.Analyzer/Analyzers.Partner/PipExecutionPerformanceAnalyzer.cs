@@ -158,7 +158,7 @@ namespace BuildXL.Execution.Analyzer
                 WriteLineIndented(I($"\"executionTimeInMs\" : {performance.ProcessExecutionTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"userExecutionTimeInMs\" : {performance.UserTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"kernelExecutionTimeInMs\" : {performance.KernelTime.TotalMilliseconds},"));
-                WriteLineIndented(I($"\"peakMemoryUsageInMb\" : {performance.MemoryCounters.PeakVirtualMemoryUsage},"));
+                WriteLineIndented(I($"\"peakMemoryUsageInByte\" : {performance.MemoryCounters.PeakVirtualMemoryUsage},"));
 
                 WriteLineIndented("\"io\" : {");
                 IncrementIndent();

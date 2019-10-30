@@ -108,10 +108,12 @@ REM *********************************
 	set BUILDXL_LKG_FEED_1=
 	set _BUILDXL_INIT_HASH=%_BUILDXL_INIT_HASH_NEW%
 	
+	set NUGET_CREDENTIALPROVIDERS_PATH
+
 	REM We'll conditionally set the credential provider if not set on the machine.
 	REM If not set we will set it to the local one in the enlistment but iwth the b-drive substitution
 	if NOT DEFINED NUGET_CREDENTIALPROVIDERS_PATH (
-		set NUGET_CREDENTIALPROVIDERS_PATH=B:\Shared\Tools
+		set NUGET_CREDENTIALPROVIDERS_PATH=%TOOLROOT%
 	)
 	goto :EOF
 

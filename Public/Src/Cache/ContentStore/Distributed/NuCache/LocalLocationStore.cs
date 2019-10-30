@@ -601,6 +601,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // NOTE: _lastRestoreTime will be set since skipping this operation will return successful result.
             var shouldSkipRestore = _lastRestoreTime == default
                 && latestCheckpoint != null
+                && _configuration.Checkpoint.RestoreCheckpointAgeThreshold != default
                 && latestCheckpoint.Value.checkpointTime.IsRecent(_clock.UtcNow, _configuration.Checkpoint.RestoreCheckpointAgeThreshold);
 
             if (latestCheckpointAge > _configuration.LocationEntryExpiry)

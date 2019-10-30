@@ -1214,6 +1214,21 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void PreserveOutputsFailedToMakeOutputPrivate(LoggingContext loggingContext, string pipDescription, string file, string error);
 
         [GeneratedEvent(
+            (ushort)LogEventId.UnableToGetMemoryPressureLevel,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Failed to get the current memory pressure level - resource cancelation will only take /minimumAvailableRam and /maximumRamUtilization into account! Available RAM MB: {availableRam} < {minimumAvailableRam})" +
+            " && (used RAM percentage: {ramUtilization} > {maximumRamUtilization}) ")]
+        internal abstract void UnableToGetMemoryPressureLevel(
+            LoggingContext loggingContext,
+            long availableRam,
+            long minimumAvailableRam,
+            long ramUtilization,
+            long maximumRamUtilization);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StoppingProcessExecutionDueToResourceExhaustion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -3450,7 +3465,7 @@ namespace BuildXL.Scheduler.Tracing
 
         [GeneratedEvent(
             (int)EventId.InvalidMetadataStaticOutputNotFound,
-            EventGenerators = EventGenerators.LocalOnly, 
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Scheduler,

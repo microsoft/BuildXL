@@ -133,12 +133,14 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
             // First pip writes a file to its temp directory
             CreateAndSchedulePipWithTemp(tempArtifactType, out var tempOut);
-            
-            // Second pip consumes a file from pipA's temp directory
-            CreateAndSchedulePipBuilder(new Operation[]
+            Assert.Throws<BuildXLTestException>(() =>
             {
+                // Second pip consumes a file from pipA's temp directory
+                CreateAndSchedulePipBuilder(new Operation[]
+                {
                     Operation.ReadFile(tempOut),
                     Operation.WriteFile(CreateOutputFileArtifact())
+                });
             });
 
             AssertErrorEventLogged(errorEvent);

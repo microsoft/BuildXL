@@ -2936,24 +2936,32 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return PinCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
             {
-                var bulkResults = await PinAsync(context, new[] { contentHash }, pinContext);
+                var bulkResults = await PinAsync(context, new[] { contentHash }, pinContext, PinBulkOptions.Default);
                 return bulkResults.Single().Item;
             });
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext)
+        public async Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext, PinBulkOptions options)
         {
             var stopwatch = Stopwatch.StartNew();
 
-            var (results, error) = await PinCoreAsync(context, contentHashes, pinContext);
-            _tracer.PinBulkStop(context, stopwatch.Elapsed, contentHashes: contentHashes, results: results, error);
+            options ??= PinBulkOptions.Default;
+            var (results, error) = await PinCoreAsync(context, contentHashes, pinContext, options);
+
+            _tracer.PinBulkStop(context, stopwatch.Elapsed, contentHashes: contentHashes, results: results, error, options);
 
             return results;
         }
 
-        private async Task<(IEnumerable<Indexed<PinResult>> results, Exception error)> PinCoreAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext)
+        private async Task<(IEnumerable<Indexed<PinResult>> results, Exception error)> PinCoreAsync(
+            Context context,
+            IReadOnlyList<ContentHash> contentHashes,
+            PinContext pinContext,
+            PinBulkOptions options)
         {
+            bool skipLockAndTouch = _settings.SkipTouchAndLockAcquisitionWhenPinningFromHibernation && options.RePinFromHibernation;
+
             var results = new List<PinResult>(contentHashes.Count);
             try
             {
@@ -2973,7 +2981,23 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                     else
                     {
-                        ContentFileInfo contentInfo = await GetContentSizeAndLastAccessTimeAsync(context, contentHash, pinRequest);
+                        // Hot path optimization: instead of acquiring locks and touching the file system,
+                        // we re-pin the content if it exits in memory content directory that was reconstructed (or reloaded) at startup
+                        ContentFileInfo contentInfo = null;
+                        if (skipLockAndTouch)
+                        {
+                            // The following logic is not 100% thread safe, but during re-pinning process no other operations should be happening
+                            // against the file system (like puts, places or eviction).
+                            if (ContentDirectory.TryGetFileInfo(contentHash, out contentInfo))
+                            {
+                                PinContentIfContext(contentHash, pinContext);
+                            }
+                        }
+                        else
+                        {
+                            contentInfo = await GetContentSizeAndLastAccessTimeAsync(context, contentHash, pinRequest);
+                        }
+
                         results.Add(contentInfo != null ? new PinResult(contentInfo.FileSize, DateTime.FromFileTimeUtc(contentInfo.LastAccessedFileTimeUtc)) : PinResult.ContentNotFound);
                     }
                 }

@@ -13,8 +13,24 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Stores
 {
+    /// <summary>
+    /// Options to control the behavior of <see cref="IContentStoreInternal.PinAsync(Context, IReadOnlyList{ContentHash}, PinContext, PinBulkOptions)"/>.
+    /// </summary>
+    public class PinBulkOptions
+    {
+        /// <nodoc />
+        public static PinBulkOptions Default { get; } = new PinBulkOptions();
+
+        /// <summary>
+        /// If true, then <see cref="IContentStoreInternal.PinAsync(Context, ContentHash, PinContext)"/> is called to restore pinned content after reading hibernating sessions from disk.
+        /// </summary>
+        public bool RePinFromHibernation { get; set; }
+    }
+
     /// <summary>
     ///     Interface to store that is able to store and retrieve content based on its content hash
     /// </summary>
@@ -56,7 +72,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <param name="pinContext">
         ///     Context that will hold the pin record.
         /// </param>
-        Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext);
+        /// <param name="options">Options that controls the behavior of the operation.</param>
+        Task<IEnumerable<Indexed<PinResult>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinContext pinContext, PinBulkOptions? options = default);
 
         /// <summary>
         /// Adds the content to the store without rehashing it.

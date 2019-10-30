@@ -93,6 +93,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public int EvictionPoolSize { get; set; } = 5000;
 
         /// <summary>
+        /// 
+        /// </summary>
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
         /// </summary>
         /// <remarks>
@@ -115,7 +120,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// Indicates the mode used when reading content locations
         /// </summary>
         public ContentLocationMode ReadMode { get; set; } = ContentLocationMode.Redis;
-        public TimeSpan EvictionMinAge { get; set; }
 
         /// <nodoc />
         public bool HasWriteMode(ContentLocationMode mode)

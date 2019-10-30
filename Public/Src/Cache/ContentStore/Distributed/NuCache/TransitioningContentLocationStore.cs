@@ -315,19 +315,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer)
-                .Where(candidate => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge));
+                .Where((candidate, index) => IsPassEvictionAge(context, candidate, index, _configuration.EvictionMinAge));
         }
 
-        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge)
+        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, int evictionattempt, TimeSpan evictionMinAge)
         {
             if (candidate.Age > evictionMinAge)
             {
                 return true;
             }
 
-            // Trace this!
-
-            context.Debug($"");
+            context.Debug($"Eviction candidate replica count: {candidate.ReplicaCount}, Effective age: {candidate.EffectiveAge}, Age: {candidate.Age}");
+            context.Debug($"Pool size: {_configuration.EvictionPoolSize}, Window size: {_configuration.EvictionWindowSize}, Removal fraction: {_configuration.EvictionRemovalFraction}");
             return false;
         }
 

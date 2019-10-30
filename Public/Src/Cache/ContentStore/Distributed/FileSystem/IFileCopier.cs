@@ -71,6 +71,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <param name="hash">The hash of the file to be copied.</param>
         /// <param name="targetMachine">The machine that should copy the file</param>
         Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine);
+
+        /// <summary>
+        /// Pushes content to a target machine.
+        /// </summary>
+        Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Stream source, MachineLocation targetMachine);
     }
 
     /// <summary>

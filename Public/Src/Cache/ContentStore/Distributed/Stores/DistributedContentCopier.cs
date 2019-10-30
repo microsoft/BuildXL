@@ -266,6 +266,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 context.Token);
         }
 
+        /// <summary>
+        /// Pushes content to another machine.
+        /// </summary>
+        public Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Stream source, bool isInsideRing)
+        {
+            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
+            {
+                var cts = new CancellationTokenSource();
+                cts.CancelAfter(_timeoutForPoractiveCopies);
+                // Creating new operation context with a new token, but the newly created context 
+                // still would have the same tracing context to simplify proactive copy trace analysis.
+                var innerContext = context.WithCancellationToken(cts.Token);
+                return context.PerformOperationAsync(
+                    Tracer,
+                    operation: () => _copyRequester.PushFileAsync(innerContext, hash, source, targetLocation),
+                    traceOperationStarted: false,
+                    extraEndMessage: result =>
+                        $"ContentHash={hash.ToShortString()} " +
+                        $"TargetLocation=[{targetLocation}] " +
+                        $"InsideRing={isInsideRing} " +
+                        $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
+                        $"IOGate.Wait={ts.TotalMilliseconds}ms." +
+                        $"Timeout={_timeoutForPoractiveCopies}" +
+                        $"TimedOut={cts.Token.IsCancellationRequested}"
+                    );
+            },
+                context.Token);
+        }
+
         private PutResult CreateCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PutResult>();
         private PutResult CreateMaxRetryPutResult() => new ErrorResult($"Maximum total retries of {_maxRetryCount} attempted").AsResult<PutResult>();
 

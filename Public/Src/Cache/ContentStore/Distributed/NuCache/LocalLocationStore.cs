@@ -933,7 +933,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes)
+        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch = true)
         {
             Contract.Requires(contentHashes != null);
 
@@ -992,7 +992,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     if (eventContentHashes.Count != 0)
                     {
                         // Send add events
-                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes).ThrowIfFailure();
+                        EventStore.AddLocations(context, LocalMachineId, eventContentHashes, touch).ThrowIfFailure();
                     }
 
                     // Register all recently added hashes so subsequent operations do not attempt to re-add
@@ -1404,13 +1404,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             /// <inheritdoc />
-            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling)
+            public void LocationAdded(OperationContext context, MachineId sender, IReadOnlyList<ShortHashWithSize> hashes, bool reconciling, bool updateLastAccessTime)
             {
                 _clusterState.MarkMachineActive(sender);
 
                 foreach (var hashWithSize in hashes.AsStructEnumerable())
                 {
-                    _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling);
+                    _database.LocationAdded(context, hashWithSize.Hash, sender, hashWithSize.Size, reconciling, updateLastAccessTime);
                 }
             }
 

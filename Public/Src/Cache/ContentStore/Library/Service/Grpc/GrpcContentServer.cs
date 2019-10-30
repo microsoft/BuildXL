@@ -393,7 +393,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 }
             }
 
-            var result = await store.HandlePushFileAsync(cacheContext, hash, tempFile, token);
+            PutResult result;
+            using (var source = File.OpenRead(tempFile.Path))
+            {
+                result = await store.HandlePushFileAsync(cacheContext, hash, source, token);
+            }
 
             var response = result
                 ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }

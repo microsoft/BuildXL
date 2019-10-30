@@ -569,6 +569,9 @@ namespace BuildXL.Cache.Host.Configuration
         public string ProactiveCopyMode { get; set; } = "Disabled";
 
         [DataMember]
+        public bool PushProactiveCopies { get; set; } = false;
+
+        [DataMember]
         public int ProactiveCopyLocationsThreshold { get; set; } = 1;
 
         [DataMember]

@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Registers the current machine has the content for the given hash
         /// </summary>
-        Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
+        Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch = true);
 
         /// <summary>
         /// Puts a blob into the content location store.

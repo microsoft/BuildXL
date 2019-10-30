@@ -29,6 +29,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public Dictionary<MachineLocation, ICopyRequestHandler> CopyHandlersByLocation { get; } = new Dictionary<MachineLocation, ICopyRequestHandler>();
 
+        public Dictionary<MachineLocation, IPushFileHandler> PushHandlersByLocation { get; } = new Dictionary<MachineLocation, IPushFileHandler>();
+
         public int FilesCopyAttemptCount => FilesCopied.Count;
 
         public async Task<CopyFileResult> CopyToAsync(AbsolutePath sourcePath, Stream destinationStream, long expectedContentSize, CancellationToken cancellationToken)
@@ -112,6 +114,12 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetMachine)
         {
             return CopyHandlersByLocation[targetMachine].HandleCopyFileRequestAsync(context, hash);
+        }
+
+        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Stream source, MachineLocation targetMachine)
+        {
+            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, source, CancellationToken.None);
+            return result ? BoolResult.Success : new BoolResult(result);
         }
     }
 }

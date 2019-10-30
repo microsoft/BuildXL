@@ -125,7 +125,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             context,
                             addContent.Sender,
                             addContent.ContentHashes.SelectList((hash, index) => new ShortHashWithSize(hash, addContent.ContentSizes[index])),
-                            eventData.Reconciling);
+                            eventData.Reconciling,
+                            addContent.ShouldTouch);
                     }
 
                     break;
@@ -378,7 +379,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Notify that the content specified by the <paramref name="hashesWithSize"/> was added to the machine <paramref name="machine"/>.
         /// </summary>
-        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashesWithSize, bool reconciling = false)
+        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ShortHashWithSize> hashesWithSize, bool reconciling = false, bool touch = true)
         {
             if (hashesWithSize.Count == 0)
             {
@@ -392,7 +393,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var hashes = hashesWithSize.SelectList(h => h.Hash);
                     var sizes = hashesWithSize.SelectList(h => h.Size);
 
-                    Publish(context, new AddContentLocationEventData(machine, hashes, sizes) { Reconciling = reconciling });
+                    Publish(context, new AddContentLocationEventData(machine, hashes, sizes, touch) { Reconciling = reconciling });
 
                     return BoolResult.Success;
                 },
@@ -403,14 +404,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// Notify that the content specified by the <paramref name="hashesWithSize"/> was added to the machine <paramref name="machine"/>.
         /// </summary>
-        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ContentHashWithSize> hashesWithSize)
+        public BoolResult AddLocations(OperationContext context, MachineId machine, IReadOnlyList<ContentHashWithSize> hashesWithSize, bool touch = true)
         {
             if (hashesWithSize.Count == 0)
             {
                 return BoolResult.Success;
             }
 
-            return AddLocations(context, machine, hashesWithSize.SelectList(h => new ShortHashWithSize(h.Hash, h.Size)));
+            return AddLocations(context, machine, hashesWithSize.SelectList(h => new ShortHashWithSize(h.Hash, h.Size)), touch: touch);
         }
 
         /// <summary>

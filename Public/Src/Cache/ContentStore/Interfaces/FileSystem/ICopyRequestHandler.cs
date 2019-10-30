@@ -1,6 +1,7 @@
 // Copyright(c) Microsoft.All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -29,7 +30,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// </summary>
     public interface IPushFileHandler
     {
+        //TODO docs
         /// <nodoc />
-        Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath path, CancellationToken token);
+        Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, Stream source, CancellationToken token);
     }
 }

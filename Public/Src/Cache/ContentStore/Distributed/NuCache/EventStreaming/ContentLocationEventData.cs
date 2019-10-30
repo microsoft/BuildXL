@@ -83,7 +83,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             switch (kind)
             {
                 case EventKind.AddLocation:
-                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()));
+                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()), reader.ReadBoolean());
                 case EventKind.RemoveLocation:
                     return new RemoveContentLocationEventData(sender, hashes);
                 case EventKind.Touch:
@@ -105,6 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             switch (this) {
                 case AddContentLocationEventData addContentLocationEventData:
                     writer.WriteReadOnlyList(addContentLocationEventData.ContentSizes, (w, size) => w.WriteCompact(size));
+                    writer.Write(addContentLocationEventData.ShouldTouch);
                     break;
                 case RemoveContentLocationEventData removeContentLocationEventData:
                 case TouchContentLocationEventData touchContentLocationEventData:
@@ -203,45 +204,51 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// </summary>
         public IReadOnlyList<long> ContentSizes { get; }
 
+        /// <summary>
+        /// Whether the operation should cuase the content last access time to be updated.
+        /// </summary>
+        public bool ShouldTouch { get; }
+
         /// <nodoc />
-        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent)
-            : this(sender, addedContent.SelectList(c => c.Hash), addedContent.SelectList(c => c.Size))
+        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent, bool shouldTouch = true)
+            : this(sender, addedContent.SelectList(c => c.Hash), addedContent.SelectList(c => c.Size), shouldTouch)
         {
         }
 
         /// <nodoc />
-        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHash> contentHashes, IReadOnlyList<long> contentSizes)
+        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHash> contentHashes, IReadOnlyList<long> contentSizes, bool shouldTouch = true)
             : base(EventKind.AddLocation, sender, contentHashes)
         {
             Contract.Requires(contentSizes != null);
             Contract.Requires(contentSizes.Count == contentHashes.Count);
 
             ContentSizes = contentSizes;
+            ShouldTouch = shouldTouch;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
             var sb = new StringBuilder();
-            for(int i = 0; i < ContentHashes.Count; i++)
+            for (int i = 0; i < ContentHashes.Count; i++)
             {
                 sb.Append($"Hash={ContentHashes[i]}, Size={ContentSizes[i]}");
             }
 
-            return $"Event: {Kind}, Sender: {Sender}, {sb}";
+            return $"Event: {Kind}, Sender: {Sender}, ShouldTouch: {ShouldTouch}, {sb}";
         }
 
         /// <inheritdoc />
         public override bool Equals(ContentLocationEventData other)
         {
             var rhs = (AddContentLocationEventData)other;
-            return base.Equals(other) && ContentSizes.SequenceEqual(rhs.ContentSizes);
+            return base.Equals(other) && ShouldTouch.Equals(rhs.ShouldTouch) && ContentSizes.SequenceEqual(rhs.ContentSizes);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return (base.GetHashCode(), ContentSizes.GetHashCode()).GetHashCode();
+            return (base.GetHashCode(), ContentSizes.GetHashCode(), ShouldTouch).GetHashCode();
         }
     }
 
@@ -310,6 +317,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             return (base.GetHashCode(), AccessTime.GetHashCode()).GetHashCode();
         }
-
     }
 }

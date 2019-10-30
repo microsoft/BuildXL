@@ -136,12 +136,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint)
+        public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch = true)
         {
             var operationContext = new OperationContext(context, cts);
             return MultiExecuteAsync(
-                executeLegacyStore: () => _redisContentLocationStore.RegisterLocalLocationAsync(context, contentHashes, cts, urgencyHint),
-                executeLocalLocationStore: () => _localLocationStore.RegisterLocalLocationAsync(operationContext, contentHashes));
+                executeLegacyStore: () => _redisContentLocationStore.RegisterLocalLocationAsync(context, contentHashes, cts, urgencyHint, touch),
+                executeLocalLocationStore: () => _localLocationStore.RegisterLocalLocationAsync(operationContext, contentHashes, touch));
         }
 
         /// <inheritdoc />

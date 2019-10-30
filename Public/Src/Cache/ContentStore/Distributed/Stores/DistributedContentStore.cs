@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -607,17 +608,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath path, CancellationToken token)
+        public async Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, Stream source, CancellationToken token)
         {
             if (InnerContentStore is IPushFileHandler inner)
             {
-                var result = await inner.HandlePushFileAsync(context, hash, path, token);
+                var result = await inner.HandlePushFileAsync(context, hash, source, token);
                 if (!result)
                 {
                     return result;
                 }
 
-                var registerResult = await _contentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, result.ContentSize) }, token, UrgencyHint.Nominal);
+                var registerResult = await _contentLocationStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, result.ContentSize) }, token, UrgencyHint.Nominal, touch: false);
                 if (!registerResult)
                 {
                     return new PutResult(registerResult);

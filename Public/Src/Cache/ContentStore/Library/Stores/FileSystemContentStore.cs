@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -237,9 +238,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         public void PostInitializationCompleted(Context context, BoolResult result) { }
 
         /// <inheritdoc />
-        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath path, CancellationToken token)
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, Stream source, CancellationToken token)
         {
-            return Store.PutFileAsync(context, path, FileRealizationMode.Copy, hash, pinRequest: null);
+            return Store.PutStreamAsync(context, source, hash, pinRequest: null);
         }
     }
 }

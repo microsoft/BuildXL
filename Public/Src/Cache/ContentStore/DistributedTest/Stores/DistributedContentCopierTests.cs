@@ -239,7 +239,7 @@ namespace ContentStoreTest.Distributed.Stores
             public CounterSet GetCounters(Context context) => null;
 
             /// <inheritdoc />
-            public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint) => null;
+            public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch) => null;
 
             /// <inheritdoc />
             public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] blob) => null;

@@ -484,8 +484,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     continue;
                                 }
 
-                                // Don't delete the temporary file! It no longer exists after the Put moved it into the cache
-                                deleteTempFile = false;
+                                if (!putResult.ContentAlreadyExistsInCache)
+                                {
+                                    // Don't delete the temporary file! It no longer exists after the Put moved it into the cache
+                                    deleteTempFile = false;
+                                }
 
                                 // Successful case
                                 return (result: putResult, retry: false);

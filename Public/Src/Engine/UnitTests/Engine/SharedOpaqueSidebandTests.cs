@@ -11,11 +11,11 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
-using static BuildXL.Processes.SharedOpaqueOutputLogger;
+using static BuildXL.Processes.SidebandWriter;
 
 namespace Test.BuildXL.Engine
 {
-    public sealed class SharedOpaqueOutputLoggerTests : TemporaryStorageTestBase
+    public sealed class SidebandTests : TemporaryStorageTestBase
     {
         private static int s_logDirectoryCounter = 0;
 
@@ -23,7 +23,7 @@ namespace Test.BuildXL.Engine
 
         private PathTable PathTable => Context.PathTable;
 
-        public SharedOpaqueOutputLoggerTests(ITestOutputHelper output)
+        public SidebandTests(ITestOutputHelper output)
             : base(output)
         {
             Context = BuildXLContext.CreateInstanceForTesting();
@@ -59,7 +59,7 @@ namespace Test.BuildXL.Engine
         [InlineData("file1", new[] { "dir1", "dir2" })]
         public void DeserializeIsInverseOfSerialize(string logFile, string[] rootDirs)
         {
-            using (var original = new SharedOpaqueOutputLogger(logFile, rootDirs))
+            using (var original = new SidebandWriter(DefaultSidebandMetadata, logFile, rootDirs))
             using (var clone = CloneViaSerialization(original))
             {
                 XAssert.AreEqual(original.SidebandLogFile, clone.SidebandLogFile);
@@ -145,20 +145,20 @@ namespace Test.BuildXL.Engine
                 .ToArray();
 
             var logFile = Path.Combine(myDir, $"bogus-log-close_{closeLoggerCleanly}-append_{appendBogusBytes}");
-            var logger = CreateLogger(logFile);
-            logger.EnsureHeaderWritten();
+            var sidebandWriter = CreateWriter(logFile);
+            sidebandWriter.EnsureHeaderWritten();
             foreach (var path in validRecords)
             {
-                XAssert.IsTrue(logger.RecordFileWrite(PathTable, path));
+                XAssert.IsTrue(sidebandWriter.RecordFileWrite(PathTable, path));
             }
 
             if (closeLoggerCleanly)
             {
-                logger.Dispose();
+                sidebandWriter.Dispose();
             }
             else
             {
-                logger.CloseWriterWithoutFixingUpHeaderForTestingOnly();
+                sidebandWriter.CloseWriterWithoutFixingUpHeaderForTestingOnly();
             }
 
             if (appendBogusBytes)
@@ -174,7 +174,7 @@ namespace Test.BuildXL.Engine
             }
 
             // reading should produce valid records and just finish when it encounters the bogus stuff
-            var read = SharedOpaqueOutputLogger.ReadRecordedPathsFromSidebandFile(logFile).ToArray();
+            var read = SidebandWriter.ReadRecordedPathsFromSidebandFile(logFile).ToArray();
             XAssert.ArrayEqual(validRecords, read);
         }
 
@@ -203,7 +203,7 @@ namespace Test.BuildXL.Engine
             pathToTest = X(pathToTest);
 
             var logPath = Path.Combine(myDir, "Pip0");
-            using (var logger = CreateLogger(logPath, rootDirs))
+            using (var logger = CreateWriter(logPath, rootDirs))
             {
                 bool recorded = logger.RecordFileWrite(PathTable, pathToTest);
                 XAssert.AreEqual(expectedToBeRecorded, recorded);
@@ -216,7 +216,7 @@ namespace Test.BuildXL.Engine
 
         private void CreateOutputLoggerAndRecordPaths(string logPath, IEnumerable<string> pathsToRecord, IReadOnlyList<string> rootDirs = null)
         {
-            using (var logger = CreateLogger(logPath, rootDirs))
+            using (var logger = CreateWriter(logPath, rootDirs))
             {
                 XAssert.AreEqual(logPath, logger.SidebandLogFile);
 
@@ -227,16 +227,17 @@ namespace Test.BuildXL.Engine
             }
         }
 
-        private SharedOpaqueOutputLogger CreateLogger(string logPath = null, IReadOnlyList<string> rootDirs = null)
+        private SidebandWriter CreateWriter(string logPath = null, IReadOnlyList<string> rootDirs = null, SidebandMetadata metadata = null)
         {
             logPath = logPath ?? Path.Combine(TemporaryDirectory, $"{s_logDirectoryCounter++}", "log");
             Directory.CreateDirectory(Path.GetDirectoryName(logPath));
-            return new SharedOpaqueOutputLogger(
+            return new SidebandWriter(
+                metadata: metadata ?? DefaultSidebandMetadata,
                 sidebandLogFile: logPath,
                 rootDirectories: rootDirs);
         }
 
-        private static SharedOpaqueOutputLogger CloneViaSerialization(SharedOpaqueOutputLogger original)
+        private static SidebandWriter CloneViaSerialization(SidebandWriter original)
         {
             using (var stream = new MemoryStream())
             {
@@ -248,7 +249,7 @@ namespace Test.BuildXL.Engine
                 stream.Seek(0, SeekOrigin.Begin);
                 using (var reader = new BuildXLReader(debug: true, stream, leaveOpen: true))
                 {
-                    return SharedOpaqueOutputLogger.Deserialize(reader);
+                    return SidebandWriter.Deserialize(reader);
                 }
             }
         }

@@ -242,6 +242,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
             }
         }
 
+        /// <summary>
+        /// No particular meaning, just an arbitrary instance of <see cref="SidebandMetadata"/>.
+        /// </summary>
+        protected static SidebandMetadata DefaultSidebandMetadata { get; }
+            = new SidebandMetadata(pipId: 1, staticPipFingerprint: new byte[] { 1, 2, 3 });
+
         /// <inheritdoc/>
         public void Dispose()
         {

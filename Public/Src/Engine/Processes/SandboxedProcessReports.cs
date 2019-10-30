@@ -42,7 +42,7 @@ namespace BuildXL.Processes
         private readonly IDetoursEventListener m_detoursEventListener;
 
         [CanBeNull]
-        private readonly SharedOpaqueOutputLogger m_sharedOpaqueOutputLogger;
+        private readonly SidebandWriter m_sharedOpaqueOutputLogger;
 
         public readonly List<ReportedProcess> Processes = new List<ReportedProcess>();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
@@ -104,7 +104,7 @@ namespace BuildXL.Processes
             string pipDescription,
             LoggingContext loggingContext,
             [CanBeNull] IDetoursEventListener detoursEventListener,
-            [CanBeNull] SharedOpaqueOutputLogger sharedOpaqueOutputLogger)
+            [CanBeNull] SidebandWriter sharedOpaqueOutputLogger)
         {
             Contract.Requires(manifest != null);
             Contract.Requires(pathTable != null);

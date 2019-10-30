@@ -282,7 +282,6 @@ namespace BuildXL.Processes
                 // write header and metadata before anything else
                 FileEnvelope.WriteHeader(writer.BaseStream, m_envelopeId);
                 Metadata.Serialize(writer);
-
                 return writer;
             });
         }

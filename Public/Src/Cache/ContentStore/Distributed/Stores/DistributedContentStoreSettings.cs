@@ -179,5 +179,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// Name of the blob with the snapshot of the content placement predictions.
         /// </summary>
         public string ContentPlacementPredictionsBlob { get; set; } // Can be null.
+
+        /// <summary>
+        /// Used in tests to inline put blob execution.
+        /// </summary>
+        public bool ShouldInlinePutBlob { get; set; } = false;
     }
 }

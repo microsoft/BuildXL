@@ -405,7 +405,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Age threshold after which we should eagerly restore checkpoint blocking the caller.
         /// </summary>
-        public TimeSpan RestoreCheckpointAgeThreshold { get; set; } = TimeSpan.FromMinutes(LocalLocationStoreConfiguration.DefaultLocationEntryExpiry.TotalMinutes / 2);
+        public TimeSpan RestoreCheckpointAgeThreshold { get; set; }
 
         /// <inheritdoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;

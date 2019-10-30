@@ -3532,25 +3532,23 @@ namespace BuildXL.Scheduler.Tracing
             Message = "USN journal statistics for scheduler")]
         public abstract void JournalProcessingStatisticsForSchedulerTelemetry(LoggingContext context, string scanningJournalStatus, IDictionary<string, long> stats);
 
-        // TODO(kenbreid) Enable the correct log methods
+        [GeneratedEvent(
+            (int)EventId.ProcessRetries,
+            EventGenerators = EventGenerators.TelemetryOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "ProcessRetries PipsSucceedingAfterUserRetry:{0} and PipsFailingAfterUserRetry:{1}")]
+        public abstract void ProcessRetries(LoggingContext context, string pipsSucceedingAfterUserRetry, string pipsFailingAfterLastUserRetry);
 
-        //[GeneratedEvent(
-        //    (int)EventId.ProcessRetries,
-        //    EventGenerators = EventGenerators.LocalOnly,
-        //    EventLevel = Level.Verbose,
-        //    EventTask = (ushort)Tasks.Scheduler,
-        //    Keywords = (int)Keywords.UserMessage,
-        //    Message = "Telemetry for User allowed retries")]
-        //public abstract void ProcessRetries(LoggingContext context, string pipsSucceedingAfterUserRetry, string pipsFailingAfterLastUserRetry);
-
-        //[GeneratedEvent(
-        //    (int)EventId.ProcessPattern,
-        //    EventGenerators = EventGenerators.LocalOnly,
-        //    EventLevel = Level.Verbose,
-        //    EventTask = (ushort)Tasks.Scheduler,
-        //    Keywords = (int)Keywords.UserMessage,
-        //    Message = "Telemetry for User defined pip properties")]
-        //public abstract void ProcessPattern(LoggingContext context, IDictionary<string, int> pipProperyCounts, IDictionary<string, HashSet<string>> pipPropertyImpactedPips);
+        [GeneratedEvent(
+            (int)EventId.ProcessPattern,
+            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "ProcessPattern {0}")]
+        public abstract void ProcessPattern(LoggingContext context, string pipPropertyImpactedPips, IDictionary<string, long> stats);
 
         [GeneratedEvent(
             (int)EventId.IncrementalSchedulingNewlyPresentFile,

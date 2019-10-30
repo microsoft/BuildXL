@@ -118,8 +118,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The max count of PipIds for telemetry fields recording a list if impact pips
         /// </summary>
-        /// TODO(kenbreid) Determine the correct number
-        private const int MaxListOfPipIdsForTelemetry = 100; 
+        private const int MaxListOfPipIdsForTelemetry = 50; 
 
         /// <summary>
         /// Prefix used by the IDE integration for the name of EventHandles marking a value's successful completion
@@ -303,7 +302,8 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
-        private Dictionary<string, int> m_aggregatedPipPropertiesCount = new Dictionary<string, int>();
+        // TODO(kenbreid) These structures need to be concurrent
+        private Dictionary<string, long> m_aggregatedPipPropertiesCount = new Dictionary<string, long>();
         private Dictionary<string, HashSet<string>> m_addgregatepipsPerPipProperty = new Dictionary<string, HashSet<string>>();
         private HashSet<string> m_pipsSucceedingAfterUserRetry = new HashSet<string>();
         private HashSet<string> m_pipsFailingAfterLastUserRetry = new HashSet<string>();
@@ -1661,30 +1661,24 @@ namespace BuildXL.Scheduler
             {
                 string pipsSucceedingAfterUserRetry = string.Join(",", m_pipsSucceedingAfterUserRetry);
                 string pipsFailingAfterLastUserRetry = string.Join(",", m_pipsFailingAfterLastUserRetry);
-
-                // TODO(kenbreid) Original plan for ProcessRetries event is as follows:
-
-                //• ProcessRetries event – This is a single event for the build session which will fire only if retries took place. It has the following columns
-                //    o PipsSucceedingAfterUserRetry – csv of semistable hashes that succeeded after a user retry
-                //    o PipsFailingAfterLastUserRetry – csv of semistable hashes of pips failed after a user retry
-                //    o ProcessUserRetriesImpactedPipsCount – count of distinct pips impacted by user retries
-                //    o ProcessUserRetries – count of user retries performed
-                //    o RetriedUserExecutionDurationMs – sum retried process wall clock time of all user retried pips
-                //    o RetriedInternalExecutionDurationMs – sum retried process wall clock time of all pips retried for internal failures
-
-                // Logger.Log.ProcessRetries(loggingContext, pipsSucceedingAfterUserRetry, pipsFailingAfterLastUserRetry);
+                Logger.Log.ProcessRetries(loggingContext, pipsSucceedingAfterUserRetry, pipsFailingAfterLastUserRetry);
             }
 
             if (m_aggregatedPipPropertiesCount.Count > 0)
             {
-                // TODO(kenbreid) Original plan for ProcessPattern event is as follows:
-
-                //• ProcessPattern event – Single session level event that will give counters for various interesting things that happen during the build. tern_. If the regex has a match for that capture group a counter gets incremented. At the end of the build session a single event is sent with a summary of the hits for those user defined patterns. Columns would be:
-                //   o [PatternName]Count – Count of all pips that had a result for user defined capture group ProcessPattern_[ExtactedInformation]_EndProperty is determined by looking for patterns in tool output streams. When a pip fails (including prior to a retry), BuildXL would apply the regular expression to the output to look for specific capture groups that are prefixed with 
-                //   o [PatternName]Pips – SemiStable hashes corresponding to the counter. This is separate from count because it may need to be truncated
-                //   o All additional patterns
-
-                // Logger.Log.ProcessPattern(loggingContext, m_aggregatedPipPropertiesCount, m_addgregatepipsPerPipProperty);
+                // Log out one message with containing a string of pip properties with their impacted pips
+                int countOfLoggedProperties = 0;
+                string pipPropertiesPips = string.Empty;
+                foreach (var item in m_aggregatedPipPropertiesCount)
+                {
+                    pipPropertiesPips = item.Key + "Pips: " + string.Join(",", item.Value);
+                    countOfLoggedProperties++;
+                    if (countOfLoggedProperties == MaxListOfPipIdsForTelemetry)
+                    {
+                        break;
+                    }
+                }
+                Logger.Log.ProcessPattern(loggingContext, pipPropertiesPips, m_aggregatedPipPropertiesCount);
             }
 
             m_apiServer?.LogStats(loggingContext);

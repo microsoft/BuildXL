@@ -69,22 +69,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             CentralStorage centralStorage,
             Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
-            Contract.Requires(configuration != null);
-            Contract.Requires(name != null);
-            Contract.Requires(eventHandler != null);
-            Contract.Requires(centralStorage != null);
-            Contract.Requires(workingDirectory != null);
+            Contract.RequiresNotNull(configuration);
+            Contract.RequiresNotNull(name);
+            Contract.RequiresNotNull(eventHandler);
+            Contract.RequiresNotNull(centralStorage);
+            Contract.RequiresNotNull(workingDirectory);
 
-            _configuration = configuration!;
+            _configuration = configuration;
             _fileSystem = new PassThroughFileSystem();
-            _storage = centralStorage!;
+            _storage = centralStorage;
             _workingDisposableDirectory = new DisposableDirectory(_fileSystem, workingDirectory);
-            _workingDirectory = workingDirectory!;
-            EventHandler = eventHandler!;
+            _workingDirectory = workingDirectory;
+            EventHandler = eventHandler;
             var tracer = new Tracer(name) { LogOperationStarted = false };
             Tracer = tracer;
 
-            ValidationMode validationMode = configuration!.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
+            ValidationMode validationMode = configuration.SelfCheckSerialization ? ValidationMode.Trace : ValidationMode.Off;
             EventDataSerializer = new ContentLocationEventDataSerializer(validationMode);
         }
 
@@ -98,8 +98,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             CentralStorage centralStorage,
             Interfaces.FileSystem.AbsolutePath workingDirectory)
         {
-            Contract.Requires(configuration != null);
-            return new EventHubContentLocationEventStore(configuration!, eventHandler, localMachineName, centralStorage, workingDirectory);
+            Contract.RequiresNotNull(configuration);
+            return new EventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, workingDirectory);
         }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected async Task DispatchAsync(OperationContext context, ContentLocationEventData eventData, CounterCollection<ContentLocationEventStoreCounters> counters)
         {
-            Contract.Requires(eventData != null);
+            Contract.RequiresNotNull(eventData);
 
             switch (eventData)
             {
@@ -151,7 +151,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     }
                     break;
                 default:
-                    throw new InvalidOperationException($"Unknown ContentLocationEventData type '{eventData!.GetType()}'.");
+                    throw new InvalidOperationException($"Unknown ContentLocationEventData type '{eventData.GetType()}'.");
             }
         }
 

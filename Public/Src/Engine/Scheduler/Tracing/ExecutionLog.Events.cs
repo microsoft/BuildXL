@@ -1363,12 +1363,16 @@ namespace BuildXL.Scheduler.Tracing
             public LoggingConfigurationData Logging;
 
             /// <nodoc />
+            public SandboxConfigurationData Sandbox;
+
+            /// <nodoc />
             public IReadOnlyList<string> CommandLineArguments;
 
             /// <nodoc />
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
+                Sandbox = new SandboxConfigurationData(configuration.Sandbox);
                 CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
@@ -1376,6 +1380,7 @@ namespace BuildXL.Scheduler.Tracing
             public void Serialize(BinaryLogger.EventWriter writer)
             {
                 Logging.Serialize(writer);
+                Sandbox.Serialize(writer);
                 writer.WriteReadOnlyList(CommandLineArguments, (w, a) => w.Write(a));
             }
 
@@ -1383,6 +1388,7 @@ namespace BuildXL.Scheduler.Tracing
             public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
             {
                 Logging.DeserializeAndUpdate(reader);
+                Sandbox.DeserializeAndUpdate(reader);
                 CommandLineArguments = reader.ReadReadOnlyList((r => r.ReadString()));
             }
         }
@@ -1420,6 +1426,37 @@ namespace BuildXL.Scheduler.Tracing
             {
                 SubstSource = reader.ReadAbsolutePath();
                 SubstTarget = reader.ReadAbsolutePath();
+            }
+        }
+
+        /// <nodoc />
+        public struct SandboxConfigurationData
+        {
+            /// <nodoc />
+            public IReadOnlyList<AbsolutePath> GlobalUntrackedScopes;
+
+            /// <nodoc />
+            public IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables;
+
+            /// <nodoc />
+            public SandboxConfigurationData(ISandboxConfiguration configuration)
+            {
+                GlobalUntrackedScopes = configuration.GlobalUnsafeUntrackedScopes;
+                GlobalUnsafePassthroughEnvironmentVariables = configuration.GlobalUnsafePassthroughEnvironmentVariables;
+            }
+
+            /// <nodoc />
+            public void Serialize(BinaryLogger.EventWriter writer)
+            {
+                writer.WriteReadOnlyList(GlobalUntrackedScopes, (w, v) => w.Write(v));
+                writer.WriteReadOnlyList(GlobalUnsafePassthroughEnvironmentVariables, (w, v) => w.Write(v));
+            }
+
+            /// <nodoc />
+            public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+            {
+                GlobalUntrackedScopes = reader.ReadReadOnlyList((r) => r.ReadAbsolutePath());
+                GlobalUnsafePassthroughEnvironmentVariables = reader.ReadReadOnlyList((r) => r.ReadString());
             }
         }
 

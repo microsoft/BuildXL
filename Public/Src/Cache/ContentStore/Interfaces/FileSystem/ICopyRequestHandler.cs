@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+#nullable enable
 
 // ReSharper disable All
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem

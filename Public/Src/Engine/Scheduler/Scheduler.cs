@@ -1959,8 +1959,6 @@ namespace BuildXL.Scheduler
                 m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ?? default(PerformanceCollector.MachinePerfInfo);
                 UpdateResourceAvailability(m_perfInfo);
 
-                var resourceManager = State.ResourceManager;
-
                 // Of the pips in choose worker, how many could be executing on the the local worker but are not due to
                 // resource constraints
                 int pipsWaitingOnResources = Math.Min(
@@ -2145,6 +2143,7 @@ namespace BuildXL.Scheduler
         private void UpdateResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo)
         {
             var resourceManager = State.ResourceManager;
+            resourceManager.UpdateRamUsageForResourceScopes();
 
             if (LocalWorker.TotalMemoryMb == null)
             {
@@ -2173,9 +2172,27 @@ namespace BuildXL.Scheduler
             }
 
 #if PLATFORM_OSX
-            Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
-            var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-            resourceAvailable &= !(result && (pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel));
+            if (!resourceAvailable)
+            {
+                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
+                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+
+                if (result)
+                {
+                    // If the memory pressure level is not above the configured level but we've infered resources are not available earlier,
+                    // we reset the resource availability and override the decision by looking at the current pressure level only!
+                    resourceAvailable = !(pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel);
+                }
+                else
+                {
+                    Logger.Log.UnableToGetMemoryPressureLevel(
+                            m_executePhaseLoggingContext,
+                            availableRam: perfInfo.AvailableRamMb.Value,
+                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                            ramUtilization: perfInfo.RamUsagePercentage.Value,
+                            maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
+                }
+            }
 #endif
 
             if (!resourceAvailable)
@@ -3582,9 +3599,7 @@ namespace BuildXL.Scheduler
                         {
                             var perfInfo = executionResult.PerformanceInformation;
 
-                            if (perfInfo != null)
-                            {
-                                m_groupedPipCounters.AddToCounters(
+                            m_groupedPipCounters.AddToCounters(
                                     processRunnable.Process,
                                     new[]
                                     {
@@ -3593,7 +3608,6 @@ namespace BuildXL.Scheduler
                                     },
                                     new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
                                 );
-                            }
                         }
 
                         // The pip was canceled
@@ -3662,20 +3676,20 @@ namespace BuildXL.Scheduler
 
                         if (!IsDistributedWorker)
                         {
-                            var expectedRamUsage = runnablePip.Worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
+                            var expectedRamUsage = worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
 
-                            int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb;
-                            int peakWorkingSetMb = executionResult.PerformanceInformation.MemoryCounters.PeakWorkingSetMb;
-                            int peakPagefileUsageMb = executionResult.PerformanceInformation.MemoryCounters.PeakPagefileUsageMb;
+                            int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakVirtualMemoryUsageMb ?? 0;
+                            int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
+                            int peakPagefileUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakPagefileUsageMb ?? 0;
 
                             Logger.Log.ProcessPipExecutionInfo(
-                                operationContext, 
+                                operationContext,
                                 runnablePip.Description,
-                                (int)executionResult.PerformanceInformation.NumberOfProcesses,
+                                (int)(executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
                                 (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
-                                (int)executionResult.PerformanceInformation.ProcessExecutionTime.TotalSeconds,
-                                executionResult.PerformanceInformation.ProcessorsInPercents,
-                                runnablePip.Worker.DefaultMemoryUsagePerProcess, 
+                                (int)(executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
+                                executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
+                                worker.DefaultMemoryUsagePerProcess, 
                                 expectedRamUsage,
                                 peakVirtualMemoryUsageMb,
                                 peakWorkingSetMb,

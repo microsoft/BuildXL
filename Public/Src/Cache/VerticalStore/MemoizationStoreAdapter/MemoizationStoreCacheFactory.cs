@@ -447,8 +447,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     localCacheConfiguration,
                     configurationModel: CreateConfigurationModel(GetCasConfig(config)),
                     clock: null,
-                    checkLocalFiles: config.CheckLocalFiles,
-                    emptyFileHashShortcutEnabled: config.EmptyFileHashShortcutEnabled);
+                    checkLocalFiles: config.CheckLocalFiles);
             }
 
         }

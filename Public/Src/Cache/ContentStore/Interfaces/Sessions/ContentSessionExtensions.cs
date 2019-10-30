@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
 {
@@ -154,8 +155,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             long size,
             CancellationToken ct)
         {
-            Contract.Requires(session != null);
-            Contract.Requires(context != null);
+            Contract.RequiresNotNull(session);
+            Contract.RequiresNotNull(context);
 
             var c = context.CreateNested();
 
@@ -203,9 +204,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
             long size,
             CancellationToken ct)
         {
-            Contract.Requires(session != null);
-            Contract.Requires(context != null);
-            Contract.Requires(fileSystem != null);
+            Contract.RequiresNotNull(session);
+            Contract.RequiresNotNull(context);
+            Contract.RequiresNotNull(fileSystem);
 
             using (var directory = new DisposableDirectory(fileSystem))
             {

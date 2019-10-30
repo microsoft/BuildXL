@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
+#pragma warning disable IDE0040 // Add accessibility modifiers
 
 // We can't rename the Protobuff namespace so we'll have to keep these old global namespaces around.
 namespace ContentStore.Grpc
@@ -64,3 +65,5 @@ namespace ContentStore.Grpc
         }
     }
 }
+
+#pragma warning restore IDE0040 // Add accessibility modifier

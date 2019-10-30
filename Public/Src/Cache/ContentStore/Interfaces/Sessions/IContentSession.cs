@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+#nullable enable
 
 // ReSharper disable UnusedParameter.Global
 namespace BuildXL.Cache.ContentStore.Interfaces.Sessions

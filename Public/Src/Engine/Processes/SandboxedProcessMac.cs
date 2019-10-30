@@ -14,6 +14,7 @@ using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
@@ -130,7 +131,7 @@ namespace BuildXL.Processes
                 info.PipDescription,
                 info.LoggingContext,
                 info.DetoursEventListener,
-                info.SharedOpaqueOutputLogger);
+                info.SidebandWriter);
 
             m_pendingReports = new ActionBlock<AccessReport>(
                 HandleAccessReport,
@@ -173,7 +174,7 @@ namespace BuildXL.Processes
             }
 
             // get memory usage for the process tree
-            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, ProcessId));
+            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakWorkingSet(default, ProcessId));
         }
 
         /// <inheritdoc />
@@ -230,7 +231,7 @@ namespace BuildXL.Processes
             {
                 // IOException can happen if the process is forcefully killed while we're feeding its std in.
                 // When that happens, instead of crashing, just make sure the process is killed.
-                LogProcessState($"IOException caught while feeding the standard input: {e.Message}");
+                LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
                 await KillAsync();
             }
         }
@@ -409,7 +410,7 @@ namespace BuildXL.Processes
                         ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
                     }),
-                    PeakMemoryUsage = Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum),
+                    MemoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0),
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
                 };

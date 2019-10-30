@@ -119,7 +119,7 @@ namespace BuildXL.Execution.Analyzer
                 WriteColumn(Math.Round(performance.IO.WriteCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
                 WriteColumn(Math.Round(performance.IO.OtherCounters.TransferCount / 1024 / 1024 / 1024.0, 1).ToString());
                 WriteColumn(performance.NumberOfProcesses.ToString());
-                m_writer.Write(performance.PeakMemoryUsage.ToString());
+                m_writer.Write(performance.MemoryCounters.PeakWorkingSet.ToString());
 
                 m_writer.WriteLine();
             }
@@ -158,7 +158,7 @@ namespace BuildXL.Execution.Analyzer
                 WriteLineIndented(I($"\"executionTimeInMs\" : {performance.ProcessExecutionTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"userExecutionTimeInMs\" : {performance.UserTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"kernelExecutionTimeInMs\" : {performance.KernelTime.TotalMilliseconds},"));
-                WriteLineIndented(I($"\"peakMemoryUsageInMb\" : {performance.PeakMemoryUsage},"));
+                WriteLineIndented(I($"\"peakMemoryUsageInByte\" : {performance.MemoryCounters.PeakVirtualMemoryUsage},"));
 
                 WriteLineIndented("\"io\" : {");
                 IncrementIndent();

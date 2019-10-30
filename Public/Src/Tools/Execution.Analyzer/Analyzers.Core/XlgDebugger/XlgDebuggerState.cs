@@ -12,7 +12,6 @@ using BuildXL.FrontEnd.Script.Debugger;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
-using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;

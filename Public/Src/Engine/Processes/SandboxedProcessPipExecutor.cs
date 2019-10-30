@@ -19,6 +19,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -246,7 +247,10 @@ namespace BuildXL.Processes
             m_rootMappings = rootMappings;
             m_workingDirectory = pip.WorkingDirectory.ToString(m_pathTable);
             m_fileAccessManifest =
-                new FileAccessManifest(m_pathTable, directoryTranslator)
+                new FileAccessManifest(
+                    m_pathTable, 
+                    directoryTranslator, 
+                    m_pip.ChildProcessesToBreakawayFromSandbox.Select(process => process.ToString(context.StringTable)).ToReadOnlyArray())
                 {
                     MonitorNtCreateFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = sandBoxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
@@ -393,11 +397,11 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// <see cref="SandboxedProcess.GetActivePeakMemoryUsage"/>
+        /// <see cref="SandboxedProcess.GetActivePeakWorkingSet"/>
         /// </summary>
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
-            return m_activeProcess?.GetActivePeakMemoryUsage();
+            return m_activeProcess?.GetActivePeakWorkingSet();
         }
 
         private static Task<Regex> GetRegexAsync(ExpandedRegexDescriptor descriptor)
@@ -622,7 +626,10 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(
+            CancellationToken cancellationToken = default, 
+            ISandboxConnection sandboxConnection = null,
+            SidebandWriter sidebandWriter = null)
         {
             try
             {
@@ -652,7 +659,6 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                using (var sharedOpaqueOutputLogger = CreateSharedOpaqueOutputLoggerIfConfigured())
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -692,7 +698,7 @@ namespace BuildXL.Processes
                         m_pip.TestRetries,
                         m_loggingContext,
                         sandboxConnection: sandboxConnection,
-                        sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
+                        sidebandWriter: sidebandWriter)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -719,15 +725,6 @@ namespace BuildXL.Processes
 
                 m_fileAccessManifest.UnsetMessageCountSemaphore();
             }
-        }
-
-        private SharedOpaqueOutputLogger CreateSharedOpaqueOutputLoggerIfConfigured()
-        {
-            // don't use this logger if the root directory is not set up in the configuration layout or
-            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
-            return m_layoutConfiguration?.SharedOpaqueSidebandDirectory.IsValid == true && m_pip.SemiStableHash != 0
-                ? new SharedOpaqueOutputLogger(m_context, m_pip, m_layoutConfiguration.SharedOpaqueSidebandDirectory)
-                : null;
         }
 
         private bool SandboxedProcessNeedsExecuteExternal
@@ -2596,10 +2593,10 @@ namespace BuildXL.Processes
             changeAffectedInputs == null
                 ? Task.FromResult(true)
                 : WritePipAuxiliaryFileAsync(
-                    m_pip.ChangeAffectedInputListWrittenFilePath,
+                    m_pip.ChangeAffectedInputListWrittenFile,
                     () => string.Join(
                         Environment.NewLine,
-                        changeAffectedInputs.Select(i => i.GetName(m_pathTable).ToString(m_pathTable.StringTable)).Distinct().OrderBy(n => n)),
+                        changeAffectedInputs.Select(i => i.ToString(m_pathTable))),
                     Tracing.Logger.Log.PipProcessChangeAffectedInputsWrittenFileCreationFailed);
 
         private async Task<bool> WritePipAuxiliaryFileAsync(

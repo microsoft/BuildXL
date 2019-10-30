@@ -1146,6 +1146,11 @@ namespace BuildXL.Scheduler.Tracing
         public int MachineRamUtilizationMB;
 
         /// <summary>
+        /// Available Ram in MB
+        /// </summary>
+        public int MachineAvailableRamMB;
+
+        /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
         /// current size not necessarily the maximum size. So even if this hits 100%, the machine may still be able to
         /// commit more as the page file expands.
@@ -1276,6 +1281,11 @@ namespace BuildXL.Scheduler.Tracing
             {
                 writer.Write(pipsSucceeded);
             }
+
+            writer.Write(MachineRamUtilizationMB);
+            writer.Write(MachineAvailableRamMB);
+            writer.Write(CommitPercent);
+            writer.Write(CommitTotalMB);
         }
 
         /// <inheritdoc />
@@ -1321,6 +1331,11 @@ namespace BuildXL.Scheduler.Tracing
             {
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
+
+            MachineRamUtilizationMB = reader.ReadInt32();
+            MachineAvailableRamMB = reader.ReadInt32();
+            CommitPercent = reader.ReadInt32();
+            CommitTotalMB = reader.ReadInt32();
         }
     }
 
@@ -1348,12 +1363,16 @@ namespace BuildXL.Scheduler.Tracing
             public LoggingConfigurationData Logging;
 
             /// <nodoc />
+            public SandboxConfigurationData Sandbox;
+
+            /// <nodoc />
             public IReadOnlyList<string> CommandLineArguments;
 
             /// <nodoc />
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
+                Sandbox = new SandboxConfigurationData(configuration.Sandbox);
                 CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
@@ -1361,6 +1380,7 @@ namespace BuildXL.Scheduler.Tracing
             public void Serialize(BinaryLogger.EventWriter writer)
             {
                 Logging.Serialize(writer);
+                Sandbox.Serialize(writer);
                 writer.WriteReadOnlyList(CommandLineArguments, (w, a) => w.Write(a));
             }
 
@@ -1368,6 +1388,7 @@ namespace BuildXL.Scheduler.Tracing
             public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
             {
                 Logging.DeserializeAndUpdate(reader);
+                Sandbox.DeserializeAndUpdate(reader);
                 CommandLineArguments = reader.ReadReadOnlyList((r => r.ReadString()));
             }
         }
@@ -1405,6 +1426,37 @@ namespace BuildXL.Scheduler.Tracing
             {
                 SubstSource = reader.ReadAbsolutePath();
                 SubstTarget = reader.ReadAbsolutePath();
+            }
+        }
+
+        /// <nodoc />
+        public struct SandboxConfigurationData
+        {
+            /// <nodoc />
+            public IReadOnlyList<AbsolutePath> GlobalUntrackedScopes;
+
+            /// <nodoc />
+            public IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables;
+
+            /// <nodoc />
+            public SandboxConfigurationData(ISandboxConfiguration configuration)
+            {
+                GlobalUntrackedScopes = configuration.GlobalUnsafeUntrackedScopes;
+                GlobalUnsafePassthroughEnvironmentVariables = configuration.GlobalUnsafePassthroughEnvironmentVariables;
+            }
+
+            /// <nodoc />
+            public void Serialize(BinaryLogger.EventWriter writer)
+            {
+                writer.WriteReadOnlyList(GlobalUntrackedScopes, (w, v) => w.Write(v));
+                writer.WriteReadOnlyList(GlobalUnsafePassthroughEnvironmentVariables, (w, v) => w.Write(v));
+            }
+
+            /// <nodoc />
+            public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+            {
+                GlobalUntrackedScopes = reader.ReadReadOnlyList((r) => r.ReadAbsolutePath());
+                GlobalUnsafePassthroughEnvironmentVariables = reader.ReadReadOnlyList((r) => r.ReadString());
             }
         }
 

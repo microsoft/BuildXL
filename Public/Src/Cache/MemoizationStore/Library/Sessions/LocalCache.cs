@@ -53,8 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             LocalCacheConfiguration localCacheConfiguration,
             ConfigurationModel configurationModel = null,
             IClock clock = null,
-            bool checkLocalFiles = true,
-            bool emptyFileHashShortcutEnabled = false)
+            bool checkLocalFiles = true)
         {
             clock = clock ?? SystemClock.Instance;
 
@@ -62,7 +61,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             var contentStoreSettings = new ContentStoreSettings()
             {
                 CheckFiles = checkLocalFiles,
-                UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled
             };
 
             Func<IContentStore> contentStoreFactory = () =>
@@ -103,13 +101,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModelForStream = null,
             ConfigurationModel configurationModelForPath = null,
             IClock clock = null,
-            bool checkLocalFiles = true,
-            bool emptyFileHashShortcutEnabled = false)
+            bool checkLocalFiles = true)
         {
             var fileSystem = new PassThroughFileSystem(logger);
             clock = clock ?? SystemClock.Instance;
 
-            var contentStoreSettings = new ContentStoreSettings() { CheckFiles = checkLocalFiles, UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled };
+            var contentStoreSettings = new ContentStoreSettings() { CheckFiles = checkLocalFiles};
 
             Func<IContentStore> contentStoreFactory = () => new StreamPathContentStore(
                                 () => new FileSystemContentStore(fileSystem, clock, rootPathForStream, configurationModelForStream, settings: contentStoreSettings),

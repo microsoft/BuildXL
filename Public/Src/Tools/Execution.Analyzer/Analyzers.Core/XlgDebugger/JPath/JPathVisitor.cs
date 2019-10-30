@@ -194,6 +194,20 @@ public interface IJPathVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitIntLitExpr([NotNull] JPathParser.IntLitExprContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>PropertyValue</c>
+	/// labeled alternative in <see cref="JPathParser.propVal"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPropertyValue([NotNull] JPathParser.PropertyValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>ObjLitProps</c>
+	/// labeled alternative in <see cref="JPathParser.objLit"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitObjLitProps([NotNull] JPathParser.ObjLitPropsContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>MapExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
@@ -215,6 +229,13 @@ public interface IJPathVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitCardinalityExpr([NotNull] JPathParser.CardinalityExprContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>SaveToFileExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSaveToFileExpr([NotNull] JPathParser.SaveToFileExprContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>LetExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// </summary>
@@ -228,6 +249,13 @@ public interface IJPathVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitSubExpr([NotNull] JPathParser.SubExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>AppendToFileExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAppendToFileExpr([NotNull] JPathParser.AppendToFileExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>BinExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -277,6 +305,13 @@ public interface IJPathVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitRootExpr([NotNull] JPathParser.RootExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>ObjLitExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitObjLitExpr([NotNull] JPathParser.ObjLitExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>PipeExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.

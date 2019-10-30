@@ -23,6 +23,7 @@ using BuildXL.Pips.Artifacts;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.Containers;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
 using BuildXL.Scheduler.Fingerprints;
@@ -1335,8 +1336,8 @@ namespace BuildXL.Scheduler
                                     }
                                 });
 
-                            IReadOnlyList<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFilePath.IsValid
-                                ? environment.State.FileContentManager.SourceChangeAffectedContents.GetChangeAffectedInputs(pip)
+                            IReadOnlyList<AbsolutePath> changeAffectedInputs = pip.ChangeAffectedInputListWrittenFile.IsValid
+                                ? environment.State.FileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(pip)
                                 : null;
 
                             int remainingUserRetries = pip.RetryExitCodes.Length > 0 ? configuration.Schedule.ProcessRetries : 0;
@@ -1384,10 +1385,10 @@ namespace BuildXL.Scheduler
                                 registerQueryRamUsageMb(
                                     () =>
                                     {
-                                        using (operationContext.StartAsyncOperation(PipExecutorCounter.QueryRamUsageDuration))
+                                        using (counters[PipExecutorCounter.QueryRamUsageDuration].Start())
                                         {
                                             lastObservedPeakRamUsage =
-                                                (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakMemoryUsage() ?? 0));
+                                                (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakWorkingSet() ?? 0));
                                         }
 
                                         return lastObservedPeakRamUsage;
@@ -1400,7 +1401,10 @@ namespace BuildXL.Scheduler
                                     environment.SetMaxExternalProcessRan();
                                 }
 
-                                result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection);
+                                using (var sidebandWriter = CreateSidebandWriterIfConfigured(environment, pip))
+                                {
+                                    result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
+                                }
 
                                 ++retryCount;
 
@@ -1561,7 +1565,7 @@ namespace BuildXL.Scheduler
                                         processDescription,
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                                         peakMemoryMb:
-                                            (int)ByteSizeFormatter.ToMegabytes((long)(result.JobAccountingInformation?.PeakMemoryUsage ?? 0)),
+                                            (int)ByteSizeFormatter.ToMegabytes((long)(result.JobAccountingInformation?.MemoryCounters.PeakWorkingSet ?? 0)),
                                         expectedMemoryMb: expectedRamUsageMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
@@ -1836,6 +1840,25 @@ namespace BuildXL.Scheduler
 
                 return processExecutionResult;
             }
+        }
+
+        private static SidebandWriter CreateSidebandWriterIfConfigured(IPipExecutionEnvironment env, Process pip)
+        {
+            // don't use this writer if the root directory is not set up in the configuration layout or
+            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
+            var conf = env.Configuration.Layout;
+            return conf?.SharedOpaqueSidebandDirectory.IsValid == true && pip.SemiStableHash != 0
+                ? new SidebandWriter(CreateSidebandMetadata(env, pip), env.Context, pip, conf.SharedOpaqueSidebandDirectory)
+                : null;
+        }
+
+        private static SidebandMetadata CreateSidebandMetadata(IPipExecutionEnvironment env, Process pip)
+        {
+            var fp = env.ContentFingerprinter.StaticFingerprintLookup(pip.PipId);
+            return new SidebandMetadata(
+                pip.PipId.Value, 
+                // in some tests the static fingerprint can have 0 length in which case ToByteArray() throws
+                fp.Length > 0 ? fp.ToByteArray() : new byte[0]);
         }
 
         private static void ReportFileAccesses(ExecutionResult processExecutionResult, FileAccessReportingContext fileAccessReportingContext)
@@ -2335,7 +2358,7 @@ namespace BuildXL.Scheduler
                 RunnableFromCacheResult runnableFromCacheResult;
 
                 bool isCacheHit = cacheHitData != null;
-                
+
                 if (!isCacheHit)
                 {
                     var pathSetCount = strongFingerprintComputationList.Count;
@@ -2358,7 +2381,7 @@ namespace BuildXL.Scheduler
                         {
                             ContentHash weakAugmentingPathSetHash = weakAugmentingPathSetHashResult.Result;
 
-                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we 
+                            // Optional (not currently implemented): If augmenting path set already exists (race condition), we
                             // could compute augmented weak fingerprint and perform the cache lookup as above
                             (ObservedInputProcessingResult observedInputProcessingResult, StrongContentFingerprint computedStrongFingerprint)
                                         = await TryComputeStrongFingerprintBasedOnPriorObservedPathSetAsync(
@@ -4452,7 +4475,7 @@ namespace BuildXL.Scheduler
                 declaredArtifactPath = process.DirectoryOutputs[fileOutputData.OpaqueDirectoryIndex].Path;
             }
 
-            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel); 
+            return PipArtifacts.IsPreservedOutputByPip(process, declaredArtifactPath, environment.Context.PathTable, environment.Configuration.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
         }
 
         private static bool IsRewriteOutputFile(IPipExecutionEnvironment environment, FileArtifact file)

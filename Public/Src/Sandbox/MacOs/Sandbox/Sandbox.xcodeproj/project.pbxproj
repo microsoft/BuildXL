@@ -167,6 +167,8 @@
 		F5B2522C220CA6C400662376 /* Stopwatch.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5B2522A220CA6C400662376 /* Stopwatch.hpp */; };
 		F5B25231220CED9800662376 /* SysCtl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5B2522F220CED9800662376 /* SysCtl.cpp */; };
 		F5B25232220CED9800662376 /* SysCtl.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5B25230220CED9800662376 /* SysCtl.hpp */; };
+		F5BB924D2362646B00864612 /* TrieNode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5BB924B2362646B00864612 /* TrieNode.cpp */; };
+		F5BB924E2362646B00864612 /* TrieNode.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5BB924C2362646B00864612 /* TrieNode.hpp */; };
 		F5D014AA2187C35D00067484 /* OpNames.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5D014A92187C35D00067484 /* OpNames.cpp */; };
 /* End PBXBuildFile section */
 
@@ -355,6 +357,8 @@
 		F5B2522A220CA6C400662376 /* Stopwatch.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Stopwatch.hpp; sourceTree = "<group>"; };
 		F5B2522F220CED9800662376 /* SysCtl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SysCtl.cpp; sourceTree = "<group>"; };
 		F5B25230220CED9800662376 /* SysCtl.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SysCtl.hpp; sourceTree = "<group>"; };
+		F5BB924B2362646B00864612 /* TrieNode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TrieNode.cpp; sourceTree = "<group>"; };
+		F5BB924C2362646B00864612 /* TrieNode.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TrieNode.hpp; sourceTree = "<group>"; };
 		F5D014A92187C35D00067484 /* OpNames.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OpNames.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -795,6 +799,8 @@
 				F53982E1218226820075EFE2 /* ThreadLocal.hpp */,
 				F577F04E21BEE0270066F2EF /* Trie.cpp */,
 				F577F04F21BEE0270066F2EF /* Trie.hpp */,
+				F5BB924B2362646B00864612 /* TrieNode.cpp */,
+				F5BB924C2362646B00864612 /* TrieNode.hpp */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -836,6 +842,7 @@
 				F58E91C4220B562B0083C57E /* lfds711_list_addonly_singlylinked_ordered_internal.h in Headers */,
 				F54B6ADB21D3E37A00069515 /* ResourceManager.hpp in Headers */,
 				F58E919C220B562B0083C57E /* lfds711_hash_addonly.h in Headers */,
+				F5BB924E2362646B00864612 /* TrieNode.hpp in Headers */,
 				F58E919E220B562B0083C57E /* lfds711_btree_addonly_unbalanced.h in Headers */,
 				F58E919B220B562B0083C57E /* lfds711_queue_bounded_manyproducer_manyconsumer.h in Headers */,
 				F58E9199220B562B0083C57E /* lfds711_porting_abstraction_layer_operating_system.h in Headers */,
@@ -1036,6 +1043,7 @@
 				F58E91C2220B562B0083C57E /* lfds711_queue_bounded_singleproducer_singleconsumer_init.c in Sources */,
 				F58E91C0220B562B0083C57E /* lfds711_queue_bounded_singleproducer_singleconsumer_cleanup.c in Sources */,
 				3C2614AB20D7E85E00488B0B /* PolicyResult_common.cpp in Sources */,
+				F5BB924D2362646B00864612 /* TrieNode.cpp in Sources */,
 				F5044A9320F80DA200F95904 /* ConcurrentDictionary.cpp in Sources */,
 				F5B25231220CED9800662376 /* SysCtl.cpp in Sources */,
 				F58E91D6220B562B0083C57E /* lfds711_queue_bounded_manyproducer_manyconsumer_cleanup.c in Sources */,

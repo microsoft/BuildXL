@@ -1030,7 +1030,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             // If we are given the empty file, the put is a no-op.
             // We have dedicated logic for pinning and returning without having
             // the empty file in the cache directory.
-            if (_settings.UseEmptyFileHashShortcut && content.Hash.IsEmptyHash())
+            if (content.Hash.IsEmptyHash())
             {
                 return new PutResult(content.Hash, 0L);
             }
@@ -2341,7 +2341,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // If this is the empty hash, then directly create an empty file.
                 // This avoids hash-level lock, all I/O in the cache directory, and even
                 // operations in the in-memory representation of the cache.
-                if (_settings.UseEmptyFileHashShortcut && contentHashWithPath.Hash.IsEmptyHash())
+                if (contentHashWithPath.Hash.IsEmptyHash())
                 {
                     await FileSystem.CreateEmptyFileAsync(contentHashWithPath.Path);
                     return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
@@ -2967,7 +2967,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     // Pinning the empty file always succeeds; no I/O or other operations required,
                     // because we have dedicated logic to place it when required.
-                    if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                    if (contentHash.IsEmptyHash())
                     {
                         results.Add(new PinResult(contentSize: 0, lastAccessTime: Clock.UtcNow, code: PinResult.ResultCode.Success));
                     }
@@ -3115,9 +3115,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return OpenStreamCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
             {
-                // Short-circut requests for the empty stream
+                // Short-circuit requests for the empty stream
                 // No lock is required since no file is involved.
-                if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                if (contentHash.IsEmptyHash())
                 {
                     return new OpenStreamResult(_emptyFileStream);
                 }

@@ -358,6 +358,34 @@ public partial class JPathBaseListener : IJPathListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitIntLitExpr([NotNull] JPathParser.IntLitExprContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>PropertyValue</c>
+	/// labeled alternative in <see cref="JPathParser.propVal"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterPropertyValue([NotNull] JPathParser.PropertyValueContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>PropertyValue</c>
+	/// labeled alternative in <see cref="JPathParser.propVal"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitPropertyValue([NotNull] JPathParser.PropertyValueContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>ObjLitProps</c>
+	/// labeled alternative in <see cref="JPathParser.objLit"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterObjLitProps([NotNull] JPathParser.ObjLitPropsContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ObjLitProps</c>
+	/// labeled alternative in <see cref="JPathParser.objLit"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitObjLitProps([NotNull] JPathParser.ObjLitPropsContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by the <c>MapExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -400,6 +428,20 @@ public partial class JPathBaseListener : IJPathListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitCardinalityExpr([NotNull] JPathParser.CardinalityExprContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by the <c>SaveToFileExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterSaveToFileExpr([NotNull] JPathParser.SaveToFileExprContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>SaveToFileExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitSaveToFileExpr([NotNull] JPathParser.SaveToFileExprContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by the <c>LetExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -427,6 +469,20 @@ public partial class JPathBaseListener : IJPathListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitSubExpr([NotNull] JPathParser.SubExprContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>AppendToFileExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterAppendToFileExpr([NotNull] JPathParser.AppendToFileExprContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>AppendToFileExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitAppendToFileExpr([NotNull] JPathParser.AppendToFileExprContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by the <c>BinExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.
@@ -525,6 +581,20 @@ public partial class JPathBaseListener : IJPathListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitRootExpr([NotNull] JPathParser.RootExprContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>ObjLitExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterObjLitExpr([NotNull] JPathParser.ObjLitExprContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ObjLitExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitObjLitExpr([NotNull] JPathParser.ObjLitExprContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by the <c>PipeExpr</c>
 	/// labeled alternative in <see cref="JPathParser.expr"/>.

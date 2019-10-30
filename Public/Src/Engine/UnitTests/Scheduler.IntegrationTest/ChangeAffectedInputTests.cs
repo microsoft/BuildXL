@@ -128,7 +128,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             result = RunScheduler();
             result.AssertCacheMiss(pipA.Process.PipId, pipC.Process.PipId);
             result.AssertCacheHit(pipB.Process.PipId);
-            actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
+            actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.GetName(Context.PathTable).ToString(Context.StringTable));
             expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 

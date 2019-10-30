@@ -20,11 +20,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public const int DefaultReplicaCreditInMinutes = 180;
 
         /// <summary>
-        /// Default minimum age needed before eviction is allowed for a candidate
-        /// </summary>
-        public TimeSpan DefaultMinAgeBeforeEviction = TimeSpan.FromMinutes(30);
-
-        /// <summary>
         /// Distributed store used in a next-gen distributed eviction logic based on a local location store.
         /// </summary>
         public IDistributedLocationStore DistributedStore;
@@ -65,11 +60,6 @@ namespace BuildXL.Cache.ContentStore.Stores
         public readonly int ReplicaCreditInMinutes;
 
         /// <summary>
-        /// Minimum age before a chosen candidate can be evicted.
-        /// </summary>
-        public readonly TimeSpan MinAgeBeforeEviction;
-
-        /// <summary>
         /// Whether or not Distributed Eviction was successfully set up.
         /// </summary>
         public bool IsInitialized;
@@ -81,7 +71,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             TrimOrGetLastAccessTimeAsync trimOrGetLastAccessTimeAsync,
             int locationStoreBatchSize,
             int? replicaCreditInMinutes,
-            TimeSpan? minAgeBeforeEviction,
             IDistributedLocationStore distributedStore)
         {
             Contract.Assert(trimOrGetLastAccessTimeAsync != null);
@@ -89,7 +78,6 @@ namespace BuildXL.Cache.ContentStore.Stores
             TrimOrGetLastAccessTimeAsync = trimOrGetLastAccessTimeAsync;
             LocationStoreBatchSize = locationStoreBatchSize;
             ReplicaCreditInMinutes = replicaCreditInMinutes ?? DefaultReplicaCreditInMinutes;
-            MinAgeBeforeEviction = minAgeBeforeEviction ?? DefaultMinAgeBeforeEviction;
             IsInitialized = false;
             DistributedStore = distributedStore;
         }

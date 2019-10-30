@@ -299,9 +299,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int? MinReplicaCountToImmediateEvict { get; set; }
-
-        [DataMember]
-        public TimeSpan? MinAgeBeforeEviction { get; set; } = TimeSpan.FromMinutes(30);
         #endregion
 
         #region Bandwidth Check

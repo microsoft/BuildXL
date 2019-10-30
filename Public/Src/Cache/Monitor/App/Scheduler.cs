@@ -24,6 +24,8 @@ namespace BuildXL.Cache.Monitor.App
 
             public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
 
+            public TimeSpan? RetryOnFailureAfter { get; set; } = TimeSpan.FromMinutes(5);
+
             public int MaximumConcurrency { get; set; } = 10;
         }
 
@@ -60,7 +62,20 @@ namespace BuildXL.Cache.Monitor.App
                 PollingPeriod = pollingPeriod;
             }
 
-            public bool ShouldSchedule(DateTime now) => State == State.Waiting && LastRunTimeUtc + PollingPeriod <= now;
+            public bool ShouldSchedule(DateTime now, TimeSpan? retryOnFailureWaitTime = null)
+            {
+                if (State == State.Waiting && LastRunTimeUtc + PollingPeriod <= now)
+                {
+                    return true;
+                }
+
+                if (retryOnFailureWaitTime != null && State == State.Failed && LastRunTimeUtc + retryOnFailureWaitTime.Value <= now)
+                {
+                    return true;
+                }
+
+                return false;
+            }
         };
 
         private readonly ILogger _logger;
@@ -127,7 +142,7 @@ namespace BuildXL.Cache.Monitor.App
                     {
                         states[entry.State] += 1;
 
-                        if (!entry.ShouldSchedule(now))
+                        if (!entry.ShouldSchedule(now, retryOnFailureWaitTime: _configuration.RetryOnFailureAfter))
                         {
                             continue;
                         }

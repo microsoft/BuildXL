@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             public int FatalMissingMachinesThreshold { get; set; } = 20;
 
-            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(10);
+            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(30);
         }
 
         private readonly Configuration _configuration;
@@ -73,46 +73,44 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
                 Emit(Severity.Fatal,
                     $"No machines logged content in the last day",
-                    ruleRunTimeUtc: ruleRunTimeUtc,
-                    eventTimeUtc: now);
+                    ruleRunTimeUtc: ruleRunTimeUtc);
+                return;
             }
-            else
+
+            var missing = new List<string>();
+            var failures = new List<Tuple<string, TimeSpan>>();
+            foreach (var result in results)
             {
-                var missing = new List<string>();
-                var failures = new List<Tuple<string, TimeSpan>>();
-                foreach (var result in results)
+                if (!result.LastRestoreTime.HasValue)
                 {
-                    if (!result.LastRestoreTime.HasValue)
-                    {
-                        missing.Add(result.Machine);
-                        continue;
-                    }
-
-                    var age = now - result.LastRestoreTime.Value;
-                    if (age >= _configuration.ErrorAge)
-                    {
-                        failures.Add(new Tuple<string, TimeSpan>(result.Machine, age));
-                    }
+                    missing.Add(result.Machine);
+                    continue;
                 }
 
-                if (missing.Count > 0)
+                var age = now - result.LastRestoreTime.Value;
+                if (age >= _configuration.ErrorAge)
                 {
-                    var severity = missing.Count < _configuration.FatalMissingMachinesThreshold ? Severity.Error : Severity.Fatal;
-                    var machinesCsv = string.Join(", ", missing.Select(m => $"`{m}`"));
-                    Emit(severity,
-                        $"Found {missing.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but without checkpoints restored in at least `{_configuration.LookbackPeriod}`: {machinesCsv}",
-                        ruleRunTimeUtc: ruleRunTimeUtc,
-                        eventTimeUtc: now);
+                    failures.Add(new Tuple<string, TimeSpan>(result.Machine, age));
                 }
+            }
 
-                if (failures.Count > 0)
-                {
-                    var machinesCsv = string.Join(", ", failures.Select(f => $"`{f.Item1}` ({f.Item2})"));
-                    Emit(Severity.Error,
-                        $"Found {failures.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorAge}`): {machinesCsv}",
-                        ruleRunTimeUtc: ruleRunTimeUtc,
-                        eventTimeUtc: now);
-                }
+            if (missing.Count > 0)
+            {
+                var severity = missing.Count < _configuration.FatalMissingMachinesThreshold ? Severity.Error : Severity.Fatal;
+                var machinesCsv = string.Join(", ", missing.Select(m => $"`{m}`"));
+                Emit(severity,
+                    $"Found {missing.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but without checkpoints restored in at least `{_configuration.LookbackPeriod}`: {machinesCsv}",
+                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`",
+                    ruleRunTimeUtc: ruleRunTimeUtc);
+            }
+
+            if (failures.Count > 0)
+            {
+                var machinesCsv = string.Join(", ", failures.Select(f => $"`{f.Item1}` ({f.Item2})"));
+                Emit(Severity.Error,
+                    $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorAge}`): {machinesCsv}",
+                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorAge}`",
+                    ruleRunTimeUtc: ruleRunTimeUtc);
             }
         }
     }

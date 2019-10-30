@@ -24,8 +24,10 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public abstract Task Run();
 
-        protected void Emit(Severity severity, string message, DateTime? ruleRunTimeUtc = null, DateTime? eventTimeUtc = null)
+        protected void Emit(Severity severity, string message, string summary = null, DateTime? ruleRunTimeUtc = null, DateTime? eventTimeUtc = null)
         {
+            Contract.RequiresNotNull(message);
+
             var now = _configuration.Clock.UtcNow;
             _configuration.Notifier.Emit(new Notification(
                 Identifier,
@@ -35,7 +37,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 severity,
                 _configuration.Environment,
                 _configuration.Stamp,
-                message));
+                message,
+                summary ?? message));
         }
 
         protected async Task<ObjectReader<T>> QuerySingleResultSetAsync<T>(string query)

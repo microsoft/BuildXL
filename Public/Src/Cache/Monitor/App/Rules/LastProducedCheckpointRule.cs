@@ -62,10 +62,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             if (results.Count == 0)
             {
                 Emit(Severity.Fatal,
-                    $"No checkpoints have been produced for at least {_configuration.LookbackPeriod}",
-                    ruleRunTimeUtc: ruleRunTimeUtc,
-                    eventTimeUtc: now);
-
+                    $"No checkpoints produced for at least {_configuration.LookbackPeriod}",
+                    ruleRunTimeUtc: ruleRunTimeUtc);
                 return;
             }
 
@@ -82,7 +80,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 }
 
                 Emit(severity,
-                    $"Checkpoint age `{age}` is above acceptable threshold `{threshold}`",
+                    $"Checkpoint age `{age}` above threshold `{threshold}`",
                     ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: results[0].PreciseTimeStamp);
             }

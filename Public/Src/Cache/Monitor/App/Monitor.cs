@@ -30,12 +30,51 @@ namespace BuildXL.Cache.Monitor.App
                         "DM_S2",
                     }
                 },
-                //{
-                //    Env.Production, new [] {
-                //        "MW_S8",
-                //        "MW_S9",
-                //    }
-                //},
+                {
+                    Env.Production, new string[] {
+                        "BN",
+                        "BN_PS01",
+                        "BN_PS02",
+                        "BN_S2",
+                        "BN_S3",
+                        "DM",
+                        "DM_PS01",
+                        "DM_PS02",
+                        "DM_PS03",
+                        "DM_PS04",
+                        "DM_PS05",
+                        "DM_PS06",
+                        "DM_PS07",
+                        "DM_PS08",
+                        "DM_PS09",
+                        "DM_S2",
+                        "DM_S3",
+                        "MW_PS01",
+                        "MW_PS02",
+                        "MW_PS03",
+                        "MW_PS04",
+                        "MW_PS05",
+                        "MW_PS06",
+                        "MW_PS07",
+                        "MW_S1",
+                        "MW_S10",
+                        "MW_S2",
+                        "MW_S3",
+                        "MW_S4",
+                        "MW_S5",
+                        "MW_S6",
+                        "MW_S7",
+                        "MW_S8",
+                        "MW_S9",
+                        "SN_S1",
+                        "SN_S2",
+                        "SN_S3",
+                        "SN_S4",
+                        "SN_S5",
+                        "SN_S6",
+                        "SN_S7",
+                    }
+                },
             };
 
         public class Configuration
@@ -57,7 +96,7 @@ namespace BuildXL.Cache.Monitor.App
             };
 
             public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration() {
-                PersistState = false,
+                PersistState = true,
                 PersistStatePath = @"C:\work\Scheduler.json",
                 PersistClearFailedEntriesOnLoad = true,
             };
@@ -124,11 +163,19 @@ namespace BuildXL.Cache.Monitor.App
             //        PollingPeriod: configuration.ErrorAge);
             //});
 
+            //Add(kustoConfiguration =>
+            //{
+            //    var configuration = new CheckpointSizeRule.Configuration(kustoConfiguration);
+            //    return (
+            //        Rule: new CheckpointSizeRule(configuration),
+            //        PollingPeriod: configuration.AnomalyDetectionHorizon);
+            //});
+
             Add(kustoConfiguration =>
             {
-                var configuration = new CheckpointSizeRule.Configuration(kustoConfiguration);
+                var configuration = new HeartBeatingMachinesRule.Configuration(kustoConfiguration);
                 return (
-                    Rule: new CheckpointSizeRule(configuration),
+                    Rule: new HeartBeatingMachinesRule(configuration),
                     PollingPeriod: configuration.AnomalyDetectionHorizon);
             });
         }

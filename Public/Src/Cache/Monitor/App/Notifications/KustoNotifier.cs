@@ -77,6 +77,11 @@ namespace BuildXL.Cache.Monitor.App.Notifications
                     ColumnName = "Message",
                     JsonPath = "$.Message",
                 },
+                new JsonColumnMapping()
+                {
+                    ColumnName = "Summary",
+                    JsonPath = "$.Summary",
+                },
             };
 
         private readonly ILogger _logger;

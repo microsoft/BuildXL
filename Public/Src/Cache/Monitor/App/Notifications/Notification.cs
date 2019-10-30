@@ -42,7 +42,9 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
         public string Message { get; }
 
-        public Notification(string rule, DateTime ruleRunTimeUtc, DateTime creationTimeUtc, DateTime eventTimeUtc, Severity severity, Env environment, string stamp, string message)
+        public string Summary { get; }
+
+        public Notification(string rule, DateTime ruleRunTimeUtc, DateTime creationTimeUtc, DateTime eventTimeUtc, Severity severity, Env environment, string stamp, string message, string summary = null)
         {
             Contract.RequiresNotNullOrEmpty(rule);
             Contract.RequiresNotNullOrEmpty(message);
@@ -56,6 +58,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
             Environment = environment;
             Stamp = stamp;
             Message = message;
+            Summary = summary;
         }
     }
 }

@@ -1,19 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.Monitor.App.Rules;
 using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Monitor.App
 {
-    internal class Scheduler
+    internal class Scheduler : IDisposable
     {
         public class Configuration
         {
@@ -24,6 +25,8 @@ namespace BuildXL.Cache.Monitor.App
             public bool PersistClearFailedEntriesOnLoad { get; set; } = false;
 
             public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
+
+            public int MaximumConcurrency { get; set; } = 5;
         }
 
         /// <summary>
@@ -62,6 +65,8 @@ namespace BuildXL.Cache.Monitor.App
 
         private readonly IDictionary<string, Entry> _schedule = new Dictionary<string, Entry>();
 
+        private readonly SemaphoreSlim _runGate;
+
         public Scheduler(Configuration configuration, ILogger logger, IClock clock)
         {
             Contract.RequiresNotNull(configuration);
@@ -71,6 +76,8 @@ namespace BuildXL.Cache.Monitor.App
             _configuration = configuration;
             _logger = logger;
             _clock = clock;
+
+            _runGate = new SemaphoreSlim(_configuration.MaximumConcurrency);
         }
 
         public void Add(IRule rule, TimeSpan pollingPeriod)
@@ -96,6 +103,8 @@ namespace BuildXL.Cache.Monitor.App
             {
                 var now = _clock.UtcNow;
 
+                var runningRules = new List<string>();
+                var failedRules = new List<string>();
                 foreach (var kvp in _schedule)
                 {
                     var rule = kvp.Value.Rule;
@@ -103,8 +112,18 @@ namespace BuildXL.Cache.Monitor.App
 
                     lock (entry.Lock)
                     {
-                        if (!entry.ShouldRun(now))
+                        if (entry.Running)
                         {
+                            runningRules.Add(rule.Identifier);
+                        }
+
+                        if (entry.Failed)
+                        {
+                            failedRules.Add(rule.Identifier);
+                        }
+
+                        if (!entry.ShouldRun(now))
+                        {   
                             continue;
                         }
 
@@ -116,36 +135,64 @@ namespace BuildXL.Cache.Monitor.App
                           // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
                           await Task.Yield();
 
+                          var stopwatch = new Stopwatch();
+
+                          var failed = false;
                           Exception exception = null;
                           try
                           {
-                              _logger.Debug($"Running rule `{rule.Identifier}`");
+                              await _runGate.WaitAsync();
+
+                              _logger.Debug($"Running rule `{rule.Identifier}`. `{_runGate.CurrentCount}` more allowed to run");
+
+                              stopwatch.Restart();
                               await rule.Run();
                           }
                           catch (Exception thrownException)
                           {
+                              failed = true;
                               exception = thrownException;
                           }
                           finally
                           {
+                              stopwatch.Stop();
+
+                              _runGate.Release();
+
                               lock (entry.Lock)
                               {
                                   entry.LastRunTimeUtc = _clock.UtcNow;
                                   entry.Running = false;
+                                  entry.Failed = failed;
 
-                                  if (exception != null)
+                                  var errorMessage = "";
+                                  if (failed)
                                   {
-                                      entry.Failed = true;
-                                      _logger.Error($"Rule `{rule.Identifier}` threw an exception and has been disabled. Exception: {exception}");
+                                      // TODO(jubayard): In unclear circumstances, this log is actually not displayed.
+                                      // Probably only when the exception is too long.
+                                      errorMessage = $". An exception has been caught and the rule has been disabled. Exception: {exception}";
+
+                                      if (errorMessage.Length > 2000)
+                                      {
+                                          errorMessage = $". An exception has been caught and the rule has been disabled";
+                                      }
                                   }
-                                  else
-                                  {
-                                      entry.Failed = false;
-                                      _logger.Debug($"Rule `{rule.Identifier}` finished running successfully @ `{entry.LastRunTimeUtc}`");
-                                  }
+
+                                  _logger.Debug($"Rule `{rule.Identifier}` finished running @ `{entry.LastRunTimeUtc}`, took {stopwatch.Elapsed} to run{errorMessage}");
                               }
                           }
                       });
+                }
+
+                if (runningRules.Count > 0)
+                {
+                    _logger.Debug($"Currently scheduled `{runningRules.Count}` rules");
+                }
+
+                if (failedRules.Count > 0)
+                {
+                    var rulesCsv = string.Join(", ", failedRules);
+                    _logger.Debug($"Currently failed `{failedRules.Count}` rules: {rulesCsv}");
                 }
 
                 if (_configuration.PersistState)
@@ -194,6 +241,12 @@ namespace BuildXL.Cache.Monitor.App
                 var serializer = CreateSerializer();
 
                 var state = (Dictionary<string, PersistableEntry>)serializer.Deserialize(stream, typeof(Dictionary<string, PersistableEntry>));
+                if (state is null)
+                {
+                    // Happens when the file is empty
+                    return;
+                }
+
                 foreach (var kvp in state)
                 {
                     var ruleIdentifier = kvp.Key;
@@ -230,6 +283,9 @@ namespace BuildXL.Cache.Monitor.App
                     if (_configuration.PersistClearFailedEntriesOnLoad)
                     {
                         _logger.Debug($"Rule `{ruleIdentifier}` is disabled in the persisted state, but clearing is allowed. Clearing in-memory");
+
+                        // Need to reset so as to run it and figure out if we should disable it ASAP
+                        storedEntry.LastRunTimeUtc = DateTime.MinValue;
                     }
                     else
                     {
@@ -275,5 +331,10 @@ namespace BuildXL.Cache.Monitor.App
             };
         }
         #endregion
+
+        public void Dispose()
+        {
+            _runGate.Dispose();
+        }
     }
 }

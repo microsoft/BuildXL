@@ -147,7 +147,7 @@ namespace BuildXL.Cache.Monitor.App
                             continue;
                         }
 
-                        Contract.Assert(entry.State == State.Waiting);
+                        Contract.Assert(entry.State != State.Running && entry.State != State.Scheduled);
                         entry.State = State.Scheduled;
                     }
 

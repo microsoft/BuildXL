@@ -54,7 +54,6 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.MasterServiceName}""
                 | where Message contains ""CreateCheckpointAsync stop""
-                | project PreciseTimeStamp
                 | summarize (PreciseTimeStamp, Machine)=arg_max(PreciseTimeStamp, Machine)
                 | where not(isnull(PreciseTimeStamp))";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();

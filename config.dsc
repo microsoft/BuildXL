@@ -40,7 +40,7 @@ config({
             // but when it fails to download (e.g. from a share) the build is aborted. Consider making the failure non-blocking.
             configuration: {
                 toolUrl: "https://dist.nuget.org/win-x86-commandline/v4.9.4/NuGet.exe",
-                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
+                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200"
             },
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal

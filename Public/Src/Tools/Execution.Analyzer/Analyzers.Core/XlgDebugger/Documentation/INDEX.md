@@ -1,6 +1,6 @@
 # BuildXL eXecution LoG Debugger
 
-XLG Debugger is a Visual Studio Code debugger extension for viewing/exploring/diagnosing/debugging BuildXL log files.
+XLG Debugger is a Visual Studio Code debugger extension for viewing/exploring/diagnosing/debugging BuildXL binary log files.
 
 The extension is primarily focused on providing a comprehensive, post-mortem view of a build, as captured in the BuildXL execution log.  This information is presented in two forms:
 1. in a tree view widget, and

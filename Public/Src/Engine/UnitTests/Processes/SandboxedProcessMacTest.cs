@@ -68,7 +68,8 @@ namespace Test.BuildXL.Processes
             public bool Allowed;
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        // [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact(Skip = "testing")]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
@@ -92,7 +93,8 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        // [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
+        [Fact(Skip = "testing")]
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAndStuckRootProcessAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block());

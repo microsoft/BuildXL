@@ -61,7 +61,7 @@ Every expression is evaluated in the context of an *environment* (`Env`) and the
   - typical identifier: `[a-zA-Z_][a-zA-Z0-9_]*`
     - examples: `id1`, `Id1`, `_id1`
   - any non-backtick sequence of characters enclosed in backticks
-    - example: `anything except backticks goes`
+    - example: `` `anything except backticks goes` ``
 
 **Semantics**
 
@@ -82,7 +82,7 @@ Like a typical identifier but it **must** start with `$`, e.g., `$id1`, `$_Id1`,
 
 **Semantics**
 
-The variable is first looked up in the current environment; if not found, the lookup continues in parent environments.
+Variable name is first looked up in the current environment; if not found, the lookup continues in parent environments.
 
 ```javascript
 [[ $v ]]{Vars: ['$v': 1]}                            = [1]
@@ -99,7 +99,7 @@ The variable is first looked up in the current environment; if not found, the lo
 
 **Semantics**
 
-`lhs` is evaluated first.  Then, for every value in the result, a child environment is created against which `rhs` is then evaluated.  Finally, the results are aggregated into a single vector (similar to how `SelectMany` works in C#) and returned.
+`lhs` is evaluated first.  Then, for every value in the result, a child environment is created against which `rhs` is then evaluated.  Finally, those results are aggregated into a single vector (similar to how `SelectMany` works in C#) and returned.
 
 ```javascript
 [[ a.b ]]{Current: {a: [{b: 1}, {b: [2, 3]}, {c: 4}]}} = [1, 2, 3]
@@ -116,7 +116,7 @@ The variable is first looked up in the current environment; if not found, the lo
 
 **Semantics**
 
-`lhs` is evaluated first.  Then, if `filter` is an integer literal, the element at position `filter` from the `lhs` result is returned; otherwise, for every value in the `lhs` result, a child environment is created against which `filter` then evaluated, and only those values for which `filter` returns true are returned.
+`lhs` is evaluated first.  Then, if `filter` is an integer literal, the element at position `filter` in the `lhs` result is returned; otherwise, for every value in the `lhs` result, a child environment is created against which `filter` is evaluated; the final result contains only those values for which `filter` returns true.
 
 ```javascript
 [[ a[0] ]]{Current: {a: [1, 2, 3]}}  = [1]
@@ -189,7 +189,7 @@ expr | $toCsv              // exports to CSV string
 
 **Semantics**
 
-A number of [library functions](#Library-Functions) is provided, and each has its own semantics.  Each function accepts a number of switches and a number of arguments. 
+A number of [library functions](#Library-Functions) are provided.  Each has its own semantics.  Each function accepts a number of switches and a number of arguments. 
 
 ## Output Redirection
 
@@ -216,7 +216,7 @@ Saving/appending output to file is implemented via the `$save` and `$append` lib
 
 **Semantics**
 
-Standard let binding.  Evaluates `var-expr`, creates a child environment in which variable `var` is assigned the result of evaluating `var-expr`, and evaluates `sub-expr` in that new environment.
+Standard let binding.  Evaluates `var-expr`, creates a child environment in which variable `var` is assigned the result of evaluating `var-expr`, then evaluates `sub-expr` in that new environment and returns that value.
 
 ```javascript
 [[ let $a := 1 in $a + 2 ]]  = [3]    // + is arithmetic addition
@@ -231,7 +231,7 @@ Standard let binding.  Evaluates `var-expr`, creates a child environment in whic
 
 **Semantics**
 
-This is the only expression that mutates the state.  It evaluates `expr` and assigns the value to the `var` variable in the **root** environment.  All the variables in the root environment are shown in the debugger inside the "variables" pane.
+This is the only expression that **mutates** the state.  It evaluates `expr` and assigns the value to the `var` variable in the **root** environment.  All the variables in the root environment are shown in the debugger inside the "variables" pane.
 
 ```javascript
 [[ $a := 42 ]] = [42] // side effect: [42] assigned to $a in the root environment

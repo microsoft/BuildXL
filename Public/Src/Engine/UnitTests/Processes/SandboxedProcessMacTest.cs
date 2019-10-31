@@ -128,7 +128,7 @@ namespace Test.BuildXL.Processes
             using (var taskCancelationSource = new CancellationTokenSource())
             {
                 var time = s_connection.MinReportQueueEnqueueTime;
-                System.Console.WriteLine(time);
+
                 var childProcessPath = "/dummy/exe2";
                 var instructions = new List<ReportInstruction>()
                 {
@@ -194,8 +194,6 @@ namespace Test.BuildXL.Processes
                     },
                 };
 
-                System.Console.WriteLine(string.Join("\n", instructions.Select(i => i.Stats.EnqueueTime + "|" + i.Stats.DequeueTime)));
-
                 ContinouslyPostAccessReports(process, taskCancelationSource.Token, instructions);
                 var result = await process.GetResultAsync();
                 taskCancelationSource.Cancel();
@@ -247,7 +245,6 @@ namespace Test.BuildXL.Processes
 
                             count++;
                         }
-                        // Wait for twice as long as the current timeout task within SandboxedProcessMac
                         await Task.Delay(100);
                     }
                 }, token)

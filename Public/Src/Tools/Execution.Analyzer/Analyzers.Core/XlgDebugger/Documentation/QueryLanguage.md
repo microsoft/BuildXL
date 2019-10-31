@@ -91,6 +91,25 @@ Variable name is first looked up in the current environment; if not found, the l
 [[ $v ]]{Vars: [], Parent: {Vars: []}}               = []
 ```
 
+## Root and This Expressions
+
+**Syntax**
+
+  - root expression: `$`
+  - this expression: `_`
+
+**Semantics**
+
+*Root* expression always evaluates to the value in the root environment, whereas *This* expression always evaluates to the value in the current environment.
+
+```javascript
+[[ $ ]]{Current: 1} = [1]
+[[ _ ]]{Current: 1} = [1]
+
+[[ $ ]]{Current: 1, Parent: {Current: 2}} = [2]
+[[ _ ]]{Current: 1, Parent: {Current: 2}} = [1]
+```
+
 ## Map Expression
 
 **Syntax**

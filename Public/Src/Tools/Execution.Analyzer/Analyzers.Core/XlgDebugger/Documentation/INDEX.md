@@ -34,6 +34,7 @@ The front end (the debugger extension) is distributed with the existing [DScript
   - [Literals](QueryLanguage.md#Literals)
   - [Properties](QueryLanguage.md#Property-Identifier)
   - [Variables](QueryLanguage.md#Variable-Identifier)
+  - [Root and This Expressions](QueryLanguage.md#Root-and-This-Expressions)
   - [Map Expression](QueryLanguage.md#Map-Expression)
   - [Filter Expression](QueryLanguage.md#Filter-Expression)
   - [Range Expression](QueryLanguage.md#Range-Expression)

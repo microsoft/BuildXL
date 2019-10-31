@@ -3599,16 +3599,26 @@ namespace BuildXL.Scheduler
                         if (!processRunnable.Process.IsStartOrShutdownKind && executionResult.PerformanceInformation != null)
                         {
                             var perfInfo = executionResult.PerformanceInformation;
-
-                            m_groupedPipCounters.AddToCounters(
-                                    processRunnable.Process,
+                            try
+                            {
+                                m_groupedPipCounters.AddToCounters(processRunnable.Process,
                                     new[]
                                     {
-                                        (PipCountersByGroup.IOReadBytes, (long)perfInfo.IO.ReadCounters.TransferCount),
-                                        (PipCountersByGroup.IOWriteBytes, (long)perfInfo.IO.WriteCounters.TransferCount)
+                                        (PipCountersByGroup.IOReadBytes,  (long) perfInfo.IO.ReadCounters.TransferCount),
+                                        (PipCountersByGroup.IOWriteBytes, (long) perfInfo.IO.WriteCounters.TransferCount)
                                     },
                                     new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
                                 );
+                            }
+                            catch (OverflowException ex)
+                            {
+                                Logger.Log.ExecutePipStepOverflowFailure(operationContext, ex.Message);
+
+                                m_groupedPipCounters.AddToCounters(processRunnable.Process,
+                                    new[] { (PipCountersByGroup.IOReadBytes, 0L), (PipCountersByGroup.IOWriteBytes, 0L) },
+                                    new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
+                                );
+                            }
                         }
 
                         // The pip was canceled
@@ -3683,22 +3693,29 @@ namespace BuildXL.Scheduler
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
                             int peakPagefileUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakPagefileUsageMb ?? 0;
 
-                            Logger.Log.ProcessPipExecutionInfo(
-                                operationContext,
-                                runnablePip.Description,
-                                (int)(executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
-                                (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
-                                (int)(executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
-                                executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
-                                worker.DefaultMemoryUsagePerProcess, 
-                                expectedRamUsage,
-                                peakVirtualMemoryUsageMb,
-                                peakWorkingSetMb,
-                                peakPagefileUsageMb);
+                            try
+                            {
+                                Logger.Log.ProcessPipExecutionInfo(
+                                    operationContext,
+                                    runnablePip.Description,
+                                    (int)(executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
+                                    (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
+                                    (int)(executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
+                                    executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
+                                    worker.DefaultMemoryUsagePerProcess,
+                                    expectedRamUsage,
+                                    peakVirtualMemoryUsageMb,
+                                    peakWorkingSetMb,
+                                    peakPagefileUsageMb);
 
-                            m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
-                            m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
-                            m_totalPeakPagefileUsageMb += (ulong)peakPagefileUsageMb;
+                                m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
+                                m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
+                                m_totalPeakPagefileUsageMb += (ulong)peakPagefileUsageMb;
+                            }
+                            catch (OverflowException ex)
+                            {
+                                Logger.Log.ExecutePipStepOverflowFailure(operationContext, ex.Message);
+                            }
 
                             // File violation analysis needs to happen on the master as it relies on
                             // graph-wide data such as detecting duplicate

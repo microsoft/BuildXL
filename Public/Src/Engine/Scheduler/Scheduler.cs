@@ -3612,7 +3612,9 @@ namespace BuildXL.Scheduler
                             }
                             catch (OverflowException ex)
                             {
-                                 m_groupedPipCounters.AddToCounters(processRunnable.Process,
+                                Logger.Log.ExecutePipStepOverflowFailure(operationContext, ex.Message);
+
+                                m_groupedPipCounters.AddToCounters(processRunnable.Process,
                                     new[] { (PipCountersByGroup.IOReadBytes, 0L), (PipCountersByGroup.IOWriteBytes, 0L) },
                                     new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
                                 );
@@ -3712,7 +3714,7 @@ namespace BuildXL.Scheduler
                             }
                             catch (OverflowException ex)
                             {
-                                Logger.Log.ProcessPipExecutionInfoOverflowFailure(operationContext, ex.Message);
+                                Logger.Log.ExecutePipStepOverflowFailure(operationContext, ex.Message);
                             }
 
                             // File violation analysis needs to happen on the master as it relies on

@@ -4536,8 +4536,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Unable to log process pip execution info due to an overflow exception: {exception}")]
-        internal abstract void ProcessPipExecutionInfoOverflowFailure(LoggingContext loggingContext, string exception);
+            Message = "Caught OverflowException in ExecutePipStep: {exception}")]
+        internal abstract void ExecutePipStepOverflowFailure(LoggingContext loggingContext, string exception);
     }
 }
 #pragma warning restore CA1823 // Unused field

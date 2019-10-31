@@ -23,6 +23,11 @@ The front end (the debugger extension) is distributed with the existing [DScript
   - [File Artifacts](ObjectModel.md#File-Artifacts)
   - [Directory Artifacts](ObjectModel.md#Directory-Artifacts)
 
+## [Examples](Examples.md)
+  - [Find pips with highest memory consumption](Examples.md#Find-pips-with-highest-memory-consumption)
+  - [Find pips that produce shared opaque directories](Examples.md#Find-pips-that-produce-shared-opaque-directories)
+  - [Find all the places the same output file is copied to](Examples.md#Find-all-the-places-the-same-output-file-is-copied-to)
+
 ## [Query Language](QueryLanguage.md)
   - [Key Concepts](QueryLanguage.md#Key-Concepts)
   - [Evaluation Environment](QueryLanguage.md#Evaluation-Environment)

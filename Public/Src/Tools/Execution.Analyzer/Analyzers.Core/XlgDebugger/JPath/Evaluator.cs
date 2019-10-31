@@ -590,6 +590,9 @@ namespace BuildXL.Execution.Analyzer.JPath
                     case RootExpr rootExpr:
                         return TopEnv.Root;
 
+                    case ThisExpr thisExpr:
+                        return TopEnv.Current;
+
                     case IntLit intLit:
                         return intLit.Value;
 

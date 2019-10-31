@@ -94,6 +94,11 @@ namespace BuildXL.Execution.Analyzer.JPath
             return RootExpr.Instance;
         }
 
+        public override Expr VisitThisExpr([NotNull] JPathParser.ThisExprContext context)
+        {
+            return ThisExpr.Instance;
+        }
+
         public override Expr VisitSelectorExpr([NotNull] JPathParser.SelectorExprContext context)
         {
             return context.Sub.Accept(this);

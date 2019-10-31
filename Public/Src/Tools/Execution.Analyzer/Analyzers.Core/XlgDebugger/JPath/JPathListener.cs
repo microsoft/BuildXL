@@ -413,5 +413,17 @@ public interface IJPathListener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitFuncAppExprParen([NotNull] JPathParser.FuncAppExprParenContext context);
+	/// <summary>
+	/// Enter a parse tree produced by the <c>ThisExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterThisExpr([NotNull] JPathParser.ThisExprContext context);
+	/// <summary>
+	/// Exit a parse tree produced by the <c>ThisExpr</c>
+	/// labeled alternative in <see cref="JPathParser.expr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitThisExpr([NotNull] JPathParser.ThisExprContext context);
 }
 } // namespace BuildXL.Execution.Analyzer.JPath

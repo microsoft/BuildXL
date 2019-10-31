@@ -428,6 +428,18 @@ namespace BuildXL.Execution.Analyzer.JPath
     }
 
     /// <summary>
+    /// Always evaluates to the current value in the current environment (<see cref="Evaluator.Env.Current"/>)
+    /// </summary>
+    public class ThisExpr : Expr
+    {
+        public static readonly ThisExpr Instance = new ThisExpr();
+
+        public override string Print() => "_";
+
+        private ThisExpr() { }
+    }
+
+    /// <summary>
     /// Cardinality expression (evaluates a sub-expression then returns the number of elements in the result)
     /// </summary>
     public class CardinalityExpr : Expr

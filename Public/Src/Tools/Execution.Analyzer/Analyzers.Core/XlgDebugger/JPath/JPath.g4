@@ -119,6 +119,7 @@ objLit
 
 expr
     : '$'                                             #RootExpr
+    | '_'                                             #ThisExpr
     | Var=VarId                                       #VarExpr
     | Sub=selector                                    #SelectorExpr
     | Obj=objLit                                      #ObjLitExpr

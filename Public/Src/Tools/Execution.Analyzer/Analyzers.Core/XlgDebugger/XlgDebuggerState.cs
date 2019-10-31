@@ -275,6 +275,8 @@ namespace BuildXL.Execution.Analyzer
                 new Property("PipId", proc.PipId.Value),
                 new Property("PipType", proc.PipType),
                 new Property("SemiStableHash", proc.SemiStableHash),
+                new Property("FormattedSemiStableHash", proc.FormattedSemiStableHash),
+                new Property("Provenance", proc.Provenance),
                 new Property("Description", proc.GetDescription(PipGraph.Context)),
                 new Property("ExecutionLevel", GetPipExecutionLevel(pipExePerf)),
                 new Property("EXE", proc.Executable),

@@ -2860,6 +2860,25 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipValueId);
 
         [GeneratedEvent(
+            (int)EventId.InvalidInputSinceInputIsOutputWithNoProducer,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot be added because its input '{inputFile}' is specified as an output file, but there is no pip producing the output file")]
+        public abstract void ScheduleFailAddPipInvalidInputSinceInputIsOutputWithNoProducer(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string inputFile);
+
+        [GeneratedEvent(
             (int)EventId.InvalidTempDirectoryInvalidPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

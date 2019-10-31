@@ -67,7 +67,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertCacheHit(pipA.Process.PipId);
 
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            var expectedAffectedInput = "";// ArtifactToString(aOutput);
+            var expectedAffectedInput = " ";// ArtifactToString(aOutput);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 

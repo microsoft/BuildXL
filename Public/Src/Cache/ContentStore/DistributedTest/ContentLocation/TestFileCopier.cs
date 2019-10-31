@@ -19,6 +19,8 @@ namespace ContentStoreTest.Distributed.ContentLocation
 {
     public class TestFileCopier : IFileCopier<AbsolutePath>, IFileExistenceChecker<AbsolutePath>, ICopyRequester
     {
+        public AbsolutePath WorkingDirectory { get; set; }
+
         public ConcurrentDictionary<AbsolutePath, AbsolutePath> FilesCopied { get; } = new ConcurrentDictionary<AbsolutePath, AbsolutePath>();
 
         public ConcurrentDictionary<AbsolutePath, bool> FilesToCorrupt { get; } = new ConcurrentDictionary<AbsolutePath, bool>();
@@ -118,7 +120,16 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Stream source, MachineLocation targetMachine)
         {
-            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, source, CancellationToken.None);
+            var tempFile = AbsolutePath.CreateRandomFileName(WorkingDirectory);
+            using (var file = File.OpenWrite(tempFile.Path))
+            {
+                await source.CopyToAsync(file);
+            }
+
+            var result = await PushHandlersByLocation[targetMachine].HandlePushFileAsync(context, hash, tempFile, CancellationToken.None);
+
+            File.Delete(tempFile.Path);
+
             return result ? BoolResult.Success : new BoolResult(result);
         }
     }

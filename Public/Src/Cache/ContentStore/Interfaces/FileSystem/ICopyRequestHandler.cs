@@ -32,6 +32,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     {
         //TODO docs
         /// <nodoc />
-        Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, Stream source, CancellationToken token);
+        Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token);
     }
 }

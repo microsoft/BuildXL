@@ -238,9 +238,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         public void PostInitializationCompleted(Context context, BoolResult result) { }
 
         /// <inheritdoc />
-        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, Stream source, CancellationToken token)
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
         {
-            return Store.PutStreamAsync(context, source, hash, pinRequest: null);
+            return Store.PutFileAsync(context, sourcePath, FileRealizationMode.Copy, hash, pinRequest: null);
         }
     }
 }

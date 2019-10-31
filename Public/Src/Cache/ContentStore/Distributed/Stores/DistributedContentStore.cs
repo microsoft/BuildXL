@@ -608,11 +608,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         }
 
         /// <inheritdoc />
-        public async Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, Stream source, CancellationToken token)
+        public async Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
         {
             if (InnerContentStore is IPushFileHandler inner)
             {
-                var result = await inner.HandlePushFileAsync(context, hash, source, token);
+                var result = await inner.HandlePushFileAsync(context, hash, sourcePath, token);
                 if (!result)
                 {
                     return result;

@@ -12,6 +12,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -46,6 +47,10 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly int _bufferSize;
         private readonly int _gzipSizeBarrier;
         private readonly ByteArrayPool _pool;
+
+        private readonly IAbsFileSystem _fileSystem;
+        private readonly AbsolutePath _workingDirectory;
+        private readonly AbsolutePath _tempDirectory;
 
         /// <summary>
         /// This adapter routes messages from Grpc to the current class.
@@ -87,9 +92,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             _pool = new ByteArrayPool(_bufferSize);
             _sessionHandler = sessionHandler;
 
+            _fileSystem = localServerConfiguration?.FileSystem ?? new PassThroughFileSystem();
+            _workingDirectory = (localServerConfiguration?.DataRootPath ?? new AbsolutePath(Directory.GetCurrentDirectory())) / "GrpcContentServer";
+            _tempDirectory = _workingDirectory / "temp";
+
             GrpcAdapter = new ContentServerAdapter(this);
 
             Logger = logger;
+        }
+
+        /// <inheritdoc />
+        protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
+        {
+            _fileSystem.CreateDirectory(_tempDirectory);
+            return BoolResult.SuccessTask;
         }
 
         /// <nodoc />
@@ -376,9 +392,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = true });
 
-            var tempFile = new AbsolutePath("Some temp path"); // TODO
+            var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);
 
-            using (var stream = File.Open(tempFile.Path, FileMode.OpenOrCreate, FileAccess.Write))
+            using (var tempFile = File.OpenWrite(tempFilePath.Path))
             {
                 while (await requestStream.MoveNext())
                 {
@@ -389,15 +405,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                     var request = requestStream.Current;
                     var bytes = request.Content.ToByteArray();
-                    await stream.WriteAsync(bytes, 0, bytes.Length);
+                    await tempFile.WriteAsync(bytes, 0, bytes.Length);
                 }
             }
 
-            PutResult result;
-            using (var source = File.OpenRead(tempFile.Path))
-            {
-                result = await store.HandlePushFileAsync(cacheContext, hash, source, token);
-            }
+            var result = await store.HandlePushFileAsync(cacheContext, hash, tempFilePath, token);
+
+            File.Delete(tempFilePath.Path);
 
             var response = result
                 ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }

@@ -955,7 +955,10 @@ namespace ContentStoreTest.Distributed.Sessions
             var indexedDirectories = Enumerable.Range(0, storeCount)
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / i.ToString()) })
                 .ToList();
-            var testFileCopier = new TestFileCopier();
+            var testFileCopier = new TestFileCopier()
+            {
+                WorkingDirectory = indexedDirectories[0].Directory.Path
+            };
             for (int iteration = 0; iteration < iterations; iteration++)
             {
                 var stores = indexedDirectories.Select(

@@ -399,21 +399,50 @@ namespace BuildXL.Processes
         // <inheritdoc />
         internal override JobObject.AccountingInformation GetJobAccountingInfo()
         {
-            return !MeasureCpuTime
-                ? base.GetJobAccountingInfo()
-                : new JobObject.AccountingInformation
+            if (!MeasureCpuTime)
+            {
+                return base.GetJobAccountingInfo();
+            }
+            else
+            {
+                IOCounters ioCounters;
+                ProcessMemoryCounters memoryCounters;
+
+                try
                 {
-                    IO = new IOCounters(new IO_COUNTERS()
+                    ioCounters = new IOCounters(new IO_COUNTERS()
                     {
                         ReadOperationCount = 1,
                         WriteOperationCount = 1,
                         ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
-                    }),
-                    MemoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0),
+                    });
+
+                    memoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
+                }
+                catch(OverflowException ex)
+                {
+                    LogProcessState($"Overflow exception caught while calculating AccountingInformation:{Environment.NewLine}{ex.ToString()}");
+
+                    ioCounters = new IOCounters(new IO_COUNTERS()
+                    {
+                        ReadOperationCount = 0,
+                        WriteOperationCount = 0,
+                        ReadTransferCount = 0,
+                        WriteTransferCount = 0
+                    });
+
+                    memoryCounters = new ProcessMemoryCounters(0, 0, 0);
+                }
+
+                return new JobObject.AccountingInformation
+                {
+                    IO = ioCounters,
+                    MemoryCounters = memoryCounters,
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
                 };
+            }
         }
 
         private void ReportProcessCreated()

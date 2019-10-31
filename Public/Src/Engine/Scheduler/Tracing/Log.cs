@@ -4528,7 +4528,16 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
-        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, int numProcesses, int expectedDurationSec, int actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, uint numProcesses, ulong expectedDurationSec, double actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Unable to log process pip execution info due to an overflow exception: {exception}")]
+        internal abstract void ProcessPipExecutionInfoOverflowFailure(LoggingContext loggingContext, string exception);
     }
 }
 #pragma warning restore CA1823 // Unused field

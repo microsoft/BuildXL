@@ -23,5 +23,5 @@ Error:  The value of the env var 'CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT' is not s
 Please modify the url in the example above to check if your newly added nuget uri is returning expected json output on the console.
 
 ## Building Locally
-To build the BuildXL.Tools.CredentialProvider project locally for testing simply run "dotnet build -r win-x64". 
+Simply run "dotnet build -r win-x64" to build the BuildXL.Tools.CredentialProvider project locally.
 The newly generated CredentialProviderBuildXL.exe file can be found inside BuildXL.Tools.CredentialProvider\bin\Debug\netcoreapp2.1\win-x64

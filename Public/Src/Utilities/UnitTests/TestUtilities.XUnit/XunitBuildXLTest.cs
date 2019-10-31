@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
@@ -241,6 +242,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 server.Dispose();
             }
         }
+
+        /// <summary>
+        /// No particular meaning, just an arbitrary instance of <see cref="SidebandMetadata"/>.
+        /// </summary>
+        protected static SidebandMetadata DefaultSidebandMetadata { get; }
+            = new SidebandMetadata(pipId: 1, staticPipFingerprint: new byte[] { 1, 2, 3 });
 
         /// <inheritdoc/>
         public void Dispose()

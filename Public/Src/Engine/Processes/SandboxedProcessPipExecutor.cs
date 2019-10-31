@@ -19,6 +19,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes.Containers;
 using BuildXL.Processes.Internal;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -721,7 +722,10 @@ namespace BuildXL.Processes
         /// <summary>
         /// Runs the process pip (uncached).
         /// </summary>
-        public async Task<SandboxedProcessPipExecutionResult> RunAsync(CancellationToken cancellationToken = default, ISandboxConnection sandboxConnection = null)
+        public async Task<SandboxedProcessPipExecutionResult> RunAsync(
+            CancellationToken cancellationToken = default, 
+            ISandboxConnection sandboxConnection = null,
+            SidebandWriter sidebandWriter = null)
         {
             try
             {
@@ -751,7 +755,6 @@ namespace BuildXL.Processes
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                using (var sharedOpaqueOutputLogger = CreateSharedOpaqueOutputLoggerIfConfigured())
                 using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
                 {
                     // Here we collect all the paths representing inputs under shared opaques dependencies
@@ -791,7 +794,7 @@ namespace BuildXL.Processes
                         m_pip.TestRetries,
                         m_loggingContext,
                         sandboxConnection: sandboxConnection,
-                        sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
+                        sidebandWriter: sidebandWriter)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -818,15 +821,6 @@ namespace BuildXL.Processes
 
                 m_fileAccessManifest.UnsetMessageCountSemaphore();
             }
-        }
-
-        private SharedOpaqueOutputLogger CreateSharedOpaqueOutputLoggerIfConfigured()
-        {
-            // don't use this logger if the root directory is not set up in the configuration layout or
-            // if pip's semistable hash is 0 (happens only in tests where multiple pips can have this hash)
-            return m_layoutConfiguration?.SharedOpaqueSidebandDirectory.IsValid == true && m_pip.SemiStableHash != 0
-                ? new SharedOpaqueOutputLogger(m_context, m_pip, m_layoutConfiguration.SharedOpaqueSidebandDirectory)
-                : null;
         }
 
         private bool SandboxedProcessNeedsExecuteExternal

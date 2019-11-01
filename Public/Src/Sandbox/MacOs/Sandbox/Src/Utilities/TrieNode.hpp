@@ -53,9 +53,10 @@ protected:
      *
      * @param key Must be between 0 (inclusive) and 'node.maxKey_' (exclusive); otherwise this method returns NULL
      * @param createIfMissing When true, this method creates a new child node at position 'idx' if one doesn't already exist.
+     * @param lock A lock unique to the parent tree to use when needed.
      * @result True IFF this node contains a child node with key 'key' after this method returns.
      */
-    virtual Node* findChild(uint key, bool createIfMissing) = 0;
+    virtual Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock) = 0;
 
     /*! Calls 'callback' for every node in the tree rooted in this node (the traversal is pre-order) */
     virtual void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) = 0;
@@ -83,16 +84,13 @@ private:
     /*! The key by which the parent can find this node */
     uint key_;
 
-    /*! Used only when modifying this node's list of children */
-    IORecursiveLock *lock_;
-
     /*! Pointer to the next sibling. */
     NodeLight *next_;
 
     /*! Pointer to the first child node */
     NodeLight *children_;
 
-    NodeLight* findChild(uint key, bool createIfMissing, IORecursiveLock *lock);
+    NodeLight* findChild(uint key, bool createIfMissing, IORecursiveLock *maybeNulllock, IORecursiveLock *nonNullLock);
 
     bool init(uint key);
 
@@ -102,9 +100,9 @@ public:
 
 protected:
 
-    Node* findChild(uint key, bool createIfMissing) override
+    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock) override
     {
-        return findChild(key, createIfMissing, nullptr);
+        return findChild(key, createIfMissing, nullptr, lock);
     }
 
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
@@ -139,7 +137,7 @@ public:
 
 protected:
 
-    Node* findChild(uint key, bool createIfMissing) override;
+    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock) override;
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
     void free() override;
 };

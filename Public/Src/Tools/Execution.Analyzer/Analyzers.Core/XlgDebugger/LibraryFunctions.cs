@@ -1,4 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+﻿
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -6,6 +7,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Execution.Analyzer.JPath;
+
+using IEnum = System.Collections.IEnumerable;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;
 
 namespace BuildXL.Execution.Analyzer
@@ -24,7 +27,7 @@ namespace BuildXL.Execution.Analyzer
              new Function(name: "sort",   minArity: 1, func: Sort),
              new Function(name: "join",   minArity: 1, func: Join),
              new Function(name: "grep",   minArity: 2, func: Grep),
-             new Function(name: "strcat", minArity: 1, func: StrCat),
+             new Function(name: "str",    minArity: 1, func: StrCat),
              new Function(name: "head",   minArity: 1, func: Head),
              new Function(name: "tail",   minArity: 1, func: Tail),
              new Function(name: "toJson", minArity: 1, func: ToJson),
@@ -154,12 +157,17 @@ namespace BuildXL.Execution.Analyzer
                 .Select(o => o.Properties.ToDictionary(p => p.Name, p => extractValue(p.Value)))
                 .ToArray();
 
-            static object extractValue(object val)
+            object extractValue(object val)
             {
                 return val switch
                 {
-                    Result r => r.IsScalar ? r.Value.First() : r.Value.ToArray(),
-                    _        => val,
+                    Result r   => r.IsScalar ? extractValue(r.Value.First()) : r.Value.Select(extractValue).ToArray(),
+                    int i      => i,
+                    long l     => l,
+                    uint ui    => ui,
+                    string str => str,
+                    IEnum col  => col.Cast<object>().Select(extractValue).ToArray(),
+                    _          => args.Preview(val),
                 };
             }
         }

@@ -33,6 +33,13 @@ bool Trie::init(TrieKind kind)
     kind_ = mergeKindAndImpl(kind, g_bxl_enable_light_trie ? kLightTrie : kFastTrie);
     onChangeData_ = nullptr;
     onChangeCallback_ = nullptr;
+
+    lock_ = IORecursiveLockAlloc();
+    if (!lock_)
+    {
+        return false;
+    }
+
     root_ = createNode(0);
     if (root_ == nullptr)
     {
@@ -49,6 +56,8 @@ void Trie::free()
                  OSSafeReleaseNULL(n);
              });
 
+    IORecursiveLockFree(lock_);
+    lock_ = nullptr;
     root_ = nullptr;
     size_ = 0;
 
@@ -470,7 +479,7 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
         {
             return nullptr;
         }
-        currNode = currNode->findChild(idx, createIfMissing);
+        currNode = currNode->findChild(idx, createIfMissing, lock_);
         if (currNode == nullptr)
         {
             return nullptr;
@@ -492,7 +501,7 @@ Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
     while (true)
     {
         int lsd = key % 10;
-        currNode = currNode->findChild(lsd, createIfMissing);
+        currNode = currNode->findChild(lsd, createIfMissing, lock_);
         if (!currNode)
         {
             return nullptr;

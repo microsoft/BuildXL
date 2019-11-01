@@ -20,6 +20,9 @@ namespace Test.Tool.Analyzers {
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
+            importFrom("BuildXL.FrontEnd").Script.dll,
+            importFrom("BuildXL.Ide").Script.Debugger.dll,
+            importFrom("BuildXL.Ide").VSCode.DebugProtocol.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.dll,
@@ -36,6 +39,7 @@ namespace Test.Tool.Analyzers {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("BuildXL.Tools").Xldb.dll,
             importFrom("BuildXL.Tools").Xldb.Proto.dll,
+            importFrom("Newtonsoft.Json").pkg,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe

@@ -218,7 +218,7 @@ namespace BuildXL.Native.IO
             Action<SafeFileHandle, SafeFileHandle> onCompletion = null) => s_fileUtilities.CopyFileAsync(source, destination, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.MoveFileAsync(string, string, bool)"/>
-        public static Task<bool> MoveFileAsync(
+        public static Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false) => s_fileUtilities.MoveFileAsync(source, destination, replaceExisting);
@@ -1189,10 +1189,7 @@ namespace BuildXL.Native.IO
                 SetFileTimestamps(temporaryPath, timestamps);
             }
 
-            if (!await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true))
-            {
-                return new Failure<string>(I($"Failed to make exclusive link for '{originalPath}' because renaming '{temporaryPath}' failed"));
-            }
+            await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true);
 
             return Unit.Void;
         }

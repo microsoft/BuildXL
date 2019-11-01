@@ -112,12 +112,7 @@ namespace BuildXL.Engine.Recovery
             //         RenameMemoDb();
             //     }
             var corruptedMemosDbFile = PrepareCorruptedMemosDbBackupFile(cacheDirectory);
-            var result = FileUtilities.MoveFileAsync(memosDbFile, corruptedMemosDbFile, replaceExisting: true).Result;
-
-            if (!result)
-            {
-                return new Failure<string>(I($"Failed to rename '{memosDbFile}' to '{corruptedMemosDbFile}'"));
-            }
+            FileUtilities.MoveFileAsync(memosDbFile, corruptedMemosDbFile, replaceExisting: true).Wait();
 
             // Delete marker file in case of successful recovery.
             FileUtilities.DeleteFile(MarkerFile(cacheDirectory));

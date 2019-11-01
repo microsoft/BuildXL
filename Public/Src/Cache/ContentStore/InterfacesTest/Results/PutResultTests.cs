@@ -53,12 +53,25 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
             var result = new PutResult(contentHash, 7);
             Assert.Equal(contentHash, result.ContentHash);
             Assert.Equal(7, result.ContentSize);
+            Assert.False(result.ContentAlreadyExistsInCache);
+        }
+
+        [Fact]
+        public void ConstructorWithOptionalParamsSetsProperties()
+        {
+            var contentHash = ContentHash.Random();
+            var result = new PutResult(contentHash, 7, true);
+            Assert.Equal(contentHash, result.ContentHash);
+            Assert.Equal(7, result.ContentSize);
+            Assert.True(result.ContentAlreadyExistsInCache);
         }
 
         [Fact]
         public void Success()
         {
             Assert.True(new PutResult(ContentHash.Random(), 27).Succeeded);
+            Assert.True(new PutResult(ContentHash.Random(), 27, true).Succeeded);
+            Assert.True(new PutResult(ContentHash.Random(), 27, false).Succeeded);
         }
 
         [Fact]

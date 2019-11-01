@@ -50,9 +50,15 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public delegate PipData PipDataLookup(FileArtifact artifact);
 
+        /// <summary>
+        /// Refers to a function which maps a process to its source-change-affected inputs. 
+        /// </summary>
+        public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedInputsLookup(Process process);
+
         private readonly PathTable m_pathTable;
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
+        private readonly SourceChangeAffectedInputsLookup m_sourceChangeAffectedInputsLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
@@ -99,7 +105,8 @@ namespace BuildXL.Scheduler.Fingerprints
             PipFragmentRenderer.ContentHashLookup contentHashLookup = null,
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
-            PipDataLookup pipDataLookup = null)
+            PipDataLookup pipDataLookup = null,
+            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null)
         {
             Contract.Requires(pathTable != null);
 
@@ -112,6 +119,7 @@ namespace BuildXL.Scheduler.Fingerprints
             DirectoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
             m_environmentVariableComparer = Comparer<EnvironmentVariable>.Create((ev1, ev2) => { return ev1.Name.ToString(pathTable.StringTable).CompareTo(ev2.Name.ToString(pathTable.StringTable)); });
             m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
+            m_sourceChangeAffectedInputsLookup = sourceChangeAffectedInputsLookup ?? new SourceChangeAffectedInputsLookup(process => ReadOnlyArray<AbsolutePath>.Empty);
             m_pipFragmentRenderer = new PipFragmentRenderer(
                 pathExpander: path => PathExpander.ExpandPath(pathTable, path).ToUpperInvariant(),
                 pathTable.StringTable,
@@ -345,6 +353,21 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             fingerprinter.AddCollection<int, ReadOnlyArray<int>>("SuccessExitCodes", process.SuccessExitCodes, (h, i) => h.Add(i));
+
+            if (process.ChangeAffectedInputListWrittenFile.IsValid)
+            {
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedInputsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+                fingerprinter.Add("ChangeAffectedInputListWrittenFile", process.ChangeAffectedInputListWrittenFile);
+            }
+
+            if (process.ChildProcessesToBreakawayFromSandbox != null)
+            {
+                fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
+                    "ChildProcessesToBreakawayFromSandbox", 
+                    process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(), 
+                    (h, p) => h.Add(p),
+                    m_pathTable.StringTable.OrdinalComparer);
+            }
         }
 
         /// <summary>

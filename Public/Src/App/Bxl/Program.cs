@@ -101,16 +101,9 @@ namespace BuildXL
 
             if (lightConfig.Help != HelpLevel.None)
             {
-                if (lightConfig.Help == HelpLevel.DxCode)
-                {
-                    System.Diagnostics.Process.Start(Strings.DX_Help_Link);
-                }
-                else
-                {
-                    // Need to cast here to convert from the configuration enum to the ToolSupoort enum. Their values
-                    // are manually kept in sync to avoid the additional dependency.
-                    HelpText.DisplayHelp((BuildXL.ToolSupport.HelpLevel)lightConfig.Help);
-                }
+                // Need to cast here to convert from the configuration enum to the ToolSupoort enum. Their values
+                // are manually kept in sync to avoid the additional dependency.
+                HelpText.DisplayHelp((BuildXL.ToolSupport.HelpLevel)lightConfig.Help);
 
                 return ExitCode.FromExitKind(ExitKind.BuildNotRequested);
             }
@@ -187,7 +180,7 @@ namespace BuildXL
                 {
                     try
                     {
-                        return connection.RunWithArgs(rawArgs, environmentVariablesToPass, serverModeStatusAndPerf, lightConfig.ServerDeploymentDirectory);
+                        return connection.RunWithArgs(rawArgs, environmentVariablesToPass, serverModeStatusAndPerf);
                     }
                     catch (BuildXLException ex)
                     {

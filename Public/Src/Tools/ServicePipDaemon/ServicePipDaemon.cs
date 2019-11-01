@@ -298,7 +298,7 @@ namespace Tool.ServicePipDaemon
             clientAction: AsyncRPCSend,
             serverAction: (conf, daemon) =>
             {
-                conf.Logger.Info("[STOP] requested");
+                daemon.Logger.Info("[STOP] requested");
                 daemon.RequestStop();
                 return Task.FromResult(IpcResult.Success());
             });

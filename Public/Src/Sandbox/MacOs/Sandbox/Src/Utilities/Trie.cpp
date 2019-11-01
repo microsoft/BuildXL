@@ -2,71 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "Trie.hpp"
+#include "Monitor.hpp"
 
 #define super OSObject
-
-// ================================== class Node ==================================
-
-OSDefineMetaClassAndStructors(Node, OSObject)
-
-uint Node::s_numUintNodes = 0;
-uint Node::s_numPathNodes = 0;
-
-Node* Node::create(uint numChildren)
-{
-    Node *instance = new Node;
-    if (instance != nullptr)
-    {
-        if (numChildren == s_uintNodeChildrenCount)      OSIncrementAtomic(&s_numUintNodes);
-        else if (numChildren == s_pathNodeChildrenCount) OSIncrementAtomic(&s_numPathNodes);
-
-        if (!instance->init(numChildren))
-        {
-            OSSafeReleaseNULL(instance);
-        }
-    }
-
-    return instance;
-}
-
-bool Node::init(uint numChildren)
-{
-    if (!super::init())
-    {
-        return false;
-    }
-
-    record_ = nullptr;
-    childrenLength_ = numChildren;
-    children_ = IONew(Node*, numChildren);
-
-    for (int i = 0; i < childrenLength_; i++)
-    {
-        children_[i] = nullptr;
-    }
-
-    return true;
-}
-
-void Node::free()
-{
-    for (int i = 0; i < childrenLength_; i++)
-    {
-        children_[i] = nullptr;
-    }
-
-    IODelete(children_, Node*, childrenLength_);
-    children_ = nullptr;
-
-    OSSafeReleaseNULL(record_);
-
-    if (length() == s_uintNodeChildrenCount)      OSDecrementAtomic(&s_numUintNodes);
-    else if (length() == s_pathNodeChildrenCount) OSDecrementAtomic(&s_numPathNodes);
-
-    super::free();
-}
-
-// ================================== class Trie ==================================
 
 OSDefineMetaClassAndStructors(Trie, OSObject)
 
@@ -91,8 +29,18 @@ bool Trie::init(TrieKind kind)
         return false;
     }
 
-    kind_ = kind;
-    root_ = createNode();
+    size_ = 0;
+    kind_ = mergeKindAndImpl(kind, g_bxl_enable_light_trie ? kLightTrie : kFastTrie);
+    onChangeData_ = nullptr;
+    onChangeCallback_ = nullptr;
+
+    lock_ = IORecursiveLockAlloc();
+    if (!lock_)
+    {
+        return false;
+    }
+
+    root_ = createNode(0);
     if (root_ == nullptr)
     {
         return false;
@@ -103,52 +51,17 @@ bool Trie::init(TrieKind kind)
 
 void Trie::free()
 {
-    traverse(/*computeKey*/ false, /*callbackArgs*/ nullptr, [](Trie*, void*, uint64_t, Node *n)
+    traverse(/*computeKey*/ false, /*callbackArgs*/ nullptr, [](void*, uint64_t, Node *n)
              {
                  OSSafeReleaseNULL(n);
              });
 
+    IORecursiveLockFree(lock_);
+    lock_ = nullptr;
     root_ = nullptr;
     size_ = 0;
 
     super::free();
-}
-
-bool Trie::findChildNode(Node *node, int idx, bool createIfMissing)
-{
-    if (idx < 0 || idx >= node->length())
-    {
-        return false;
-    }
-
-    bool childNodeExists = node->children()[idx] != nullptr;
-
-    if (childNodeExists)
-    {
-        return true;
-    }
-
-    // child is missing
-    if (!createIfMissing)
-    {
-        return false;
-    }
-
-    Node* newNode = createNode();
-
-    // This should never happen except if we run out of memory.
-    if (newNode == nullptr)
-    {
-        return false;
-    }
-
-    if (!OSCompareAndSwapPtr(nullptr, newNode, &node->children()[idx]))
-    {
-        // someone else created this child node before us --> release 'newNode' that we created for nothing
-        OSSafeReleaseNULL(newNode);
-    }
-
-    return true;
 }
 
 Trie::TrieResult Trie::makeSentinel(Node *node, void *factoryArgs, factory_fn factory)
@@ -551,16 +464,26 @@ static_assert(UCHAR_MAX == 255, "max unsigned char is not 255");
 
 Node* Trie::findPathNode(const char *path, bool createIfMissing)
 {
+    if (!isPathTrie())
+    {
+        log_error("Requested to find a path node in a non-path trie; tree kind: %d, path: %s", kind_, path);
+        return nullptr;
+    }
+
     Node *currNode = root_;
     unsigned char ch;
     while ((ch = *path++) != '\0')
     {
         int idx = s_char2idx[ch];
-        if (!findChildNode(currNode, idx, createIfMissing))
+        if (idx < 0 || idx >= Node::s_pathNodeMaxKey)
         {
             return nullptr;
         }
-        currNode = currNode->children()[idx];
+        currNode = currNode->findChild(idx, createIfMissing, lock_);
+        if (currNode == nullptr)
+        {
+            return nullptr;
+        }
     }
 
     return currNode;
@@ -568,19 +491,21 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
 
 Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
 {
+    if (!isUintTrie())
+    {
+        log_error("Requested to find a uint node in a non-uint trie; trie kind: %d, key: %lld", kind_, key);
+        return nullptr;
+    }
+
     Node *currNode = root_;
     while (true)
     {
-        assert(currNode->length() == 10);
-
         int lsd = key % 10;
-
-        if (!findChildNode(currNode, lsd, createIfMissing))
+        currNode = currNode->findChild(lsd, createIfMissing, lock_);
+        if (!currNode)
         {
             return nullptr;
         }
-
-        currNode = currNode->children()[lsd];
 
         if (key < 10)
         {
@@ -613,7 +538,7 @@ void Trie::forEach(void *callbackArgs, for_each_fn callback)
 {
     typedef struct { for_each_fn callback; void *args; } State;
     State state = { .callback = callback, .args = callbackArgs };
-    traverse(/*computeKey*/ kind_ == kUintTrie, /*callbackArgs*/ &state, [](Trie *me, void *s, uint64_t key, Node *node)
+    traverse(/*computeKey*/ isUintTrie(), /*callbackArgs*/ &state, [](void *s, uint64_t key, Node *node)
              {
                  State *state = (State*)s;
                  OSObject *record = node->record_;
@@ -628,9 +553,9 @@ void Trie::forEach(void *callbackArgs, for_each_fn callback)
 
 void Trie::removeMatching(void *filterArgs, filter_fn filter)
 {
-    typedef struct { filter_fn filter; void *args; } State;
-    State state = { .filter = filter, .args = filterArgs };
-    traverse(/*computeKey*/ false, /*callbackArgs*/ &state, [](Trie *me, void *s, uint64_t, Node *node)
+    typedef struct { filter_fn filter; void *args; Trie *me; } State;
+    State state = { .filter = filter, .args = filterArgs, .me = this };
+    traverse(/*computeKey*/ false, /*callbackArgs*/ &state, [](void *s, uint64_t, Node *node)
              {
                  State *state = (State*)s;
                  OSObject *record = node->record_;
@@ -639,85 +564,14 @@ void Trie::removeMatching(void *filterArgs, filter_fn filter)
                      record->retain();
                      if (state->filter(state->args, record))
                      {
-                         me->remove(node);
+                         state->me->remove(node);
                      }
                      record->release();
                  }
              });
 }
 
-typedef struct Stack {
-    Node *node;
-    Stack *next;
-    uint32_t depth;
-    uint64_t key;
-} Stack;
-
-static void push(Stack **stack, Node *node, uint64_t path, uint32_t depth)
-{
-    if (node == nullptr) return;
-
-    Stack *top = IONew(Stack, 1);
-    top->node  = node;
-    top->next  = *stack;
-    top->key   = path;
-    top->depth = depth;
-
-    *stack = top;
-}
-
-static Node* pop(Stack **stack)
-{
-    Stack *top = *stack;
-    *stack = top->next;
-    Node *node = top->node;
-    IODelete(top, Stack, 1);
-    return node;
-}
-
-static uint64_t s_pow10[] =
-{
-    1,
-    10,
-    100,
-    1000,
-    10000,
-    100000,
-    1000000,
-    10000000,
-    100000000,
-    1000000000,
-    10000000000,
-    100000000000,
-    1000000000000
-};
-
-static int s_powLen = sizeof(s_pow10)/sizeof(s_pow10[0]);
-
-static uint64_t pow10(int exp)
-{
-    if (exp < s_powLen) return s_pow10[exp];
-    uint64_t result = 1;
-    while (--exp >= 0) result *= 10;
-    return result;
-}
-
 void Trie::traverse(bool computeKey, void *callbackArgs, traverse_fn callback)
 {
-    Stack *stack = nullptr;
-    push(&stack, root_, /*key*/ 0, /*depth*/ 0);
-    while (stack != nullptr)
-    {
-        uint64_t key = stack->key;
-        uint32_t depth = stack->depth;
-
-        Node *curr = pop(&stack);
-        for (int i = 0; i < curr->length(); ++i)
-        {
-            push(&stack, curr->children()[i], computeKey ? (i * pow10(depth) + key) : 0, depth + 1);
-        }
-
-        // the callback may deallocate 'curr' node, hence this must be the last statement in this loop
-        callback(this, callbackArgs, key, curr);
-    }
+    root_->traverse(computeKey, callbackArgs, callback);
 }

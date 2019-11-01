@@ -40,7 +40,7 @@ config({
             // but when it fails to download (e.g. from a share) the build is aborted. Consider making the failure non-blocking.
             configuration: {
                 toolUrl: "https://dist.nuget.org/win-x86-commandline/v4.9.4/NuGet.exe",
-                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
+                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200"
             },
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
@@ -80,8 +80,8 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "3.0.0" },
-                { id: "Microsoft.NETCore.Compilers", version: "3.1.0-beta3-final" },
+                { id: "Microsoft.Net.Compilers", version: "3.3.1" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
+                { id: "Microsoft.NETCore.Compilers", version: "3.3.1" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },

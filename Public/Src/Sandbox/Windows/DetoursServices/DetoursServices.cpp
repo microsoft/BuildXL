@@ -195,6 +195,7 @@ that none of the appends will be lost.
 
 using std::string;
 using std::vector;
+using std::unordered_set;
 using std::unique_ptr;
 using std::make_unique;
 
@@ -218,6 +219,8 @@ uint64_t g_FileAccessManifestPipId;
 
 PCManifestRecord g_manifestTreeRoot;
 
+PManifestChildProcessesToBreakAwayFromJob g_manifestChildProcessesToBreakAwayFromJob;
+unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>* g_processNamesToBreakAwayFromJob = nullptr;
 PManifestTranslatePathsStrings g_manifestTranslatePathsStrings;
 vector<TranslatePathTuple*>* g_pManifestTranslatePathTuples = nullptr;
 
@@ -478,6 +481,16 @@ InternalCreateDetouredProcess(
     if ((needInjection || hJob != 0) && !disabledDetours)
     {
         creationFlags |= CREATE_SUSPENDED;
+    }
+
+    // If there are configured processes that need to break away from
+    // the current job object, that means the job object was configured with
+    // the JOB_OBJECT_LIMIT_BREAKAWAY_OK limit. But if we reached this point
+    // the process being created is not allowed to break away. So make
+    // sure we don't pass CREATE_BREAKAWAY_FROM_JOB
+    if (!g_processNamesToBreakAwayFromJob->empty())
+    {
+        creationFlags &= !CREATE_BREAKAWAY_FROM_JOB;
     }
 
     if (LogProcessDetouringStatus())
@@ -1056,6 +1069,7 @@ static bool DllProcessAttach()
         return false;
     }
 
+    g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
 
@@ -1281,6 +1295,7 @@ static bool DllProcessAttach()
         return false;
     }
 
+    g_processNamesToBreakAwayFromJob = new unordered_set<std::wstring, CaseInsensitiveStringHasher, CaseInsensitiveStringComparer>();
     g_pManifestTranslatePathTuples = new vector<TranslatePathTuple*>();
     g_pDetouredProcessInjector = new DetouredProcessInjector(g_manifestGuid);
 

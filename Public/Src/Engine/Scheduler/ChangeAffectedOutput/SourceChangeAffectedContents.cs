@@ -13,16 +13,16 @@ using BuildXL.Utilities.Collections;
 namespace BuildXL.Scheduler.ChangeAffectedOutput
 {
     /// <summary>
-    /// Class representing source change affected output or input contents.
+    /// Class representing source change affected output or inputs.
     /// </summary>
-    public sealed class SourceChangeAffectedContents
+    public sealed class SourceChangeAffectedInputs
     {
         private PathTable PathTable => m_fileContentManager.Host.Context.PathTable;
 
         private readonly FileContentManager m_fileContentManager;
 
         /// <summary>
-        /// File contents which affected by the source change. 
+        /// Files which affected by the source change. 
         /// </summary>
         /// <remarks>
         /// This list should be initialized by the input change list provided from the InputChanges configuration option.
@@ -45,7 +45,7 @@ namespace BuildXL.Scheduler.ChangeAffectedOutput
         private readonly ConcurrentDictionary<DirectoryArtifact, List<AbsolutePath>> m_sourceSealDirectoryAffectedMembers = new ConcurrentDictionary<DirectoryArtifact, List<AbsolutePath>>();
 
         /// <nodoc />
-        public SourceChangeAffectedContents(FileContentManager fileContentManager)
+        public SourceChangeAffectedInputs(FileContentManager fileContentManager)
         {
             m_fileContentManager = fileContentManager;
         }

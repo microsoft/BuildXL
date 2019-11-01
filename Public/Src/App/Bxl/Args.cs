@@ -248,9 +248,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheGraph",
                             opt => cacheConfiguration.CacheGraph = opt),
-                        OptionHandlerFactory.CreateOption(
-                            "cacheMemoryUsage",
-                            opt => cacheConfiguration.CacheMemoryUsage = CommandLineUtilities.ParseEnumOption<MemoryUsageOption>(opt)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "cacheMiss",
                             (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, loggingConfiguration, pathTable)),
@@ -533,9 +530,7 @@ namespace BuildXL
                             "?",
                             opt =>
                             {
-                                var help = ParseHelpOption(opt);
-                                configuration.Help = help.Key;
-                                configuration.HelpCode = help.Value;
+                                configuration.Help = ParseHelpOption(opt);
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
@@ -1155,9 +1150,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "vfsCasRoot",
                             opt => cacheConfiguration.VfsCasRoot = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
                         OptionHandlerFactory.CreateOption(
                             "viewer",
-                            opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),
+                            opt => configuration.Viewer = CommandLineUtilities.ParseEnumOption<ViewerMode>(opt)),*/
                         OptionHandlerFactory.CreateBoolOption(
                             "vs",
                             sign => ideConfiguration.IsEnabled = sign),
@@ -1900,19 +1896,14 @@ namespace BuildXL
                    };
         }
 
-        internal static KeyValuePair<HelpLevel, int> ParseHelpOption(CommandLineUtilities.Option opt)
+        internal static HelpLevel ParseHelpOption(CommandLineUtilities.Option opt)
         {
             if (string.IsNullOrWhiteSpace(opt.Value))
             {
-                return new KeyValuePair<HelpLevel, int>(HelpLevel.Standard, 0);
+                return HelpLevel.Standard;
             }
 
-            string trimmed = opt.Value.TrimStart('d');
-            trimmed = trimmed.TrimStart('x');
-
-            return int.TryParse(trimmed, out int dxCode)
-                ? new KeyValuePair<HelpLevel, int>(HelpLevel.DxCode, dxCode)
-                : new KeyValuePair<HelpLevel, int>(CommandLineUtilities.ParseEnumOption<HelpLevel>(opt), 0);
+            return CommandLineUtilities.ParseEnumOption<HelpLevel>(opt);
         }
 
         public void Dispose()

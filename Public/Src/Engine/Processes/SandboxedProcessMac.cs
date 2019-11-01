@@ -14,6 +14,7 @@ using BuildXL.Interop;
 using BuildXL.Interop.MacOS;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 using JetBrains.Annotations;
@@ -83,8 +84,8 @@ namespace BuildXL.Processes
         /// <summary>
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
-        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode 
-            ? ProcessInfo.ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100) 
+        internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode
+            ? ProcessInfo.ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
             : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
@@ -130,7 +131,7 @@ namespace BuildXL.Processes
                 info.PipDescription,
                 info.LoggingContext,
                 info.DetoursEventListener,
-                info.SharedOpaqueOutputLogger);
+                info.SidebandWriter);
 
             m_pendingReports = new ActionBlock<AccessReport>(
                 HandleAccessReport,
@@ -173,7 +174,7 @@ namespace BuildXL.Processes
             }
 
             // get memory usage for the process tree
-            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakMemoryUsage(default, ProcessId));
+            m_perfAggregator.PeakMemoryBytes.RegisterSample(Dispatch.GetActivePeakWorkingSet(default, ProcessId));
         }
 
         /// <inheritdoc />
@@ -230,7 +231,7 @@ namespace BuildXL.Processes
             {
                 // IOException can happen if the process is forcefully killed while we're feeding its std in.
                 // When that happens, instead of crashing, just make sure the process is killed.
-                LogProcessState($"IOException caught while feeding the standard input: {e.Message}");
+                LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
                 await KillAsync();
             }
         }
@@ -398,21 +399,50 @@ namespace BuildXL.Processes
         // <inheritdoc />
         internal override JobObject.AccountingInformation GetJobAccountingInfo()
         {
-            return !MeasureCpuTime
-                ? base.GetJobAccountingInfo()
-                : new JobObject.AccountingInformation
+            if (!MeasureCpuTime)
+            {
+                return base.GetJobAccountingInfo();
+            }
+            else
+            {
+                IOCounters ioCounters;
+                ProcessMemoryCounters memoryCounters;
+
+                try
                 {
-                    IO = new IOCounters(new IO_COUNTERS()
+                    ioCounters = new IOCounters(new IO_COUNTERS()
                     {
                         ReadOperationCount = 1,
                         WriteOperationCount = 1,
                         ReadTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesRead.Total),
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
-                    }),
-                    PeakMemoryUsage = Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum),
+                    });
+
+                    memoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
+                }
+                catch(OverflowException ex)
+                {
+                    LogProcessState($"Overflow exception caught while calculating AccountingInformation:{Environment.NewLine}{ex.ToString()}");
+
+                    ioCounters = new IOCounters(new IO_COUNTERS()
+                    {
+                        ReadOperationCount = 0,
+                        WriteOperationCount = 0,
+                        ReadTransferCount = 0,
+                        WriteTransferCount = 0
+                    });
+
+                    memoryCounters = new ProcessMemoryCounters(0, 0, 0);
+                }
+
+                return new JobObject.AccountingInformation
+                {
+                    IO = ioCounters,
+                    MemoryCounters = memoryCounters,
                     KernelTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobKernelTimeMs.Latest),
                     UserTime = TimeSpan.FromMilliseconds(m_perfAggregator.JobUserTimeMs.Latest),
                 };
+            }
         }
 
         private void ReportProcessCreated()
@@ -497,7 +527,7 @@ namespace BuildXL.Processes
                         }
                     }
 
-                    await Task.Delay(250);
+                    await Task.Delay(SandboxConnection.IsInTestMode ? 5 : 250);
                 }
             }, m_timeoutTaskCancelationSource.Token).IgnoreErrors();
 

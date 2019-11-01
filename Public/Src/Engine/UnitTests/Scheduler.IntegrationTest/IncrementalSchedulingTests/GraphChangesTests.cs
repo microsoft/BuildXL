@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
@@ -1264,7 +1263,42 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             result = RunScheduler(schedulerState: result.SchedulerState).AssertScheduled(q.PipId);
 
             AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState);
-            AssertLogContains(false, "Attempt to reuse existing incremental scheduling state: " + ReuseKind.ChangedGraph);
+            AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + ReuseFromEngineStateKind.ChangedGraph);
+        }
+
+        [Fact]
+        public void GAISSCannotBeReusedFromEngineStateWithInvalidSchedulerState()
+        {
+            // Graph G1: P
+            // Graph G2: Q
+
+            // Start with G1.
+            // Build P.
+            var pOperations = new Operation[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) };
+            Process p = CreateAndSchedulePipBuilder(pOperations).Process;
+
+            var resultP = RunScheduler().AssertScheduled(p.PipId);
+
+            // Save G1.
+            var graphG1 = SavePipGraph();
+
+            // Switch to G2.
+            ResetPipGraphBuilder();
+
+            // Build Q.
+            var qOperations = new Operation[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) };
+            Process q = CreateAndSchedulePipBuilder(qOperations).Process;
+            RunScheduler().AssertScheduled(q.PipId);
+
+            // Restore G1.
+            graphG1.Restore();
+
+            // Deliberately use the scheduler state from the 1st build, which is invalid.
+            // Then, incremental scheduling will be loaded from file, and in that case P is already clean, and will not be scheduled.
+            RunScheduler(schedulerState: resultP.SchedulerState).AssertNotScheduled(p.PipId);
+
+            AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState);
+            AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + ReuseFromEngineStateKind.MismatchedEngineStateId);
         }
 
         [Fact]

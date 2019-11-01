@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -117,8 +118,8 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// File path of which the source shange affected inputs are written into.
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
-        public FileArtifact ChangeAffectedInputListWrittenFilePath { get; }
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public FileArtifact ChangeAffectedInputListWrittenFile { get; }
 
         /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
@@ -412,8 +413,9 @@ namespace BuildXL.Pips.Operations
             int? weight = null,
             int? priority = null,
             ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
-            FileArtifact changeAffectedInputListWrittenFilePath = default,
-            int? preserveOutputsTrustLevel = null)
+            FileArtifact changeAffectedInputListWrittenFile = default,
+            int? preserveOutputsTrustLevel = null,
+            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -468,6 +470,8 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(additionalTempDirectories.Length == additionalTempDirectories.Distinct().Count());
             Contract.RequiresForAll(semaphores, s => s.IsValid);
             Contract.Requires(semaphores.Length == semaphores.Distinct().Count());
+            Contract.Requires(!(childProcessesToBreakawayFromSandbox?.Length > 0) || ProcessUtilities.SandboxSupportsProcessBreakaway(), 
+                "A process is only allowed to specify child processes to breakaway if the underlying sandbox allows for it");
 #endif
 
             Provenance = provenance;
@@ -515,7 +519,7 @@ namespace BuildXL.Pips.Operations
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
-            ChangeAffectedInputListWrittenFilePath = changeAffectedInputListWrittenFilePath;
+            ChangeAffectedInputListWrittenFile = changeAffectedInputListWrittenFile;
 
             if (PreserveOutputWhitelist.Length != 0)
             {
@@ -524,6 +528,7 @@ namespace BuildXL.Pips.Operations
 
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty; 
         }
 
         /// <summary>
@@ -620,7 +625,7 @@ namespace BuildXL.Pips.Operations
                 weight,
                 priority,
                 preserveOutputWhitelist ?? PreserveOutputWhitelist,
-                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFilePath,
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
                 preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
 
         }
@@ -670,7 +675,7 @@ namespace BuildXL.Pips.Operations
         public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
 
         /// <summary>
-        /// Does this process require unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes passed from GBR.
+        /// Whether this process consumes /unsafe_GlobalPassthroughEnvVars and /unsafe_GlobalUntrackedScopes passed from the command line
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
         public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;
@@ -717,6 +722,16 @@ namespace BuildXL.Pips.Operations
         /// without throwing a build error DX0041.
         /// </summary>
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; }
+
+
+        /// <summary>
+        /// Process names that will break away from the sandbox when spawned by the main process
+        /// </summary>
+        /// <remarks>
+        /// The accesses of processes that break away from them sandbox won't be observed.
+        /// Processes that breakaway can survive the lifespan of the sandbox
+        /// </remarks>
+        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
 
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
@@ -867,8 +882,9 @@ namespace BuildXL.Pips.Operations
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
                 preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
-                changeAffectedInputListWrittenFilePath: reader.ReadFileArtifact(),
-                preserveOutputsTrustLevel: reader.ReadInt32()
+                changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
+                preserveOutputsTrustLevel: reader.ReadInt32(),
+                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom())
                 );
         }
 
@@ -917,8 +933,9 @@ namespace BuildXL.Pips.Operations
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
-            writer.Write(ChangeAffectedInputListWrittenFilePath);
+            writer.Write(ChangeAffectedInputListWrittenFile);
             writer.Write(PreserveOutputsTrustLevel);
+            writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
         }
         #endregion
     }

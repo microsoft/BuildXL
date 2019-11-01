@@ -62,7 +62,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OutputMaterializationExclusionRoots = new List<AbsolutePath>();
 
             IncrementalScheduling = false;
-            GraphAgnosticIncrementalScheduling = true;
             ComputePipStaticFingerprints = false;
             LogPipStaticFingerprintTexts = false;
 
@@ -124,7 +123,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OutputMaterializationExclusionRoots = pathRemapper.Remap(template.OutputMaterializationExclusionRoots);
 
             IncrementalScheduling = template.IncrementalScheduling;
-            GraphAgnosticIncrementalScheduling = template.GraphAgnosticIncrementalScheduling;
             ComputePipStaticFingerprints = template.ComputePipStaticFingerprints;
             LogPipStaticFingerprintTexts = template.LogPipStaticFingerprintTexts;
 
@@ -287,9 +285,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IncrementalScheduling { get; set; }
-
-        /// <inheritdoc />
-        public bool GraphAgnosticIncrementalScheduling { get; set; }
 
         /// <inheritdoc />
         public bool ComputePipStaticFingerprints { get; set; }

@@ -79,8 +79,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var builder = CreatePipBuilder(new Operation[]
             {
-                Operation.WriteFile(CreateOutputFileArtifact())
+                Operation.WriteFile(producedOutput, doNotInfer: true)
             });
+            builder.AddOutputDirectory(AbsolutePath.Create(Context.PathTable, opaqueDir));
 
             var pip = SchedulePipBuilder(builder);
 
@@ -94,15 +95,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             // The pip should be a cache hit
             RunScheduler().AssertCacheHit(pip.Process.PipId);
 
-            // If running with Incremental scheduling the stray file will still exist, otherwise it will not.
-            if (Configuration.Schedule.IncrementalScheduling || Configuration.Schedule.GraphAgnosticIncrementalScheduling)
-            {
-                XAssert.IsTrue(File.Exists(externallyProducedOutput), "Expected {0} to exist when using incremental scheduling", externallyProducedOutput);
-            }
-            else
-            {
-                XAssert.IsFalse(File.Exists(externallyProducedOutput), "Did not expect {0} to exist when using incremental scheduling", externallyProducedOutput);
-            }
+            // The addition of external file makes the pip dirty. Thus, the pip will be replayed from the cache. This replay deletes
+            // the externally contributed file.
+            XAssert.IsFalse(File.Exists(externallyProducedOutput), "Did not expect {0} to exist", externallyProducedOutput);
 
             // Now delete the opaque directory. In both scheduling algorithms the stray file should no longer exist after replay.
             FileUtilities.DeleteDirectoryContents(opaqueDir, deleteRootDirectory: true);

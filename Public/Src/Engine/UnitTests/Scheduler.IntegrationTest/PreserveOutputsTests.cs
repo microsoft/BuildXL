@@ -489,7 +489,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             outputContents = RunSchedulerAndGetOutputContents(outputUnderPreservedOpaque, cacheHitAssert: true, id: processAndOutputs.Process.PipId);
             XAssert.IsTrue(Directory.Exists(createdDirectoryUnderPreservedOpaque.Path.ToString(Context.PathTable)), "Empty directory under preserved opaque should have existed.");
             // Incremental scheduling doesn't replay the pip from cache and just leaves the filesystem as-is
-            if (!Configuration.Schedule.GraphAgnosticIncrementalScheduling && !Configuration.Schedule.GraphAgnosticIncrementalScheduling)
+            if (!Configuration.Schedule.IncrementalScheduling)
             {
                 XAssert.IsFalse(Directory.Exists(createdDirectoryUnderUnpreservedOpaque.Path.ToString(Context.PathTable)), "Empty directory under non-preserved opaque should not exist.");
             }

@@ -1788,8 +1788,7 @@ namespace BuildXL
                     // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "GRAPHAGNOSTICINCREMENTALSCHEDULING":
-                    // Incremental scheduling is by default graph agnostic. One can use this option to make it graph inagnostic.
-                    scheduleConfiguration.GraphAgnosticIncrementalScheduling = experimentalOptionAndValue.Item2;
+                    // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "CREATEHANDLEWITHSEQUENTIALSCANONHASHINGOUTPUTFILES":
                     scheduleConfiguration.CreateHandleWithSequentialScanOnHashingOutputFiles = experimentalOptionAndValue.Item2;

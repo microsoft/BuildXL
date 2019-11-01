@@ -430,11 +430,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/cacheMemoryUsage[+|-]",
-                Strings.HelpText_DisplayHelp_CacheMemoryUsage,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/compressGraphFiles[+|-]",
                 Strings.HelpText_DisplayHelp_CompressGraphFiles,
                 HelpLevel.Verbose);

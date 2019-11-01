@@ -248,9 +248,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheGraph",
                             opt => cacheConfiguration.CacheGraph = opt),
-                        OptionHandlerFactory.CreateOption(
-                            "cacheMemoryUsage",
-                            opt => cacheConfiguration.CacheMemoryUsage = CommandLineUtilities.ParseEnumOption<MemoryUsageOption>(opt)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "cacheMiss",
                             (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, loggingConfiguration, pathTable)),

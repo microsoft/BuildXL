@@ -53,12 +53,6 @@ namespace BuildXL.Utilities.Configuration
         SpecCachingOption CacheSpecs { get; }
 
         /// <summary>
-        /// How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks.
-        /// The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.
-        /// </summary>
-        MemoryUsageOption CacheMemoryUsage { get; }
-
-        /// <summary>
         /// The user defined cache session name to use for this build - optional and defaults to nothing
         /// </summary>
         string CacheSessionName { get; }

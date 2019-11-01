@@ -44,7 +44,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CachedGraphIdToLoad = template.CachedGraphIdToLoad;
             CachedGraphLastBuildLoad = template.CachedGraphLastBuildLoad;
             CacheSpecs = template.CacheSpecs;
-            CacheMemoryUsage = template.CacheMemoryUsage;
             CacheSessionName = template.CacheSessionName;
             ArtificialCacheMissOptions = template.ArtificialCacheMissOptions == null ? null : new ArtificialCacheMissConfig(template.ArtificialCacheMissOptions);
             CacheSalt = template.CacheSalt;
@@ -96,9 +95,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public SpecCachingOption CacheSpecs { get; set; }
-
-        /// <inheritdoc />
-        public MemoryUsageOption CacheMemoryUsage { get; set; }
 
         /// <inheritdoc />
         public string CacheSessionName { get; set; }

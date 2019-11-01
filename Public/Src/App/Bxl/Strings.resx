@@ -555,9 +555,6 @@
   <data name="HelpText_DisplayHelp_CacheSpecs" xml:space="preserve">
     <value>Caches build specification files to a single large file to improve read performance on spinning disks. When unset the behavior is dynamic based on whether root configuration file is on a drive that is detected to have a seek penalty. May be forced on or off using the flag.</value>
   </data>
-  <data name="HelpText_DisplayHelp_CacheMemoryUsage" xml:space="preserve">
-    <value>How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks. Allowed values are 'Auto', 'Minimize', 'Liberal'. The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.</value>
-  </data>
   <data name="HelpText_DisplayHelp_DeterminismProbeUsage" xml:space="preserve">
     <value>When enabled, cache hits are ignored, but all pips are built and attempted to be added to the cache, with cache collisions reported to identify non-deterministic tools. Defaults to off.</value>
   </data>

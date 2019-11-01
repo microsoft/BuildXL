@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -87,7 +90,15 @@ namespace BuildXL.Scheduler.Tracing
         {
             foreach (var target in m_targets)
             {
-                data.Metadata.LogToTarget(data, target);
+                try
+                {
+                    data.Metadata.LogToTarget(data, target);
+                }
+                catch (Exception e)
+                {
+                    // since the exception only affects our logging, log it as a warning
+                    Events.Log.WarningEvent($"An exception occurred while logging '{data.GetType()}' to target '{target.GetType()}':{Environment.NewLine}{e.ToStringDemystified()}");
+                }
             }
         }
 

@@ -96,8 +96,19 @@ namespace BuildXL.Scheduler.Tracing
                 }
                 catch (Exception e)
                 {
-                    // since the exception only affects our logging, log it as a warning
-                    Events.Log.WarningEvent($"An exception occurred while logging '{data.GetType()}' to target '{target.GetType()}':{Environment.NewLine}{e.ToStringDemystified()}");
+                    if (target is FingerprintStoreExecutionLogTarget fpStoreTarget)
+                    {
+                        // FingerprintStore sometimes throws when we are logging an event.
+                        // Log the even for further investigation, but do not crash the build.
+                        BuildXL.Tracing.Logger.Log.UnexpectedCondition(
+                            fpStoreTarget.LoggingContext,
+                            $"An exception occurred while logging '{data.GetType()}' to FingerrintStore:{Environment.NewLine}{e.ToStringDemystified()}");
+                    }
+                    else
+                    {
+                        // if an exception does not come from FP Store, do not ignore it
+                        throw;
+                    }
                 }
             }
         }

@@ -100,12 +100,6 @@ bool NodeLight::init(uint key)
     next_     = nullptr;
     children_ = nullptr;
 
-    lock_ = IORecursiveLockAlloc();
-    if (!lock_)
-    {
-        return false;
-    }
-
     return true;
 }
 
@@ -119,13 +113,12 @@ void NodeLight::free()
     next_ = nullptr;
     children_ = nullptr;
 
-    IORecursiveLockFree(lock_);
     Node::free();
 }
 
-NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
+NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *maybeNullLock, IORecursiveLock *nonNullLock)
 {
-    Monitor __monitor(lock); // this will only acquire the lock if lock is not null
+    Monitor __monitor(maybeNullLock); // this will only acquire the lock if lock is not null
 
     NodeLight *prev = nullptr;
     NodeLight *curr = children_;
@@ -146,10 +139,10 @@ NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock 
         // didn't find it and shouldn't create it
         return nullptr;
     }
-    else if (lock == nullptr)
+    else if (maybeNullLock == nullptr)
     {
         // didn't find it and didn't acquire lock --> must do it all over again with a lock
-        return findChild(key, createIfMissing, lock_);
+        return findChild(key, createIfMissing, nonNullLock, nonNullLock);
     }
     else
     {
@@ -248,7 +241,7 @@ void NodeFast::free()
     Node::free();
 }
 
-Node* NodeFast::findChild(uint key, bool createIfMissing)
+Node* NodeFast::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
 {
     if (key < 0 || key >= length())
     {

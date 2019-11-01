@@ -39,15 +39,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Filter = template.Filter;
             Server = template.Server;
             ServerDeploymentDirectory = pathRemapper.Remap(template.ServerDeploymentDirectory);
-            HelpCode = template.HelpCode;
             ServerMaxIdleTimeInMinutes = template.ServerMaxIdleTimeInMinutes;
         }
 
         /// <inheritdoc />
         public HelpLevel Help { get; set; }
-
-        /// <inheritdoc />
-        public int HelpCode { get; set; }
 
         /// <inheritdoc />
         public bool NoLogo { get; set; }

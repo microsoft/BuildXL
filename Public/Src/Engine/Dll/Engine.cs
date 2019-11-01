@@ -1083,9 +1083,6 @@ namespace BuildXL.Engine
                 mutableConfig.Cache.HistoricMetadataCache = initialCommandLineConfiguration.Cache.HistoricMetadataCache ?? true;
                 mutableConfig.Schedule.ScheduleMetaPips = false;
 
-                // Prefer to load data into memory
-                mutableConfig.Cache.CacheMemoryUsage = MemoryUsageOption.Liberal;
-
                 // In CloudBuild always place EngineCache under object directory
                 mutableConfig.Layout.EngineCacheDirectory = mutableConfig.Layout.ObjectDirectory.Combine(pathTable, Strings.Layout_DefaultEngineCacheFolderName);
 

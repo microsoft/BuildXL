@@ -74,21 +74,18 @@ namespace BuildXL.Execution.Analyzer.JPath
     public sealed class Selector : Expr
     {
         /// <nodoc />
-        public IReadOnlyCollection<string> PropertyNames { get; }
+        public string PropertyName { get; }
 
         /// <nodoc />
-        public Selector(params string[] propertyNames)
+        public Selector(string propertyName)
         {
-            Contract.Requires(propertyNames != null);
-            Contract.Requires(propertyNames.Length >= 1);
+            Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
 
-            PropertyNames = propertyNames;
+            PropertyName = propertyName;
         }
 
         /// <inheritdoc />
-        public override string Print() => PropertyNames.Count == 1
-            ? PropertyNames.First()
-            : "(" + string.Join(" + ", PropertyNames) + ")";
+        public override string Print() => PropertyName;
     }
 
     /// <summary>
@@ -248,13 +245,13 @@ namespace BuildXL.Execution.Analyzer.JPath
     }
 
     /// <summary>
-    /// Maps a selector over an array value.
+    /// Maps an expression over an array.
     /// 
     /// Syntax example: array.name
     /// </summary>
     public sealed class MapExpr : Expr
     {
-        /// <summary>Collection to map <see cref="PropertySelector"/> over.</summary>
+        /// <summary>Collection to map <see cref="Selector"/> over.</summary>
         public Expr Lhs { get; }
 
         /// <summary>Expression to evaluate against each value in <see cref="Lhs"/></summary>
@@ -428,6 +425,18 @@ namespace BuildXL.Execution.Analyzer.JPath
         public override string Print() => "$";
 
         private RootExpr() { }
+    }
+
+    /// <summary>
+    /// Always evaluates to the current value in the current environment (<see cref="Evaluator.Env.Current"/>)
+    /// </summary>
+    public class ThisExpr : Expr
+    {
+        public static readonly ThisExpr Instance = new ThisExpr();
+
+        public override string Print() => "_";
+
+        private ThisExpr() { }
     }
 
     /// <summary>

@@ -367,6 +367,17 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
+        private static void PrintInvalidXlgError(Exception e)
+        {
+            var originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine("ERROR: " + e.Message);
+            Console.ForegroundColor = originalColor;
+            var path = Path.GetTempFileName();
+            File.WriteAllText(path, e.ToString());
+            Console.WriteLine("Full stack trace saved to " + path);
+        }
+
         public static void TruncatedXlgWarning()
         {
             ConsoleColor originalColor = Console.ForegroundColor;
@@ -382,72 +393,82 @@ namespace BuildXL.Execution.Analyzer
                 return 0;
             }
 
-            m_analyzer.Prepare();
-            bool dataIsComplete = true;
-            if (m_analysisInput.ExecutionLogPath != null)
+            try
             {
-                // NOTE: We call Prepare above so we don't need to prepare as a part of reading the execution log
-                var reader = Task.Run(() => dataIsComplete &= m_analyzer.ReadExecutionLog(prepare: false));
-                if (m_mode == AnalysisMode.LogCompare)
+                m_analyzer.Prepare();
+                bool dataIsComplete = true;
+                if (m_analysisInput.ExecutionLogPath != null)
                 {
-                    m_analyzerOther.Prepare();
-                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
+                    // NOTE: We call Prepare above so we don't need to prepare as a part of reading the execution log
+                    var reader = Task.Run(() => dataIsComplete &= m_analyzer.ReadExecutionLog(prepare: false));
+                    if (m_mode == AnalysisMode.LogCompare)
+                    {
+                        m_analyzerOther.Prepare();
+                        var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+                    }
+
+                    if (m_mode == AnalysisMode.FailedPipsDump && m_analyzerOther != null)
+                    {
+                        var start = DateTime.Now;
+                        Console.WriteLine($"[{start}] Reading compare to Log");
+                        var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+                        var duration = DateTime.Now - start;
+                        Console.WriteLine($"Done reading compare to log : duration = [{duration}]");
+                    }
+
+                    reader.Wait();
+
+                    if (m_mode == AnalysisMode.CacheMissLegacy)
+                    {
+                        // First pass just to read in PipCacheMissType data
+                        var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+
+                        // Second pass to do fingerprint differences analysis
+                        otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+                    }
                 }
 
+                if (!dataIsComplete)
+                {
+                    TruncatedXlgWarning();
+                }
+
+                var exitCode = m_analyzer.Analyze();
                 if (m_mode == AnalysisMode.FailedPipsDump && m_analyzerOther != null)
                 {
-                    var start = DateTime.Now;
-                    Console.WriteLine($"[{start}] Reading compare to Log");
-                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
-                    var duration = DateTime.Now - start;
-                    Console.WriteLine($"Done reading compare to log : duration = [{duration}]");
+                    var failedPipsDump = (FailedPipsDumpAnalyzer)m_analyzer;
+                    exitCode = failedPipsDump.Compare(m_analyzerOther);
                 }
 
-                reader.Wait();
+                if (m_mode == AnalysisMode.LogCompare)
+                {
+                    m_analyzerOther.Analyze();
+                    SummaryAnalyzer summary = (SummaryAnalyzer)m_analyzer;
+                    exitCode = summary.Compare((SummaryAnalyzer)m_analyzerOther);
+                }
 
                 if (m_mode == AnalysisMode.CacheMissLegacy)
                 {
-                    // First pass just to read in PipCacheMissType data
-                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
-
-                    // Second pass to do fingerprint differences analysis
-                    otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
+                    exitCode = m_analyzerOther.Analyze();
                 }
-            }
 
-            if (!dataIsComplete)
+                return exitCode;
+            }
+            catch (InvalidDataException e)
             {
-                TruncatedXlgWarning();
+                PrintInvalidXlgError(e);
+                return -1;
             }
-
-            var exitCode = m_analyzer.Analyze();
-            if (m_mode == AnalysisMode.FailedPipsDump && m_analyzerOther != null)
+            finally
             {
-                var failedPipsDump = (FailedPipsDumpAnalyzer)m_analyzer;
-                exitCode = failedPipsDump.Compare(m_analyzerOther);
+                m_analyzer?.Dispose();
+                m_analyzerOther?.Dispose();
+                TelemetryShutdown();
             }
-
-            if (m_mode == AnalysisMode.LogCompare)
-            {
-                m_analyzerOther.Analyze();
-                SummaryAnalyzer summary = (SummaryAnalyzer)m_analyzer;
-                exitCode = summary.Compare((SummaryAnalyzer)m_analyzerOther);
-            }
-
-            if (m_mode == AnalysisMode.CacheMissLegacy)
-            {
-                exitCode = m_analyzerOther.Analyze();
-            }
-
-            m_analyzer?.Dispose();
-            m_analyzerOther?.Dispose();
-
-            TelemetryShutdown();
-            return exitCode;
         }
 
 #region Telemetry

@@ -44,8 +44,7 @@ namespace BuildXL.Execution.Analyzer
                 return 0;
             }
 
-            var exitCode = arguments.Analyze();
-            return exitCode;
+            return arguments.Analyze();
         }
     }
 }

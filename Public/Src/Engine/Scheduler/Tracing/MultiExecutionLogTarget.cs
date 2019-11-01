@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -87,7 +90,26 @@ namespace BuildXL.Scheduler.Tracing
         {
             foreach (var target in m_targets)
             {
-                data.Metadata.LogToTarget(data, target);
+                try
+                {
+                    data.Metadata.LogToTarget(data, target);
+                }
+                catch (Exception e)
+                {
+                    if (target is FingerprintStoreExecutionLogTarget fpStoreTarget)
+                    {
+                        // FingerprintStore sometimes throws when we are logging an event.
+                        // Log the even for further investigation, but do not crash the build.
+                        BuildXL.Tracing.Logger.Log.UnexpectedCondition(
+                            fpStoreTarget.LoggingContext,
+                            $"An exception occurred while logging '{data.GetType()}' to FingerrintStore:{Environment.NewLine}{e.ToStringDemystified()}");
+                    }
+                    else
+                    {
+                        // if an exception does not come from FP Store, do not ignore it
+                        throw;
+                    }
+                }
             }
         }
 

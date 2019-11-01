@@ -16,11 +16,6 @@ namespace BuildXL.Utilities.Configuration
         HelpLevel Help { get; }
 
         /// <summary>
-        /// DX code to show specific help for
-        /// </summary>
-        int HelpCode { get; }
-
-        /// <summary>
         /// Whether nologo is on or not.
         /// </summary>
         bool NoLogo { get; }
@@ -75,18 +70,13 @@ namespace BuildXL.Utilities.Configuration
         None = 0,
 
         /// <summary>
-        /// Help for a specific DxCode
-        /// </summary>
-        DxCode = 1,
-
-        /// <summary>
         /// The standard help
         /// </summary>
-        Standard = 2,
+        Standard = 1,
 
         /// <summary>
         /// The full help including verbose obscure options
         /// </summary>
-        Verbose = 3,
+        Verbose = 2,
     }
 }

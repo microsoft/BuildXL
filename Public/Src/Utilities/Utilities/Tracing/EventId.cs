@@ -408,7 +408,7 @@ namespace BuildXL.Utilities.Tracing
         FailedToCleanupLogDir = 455,
         WaitingCleanupLogDir = 456,
         WaitingClientDebugger = 457,
-        DisplayHelpLink = 458,
+        //was: DisplayHelpLink = 458,
         StatsPerformanceLog = 459,
         CoreDumpNoPermissions = 460,
         CrashReportProcessing = 461,

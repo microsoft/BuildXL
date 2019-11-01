@@ -781,9 +781,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_MaxMaterialize" xml:space="preserve">
     <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine.</value>
   </data>
-  <data name="DX_Help_Link" xml:space="preserve">
-    <value>http://aka.ms/dhelp</value>
-  </data>
   <data name="HelpText_DisplayHelp_MaskUntrackedAccesses" xml:space="preserve">
     <value>When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on.</value>
   </data>

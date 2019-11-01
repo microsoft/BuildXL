@@ -122,5 +122,10 @@ namespace Test.BuildXL.Processes
                 return await process.GetResultAsync();
             }
         }
+
+        protected static IEnumerable<(string processName, int pid)> RetrieveChildProcessesCreatedBySpawnExe(SandboxedProcessResult process)
+        {
+            return Operation.RetrieveChildProcessesCreatedBySpawnExe(process.StandardOutput.ReadValueAsync().GetAwaiter().GetResult());
+        }
     }
 }

@@ -39,9 +39,14 @@ namespace Test.BuildXL.Scheduler
         private const string WarningRegexDescription = "WARNING";
 
         /// <summary>
-        /// Test process tool base name name
+        /// Test process tool base name
         /// </summary>
         protected const string TestProcessToolNameWithoutExtension = "Test.BuildXL.Executables.TestProcess";
+
+        /// <summary>
+        /// Infinite waiter base name
+        /// </summary>
+        protected const string InfiniteWaiterWithoutExtension = "Test.BuildXL.Executables.InfiniteWaiter";
 
         /// <summary>
         /// Value if for created pip.
@@ -81,6 +86,13 @@ namespace Test.BuildXL.Scheduler
         protected string TestProcessToolName => OperatingSystemHelper.IsUnixOS
             ? TestProcessToolNameWithoutExtension
             : TestProcessToolNameWithoutExtension + ".exe";
+
+        /// <summary>
+        /// Infinite waiter process tool name
+        /// </summary>
+        protected string InfiniteWaiterToolName => OperatingSystemHelper.IsUnixOS
+            ? InfiniteWaiterWithoutExtension
+            : InfiniteWaiterWithoutExtension + ".exe";
 
         /// <summary>
         /// Context
@@ -279,6 +291,31 @@ namespace Test.BuildXL.Scheduler
             CacheRoot = Path.Combine(TemporaryDirectory, CacheRootPrefix);
 
             BaseSetup();
+        }
+
+        public class PipTestBaseSetupData
+        {
+            private readonly PipTable m_pipTable;
+            private readonly QualifierTable m_qualifierTable;
+            private readonly MountPathExpander m_mountPathExpander;
+            private readonly PipTestBase m_pipTestBase;
+
+            protected PipTestBaseSetupData(PipTestBase pipTestBase)
+            {
+                m_pipTable = pipTestBase.PipTable;
+                m_qualifierTable = pipTestBase.QualifierTable;
+                m_mountPathExpander = pipTestBase.Expander;
+                m_pipTestBase = pipTestBase;
+            }
+
+            public static PipTestBaseSetupData Save(PipTestBase pipTestBase) => new PipTestBaseSetupData(pipTestBase);
+
+            public virtual void Restore()
+            {
+                m_pipTestBase.PipTable = m_pipTable;
+                m_pipTestBase.QualifierTable = m_qualifierTable;
+                m_pipTestBase.Expander = m_mountPathExpander;
+            }
         }
 
         protected void BaseSetup(IConfiguration configuration = null, bool disablePipSerialization = false)

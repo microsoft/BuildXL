@@ -23,6 +23,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <nodoc />
+        public DistributedPinResult(ResultBase other, string message)
+            : base(other, message)
+        {
+        }
+
+        /// <nodoc />
         public static DistributedPinResult SuccessByLocalCopy()
         {
             return new DistributedPinResult("Copied locally")

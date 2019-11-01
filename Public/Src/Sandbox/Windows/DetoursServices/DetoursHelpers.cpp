@@ -670,6 +670,29 @@ bool ParseFileAccessManifest(
 
     offset += injectionTimeoutFlag->GetSize();
 
+    g_manifestChildProcessesToBreakAwayFromJob = reinterpret_cast<const PManifestChildProcessesToBreakAwayFromJob>(&payloadBytes[offset]);
+    g_manifestChildProcessesToBreakAwayFromJob->AssertValid();
+#ifdef _DEBUG
+    offset += sizeof(uint32_t);
+#endif
+    uint32_t childProcessesToBreakAwayFromJobSize = ParseUint32(payloadBytes, offset);
+
+    for (uint32_t i = 0; i < childProcessesToBreakAwayFromJobSize; i++)
+    {
+        uint32_t childProcessToBreakAwayFromJobSize = ParseUint32(payloadBytes, offset);
+        std::wstring* processName = nullptr;
+        if (childProcessToBreakAwayFromJobSize > 0)
+        {
+            processName = new std::wstring((wchar_t*)(&payloadBytes[offset]), childProcessToBreakAwayFromJobSize);
+            offset += sizeof(WCHAR) * childProcessToBreakAwayFromJobSize;
+        }
+
+        if (processName != nullptr && !processName->empty())
+        {
+            g_processNamesToBreakAwayFromJob->insert(*processName);
+        }
+    }
+
     g_manifestTranslatePathsStrings = reinterpret_cast<const PManifestTranslatePathsStrings>(&payloadBytes[offset]);
     g_manifestTranslatePathsStrings->AssertValid();
 #ifdef _DEBUG

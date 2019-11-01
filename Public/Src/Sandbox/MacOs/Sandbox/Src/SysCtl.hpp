@@ -11,6 +11,8 @@
 
 extern int g_bxl_enable_counters;
 extern int g_bxl_verbose_logging;
+extern int g_bxl_enable_cache;
+extern int g_bxl_enable_light_trie;
 
 void bxl_sysctl_register();
 void bxl_sysctl_unregister();

@@ -48,6 +48,11 @@ namespace BuildXL.Scheduler
         public int? ExpectedRamUsageMb;
 
         /// <summary>
+        /// The expected historical duration of the pip
+        /// </summary>
+        public ulong? ExpectedDurationMs;
+
+        /// <summary>
         /// SemaphoreResources
         /// </summary>
         public ItemResources? Resources { get; private set; }

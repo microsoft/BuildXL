@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -27,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         /// Unlike System.IO.FileStream, this provides a way to atomically check for the existence of a file and open it.
         /// This method throws the same set of exceptions that <see cref="FileStream"/> constructor does.
         /// </remarks>
-        Task<Stream> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
+        Task<Stream?> OpenAsync(AbsolutePath path, FileAccess fileAccess, FileMode fileMode, FileShare share, FileOptions options, int bufferSize);
 
         /// <summary>
         ///     Copy a file from one path to another.

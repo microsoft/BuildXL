@@ -118,9 +118,9 @@ namespace BuildXL
     /// </summary>
     internal sealed class BuildXLApp : IDisposable
     {
-        // We give the failure completion logic a generous 60 seconds to complete since in some cases taking a crash dump
+        // We give the failure completion logic a generous 300 seconds to complete since in some cases taking a crash dump
         // can take quite a while
-        private const int FailureCompletionTimeoutMs = 60 * 1000;
+        private const int FailureCompletionTimeoutMs = 300 * 1000;
 
         // 24K buffer size means that internally, the StreamWriter will use 48KB for a char[] array, and 73731 bytes for an encoding byte array buffer --- all buffers <85000 bytes, and therefore are not in large object heap
         private const int LogFileBufferSize = 24 * 1024;
@@ -2057,30 +2057,35 @@ namespace BuildXL
             }
 
             // Overall Duration information
-            var engineInfo = appInfo.EnginePerformanceInfo;
             var tree = new PerfTree("Build Duration", appInfo.EngineRunDurationMs)
                        {
-                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs),
-                           new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
+                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs)
+                       };
+
+            var engineInfo = appInfo.EnginePerformanceInfo;
+            
+            if (engineInfo != null)
+            {
+                tree.Add(new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
                            {
                                new PerfTree("Checking for pip graph reuse", engineInfo.GraphCacheCheckDurationMs),
                                new PerfTree("Reloading pip graph", engineInfo.GraphReloadDurationMs),
                                new PerfTree("Create graph", engineInfo.GraphConstructionDurationMs)
-                           },
-                           new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs),
-                           new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs),
-                           new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs),
-                       };
-            summary.DurationTree = tree;
+                           });
+                tree.Add(new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs));
+                tree.Add(new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs));
+                tree.Add(new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs));
 
-
-            // Cache stats
-            var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
-            if (schedulerInfo != null)
-            {
-                summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
-                summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                // Cache stats
+                var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
+                if (schedulerInfo != null)
+                {
+                    summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+                    summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                }
             }
+            
+            summary.DurationTree = tree;
         }
 
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]

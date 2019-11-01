@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
 {
@@ -15,41 +16,41 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         /// <summary>
         /// The Connection String.
         /// </summary>
-        public string ConnectionString { get; }
+        public string? ConnectionString { get; }
 
         /// <summary>
         /// Creates a successful result.
         /// </summary>
         public static ConnectionStringResult CreateSuccess(string connectionString)
         {
-            Contract.Requires(connectionString != null);
+            Contract.RequiresNotNull(connectionString);
             return new ConnectionStringResult(connectionString);
         }
 
         /// <summary>
         /// Creates a failure from another result.
         /// </summary>
-        public static ConnectionStringResult CreateFailure(ResultBase other, string message = null)
+        public static ConnectionStringResult CreateFailure(ResultBase other, string? message = null)
         {
-            Contract.Requires(other != null);
+            Contract.RequiresNotNull(other);
             return new ConnectionStringResult(other, message);
         }
 
         /// <summary>
         /// Creates a failure from an exception.
         /// </summary>
-        public static ConnectionStringResult CreateFailure(Exception exception, string message = null)
+        public static ConnectionStringResult CreateFailure(Exception exception, string? message = null)
         {
-            Contract.Requires(exception != null);
+            Contract.RequiresNotNull(exception);
             return new ConnectionStringResult(exception, message);
         }
 
         /// <summary>
         /// Creates a failed result.
         /// </summary>
-        public static ConnectionStringResult CreateFailure(string errorMessage, string diagnostics = null)
+        public static ConnectionStringResult CreateFailure(string errorMessage, string? diagnostics = null)
         {
-            Contract.Requires(errorMessage != null);
+            Contract.RequiresNotNull(errorMessage);
             return new ConnectionStringResult(errorMessage, diagnostics);
         }
 
@@ -64,7 +65,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionStringResult" /> class.
         /// </summary>
-        private ConnectionStringResult(ResultBase other, string message)
+        public ConnectionStringResult(ResultBase other, string? message)
             : base(other, message)
         {
         }
@@ -72,7 +73,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionStringResult" /> class.
         /// </summary>
-        private ConnectionStringResult(Exception exception, string message)
+        private ConnectionStringResult(Exception exception, string? message)
             : base(exception, message)
         {
         }
@@ -80,7 +81,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Distributed
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionStringResult" /> class.
         /// </summary>
-        private ConnectionStringResult(string errorMessage, string diagnostics)
+        private ConnectionStringResult(string errorMessage, string? diagnostics)
             : base(errorMessage, diagnostics)
         {
         }

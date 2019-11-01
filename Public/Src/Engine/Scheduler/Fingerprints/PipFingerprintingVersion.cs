@@ -37,7 +37,10 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 62: FileContentInfo - change how length/existence is stored.
         /// 63: IncrementalTool - change reparsepoint probes and enumeration probes to read.
         /// 65: 64 is already used since 20190903; change in UnsafeOption serialization (partial preserve outputs)
+        /// 66: Changed rendering of VSO hashes
+        /// 67: Added SourceChangeAffectedContents
+        /// 68: Added ChildProcessesToBreakawayFromSandbox
         /// </remarks>
-        TwoPhaseV2 = 65,
+        TwoPhaseV2 = 68,
     }
 }

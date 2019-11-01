@@ -908,7 +908,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (placeLinkResult == CreateHardLinkResult.Success)
                     {
-                        return new PutResult(contentHash, fileInfo.FileSize)
+                        return new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true)
                         {
                             Diagnostics = "FastPath"
                         };
@@ -942,9 +942,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given file.
                         bool putInternalSucceeded;
+                        bool contentExistsInCache;
                         if (shouldAttemptHardLink)
                         {
-                            putInternalSucceeded = await PutContentInternalAsync(
+                            (putInternalSucceeded, contentExistsInCache) = await PutContentInternalAsync(
                                 context,
                                 contentHash,
                                 contentSize,
@@ -965,7 +966,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            putInternalSucceeded = await PutContentInternalAsync(
+                            (putInternalSucceeded, contentExistsInCache) = await PutContentInternalAsync(
                                 context,
                                 contentHash,
                                 contentSize,
@@ -976,7 +977,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize)
+                            return new PutResult(contentHash, contentSize, contentExistsInCache)
                                 .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
@@ -1030,7 +1031,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             // If we are given the empty file, the put is a no-op.
             // We have dedicated logic for pinning and returning without having
             // the empty file in the cache directory.
-            if (_settings.UseEmptyFileHashShortcut && content.Hash.IsEmptyHash())
+            if (content.Hash.IsEmptyHash())
             {
                 return new PutResult(content.Hash, 0L);
             }
@@ -1050,7 +1051,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (shouldAttemptHardLink)
                 {
-                    bool putInternalSucceeded = await PutContentInternalAsync(
+                    (bool putInternalSucceeded, bool contentExistsInCache) = await PutContentInternalAsync(
                         context,
                         content.Hash,
                         content.Size,
@@ -1119,7 +1120,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (putInternalSucceeded)
                     {
-                        return new PutResult(content.Hash, content.Size)
+                        return new PutResult(content.Hash, content.Size, contentExistsInCache)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
                 }
@@ -1429,7 +1430,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <returns>True if the callback is successful.</returns>
         private delegate Task<bool> OnContentNotInCacheAsync(AbsolutePath primaryPath);
 
-        private async Task<bool> PutContentInternalAsync(
+        private async Task<(bool Success, bool ContentAlreadyExistsInCache)> PutContentInternalAsync(
             Context context,
             ContentHash contentHash,
             long contentSize,
@@ -1440,6 +1441,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             AbsolutePath primaryPath = GetPrimaryPathFor(contentHash);
             bool failed = false;
+            bool contentExistsInCache = false;
             long addedContentSize = 0;
 
             _tracer.PutContentInternalStart();
@@ -1466,7 +1468,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
-                if (!await onContentAlreadyInCache(contentHash, primaryPath, fileInfo))
+                contentExistsInCache = await onContentAlreadyInCache(contentHash, primaryPath, fileInfo);
+
+                if (!contentExistsInCache)
                 {
                     failed = true;
                     return null;
@@ -1482,7 +1486,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (failed)
             {
-                return false;
+                return (Success: false, ContentAlreadyExistsInCache: contentExistsInCache);
             }
 
             if (addedContentSize > 0)
@@ -1495,7 +1499,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _announcer.ContentAdded(new ContentHashWithSize(contentHash, addedContentSize));
             }
 
-            return true;
+            return (Success: true, ContentAlreadyExistsInCache: contentExistsInCache);
         }
 
         /// <inheritdoc />
@@ -1512,7 +1516,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     if (contentSize >= 0)
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given stream.
-                        bool putInternalSucceeded = await PutContentInternalAsync(
+                        (bool putInternalSucceeded, bool contentAlreadyExistsInCache) = await PutContentInternalAsync(
                             context,
                             contentHash,
                             contentSize,
@@ -1522,7 +1526,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize)
+                            return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
                                 .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
@@ -1569,7 +1573,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     CheckPinned(contentHash, pinRequest);
 
-                    if (!await PutContentInternalAsync(
+                    (bool putInternalSucceeded, bool contentAlreadyExistsInCache) = await PutContentInternalAsync(
                         context,
                         contentHash,
                         contentSize,
@@ -1590,12 +1594,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                             pathToTempContent = null;
                             return true;
-                        }))
+                        });
+                    if (!putInternalSucceeded)
                     {
                         return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash.ToShortString()} with an unknown error");
                     }
 
-                    return new PutResult(contentHash, contentSize)
+                    return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
                         .WithLockAcquisitionDuration(contentHashHandle);
                 }
             }
@@ -2341,7 +2346,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 // If this is the empty hash, then directly create an empty file.
                 // This avoids hash-level lock, all I/O in the cache directory, and even
                 // operations in the in-memory representation of the cache.
-                if (_settings.UseEmptyFileHashShortcut && contentHashWithPath.Hash.IsEmptyHash())
+                if (contentHashWithPath.Hash.IsEmptyHash())
                 {
                     await FileSystem.CreateEmptyFileAsync(contentHashWithPath.Path);
                     return new PlaceFileResult(PlaceFileResult.ResultCode.PlacedWithCopy);
@@ -2967,7 +2972,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     // Pinning the empty file always succeeds; no I/O or other operations required,
                     // because we have dedicated logic to place it when required.
-                    if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                    if (contentHash.IsEmptyHash())
                     {
                         results.Add(new PinResult(contentSize: 0, lastAccessTime: Clock.UtcNow, code: PinResult.ResultCode.Success));
                     }
@@ -3115,9 +3120,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return OpenStreamCall<ContentStoreInternalTracer>.RunAsync(_tracer, OperationContext(context), contentHash, async () =>
             {
-                // Short-circut requests for the empty stream
+                // Short-circuit requests for the empty stream
                 // No lock is required since no file is involved.
-                if (_settings.UseEmptyFileHashShortcut && contentHash.IsEmptyHash())
+                if (contentHash.IsEmptyHash())
                 {
                     return new OpenStreamResult(_emptyFileStream);
                 }

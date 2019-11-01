@@ -174,8 +174,7 @@ namespace BuildXL.Utilities.Tracing
         BusyOrUnavailableOutputDirectoriesRetry = 214,
         InvalidInputSinceInputIsRewritten = 215,
         InvalidInputDueToMultipleConflictingRewriteCounts = 216,
-
-        // Reserved = 217,
+        InvalidInputSinceInputIsOutputWithNoProducer = 217,
 
         // Pips
         InvalidProcessPipDueToNoOutputArtifacts = 218,

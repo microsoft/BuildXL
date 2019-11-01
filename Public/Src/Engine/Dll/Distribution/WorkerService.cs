@@ -749,7 +749,7 @@ namespace BuildXL.Engine.Distribution
 
                 if (fileArtifactKeyedHash.IsSourceAffected)
                 {
-                    fileContentManager.SourceChangeAffectedContents.ReportSourceChangedAffectedFile(file.Path);
+                    fileContentManager.SourceChangeAffectedInputs.ReportSourceChangedAffectedFile(file.Path);
                 }
 
                 var materializationInfo = fileArtifactKeyedHash.GetFileMaterializationInfo(m_environment.Context.PathTable);

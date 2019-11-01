@@ -7,6 +7,8 @@ sandbox-load \- Load BuildXLSandbox kernel extension for macOS
 [--no-reload]
 [--enable-counters]
 [--verbose-logging]
+[--disable-cache]
+[--disable-light-trie | --enable-fast-trie]
 [--kext] \fIsrc-dir\fR
 .SH DESCRIPTION
 Loads a 'BuildXLSandbox' kernel extension from a given location.
@@ -40,3 +42,11 @@ Optional.  When specified, various performance counters will become enabled.
 .TP
 .BI --verbose-logging
 Optional.  When specified, BuildXLSandbox will log verbose messages to the system log.
+.TP
+.BI --disable-cache
+Optional.  When specified, BuildXLSandbox will not cache any access reports 
+(i.e., every single file access will be reported as it happens).
+.TP
+.BI --enable-fast-trie | --disable-light-trie
+Optional.  When specified, BuildXLSandbox will use a fast but very memory consuming trie
+implementation for its internal dictionaries; othewise (by default), it uses a lightweight trie.

@@ -425,6 +425,9 @@ namespace BuildXL.Cache.Host.Configuration
         public int? ContentLocationDatabaseFlushDegreeOfParallelism { get; set; }
 
         [DataMember]
+        public int? ContentLocationDatabaseFlushTransactionSize { get; set; }
+
+        [DataMember]
         public bool? ContentLocationDatabaseFlushSingleTransaction { get; set; }
 
         [DataMember]
@@ -527,9 +530,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
-        [DataMember]
-        public bool UseTrustedHash { get; set; } = true;
-
         // Files smaller than this will use the untrusted hash
         [DataMember]
         public int TrustedHashFileSizeBoundary = 100000;
@@ -543,8 +543,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public long CacheFileExistenceSizeBytes { get; set; } = -1;
 
-        [DataMember]
-        public bool EmptyFileHashShortcutEnabled { get; set; } = true;
 
         [DataMember]
         public bool UseRedundantPutFileShortcut { get; set; } = false;

@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -18,24 +19,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public GetStatsResult(string errorMessage, string diagnostics = null)
+        public GetStatsResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
         }
 
         /// <inheritdoc />
-        public GetStatsResult(Exception exception, string message = null)
+        public GetStatsResult(Exception exception, string? message = null)
             : base(exception, message)
         {
         }
 
         /// <inheritdoc />
-        public GetStatsResult(ResultBase other, string message = null)
+        public GetStatsResult(ResultBase other, string? message = null)
             : base(other, message)
         {
         }
 
         /// <nodoc />
-        public CounterSet CounterSet => Value;
+        public CounterSet? CounterSet => Value;
     }
 }

@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Threading;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
 using BuildXL.Engine.Cache;
@@ -17,6 +15,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Scheduler.Graph;
@@ -26,12 +25,10 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 using BuildXL.Utilities.VmCommandProxy;
 
@@ -52,20 +49,46 @@ namespace Test.BuildXL.Scheduler
         // graphid to tests to allow exercising incremental scheduling.
         private bool m_graphWasModified;
 
-        private PipGraph m_lastGraph;
-
-        public PipGraph LastGraph => m_lastGraph;
+        public PipGraph LastGraph { get; private set; }
 
         private JournalState m_journalState;
+
+        private readonly ITestOutputHelper m_testOutputHelper;
 
         /// <summary>
         /// Whether the scheduler should log all of its statistics at the end of every run.
         /// </summary>
         public bool ShouldLogSchedulerStats { get; set; } = false;
 
+        /// <summary>
+        /// Class for storing pip graph setup.
+        /// </summary>
+        public class PipGraphSetupData : PipTestBaseSetupData
+        {
+            private readonly PipGraph m_pipGraph;
+            private readonly SchedulerIntegrationTestBase m_testBase;
+
+            private PipGraphSetupData(SchedulerIntegrationTestBase testBase)
+                : base(testBase)
+            {
+                m_pipGraph = testBase.LastGraph;
+                m_testBase = testBase;
+            }
+
+            public static PipGraphSetupData Save(SchedulerIntegrationTestBase testBase) => new PipGraphSetupData(testBase);
+
+            public override void Restore()
+            {
+                m_testBase.LastGraph = m_pipGraph;
+                m_testBase.m_graphWasModified = false;
+                base.Restore();
+            }
+        }
+
         /// <nodoc/>
         public SchedulerIntegrationTestBase(ITestOutputHelper output) : base(output)
         {
+            m_testOutputHelper = output;
             CaptureAllDiagnosticMessages = false;
 
             // Each event listener that we want to capture events from must be listed here
@@ -107,6 +130,11 @@ namespace Test.BuildXL.Scheduler
             // Reset pip graph builder to use the populated configuration.
             ResetPipGraphBuilder();
         }
+
+        /// <summary>
+        /// Saves current pip graph setup.
+        /// </summary>
+        public PipGraphSetupData SavePipGraph() => PipGraphSetupData.Save(this);
 
         /// <summary>
         /// Resets pip graph builder using populated configuration.
@@ -322,15 +350,15 @@ namespace Test.BuildXL.Scheduler
         /// </summary>
         public ScheduleRunResult RunScheduler(SchedulerTestHooks testHooks = null, SchedulerState schedulerState = null, RootFilter filter = null, ITempCleaner tempCleaner = null, IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
         {
-            if (m_graphWasModified || m_lastGraph == null)
+            if (m_graphWasModified || LastGraph == null)
             {
-                m_lastGraph = PipGraphBuilder.Build();
-                XAssert.IsNotNull(m_lastGraph, "Failed to build pip graph");
+                LastGraph = PipGraphBuilder.Build();
+                XAssert.IsNotNull(LastGraph, "Failed to build pip graph");
             }
             
             m_graphWasModified = false;
             
-            return RunSchedulerSpecific(m_lastGraph, 
+            return RunSchedulerSpecific(LastGraph, 
                 (tempCleaner != null ? tempCleaner : MoveDeleteCleaner),
                 testHooks, schedulerState, filter , constraintExecutionOrder);
         }
@@ -349,6 +377,13 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        private void MarkSchedulerRun(string runNameOrDescription = null)
+        {
+            m_testOutputHelper.WriteLine("################################################################################");
+            m_testOutputHelper.WriteLine($"## {nameof(RunSchedulerSpecific)} {runNameOrDescription ?? string.Empty}");
+            m_testOutputHelper.WriteLine("################################################################################");
+        }
+
         /// <summary>
         /// Runs the scheduler allowing various options to be specifically set
         /// </summary>
@@ -358,8 +393,11 @@ namespace Test.BuildXL.Scheduler
             SchedulerTestHooks testHooks = null, 
             SchedulerState schedulerState = null,
             RootFilter filter = null,
-            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null)
+            IEnumerable<(Pip before, Pip after)> constraintExecutionOrder = null,
+            string runNameOrDescription = null)
         {
+            MarkSchedulerRun(runNameOrDescription);
+
             // This is a new logging context to be used just for this instantiation of the scheduler. That way it can
             // be validated against the LoggingContext to make sure the scheduler's return result and error logging
             // are in agreement.
@@ -600,9 +638,9 @@ namespace Test.BuildXL.Scheduler
 
         protected AbsolutePath[] GetJournaledWritesForProcess(ScheduleRunResult result, Process process)
         {
-            var logFile = SharedOpaqueOutputLogger.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
+            var logFile = SidebandWriter.GetSidebandFileForProcess(Context.PathTable, result.Config.Layout.SharedOpaqueSidebandDirectory, process);
             XAssert.IsTrue(File.Exists(logFile));
-            return SharedOpaqueOutputLogger
+            return SidebandWriter
                 .ReadRecordedPathsFromSidebandFile(logFile)
                 .Select(path => AbsolutePath.Create(Context.PathTable, path))
                 .Distinct()

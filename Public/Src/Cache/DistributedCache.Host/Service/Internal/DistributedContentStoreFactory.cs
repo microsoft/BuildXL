@@ -76,7 +76,6 @@ namespace BuildXL.Cache.Host.Service.Internal
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineRisk, v => redisContentLocationStoreConfiguration.MachineRisk = v);
             ApplyIfNotNull(_distributedSettings.LocationEntryExpiryMinutes, v => redisContentLocationStoreConfiguration.LocationEntryExpiry = TimeSpan.FromMinutes(v));
-            ApplyIfNotNull(_distributedSettings.RestoreCheckpointAgeThresholdMinutes, v => redisContentLocationStoreConfiguration.Checkpoint.RestoreCheckpointAgeThreshold = TimeSpan.FromMinutes(v));
             ApplyIfNotNull(_distributedSettings.MachineExpiryMinutes, v => redisContentLocationStoreConfiguration.MachineExpiry = TimeSpan.FromMinutes(v));
 
             redisContentLocationStoreConfiguration.ReputationTrackerConfiguration.Enabled = _distributedSettings.IsMachineReputationEnabled;
@@ -95,6 +94,7 @@ namespace BuildXL.Cache.Host.Service.Internal
 
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheEnabled, v => dbConfig.ContentCacheEnabled = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushDegreeOfParallelism, v => dbConfig.FlushDegreeOfParallelism = v);
+                ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushTransactionSize, v => dbConfig.FlushTransactionSize = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushSingleTransaction, v => dbConfig.FlushSingleTransaction = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseFlushPreservePercentInMemory, v => dbConfig.FlushPreservePercentInMemory = v);
                 ApplyIfNotNull(_distributedSettings.ContentLocationDatabaseCacheMaximumUpdatesPerFlush, v => dbConfig.CacheMaximumUpdatesPerFlush = v);
@@ -215,13 +215,11 @@ namespace BuildXL.Cache.Host.Service.Internal
                     _distributedSettings.RedisBatchPageSize,
                     new DistributedContentStoreSettings()
                     {
-                        UseTrustedHash = _distributedSettings.UseTrustedHash,
                         CleanRandomFilesAtRoot = _distributedSettings.CleanRandomFilesAtRoot,
                         TrustedHashFileSizeBoundary = _distributedSettings.TrustedHashFileSizeBoundary,
                         ParallelHashingFileSizeBoundary = _distributedSettings.ParallelHashingFileSizeBoundary,
                         MaxConcurrentCopyOperations = _distributedSettings.MaxConcurrentCopyOperations,
                         PinConfiguration = pinConfiguration,
-                        EmptyFileHashShortcutEnabled = _distributedSettings.EmptyFileHashShortcutEnabled,
                         RetryIntervalForCopies = _distributedSettings.RetryIntervalForCopies,
                         MaxRetryCount = _distributedSettings.MaxRetryCount,
                         TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
@@ -249,7 +247,6 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             return new ContentStoreSettings()
                    {
-                       UseEmptyFileHashShortcut = settings.EmptyFileHashShortcutEnabled,
                        CheckFiles = settings.CheckLocalFiles,
                        UseNativeBlobEnumeration = settings.UseNativeBlobEnumeration,
                        SelfCheckSettings = CreateSelfCheckSettings(settings),

@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     /// <summary>
     /// File copier which operates over Grpc. <seealso cref="GrpcCopyClient"/>
     /// </summary>
-    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, ICopyRequester
+    public class GrpcFileCopier : ITraceableAbsolutePathFileCopier, ICopySender
     {
         private readonly Context _context;
         private readonly int _grpcPort;

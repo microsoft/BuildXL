@@ -602,7 +602,7 @@ namespace BuildXL.Cache.ContentStore.App
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
             IAbsolutePathFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
-            ICopyRequester copyRequester,
+            ICopySender copyRequester,
             DistributedContentSettings dcs,
             HostInfo host,
             string cacheName,

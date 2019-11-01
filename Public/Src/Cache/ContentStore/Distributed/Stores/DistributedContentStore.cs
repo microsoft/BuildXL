@@ -89,7 +89,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IFileExistenceChecker<T> fileExistenceChecker,
             IFileCopier<T> fileCopier,
             IPathTransformer<T> pathTransform,
-            ICopyRequester copyRequester,
+            ICopySender copyRequester,
             ReadOnlyDistributedContentSession<T>.ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             AbsolutePath tempFolderForCopies,
             IAbsFileSystem fileSystem,

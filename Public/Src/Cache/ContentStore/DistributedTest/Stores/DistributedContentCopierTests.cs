@@ -144,7 +144,7 @@ namespace ContentStoreTest.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<AbsolutePath> fileCopier,
             IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
-            ICopyRequester copyRequester,
+            ICopySender copyRequester,
             IPathTransformer<AbsolutePath> pathTransformer,
             IContentLocationStore contentLocationStore)
                 : base(workingDirectory, settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, contentLocationStore)

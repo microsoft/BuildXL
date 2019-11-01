@@ -43,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly int _maxRetryCount;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
-        private readonly ICopyRequester _copyRequester;
+        private readonly ICopySender _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
         private readonly IContentLocationStore _contentLocationStore;
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
-            ICopyRequester copyRequester,
+            ICopySender copyRequester,
             IPathTransformer<T> pathTransformer,
             IContentLocationStore contentLocationStore)
         {

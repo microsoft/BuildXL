@@ -96,6 +96,9 @@ private:
     /*! Payload for the 'onChangeCallback_' function */
     void *onChangeData_;
 
+    /*! Used only when modifying this node's list of children */
+    IORecursiveLock *lock_;
+
     /*! Initialized a new Trie.  The return value indicates the success of the operation. */
     bool init(TrieKind kind);
 

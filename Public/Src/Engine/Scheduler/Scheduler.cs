@@ -3698,9 +3698,9 @@ namespace BuildXL.Scheduler
                                 Logger.Log.ProcessPipExecutionInfo(
                                     operationContext,
                                     runnablePip.Description,
-                                    (int)(executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
-                                    (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
-                                    (int)(executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
+                                    (executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
+                                    ((processRunnable.ExpectedDurationMs ?? 0) / 1000),
+                                    (executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
                                     executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
                                     worker.DefaultMemoryUsagePerProcess,
                                     expectedRamUsage,

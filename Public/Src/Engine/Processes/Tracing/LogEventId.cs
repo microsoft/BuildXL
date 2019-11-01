@@ -47,6 +47,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessOutput = 66,
 
         PipProcessResponseFileCreationFailed = 74,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 75,
 
         PipProcessStartExternalTool = 78,
         PipProcessFinishedExternalTool = 79,

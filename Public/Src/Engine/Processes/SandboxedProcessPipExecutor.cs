@@ -2622,19 +2622,25 @@ namespace BuildXL.Processes
                                         }
                                     });
 
-                                bool allOutputsPrivate = true;
+                                string filePathNotPrivate = null;
 
                                 foreach (var path in filePaths)
                                 {
                                     if (!await m_makeOutputPrivate(path))
                                     {
-                                        allOutputsPrivate = false;
+                                        filePathNotPrivate = path;
                                         break;
                                     }
                                 }
 
-                                if (!allOutputsPrivate)
+                                if (filePathNotPrivate != null)
                                 {
+                                    Tracing.Logger.Log.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+                                        m_loggingContext, 
+                                        m_pip.SemiStableHash, 
+                                        m_pip.GetDescription(m_context), 
+                                        directoryOutput.Path.ToString(m_pathTable), filePathNotPrivate);
+
                                     PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
                                 }
                             }

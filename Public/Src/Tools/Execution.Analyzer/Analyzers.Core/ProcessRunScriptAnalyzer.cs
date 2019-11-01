@@ -18,6 +18,9 @@ namespace BuildXL.Execution.Analyzer
 {
     internal partial class Args
     {
+        public readonly string ScriptName = OperatingSystemHelper.IsUnixOS ? "bash" : "batch";
+        public readonly string ScriptExtension = OperatingSystemHelper.IsUnixOS ? ".sh" : ".bat";
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public Analyzer InitializeProcessRunScriptAnalyzer()
         {
@@ -83,7 +86,7 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else
                 {
-                    throw Error("Unknown option for dump process text analysis: {0}", opt.Name);
+                    throw Error($"Unknown option for dump process text analysis: {opt.Name}");
                 }
             }
 
@@ -94,7 +97,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (pipId != null && outputFile == null && outputDirectory == null)
             {
-                outputFile = $"Pip{pipId.Value:x}.bat";
+                outputFile = $"Pip{pipId.Value:x}{ScriptExtension}";
             }
 
             if (outputFile == null && outputDirectory == null)
@@ -145,24 +148,25 @@ namespace BuildXL.Execution.Analyzer
 
         private static void WriteProcessRunScriptAnalyzerHelp(HelpWriter writer)
         {
+            var args = new Args(new String[]{});
             writer.WriteBanner("ProcessRunScript Analysis");
-            writer.WriteModeOption(nameof(AnalysisMode.ProcessRunScript), "Generates batch file which can run process with appropriate env vars set");
+            writer.WriteModeOption(nameof(AnalysisMode.ProcessRunScript), $"Generates {args.ScriptName} script which can run process with appropriate env vars set");
             writer.WriteOption("pip", "Optional. The semi-stable hash for the pip.", shortName: "p");
             writer.WriteOption("pipInput", "Optional. If pip is not specified, match all process pips that consume this file (either directly or through a sealed directory)");
             writer.WriteOption("pipOutput", "Optional. If pip is not specified, match all process pips that produce this file (either directly or through a sealed directory)");
-            writer.WriteOption("outputFile", @"Optional. The path to the output script file (if using /pip it defaults to .\PipNNNNNNNNNNNNNNNN.bat).", shortName: "o");
-            writer.WriteOption("outputDirectory", @"Optional. The name of directory to put a batch file per pip (batch files are named PipNNNNNNNNNNNNNNNN.bat).");
+            writer.WriteOption("outputFile", $"Optional. The path to the output script file (if using /pip it defaults to PipNNNNNNNNNNNNNNNN{args.ScriptExtension}).", shortName: "o");
+            writer.WriteOption("outputDirectory", $"Optional. The name of directory to put a {args.ScriptName} script per pip ({args.ScriptName} scripts are named PipNNNNNNNNNNNNNNNN{args.ScriptExtension}).");
             writer.WriteOption("echo", @"Optional. Echo commands as they are run");
             writer.WriteOption("saveOutputsRoot", @"Optional. Path of a directory to backup existing outputs.");
             writer.WriteOption("resultOutputsRoot", @"Optional. Path of a directory to put the resulting outputs of running the script.");
             writer.WriteOption("linkReproPath", @"Optional. The directory to store a MSVC Link Repro (i.e. LINK_REPRO) so that the link can be performed on another machine for diagnosing linker issues.");
-            writer.WriteOption("jsonEnvironmentScript", @"Optional. A batch script which takes a single json file path and sets the environment variables in it (the batch script version does not handle special characters today which can cause problems).");
-            writer.WriteOption("redirectStreams", @"Optional. Redirect the stdout and stderr of the process to .bat.out and .bat.err respectively.");
+            writer.WriteOption("jsonEnvironmentScript", $"Optional. A {args.ScriptName} script which takes a single json file path and sets the environment variables in it (the {args.ScriptName} script version does not handle special characters today which can cause problems).");
+            writer.WriteOption("redirectStreams", $"Optional. Redirect the stdout and stderr of the process to {args.ScriptExtension}.out and {args.ScriptExtension}.err respectively.");
         }
     }
 
     /// <summary>
-    /// Analyzer used to generate batch script for running process with environment variables from pip graph
+    /// Analyzer used to generate script for running process with environment variables from pip graph
     /// </summary>
     internal sealed class ProcessRunScriptAnalyzer : Analyzer
     {
@@ -185,51 +189,68 @@ namespace BuildXL.Execution.Analyzer
         private string m_substSource;
         private string m_substTarget;
 
+        private readonly string CommentPrefix = OperatingSystemHelper.IsUnixOS ? "#" : ":::";
+        private readonly string ScriptExtension = OperatingSystemHelper.IsUnixOS ? ".sh" : ".bat";
+        private readonly string FileDeleteOperation = OperatingSystemHelper.IsUnixOS ? "rm -Rf" : "del /F/S/Q";
+        private readonly string DirectoryDeleteOperation = OperatingSystemHelper.IsUnixOS ? "rm -Rf" : "rmdir /S/Q";
+        private readonly string MoveOperation = OperatingSystemHelper.IsUnixOS ? "mv -f" : "move";
+        private readonly string ScriptVariableExportKeyword = OperatingSystemHelper.IsUnixOS ? "export" : "set";
+        private readonly string DirectoryCreationCommand = OperatingSystemHelper.IsUnixOS ? "mkdir -p" : "mkdir";
+        private readonly string ChangeDirectoryCommand = OperatingSystemHelper.IsUnixOS ? "cd" : "cd /D";
+        private readonly string ExecuteScriptCommand = OperatingSystemHelper.IsUnixOS ? "sh" : "call";
+        private readonly string ExportVariableScope = OperatingSystemHelper.IsUnixOS ? "" : "setlocal";
+        private static string VerboseCommandLogging(bool enabled) => OperatingSystemHelper.IsUnixOS ? (enabled ? "set -x" : "") : (enabled ? "" : "@echo off");
+
+        private static string ScriptIfPathExistsConditionWithCommand(string path, string cmd, bool negate = false)
+        {
+            return OperatingSystemHelper.IsUnixOS ? $"if {(negate ? "!" : "")} [[ -d \"{path}\" ]]; then {cmd}; else if {(negate ? "!" : "")} [[ -f \"{path}\" ]]; then {cmd}; fi; fi" : $"IF {(negate ? "NOT": "")} EXIST \"{path}\" {cmd}";
+        }
+
         public ProcessRunScriptAnalyzer(AnalysisInput input)
             : base(input)
         {
         }
 
-
         private void SaveOutputs(StreamWriter writer, Process pip, string directory)
         {
-            writer.WriteLine(":::: Save PIP Outputs to {0}", directory);
+            writer.WriteLine($"{CommentPrefix} Save PIP Outputs to {directory}");
 
-            writer.WriteLine(":: Clearing Directory");
-            writer.WriteLine("IF EXIST \"{0}\" del /F/S/Q \"{0}\"", directory);
-            writer.WriteLine("IF EXIST \"{0}\" rmdir /S/Q \"{0}\"", directory);
+            writer.WriteLine($"{CommentPrefix} Clearing Directory");
+            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directory, $"{FileDeleteOperation} \"{directory}\""));
+            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directory, $"{DirectoryDeleteOperation} \"{directory}\""));
             writer.WriteLine();
 
             IEnumerable<AbsolutePath> outputPaths =
                 pip.FileOutputs.Select(f => f.Path)
                 .Concat(pip.DirectoryOutputs.Select(d => d.Path));
 
-            writer.WriteLine(":: Ensure Directories Exist");
+            writer.WriteLine($"{CommentPrefix} Ensure Directories Exist");
             foreach (var fileOutputFolder in outputPaths.Select(p => p.GetParent(PathTable)).Distinct())
             {
                 if (fileOutputFolder.IsValid)
                 {
-                    writer.WriteLine("IF NOT EXIST \"{0}\\{1}\" mkdir \"{0}\\{1}\"", directory, fileOutputFolder.ToString(PathTable).Replace(':', '_'));
+                    var path = Path.Combine(directory, fileOutputFolder.ToString(PathTable).Replace(':', '_'));
+                    writer.WriteLine(ScriptIfPathExistsConditionWithCommand(path, $"{DirectoryCreationCommand} \"{path}\"", negate: true));
                 }
             }
             writer.WriteLine();
 
-            writer.WriteLine(":: Save Files");
+            writer.WriteLine($"{CommentPrefix} Save Files");
             foreach (var fileOutput in pip.FileOutputs)
             {
-                writer.Write("move ");
-                writer.Write("\"{0}\" ", fileOutput.Path.ToString(PathTable));
-                writer.Write("\"{0}\\{1}\"", directory, fileOutput.Path.ToString(PathTable).Replace(':', '_'));
+                writer.Write($"{MoveOperation} ");
+                writer.Write($"\"{fileOutput.Path.ToString(PathTable)}\" ");
+                writer.Write($"\"{Path.Combine(directory, fileOutput.Path.ToString(PathTable).Replace(':', '_'))}\"");
                 writer.WriteLine();
             }
             writer.WriteLine();
 
-            writer.WriteLine(":: Save Directories");
+            writer.WriteLine($"{CommentPrefix} Save Directories");
             foreach (var directoryOutput in pip.DirectoryOutputs)
             {
-                writer.Write("move ");
-                writer.Write("\"{0}\" ", directoryOutput.Path.ToString(PathTable));
-                writer.Write("\"{0}\\{1}\"", directory, directoryOutput.Path.ToString(PathTable).Replace(':', '_'));
+                writer.Write($"{MoveOperation} ");
+                writer.Write($"\"{directoryOutput.Path.ToString(PathTable)}\" ");
+                writer.Write($"\"{Path.Combine(directory, directoryOutput.Path.ToString(PathTable).Replace(':', '_'))}\"");
                 writer.WriteLine();
             }
             writer.WriteLine();
@@ -251,20 +272,28 @@ namespace BuildXL.Execution.Analyzer
 
         private void DeleteOutputs(StreamWriter writer, Process pip)
         {
-            writer.WriteLine(":::: Delete Outputs");
+            writer.WriteLine($"{CommentPrefix} Delete Outputs");
 
-            writer.WriteLine(":: Delete Files");
+            writer.WriteLine($"{CommentPrefix} Delete Files");
             foreach (var fileOutput in pip.FileOutputs)
             {
-                writer.WriteLine("IF EXIST \"{0}\" del \"{0}\"", fileOutput.Path.ToString(PathTable));
+                var path = fileOutput.Path.ToString(PathTable);
+                writer.WriteLine(ScriptIfPathExistsConditionWithCommand(path, $"{FileDeleteOperation} \"{path}\""));
             }
             writer.WriteLine();
 
-            writer.WriteLine(":: Delete Directories");
+            writer.WriteLine($"{CommentPrefix} Delete Directories");
+
+            if (pip.DirectoryOutputs.Any(dir => dir.IsSharedOpaque))
+            {
+                writer.WriteLine($"echo \"!!! Pip uses shared opqaue output directories, deleting those could cause issues as potential inputs could be deleted too - proceed with caution !!!\"");
+            }
+
             foreach (var directory in GetOutputDirectories(pip))
             {
-                writer.WriteLine("IF EXIST \"{0}\" del /F/S/Q \"{0}\"", directory.ToString(PathTable));
-                writer.WriteLine("IF EXIST \"{0}\" rmdir /S/Q \"{0}\"", directory.ToString(PathTable));
+                var directoryPath = directory.ToString(PathTable);
+                writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{FileDeleteOperation} \"{directoryPath}\""));
+                writer.WriteLine(ScriptIfPathExistsConditionWithCommand(directoryPath, $"{DirectoryDeleteOperation} \"{directoryPath}\""));
             }
             writer.WriteLine();
         }
@@ -273,24 +302,24 @@ namespace BuildXL.Execution.Analyzer
         {
             DeleteOutputs(writer, pip);
 
-            writer.WriteLine(":::: Restore Outputs from {0}", directory);
+            writer.WriteLine($"{CommentPrefix} Restore Outputs from {directory}");
 
-            writer.WriteLine(":: Restore Files");
+            writer.WriteLine($"{CommentPrefix} Restore Files");
             foreach (var fileOutput in pip.FileOutputs)
             {
-                writer.Write("move ");
-                writer.Write("\"{0}\\{1}\" ", directory, fileOutput.Path.ToString(PathTable).Replace(':', '_'));
-                writer.Write("\"{0}\"", fileOutput.Path.ToString(PathTable));
+                writer.Write($"{MoveOperation} ");
+                writer.Write($"\"{Path.Combine(directory, fileOutput.Path.ToString(PathTable).Replace(':', '_'))}\" ");
+                writer.Write($"\"{fileOutput.Path.ToString(PathTable)}\"");
                 writer.WriteLine();
             }
             writer.WriteLine();
 
-            writer.WriteLine(":: Restore Directories");
+            writer.WriteLine($"{CommentPrefix} Restore Directories");
             foreach (var directoryOutput in pip.DirectoryOutputs)
             {
-                writer.Write("move ");
-                writer.Write("\"{0}\\{1}\" ", directory, directoryOutput.Path.ToString(PathTable).Replace(':', '_'));
-                writer.Write("\"{0}\"", directoryOutput.Path.ToString(PathTable));
+                writer.Write($"{MoveOperation} ");
+                writer.Write($"\"{Path.Combine(directory, directoryOutput.Path.ToString(PathTable).Replace(':', '_'))}\" ");
+                writer.Write($"\"{directoryOutput.Path.ToString(PathTable)}\"");
                 writer.WriteLine();
             }
             writer.WriteLine();
@@ -301,19 +330,24 @@ namespace BuildXL.Execution.Analyzer
             var pipEnviornment = new PipEnvironment();
             var environment = pipEnviornment.GetEffectiveEnvironmentVariables(PathTable, pip).ToDictionary();
 
-            writer.WriteLine(":::: Environment Variables");
+            writer.WriteLine($"{CommentPrefix} Environment Variables");
             if (string.IsNullOrEmpty(JsonEnvironmentScript))
             {
-                writer.WriteLine(":: Clear Existing Environment Variables");
+                writer.WriteLine($"{CommentPrefix} Clear Existing Environment Variables");
+
+#if PLATFORM_WIN
                 writer.WriteLine(@"for /f ""tokens=1* delims=="" %%a in ('set') do (");
                 writer.WriteLine("    set %%a=");
                 writer.WriteLine(")");
+#else
+                writer.WriteLine(@"for c in $(set | cut -d '=' -f 1); do unset $c 2> /dev/null; done");
+#endif
                 writer.WriteLine();
 
-                writer.WriteLine(":: Setting PIP Environment Variables");
+                writer.WriteLine($"{CommentPrefix} Setting PIP Environment Variables");
                 foreach (var environmentVariable in environment)
                 {
-                    writer.WriteLine("set {0}={1}", SanitizeEnvironmentVariableValue(environmentVariable.Key), SanitizeEnvironmentVariableValue(environmentVariable.Value));
+                    writer.WriteLine($"{ScriptVariableExportKeyword} {SanitizeEnvironmentVariableValue(environmentVariable.Key)}={SanitizeEnvironmentVariableValue(environmentVariable.Value)}");
                 }
             }
             else
@@ -331,7 +365,7 @@ namespace BuildXL.Execution.Analyzer
                     }
                     json.WriteEndObject();
                 }
-                writer.WriteLine($"call {JsonEnvironmentScript} {outputFile}.env.json");
+                writer.WriteLine($"{ExecuteScriptCommand} {JsonEnvironmentScript} {outputFile}.env.json");
             }
             writer.WriteLine();
         }
@@ -370,7 +404,7 @@ namespace BuildXL.Execution.Analyzer
                         foreach (var directoryDependent in GetProcessPipDependents(dependent))
                             yield return directoryDependent;
                         break;
-                        
+
                     case PipType.CopyFile:
                     case PipType.WriteFile:
                     case PipType.HashSourceFile:
@@ -408,7 +442,7 @@ namespace BuildXL.Execution.Analyzer
 
             if (!(OutputDirectory != null || (OutputFile != null && orderedPips.Count == 1)))
             {
-                Console.WriteLine("Too many pips match to use the outputFile option, please specify the outputDirectory argument so different batch file can be made for each pip");
+                Console.WriteLine($"Too many pips match to use the outputFile option, please specify the outputDirectory argument so different scripts can be made for each pip");
                 return 1;
             }
 
@@ -417,7 +451,7 @@ namespace BuildXL.Execution.Analyzer
                 o =>
                 {
                     var done = doneProcesses;
-                    Console.WriteLine("Processes Done: {0} of {1}", done, orderedPips.Count);
+                    Console.WriteLine($"Processes Done: {done} of {orderedPips.Count}");
                 },
                 null,
                 5000,
@@ -427,22 +461,22 @@ namespace BuildXL.Execution.Analyzer
             {
                 foreach (var pip in orderedPips)
                 {
-                    string outputFile = OutputFile ?? ($"{OutputDirectory}\\{pip.SemiStableHash:x}.bat");
+                    string outputFile = OutputFile ?? $"{Path.Combine(OutputDirectory, $"{pip.SemiStableHash:x}{ScriptExtension}")}";
 
                     using (var scriptStream = File.Create(outputFile, bufferSize: 64 << 10 /* 64 KB */))
                     using (var writer = (!string.IsNullOrWhiteSpace(m_substSource) && !string.IsNullOrWhiteSpace(m_substTarget)) ? new TranslatingStreamWriter(m_substTarget, m_substSource, scriptStream) :  new StreamWriter(scriptStream))
                     {
-                        if (!Echo)
-                        {
-                            writer.WriteLine("@echo off");
-                        }
+#if !PLATFORM_WIN
+                        writer.WriteLine("#!/bin/sh");
+#endif
+                        writer.WriteLine(VerboseCommandLogging(Echo));
 
-                        writer.WriteLine("setlocal");
+                        writer.WriteLine(ExportVariableScope);
 
                         if (pip.WorkingDirectory.IsValid)
                         {
-                            writer.WriteLine(":::: Set Working Directory");
-                            writer.WriteLine("cd /D \"{0}\"", pip.WorkingDirectory.ToString(PathTable));
+                            writer.WriteLine($"{CommentPrefix} Set Working Directory");
+                            writer.WriteLine($"{ChangeDirectoryCommand} \"{pip.WorkingDirectory.ToString(PathTable)}\"");
                             writer.WriteLine();
                         }
 
@@ -453,12 +487,12 @@ namespace BuildXL.Execution.Analyzer
 
                         DeleteOutputs(writer, pip);
 
-                        writer.WriteLine(":::: Creating Output Directories");
+                        writer.WriteLine($"{CommentPrefix} Creating Output Directories");
                         foreach (var directory in GetOutputDirectories(pip))
                         {
                             if (directory.IsValid)
                             {
-                                writer.WriteLine("mkdir \"{0}\"", directory.ToString(PathTable));
+                                writer.WriteLine($"{DirectoryCreationCommand} \"{directory.ToString(PathTable)}\"");
                             }
                         }
                         writer.WriteLine();
@@ -467,10 +501,10 @@ namespace BuildXL.Execution.Analyzer
 
                         if (LinkReproPath != null)
                         {
-                            writer.WriteLine($"IF EXIST \"{LinkReproPath}\" del /f/s/q \"{LinkReproPath}\"");
-                            writer.WriteLine($"IF EXIST \"{LinkReproPath}\" rmdir /s/q \"{LinkReproPath}\"");
-                            writer.WriteLine($"mkdir {LinkReproPath}");
-                            writer.WriteLine($"set LINK_REPRO={LinkReproPath}");
+                            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(LinkReproPath, $"{FileDeleteOperation} \"{LinkReproPath}\""));
+                            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(LinkReproPath, $"{DirectoryDeleteOperation} \"{LinkReproPath}\""));
+                            writer.WriteLine($"{DirectoryCreationCommand} {LinkReproPath}");
+                            writer.WriteLine($"{ScriptVariableExportKeyword} LINK_REPRO={LinkReproPath}");
                         }
 
                         if (pip.StandardInputData.IsValid)
@@ -483,29 +517,29 @@ namespace BuildXL.Execution.Analyzer
                             }
                         }
 
-                        writer.WriteLine(":::: Running Process");
-                        writer.Write("\"{0}\"", pip.Executable.Path.ToString(PathTable));
+                        writer.WriteLine($"{CommentPrefix} Running Process");
+                        writer.Write($"\"{pip.Executable.Path.ToString(PathTable)}\"");
 
                         string arguments = GetArgumentsDataFromProcess(pip).ToString(PathTable);
                         if (!string.IsNullOrEmpty(arguments))
                         {
-                            writer.Write(" {0}", arguments);
+                            writer.Write($" {arguments}");
                         }
 
                         if (pip.StandardInputData.IsValid)
                         {
-                            writer.Write(" < \"{0}\"", outputFile + ".in");
+                            writer.Write($" < \"{outputFile + ".in"}\"");
                         }
 
                         if (pip.StandardInputFile.IsValid)
                         {
-                            writer.Write(" < \"{0}\"", pip.StandardInputFile.Path.ToString(PathTable));
+                            writer.Write($" < \"{pip.StandardInputFile.Path.ToString(PathTable)}\"");
                         }
 
                         if (RedirectStreams)
                         {
-                            writer.Write(" 1> \"{0}\"", outputFile + ".out");
-                            writer.Write(" 2> \"{0}\"", outputFile + ".err");
+                            writer.Write($" 1> \"{outputFile + ".out"}\"");
+                            writer.Write($" 2> \"{outputFile + ".err"}\"");
                         }
 
                         writer.WriteLine();
@@ -515,9 +549,9 @@ namespace BuildXL.Execution.Analyzer
                             SaveOutputs(writer, pip, ResultOutputsRoot);
                             RestoreOutputs(writer, pip, SaveOutputsRoot);
 
-                            writer.WriteLine(":::: Removing saveOutputsRoot");
-                            writer.WriteLine($"IF EXIST \"{SaveOutputsRoot}\" del /f/s/q \"{SaveOutputsRoot}\"");
-                            writer.WriteLine($"IF EXIST \"{SaveOutputsRoot}\" rmdir /s/q \"{SaveOutputsRoot}\"");
+                            writer.WriteLine($"{CommentPrefix} Removing saveOutputsRoot");
+                            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(SaveOutputsRoot, $"{FileDeleteOperation} \"{SaveOutputsRoot}\""));
+                            writer.WriteLine(ScriptIfPathExistsConditionWithCommand(SaveOutputsRoot, $"{DirectoryDeleteOperation} \"{SaveOutputsRoot}\""));
                         }
 
                         doneProcesses++;

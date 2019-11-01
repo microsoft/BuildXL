@@ -42,7 +42,7 @@ The front end (the debugger extension) is distributed with the existing [DScript
   - [Function Application](QueryLanguage.md#Function-Application)
   - [Output Redirection](QueryLanguage.md#Output-Redirection)
   - [Let Binding](QueryLanguage.md#Let-Binding)
-  - [Assign Statement](QueryLanguage.md#Assign-Expression)
+  - [Assign Statement](QueryLanguage.md#Assign-Statement)
   - [Match Operator](QueryLanguage.md#Match-Operator)
   - [Binary Operators](QueryLanguage.md#Binary-Operators)
   - [Operator Precedence](QueryLanguage.md#Operator-Precedence)

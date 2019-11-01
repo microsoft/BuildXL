@@ -222,6 +222,6 @@ namespace BuildXL.ToolSupport
         /// <summary>
         /// The full help including verbose obscure options
         /// </summary>
-        Verbose = 1,
+        Verbose = 2,
     }
 }

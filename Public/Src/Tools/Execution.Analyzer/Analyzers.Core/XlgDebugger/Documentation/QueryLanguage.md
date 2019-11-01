@@ -51,7 +51,7 @@ Every expression is evaluated in the context of an *environment* (`Env`) and the
     - property name is a [Property Identifier](#Property-Identifier) and its value can be any expression
     - examples:
       - `{key: 123, val: 'value'}`
-      - `{123, 'value'}` --> same as `{Item1: 123, Item2: 'value'}`
+      - `{123, 'value'}` --> same as `{Item0: 123, Item1: 'value'}`
       - `{sub: {123, 'value'}}`
       - ``{`property name with spaces`: 123}``
 

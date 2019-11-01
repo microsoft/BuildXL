@@ -125,8 +125,6 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        //TODO Add test to ensure pip properties are counted across retries
-
         [Fact]
         public async Task ProcessSuccess()
         {

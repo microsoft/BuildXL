@@ -303,10 +303,10 @@ namespace BuildXL.Scheduler
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
         // TODO(kenbreid) These structures need to be concurrent
-        private Dictionary<string, long> m_aggregatedPipPropertiesCount = new Dictionary<string, long>();
-        private Dictionary<string, HashSet<string>> m_addgregatepipsPerPipProperty = new Dictionary<string, HashSet<string>>();
-        private HashSet<string> m_pipsSucceedingAfterUserRetry = new HashSet<string>();
-        private HashSet<string> m_pipsFailingAfterLastUserRetry = new HashSet<string>();
+        private ConcurrentDictionary<string, long> m_aggregatedPipPropertiesCount = new ConcurrentDictionary<string, long>();
+        private ConcurrentDictionary<string, HashSet<string>> m_addgregatepipsPerPipProperty = new ConcurrentDictionary<string, HashSet<string>>();
+        private ConcurrentBigSet<string> m_pipsSucceedingAfterUserRetry = new ConcurrentBigSet<string>();
+        private ConcurrentBigSet<string> m_pipsFailingAfterLastUserRetry = new ConcurrentBigSet<string>();
 
         /// <summary>
         /// Enables distribution for the master node
@@ -3674,21 +3674,15 @@ namespace BuildXL.Scheduler
                         {
                             foreach (var kvp in executionResult.PipProperties)
                             {
-                                if (m_aggregatedPipPropertiesCount.TryGetValue(kvp.Key, out var value))
-                                {
-                                    m_aggregatedPipPropertiesCount[kvp.Key] = value + kvp.Value;
-                                    m_addgregatepipsPerPipProperty.TryGetValue(kvp.Key, out var existingPips);
+                                m_aggregatedPipPropertiesCount.AddOrUpdate(kvp.Key, kvp.Value, (key, oldValue) => oldValue + kvp.Value);
 
-                                    if (existingPips.Count < MaxListOfPipIdsForTelemetry)
-                                    {
-                                        existingPips.Add(processRunnable.Process.FormattedSemiStableHash);
-                                        m_addgregatepipsPerPipProperty[kvp.Key] = existingPips;
-                                    }
-                                }
-                                else
+                                var impactedPips = m_addgregatepipsPerPipProperty.GetOrAdd(kvp.Key, new HashSet<string> ());
+                                lock(m_addgregatepipsPerPipProperty)
                                 {
-                                    m_aggregatedPipPropertiesCount.Add(kvp.Key, kvp.Value);
-                                    m_addgregatepipsPerPipProperty.Add(kvp.Key, new HashSet<string> { processRunnable.Process.FormattedSemiStableHash });
+                                    if (impactedPips.Count < MaxListOfPipIdsForTelemetry)
+                                    {
+                                        impactedPips.Add(processRunnable.Process.FormattedSemiStableHash);
+                                    }
                                 }
                             }
                         }

@@ -281,11 +281,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var firstResponse = responseStream.Current;
                 if (!firstResponse.ShouldCopy)
                 {
+                    context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
                     return BoolResult.Success;
                 }
 
-                var bufferSize = 64 * 1024; // TODO: Determine buffer size in config.
-                await StreamContentAsync(source, new byte[bufferSize], requestStream, context.Token);
+                await StreamContentAsync(source, new byte[_bufferSize], requestStream, context.Token);
                 await requestStream.CompleteAsync();
 
                 await responseStream.MoveNext(context.Token);

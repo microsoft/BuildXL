@@ -30,8 +30,10 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
     /// </summary>
     public interface IPushFileHandler
     {
-        //TODO docs
         /// <nodoc />
         Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token);
+
+        /// <nodoc />
+        bool HasContentLocally(Context context, ContentHash hash);
     }
 }

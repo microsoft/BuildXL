@@ -629,5 +629,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             return new PutResult(new InvalidOperationException($"{nameof(InnerContentStore)} does not implement {nameof(IPushFileHandler)}"), hash);
         }
+
+        /// <inheritdoc />
+        public bool HasContentLocally(Context context, ContentHash hash)
+        {
+            if (InnerContentStore is IPushFileHandler inner)
+            {
+                return inner.HasContentLocally(context, hash);
+            }
+
+            return false;
+        }
     }
 }

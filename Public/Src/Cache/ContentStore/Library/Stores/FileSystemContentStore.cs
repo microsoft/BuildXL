@@ -242,5 +242,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return Store.PutFileAsync(context, sourcePath, FileRealizationMode.Copy, hash, pinRequest: null);
         }
+
+        /// <inheritdoc />
+        public bool HasContentLocally(Context context, ContentHash hash)
+        {
+            return Store.Contains(hash);
+        }
     }
 }

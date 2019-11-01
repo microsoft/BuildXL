@@ -25,6 +25,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using ContentStore.Grpc;
 using Google.Protobuf;
 using Grpc.Core;
@@ -359,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return new RequestCopyFileResponse { Header = ResponseHeader.Failure(startTime, $"No stores implement {nameof(ICopyRequestHandler)}.") };
         }
 
-        private ConcurrentDictionary<ContentHash, bool> _ongoingPushes = new ConcurrentDictionary<ContentHash, bool>();
+        private readonly ConcurrentBigSet<ContentHash> _ongoingPushes = new ConcurrentBigSet<ContentHash>();
 
         /// <summary>
         /// Handles a request to copy content to this machine.
@@ -375,13 +376,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var hash = firstRequest.ContentHash.ToContentHash((HashType)firstRequest.HashType);
             var cacheContext = new Context(new Guid(firstRequest.TraceId), Logger);
 
-            if (!_ongoingPushes.TryAdd(hash, true)) // TODO: Check if content is already here
-            {
-                // Copy does not need to happen as it is already happening on another request or is already there.
-                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
-                return;
-            }
-
             var store = _contentStoreByCacheName.Values.OfType<IPushFileHandler>().FirstOrDefault();
 
             if (store == null)
@@ -390,36 +384,55 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return;
             }
 
-            await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = true });
-
-            var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);
-
-            using (var tempFile = File.OpenWrite(tempFilePath.Path))
+            if (!_ongoingPushes.Add(hash))
             {
-                while (await requestStream.MoveNext())
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    var request = requestStream.Current;
-                    var bytes = request.Content.ToByteArray();
-                    await tempFile.WriteAsync(bytes, 0, bytes.Length);
-                }
+                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
+                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
+                return;
             }
 
-            var result = await store.HandlePushFileAsync(cacheContext, hash, tempFilePath, token);
+            try
+            {
+                if (store.HasContentLocally(cacheContext, hash))
+                {
+                    Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because content is already local.");
+                    await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
+                    return;
+                }
 
-            File.Delete(tempFilePath.Path);
+                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = true });
 
-            var response = result
-                ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
-                : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
+                var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);
 
-            await responseStream.WriteAsync(response);
+                using (var tempFile = File.OpenWrite(tempFilePath.Path))
+                {
+                    while (await requestStream.MoveNext())
+                    {
+                        if (token.IsCancellationRequested)
+                        {
+                            return;
+                        }
 
-            _ongoingPushes.TryRemove(hash, out _);
+                        var request = requestStream.Current;
+                        var bytes = request.Content.ToByteArray();
+                        await tempFile.WriteAsync(bytes, 0, bytes.Length);
+                    }
+                }
+
+                var result = await store.HandlePushFileAsync(cacheContext, hash, tempFilePath, token);
+
+                File.Delete(tempFilePath.Path);
+
+                var response = result
+                    ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
+                    : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
+
+                await responseStream.WriteAsync(response);
+            }
+            finally
+            {
+                _ongoingPushes.Remove(hash);
+            }
         }
 
         private delegate Task<Result<(long Chunks, long Bytes)>> StreamContentDelegate(Stream input, byte[] buffer, IServerStreamWriter<CopyFileResponse> responseStream, CancellationToken ct);

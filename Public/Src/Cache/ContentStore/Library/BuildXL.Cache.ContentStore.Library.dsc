@@ -22,6 +22,7 @@ namespace Library {
             // TODO: This needs to be renamed to just utilities... but it is in a package in public/src
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Cache.DistributedCache.Host").Configuration.dll,
             importFrom("Grpc.Core").pkg,
             importFrom("Google.Protobuf").pkg,

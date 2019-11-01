@@ -2860,6 +2860,25 @@ namespace BuildXL.Scheduler.Tracing
             string producingPipValueId);
 
         [GeneratedEvent(
+            (int)EventId.InvalidInputSinceInputIsOutputWithNoProducer,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "The pip '{pipDescription}' cannot be added because its input '{inputFile}' is specified as an output file, but there is no pip producing the output file")]
+        public abstract void ScheduleFailAddPipInvalidInputSinceInputIsOutputWithNoProducer(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription,
+            string pipValueId,
+            string inputFile);
+
+        [GeneratedEvent(
             (int)EventId.InvalidTempDirectoryInvalidPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -4528,7 +4547,16 @@ namespace BuildXL.Scheduler.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
-        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, int numProcesses, int expectedDurationSec, int actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, uint numProcesses, ulong expectedDurationSec, double actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Caught OverflowException in ExecutePipStep: {exception}")]
+        internal abstract void ExecutePipStepOverflowFailure(LoggingContext loggingContext, string exception);
     }
 }
 #pragma warning restore CA1823 // Unused field

@@ -437,9 +437,9 @@ import {Artifact, Cmd, Tool, Transformer} from 'Sdk.Transformers';
 const exclusiveOpaque: Directory = d`obj/exclusive`;
 const sharedOpaque: Directory = d`obj/shared`;
 
-export const cmdTool: Transformer.ToolDefinition = {
-    exe: f`${Environment.getPathValue(""COMSPEC"")}`,
-};
+export const cmdTool: Transformer.ToolDefinition = {" +
+    $"exe: f`{(OperatingSystemHelper.IsUnixOS ? "/bin/sh" : @"${Environment.getPathValue(""COMSPEC"")}")}`"
++ @"};
 
 const pip = Transformer.execute({
     tool: cmdTool,

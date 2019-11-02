@@ -4191,7 +4191,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "runtime.osx-x64.BuildXL",
-          "Version": "2.6.99"
+          "Version": "2.7.0"
         }
       }
     },

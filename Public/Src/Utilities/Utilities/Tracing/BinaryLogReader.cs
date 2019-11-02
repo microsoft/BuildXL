@@ -368,9 +368,10 @@ namespace BuildXL.Utilities.Tracing
                         return AbsolutePath.Invalid;
                     case BinaryLogger.AbsolutePathType.Static:
                         return base.ReadAbsolutePath();
-                    default:
-                        Contract.Assert(absolutePathType == BinaryLogger.AbsolutePathType.Dynamic);
+                    case BinaryLogger.AbsolutePathType.Dynamic:
                         return LogReader.m_capturedPaths[(uint)ReadInt32Compact()];
+                    default:
+                        throw Contract.AssertFailure($"Unrecognized path type: {absolutePathType}. The XLG file format has potentially changed.");
                 }
             }
 

@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Tracing
         CacheClientStats = 50,
         CatastrophicFailureCausedByCorruptedCache = 51,
         ProcessingPipOutputFileFailed = 52,
-        // Reserved = 53,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
         // Reserved = 54,
         // Reserved = 55,
         // Reserved = 56,

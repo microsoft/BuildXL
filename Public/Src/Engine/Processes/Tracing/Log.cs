@@ -830,6 +830,20 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Failed to preserve output directory '{directory}' because '{file}' cannot be made private, contents of the directory will be deleted")]
+        public abstract void PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string directory,
+            string file);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessChangeAffectedInputsWrittenFileCreationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

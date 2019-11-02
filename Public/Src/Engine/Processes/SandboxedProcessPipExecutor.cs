@@ -28,6 +28,7 @@ using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.BuildParameters;
+using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Processes
 {
@@ -2621,12 +2622,26 @@ namespace BuildXL.Processes
                                         }
                                     });
 
+                                string filePathNotPrivate = null;
+
                                 foreach (var path in filePaths)
                                 {
                                     if (!await m_makeOutputPrivate(path))
                                     {
-                                        throw new BuildXLException("Failed to create a private, writeable copy of an output file from a previous invocation.");
+                                        filePathNotPrivate = path;
+                                        break;
                                     }
+                                }
+
+                                if (filePathNotPrivate != null)
+                                {
+                                    Tracing.Logger.Log.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+                                        m_loggingContext, 
+                                        m_pip.SemiStableHash, 
+                                        m_pip.GetDescription(m_context), 
+                                        directoryOutput.Path.ToString(m_pathTable), filePathNotPrivate);
+
+                                    PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
                                 }
                             }
                         }

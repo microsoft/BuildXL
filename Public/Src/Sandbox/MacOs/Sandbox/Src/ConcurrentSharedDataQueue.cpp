@@ -3,6 +3,7 @@
 
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/IODataQueueShared.h>
+#include "Alloc.hpp"
 #include "BuildXLSandboxClient.hpp"
 #include "ConcurrentSharedDataQueue.hpp"
 
@@ -21,8 +22,8 @@ static void setValue(FreeListElem *e, ElemPayload *p) { LFDS711_FREELIST_SET_VAL
 static void deallocateFreeListElem(FreeListElem *elem)
 {
     ElemPayload *payload = getValue(elem);
-    IODelete(payload->queueElem, QueueElem, 1);
-    IODelete(payload, ElemPayload, 1);
+    Alloc::Delete<QueueElem>(payload->queueElem, 1);
+    Alloc::Delete<ElemPayload>(payload, 1);
 }
 
 QueueElem* ConcurrentSharedDataQueue::allocateElem(const EnqueueArgs &args)
@@ -39,16 +40,16 @@ QueueElem* ConcurrentSharedDataQueue::allocateElem(const EnqueueArgs &args)
     else
     {
         reportCounters_->freeListNodeCount++;
-        payload = IONew(ElemPayload, 1);
+        payload = Alloc::New<ElemPayload>(1);
         if (payload == nullptr)
         {
             return nullptr;
         }
 
-        payload->queueElem = IONew(QueueElem, 1);
+        payload->queueElem = Alloc::New<QueueElem>(1);
         if (payload->queueElem == nullptr)
         {
-            IODelete(payload, ElemPayload, 1);
+            Alloc::Delete<ElemPayload>(payload, 1);
             return nullptr;
         }
 
@@ -122,19 +123,19 @@ bool ConcurrentSharedDataQueue::init(const InitArgs& args)
         return false;
     }
 
-    freeList_ = IONew(FreeList, 1);
+    freeList_ = Alloc::New<FreeList>(1);
     if (freeList_ == nullptr)
     {
         return false;
     }
 
-    pendingReports_  = IONew(Queue, 1);
+    pendingReports_  = Alloc::New<Queue>(1);
     if (pendingReports_ == nullptr)
     {
         return false;
     }
 
-    QueueElem *dummy = IONew(QueueElem, 1); // this is dealocated in lfds711_queue_umm_cleanup()
+    QueueElem *dummy = Alloc::New<QueueElem>(1); // this is dealocated in lfds711_queue_umm_cleanup()
     if (dummy == nullptr)
     {
         return false;
@@ -182,10 +183,10 @@ void ConcurrentSharedDataQueue::free()
         while (lfds711_queue_umm_dequeue(pendingReports_, &e)) releaseElem(e);
         lfds711_queue_umm_cleanup(pendingReports_, [](Queue *q, QueueElem *e, lfds711_misc_flag flag)
                                   {
-                                      IODelete(e, QueueElem, 1);
+                                      Alloc::Delete<QueueElem>(e, 1);
                                   });
 
-        IODelete(pendingReports_, Queue, 1);
+        Alloc::Delete<Queue>(pendingReports_, 1);
         pendingReports_ = nullptr;
     }
 
@@ -197,14 +198,14 @@ void ConcurrentSharedDataQueue::free()
                                      deallocateFreeListElem(e);
                                  });
 
-        IODelete(freeList_, FreeList, 1);
+        Alloc::Delete<FreeList>(freeList_, 1);
         freeList_ = nullptr;
     }
 
     if (asyncFailureHandle_ != nullptr)
     {
         asyncFailureHandle_->userClient = nullptr;
-        IODelete(asyncFailureHandle_, ClientAsyncHandle, 1);
+        Alloc::Delete<ClientAsyncHandle>(asyncFailureHandle_, 1);
         asyncFailureHandle_ = nullptr;
     }
 
@@ -247,7 +248,7 @@ void ConcurrentSharedDataQueue::setClientAsyncFailureHandle(OSAsyncReference64 r
 {
     EnterMonitor
 
-    asyncFailureHandle_ = IONew(ClientAsyncHandle, 1);
+    asyncFailureHandle_ = Alloc::New<ClientAsyncHandle>(1);
     if (asyncFailureHandle_ != nullptr)
     {
         bcopy(ref, asyncFailureHandle_->ref, sizeof(OSAsyncReference64));

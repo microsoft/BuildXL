@@ -48,24 +48,6 @@ public:
         kTrieResultFailure,
     } TrieResult;
 
-    static void getUintNodeCounts(CountAndSize *cnt)
-    {
-        cnt->count = Node::s_numUintNodes;
-        cnt->size = sizeof(NodeFast) + Node::s_uintNodeMaxKey * sizeof(NodeFast*);
-    }
-
-    static void getPathNodeCounts(CountAndSize *cnt)
-    {
-        cnt->count = Node::s_numPathNodes;
-        cnt->size = sizeof(NodeFast) + Node::s_pathNodeMaxKey * sizeof(NodeFast*);
-    }
-
-    static void getLightNodeCounts(CountAndSize *cnt)
-    {
-        cnt->count = NodeLight::metaClass->getInstanceCount();
-        cnt->size = sizeof(NodeLight);
-    }
-
 private:
 
     const uint kKindBitMask = 1;

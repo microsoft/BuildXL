@@ -3571,7 +3571,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)Keywords.UserMessage,
-            Message = "ProcessRetries PipsSucceedingAfterUserRetry:{0} and PipsFailingAfterUserRetry:{1}")]
+            Message = "ProcessRetries PipsSucceedingAfterUserRetry: {pipsSucceedingAfterUserRetry} and PipsFailingAfterUserRetry: {pipsFailingAfterLastUserRetry}")]
         public abstract void ProcessRetries(LoggingContext context, string pipsSucceedingAfterUserRetry, string pipsFailingAfterLastUserRetry);
 
         [GeneratedEvent(
@@ -3580,7 +3580,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)Keywords.UserMessage,
-            Message = "ProcessPattern {0}")]
+            Message = "ProcessPattern {pipPropertyImpactedPips}")]
         public abstract void ProcessPattern(LoggingContext context, string pipPropertyImpactedPips, IDictionary<string, long> stats);
 
         [GeneratedEvent(

@@ -116,11 +116,6 @@ namespace BuildXL.Scheduler
         };
 
         /// <summary>
-        /// The max count of PipIds for telemetry fields recording a list if impact pips
-        /// </summary>
-        private const int MaxListOfPipIdsForTelemetry = 50; 
-
-        /// <summary>
         /// Prefix used by the IDE integration for the name of EventHandles marking a value's successful completion
         /// </summary>
         public const string IdeSuccessPrefix = "Success";
@@ -302,10 +297,7 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
-        private ConcurrentDictionary<string, long> m_aggregatedPipPropertiesCount = new ConcurrentDictionary<string, long>();
-        private ConcurrentDictionary<string, HashSet<string>> m_addgregatepipsPerPipProperty = new ConcurrentDictionary<string, HashSet<string>>();
-        private ConcurrentBigSet<string> m_pipsSucceedingAfterUserRetry = new ConcurrentBigSet<string>();
-        private ConcurrentBigSet<string> m_pipsFailingAfterLastUserRetry = new ConcurrentBigSet<string>();
+        private PipRetryInfo m_pipRetryInfo = new PipRetryInfo();
 
         /// <summary>
         /// Enables distribution for the master node
@@ -1662,29 +1654,7 @@ namespace BuildXL.Scheduler
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
 
-            if (PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessUserRetries) > 0)
-            {
-                string pipsSucceedingAfterUserRetry = string.Join(",", m_pipsSucceedingAfterUserRetry);
-                string pipsFailingAfterLastUserRetry = string.Join(",", m_pipsFailingAfterLastUserRetry);
-                Logger.Log.ProcessRetries(loggingContext, pipsSucceedingAfterUserRetry, pipsFailingAfterLastUserRetry);
-            }
-
-            if (m_aggregatedPipPropertiesCount.Count > 0)
-            {
-                // Log out one message with containing a string of pip properties with their impacted pips
-                int countOfLoggedProperties = 0;
-                string pipPropertiesPips = string.Empty;
-                foreach (var item in m_aggregatedPipPropertiesCount)
-                {
-                    pipPropertiesPips = item.Key + "Pips: " + string.Join(",", item.Value);
-                    countOfLoggedProperties++;
-                    if (countOfLoggedProperties == MaxListOfPipIdsForTelemetry)
-                    {
-                        break;
-                    }
-                }
-                Logger.Log.ProcessPattern(loggingContext, pipPropertiesPips, m_aggregatedPipPropertiesCount);
-            }
+            m_pipRetryInfo.LogPipRetryInfo(loggingContext, PipExecutionCounters);
 
             m_apiServer?.LogStats(loggingContext);
             m_dropPipTracker?.LogStats(loggingContext);
@@ -3679,42 +3649,7 @@ namespace BuildXL.Scheduler
                             return PipExecutionStep.ChooseWorkerCpu;
                         }
 
-                        if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
-                        {
-                            foreach (var kvp in executionResult.PipProperties)
-                            {
-                                m_aggregatedPipPropertiesCount.AddOrUpdate(kvp.Key, kvp.Value, (key, oldValue) => oldValue + kvp.Value);
-
-                                var impactedPips = m_addgregatepipsPerPipProperty.GetOrAdd(kvp.Key, new HashSet<string> ());
-                                lock(m_addgregatepipsPerPipProperty)
-                                {
-                                    if (impactedPips.Count < MaxListOfPipIdsForTelemetry)
-                                    {
-                                        impactedPips.Add(processRunnable.Process.FormattedSemiStableHash);
-                                    }
-                                }
-                            }
-                        }
-
-                        if (executionResult.HasUserRetries)
-                        {
-                            if (executionResult.Result == PipResultStatus.Succeeded)
-                            {
-                                PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesSucceededPipsCount);
-                                if (m_pipsSucceedingAfterUserRetry.Count < MaxListOfPipIdsForTelemetry)
-                                {
-                                    m_pipsSucceedingAfterUserRetry.Add(processRunnable.Process.FormattedSemiStableHash);
-                                }
-                            }
-                            else if (executionResult.Result == PipResultStatus.Failed)
-                            {
-                                PipExecutionCounters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesFailedPipsCount);
-                                if (m_pipsFailingAfterLastUserRetry.Count < MaxListOfPipIdsForTelemetry)
-                                {
-                                    m_pipsFailingAfterLastUserRetry.Add(processRunnable.Process.FormattedSemiStableHash);
-                                }
-                            }
-                        }
+                        m_pipRetryInfo.UpdatePipRetrInfo(processRunnable, executionResult, PipExecutionCounters);
 
                         if (runnablePip.Worker?.IsRemote == true)
                         {

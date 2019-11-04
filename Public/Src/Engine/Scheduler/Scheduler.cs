@@ -2172,30 +2172,6 @@ namespace BuildXL.Scheduler
                 }
             }
 
-#if PLATFORM_OSX
-            if (!resourceAvailable)
-            {
-                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
-                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-
-                if (result)
-                {
-                    // If the memory pressure level is not above the configured level but we've infered resources are not available earlier,
-                    // we reset the resource availability and override the decision by looking at the current pressure level only!
-                    resourceAvailable = !(pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel);
-                }
-                else
-                {
-                    Logger.Log.UnableToGetMemoryPressureLevel(
-                            m_executePhaseLoggingContext,
-                            availableRam: perfInfo.AvailableRamMb.Value,
-                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
-                            ramUtilization: perfInfo.RamUsagePercentage.Value,
-                            maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
-                }
-            }
-#endif
-
             if (!resourceAvailable)
             {
                 if (LocalWorker.ResourcesAvailable)
@@ -2218,7 +2194,30 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+#if PLATFORM_OSX
+                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
+                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+                var startCancellingPips = false;
+
+                if (result)
+                {
+                    // If the memory pressure level is above the configured level we start canceling pips to avoid Jetsam to kill our process
+                    startCancellingPips = pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel;
+                }
+                else
+                {
+                    Logger.Log.UnableToGetMemoryPressureLevel(
+                            m_executePhaseLoggingContext,
+                            availableRam: perfInfo.AvailableRamMb.Value,
+                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                            ramUtilization: perfInfo.RamUsagePercentage.Value,
+                            maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
+                }
+
+                if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion && startCancellingPips)
+#else
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
+#endif
                 {
                     // Free down to the specified max RAM utilization percentage with 10% slack
                     var desiredRamToFreePercentage = (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;

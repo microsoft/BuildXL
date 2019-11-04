@@ -88,6 +88,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public CounterCollection<FingerprintStoreCounters> Counters { get; }
 
+        /// <summary>
+        /// Context for logging methods.
+        /// </summary>
+        public LoggingContext LoggingContext { get; }
+
         private readonly Task<RuntimeCacheMissAnalyzer> m_runtimeCacheMissAnalyzerTask;
         private RuntimeCacheMissAnalyzer RuntimeCacheMissAnalyzer => m_runtimeCacheMissAnalyzerTask.GetAwaiter().GetResult();
 
@@ -209,6 +214,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             m_context = context;
             m_pipTable = pipTable;
+            LoggingContext = loggingContext;
             PipContentFingerprinter = pipContentFingerprinter;
             ExecutionFingerprintStore = fingerprintStore;
             CacheLookupFingerprintStore = cacheLookupFingerprintStore;

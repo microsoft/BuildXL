@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include "Alloc.hpp"
 #include "Monitor.hpp"
 #include "TrieNode.hpp"
 
@@ -22,7 +23,7 @@ static void push(Stack **stack, Node *node, uint64_t path, uint32_t depth)
 {
     if (node == nullptr) return;
 
-    Stack *top = IONew(Stack, 1);
+    Stack *top = Alloc::New<Stack>(1);
     top->node  = node;
     top->next  = *stack;
     top->key   = path;
@@ -36,7 +37,7 @@ static Node* pop(Stack **stack)
     Stack *top = *stack;
     *stack = top->next;
     Node *node = top->node;
-    IODelete(top, Stack, 1);
+    Alloc::Delete<Stack>(top, 1);
     return node;
 }
 
@@ -215,7 +216,7 @@ bool NodeFast::init(uint numChildren)
     }
 
     childrenLength_ = numChildren;
-    children_ = IONew(NodeFast*, numChildren);
+    children_ = Alloc::New<NodeFast*>(numChildren);
 
     for (int i = 0; i < childrenLength_; i++)
     {
@@ -232,7 +233,7 @@ void NodeFast::free()
         children_[i] = nullptr;
     }
 
-    IODelete(children_, NodeFast*, childrenLength_);
+    Alloc::Delete<NodeFast*>(children_, childrenLength_);
     children_ = nullptr;
 
     if (length() == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);

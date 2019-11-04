@@ -167,6 +167,8 @@
 		F5B2522C220CA6C400662376 /* Stopwatch.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5B2522A220CA6C400662376 /* Stopwatch.hpp */; };
 		F5B25231220CED9800662376 /* SysCtl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5B2522F220CED9800662376 /* SysCtl.cpp */; };
 		F5B25232220CED9800662376 /* SysCtl.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5B25230220CED9800662376 /* SysCtl.hpp */; };
+		F5B7938E236CF92B002B03A5 /* Alloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5B7938C236CF92B002B03A5 /* Alloc.cpp */; };
+		F5B7938F236CF92B002B03A5 /* Alloc.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5B7938D236CF92B002B03A5 /* Alloc.hpp */; };
 		F5BB924D2362646B00864612 /* TrieNode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5BB924B2362646B00864612 /* TrieNode.cpp */; };
 		F5BB924E2362646B00864612 /* TrieNode.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F5BB924C2362646B00864612 /* TrieNode.hpp */; };
 		F5D014AA2187C35D00067484 /* OpNames.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F5D014A92187C35D00067484 /* OpNames.cpp */; };
@@ -357,6 +359,8 @@
 		F5B2522A220CA6C400662376 /* Stopwatch.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Stopwatch.hpp; sourceTree = "<group>"; };
 		F5B2522F220CED9800662376 /* SysCtl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SysCtl.cpp; sourceTree = "<group>"; };
 		F5B25230220CED9800662376 /* SysCtl.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SysCtl.hpp; sourceTree = "<group>"; };
+		F5B7938C236CF92B002B03A5 /* Alloc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Alloc.cpp; sourceTree = "<group>"; };
+		F5B7938D236CF92B002B03A5 /* Alloc.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Alloc.hpp; sourceTree = "<group>"; };
 		F5BB924B2362646B00864612 /* TrieNode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TrieNode.cpp; sourceTree = "<group>"; };
 		F5BB924C2362646B00864612 /* TrieNode.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TrieNode.hpp; sourceTree = "<group>"; };
 		F5D014A92187C35D00067484 /* OpNames.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OpNames.cpp; sourceTree = "<group>"; };
@@ -785,6 +789,8 @@
 		F58E920C220B61DE0083C57E /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				F5B7938C236CF92B002B03A5 /* Alloc.cpp */,
+				F5B7938D236CF92B002B03A5 /* Alloc.hpp */,
 				F51BBBEA22246B6A0092A806 /* AutoRelease.hpp */,
 				F5044A9120F80DA200F95904 /* ConcurrentDictionary.cpp */,
 				F5044A9220F80DA200F95904 /* ConcurrentDictionary.hpp */,
@@ -816,6 +822,7 @@
 				F58E91FA220B56C80083C57E /* mac.h in Headers */,
 				F58E91BF220B562B0083C57E /* lfds711_queue_bounded_singleproducer_singleconsumer_internal.h in Headers */,
 				F58E91BB220B562B0083C57E /* lfds711_freelist_internal.h in Headers */,
+				F5B7938F236CF92B002B03A5 /* Alloc.hpp in Headers */,
 				3C2614AA20D7E85E00488B0B /* PolicySearch.h in Headers */,
 				F58E91AB220B562B0083C57E /* lfds711_list_addonly_singlylinked_unordered_internal.h in Headers */,
 				F58E9198220B562B0083C57E /* lfds711_prng.h in Headers */,
@@ -998,6 +1005,7 @@
 				F58E91E6220B562B0083C57E /* lfds711_misc_query.c in Sources */,
 				F58E91B3220B562B0083C57E /* lfds711_btree_addonly_unbalanced_insert.c in Sources */,
 				F58E91BA220B562B0083C57E /* lfds711_freelist_cleanup.c in Sources */,
+				F5B7938E236CF92B002B03A5 /* Alloc.cpp in Sources */,
 				F577F05021BEE0270066F2EF /* Trie.cpp in Sources */,
 				F58E91DE220B562B0083C57E /* lfds711_ringbuffer_query.c in Sources */,
 				3CF28ABC2146922400493F2A /* BuildXLSandboxClient.cpp in Sources */,

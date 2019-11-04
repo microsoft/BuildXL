@@ -37,7 +37,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initial length to get active processes.
         /// </summary>
-        public const int InitialProcessIdListLength = 1024; // the number needed to make the bufferSizeForProcessIdList 4KB. 
+        public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB. 
 
         /// <summary>
         /// Nested jobs are only supported on Win8/Server2012 or higher.
@@ -306,7 +306,7 @@ namespace BuildXL.Processes
             fixed (ulong* bufferPtr = buffer)
             {
                 var processIdListPtr = (JOBOBJECT_BASIC_PROCESS_ID_LIST*)bufferPtr;
-                Contract.Assert(processIdListPtr != null);
+                Contract.Assert(processIdListPtr != null, "ProcessIdListPtr is null.");
 
                 uint bytesWritten;
                 if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
@@ -321,7 +321,7 @@ namespace BuildXL.Processes
                     return false;
                 }
 
-                Contract.Assume(bytesWritten <= bufferSizeInBytes);
+                Contract.Assume(bytesWritten <= bufferSizeInBytes, $"More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}.");
 
                 if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList)
                 {

@@ -4,14 +4,13 @@
 #include "SysCtl.hpp"
 
 #if DEBUG
-int g_bxl_enable_counters = 1;
 int g_bxl_verbose_logging = 1;
 #else
-int g_bxl_enable_counters = 0;
 int g_bxl_verbose_logging = 0;
 #endif
 
 int g_bxl_enable_cache = 1;
+int g_bxl_enable_counters = 1;	
 int g_bxl_enable_light_trie = 1;
 
 SYSCTL_INT(_kern,                               // parent

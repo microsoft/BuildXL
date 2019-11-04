@@ -365,30 +365,42 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <summary>
         /// Handles a request to copy content to this machine.
         /// </summary>
-        public async Task HandlePushFileAsync(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, CancellationToken token)
+        public async Task<PushFileResponse> HandlePushFileAsync(IAsyncStreamReader<PushFileRequest> requestStream, ServerCallContext callContext)
         {
             OperationStarted();
 
             var startTime = DateTime.UtcNow;
 
-            await requestStream.MoveNext();
-            var firstRequest = requestStream.Current;
-            var hash = firstRequest.ContentHash.ToContentHash((HashType)firstRequest.HashType);
-            var cacheContext = new Context(new Guid(firstRequest.TraceId), Logger);
+            byte[] hashBytes = null;
+            var hashType = HashType.Unknown;
+            Guid traceId = default;
+            foreach (var header in callContext.RequestHeaders)
+            {
+                switch (header.Key)
+                {
+                    case "hash": hashBytes = header.ValueBytes; break;
+                    case "hashType": Enum.TryParse(header.Value, out hashType); break;
+                    case "traceId": traceId = new Guid(header.Value); break;
+                }
+            }
+
+            var hash = new ContentHash(hashType, hashBytes);
+            var cacheContext = new Context(traceId, Logger);
+            var token = callContext.CancellationToken;
 
             var store = _contentStoreByCacheName.Values.OfType<IPushFileHandler>().FirstOrDefault();
 
             if (store == null)
             {
-                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
-                return;
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "false" } });
+                return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
             }
 
             if (!_ongoingPushes.Add(hash))
             {
                 Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
-                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
-                return;
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "false" } });
+                return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
             }
 
             try
@@ -396,11 +408,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if (store.HasContentLocally(cacheContext, hash))
                 {
                     Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because content is already local.");
-                    await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = false });
-                    return;
+                    await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "false" } });
+                    return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
                 }
 
-                await responseStream.WriteAsync(new PushFileResponse { ShouldCopy = true });
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "true" } });
 
                 var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);
 
@@ -410,7 +422,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     {
                         if (token.IsCancellationRequested)
                         {
-                            return;
+                            return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
                         }
 
                         var request = requestStream.Current;
@@ -423,11 +435,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
                 File.Delete(tempFilePath.Path);
 
-                var response = result
+                return result
                     ? new PushFileResponse { Header = ResponseHeader.Success(startTime) }
                     : new PushFileResponse { Header = ResponseHeader.Failure(startTime, result.ErrorMessage) };
-
-                await responseStream.WriteAsync(response);
             }
             finally
             {
@@ -785,7 +795,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             public override Task<RequestCopyFileResponse> RequestCopyFile(RequestCopyFileRequest request, ServerCallContext context) => _contentServer.RequestCopyFileAsync(request, context.CancellationToken);
 
             /// <inheritdoc />
-            public override Task PushFile(IAsyncStreamReader<PushFileRequest> requestStream, IServerStreamWriter<PushFileResponse> responseStream, ServerCallContext context) => _contentServer.HandlePushFileAsync(requestStream, responseStream, context.CancellationToken);
+            public override Task<PushFileResponse> PushFile(IAsyncStreamReader<PushFileRequest> requestStream, ServerCallContext context) => _contentServer.HandlePushFileAsync(requestStream, context);
 
             /// <inheritdoc />
             public override Task<HelloResponse> Hello(HelloRequest request, ServerCallContext context) => _contentServer.HelloAsync(request, context.CancellationToken);

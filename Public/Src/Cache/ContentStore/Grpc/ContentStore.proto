@@ -33,7 +33,7 @@ service ContentServer {
 
     rpc CopyFile(CopyFileRequest) returns (stream CopyFileResponse) {}
 
-    rpc PushFile(stream PushFileRequest) returns (stream PushFileResponse) {}
+    rpc PushFile(stream PushFileRequest) returns (PushFileResponse) {}
 
     rpc CheckFileExists(ExistenceRequest) returns (ExistenceResponse) {}
 
@@ -200,15 +200,11 @@ enum CopyCompression {
 
 // PushFile
 message PushFileRequest {
-    string traceId = 1;
-    int32 hashType = 2;
-    bytes contentHash = 3;
-    bytes content = 4;
+    bytes content = 1;
 }
 
 message PushFileResponse {
     ResponseHeader Header = 1;
-    bool shouldCopy = 2;
 }
 
 // RequestCopyFile

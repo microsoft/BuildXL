@@ -265,31 +265,33 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                var call = _client.PushFile(cancellationToken: context.Token);
-                var requestStream = call.RequestStream;
-                var responseStream = call.ResponseStream;
-
-                await requestStream.WriteAsync(
-                    new PushFileRequest
-                    {
-                        ContentHash = hash.ToByteString(),
-                        HashType = (int)hash.HashType,
-                        TraceId = context.TracingContext.Id.ToString()
-                    });
-
-                await responseStream.MoveNext(context.Token);
-                var firstResponse = responseStream.Current;
-                if (!firstResponse.ShouldCopy)
+                var headers = new Metadata()
                 {
-                    context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
-                    return BoolResult.Success;
+                    { "hash", hash.ToHashByteArray() },
+                    { "hashType", hash.HashType.ToString() },
+                    { "traceId", context.TracingContext.Id.ToString() }
+                };
+
+                var call = _client.PushFile(headers, cancellationToken: context.Token);
+                var requestStream = call.RequestStream;
+
+                var responseHeaders = await call.ResponseHeadersAsync;
+                foreach (var header in responseHeaders)
+                {
+                    if (header.Key == "shouldCopy")
+                    {
+                        if (bool.TryParse(header.Value, out var shouldCopy) && !shouldCopy)
+                        {
+                            context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
+                            return BoolResult.Success;
+                        }
+                    }
                 }
 
                 await StreamContentAsync(source, new byte[_bufferSize], requestStream, context.Token);
                 await requestStream.CompleteAsync();
 
-                await responseStream.MoveNext(context.Token);
-                var finalResponse = responseStream.Current;
+                var finalResponse = await call.ResponseAsync;
 
                 return finalResponse.Header.Succeeded
                     ? BoolResult.Success

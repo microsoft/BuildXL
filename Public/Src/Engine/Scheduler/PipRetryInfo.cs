@@ -8,7 +8,7 @@ using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Scheduler
 {
-    public class PipRetryInfo
+    internal class PipRetryInfo
     {
         /// <summary>
         /// The max count of PipIds for telemetry fields recording a list if impact pips
@@ -20,7 +20,7 @@ namespace BuildXL.Scheduler
         private ConcurrentBigSet<string> m_pipsSucceedingAfterUserRetry;
         private ConcurrentBigSet<string> m_pipsFailingAfterLastUserRetry;
 
-        public PipRetryInfo()
+        internal PipRetryInfo()
         {
             m_aggregatedPipPropertiesCount = new ConcurrentDictionary<string, long>();
             m_addgregatepipsPerPipProperty = new ConcurrentDictionary<string, HashSet<string>>();
@@ -28,34 +28,32 @@ namespace BuildXL.Scheduler
             m_pipsFailingAfterLastUserRetry = new ConcurrentBigSet<string>();
         }
 
-        public void LogPipRetryInfo(LoggingContext loggingContext, CounterCollection<PipExecutorCounter> pipExecutionCounters)
+        internal void LogPipRetryInfo(LoggingContext loggingContext, CounterCollection<PipExecutorCounter> pipExecutionCounters)
         {
             if (pipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessUserRetries) > 0)
             {
-                string pipsSucceedingAfterUserRetry = string.Join(",", m_pipsSucceedingAfterUserRetry);
-                string pipsFailingAfterLastUserRetry = string.Join(",", m_pipsFailingAfterLastUserRetry);
+                string pipsSucceedingAfterUserRetry = string.Join(",", m_pipsSucceedingAfterUserRetry.UnsafeGetList());
+                string pipsFailingAfterLastUserRetry = string.Join(",", m_pipsFailingAfterLastUserRetry.UnsafeGetList());
                 Logger.Log.ProcessRetries(loggingContext, pipsSucceedingAfterUserRetry, pipsFailingAfterLastUserRetry);
             }
 
             if (m_aggregatedPipPropertiesCount.Count > 0)
             {
                 // Log out one message with containing a string of pip properties with their impacted pips
-                int countOfLoggedProperties = 0;
                 string pipPropertiesPips = string.Empty;
                 foreach (var item in m_aggregatedPipPropertiesCount)
                 {
-                    pipPropertiesPips = item.Key + "Pips: " + string.Join(",", item.Value);
-                    countOfLoggedProperties++;
-                    if (countOfLoggedProperties == MaxListOfPipIdsForTelemetry)
+                    var impactedPips = m_addgregatepipsPerPipProperty[item.Key];
+                    if (impactedPips.Count > 0)
                     {
-                        break;
+                        pipPropertiesPips = pipPropertiesPips + item.Key + "Pips: " + string.Join(",", m_addgregatepipsPerPipProperty[item.Key]) + "; ";
                     }
                 }
                 Logger.Log.ProcessPattern(loggingContext, pipPropertiesPips, m_aggregatedPipPropertiesCount);
             }
         }
 
-        public void UpdatePipRetrInfo(ProcessRunnablePip processRunnable, ExecutionResult executionResult, CounterCollection<PipExecutorCounter> pipExecutionCounters)
+        internal void UpdatePipRetrInfo(ProcessRunnablePip processRunnable, ExecutionResult executionResult, CounterCollection<PipExecutorCounter> pipExecutionCounters)
         {
             if (executionResult.PipProperties != null && executionResult.PipProperties.Count > 0)
             {

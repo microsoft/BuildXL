@@ -559,9 +559,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             using (Counters[ContentLocationDatabaseCounters.SaveCheckpoint].Start())
             {
-                ForceCacheFlush(context,
-                    counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint,
-                    blocking: true);
+                if (IsInMemoryCacheEnabled)
+                {
+                    ForceCacheFlush(context,
+                        counter: ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByCheckpoint,
+                        blocking: true);
+                }
 
                 return context.PerformOperation(Tracer,
                     () => SaveCheckpointCore(context, checkpointDirectory),
@@ -651,6 +654,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         internal bool ForceCacheFlush(OperationContext context, ContentLocationDatabaseCounters? counter = null, bool blocking = true)
         {
+            if (!IsInMemoryCacheEnabled)
+            {
+                return false;
+            }
+
             // Ensure only one thread can start the flush
             if (Interlocked.CompareExchange(ref _isFlushInProgress, 1, 0) == 1)
             {

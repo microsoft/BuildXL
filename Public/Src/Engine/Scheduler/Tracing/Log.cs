@@ -3566,6 +3566,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void JournalProcessingStatisticsForSchedulerTelemetry(LoggingContext context, string scanningJournalStatus, IDictionary<string, long> stats);
 
         [GeneratedEvent(
+            (int)EventId.ProcessRetries,
+            EventGenerators = EventGenerators.TelemetryOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "ProcessRetries PipsSucceedingAfterUserRetry: {pipsSucceedingAfterUserRetry} and PipsFailingAfterUserRetry: {pipsFailingAfterLastUserRetry}")]
+        public abstract void ProcessRetries(LoggingContext context, string pipsSucceedingAfterUserRetry, string pipsFailingAfterLastUserRetry);
+
+        [GeneratedEvent(
+            (int)EventId.ProcessPattern,
+            EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Scheduler,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "ProcessPattern {pipPropertyImpactedPips}")]
+        public abstract void ProcessPattern(LoggingContext context, string pipPropertyImpactedPips, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
             (int)EventId.IncrementalSchedulingNewlyPresentFile,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

@@ -53,6 +53,8 @@ namespace BuildXL.Scheduler
         private IReadOnlySet<AbsolutePath> m_absentPathProbesUnderOutputDirectories;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
+        private IReadOnlyDictionary<string, int> m_pipProperties;
+        private bool m_hasUserRetries;
 
         public CacheLookupPerfInfo CacheLookupPerfInfo
         {
@@ -366,6 +368,29 @@ namespace BuildXL.Scheduler
         /// </summary>
         public bool IsSealed { get; private set; }
 
+        /// <summary>
+        /// Whether or not the process was retried due to user specified exit codes
+        /// </summary>
+        public bool HasUserRetries
+        {
+            get
+            {
+                return m_hasUserRetries;
+            }
+        }
+
+        /// <summary>
+        /// Returns any pip properties (with their counts) extracted from the process output
+        /// </summary>
+        public IReadOnlyDictionary<string, int> PipProperties
+        {
+            get
+            {
+                EnsureSealed();
+                return m_pipProperties;
+            }
+        }
+
         #endregion Reported State
 
         /// <summary>
@@ -389,7 +414,9 @@ namespace BuildXL.Scheduler
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
             ObservedPathSet? pathSet,
-            CacheLookupPerfInfo cacheLookupStepDurations)
+            CacheLookupPerfInfo cacheLookupStepDurations,
+            IReadOnlyDictionary<string, int> pipProperties,
+            bool hasUserRetries)
         {
             var processExecutionResult =
                 new ExecutionResult
@@ -413,7 +440,9 @@ namespace BuildXL.Scheduler
                     Converged = converged,
                     IsSealed = true,
                     m_pathSet = pathSet,
-                    m_cacheLookupPerfInfo = cacheLookupStepDurations
+                    m_cacheLookupPerfInfo = cacheLookupStepDurations,
+                    m_pipProperties = pipProperties,
+                    m_hasUserRetries = hasUserRetries,
                 };
             return processExecutionResult;
         }
@@ -452,7 +481,9 @@ namespace BuildXL.Scheduler
                 PipCacheDescriptorV2Metadata,
                 converged: true,
                 pathSet: convergedCacheResult.PathSet,
-                cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo);
+                cacheLookupStepDurations: convergedCacheResult.m_cacheLookupPerfInfo,
+                PipProperties,
+                HasUserRetries);
         }
 
         /// <summary>
@@ -481,7 +512,9 @@ namespace BuildXL.Scheduler
                 PipCacheDescriptorV2Metadata,
                 Converged,
                 PathSet,
-                CacheLookupPerfInfo);
+                CacheLookupPerfInfo,
+                PipProperties,
+                HasUserRetries);
         }
 
         /// <summary>
@@ -500,6 +533,8 @@ namespace BuildXL.Scheduler
         {
             EnsureUnsealed();
             m_numberOfWarnings = executionResult.NumberOfWarnings;
+            m_pipProperties = executionResult.PipProperties;
+            m_hasUserRetries = executionResult.HadUserRetries;
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
         }

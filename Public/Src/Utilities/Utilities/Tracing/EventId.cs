@@ -1152,5 +1152,8 @@ namespace BuildXL.Utilities.Tracing
 
         FailedToLoadPipGraphFragment = 14502,
         PipCacheLookupStats = 14503,
+
+        ProcessRetries = 14504,
+        ProcessPattern = 14505,
     }
 }

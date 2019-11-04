@@ -297,6 +297,8 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
+        private PipRetryInfo m_pipRetryInfo = new PipRetryInfo();
+
         /// <summary>
         /// Enables distribution for the master node
         /// </summary>
@@ -1651,6 +1653,8 @@ namespace BuildXL.Scheduler
             m_pipExecutionStepCounters.LogAsStatistics("PipExecutionStep", loggingContext);
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
+
+            m_pipRetryInfo.LogPipRetryInfo(loggingContext, PipExecutionCounters);
 
             m_apiServer?.LogStats(loggingContext);
             m_dropPipTracker?.LogStats(loggingContext);
@@ -3643,6 +3647,8 @@ namespace BuildXL.Scheduler
 
                             return PipExecutionStep.ChooseWorkerCpu;
                         }
+
+                        m_pipRetryInfo.UpdatePipRetrInfo(processRunnable, executionResult, PipExecutionCounters);
 
                         if (runnablePip.Worker?.IsRemote == true)
                         {

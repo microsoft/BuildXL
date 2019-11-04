@@ -26,6 +26,10 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     public class XlgDebuggerState : ThreadState, IExpressionEvaluator
     {
+        /// <summary>
+        /// Reserved name of the "last value" variable.
+        /// </summary>
+        private const string LastValueVarName = "$_result";
         private const string ExeLevelNotCompleted = "NotCompleted";
         private const int XlgThreadId = 1;
 
@@ -160,6 +164,10 @@ namespace BuildXL.Execution.Analyzer
             var maybeResult = JPath.JPath.TryEval(Evaluator, exprToEval);
             if (maybeResult.Succeeded)
             {
+                if (!evaluateForCompletions)
+                {
+                    Analysis.IgnoreResult(Evaluator.TopEnv.SetVar(LastValueVarName, maybeResult.Result));
+                }
                 return new ObjectContext(this, maybeResult.Result);
             }
             else
@@ -267,6 +275,8 @@ namespace BuildXL.Execution.Analyzer
                 new Property("PipId", proc.PipId.Value),
                 new Property("PipType", proc.PipType),
                 new Property("SemiStableHash", proc.SemiStableHash),
+                new Property("FormattedSemiStableHash", proc.FormattedSemiStableHash),
+                new Property("Provenance", proc.Provenance),
                 new Property("Description", proc.GetDescription(PipGraph.Context)),
                 new Property("ExecutionLevel", GetPipExecutionLevel(pipExePerf)),
                 new Property("EXE", proc.Executable),

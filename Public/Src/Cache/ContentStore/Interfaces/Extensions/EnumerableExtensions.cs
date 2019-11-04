@@ -19,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// </summary>
         public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items, IEqualityComparer<T> comparer = null)
         {
-            comparer = comparer ?? EqualityComparer<T>.Default;
+            comparer ??= EqualityComparer<T>.Default;
             return new HashSet<T>(items, comparer);
         }
 
@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
         /// </summary>
         public static T MaxByOrDefault<T, TKey>(this IEnumerable<T> items, Func<T, TKey> keySelector, IComparer<TKey> keyComparer = null)
         {
-            keyComparer = keyComparer ?? Comparer<TKey>.Default;
+            keyComparer ??= Comparer<TKey>.Default;
             T maxItem = default;
             TKey maxKey = default;
             bool isFirst = true;

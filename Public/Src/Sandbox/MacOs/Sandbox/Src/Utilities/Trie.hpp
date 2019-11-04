@@ -48,24 +48,6 @@ public:
         kTrieResultFailure,
     } TrieResult;
 
-    static void getUintNodeCounts(CountAndSize *cnt)
-    {
-        cnt->count = Node::s_numUintNodes;
-        cnt->size = sizeof(NodeFast) + Node::s_uintNodeMaxKey * sizeof(NodeFast*);
-    }
-
-    static void getPathNodeCounts(CountAndSize *cnt)
-    {
-        cnt->count = Node::s_numPathNodes;
-        cnt->size = sizeof(NodeFast) + Node::s_pathNodeMaxKey * sizeof(NodeFast*);
-    }
-
-    static void getLightNodeCounts(CountAndSize *cnt)
-    {
-        cnt->count = NodeLight::metaClass->getInstanceCount();
-        cnt->size = sizeof(NodeLight);
-    }
-
 private:
 
     const uint kKindBitMask = 1;
@@ -95,6 +77,9 @@ private:
 
     /*! Payload for the 'onChangeCallback_' function */
     void *onChangeData_;
+
+    /*! Used only when modifying a node's list of children */
+    IORecursiveLock *lock_;
 
     /*! Initialized a new Trie.  The return value indicates the success of the operation. */
     bool init(TrieKind kind);

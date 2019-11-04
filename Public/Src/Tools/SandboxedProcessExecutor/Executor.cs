@@ -95,25 +95,22 @@ namespace BuildXL.SandboxedProcessExecutor
                 return ExitCode.FailedReadInput;
             }
 
-            using (sandboxedProcessInfo.SharedOpaqueOutputLogger)
+            if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
             {
-                if (!TryPrepareSandboxedProcess(sandboxedProcessInfo))
-                {
-                    return ExitCode.FailedSandboxPreparation;
-                }
-
-                (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
-
-                if (executeResult.result != null)
-                {
-                    if (!TryWriteSandboxedProcessResult(executeResult.result))
-                    {
-                        return ExitCode.FailedWriteOutput;
-                    }
-                }
-
-                return executeResult.exitCode;
+                return ExitCode.FailedSandboxPreparation;
             }
+
+            (ExitCode exitCode, SandboxedProcessResult result) executeResult = ExecuteAsync(sandboxedProcessInfo).GetAwaiter().GetResult();
+
+            if (executeResult.result != null)
+            {
+                if (!TryWriteSandboxedProcessResult(executeResult.result))
+                {
+                    return ExitCode.FailedWriteOutput;
+                }
+            }
+
+            return executeResult.exitCode;
         }
 
         private bool TryReadSandboxedProcessInfo(out SandboxedProcessInfo sandboxedProcessInfo)

@@ -35,9 +35,11 @@ TIMES   : '*'  ;
 DIV     : '/'  ;
 MOD     : '%'  ;
 
-// array operators
-CONCAT    : '++' ;
-INTERSECT : '&'  ;
+// set operators
+CONCAT     : '++' ;
+UNION      : '@+' ;  // same as PLUS when operands are not numbers
+DIFFERENCE : '@-' ;  // same as MINUS when operands are not numbers
+INTERSECT  : '&'  ;
 
 IntLit
     : '-'?[0-9]+ ;
@@ -53,9 +55,9 @@ RegExLit
     ;
 
 fragment IdFragment
-    : [a-zA-Z][a-zA-Z0-9_]* ;
+    : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-PropertyId
+Id
     : IdFragment ;
 
 VarId
@@ -82,43 +84,23 @@ logicBinaryOp
 logicUnaryOp
     : Token=NOT ;
 
-arrayBinaryOp
-    : Token=(CONCAT | INTERSECT) ;
+setBinaryOp
+    : Token=(PLUS | MINUS | CONCAT | UNION | DIFFERENCE | INTERSECT) ;
 
 anyBinaryOp
     : intBinaryOp
     | boolBinaryOp
     | logicBinaryOp
-    | arrayBinaryOp
-    ;
-
-intExpr
-    : Expr=expr                                       #ExprIntExpr
-    | Op=intUnaryOp Sub=intExpr                       #UnaryIntExpr
-    | Lhs=intExpr Op=intBinaryOp Rhs=intExpr          #BinaryIntExpr
-    | '(' Sub=intExpr ')'                             #SubIntExpr
-    ;
-
-boolExpr
-    : Lhs=intExpr Op=boolBinaryOp Rhs=intExpr         #BinaryBoolExpr
-    | '(' Sub=boolExpr ')'                            #SubBoolExpr
-    ;
-
-logicExpr
-    : Expr=boolExpr                                   #BoolLogicExpr
-    | Lhs=logicExpr Op=logicBinaryOp Rhs=logicExpr    #BinaryLogicExpr
-    | Op=logicUnaryOp Sub=logicExpr                   #UnaryLogicExpr
-    | '(' Sub=logicExpr ')'                           #SubLogicExpr
+    | setBinaryOp
     ;
 
 prop
-    : PropertyName=PropertyId                         #PropertyId
+    : PropertyName=Id                                 #PropertyId
     | PropertyName=EscID                              #EscId
     ;
 
 selector
     : Name=prop                                       #IdSelector
-    | '(' Names+=prop ('+' Names+=prop)+ ')'          #UnionSelector
     ;
 
 literal
@@ -137,16 +119,15 @@ objLit
 
 expr
     : '$'                                             #RootExpr
+    | '_'                                             #ThisExpr
     | Var=VarId                                       #VarExpr
     | Sub=selector                                    #SelectorExpr
     | Obj=objLit                                      #ObjLitExpr
     | Lit=literal                                     #LiteralExpr
     | Lhs=expr '.' Sub=expr                           #MapExpr
-    | Lhs=expr '[' Filter=logicExpr ']'               #FilterExpr
-    | Lhs=expr '[' Index=intExpr ']'                  #IndexExpr
-    | Lhs=expr '[' Begin=intExpr '..' End=intExpr ']' #RangeExpr
-    | '#' Sub=expr                                    #CardinalityExpr 
-    // cardinality of the result, i.e., the number of elements in it
+    | Lhs=expr '[' Filter=expr ']'                    #FilterExpr
+    | Lhs=expr '[' Begin=expr '..' End=expr ']'       #RangeExpr
+    | '#' Sub=expr                                    #CardinalityExpr   // cardinality, i.e., the number of elements in the result
     | Func=expr '(' Args+=expr (',' Args+=expr)* ')'  #FuncAppExprParen
     | Func=expr OptName=Opt (OptValue=literal)?       #FuncOptExpr
     | Input=expr '|' Func=expr                        #PipeExpr

@@ -72,7 +72,7 @@ namespace Test.BuildXL.Processes
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
-            processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromSeconds(1);
+            processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromMilliseconds(10);
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
@@ -96,7 +96,7 @@ namespace Test.BuildXL.Processes
         public async Task CheckProcessTreeTimoutOnReportQueueStarvationAndStuckRootProcessAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Block());
-            processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromSeconds(1);
+            processInfo.ReportQueueProcessTimeoutForTests = TimeSpan.FromMilliseconds(10);
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
@@ -119,7 +119,7 @@ namespace Test.BuildXL.Processes
         public async Task CheckProcessTreeTimoutOnNestedChildProcessTimeoutWhenRootProcessExitedAsync()
         {
             var processInfo = CreateProcessInfoWithSandboxConnection(Operation.Echo("hi"));
-            processInfo.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(100);
+            processInfo.NestedProcessTerminationTimeout = TimeSpan.FromMilliseconds(10);
 
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
@@ -127,7 +127,7 @@ namespace Test.BuildXL.Processes
             using (var process = CreateAndStartSandboxedProcess(processInfo))
             using (var taskCancelationSource = new CancellationTokenSource())
             {
-                var time = Sandbox.GetMachAbsoluteTime();
+                var time = s_connection.MinReportQueueEnqueueTime;
 
                 var childProcessPath = "/dummy/exe2";
                 var instructions = new List<ReportInstruction>()
@@ -137,8 +137,8 @@ namespace Test.BuildXL.Processes
                         Operation = FileOperation.OpProcessStart,
                         Stats = new Sandbox.AccessReportStatistics()
                         {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(1).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(2).Ticks * 100),
+                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(100).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(200).Ticks * 100),
                         },
                         Pid = 1235,
                         Path = childProcessPath,
@@ -149,8 +149,8 @@ namespace Test.BuildXL.Processes
                         Operation = FileOperation.OpProcessExit,
                         Stats = new Sandbox.AccessReportStatistics()
                         {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(3).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(4).Ticks * 100),
+                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(300).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(400).Ticks * 100),
                         },
                         Pid = process.ProcessId,
                         Path = "/dummy/exe",
@@ -161,8 +161,8 @@ namespace Test.BuildXL.Processes
                         Operation = FileOperation.OpKAuthCreateDir,
                         Stats = new Sandbox.AccessReportStatistics()
                         {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(5).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(6).Ticks * 100),
+                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(500).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(600).Ticks * 100),
                         },
                         Pid = 1235,
                         Path = childProcessPath,
@@ -173,8 +173,8 @@ namespace Test.BuildXL.Processes
                         Operation = FileOperation.OpProcessExit,
                         Stats = new Sandbox.AccessReportStatistics()
                         {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(7).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(8).Ticks * 100),
+                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(700).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(800).Ticks * 100),
                         },
                         Pid = 1235,
                         Path = childProcessPath,
@@ -185,8 +185,8 @@ namespace Test.BuildXL.Processes
                         Operation = FileOperation.OpProcessTreeCompleted,
                         Stats = new Sandbox.AccessReportStatistics()
                         {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromSeconds(9).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromSeconds(10).Ticks * 100),
+                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(900).Ticks * 100),
+                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(1000).Ticks * 100),
                         },
                         Pid = process.ProcessId,
                         Path = "/dummy/exe",
@@ -245,8 +245,7 @@ namespace Test.BuildXL.Processes
 
                             count++;
                         }
-                        // Wait for twice as long as the current timeout task within SandboxedProcessMac
-                        await Task.Delay(500);
+                        await Task.Delay(100);
                     }
                 }, token)
                 , justification: "Fire and forget"

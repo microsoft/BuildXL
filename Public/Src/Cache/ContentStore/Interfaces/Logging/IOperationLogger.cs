@@ -3,12 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
-using System.Text;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Logging
 {
@@ -101,7 +97,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         public TimeSpan Duration { get; }
 
         /// <nodoc />
-        public Exception Exception { get; }
+        public Exception? Exception { get; }
 
         /// <summary>
         /// Tracing severity of the result.
@@ -121,13 +117,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
             OperationStatus status,
             TimeSpan duration,
             OperationKind operationKind,
-            Exception exception,
+            Exception? exception,
             Guid operationId,
             Severity severity)
         {
-            Contract.Requires(!string.IsNullOrEmpty(message), "message should not be null or empty");
-            Contract.Requires(!string.IsNullOrEmpty(operationName), "operationName should not be null or empty");
-            Contract.Requires(!string.IsNullOrEmpty(tracerName), "tracerName should not be null or empty");
+            Contract.RequiresNotNullOrEmpty(message, "message should not be null or empty");
+            Contract.RequiresNotNullOrEmpty(operationName, "operationName should not be null or empty");
+            Contract.RequiresNotNullOrEmpty(tracerName, "tracerName should not be null or empty");
 
             Message = message;
             OperationName = operationName;
@@ -181,8 +177,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <nodoc />
         public Metric(string name, long value, string tracerName)
         {
-            Contract.Requires(!string.IsNullOrEmpty(name), "name should not be null or empty.");
-            Contract.Requires(!string.IsNullOrEmpty(tracerName), "tracerName should not be null or empty");
+            Contract.RequiresNotNullOrEmpty(name, "name should not be null or empty.");
+            Contract.RequiresNotNullOrEmpty(tracerName, "tracerName should not be null or empty");
 
             Name = name;
             Value = value;
@@ -221,7 +217,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Logging
         /// <nodoc />
         public Statistic(string name, long value)
         {
-            Contract.Requires(!string.IsNullOrEmpty(name), "name should not be null or empty.");
+            Contract.RequiresNotNullOrEmpty(name, "name should not be null or empty.");
 
             Name = name;
             Value = value;

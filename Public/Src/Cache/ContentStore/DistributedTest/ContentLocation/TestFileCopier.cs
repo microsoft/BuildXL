@@ -42,18 +42,27 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 return new CopyFileResult(CopyFileResult.ResultCode.SourcePathError, $"Source file {sourcePath} doesn't exist.");
             }
 
+            using Stream s = GetStream(sourcePath, expectedContentSize);
+
+            await s.CopyToAsync(destinationStream);
+
+            return CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition);
+        }
+
+        private Stream GetStream(AbsolutePath sourcePath, long expectedContentSize)
+        {
             Stream s;
             if (FilesToCorrupt.ContainsKey(sourcePath))
             {
                 TestGlobal.Logger.Debug($"Corrupting file {sourcePath}");
-                s = new MemoryStream(ThreadSafeRandom.GetBytes((int)expectedContentSize));
+                s = new MemoryStream(ThreadSafeRandom.GetBytes((int) expectedContentSize));
             }
             else
             {
                 s = File.OpenRead(sourcePath.Path);
             }
 
-            return await s.CopyToAsync(destinationStream).ContinueWith((_) => CopyFileResult.SuccessWithSize(destinationStream.Position - startPosition));
+            return s;
         }
 
         public Task<FileExistenceResult> CheckFileExistsAsync(AbsolutePath path, TimeSpan timeout, CancellationToken cancellationToken)

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include "Alloc.hpp"
 #include "Monitor.hpp"
 #include "TrieNode.hpp"
 
@@ -22,7 +23,7 @@ static void push(Stack **stack, Node *node, uint64_t path, uint32_t depth)
 {
     if (node == nullptr) return;
 
-    Stack *top = IONew(Stack, 1);
+    Stack *top = Alloc::New<Stack>(1);
     top->node  = node;
     top->next  = *stack;
     top->key   = path;
@@ -36,7 +37,7 @@ static Node* pop(Stack **stack)
     Stack *top = *stack;
     *stack = top->next;
     Node *node = top->node;
-    IODelete(top, Stack, 1);
+    Alloc::Delete<Stack>(top, 1);
     return node;
 }
 
@@ -100,12 +101,6 @@ bool NodeLight::init(uint key)
     next_     = nullptr;
     children_ = nullptr;
 
-    lock_ = IORecursiveLockAlloc();
-    if (!lock_)
-    {
-        return false;
-    }
-
     return true;
 }
 
@@ -119,13 +114,12 @@ void NodeLight::free()
     next_ = nullptr;
     children_ = nullptr;
 
-    IORecursiveLockFree(lock_);
     Node::free();
 }
 
-NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
+NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *maybeNullLock, IORecursiveLock *nonNullLock)
 {
-    Monitor __monitor(lock); // this will only acquire the lock if lock is not null
+    Monitor __monitor(maybeNullLock); // this will only acquire the lock if lock is not null
 
     NodeLight *prev = nullptr;
     NodeLight *curr = children_;
@@ -146,10 +140,10 @@ NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock 
         // didn't find it and shouldn't create it
         return nullptr;
     }
-    else if (lock == nullptr)
+    else if (maybeNullLock == nullptr)
     {
         // didn't find it and didn't acquire lock --> must do it all over again with a lock
-        return findChild(key, createIfMissing, lock_);
+        return findChild(key, createIfMissing, nonNullLock, nonNullLock);
     }
     else
     {
@@ -222,7 +216,7 @@ bool NodeFast::init(uint numChildren)
     }
 
     childrenLength_ = numChildren;
-    children_ = IONew(NodeFast*, numChildren);
+    children_ = Alloc::New<NodeFast*>(numChildren);
 
     for (int i = 0; i < childrenLength_; i++)
     {
@@ -239,7 +233,7 @@ void NodeFast::free()
         children_[i] = nullptr;
     }
 
-    IODelete(children_, NodeFast*, childrenLength_);
+    Alloc::Delete<NodeFast*>(children_, childrenLength_);
     children_ = nullptr;
 
     if (length() == s_uintNodeMaxKey)      OSDecrementAtomic(&s_numUintNodes);
@@ -248,7 +242,7 @@ void NodeFast::free()
     Node::free();
 }
 
-Node* NodeFast::findChild(uint key, bool createIfMissing)
+Node* NodeFast::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
 {
     if (key < 0 || key >= length())
     {

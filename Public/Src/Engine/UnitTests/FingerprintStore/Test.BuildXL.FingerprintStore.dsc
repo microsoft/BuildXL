@@ -36,6 +36,6 @@ namespace Test.BuildXL.FingerprintStore {
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
         ],
-        runTestArgs: { weight: 2 },
+        runTestArgs: { weight: 10 },
     });
 }

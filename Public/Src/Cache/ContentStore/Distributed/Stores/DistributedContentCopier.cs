@@ -365,7 +365,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                 $"contentHash=[{hashInfo.ContentHash.ToShortString()}] " +
                                 $"from=[{sourcePath}] " +
                                 $"size=[{result.Size ?? hashInfo.Size}] " +
-                                $"trusted={_settings.UseTrustedHash} " +
+                                $"trusted={_settings.UseTrustedHash(result.Size ?? hashInfo.Size)} " +
                                 (result.Succeeded ? $"attempt={attemptCount} replica={replicaIndex} " : string.Empty) +
                                 (result.TimeSpentHashing.HasValue ? $"timeSpentHashing={result.TimeSpentHashing.Value.TotalMilliseconds}ms " : string.Empty) +
                                 $"IOGate.OccupiedCount={_settings.MaxConcurrentCopyOperations - _ioGate.CurrentCount} " +
@@ -484,8 +484,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                                     continue;
                                 }
 
-                                // Don't delete the temporary file! It no longer exists after the Put moved it into the cache
-                                deleteTempFile = false;
+                                if (!putResult.ContentAlreadyExistsInCache)
+                                {
+                                    // Don't delete the temporary file! It no longer exists after the Put moved it into the cache
+                                    deleteTempFile = false;
+                                }
 
                                 // Successful case
                                 return (result: putResult, retry: false);
@@ -544,8 +547,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             try
             {
-                // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
-                if (_settings.UseTrustedHash && hashInfo.Size >= _settings.TrustedHashFileSizeBoundary)
+                // If the file satisfy trusted hash file size boundary, then we hash during the copy (i.e. now) and won't hash when placing the file into the store.
+                // Otherwise we don't hash it now and the store will hash the file during put.
+                if (_settings.UseTrustedHash(hashInfo.Size))
                 {
                     // If we know that the file is large, then hash concurrently from the start
                     bool hashEntireFileConcurrently = _settings.ParallelHashingFileSizeBoundary >= 0 && hashInfo.Size > _settings.ParallelHashingFileSizeBoundary;
@@ -556,7 +560,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     //  to avoid an additional IO operation later. In case that the file is bigger than the ContentLocationStore permits or blobs
                     //  aren't supported, disposing the FileStream twice does not throw or cause issues.
                     using (Stream fileStream = await _fileSystem.OpenAsync(tempDestinationPath, FileAccess.Write, FileMode.Create, FileShare.Read | FileShare.Delete, FileOptions.SequentialScan, bufferSize))
-                    using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)new RecordingStream(fileStream, hashInfo.Size) : fileStream)
+                    using (Stream possiblyRecordingStream = _contentLocationStore.AreBlobsSupported && hashInfo.Size <= _contentLocationStore.MaxBlobSize && hashInfo.Size >= 0 ? (Stream)RecordingStream.WriteRecordingStream(fileStream) : fileStream)
                     using (HashingStream hashingStream = ContentHashers.Get(hashInfo.ContentHash.HashType).CreateWriteHashingStream(possiblyRecordingStream, hashEntireFileConcurrently ? 1 : _settings.ParallelHashingFileSizeBoundary))
                     {
                         var copyFileResult = await _remoteFileCopier.CopyToWithOperationContextAsync(new OperationContext(context, cts), location, hashingStream, hashInfo.Size);
@@ -608,7 +612,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         protected virtual async Task<CopyFileResult> CopyFileAsync(IFileCopier<T> copier, T sourcePath, AbsolutePath destinationPath, long expectedContentSize, bool overwrite, CancellationToken cancellationToken)
         {
-            const int DefaultBuffersize = 1024 * 80;
+            const int DefaultBufferSize = 1024 * 80;
 
             if (!overwrite && File.Exists(destinationPath.Path))
             {
@@ -623,7 +627,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                 Directory.CreateDirectory(directoryPath);
             }
 
-            using var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, DefaultBuffersize, FileOptions.SequentialScan);
+            using var stream = new FileStream(destinationPath.Path, FileMode.Create, FileAccess.Write, FileShare.None, DefaultBufferSize, FileOptions.SequentialScan);
             return await copier.CopyToAsync(sourcePath, stream, expectedContentSize, cancellationToken);
         }
 

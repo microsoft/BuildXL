@@ -602,15 +602,6 @@ namespace BuildXL.App.Tracing
         public abstract void EventWriteFailuresOccurred(LoggingContext context);
 
         [GeneratedEvent(
-            (int)EventId.DisplayHelpLink,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.HostApplication,
-            Message = "{helpLinkPrefix} {helpLink}")]
-        public abstract void DisplayHelpLink(LoggingContext context, string helpLinkPrefix, string helpLink);
-
-        [GeneratedEvent(
             (int)EventId.CoreDumpNoPermissions,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

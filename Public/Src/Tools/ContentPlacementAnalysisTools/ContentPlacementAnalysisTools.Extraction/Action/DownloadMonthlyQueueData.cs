@@ -80,7 +80,7 @@ namespace ContentPlacementAnalysisTools.Extraction.Action
                                 // if we could not get a double, we might have got NaN, which is not wrong
                                 queueData.Data.Add(0.0);
                             }
-                            #pragma warning enable ERP022
+                            #pragma warning restore ERP022
                             // store the min and max
                             var minMaxPos = i - 3;
                             if (minMax[minMaxPos].Min > queueData.Data[minMaxPos])

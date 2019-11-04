@@ -3,9 +3,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -19,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// to be injected dynamically without requiring a dependency on BuildXL.Utilities. Generally adding new dependencies
         /// to this assembly is an involved process so this is here as a workaround.
         /// </summary>
-        internal static Func<Exception, string> ResultExceptionTextProcessor { get; set; }
+        internal static Func<Exception, string>? ResultExceptionTextProcessor { get; set; }
 
         /// <summary>
         /// Constructor for creating successful result instances.
@@ -31,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Creates a new instance of a failed result if <paramref name="errorMessage"/> is not null or empty.
         /// </summary>
-        protected ResultBase(string errorMessage, string diagnostics)
+        protected ResultBase(string? errorMessage, string? diagnostics)
         {
             ErrorMessage = errorMessage;
             Diagnostics = diagnostics;
@@ -40,9 +42,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Creates a new instance of a result that failed with a given exception.
         /// </summary>
-        protected ResultBase(Exception exception, string message = null)
+        protected ResultBase(Exception exception, string? message = null)
         {
-            Contract.Requires(exception != null);
+            Contract.RequiresNotNull(exception);
 
             if (exception is ResultPropagationException other)
             {
@@ -72,9 +74,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Creates a new instance of the result from another result instance.
         /// </summary>
-        protected ResultBase(ResultBase other, string message)
+        protected ResultBase(ResultBase other, string? message)
         {
-            Contract.Requires(other != null);
+            Contract.RequiresNotNull(other);
 
             ErrorMessage = string.IsNullOrEmpty(message)
                 ? other.ErrorMessage
@@ -108,23 +110,23 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns an optional exception instance associated with the result.
         /// </summary>
-        public Exception Exception { get; }
+        public Exception? Exception { get; }
 
         /// <summary>
         /// Description of the error that occurred.
         /// </summary>
-        public readonly string ErrorMessage;
+        public readonly string? ErrorMessage;
 
         /// <summary>
         /// Indicates that diagnostics should lazily be computed from exception
         /// </summary>
         private bool _hasLazyDiagnostics;
-        private string _diagnostics;
+        private string? _diagnostics;
 
         /// <summary>
         /// Optional verbose diagnostic information about the result (either error or success).
         /// </summary>
-        public string Diagnostics
+        public string? Diagnostics
         {
             get
             {
@@ -209,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if a given exception should not be considered critical during cancellation.
         /// </summary>
-        public static bool NonCriticalForCancellation(Exception exception)
+        public static bool NonCriticalForCancellation(Exception? exception)
         {
             return !IsCriticalForCancellation(exception);
         }
@@ -217,7 +219,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if a given exception is critical critical during cancellation.
         /// </summary>
-        public static bool IsCriticalForCancellation(Exception exception)
+        public static bool IsCriticalForCancellation(Exception? exception)
         {
             if (exception == null)
             {
@@ -231,7 +233,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Returns true if the exception is a critical, non-recoverable error.
         /// </summary>
-        public static bool IsCritical(Exception exception)
+        public static bool IsCritical(Exception? exception)
         {
             if (exception == null)
             {
@@ -256,6 +258,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
+        ///     Merges two strings.
+        /// </summary>
+        protected static string Merge([NotNullIfNotNull("s1")]string? s1, [NotNullIfNotNull("s2")]string? s2, string separator)
+        {
+            if (s1 == null)
+            {
+                return s2!;
+            }
+
+            if (s2 == null)
+            {
+                return s1;
+            }
+
+            return $"{s1}{separator}{s2}";
+        }
+
+        /// <summary>
         /// Gets full log event message including inner exceptions from the given exception
         /// </summary>
         private static string GetErrorMessageFromException(Exception exception)
@@ -264,7 +284,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
             IEnumerable<string> getExceptionMessages()
             {
-                for (Exception currentException = exception; currentException != null; currentException = currentException.InnerException)
+                for (Exception? currentException = exception; currentException != null; currentException = currentException.InnerException)
                 {
                     yield return currentException.Message;
                 }

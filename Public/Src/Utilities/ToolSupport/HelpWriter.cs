@@ -215,18 +215,13 @@ namespace BuildXL.ToolSupport
         None = 0,
 
         /// <summary>
-        /// Help for a specific DxCode
-        /// </summary>
-        DxCode = 1,
-
-        /// <summary>
         /// The standard help
         /// </summary>
-        Standard = 2,
+        Standard = 1,
 
         /// <summary>
         /// The full help including verbose obscure options
         /// </summary>
-        Verbose = 3,
+        Verbose = 2,
     }
 }

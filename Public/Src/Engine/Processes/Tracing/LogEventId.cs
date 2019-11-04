@@ -40,6 +40,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessChildrenSurvivedTooMany = 43,
         PipProcessMissingExpectedOutputOnCleanExit = 44,
         PipProcessOutputPreparationFailed = 46,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
 
 
         PipProcessError = 64,

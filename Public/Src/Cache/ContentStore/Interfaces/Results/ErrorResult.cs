@@ -2,8 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq.Expressions;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -15,22 +17,22 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Original optional message provided via constructor.
         /// </summary>
-        public string Message { get; }
+        public string? Message { get; }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ErrorResult"/> class.
         /// </summary>
-        public ErrorResult(string errorMessage, string diagnostics = null)
+        public ErrorResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
-            Contract.Requires(!string.IsNullOrEmpty(errorMessage));
+            Contract.RequiresNotNullOrEmpty(errorMessage);
             Message = errorMessage;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ErrorResult" /> class.
         /// </summary>
-        public ErrorResult(Exception exception, string message = null)
+        public ErrorResult(Exception exception, string? message = null)
             : base(exception, message)
         {
             Message = message;
@@ -39,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="ErrorResult" /> class.
         /// </summary>
-        public ErrorResult(ResultBase other, string message = null)
+        public ErrorResult(ResultBase other, string? message = null)
             : base(other, message)
         {
             Message = message;
@@ -55,7 +57,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ErrorResult other && Equals(other);
         }
@@ -93,31 +95,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
-        ///     Merges two strings.
-        /// </summary>
-        private static string Merge(string s1, string s2, string separator = null)
-        {
-            if (s1 == null)
-            {
-                return s2;
-            }
-
-            if (s2 == null)
-            {
-                return s1;
-            }
-
-            separator = separator ?? string.Empty;
-
-            return $"{s1}{separator}{s2}";
-        }
-
-        /// <summary>
         /// Converts the error result to the given result type.
         /// </summary>
         public TResult AsResult<TResult>() where TResult : ResultBase
         {
-            if (ErrorResultConverter<TResult>.TryGetConverter(out var converter, out string error))
+            if (ErrorResultConverter<TResult>.TryGetConverter(out var converter, out string? error))
             {
                 return converter(this);
             }
@@ -128,8 +110,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         private static class ErrorResultConverter<TResult>
             where TResult : ResultBase
         {
-            private static readonly Func<ErrorResult, TResult> Convert;
-            private static readonly string ErrorMessage;
+            private static readonly Func<ErrorResult, TResult>? Convert;
+            private static readonly string? ErrorMessage;
 
             static ErrorResultConverter()
             {
@@ -139,14 +121,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 TryGenerateConverter(out Convert, out ErrorMessage);
             }
 
-            public static bool TryGetConverter(out Func<ErrorResult, TResult> result, out string errorMessage)
+            public static bool TryGetConverter([NotNullWhen(true)]out Func<ErrorResult, TResult>? result, [NotNullWhen(true)]out string? errorMessage)
             {
                 result = Convert;
                 errorMessage = ErrorMessage;
                 return result != null;
             }
 
-            private static bool TryGenerateConverter(out Func<ErrorResult, TResult> result, out string errorMessage)
+            private static bool TryGenerateConverter([NotNullWhen(true)]out Func<ErrorResult, TResult>? result, [NotNullWhen(true)]out string? errorMessage)
             {
                 var errorResultParameter = Expression.Parameter(typeof(ErrorResult));
                 var type = typeof(TResult).Name;

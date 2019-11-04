@@ -401,7 +401,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: false, urgencyHint),
                     result => result.Succeeded,
                     // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(Settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !contentHashes[x.Index].IsEmptyHash()).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
 
             if (pinOperationConfiguration.ReturnGlobalExistenceFast)
             {
@@ -654,7 +654,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         PutResult innerPutResult;
                         long actualSize = copyFileResult.Size ?? hashInfo.Size;
-                        if (Settings.UseTrustedHash && actualSize >= Settings.TrustedHashFileSizeBoundary && Inner is ITrustedContentSession trustedInner)
+                        if (Settings.UseTrustedHash(actualSize) && Inner is ITrustedContentSession trustedInner)
                         {
                             // The file has already been hashed, so we can trust the hash of the file.
                             innerPutResult = await trustedInner.PutTrustedFileAsync(context, new ContentHashWithSize(hashInfo.ContentHash, actualSize), tempLocation, FileRealizationMode.Move, cts, urgencyHint);
@@ -683,7 +683,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     urgencyHint,
                                     stream =>
                                     {
-                                        recorder = new RecordingStream(inner: stream, size: actualSize);
+                                        recorder = RecordingStream.ReadRecordingStream(inner: stream, size: actualSize);
                                         return recorder;
                                     });
 

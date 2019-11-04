@@ -1142,11 +1142,11 @@ namespace BuildXL.Native.IO.Windows
 
                     return true;
                 },
-                ex => { throw new BuildXLException("File copy failed", ex); });
+                ex => { throw new BuildXLException(I($"File copy from '{source}' to '{destination}' failed"), ex); });
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveFileAsync(
+        public Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false)
@@ -1154,13 +1154,16 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run<bool>(
-                () => ExceptionUtilities.HandleRecoverableIOException(
-                    () =>
-                    {
-                        return s_fileSystem.MoveFile(source, destination, replaceExisting);
-                    },
-                    ex => { throw new BuildXLException("File move failed", ex); }));
+            return Task.Run(() => {
+                try
+                {
+                    s_fileSystem.MoveFile(source, destination, replaceExisting);
+                }
+                catch (NativeWin32Exception ex)
+                {
+                    throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex);
+                }
+            });
         }
 
         /// <inheritdoc />

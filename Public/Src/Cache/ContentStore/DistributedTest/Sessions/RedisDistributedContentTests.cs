@@ -75,7 +75,6 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled,
             object additionalArgs)
         {
             var rootPath = testDirectory.Path / "Root";
@@ -140,6 +139,7 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
+                    ShouldInlinePutBlob = true,
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,
@@ -147,7 +147,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 contentStoreSettings: new ContentStoreSettings()
                 {
                     CheckFiles = true,
-                    UseEmptyFileHashShortcut = emptyFileHashShortcutEnabled,
                 },
                 setPostInitializationCompletionAfterStartup: true);
 

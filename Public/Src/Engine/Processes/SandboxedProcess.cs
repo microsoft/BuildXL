@@ -126,7 +126,7 @@ namespace BuildXL.Processes
                     info.PipDescription,
                     info.LoggingContext,
                     info.DetoursEventListener,
-                    info.SharedOpaqueOutputLogger) : null;
+                    info.SidebandWriter) : null;
 
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);

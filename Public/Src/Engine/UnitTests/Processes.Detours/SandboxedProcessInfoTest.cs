@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -50,7 +51,8 @@ namespace Test.BuildXL.Processes.Detours
 
             var sidebandLogFile = A("C", "engine-cache", "sideband-logs", "log-1");
             var loggerRootDirs = new[] { A("C", "out", "dir1"), A("C", "out", "dir2") };
-            var sharedOpaqueOutputLogger = new SharedOpaqueOutputLogger(sidebandLogFile, loggerRootDirs);
+
+            var sharedOpaqueOutputLogger = new SidebandWriter(DefaultSidebandMetadata, sidebandLogFile, loggerRootDirs);
 
             SandboxedProcessInfo info = new SandboxedProcessInfo(
                 pt,
@@ -59,7 +61,7 @@ namespace Test.BuildXL.Processes.Detours
                 fam,
                 true,
                 null,
-                sharedOpaqueOutputLogger: sharedOpaqueOutputLogger)
+                sidebandWriter: sharedOpaqueOutputLogger)
             {
                 Arguments = @"/arg1:val1 /arg2:val2",
                 WorkingDirectory = A("C", "Source"),
@@ -92,7 +94,7 @@ namespace Test.BuildXL.Processes.Detours
                     null);
             }
 
-            using (readInfo.SharedOpaqueOutputLogger)
+            using (readInfo.SidebandWriter)
             {
                 // Verify.
                 XAssert.AreEqual(info.FileName, readInfo.FileName);
@@ -127,8 +129,8 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(standardFiles.StandardError, readInfo.FileStorage.GetFileName(SandboxedProcessFile.StandardError));
                 XAssert.IsFalse(readInfo.ContainerConfiguration.IsIsolationEnabled);
 
-                XAssert.AreEqual(sidebandLogFile, readInfo.SharedOpaqueOutputLogger.SidebandLogFile);
-                XAssert.ArrayEqual(loggerRootDirs, readInfo.SharedOpaqueOutputLogger.RootDirectories.ToArray());
+                XAssert.AreEqual(sidebandLogFile, readInfo.SidebandWriter.SidebandLogFile);
+                XAssert.ArrayEqual(loggerRootDirs, readInfo.SidebandWriter.RootDirectories.ToArray());
 
                 ValidationDataCreator.TestManifestRetrieval(vac.DataItems, readInfo.FileAccessManifest, false);
             }

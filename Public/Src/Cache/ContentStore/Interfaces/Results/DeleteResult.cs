@@ -3,6 +3,7 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Hashing;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -75,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ResultCode resultCode, string errorMessage, string diagnostics = null)
+        public DeleteResult(ResultCode resultCode, string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
             Code = resultCode;
@@ -84,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         ///     Initializes a new instance of the <see cref="DeleteResult"/> class.
         /// </summary>
-        public DeleteResult(ResultCode resultCode, Exception exception, string message = null)
+        public DeleteResult(ResultCode resultCode, Exception exception, string? message = null)
             : base(exception, message)
         {
             Code = resultCode;

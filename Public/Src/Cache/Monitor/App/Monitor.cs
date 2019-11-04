@@ -175,7 +175,7 @@ namespace BuildXL.Cache.Monitor.App
                 var configuration = new LastProducedCheckpointRule.Configuration(kustoConfiguration);
                 return (
                     Rule: new LastProducedCheckpointRule(configuration),
-                    PollingPeriod: configuration.WarningAge);
+                    PollingPeriod: configuration.WarningThreshold);
             });
 
             Add(kustoConfiguration =>
@@ -183,7 +183,7 @@ namespace BuildXL.Cache.Monitor.App
                 var configuration = new LastRestoredCheckpointRule.Configuration(kustoConfiguration);
                 return (
                     Rule: new LastRestoredCheckpointRule(configuration),
-                    PollingPeriod: configuration.ErrorAge);
+                    PollingPeriod: configuration.ErrorThreshold);
             });
 
             Add(kustoConfiguration =>
@@ -200,6 +200,14 @@ namespace BuildXL.Cache.Monitor.App
                 return (
                     Rule: new ActiveMachinesRule(configuration),
                     PollingPeriod: configuration.AnomalyDetectionHorizon);
+            });
+
+            Add(kustoConfiguration =>
+            {
+                var configuration = new EventHubProcessingDelayRule.Configuration(kustoConfiguration);
+                return (
+                    Rule: new EventHubProcessingDelayRule(configuration),
+                    PollingPeriod: configuration.BinWidth);
             });
         }
 

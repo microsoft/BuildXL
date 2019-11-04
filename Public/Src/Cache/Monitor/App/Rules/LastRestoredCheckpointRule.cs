@@ -23,7 +23,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             public int FatalMissingMachinesThreshold { get; set; } = 20;
 
-            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(45);
+            public TimeSpan ErrorThreshold { get; set; } = TimeSpan.FromMinutes(45);
         }
 
         private readonly Configuration _configuration;
@@ -88,7 +88,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 }
 
                 var age = now - result.LastRestoreTime.Value;
-                if (age >= _configuration.ErrorAge)
+                if (age >= _configuration.ErrorThreshold)
                 {
                     failures.Add(new Tuple<string, TimeSpan>(result.Machine, age));
                 }
@@ -112,8 +112,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var machinesCsv = string.Join(", ", formattedFailures);
                 var shortMachinesCsv = string.Join(", ", formattedFailures.Take(5));
                 Emit(Severity.Error,
-                    $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorAge}`): {machinesCsv}",
-                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorAge}`. Examples: {shortMachinesCsv}",
+                    $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorThreshold}`): {machinesCsv}",
+                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorThreshold}`. Examples: {shortMachinesCsv}",
                     ruleRunTimeUtc: ruleRunTimeUtc);
             }
         }

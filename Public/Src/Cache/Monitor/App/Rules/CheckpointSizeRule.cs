@@ -145,14 +145,14 @@ namespace BuildXL.Cache.Monitor.App.Rules
             }
 
             var lookbackSizes = training.Select(r => r.TotalSize);
-            double lookbackMin = (1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min();
-            double lookbackMax = (1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max();
+            var lookbackMin = (long)Math.Floor((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
+            var lookbackMax = (long)Math.Ceiling((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
             var range2 = new CheckRange<double>(Comparer<double>.Default, lookbackMin, lookbackMax);
             range2.Check(prediction.Select(r => (double)r.TotalSize), (index, valueDouble) => {
                 var value = (long)Math.Ceiling(valueDouble);
 
                 Emit(Severity.Warning,
-                    $"Checkpoint size `{value.ToSizeExpression()}` out of expected range [`{lookbackMin}`, `{lookbackMax}`]",
+                    $"Checkpoint size `{value.ToSizeExpression()}` out of expected range [`{lookbackMin.ToSizeExpression()}`, `{lookbackMax.ToSizeExpression()}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });
         }

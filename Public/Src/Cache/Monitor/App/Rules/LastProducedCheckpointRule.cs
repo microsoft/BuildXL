@@ -18,9 +18,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(2);
 
-            public TimeSpan WarningAge { get; set; } = TimeSpan.FromMinutes(30);
+            public TimeSpan WarningThreshold { get; set; } = TimeSpan.FromMinutes(30);
 
-            public TimeSpan ErrorAge { get; set; } = TimeSpan.FromMinutes(45);
+            public TimeSpan ErrorThreshold { get; set; } = TimeSpan.FromMinutes(45);
         }
 
         private readonly Configuration _configuration;
@@ -69,14 +69,14 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             var age = now - results[0].PreciseTimeStamp;
 
-            if (age >= _configuration.WarningAge)
+            if (age >= _configuration.WarningThreshold)
             {
                 var severity = Severity.Warning;
-                var threshold = _configuration.WarningAge;
-                if (age >= _configuration.ErrorAge)
+                var threshold = _configuration.WarningThreshold;
+                if (age >= _configuration.ErrorThreshold)
                 {
                     severity = Severity.Error;
-                    threshold = _configuration.ErrorAge;
+                    threshold = _configuration.ErrorThreshold;
                 }
 
                 Emit(severity,

@@ -33,7 +33,7 @@ service ContentServer {
 
     rpc CopyFile(CopyFileRequest) returns (stream CopyFileResponse) {}
 
-    rpc PushFile(stream PushFileRequest) returns (PushFileResponse) {}
+    rpc PushFile(stream PushFileRequest) returns (stream PushFileResponse) {}
 
     rpc CheckFileExists(ExistenceRequest) returns (ExistenceResponse) {}
 

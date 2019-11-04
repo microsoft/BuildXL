@@ -291,11 +291,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 await StreamContentAsync(source, new byte[_bufferSize], requestStream, context.Token);
                 await requestStream.CompleteAsync();
 
-                var finalResponse = await call.ResponseAsync;
+                var responseStream = call.ResponseStream;
+                await responseStream.MoveNext(context.Token);
+                var response = responseStream.Current;
 
-                return finalResponse.Header.Succeeded
+                return response.Header.Succeeded
                     ? BoolResult.Success
-                    : new BoolResult(finalResponse.Header.ErrorMessage);
+                    : new BoolResult(response.Header.ErrorMessage);
             }
             catch (RpcException r)
             {

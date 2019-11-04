@@ -283,6 +283,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
+            int evictionCount = 0;
 
             // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove
             // content until we are within quota. Here we return batches of content to be removed.
@@ -315,17 +316,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer)
-                .Where((candidate, index) => IsPassEvictionAge(context, candidate, index, _configuration.EvictionMinAge));
+                .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, ref evictionCount));
         }
 
-        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, int evictionattempt, TimeSpan evictionMinAge)
+        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge, ref int evictionCount)
         {
             if (candidate.Age > evictionMinAge)
             {
+                evictionCount++;
                 return true;
             }
 
-            context.Debug($"Eviction candidate replica count: {candidate.ReplicaCount}, Effective age: {candidate.EffectiveAge}, Age: {candidate.Age}");
+            context.Debug($"{evictionCount} eviction attempts before current candidate");
+            context.Debug($"Eviction candidate is not pass minimum eviction age of {evictionMinAge.ToString()}, candidate replica count: {candidate.ReplicaCount}, Effective age: {candidate.EffectiveAge}, Age: {candidate.Age}");
             context.Debug($"Pool size: {_configuration.EvictionPoolSize}, Window size: {_configuration.EvictionWindowSize}, Removal fraction: {_configuration.EvictionRemovalFraction}");
             return false;
         }

@@ -563,7 +563,7 @@ namespace BuildXL.Cache.Host.Configuration
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
 
         [DataMember]
-        public bool SkipTouchAndLockAcquisitionWhenPinningFromHibernation { get; set; } = false;
+        public bool UseFastHibernationPin { get; set; } = false;
 
         /// <summary>
         /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)

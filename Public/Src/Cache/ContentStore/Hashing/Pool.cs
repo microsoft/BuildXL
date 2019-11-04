@@ -67,7 +67,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         private readonly int _maxReserveInstances;
         private readonly ConcurrentQueue<T> _queue = new ConcurrentQueue<T>();
 
-        public Pool(Func<T> factory, Action<T> reset = null, int maxReserveInstances = 0)
+        public Pool(Func<T> factory, Action<T> reset = null, int maxReserveInstances = -1)
         {
             _factory = factory;
             _reset = reset;
@@ -88,10 +88,15 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void Return(T item)
         {
-            if (Size < _maxReserveInstances)
+            if ((_maxReserveInstances > 0) && (Size < _maxReserveInstances))
             {
                 _reset?.Invoke(item);
                 _queue.Enqueue(item);
+            }
+            else
+            {
+                // Still reset the item incase the reset logic has side effects other than cleanup for future reuse
+                _reset?.Invoke(item);
             }
         }
 

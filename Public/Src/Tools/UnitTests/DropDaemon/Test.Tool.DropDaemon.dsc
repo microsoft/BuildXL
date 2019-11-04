@@ -31,6 +31,6 @@ namespace Test.Tool.DropDaemon {
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
         ],
-        runTestArgs: { weight: 2},
+        runTestArgs: { weight: 10 },
     });
 }

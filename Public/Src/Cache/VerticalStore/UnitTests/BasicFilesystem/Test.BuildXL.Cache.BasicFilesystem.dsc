@@ -20,6 +20,6 @@ namespace BasicFilesystem{
             importFrom("BuildXL.Utilities").dll,
         ],
         // Increase the weight of these tests since they do more I/O
-        runTestArgs: { weight: 2},
+        runTestArgs: { weight: 10 },
     });
 }

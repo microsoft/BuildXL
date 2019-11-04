@@ -306,7 +306,7 @@ namespace BuildXL.Processes
             fixed (ulong* bufferPtr = buffer)
             {
                 var processIdListPtr = (JOBOBJECT_BASIC_PROCESS_ID_LIST*)bufferPtr;
-                Contract.Assert(processIdListPtr != null, "ProcessIdListPtr is null.");
+                Contract.Assert(processIdListPtr != null, "ProcessIdListPtr is null");
 
                 uint bytesWritten;
                 if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(

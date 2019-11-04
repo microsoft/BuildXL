@@ -1083,9 +1083,6 @@ namespace BuildXL.Engine
                 mutableConfig.Cache.HistoricMetadataCache = initialCommandLineConfiguration.Cache.HistoricMetadataCache ?? true;
                 mutableConfig.Schedule.ScheduleMetaPips = false;
 
-                // Prefer to load data into memory
-                mutableConfig.Cache.CacheMemoryUsage = MemoryUsageOption.Liberal;
-
                 // In CloudBuild always place EngineCache under object directory
                 mutableConfig.Layout.EngineCacheDirectory = mutableConfig.Layout.ObjectDirectory.Combine(pathTable, Strings.Layout_DefaultEngineCacheFolderName);
 
@@ -1111,6 +1108,12 @@ namespace BuildXL.Engine
 
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
                 mutableConfig.Sandbox.RetryOnAzureWatsonExitCode = true;
+
+                mutableConfig.Schedule.MaximumRamUtilizationPercentage = 90;
+                mutableConfig.Schedule.MinimumTotalAvailableRamMb = 20000000;
+
+                // Spec cache is disabled as most builds are happening on SSDs. 
+                mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
             }
             else
             {

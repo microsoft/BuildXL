@@ -824,9 +824,9 @@ namespace BuildXL.Scheduler
 
         #region Statistics
 
-        private long m_totalPeakVirtualMemoryUsageMb;
-        private long m_totalPeakWorkingSetMb;
-        private long m_totalPeakPagefileUsageMb;
+        private ulong m_totalPeakVirtualMemoryUsageMb;
+        private ulong m_totalPeakWorkingSetMb;
+        private ulong m_totalPeakPagefileUsageMb;
 
         private readonly object m_statusLock = new object();
 
@@ -1725,9 +1725,9 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
-            statistics.Add("TotalPeakMemoryUsage", m_totalPeakVirtualMemoryUsageMb);
-            statistics.Add("TotalPeakWorkingSet", m_totalPeakWorkingSetMb);
-            statistics.Add("TotalPeakPagefileUsage", m_totalPeakPagefileUsageMb);
+            statistics.Add("TotalPeakMemoryUsage", (long)m_totalPeakVirtualMemoryUsageMb);
+            statistics.Add("TotalPeakWorkingSet", (long)m_totalPeakWorkingSetMb);
+            statistics.Add("TotalPeakPagefileUsage", (long)m_totalPeakPagefileUsageMb);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
@@ -2172,30 +2172,6 @@ namespace BuildXL.Scheduler
                 }
             }
 
-#if PLATFORM_OSX
-            if (!resourceAvailable)
-            {
-                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
-                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-
-                if (result)
-                {
-                    // If the memory pressure level is not above the configured level but we've infered resources are not available earlier,
-                    // we reset the resource availability and override the decision by looking at the current pressure level only!
-                    resourceAvailable = !(pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel);
-                }
-                else
-                {
-                    Logger.Log.UnableToGetMemoryPressureLevel(
-                            m_executePhaseLoggingContext,
-                            availableRam: perfInfo.AvailableRamMb.Value,
-                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
-                            ramUtilization: perfInfo.RamUsagePercentage.Value,
-                            maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
-                }
-            }
-#endif
-
             if (!resourceAvailable)
             {
                 if (LocalWorker.ResourcesAvailable)
@@ -2218,7 +2194,30 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+#if PLATFORM_OSX
+                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
+                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+                var startCancellingPips = false;
+
+                if (result)
+                {
+                    // If the memory pressure level is above the configured level we start canceling pips to avoid Jetsam to kill our process
+                    startCancellingPips = pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel;
+                }
+                else
+                {
+                    Logger.Log.UnableToGetMemoryPressureLevel(
+                            m_executePhaseLoggingContext,
+                            availableRam: perfInfo.AvailableRamMb.Value,
+                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                            ramUtilization: perfInfo.RamUsagePercentage.Value,
+                            maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
+                }
+
+                if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion && startCancellingPips)
+#else
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
+#endif
                 {
                     // Free down to the specified max RAM utilization percentage with 10% slack
                     var desiredRamToFreePercentage = (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
@@ -3699,7 +3698,7 @@ namespace BuildXL.Scheduler
                                     operationContext,
                                     runnablePip.Description,
                                     executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
-                                    ((processRunnable.ExpectedDurationMs ?? 0) / 1000),
+                                    (processRunnable.ExpectedDurationMs ?? 0) / 1000,
                                     executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                     executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
                                     worker.DefaultMemoryUsagePerProcess,
@@ -3708,9 +3707,9 @@ namespace BuildXL.Scheduler
                                     peakWorkingSetMb,
                                     peakPagefileUsageMb);
 
-                                m_totalPeakVirtualMemoryUsageMb += peakVirtualMemoryUsageMb;
-                                m_totalPeakWorkingSetMb += peakWorkingSetMb;
-                                m_totalPeakPagefileUsageMb += peakPagefileUsageMb;
+                                m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
+                                m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
+                                m_totalPeakPagefileUsageMb += (ulong)peakPagefileUsageMb;
                             }
                             catch (OverflowException ex)
                             {
@@ -4330,7 +4329,7 @@ namespace BuildXL.Scheduler
                 $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" :
                 "N/A";
 
-            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";
+            return $"{producer.FormattedSemiStableHash} {step} on Worker #{workerId} - {worker.Name} ({worker.Status} - WhenReleased: {whenWorkerReleased})";
         }
 
         /// <inheritdoc />

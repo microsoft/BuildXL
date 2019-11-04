@@ -3598,13 +3598,17 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// Moves file to a new location.
         /// </summary>
-        public bool MoveFile(string existingFileName, string newFileName, bool replaceExisting)
+        public void MoveFile(string existingFileName, string newFileName, bool replaceExisting)
         {
             existingFileName = ToLongPathIfExceedMaxPath(existingFileName);
             newFileName = ToLongPathIfExceedMaxPath(newFileName);
             MoveFileFlags moveFlags = replaceExisting ? MoveFileFlags.MOVEFILE_REPLACE_EXISTING : MoveFileFlags.MOVEFILE_COPY_ALLOWED;
 
-            return MoveFileEx(existingFileName, newFileName, moveFlags);
+            if  (!MoveFileEx(existingFileName, newFileName, moveFlags))
+            {
+                int hr = Marshal.GetLastWin32Error();
+                ThrowForNativeFailure(hr, nameof(MoveFileEx), nameof(MoveFile));
+            }
         }
 
         /// <summary>

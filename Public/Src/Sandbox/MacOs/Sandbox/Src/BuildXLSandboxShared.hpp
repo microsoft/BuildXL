@@ -176,9 +176,10 @@ typedef struct {
     Counter numForks;
     Counter numCacheHits;
     Counter numCacheMisses;
-    CountAndSize uintNodes;
-    CountAndSize pathNodes;
+    uint64_t totalAllocatedBytes;
+    CountAndSize fastNodes;
     CountAndSize lightNodes;
+    CountAndSize cacheRecords;
 } AllCounters;
 
 typedef struct {

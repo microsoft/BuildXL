@@ -33,7 +33,11 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         public override Expr VisitFilterExpr([NotNull] JPathParser.FilterExprContext context)
         {
-            return new FilterExpr(lhs: context.Lhs.Accept(this), filter: context.Filter.Accept(this));
+            var lhs = context.Lhs.Accept(this);
+            var filter = context.Filter.Accept(this);
+            return (filter is IntLit || filter is VarExpr)
+                ? (Expr) new RangeExpr(lhs, begin: filter, end: filter)
+                : (Expr) new FilterExpr(lhs: lhs, filter: filter);
         }
 
         public override Expr VisitIntLitExpr([NotNull] JPathParser.IntLitExprContext context)
@@ -60,8 +64,8 @@ namespace BuildXL.Execution.Analyzer.JPath
         public override Expr VisitPropertyValue([NotNull] JPathParser.PropertyValueContext context)
         {
             return new PropVal(
-                name: (context.Name?.Accept(this) as Selector)?.PropertyNames?.First(),
-                value: context.Value.Accept(this));
+                name: (context.Name?.Accept(this) as Selector)?.PropertyName,
+                value: context.Value.Accept(this)) ;
         }
 
         public override Expr VisitRangeExpr([NotNull] JPathParser.RangeExprContext context)
@@ -70,14 +74,6 @@ namespace BuildXL.Execution.Analyzer.JPath
                 array: context.Lhs.Accept(this),
                 begin: context.Begin.Accept(this),
                 end: context.End.Accept(this));
-        }
-
-        public override Expr VisitIndexExpr([NotNull] JPathParser.IndexExprContext context)
-        {
-            return new RangeExpr(
-                array: context.Lhs.Accept(this),
-                begin: context.Index.Accept(this),
-                end: null);
         }
 
         public override Expr VisitRegExLitExpr([NotNull] JPathParser.RegExLitExprContext context)
@@ -89,13 +85,18 @@ namespace BuildXL.Execution.Analyzer.JPath
             }
             catch (ArgumentException e)
             {
-                throw AstError(context.Value, $"Value '{context.Value}' is not a valid regex: {e.Message}");
+                throw AstError(context.Value, $"Value '{context.Value.Text}' is not a valid regex: {e.Message}");
             }
         }
 
         public override Expr VisitRootExpr([NotNull] JPathParser.RootExprContext context)
         {
             return RootExpr.Instance;
+        }
+
+        public override Expr VisitThisExpr([NotNull] JPathParser.ThisExprContext context)
+        {
+            return ThisExpr.Instance;
         }
 
         public override Expr VisitSelectorExpr([NotNull] JPathParser.SelectorExprContext context)
@@ -123,13 +124,6 @@ namespace BuildXL.Execution.Analyzer.JPath
             return context.Name.Accept(this);
         }
 
-        public override Expr VisitUnionSelector([NotNull] JPathParser.UnionSelectorContext context)
-        {
-            return new Selector(context._Names
-                .Select(n => (n.Accept(this) as Selector).PropertyNames.First())
-                .ToArray());
-        }
-
         public override Expr VisitStrLitExpr([NotNull] JPathParser.StrLitExprContext context)
         {
             return new StrLit(ExtractStringFromStringLiteralToken(context.Value));
@@ -137,60 +131,12 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         private string ExtractStringFromStringLiteralToken(IToken token)
         {
-            return token.Text.Trim('"', '\'');
+            return token.Text.StartsWith("\"") ? token.Text.Trim('"') :
+                   token.Text.StartsWith("'")  ? token.Text.Trim('\'') : 
+                   token.Text;
         }
 
         public override Expr VisitSubExpr([NotNull] JPathParser.SubExprContext context)
-        {
-            return context.Sub.Accept(this);
-        }
-
-        public override Expr VisitExprIntExpr([NotNull] JPathParser.ExprIntExprContext context)
-        {
-            return context.Expr.Accept(this);
-        }
-
-        public override Expr VisitUnaryIntExpr([NotNull] JPathParser.UnaryIntExprContext context)
-        {
-            return new UnaryExpr(context.Op.Token, context.Sub.Accept(this));
-        }
-
-        public override Expr VisitBinaryIntExpr([NotNull] JPathParser.BinaryIntExprContext context)
-        {
-            return new BinaryExpr(context.Op.Token, context.Lhs.Accept(this), context.Rhs.Accept(this));
-        }
-
-        public override Expr VisitSubIntExpr([NotNull] JPathParser.SubIntExprContext context)
-        {
-            return context.Sub.Accept(this);
-        }
-
-        public override Expr VisitBinaryBoolExpr([NotNull] JPathParser.BinaryBoolExprContext context)
-        {
-            return new BinaryExpr(context.Op.Token, context.Lhs.Accept(this), context.Rhs.Accept(this));
-        }
-
-        public override Expr VisitSubBoolExpr([NotNull] JPathParser.SubBoolExprContext context)
-        {
-            return context.Sub.Accept(this);
-        }
-
-        public override Expr VisitBoolLogicExpr([NotNull] JPathParser.BoolLogicExprContext context)
-        {
-            return context.Expr.Accept(this);
-        }
-
-        public override Expr VisitBinaryLogicExpr([NotNull] JPathParser.BinaryLogicExprContext context)
-        {
-            return new BinaryExpr(context.Op.Token, context.Lhs.Accept(this), context.Rhs.Accept(this));
-        }
-
-        public override Expr VisitUnaryLogicExpr([NotNull] JPathParser.UnaryLogicExprContext context)
-        {
-            return new UnaryExpr(context.Op.Token, context.Sub.Accept(this));
-        }
-
-        public override Expr VisitSubLogicExpr([NotNull] JPathParser.SubLogicExprContext context)
         {
             return context.Sub.Accept(this);
         }

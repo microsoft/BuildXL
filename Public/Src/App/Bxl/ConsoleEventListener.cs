@@ -347,14 +347,7 @@ namespace BuildXL
                         {
                             m_console.ReportProgress((ulong)done, (ulong)total);
                         }
-
-                        break;
-                    }
-
-                case (int)EventId.DisplayHelpLink:
-                    {
-                        m_console.WriteOutputLine(MessageLevel.Info, Strings.DX_Help_Link_Prefix + " " + Strings.DX_Help_Link);
-
+                        
                         break;
                     }
 

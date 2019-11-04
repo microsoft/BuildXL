@@ -339,7 +339,11 @@ namespace BuildXL
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
-                        (int)Engine.Tracing.LogEventId.GrpcSettings
+                        (int)Engine.Tracing.LogEventId.GrpcSettings,
+                        (int)Engine.Tracing.LogEventId.ChosenABTesting,
+                        (int)EventId.SynchronouslyWaitedForCache,
+                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
+                        (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
                     },
                     // all errors should be included in a dev log
                     EventLevel.Error));
@@ -882,11 +886,6 @@ namespace BuildXL
                 }
 
                 logFunction(Strings.App_Main_Snapshot, m_configuration.Export.SnapshotFile);
-            }
-
-            if (trackingListener.HasFailuresOrWarnings)
-            {
-                Logger.Log.DisplayHelpLink(loggingContext, Strings.DX_Help_Link_Prefix, Strings.DX_Help_Link);
             }
         }
 

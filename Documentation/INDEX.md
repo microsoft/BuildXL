@@ -62,8 +62,9 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Stats log file](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.stats.md)
 * [Logging Options](Wiki/How-To-Run-BuildXL/Logging-Options.md)
 * [Execution Log](Wiki/How-To-Run-BuildXL/Log-Files/BuildXL.xlg.md)
-* [Execution Analyzer](wiki/Advanced-Features/Execution-Analyzer.md) 
-* [Cache Miss Analysis](wiki/Advanced-Features/Cache-Miss-Analysis.md)
+* [Execution Analyzer](Wiki/Advanced-Features/Execution-Analyzer.md) 
+* [XLG Debugger](Wiki/Advanced-Features/XLG-Debugger/INDEX.md) 
+* [Cache Miss Analysis](Wiki/Advanced-Features/Cache-Miss-Analysis.md)
 
 ## Troubleshooting
 * [DX Error Codes](Wiki/Error-Codes)

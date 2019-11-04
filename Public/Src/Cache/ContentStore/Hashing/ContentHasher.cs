@@ -24,7 +24,10 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <summary>
         ///     Object pool that holds all instantiated hash algorithms for each hash type.
         /// </summary>
-        private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T());
+        /// <remarks>
+        ///     Cap the number of idel reserve instances in the pool so as to not unnecessarily hold large amounts of memory
+        /// </remarks>
+        private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T(), maxReserveInstances: 10);
 
         private readonly ByteArrayPool _bufferPool = new ByteArrayPool(FileSystemConstants.FileIOBufferSize);
 

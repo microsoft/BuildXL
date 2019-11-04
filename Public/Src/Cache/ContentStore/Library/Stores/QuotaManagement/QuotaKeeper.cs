@@ -164,10 +164,11 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _processReserveRequestsTask;
             }
 
-            if (_purgeTask != null)
+            var purgeTask = _purgeTask;
+            if (purgeTask != null)
             {
                 context.TraceDebug($"{_tracer.Name}: waiting for purge task.");
-                return await _purgeTask;
+                return await purgeTask;
             }
 
             return BoolResult.Success;

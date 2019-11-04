@@ -90,7 +90,8 @@ namespace BuildXL.FrontEnd.Script
                     }
                 }
 
-                if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid)
+                if (Configuration.FrontEnd.GenerateCgManifestForNugets.IsValid &&
+                    !Configuration.FrontEnd.GenerateCgManifestForNugets.Equals(Configuration.FrontEnd.ValidateCgManifestForNugets))
                 {
                     // Save the generated CG Manifets to File
                     if (!(await SaveCgManifetsFileAsync(generatedCgManifest)))

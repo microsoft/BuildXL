@@ -267,9 +267,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 var headers = new Metadata()
                 {
-                    { "hash", hash.ToHashByteArray() },
-                    { "hashType", hash.HashType.ToString() },
-                    { "traceId", context.TracingContext.Id.ToString() }
+                    { "hash-bin", hash.ToHashByteArray() }, // -bin suffix required to send bytes directly
+                    { "hash_type", hash.HashType.ToString() },
+                    { "trace_id", context.TracingContext.Id.ToString() }
                 };
 
                 var call = _client.PushFile(headers, cancellationToken: context.Token);
@@ -278,7 +278,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 var responseHeaders = await call.ResponseHeadersAsync;
                 foreach (var header in responseHeaders)
                 {
-                    if (header.Key == "shouldCopy")
+                    if (header.Key == "should_copy")
                     {
                         if (bool.TryParse(header.Value, out var shouldCopy) && !shouldCopy)
                         {

@@ -378,9 +378,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             {
                 switch (header.Key)
                 {
-                    case "hash": hashBytes = header.ValueBytes; break;
-                    case "hashType": Enum.TryParse(header.Value, out hashType); break;
-                    case "traceId": traceId = new Guid(header.Value); break;
+                    case "hash-bin": hashBytes = header.ValueBytes; break;
+                    case "hash_type": Enum.TryParse(header.Value, out hashType); break;
+                    case "trace_id": traceId = new Guid(header.Value); break;
                 }
             }
 
@@ -392,14 +392,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             if (store == null)
             {
-                await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "false" } });
+                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because no stores implement {nameof(IPushFileHandler)}.");
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "false" } });
                 return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
             }
 
             if (!_ongoingPushes.Add(hash))
             {
                 Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
-                await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "false" } });
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "false" } });
                 return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
             }
 
@@ -408,11 +409,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 if (store.HasContentLocally(cacheContext, hash))
                 {
                     Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because content is already local.");
-                    await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "false" } });
+                    await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "false" } });
                     return new PushFileResponse { Header = ResponseHeader.Success(startTime) };
                 }
 
-                await callContext.WriteResponseHeadersAsync(new Metadata { { "shouldCopy", "true" } });
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "true" } });
 
                 var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);
 

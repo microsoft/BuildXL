@@ -16,7 +16,7 @@
 class ThreadLocal : public OSObject
 {
     OSDeclareDefaultStructors(ThreadLocal);
-    
+
 private:
 
     /* backing dictionary */
@@ -26,7 +26,7 @@ private:
     {
         return thread_tid(current_thread());
     }
-    
+
 protected:
 
     /*!
@@ -35,7 +35,7 @@ protected:
      * @result True if successful, False otherwise.
      */
     bool init() override;
-    
+
     /*!
      * Releases held resources, following the OSObject pattern.
      */
@@ -43,12 +43,21 @@ protected:
 
 public:
 
-    
     /*!
      * @return Number of entries in this collection
      */
-    uint getCount();
-    
+    uint getCount() { return dict_->getCount(); }
+
+    /*!
+     * @return Number of nodes in the underlying dictionary.
+     */
+    uint getNodeCount() { return dict_->getNodeCount(); }
+
+    /*!
+     * @return Size in bytes of each node in the underlying dictionary.
+     */
+    uint getNodeSize() { return dict_->getNodeSize(); }
+
     /*!
      * Associates 'value' with current thread.
      *
@@ -57,7 +66,7 @@ public:
      *         and False when an existing value is updated to point to the new value.
      */
     bool insert(const OSObject *value);
-    
+
     /*!
      * Removes the value currently associated with the current thread (if any).
      *
@@ -72,7 +81,7 @@ public:
     OSObject* get() const;
     
 #pragma mark Static Methods
-    
+
     /*!
      * Factory method, following the OSObject pattern.
      *

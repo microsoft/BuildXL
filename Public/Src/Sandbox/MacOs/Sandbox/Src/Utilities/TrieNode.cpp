@@ -117,9 +117,15 @@ void NodeLight::free()
     Node::free();
 }
 
-NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock *maybeNullLock, IORecursiveLock *nonNullLock)
+NodeLight* NodeLight::findChild(uint key,
+                                bool createIfMissing,
+                                IORecursiveLock *maybeNullLock,
+                                IORecursiveLock *nonNullLock,
+                                bool *outNewNodeCreated)
 {
     Monitor __monitor(maybeNullLock); // this will only acquire the lock if lock is not null
+
+    *outNewNodeCreated = false;
 
     NodeLight *prev = nullptr;
     NodeLight *curr = children_;
@@ -143,12 +149,13 @@ NodeLight* NodeLight::findChild(uint key, bool createIfMissing, IORecursiveLock 
     else if (maybeNullLock == nullptr)
     {
         // didn't find it and didn't acquire lock --> must do it all over again with a lock
-        return findChild(key, createIfMissing, nonNullLock, nonNullLock);
+        return findChild(key, createIfMissing, nonNullLock, nonNullLock, outNewNodeCreated);
     }
     else
     {
         // didn't find it and we are holding the lock -> create a new node and link it
         NodeLight *newNode = NodeLight::create(key);
+        *outNewNodeCreated = newNode != nullptr;
         if (prev != nullptr)
         {
             prev->next_ = newNode;
@@ -242,8 +249,10 @@ void NodeFast::free()
     Node::free();
 }
 
-Node* NodeFast::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
+Node* NodeFast::findChild(uint key, bool createIfMissing, IORecursiveLock *lock, bool *outNewNodeCreated)
 {
+    *outNewNodeCreated = false;
+
     if (key < 0 || key >= length())
     {
         return nullptr;
@@ -273,6 +282,10 @@ Node* NodeFast::findChild(uint key, bool createIfMissing, IORecursiveLock *lock)
     {
         // someone else created this child node before us --> release 'newNode' that we created for nothing
         OSSafeReleaseNULL(newNode);
+    }
+    else
+    {
+        *outNewNodeCreated = true;
     }
 
     return children()[key];

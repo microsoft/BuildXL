@@ -53,11 +53,6 @@ void ThreadLocal::free()
 
 #pragma mark count/insert/remove/get methods
 
-uint ThreadLocal::getCount()
-{
-    return dict_->getCount();
-}
-
 bool ThreadLocal::insert(const OSObject *value)
 {
     auto result = dict_->replace(self_tid(), value);

@@ -97,6 +97,24 @@ public:
     /*! Various counters. */
     AllCounters* Counters() { return &counters_; }
 
+    /*! Number of elements in the 'lastPathLookup' dictionary. */
+    uint getLastPathLookupElemCount() { return lastPathLookup_->getCount(); }
+
+    /*! Number of nodes in the 'lastPathLookup' dictionary. */
+    uint getLastPathLookupNodeCount() { return lastPathLookup_->getNodeCount(); }
+
+    /*! Size in bytes of each node in the 'lastPathLookup' dictionary. */
+    uint getLastPathLookupNodeSize() { return lastPathLookup_->getNodeSize(); }
+
+    /*! Number of elements in the 'pathCache' dictionary. */
+    uint getPathCacheElemCount() { return pathCache_->getCount(); }
+
+    /*! Number of nodes in the 'pathCache' dictionary. */
+    uint getPathCacheNodeCount() { return pathCache_->getNodeCount(); }
+
+    /*! Size in bytes of each node in the 'pathCache' dictionary. */
+    uint getPathCacheNodeSize() { return pathCache_->getNodeSize(); }
+
     /*!
      * Uses a thread-local storage to save a given path as the last path that was looked up on the current thread.
      */

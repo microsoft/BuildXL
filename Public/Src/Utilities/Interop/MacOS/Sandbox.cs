@@ -5,6 +5,8 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member 
+
 namespace BuildXL.Interop.MacOS
 {
     /// <summary>
@@ -12,56 +14,37 @@ namespace BuildXL.Interop.MacOS
     /// </summary>
     public static class Sandbox
     {
-        /// <nodoc />
         public static readonly int ReportQueueSuccessCode = 0x1000;
-
-        /// <nodoc />
         public static readonly int SandboxSuccess = 0x0;
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         public static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
 
-        /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]
         public struct ESConnectionInfo
         {
-            /// <nodoc />
             public int Error;
-
-            /// <nodoc />
             public ulong Client;
-
-            /// <nodoc />
             public ulong Source;
-
-            /// <nodoc />
             public ulong RunLoop;
         }
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
         public static extern void InitializeEndpointSecuritySandbox(ref ESConnectionInfo info, int host);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, SetLastError = true)]
         public static extern void DeinitializeEndpointSecuritySandbox(ESConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern void ObserverFileAccessReports(
             ref ESConnectionInfo info,
             [MarshalAs(UnmanagedType.FunctionPtr)] AccessReportCallback callbackPointer,
             long accessReportSize);
-            
-        /// <nodoc />
+
         [StructLayout(LayoutKind.Sequential)]
         public struct KextConnectionInfo
         {
-            /// <nodoc />
             public int Error;
-
-            /// <nodoc />
             public uint Connection;
 
             /// <summary>
@@ -74,71 +57,52 @@ namespace BuildXL.Interop.MacOS
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention = CallingConvention.Cdecl)]
         private static extern void InitializeKextConnection(ref KextConnectionInfo info, long infoSize);
 
-        /// <nodoc />
         public static void InitializeKextConnection(ref KextConnectionInfo info)
             => InitializeKextConnection(ref info, Marshal.SizeOf(info));
 
-        /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]
         public struct KextSharedMemoryInfo
         {
-            /// <nodoc />
             public int Error;
-
-            /// <nodoc />
             public ulong Address;
-
-            /// <nodoc />
             public uint Port;
         }
 
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention = CallingConvention.Cdecl)]
         private static extern void InitializeKextSharedMemory(ref KextSharedMemoryInfo memoryInfo, long memoryInfoSize, KextConnectionInfo info);
 
-        /// <nodoc />
         public static void InitializeKextSharedMemory(KextConnectionInfo connectionInfo, ref KextSharedMemoryInfo memoryInfo)
             => InitializeKextSharedMemory(ref memoryInfo, Marshal.SizeOf(memoryInfo), connectionInfo);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention = CallingConvention.Cdecl)]
         public static extern void DeinitializeKextConnection(KextConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention = CallingConvention.Cdecl)]
         public static extern void DeinitializeKextSharedMemory(KextSharedMemoryInfo memoryInfo, KextConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         [return: MarshalAs(UnmanagedType.LPStr)]
         public static extern void KextVersionString(StringBuilder s, int size);
 
-        /// <nodoc />
         [Flags]
         public enum ConnectionType
         {
-            /// <nodoc />
             Kext,
-            
-            /// <nodoc />
             EndpointSecurity
         }
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "SendPipStarted")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SendPipStarted(int processId, long pipId, byte[] famBytes, int famBytesLength, ConnectionType type, ref KextConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "SendPipProcessTerminated")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SendPipProcessTerminated(long pipId, int processId, ConnectionType type, ref KextConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "CheckForDebugMode")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CheckForDebugMode(ref bool isDebug, KextConnectionInfo info);
 
-        /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]
         public struct ResourceThresholds
         {
@@ -171,48 +135,80 @@ namespace BuildXL.Interop.MacOS
             }
         }
 
-        /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]
         public struct KextConfig
         {
-            /// <nodoc />
             public uint ReportQueueSizeMB;
-
-            /// <nodoc />
             public bool EnableReportBatching;
-
-            /// <nodoc />
             public ResourceThresholds ResourceThresholds;
-            
-            /// <nodoc />
             public bool EnableCatalinaDataPartitionFiltering;
         }
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "Configure")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool Configure(KextConfig config, KextConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, EntryPoint = "UpdateCurrentResourceUsage")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool UpdateCurrentResourceUsage(uint cpuUsageBasisPoints, uint availableRamMB, KextConnectionInfo info);
 
-        /// <nodoc />
+        private static readonly Encoding s_accessReportStringEncoding = Encoding.UTF8;
+
         [StructLayout(LayoutKind.Sequential)]
         public struct AccessReportStatistics
         {
-            /// <nodoc />
             public ulong CreationTime;
-
-            /// <nodoc />
             public ulong EnqueueTime;
-
-            /// <nodoc />
             public ulong DequeueTime;
         }
 
-        /// <nodoc />
+        /// <summary>
+        /// Struct sent in place of <see cref="AccessReport.PathOrPipStats"/> in case of a 
+        /// <see cref="FileOperation.OpProcessTreeCompleted"/> operation.
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: Public/Src/Sandbox/MacOs/Sandbox/Src/BuildXLSandboxShared.hpp
+        /// </remarks>
+        [StructLayout(LayoutKind.Explicit, Size = 1024)]
+        public struct PipKextStats 
+        {
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(0)]
+            public uint LastPathLookupElemCount;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(4)]
+            public uint LastPathLookupNodeCount;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(8)]
+            public uint LastPathLookupNodeSize;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(12)]
+            public uint NumCacheHits;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(16)]
+            public uint NumCacheMisses;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(20)]
+            public uint CacheRecordCount;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(24)]
+            public uint CacheRecordSize;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(28)]
+            public uint CacheNodeCount;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(32)]
+            public uint CacheNodeSize;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(36)]
+            public uint NumForks;
+
+            [MarshalAs(UnmanagedType.U4)][FieldOffset(40)]
+            public uint NumHardLinkRetries;
+        } 
+
+        /// <remarks>
+        /// CODESYNC: Public/Src/Sandbox/MacOs/Sandbox/Src/BuildXLSandboxShared.hpp
+        /// </remarks>
         [StructLayout(LayoutKind.Sequential)]
         public struct AccessReport
         {
@@ -225,37 +221,62 @@ namespace BuildXL.Interop.MacOS
             /// <summary>Process ID of the root pip process</summary>
             public int RootPid;
 
-            /// <nodoc />
             public uint RequestedAccess;
-
-            /// <nodoc />
             public uint Status;
-
-            /// <nodoc />
             public uint ExplicitLogging;
-
-            /// <nodoc />
             public uint Error;
-
-            /// <nodoc />
             public long PipId;
 
-            /// <nodoc />
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Constants.MaxPathLength)]
-            public string Path;
+            /// <summary>
+            /// Corresponds to a <c>union { char path[MAXPATHLEN]; PipCompletionStats pipStats; }</c> C type.
+            /// Use <see cref="DecodePath"/> and <see cref="DecodePipKextStats"/> method to decode this value
+            /// into either a path string or a <see cref="PipKextStats"/> structure.
+            /// </summary>
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst=Constants.MaxPathLength)]
+            public byte[] PathOrPipStats;
 
-            /// <nodoc />
             public AccessReportStatistics Statistics;
 
-            /// <nodoc />
             public string DecodeOperation() => Operation.GetName();
+
+            /// <summary>
+            /// Interprets <see cref="PathOrPipStats"/> as a 0-terminated UTF8-encoded string.
+            /// </summary>
+            public string DecodePath()
+            {
+                return s_accessReportStringEncoding.GetString(PathOrPipStats).TrimEnd('\0');
+            }
+
+            /// <summary>
+            /// Encodes a given string into a byte array of a given size.
+            /// </summary>
+            public static byte[] EncodePath(string path, int bufferLength = Constants.MaxPathLength)
+            {
+                byte[] result = new byte[bufferLength];
+                s_accessReportStringEncoding.GetBytes(path, charIndex: 0, charCount: path.Length, bytes: result, byteIndex: 0);
+                return result;
+            }
+
+            /// <summary>
+            /// Interprets <see cref="PathOrPipStats"/> as an instance of the <see cref="PipKextStats"/> struct.
+            /// </summary>
+            public PipKextStats DecodePipKextStats()
+            {
+                var handle = GCHandle.Alloc(PathOrPipStats, GCHandleType.Pinned);
+                try
+                {
+                    return (PipKextStats)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(PipKextStats));
+                }
+                finally
+                {
+                    handle.Free();
+                }
+            }
         }
 
-        /// <nodoc />
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void AccessReportCallback(AccessReport report, int error);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern void ListenForFileAccessReports(
             [MarshalAs(UnmanagedType.FunctionPtr)] AccessReportCallback callbackPointer,
@@ -266,7 +287,7 @@ namespace BuildXL.Interop.MacOS
         /// <summary>
         /// Callback the kernel extension can use to report any unrecoverable failures.
         ///
-        /// This callback adhears to the IOAsyncCallback0 signature (see https://developer.apple.com/documentation/iokit/ioasynccallback0?language=objc)
+        /// This callback adheres to the IOAsyncCallback0 signature (see https://developer.apple.com/documentation/iokit/ioasynccallback0?language=objc)
         /// We don't transfer any data from the sandbox kernel extension to the managed code when an unrecoverable error happens for now, this can potentially be extended later.
         /// </summary>
         /// <param name="refCon">The pointer to the callback itself</param>
@@ -282,12 +303,12 @@ namespace BuildXL.Interop.MacOS
         /// <param name="description">Arbitrary description</param>
         public delegate void ManagedFailureCallback(int status, string description);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool SetFailureNotificationHandler([MarshalAs(UnmanagedType.FunctionPtr)] NativeFailureCallback callback, KextConnectionInfo info);
 
-        /// <nodoc />
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         public static extern ulong GetMachAbsoluteTime();
     }
 }
+
+#pragma warning restore CS1591

@@ -321,7 +321,10 @@ namespace BuildXL.Processes
                     return false;
                 }
 
-                Contract.Assume(bytesWritten <= bufferSizeInBytes, $"More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}.");
+                if (bytesWritten > bufferSizeInBytes)
+                {
+                    Contract.Assume(false, $"More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}.");
+                }
 
                 if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList)
                 {

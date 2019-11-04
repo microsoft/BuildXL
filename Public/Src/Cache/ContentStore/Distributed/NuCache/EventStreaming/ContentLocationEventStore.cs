@@ -126,7 +126,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                             addContent.Sender,
                             addContent.ContentHashes.SelectList((hash, index) => new ShortHashWithSize(hash, addContent.ContentSizes[index])),
                             eventData.Reconciling,
-                            addContent.ShouldTouch);
+                            updateLastAccessTime: true);
+                    }
+
+                    break;
+                case AddContentLocationWithoutTouchingEventData addContentWithoutTouching:
+                using (counters[DispatchAddLocations].Start())
+                    {
+                        counters[DispatchAddLocationsHashes].Add(eventData.ContentHashes.Count);
+                        EventHandler.LocationAdded(
+                            context,
+                            addContentWithoutTouching.Sender,
+                            addContentWithoutTouching.ContentHashes.SelectList((hash, index) => new ShortHashWithSize(hash, addContentWithoutTouching.ContentSizes[index])),
+                            eventData.Reconciling,
+                            updateLastAccessTime: false);
                     }
 
                     break;
@@ -393,7 +406,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var hashes = hashesWithSize.SelectList(h => h.Hash);
                     var sizes = hashesWithSize.SelectList(h => h.Size);
 
-                    Publish(context, new AddContentLocationEventData(machine, hashes, sizes, touch) { Reconciling = reconciling });
+                    var eventData = touch
+                        ? (ContentLocationEventData) new AddContentLocationEventData(machine, hashes, sizes) { Reconciling = reconciling }
+                        : new AddContentLocationWithoutTouchingEventData(machine, hashes, sizes) { Reconciling = reconciling };
+
+                    Publish(context, eventData);
 
                     return BoolResult.Success;
                 },

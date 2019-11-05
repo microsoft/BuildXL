@@ -685,7 +685,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _flushTask.GetAwaiter().GetResult();
             }
 
-            return renewed || blocking;
+            return renewed && blocking;
 
             Task forceCacheFlushAsync(OperationContext context, ContentLocationDatabaseCounters? counter = null)
             {

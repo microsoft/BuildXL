@@ -90,7 +90,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _flushTaskLock = new object();
 
-        private Task _flushTask = Task.CompletedTask;
+        private Task _flushTask = BoolResult.SuccessTask;
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 

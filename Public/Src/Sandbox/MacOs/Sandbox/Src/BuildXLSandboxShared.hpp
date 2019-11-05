@@ -163,6 +163,13 @@ typedef struct {
 } CountAndSize;
 
 typedef struct {
+    int64_t totalAllocatedBytes;
+    CountAndSize fastNodes;
+    CountAndSize lightNodes;
+    CountAndSize cacheRecords;
+} MemoryCountsAndSizes;
+
+typedef struct {
     DurationCounter findTrackedProcess;
     DurationCounter setLastLookedUpPath;
     DurationCounter checkPolicy;
@@ -176,10 +183,6 @@ typedef struct {
     Counter numForks;
     Counter numCacheHits;
     Counter numCacheMisses;
-    uint64_t totalAllocatedBytes;
-    CountAndSize fastNodes;
-    CountAndSize lightNodes;
-    CountAndSize cacheRecords;
 } AllCounters;
 
 typedef struct {
@@ -226,6 +229,7 @@ typedef struct {
 typedef struct {
     uint numAttachedClients;
     AllCounters counters;
+    MemoryCountsAndSizes memory;
     KextConfig kextConfig;
     uint numReportedPips;
     PipInfo pips[kMaxReportedPips];
@@ -242,6 +246,20 @@ typedef struct {
 } AccessReportStatistics;
 
 typedef struct {
+    uint32_t lastPathLookupElemCount;
+    uint32_t lastPathLookupNodeCount;
+    uint32_t lastPathLookupNodeSize;
+    uint32_t numCacheHits;
+    uint32_t numCacheMisses;
+    uint32_t cacheRecordCount;
+    uint32_t cacheRecordSize;
+    uint32_t cacheNodeCount;
+    uint32_t cacheNodeSize;
+    uint32_t numForks;
+    uint32_t numHardLinkRetries;
+} PipCompletionStats; // sizeof(PipCompletionStats) must be less than MAXPATHLEN, i.e., 1024
+
+typedef struct {
     FileOperation operation;
     pid_t pid;
     pid_t rootPid;
@@ -250,7 +268,11 @@ typedef struct {
     uint reportExplicitly;
     DWORD error;
     pipid_t pipId;
-    char path[MAXPATHLEN];
+    union
+    {
+        char path[MAXPATHLEN];
+        PipCompletionStats pipStats;
+    };
     AccessReportStatistics stats;
 } AccessReport;
 
@@ -268,11 +290,11 @@ inline bool HasAllFlags(const T source, const T bitMask)
 #pragma mark Macros and defines
 
 #ifndef BUILDXL_BUNDLE_IDENTIFIER
-static_assert(false, "BUILDXL_BUNDLE_IDENTIFIER not defined (shold be something like: com.microsoft.buildxl.sandbox)");
+static_assert(false, "BUILDXL_BUNDLE_IDENTIFIER not defined (should be something like: com.microsoft.buildxl.sandbox)");
 #endif
 
 #ifndef BUILDXL_CLASS_PREFIX
-static_assert(false, "BUILDXL_CLASS_PREFIX not defined (shold be something like: com_microsoft_buildxl_)");
+static_assert(false, "BUILDXL_CLASS_PREFIX not defined (should be something like: com_microsoft_buildxl_)");
 #endif
 
 #define CONCAT(prefix, name) prefix ## name

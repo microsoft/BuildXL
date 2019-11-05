@@ -34,6 +34,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("Newtonsoft.Json").pkg
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Engine",

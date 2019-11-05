@@ -293,6 +293,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                         case EventKind.Reconcile:
                             localCounters[SentReconcileEvents].Add(eventCount);
                             break;
+                        case EventKind.AddLocationWithoutTouching:
+                            localCounters[SentAddLocationsWithoutTouchingEvents].Add(eventCount);
+                            localCounters[SentAddLocationsWithoutTouchingHashes].Add(eventCount);
+                            break;
                         default:
                             throw new ArgumentOutOfRangeException($"Unknown {nameof(EventKind)} '{group.Key}'.");
                     }

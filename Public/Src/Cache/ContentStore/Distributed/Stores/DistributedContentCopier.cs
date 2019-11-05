@@ -2,12 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
@@ -43,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly int _maxRetryCount;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
-        private readonly ICopySender _copyRequester;
+        private readonly IProactiveCopier _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
         private readonly IContentLocationStore _contentLocationStore;
@@ -68,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
-            ICopySender copyRequester,
+            IProactiveCopier copyRequester,
             IPathTransformer<T> pathTransformer,
             IContentLocationStore contentLocationStore)
         {
@@ -244,7 +242,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             return _proactiveCopyIoGate.GatedOperationAsync(ts =>
                 {
-                    var cts = new CancellationTokenSource();
+                    using var cts = new CancellationTokenSource();
                     cts.CancelAfter(_timeoutForProactiveCopies);
                     // Creating new operation context with a new token, but the newly created context 
                     // still would have the same tracing context to simplify proactive copy trace analysis.

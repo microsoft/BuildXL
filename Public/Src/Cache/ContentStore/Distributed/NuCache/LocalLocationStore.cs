@@ -933,7 +933,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Notifies a central store that content represented by <paramref name="contentHashes"/> is available on a current machine.
         /// </summary>
-        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch = true)
+        public async Task<BoolResult> RegisterLocalLocationAsync(OperationContext context, IReadOnlyList<ContentHashWithSize> contentHashes, bool touch)
         {
             Contract.Requires(contentHashes != null);
 

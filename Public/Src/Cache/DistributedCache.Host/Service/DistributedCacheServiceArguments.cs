@@ -21,7 +21,7 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public IAbsolutePathFileCopier Copier { get; }
 
-        public ICopySender CopyRequester { get; }
+        public IProactiveCopier CopyRequester { get; }
 
         /// <nodoc />
         public IAbsolutePathTransformer PathTransformer { get; }
@@ -49,7 +49,7 @@ namespace BuildXL.Cache.Host.Service
             ILogger logger,
             IAbsolutePathFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
-            ICopySender copyRequester,
+            IProactiveCopier copyRequester,
             IDistributedCacheServiceHost host,
             HostInfo hostInfo,
             CancellationToken cancellation,

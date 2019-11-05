@@ -23,7 +23,6 @@ namespace BuildXL.Cache.ContentStore.App
         /// <summary>
         /// Run the CopyFileTo verb.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         [Verb(Description = "Copy file to another CASaaS")]
         internal void CopyFileTo(
             [Required, Description("Machine to copy to")] string host,

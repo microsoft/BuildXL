@@ -62,7 +62,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
     /// <summary>
     /// Copies files to another machine.
     /// </summary>
-    public interface ICopySender
+    public interface IProactiveCopier
     {
         /// <summary>
         /// Requests another machine to copy a file.

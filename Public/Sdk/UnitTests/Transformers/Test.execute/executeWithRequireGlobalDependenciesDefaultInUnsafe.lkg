@@ -33,6 +33,5 @@ Transformer.execute({
             p`./tmp_test/c/2/blz6q69zyb54pyovyq31edy6yrel0z/t`,
         ],
         allowPreservedOutputs: true,
-        requireGlobalDependencies: true,
     },
 });

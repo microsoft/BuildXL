@@ -341,7 +341,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 properties.Add(new PropertyAssignment("additionalTempDirectories", Generate(pip.AdditionalTempDirectories, tempDir => Generate(tempDir, "d"))));
             }
 
-            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses || pip.RequireGlobalDependencies)
+            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses || !pip.RequireGlobalDependencies)
             {
                 var unsafeProperties = new List<IObjectLiteralElement>();
                 if (pip.UntrackedPaths.Length > 0)
@@ -364,7 +364,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                     unsafeProperties.Add(new PropertyAssignment("allowPreservedOutputs", Generate(pip.AllowPreserveOutputs)));
                 }
 
-                if (pip.RequireGlobalDependencies)
+                if (!pip.RequireGlobalDependencies)
                 {
                     unsafeProperties.Add(new PropertyAssignment("requireGlobalDependencies", Generate(pip.RequireGlobalDependencies)));
                 }

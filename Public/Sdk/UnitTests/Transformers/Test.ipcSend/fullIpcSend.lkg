@@ -10,7 +10,6 @@ Transformer.execute({
     dependencies: [f`./src/tool/tool.exe`],
     implicitOutputs: [f`./Out/shutdown-stdout.txt`],
     consoleOutput: p`./Out/shutdown-stdout.txt`,
-    unsafe: {requireGlobalDependencies: true},
 });
 Transformer.ipcSend({
     connectRetryDelayMillis: 1000,
@@ -37,7 +36,6 @@ Transformer.createService({
     dependencies: [f`./src/tool/tool.exe`],
     implicitOutputs: [f`./Out/service-stdout.txt`],
     consoleOutput: p`./Out/service-stdout.txt`,
-    unsafe: {requireGlobalDependencies: true},
 });
 Transformer.sealDirectory({root: d`./src/dir`, files: [f`./src/dir/file.txt`]});
 Transformer.ipcSend({

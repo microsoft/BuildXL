@@ -14,7 +14,6 @@ Transformer.execute({
         separator: "",
         items: ["StringInputForConsole"],
     },
-    unsafe: {requireGlobalDependencies: true},
 });
 Transformer.execute({
     tool: {exe: f`./src/dataInput.exe`},
@@ -48,5 +47,4 @@ Transformer.execute({
             },
         ],
     },
-    unsafe: {requireGlobalDependencies: true},
 });

@@ -29,5 +29,4 @@ Transformer.execute({
         {name: "staticDirs", value: [p`./src/seal1`, p`./src/seal2`]},
         {name: "string", value: "stringValue"},
     ],
-    unsafe: {requireGlobalDependencies: true},
 });

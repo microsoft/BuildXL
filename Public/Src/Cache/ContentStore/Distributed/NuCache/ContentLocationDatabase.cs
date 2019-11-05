@@ -327,6 +327,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             EnumerationFilter filter = null)
         {
+            // Flush only when the database is writable (and the cache is enabled).
+            if (IsDatabaseWriteable && IsInMemoryCacheEnabled)
+            {
+                ForceCacheFlush(context, ContentLocationDatabaseCounters.NumberOfCacheFlushesTriggeredByContentEnumeration, blocking: true);
+            }
+
             return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
         }
 

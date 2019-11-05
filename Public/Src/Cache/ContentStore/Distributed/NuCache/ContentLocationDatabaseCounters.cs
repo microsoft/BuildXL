@@ -92,6 +92,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         NumberOfCacheFlushesTriggeredByCheckpoint,
 
         /// <nodoc />
+        NumberOfCacheFlushesTriggeredByContentEnumeration,
+
+        /// <nodoc />
         NumberOfPersistedEntries,
 
         /// <nodoc />

@@ -6,6 +6,6 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 namespace StandardSdk.Transformers {
     export const transformersTest = BuildXLSdk.sdkTest({
         testFiles: glob(d`.`, "Test.*.dsc"),
-        autoFixLkgs: true, // Uncomment this line to have all lkgs automatically updated.
+        // autoFixLkgs: true, // Uncomment this line to have all lkgs automatically updated.
     });
 }

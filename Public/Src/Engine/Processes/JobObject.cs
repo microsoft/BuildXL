@@ -15,6 +15,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
@@ -323,7 +324,23 @@ namespace BuildXL.Processes
 
                 if (bytesWritten > bufferSizeInBytes)
                 {
-                    Contract.Assume(false, $"More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}.");
+                    long numAssignedProcesses = 0;
+                    long numProcessIdsInList = 0;
+                    if (processIdListPtr != null)
+                    {
+                        numAssignedProcesses = processIdListPtr->NumberOfAssignedProcesses;
+                        numProcessIdsInList = processIdListPtr->NumberOfProcessIdsInList;
+                    }
+
+                    Tracing.Logger.Log.MoreBytesWrittenThanBufferSize(
+                        Events.StaticContext,
+                        bytesWritten,
+                        bufferSizeInBytes,
+                        numAssignedProcesses,
+                        numProcessIdsInList);
+
+                    processIds = null;
+                    return false;
                 }
 
                 if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList)

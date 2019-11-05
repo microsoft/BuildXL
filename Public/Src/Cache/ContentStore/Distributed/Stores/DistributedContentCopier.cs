@@ -240,14 +240,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing)
         {
-            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
+            return _proactiveCopyIoGate.GatedOperationAsync(async ts =>
                 {
                     using var cts = new CancellationTokenSource();
                     cts.CancelAfter(_timeoutForProactiveCopies);
                     // Creating new operation context with a new token, but the newly created context 
                     // still would have the same tracing context to simplify proactive copy trace analysis.
                     var innerContext = context.WithCancellationToken(cts.Token);
-                    return context.PerformOperationAsync(
+                    return await context.PerformOperationAsync(
                         Tracer,
                         operation: () => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
                         traceOperationStarted: false,

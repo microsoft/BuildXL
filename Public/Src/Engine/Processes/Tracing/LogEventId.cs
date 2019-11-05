@@ -109,6 +109,7 @@ namespace BuildXL.Processes.Tracing
         LogFailedToCreateDirectoryForInternalDetoursFailureFile = 2925,
         LogMismatchedDetoursVerboseCount = 2927,
         LogDetoursMaxHeapSize = 2928,
+        MoreBytesWrittenThanBufferSize = 2930,
 
         //DominoProcessesStart = 4400,
         PipProcessUncacheableWhitelistNotAllowedInDistributedBuilds = 4401,
@@ -131,7 +132,7 @@ namespace BuildXL.Processes.Tracing
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,
         DisallowedDoubleWriteOnMerge = 12211,
-        
+
         //// Special tool errors
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
     }

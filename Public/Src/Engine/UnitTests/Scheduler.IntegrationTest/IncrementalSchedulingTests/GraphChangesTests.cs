@@ -928,7 +928,6 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             // Run first without incremental scheduling.
             Configuration.Schedule.IncrementalScheduling = false;
-            Configuration.Schedule.GraphAgnosticIncrementalScheduling = false;
 
             // Start with G1.
             AbsolutePath sdRoot = CreateUniqueDirectory();
@@ -964,7 +963,6 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             // Enable incremental scheduling.
             Configuration.Schedule.IncrementalScheduling = true;
-            Configuration.Schedule.GraphAgnosticIncrementalScheduling = true;
 
             // Switch to G1.
             ResetPipGraphBuilder();

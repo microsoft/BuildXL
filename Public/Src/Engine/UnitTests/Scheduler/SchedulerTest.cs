@@ -89,8 +89,7 @@ namespace Test.BuildXL.Scheduler
             bool scheduleMetaPips = false,
             int maxProcesses = 1,
             bool enableJournal = false,
-            bool enableIncrementalScheduling = false,
-            bool enableGraphAgnosticIncrementalScheduling = true)
+            bool enableIncrementalScheduling = false)
         {
             m_fileContentTable = FileContentTable.CreateNew();
 
@@ -115,11 +114,6 @@ namespace Test.BuildXL.Scheduler
             {
                 m_configuration.Schedule.IncrementalScheduling = true;
                 m_configuration.Schedule.ComputePipStaticFingerprints = true;
-
-                if (!enableGraphAgnosticIncrementalScheduling)
-                {
-                    m_configuration.Schedule.GraphAgnosticIncrementalScheduling = false;
-                }
             }
 
             if (m_configuration.Schedule.IncrementalScheduling)

@@ -254,6 +254,8 @@ namespace BuildXL.FrontEnd.Script
         /// <inheritdoc/>
         public void NotifyEvaluationFinished()
         {
+            EvaluationStackFrame.TearDownPool();
+
             // In case a decorator is present, we notify evaluation is over
             if (m_evaluationDecorator != null)
             {

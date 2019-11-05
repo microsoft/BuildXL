@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -88,9 +87,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _cacheFlushTimerLock = new object();
 
-        private int _isFlushInProgress = 0;
 
-        private readonly ManualResetEventSlim _flushEvent = new ManualResetEventSlim(false);
+        private readonly object _flushTaskLock = new object();
+
+        private Task _flushTask = BoolResult.SuccessTask;
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -631,7 +631,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _inMemoryCache.Store(context, hash, entry);
 
                 var updates = Interlocked.Increment(ref _cacheUpdatesSinceLastFlush);
-                if (_configuration.CacheMaximumUpdatesPerFlush > 0 && updates >= _configuration.CacheMaximumUpdatesPerFlush && _isFlushInProgress == 0)
+                if (_configuration.CacheMaximumUpdatesPerFlush > 0 && updates >= _configuration.CacheMaximumUpdatesPerFlush && _flushTask.IsCompleted)
                 {
                     // We trigger a flush following the indicated number of operations. However, high load can cause
                     // flushes to run for too long, hence, we trigger the logic every time after we go over the
@@ -654,6 +654,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
+        /// <summary>
+        /// Forces a cache flush.
+        /// </summary>
+        /// <returns>
+        /// The return value is only relevant for tests, and when the in-memory cache is enabled.
+        ///
+        /// It is true if the current thread either performed or waited for a flush to finish.
+        /// </returns>
         internal bool ForceCacheFlush(OperationContext context, ContentLocationDatabaseCounters? counter = null, bool blocking = true)
         {
             if (!IsInMemoryCacheEnabled)
@@ -661,43 +669,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return false;
             }
 
-            // Ensure only one thread can start the flush
-            if (Interlocked.CompareExchange(ref _isFlushInProgress, 1, 0) == 1)
+            bool renewed = false;
+            if (_flushTask.IsCompleted)
             {
-                if (blocking)
+                lock (_flushTaskLock)
                 {
-                    // If the flush is blocking, then we need to wait until it is over for correctness
-                    _flushEvent.Wait();
-                    return true;
+                    if (_flushTask.IsCompleted)
+                    {
+                        _flushTask = forceCacheFlushAsync(context, counter);
+                        renewed = true;
+                    }
                 }
-
-                return false;
             }
-
-            var task = forceCacheFlushAsync(context, counter).ContinueWith(_ =>
-            {
-                // Release all threads waiting for the flush to finish
-                _flushEvent.Set();
-
-                // If a blocking flush gets interleaved with this code, the blocking flush could potentially be forced
-                // to wait until another thread comes along and effectively performs the flush. Not much we can do
-                // about this, as the alternative is just as bad or worse.
-
-                _flushEvent.Reset();
-
-                Interlocked.Exchange(ref _isFlushInProgress, 0);
-            });
 
             if (blocking)
             {
-                task.GetAwaiter().GetResult();
-            }
-            else
-            {
-                task.FireAndForget(context);
+                _flushTask.GetAwaiter().GetResult();
             }
 
-            return true;
+            return renewed && blocking;
 
             Task forceCacheFlushAsync(OperationContext context, ContentLocationDatabaseCounters? counter = null)
             {

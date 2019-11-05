@@ -263,6 +263,20 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
+            (int)LogEventId.MoreBytesWrittenThanBufferSize,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}. NumAssignedProcess: {numAssignedProcesses}, NumProcessIdsInList: {numProcessIdsInList}.")]
+        public abstract void MoreBytesWrittenThanBufferSize(
+            LoggingContext context,
+            long bytesWritten,
+            long bufferSizeInBytes,
+            long numAssignedProcesses,
+            long numProcessIdsInList);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessIgnoringPathWithWildcardsFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

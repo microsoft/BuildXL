@@ -976,6 +976,10 @@ namespace BuildXL.Utilities.Tracing
         IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan = 8078,
         IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan = 8079,
 
+        IncrementalSchedulingStateStatsAfterLoad = 8080,
+        IncrementalSchedulingStateStatsAfterScan = 8081,
+        IncrementalSchedulingStateStatsEnd = 8082,
+
         // Server mode
         UsingExistingServer = 8100,
         AppServerBuildStart = 8101,

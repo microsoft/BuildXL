@@ -45,7 +45,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             /// <summary>
             /// Maximum valid size. A checkpoint larger than this triggers a fatal error.
             /// </summary>
-            public string MaximumValidSize { get; set; } = "30GB";
+            public string MaximumValidSize { get; set; } = "70GB";
 
             public long MaximumValidSizeBytes => MaximumValidSize.ToSize();
 

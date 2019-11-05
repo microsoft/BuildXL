@@ -327,9 +327,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return true;
             }
 
-            context.Debug($"{evictionCount} eviction attempts before current candidate");
-            context.Debug($"Eviction candidate is not pass minimum eviction age of {evictionMinAge.ToString()}, candidate replica count: {candidate.ReplicaCount}, Effective age: {candidate.EffectiveAge}, Age: {candidate.Age}");
-            context.Debug($"Pool size: {_configuration.EvictionPoolSize}, Window size: {_configuration.EvictionWindowSize}, Removal fraction: {_configuration.EvictionRemovalFraction}");
+            context.Debug($"{evictionCount} eviction attempts before current candidate, minimum eviction age: {evictionMinAge.ToString()}, pool size: {_configuration.EvictionPoolSize}." +
+                $" Candidate replica count: {candidate.ReplicaCount}, effective age: {candidate.EffectiveAge}, age: {candidate.Age}.");
             return false;
         }
 

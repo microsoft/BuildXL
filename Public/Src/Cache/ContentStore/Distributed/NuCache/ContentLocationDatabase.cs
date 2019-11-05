@@ -327,10 +327,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             EnumerationFilter filter = null)
         {
-            // This is called only when computing reconciliation between a worker's LLS and local store. This means we
-            // don't need to flush, because workers don't perform any updates.
-            Contract.Assert(!IsDatabaseWriteable);
-
             return EnumerateEntriesWithSortedKeysFromStorage(context.Token, filter);
         }
 

@@ -1496,7 +1496,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 Contract.Assert(dirtyNodeTrackerSerializedState != null);
                 dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DataflowGraph, dirtyNodeTrackerSerializedState);
             }
-            else if (configuration.Schedule.GraphAgnosticIncrementalScheduling)
+            else
             {
                 // Re-initialize dirty node tracker.
                 dirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false);
@@ -1529,10 +1529,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     loadedGraphId.ToString(),
                     pipGraph.GraphId.ToString(),
                     (long)processGraphChangeStopwatch.TotalElapsed.TotalMilliseconds);
-            }
-            else
-            {
-                return null;
             }
 
             return new GraphAgnosticIncrementalSchedulingState(

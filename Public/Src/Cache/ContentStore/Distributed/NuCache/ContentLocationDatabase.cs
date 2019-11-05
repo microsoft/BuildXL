@@ -652,6 +652,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Store(context, hash, entry: null);
         }
 
+        /// <summary>
+        /// Forces a cache flush.
+        /// </summary>
+        /// <returns>
+        /// The return value is only relevant for tests, and when the in-memory cache is enabled.
+        ///
+        /// It is true if the current thread either performed or waited for a flush to finish.
+        /// </returns>
         internal bool ForceCacheFlush(OperationContext context, ContentLocationDatabaseCounters? counter = null, bool blocking = true)
         {
             if (!IsInMemoryCacheEnabled)

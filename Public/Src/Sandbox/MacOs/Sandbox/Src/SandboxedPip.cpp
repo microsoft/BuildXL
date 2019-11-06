@@ -19,7 +19,8 @@ bool SandboxedPip::init(pid_t clientPid, pid_t processPid, Buffer *payload)
     processId_        = processPid;
     processTreeCount_ = 1;
     counters_         = {0};
-    disableCaching_   = false;
+    disableCaching_   = !g_bxl_enable_cache;
+    cacheCallCnt_     = 0;
 
     payload_->retain();
 
@@ -30,7 +31,8 @@ bool SandboxedPip::init(pid_t clientPid, pid_t processPid, Buffer *payload)
         return false;
     }
 
-    pathCache_ = Trie::createPathTrie();
+    oldPathCache_ = nullptr;
+    pathCache_    = Trie::createPathTrie();
     if (!pathCache_)
     {
         return false;
@@ -59,6 +61,7 @@ void SandboxedPip::free()
     OSSafeReleaseNULL(payload_);
     OSSafeReleaseNULL(lastPathLookup_);
     OSSafeReleaseNULL(pathCache_);
+    OSSafeReleaseNULL(oldPathCache_);
     super::free();
 }
 
@@ -82,7 +85,7 @@ SandboxedPip* SandboxedPip::create(pid_t clientPid, pid_t processPid, Buffer *pa
     return instance;
 }
 
-PipInfo SandboxedPip::introspect() const
+PipInfo SandboxedPip::introspect()
 {
     return
     {
@@ -103,17 +106,19 @@ bool SandboxedPip::RefreshDisableCaching()
     {
         if (ShouldDisableCaching())
         {
+            // once caching is disabled, it must stay disabled
             disableCaching_ = true;
             Trie *oldCache = pathCache_;
             Trie *newCache = Trie::createPathTrie();
             if (OSCompareAndSwapPtr(oldCache, newCache, &pathCache_))
             {
-                // we swapped --> release oldCache
-                OSSafeReleaseNULL(oldCache);
+                // we swapped --> save oldCache for garbage collection
+                // (releasing is immediately is dangerous because it might still be in use in a concurrent thread)
+                oldPathCache_ = oldCache;
             }
             else
             {
-                // someone else did it --> release newCache
+                // someone else did it --> release newCache that was created for nothing
                 OSSafeReleaseNULL(newCache);
             }
         }
@@ -122,13 +127,15 @@ bool SandboxedPip::RefreshDisableCaching()
     return disableCaching_;
 }
 
+# define PCT(a, b) (int)(((a) * 1.0) / ((a) + (b)) * 100)
+
 inline bool SandboxedPip::ShouldDisableCaching()
 {
     return
-        // have more than 30000 cache entries
-        pathCache_->getCount() > 20000 &&
-        // and less than 20% cache hits
-        (counters_.numCacheHits.count() << 2) < counters_.numCacheMisses.count();
+        // above the min_entries threshold
+        pathCache_->getCount() > g_bxl_disable_cache_min_entries &&
+        // below the max_hit_pct threshold
+        PCT(counters_.numCacheHits, counters_.numCacheMisses) < g_bxl_disable_cache_max_hit_pct;
 }
 
 #undef super

@@ -196,8 +196,6 @@ namespace BuildXL
                 bool unsafeUnexpectedFileAccessesAreErrorsSet = false;
                 bool failPipOnFileAccessErrorSet = false;
                 bool? enableProfileRedirect = null;
-                ContentHashingUtilities.SetContentHasherIdlePoolSize(10);
-                ContentHashingUtilities.SetDefaultHashType();
                 
                 // Notes
                 //

@@ -174,12 +174,7 @@ public:
             return nullptr;
         }
 
-        // save pathCache_ to a local var and call retain/release on it because pathCache_ can be
-        // concurrently reassigned and the underlying tree released (see RefreshDisableCaching())
-        Trie *cache = pathCache_;
-        cache->retain();
         OSObject *value = pathCache_->getOrAdd(path, nullptr, CacheRecordFactory);
-        cache->release();
         return OSDynamicCast(CacheRecord, value);
     }
 

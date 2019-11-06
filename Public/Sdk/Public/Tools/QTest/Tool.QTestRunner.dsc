@@ -85,6 +85,18 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
             return "Framework40";
         case QTestDotNetFramework.framework45:
             return "Framework45";
+        case QTestDotNetFramework.framework46:
+            return "Framework46";
+        case QTestDotNetFramework.frameworkCore10:
+            return "FrameworkCore10";
+        case QTestDotNetFramework.frameworkCore20:
+            return "FrameworkCore20";
+        case QTestDotNetFramework.frameworkCore21:
+            return "FrameworkCore21";
+        case QTestDotNetFramework.frameworkCore22:
+            return "FrameworkCore22";
+        case QTestDotNetFramework.frameworkCore30:
+            return "FrameworkCore30";
         case QTestDotNetFramework.unspecified:
         default:
             return "Unspecified";
@@ -326,6 +338,18 @@ export const enum QTestDotNetFramework {
     framework40,
     @@Tool.option("--qtestDotNetFramework framework45")
     framework45,
+    @@Tool.option("--qtestDotNetFramework framework46")
+    framework46,
+    @@Tool.option("--qtestDotNetFramework frameworkCore10")
+    frameworkCore10,
+    @@Tool.option("--qtestDotNetFramework frameworkCore20")
+    frameworkCore20,
+    @@Tool.option("--qtestDotNetFramework frameworkCore21")
+    frameworkCore21,
+    @@Tool.option("--qtestDotNetFramework frameworkCore22")
+    frameworkCore22,
+    @@Tool.option("--qtestDotNetFramework frameworkCore30")
+    frameworkCore30,
 }
 /**
  * Arguments of DBS.QTest.exe

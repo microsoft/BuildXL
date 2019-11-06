@@ -206,6 +206,9 @@ message FileArtifactKeyedHash
 
     // The directory artifacts which contain the file
     repeated GrpcDirectoryArtifact AssociatedDirectories = 9;
+
+    // Whether the File is affected by the source code changes
+    bool IsSourceAffected = 10;
 }
 
 message GrpcDirectoryArtifact

@@ -27,7 +27,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
         /// <remarks>
         ///     Cap the number of idle reserve instances in the pool so as to not unnecessarily hold large amounts of memory
         /// </remarks>
-        private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T(), maxReserveInstances: 10);
+        private readonly Pool<HashAlgorithm> _algorithmsPool = new Pool<HashAlgorithm>(() => new T(), maxReserveInstances: HashInfoLookup.ContentHasherIdlePoolSize);
 
         private readonly ByteArrayPool _bufferPool = new ByteArrayPool(FileSystemConstants.FileIOBufferSize);
 

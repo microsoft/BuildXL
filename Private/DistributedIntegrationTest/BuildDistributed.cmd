@@ -30,10 +30,21 @@ set SMDB.CACHE_TEMPLATE_PATH=%TEST_SOLUTION_ROOT%\Out\SharedCache
 set BuildXLExportFileDetails=1
 set BUILDXL_MASTER_ARGS=/maxProc:2 %BUILDXL_MASTER_ARGS%
 set BUILDXL_WORKER_ARGS=/maxProc:6 %BUILDXL_WORKER_ARGS%
+
+REM The following variables are for ChangeAffectedInputTest
+set SOURCE_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\inputfile.txt
+set CHANGEAFFECTEDINPUTTEST_DIR=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest
+set OUTPUT_DIR_NAME=output
+set OUTPUT_FILE_NAME=outputfile.txt
+set OUTPUT_FILE=%CHANGEAFFECTEDINPUTTEST_DIR%\%OUTPUT_DIR_NAME%\%OUTPUT_FILE_NAME%
+set EXPECTED_WRITTEN_FILE=%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\expectedChangeAffectedInputListWrittenFile.txt
+echo %SOURCE_FILE%>%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
+echo %OUTPUT_FILE%>%EXPECTED_WRITTEN_FILE%
+
     @REM disabled warnings:
     @REM   - DX2841: Virus scanning software is enabled for.
     @REM   - DX2200: Failed to clean temp directory. Reason: unable to enumerate the directory or a descendant directory to verify that it has been emptied.
-set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+
+set BUILDXL_COMMON_ARGS=/server- /exp:NewCache /exp:TwoPhaseFingerprinting /exp:DontBringOutputsToMaster /nowarn:2841 /nowarn:2200 /p:OfficeDropTestEnableDrop=True /f:~(tag='exclude-drop-file'ortag='dropd-finalize') "/storageRoot:{objectRoot}:\ " "/config:{sourceRoot}:\config.dsc" "/cacheConfigFilePath:%SMDB.CACHE_CONFIG_OUTPUT_PATH%" "/rootMap:{sourceRoot}=%TEST_SOLUTION_ROOT%" "/rootMap:{objectRoot}=%TEST_SOLUTION_ROOT%\Out\M{machineNumber}" "/cacheDirectory:{objectRoot}:\Cache"  /logObservedFileAccesses /substTarget:{objectRoot}:\ /substSource:%TEST_SOLUTION_ROOT%\Out\M{machineNumber}\ /logsDirectory:{objectRoot}:\Logs /disableProcessRetryOnResourceExhaustion+ /inputChanges:%TEST_SOLUTION_ROOT%\Src\ChangeAffectedInputTest\sourceChange.txt
 
 if NOT DEFINED DISABLE_DBD_TESTRUN (
     %BUILDXL_TEST_BIN_DIRECTORY%\DistributedBuildRunner.exe 2 %*

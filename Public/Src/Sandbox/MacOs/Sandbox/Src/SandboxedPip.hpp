@@ -184,8 +184,6 @@ public:
             //   --> safe to release old path cache left to be garbage collected
             if (cacheCallCnt_ == 1 && callCnt.ValueBeforeTheIncrement() == 0 && oldPathCache_ != nullptr)
             {
-                log_debug("========== releasing old path cache early: num nodes: %d, num records: %d",
-                          oldPathCache_->getNodeCount(), oldPathCache_->getCount());
                 OSSafeReleaseNULL(oldPathCache_);
             }
 

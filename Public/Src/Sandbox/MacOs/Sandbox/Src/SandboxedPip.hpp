@@ -54,6 +54,9 @@ private:
     /*! Maps every accessed path to a 'CacheRecord' object (which contains caching information regarding that path) */
     Trie *pathCache_;
 
+    /*! Starts out as false and becomes true if we decide to disable caching for this pip. */
+    bool disableCaching_;
+
     /*! A thread-local storage for remembering the last looked up path by every thread. */
     ThreadLocal *lastPathLookup_;
 
@@ -98,22 +101,22 @@ public:
     AllCounters* Counters() { return &counters_; }
 
     /*! Number of elements in the 'lastPathLookup' dictionary. */
-    uint getLastPathLookupElemCount() { return lastPathLookup_->getCount(); }
+    uint getLastPathLookupElemCount() const { return lastPathLookup_->getCount(); }
 
     /*! Number of nodes in the 'lastPathLookup' dictionary. */
-    uint getLastPathLookupNodeCount() { return lastPathLookup_->getNodeCount(); }
+    uint getLastPathLookupNodeCount() const { return lastPathLookup_->getNodeCount(); }
 
     /*! Size in bytes of each node in the 'lastPathLookup' dictionary. */
-    uint getLastPathLookupNodeSize() { return lastPathLookup_->getNodeSize(); }
+    uint getLastPathLookupNodeSize() const { return lastPathLookup_->getNodeSize(); }
 
     /*! Number of elements in the 'pathCache' dictionary. */
-    uint getPathCacheElemCount() { return pathCache_->getCount(); }
+    uint getPathCacheElemCount() const { return pathCache_->getCount(); }
 
     /*! Number of nodes in the 'pathCache' dictionary. */
-    uint getPathCacheNodeCount() { return pathCache_->getNodeCount(); }
+    uint getPathCacheNodeCount() const { return pathCache_->getNodeCount(); }
 
     /*! Size in bytes of each node in the 'pathCache' dictionary. */
-    uint getPathCacheNodeSize() { return pathCache_->getNodeSize(); }
+    uint getPathCacheNodeSize() const { return pathCache_->getNodeSize(); }
 
     /*!
      * Uses a thread-local storage to save a given path as the last path that was looked up on the current thread.
@@ -157,14 +160,26 @@ public:
      * If no such record exists, a new one is created and associated with the path.
      * Return value of NULL indicates that there is an inherent reason why the path cannot be added to cache.
      */
-    inline CacheRecord* cacheLookup(const char *path)
+    CacheRecord* cacheLookup(const char *path)
     {
         if (!g_bxl_enable_cache)
         {
+            // caching globally disabled
             return nullptr;
         }
 
+        if (RefreshDisableCaching())
+        {
+            // dynamically decided to disable caching for this pip
+            return nullptr;
+        }
+
+        // save pathCache_ to a local var and call retain/release on it because pathCache_ can be
+        // concurrently reassigned and the underlying tree released (see RefreshDisableCaching())
+        Trie *cache = pathCache_;
+        cache->retain();
         OSObject *value = pathCache_->getOrAdd(path, nullptr, CacheRecordFactory);
+        cache->release();
         return OSDynamicCast(CacheRecord, value);
     }
 
@@ -172,6 +187,11 @@ public:
 
     /*! Factory method. The caller is responsible for releasing the returned object. */
     static SandboxedPip* create(pid_t clientPid, pid_t processPid, Buffer *payload);
+
+private:
+
+    bool RefreshDisableCaching();
+    inline bool ShouldDisableCaching();
 };
 
 #endif /* SandboxedPip_hpp */

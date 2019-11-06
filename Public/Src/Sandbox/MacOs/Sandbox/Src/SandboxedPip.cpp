@@ -19,6 +19,7 @@ bool SandboxedPip::init(pid_t clientPid, pid_t processPid, Buffer *payload)
     processId_        = processPid;
     processTreeCount_ = 1;
     counters_         = {0};
+    disableCaching_   = false;
 
     payload_->retain();
 
@@ -88,12 +89,46 @@ PipInfo SandboxedPip::introspect() const
         .pid                 = getProcessId(),
         .clientPid           = getClientPid(),
         .pipId               = getPipId(),
-        .cacheSize           = pathCache_->getCount(),
+        .cacheSize           = getPathCacheElemCount(),
         .treeSize            = getTreeSize(),
         .counters            = counters_,
         .numReportedChildren = 0,
         .children            = {0}
     };
+}
+
+bool SandboxedPip::RefreshDisableCaching()
+{
+    if (!disableCaching_)
+    {
+        if (ShouldDisableCaching())
+        {
+            disableCaching_ = true;
+            Trie *oldCache = pathCache_;
+            Trie *newCache = Trie::createPathTrie();
+            if (OSCompareAndSwapPtr(oldCache, newCache, &pathCache_))
+            {
+                // we swapped --> release oldCache
+                OSSafeReleaseNULL(oldCache);
+            }
+            else
+            {
+                // someone else did it --> release newCache
+                OSSafeReleaseNULL(newCache);
+            }
+        }
+    }
+
+    return disableCaching_;
+}
+
+inline bool SandboxedPip::ShouldDisableCaching()
+{
+    return
+        // have more than 30000 cache entries
+        pathCache_->getCount() > 20000 &&
+        // and less than 20% cache hits
+        (counters_.numCacheHits.count() << 2) < counters_.numCacheMisses.count();
 }
 
 #undef super

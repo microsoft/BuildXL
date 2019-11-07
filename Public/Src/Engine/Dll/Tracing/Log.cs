@@ -1869,6 +1869,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)EventId.CannotReadSidebandFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Cannot read sideband file '{fileName}': {error}")]
+        public abstract void CannotReadSidebandFile(LoggingContext context, string fileName, string error);
+
+        [GeneratedEvent(
             (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

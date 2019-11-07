@@ -256,8 +256,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             $"TargetLocation=[{targetLocation}] " +
                             $"InsideRing={isInsideRing} " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                            $"IOGate.Wait={ts.TotalMilliseconds}ms." +
-                            $"Timeout={_timeoutForProactiveCopies}" +
+                            $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
+                            $"Timeout={_timeoutForProactiveCopies} " +
                             $"TimedOut={cts.Token.IsCancellationRequested}"
                         );
                 },
@@ -285,8 +285,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                         $"TargetLocation=[{targetLocation}] " +
                         $"InsideRing={isInsideRing} " +
                         $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                        $"IOGate.Wait={ts.TotalMilliseconds}ms." +
-                        $"Timeout={_timeoutForProactiveCopies}" +
+                        $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
+                        $"Timeout={_timeoutForProactiveCopies} " +
                         $"TimedOut={cts.Token.IsCancellationRequested}"
                     );
             },

@@ -27,8 +27,10 @@ namespace BuildXL.Processes
     /// </remarks>
     public sealed class AugmentedManifestReporter
     {
-        [CanBeNull]
-        private readonly SafeFileHandle m_detoursReportHandle = null;
+        /// <summary>
+        /// We shouldn't try to close this handle. Detours takes care of that.
+        /// </summary>
+        [CanBeNull] private readonly SafeFileHandle m_detoursReportHandle;
         private readonly UnicodeEncoding m_encoding;
 
         /// <nodoc/>
@@ -38,20 +40,20 @@ namespace BuildXL.Processes
         {
             m_encoding = new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
 
-            // Keep variable name in sync with DetoursServices on the C++ side
+            // CODESYNC: Keep variable name in sync with DetoursServices on the C++ side
             string handleAsString = Environment.GetEnvironmentVariable("BUILDXL_AUGMENTED_MANIFEST_HANDLE");
             
             // If the expected environment variable with the handle pointer is not set, just return. We'll check this
             // when reporting an access
             if (string.IsNullOrEmpty(handleAsString))
             {
+                m_detoursReportHandle = null;
                 return;
             }
 
             var success = int.TryParse(handleAsString, NumberStyles.Integer, CultureInfo.InvariantCulture, out int handlePtr);
             Contract.Assert(success);
 
-            // We shouldn't try to close this handle. Detours takes care of that.
             m_detoursReportHandle = new SafeFileHandle(new IntPtr(handlePtr), ownsHandle: false);
         }
 

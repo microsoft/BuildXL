@@ -351,7 +351,7 @@ namespace BuildXL.Processes
                         Pipes.PipeFlags.ReadSideAsync,
                         readHandle: out reportHandle,
                         writeHandle: out childHandle);
-                    
+
                     var setup =
                         new FileAccessSetup
                         {

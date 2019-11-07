@@ -768,7 +768,9 @@ namespace BuildXL.Processes
             }
 
             // If this is an augmented file access, the method was not based on policy, but a trusted tool reported the access
-            FileAccessStatusMethod method = isAnAugmentedFileAccess? FileAccessStatusMethod.TrustedTool : FileAccessStatusMethod.PolicyBased;
+            FileAccessStatusMethod method = isAnAugmentedFileAccess? 
+                    FileAccessStatusMethod.TrustedTool : 
+                    FileAccessStatusMethod.PolicyBased;
 
             // If we are processing an allowed write, but this should be overridden based on file existence,
             // we change the status here

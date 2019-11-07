@@ -1099,6 +1099,7 @@ static bool DllProcessAttach()
     // Keep in sync with C# side
     if (!g_processNamesToBreakAwayFromJob->empty())
     {
+        // CODESYNC: Keep variable name in sync with the C# side
         SetEnvironmentVariable(
             L"BUILDXL_AUGMENTED_MANIFEST_HANDLE", 
             std::to_wstring(DetouredProcessInjector::HandleToUint64(g_reportFileHandle)).c_str());

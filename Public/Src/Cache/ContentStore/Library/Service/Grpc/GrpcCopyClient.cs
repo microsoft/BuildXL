@@ -265,27 +265,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                var headers = new Metadata()
-                {
-                    { "hash-bin", hash.ToHashByteArray() }, // -bin suffix required to send bytes directly
-                    { "hash_type", hash.HashType.ToString() },
-                    { "trace_id", context.TracingContext.Id.ToString() }
-                };
+                var pushRequest = new PushRequest(hash, context.TracingContext.Id);
+                var headers = pushRequest.GetMetadata();
 
                 var call = _client.PushFile(headers, cancellationToken: context.Token);
                 var requestStream = call.RequestStream;
 
                 var responseHeaders = await call.ResponseHeadersAsync;
-                foreach (var header in responseHeaders)
+
+                var pushResponse = PushResponse.FromMetadata(responseHeaders);
+                if (!pushResponse.ShouldCopy)
                 {
-                    if (header.Key == "should_copy")
-                    {
-                        if (bool.TryParse(header.Value, out var shouldCopy) && !shouldCopy)
-                        {
-                            context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
-                            return BoolResult.Success;
-                        }
-                    }
+                    context.TraceDebug($"{nameof(PushFileAsync)}: copy of {hash.ToShortString()} was skipped.");
+                    return BoolResult.Success;
                 }
 
                 var stream = await source();

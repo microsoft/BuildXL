@@ -399,6 +399,11 @@ namespace BuildXL.Processes
         public IReadOnlyCollection<string> ChildProcessesToBreakawayFromSandbox { get; set; }
 
         /// <summary>
+        /// Whether there is any configured child process that can breakaway from the sandbox
+        /// </summary>
+        public bool ProcessesCanBreakaway => ChildProcessesToBreakawayFromSandbox?.Any() == true;
+
+        /// <summary>
         /// Sets message count semaphore.
         /// </summary>
         public bool SetMessageCountSemaphore(string semaphoreName)
@@ -464,6 +469,34 @@ namespace BuildXL.Processes
             Contract.Requires(path != AbsolutePath.Invalid);
 
             m_rootNode.AddNodeWithScope(this, path, new FileAccessScope(mask, values), expectedUsn ?? ReportedFileAccess.NoUsn);
+        }
+
+        /// <summary>
+        /// Finds the manifest path (the 'closest' configured path policy) for a given path. 
+        /// </summary>
+        /// <remarks>
+        /// When no manifest path is found, the returned manifest path is <see cref="AbsolutePath.Invalid"/>. 
+        /// The node policy is always set (and will contain the policy of the root node if no explicit 
+        /// manifest path is found)
+        /// </remarks>
+        public bool TryFindManifestPathFor(AbsolutePath path, out AbsolutePath manifestPath, out FileAccessPolicy nodePolicy)
+        {
+            Contract.Requires(path.IsValid);
+            Contract.Assert(m_rootNode.IsPolicyFinalized);
+
+            var resultNode = m_rootNode.FindNodeFor(this, path);
+            nodePolicy = resultNode.NodePolicy;
+
+            if (resultNode == m_rootNode)
+            {
+                manifestPath = AbsolutePath.Invalid;
+                return false;
+            }
+
+            manifestPath = resultNode.PathId;
+
+            Contract.Assert(manifestPath.IsValid);
+            return true;
         }
 
         private void WriteAnyBuildShimBlock(BinaryWriter writer)
@@ -1198,7 +1231,7 @@ namespace BuildXL.Processes
             /// Use this to determine whether the policy has been finalized. All Nodes should have
             /// their policies finalized before serialization.
             /// </summary>
-            private bool IsPolicyFinalized
+            internal bool IsPolicyFinalized
             {
                 get { return m_isPolicyFinalized; }
             }
@@ -1265,7 +1298,51 @@ namespace BuildXL.Processes
                 leaf.ApplyNodeFileAccess(scope, expectedUsn);
             }
 
+            /// <summary>
+            /// Returns the lowest node in the node tree that contains the given path
+            /// </summary>
+            public Node FindNodeFor(FileAccessManifest owner, AbsolutePath path)
+            {
+                Contract.Requires(path.IsValid);
+                Contract.Requires(owner != null);
+
+                if (PathId == path)
+                {
+                    return this;
+                }
+
+                var container = path.GetParent(owner.m_pathTable);
+                var node = container.IsValid ? 
+                    FindNodeFor(owner, container) : 
+                    this;
+
+                if (node.TryGetChild(owner, path, out var result, out _))
+                {
+                    return result;
+                }
+
+                return node;
+            }
+
             private Node GetOrCreateChild(FileAccessManifest owner, AbsolutePath path)
+            {
+                if (TryGetChild(owner, path, out Node child, out NormalizedPathString normalizedFragment))
+                {
+                    return child;
+                }
+
+                if (m_children == null)
+                {
+                    m_children = new Dictionary<NormalizedPathString, Node>();
+                }
+
+                child = new Node(path);
+                m_children.Add(normalizedFragment, child);
+
+                return child;
+            }
+
+            private bool TryGetChild(FileAccessManifest owner, AbsolutePath path, out Node node, out NormalizedPathString normalizedFragment)
             {
                 Contract.Requires(owner != null);
                 Contract.Requires(path.IsValid);
@@ -1276,7 +1353,6 @@ namespace BuildXL.Processes
                 // We cache normalized fragments to avoid excessive memory allocations;
                 // in particular, we can avoid the allocation associated with creating a new NormalizedPathString
                 // for all fragments recurring in nested path prefixes.
-                NormalizedPathString normalizedFragment;
                 if (!owner.m_normalizedFragments.TryGetValue(fragment, out normalizedFragment))
                 {
                     owner.m_normalizedFragments.Add(
@@ -1284,20 +1360,14 @@ namespace BuildXL.Processes
                         normalizedFragment = new NormalizedPathString(owner.m_pathTable.StringTable.GetString(fragment)));
                 }
 
-                Node child;
-                if (m_children == null)
+                node = null;
+                if (m_children?.TryGetValue(normalizedFragment, out node) == true)
                 {
-                    m_children = new Dictionary<NormalizedPathString, Node>();
-                }
-                else if (m_children.TryGetValue(normalizedFragment, out child))
-                {
-                    Contract.Assume(child != null);
-                    return child;
+                    Contract.Assume(node != null);
+                    return true;
                 }
 
-                child = new Node(path);
-                m_children.Add(normalizedFragment, child);
-                return child;
+                return false;
             }
 
             // Keep this in sync with the C++ version declared in DataTypes.h

@@ -686,7 +686,7 @@ namespace BuildXL.Processes
             {
                 processId = (uint)report.Pid;
 
-                if (!SandboxedProcessReports.FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
+                if (!FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
                 {
                     errorMessages.Add($"Unknown operation '{report.DecodeOperation()}'");
                 }

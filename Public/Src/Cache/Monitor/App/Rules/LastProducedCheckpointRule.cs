@@ -59,7 +59,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(context, Severity.Fatal,
+                Emit(context, "NoLogs", Severity.Fatal,
                     $"No checkpoints produced for at least {_configuration.LookbackPeriod}");
                 return;
             }
@@ -76,7 +76,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                     threshold = _configuration.ErrorThreshold;
                 }
 
-                Emit(context, severity,
+                Emit(context, "CreationThreshold", severity,
                     $"Newest checkpoint age `{age}` above threshold `{threshold}`. Master is {results[0].Machine}",
                     eventTimeUtc: results[0].PreciseTimeStamp);
             }

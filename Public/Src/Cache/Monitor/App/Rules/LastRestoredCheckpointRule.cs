@@ -69,7 +69,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(context, Severity.Fatal,
+                Emit(context, "NoLogs", Severity.Fatal,
                     $"No machines logged anything in the last day");
                 return;
             }
@@ -97,7 +97,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var formattedMissing = missing.Select(m => $"`{m}`");
                 var machinesCsv = string.Join(", ", formattedMissing);
                 var shortMachinesCsv = string.Join(", ", formattedMissing.Take(5));
-                Emit(context, severity,
+                Emit(context, "NoRestoresThreshold", severity,
                     $"Found {missing.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but without checkpoints restored in at least `{_configuration.LookbackPeriod}`: {machinesCsv}",
                     $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`. Examples: {shortMachinesCsv}");
             }
@@ -107,7 +107,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var formattedFailures = failures.Select(f => $"`{f.Item1}` ({f.Item2})");
                 var machinesCsv = string.Join(", ", formattedFailures);
                 var shortMachinesCsv = string.Join(", ", formattedFailures.Take(5));
-                Emit(context, Severity.Error,
+                Emit(context, "OldRestores", Severity.Error,
                     $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorThreshold}`): {machinesCsv}",
                     $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorThreshold}`. Examples: {shortMachinesCsv}");
             }

@@ -75,7 +75,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(context, Severity.Fatal,
+                Emit(context, "NoLogs", Severity.Fatal,
                     $"Machines haven't produced any logs for at least `{_configuration.LookbackPeriod}`");
                 return;
             }
@@ -88,7 +88,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             if (prediction.Count == 0)
             {
-                Emit(context, Severity.Fatal,
+                Emit(context, "NoLogs", Severity.Fatal,
                     $"Machines haven't produced any logs for at least `{_configuration.AnomalyDetectionHorizon}`");
                 return;
             }
@@ -105,7 +105,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             range2.Check(prediction.Select(r => (double)r.ActiveMachines), (index, valueDouble) => {
                 var value = (long)Math.Ceiling(valueDouble);
 
-                Emit(context, Severity.Warning,
+                Emit(context, "ExpectedRange", Severity.Warning,
                     $"`{value}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });

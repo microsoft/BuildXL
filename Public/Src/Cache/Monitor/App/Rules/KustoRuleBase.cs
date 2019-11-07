@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Monitor.App.Notifications;
@@ -24,8 +25,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public abstract Task Run(RuleContext context);
 
-        protected void Emit(RuleContext context, Severity severity, string message, string summary = null, DateTime? eventTimeUtc = null)
+        protected void Emit(RuleContext context, string bucket, Severity severity, string message, string summary = null, DateTime? eventTimeUtc = null)
         {
+            Contract.RequiresNotNull(bucket);
             Contract.RequiresNotNull(message);
 
             var now = _configuration.Clock.UtcNow;
@@ -35,6 +37,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 context.RunTimeUtc,
                 now,
                 eventTimeUtc ?? now,
+                bucket,
                 severity,
                 _configuration.Environment,
                 _configuration.Stamp,

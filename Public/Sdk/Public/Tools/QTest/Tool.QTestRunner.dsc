@@ -203,9 +203,10 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestAttemptCount ", args.qTestAttemptCount),
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
-            "--vstestSettingsFile ", qCodeCoverageEnumType === dynamicCodeCovString ? 
-            Artifact.input(args.vstestSettingsFileForCoverage) : 
-            Artifact.input(args.vstestSettingsFile)
+            "--vstestSettingsFile ", 
+            qCodeCoverageEnumType === dynamicCodeCovString 
+                ? Artifact.input(args.vstestSettingsFileForCoverage) 
+                : Artifact.input(args.vstestSettingsFile)
         ),
         Cmd.option(
             "--qTestRawArgFile ",

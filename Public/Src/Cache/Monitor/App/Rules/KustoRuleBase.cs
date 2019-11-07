@@ -22,16 +22,17 @@ namespace BuildXL.Cache.Monitor.App.Rules
             _configuration = configuration;
         }
 
-        public abstract Task Run();
+        public abstract Task Run(RuleContext context);
 
-        protected void Emit(Severity severity, string message, string summary = null, DateTime? ruleRunTimeUtc = null, DateTime? eventTimeUtc = null)
+        protected void Emit(RuleContext context, Severity severity, string message, string summary = null, DateTime? eventTimeUtc = null)
         {
             Contract.RequiresNotNull(message);
 
             var now = _configuration.Clock.UtcNow;
             _configuration.Notifier.Emit(new Notification(
                 Identifier,
-                ruleRunTimeUtc ?? now,
+                context.RunGuid,
+                context.RunTimeUtc,
                 now,
                 eventTimeUtc ?? now,
                 severity,

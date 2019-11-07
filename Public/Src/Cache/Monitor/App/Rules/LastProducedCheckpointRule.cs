@@ -42,10 +42,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
         }
 #pragma warning restore CS0649
 
-        public override async Task Run()
+        public override async Task Run(RuleContext context)
         {
-            var ruleRunTimeUtc = _configuration.Clock.UtcNow;
-
             // NOTE(jubayard): When a summarize is run over an empty result set, Kusto produces a single (null) row,
             // which is why we need to filter it out.
             var query =
@@ -61,9 +59,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(Severity.Fatal,
-                    $"No checkpoints produced for at least {_configuration.LookbackPeriod}",
-                    ruleRunTimeUtc: ruleRunTimeUtc);
+                Emit(context, Severity.Fatal,
+                    $"No checkpoints produced for at least {_configuration.LookbackPeriod}");
                 return;
             }
 
@@ -79,9 +76,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
                     threshold = _configuration.ErrorThreshold;
                 }
 
-                Emit(severity,
+                Emit(context, severity,
                     $"Newest checkpoint age `{age}` above threshold `{threshold}`. Master is {results[0].Machine}",
-                    ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: results[0].PreciseTimeStamp);
             }
         }

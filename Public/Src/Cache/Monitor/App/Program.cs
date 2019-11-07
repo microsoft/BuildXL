@@ -12,6 +12,7 @@ namespace BuildXL.Cache.Monitor.App
     {
         private static void Main(string[] args)
         {
+            Debugger.Launch();
             var configurationFilePath = @"C:\work\Monitor\Configuration.json";
             var backupFilePath = @"C:\work\Monitor\BackupConfiguration.json";
 

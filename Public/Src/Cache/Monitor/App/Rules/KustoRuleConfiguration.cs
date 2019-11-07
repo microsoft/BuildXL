@@ -32,7 +32,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public ILogger Logger { get; set; }
 
-        public INotifier Notifier { get; set; }
+        public INotifier<Notification> Notifier { get; set; }
 
         public ICslQueryProvider CslQueryProvider { get; set; }
 

@@ -1,7 +1,7 @@
 ﻿namespace BuildXL.Cache.Monitor.App.Notifications
 {
-    internal interface INotifier
+    internal interface INotifier<T>
     {
-        void Emit(Notification notification);
+        void Emit(T notification);
     }
 }

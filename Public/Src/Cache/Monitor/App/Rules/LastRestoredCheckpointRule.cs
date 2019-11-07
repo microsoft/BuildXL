@@ -45,10 +45,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
         }
 #pragma warning restore CS0649
 
-        public override async Task Run()
+        public override async Task Run(RuleContext context)
         {
-            var ruleRunTimeUtc = _configuration.Clock.UtcNow;
-
             var query =
                 $@"
                 let Events = CloudBuildLogEvent
@@ -71,9 +69,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(Severity.Fatal,
-                    $"No machines logged anything in the last day",
-                    ruleRunTimeUtc: ruleRunTimeUtc);
+                Emit(context, Severity.Fatal,
+                    $"No machines logged anything in the last day");
                 return;
             }
 
@@ -100,10 +97,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var formattedMissing = missing.Select(m => $"`{m}`");
                 var machinesCsv = string.Join(", ", formattedMissing);
                 var shortMachinesCsv = string.Join(", ", formattedMissing.Take(5));
-                Emit(severity,
+                Emit(context, severity,
                     $"Found {missing.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but without checkpoints restored in at least `{_configuration.LookbackPeriod}`: {machinesCsv}",
-                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`. Examples: {shortMachinesCsv}",
-                    ruleRunTimeUtc: ruleRunTimeUtc);
+                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`. Examples: {shortMachinesCsv}");
             }
 
             if (failures.Count > 0)
@@ -111,10 +107,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 var formattedFailures = failures.Select(f => $"`{f.Item1}` ({f.Item2})");
                 var machinesCsv = string.Join(", ", formattedFailures);
                 var shortMachinesCsv = string.Join(", ", formattedFailures.Take(5));
-                Emit(Severity.Error,
+                Emit(context, Severity.Error,
                     $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorThreshold}`): {machinesCsv}",
-                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorThreshold}`. Examples: {shortMachinesCsv}",
-                    ruleRunTimeUtc: ruleRunTimeUtc);
+                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorThreshold}`. Examples: {shortMachinesCsv}");
             }
         }
     }

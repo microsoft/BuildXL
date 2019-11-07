@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Security.Permissions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Utils;
@@ -79,10 +78,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
         }
 #pragma warning restore CS0649
 
-        public override async Task Run()
+        public override async Task Run(RuleContext context)
         {
-            var ruleRunTimeUtc = _configuration.Clock.UtcNow;
-
             // NOTE(jubayard): When a summarize is run over an empty result set, Kusto produces a single (null) row,
             // which is why we need to filter it out.
             var query =
@@ -116,7 +113,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 }
 
                 var previousResult = results[index - 1];
-                Emit(Severity.Warning,
+                Emit(context, Severity.Warning,
                     $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`, which is higher than the threshold of `{_configuration.MaximumPercentualDifference * 100.0}%`",
                     $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`",
                     eventTimeUtc: result.PreciseTimeStamp);
@@ -134,7 +131,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             var range = new CheckRange<long>(Comparer<long>.Default, _configuration.MinimumValidSizeBytes, _configuration.MaximumValidSizeBytes);
             range.Check(prediction.Select(r => r.TotalSize), (index, value) => {
-                Emit(Severity.Warning,
+                Emit(context, Severity.Warning,
                     $"Checkpoint size `{value.ToSizeExpression()}` out of valid range [`{_configuration.MinimumValidSize}`, `{_configuration.MaximumValidSize}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });
@@ -151,7 +148,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             range2.Check(prediction.Select(r => (double)r.TotalSize), (index, valueDouble) => {
                 var value = (long)Math.Ceiling(valueDouble);
 
-                Emit(Severity.Warning,
+                Emit(context, Severity.Warning,
                     $"Checkpoint size `{value.ToSizeExpression()}` out of expected range [`{lookbackMin.ToSizeExpression()}`, `{lookbackMax.ToSizeExpression()}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });

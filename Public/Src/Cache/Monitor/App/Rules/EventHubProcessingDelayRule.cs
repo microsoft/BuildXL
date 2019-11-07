@@ -50,10 +50,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
         }
 #pragma warning restore CS0649
 
-        public override async Task Run()
+        public override async Task Run(RuleContext context)
         {
-            var ruleRunTimeUtc = _configuration.Clock.UtcNow;
-
             var query =
                 $@"let MasterEvents = CloudBuildLogEvent
                 | where Stamp == ""{_configuration.Stamp}""
@@ -78,9 +76,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(Severity.Fatal,
-                    $"No events processed for at least {_configuration.LookbackPeriod}",
-                    ruleRunTimeUtc: ruleRunTimeUtc);
+                Emit(context, Severity.Fatal,
+                    $"No events processed for at least {_configuration.LookbackPeriod}");
                 return;
             }
 
@@ -96,9 +93,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
                     threshold = _configuration.ErrorThreshold;
                 }
 
-                Emit(severity,
+                Emit(context, severity,
                     $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is {results[0].Machine}",
-                    ruleRunTimeUtc: ruleRunTimeUtc,
                     eventTimeUtc: results[0].PreciseTimeStamp);
             }
         }

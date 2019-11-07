@@ -93,7 +93,7 @@ namespace BuildXL.Cache.Monitor.App
 
             public string ApplicationKey { get; set; } = "-mvo2ofU@fm]G8uH6B+hoUACUM7nTRdm";
 
-            public KustoNotifier.Configuration KustoNotifier { get; set; } = new KustoNotifier.Configuration()
+            public KustoWriter<Notification>.Configuration KustoNotifier { get; set; } = new KustoWriter<Notification>.Configuration()
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitor",
@@ -103,6 +103,17 @@ namespace BuildXL.Cache.Monitor.App
                 PersistStatePath = @"C:\work\Monitor\SchedulerState.json",
                 PersistClearFailedEntriesOnLoad = true,
             };
+
+            /// <summary>
+            /// The scheduler writes out logs to the logger, but also writes information about rules that were run
+            /// into Kusto. This is used to know when an event has passed (i.e. if a rule has been run again since
+            /// the last check and didn't produce a notification, that means the event has passed).
+            /// </summary>
+            public KustoWriter<Scheduler.LogEntry>.Configuration SchedulerKustoNotifier { get; set; } = new KustoWriter<Scheduler.LogEntry>.Configuration()
+            {
+                KustoDatabaseName = "CloudBuildCBTest",
+                KustoTableName = "BuildXLCacheMonitorSchedulerLog",
+            };
         }
 
         private readonly Configuration _configuration;
@@ -111,7 +122,8 @@ namespace BuildXL.Cache.Monitor.App
         private readonly Logger _logger;
 
         private readonly Scheduler _scheduler;
-        private readonly KustoNotifier _notifier;
+        private readonly KustoWriter<Notification> _alertNotifier;
+        private readonly KustoWriter<Scheduler.LogEntry> _schedulerLogWriter;
 
         private readonly IKustoIngestClient _kustoIngestClient;
         private readonly ICslQueryProvider _cslQueryProvider;
@@ -125,6 +137,10 @@ namespace BuildXL.Cache.Monitor.App
 
             // TODO(jubayard): use streaming ingestion instead of direct ingestion. There seems to be some assembly
             // issues when attempting to do that
+            Contract.RequiresNotNullOrEmpty(_configuration.KustoIngestionClusterUrl);
+            Contract.RequiresNotNullOrEmpty(_configuration.ApplicationClientId);
+            Contract.RequiresNotNullOrEmpty(_configuration.ApplicationKey);
+            Contract.RequiresNotNullOrEmpty(_configuration.Authority);
             var kustoIngestConnectionString = new KustoConnectionStringBuilder(_configuration.KustoIngestionClusterUrl)
                 .WithAadApplicationKeyAuthentication(_configuration.ApplicationClientId, _configuration.ApplicationKey, _configuration.Authority);
             _kustoIngestClient = KustoIngestFactory.CreateDirectIngestClient(kustoIngestConnectionString);
@@ -133,8 +149,13 @@ namespace BuildXL.Cache.Monitor.App
                 .WithAadApplicationKeyAuthentication(_configuration.ApplicationClientId, _configuration.ApplicationKey, _configuration.Authority);
             _cslQueryProvider = KustoClientFactory.CreateCslQueryProvider(kustoConnectionString);
 
-            _notifier = new KustoNotifier(_configuration.KustoNotifier, _logger, _kustoIngestClient);
-            _scheduler = new Scheduler(_configuration.Scheduler, _logger, _clock);
+            Contract.RequiresNotNull(_configuration.KustoNotifier);
+            _alertNotifier = new KustoWriter<Notification>(_configuration.KustoNotifier, _logger, _kustoIngestClient);
+
+            Contract.RequiresNotNull(_configuration.SchedulerKustoNotifier);
+            _schedulerLogWriter = new KustoWriter<Scheduler.LogEntry>(_configuration.SchedulerKustoNotifier, _logger, _kustoIngestClient);
+
+            _scheduler = new Scheduler(_configuration.Scheduler, _logger, _clock, _schedulerLogWriter);
         }
 
         private Logger CreateLogger()
@@ -229,7 +250,7 @@ namespace BuildXL.Cache.Monitor.App
                     {
                         Clock = _clock,
                         Logger = _logger,
-                        Notifier = _notifier,
+                        Notifier = _alertNotifier,
                         CslQueryProvider = _cslQueryProvider,
                         KustoDatabaseName = EnvironmentToKustoDatabaseName[environment],
                         Environment = environment,
@@ -252,7 +273,8 @@ namespace BuildXL.Cache.Monitor.App
                 if (disposing)
                 {
                     _scheduler?.Dispose();
-                    _notifier?.Dispose();
+                    _schedulerLogWriter?.Dispose();
+                    _alertNotifier?.Dispose();
                     _kustoIngestClient?.Dispose();
                     _cslQueryProvider?.Dispose();
                     _logger?.Dispose();

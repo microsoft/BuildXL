@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
+using BuildXL.Cache.Monitor.App.Notifications;
 using BuildXL.Cache.Monitor.App.Rules;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -18,14 +19,35 @@ namespace BuildXL.Cache.Monitor.App
     {
         public class Configuration
         {
+            /// <summary>
+            /// Path to persist the current scheduler state into. Deactivated when null.
+            /// </summary>
+            /// <remarks>
+            /// Useful for testing, as restarting the scheduler will only run the rules that must be run.
+            /// </remarks>
             public string PersistStatePath { get; set; } = null;
 
+            /// <summary>
+            /// Whether failed rules should be retried when the monitor is restarted
+            /// </summary>
             public bool PersistClearFailedEntriesOnLoad { get; set; } = false;
 
+            /// <summary>
+            /// How often to check for a change in a rule's state and possibly run it.
+            /// </summary>
             public TimeSpan PollingPeriod { get; set; } = TimeSpan.FromSeconds(0.5);
 
+            /// <summary>
+            /// If null, after a rule gets disabled (due to an exception, for example), the scheduler won't ever run it
+            /// again.
+            ///
+            /// If non-null, the amount of time after the failure to wait before retrying it.
+            /// </summary>
             public TimeSpan? RetryOnFailureAfter { get; set; } = TimeSpan.FromMinutes(5);
 
+            /// <summary>
+            /// Number of rules that may be run in parallel
+            /// </summary>
             public int MaximumConcurrency { get; set; } = 10;
         }
 
@@ -78,15 +100,28 @@ namespace BuildXL.Cache.Monitor.App
             }
         };
 
+        public class LogEntry
+        {
+            public DateTime RunTimeUtc { get; set; }
+
+            public string RuleIdentifier { get; set; }
+
+            public Guid RunGuid { get; set; }
+
+            public TimeSpan Elapsed { get; set; }
+
+            public string ErrorMessage { get; set; }
+        }
+
         private readonly ILogger _logger;
         private readonly IClock _clock;
         private readonly Configuration _configuration;
 
         private readonly IDictionary<string, Entry> _schedule = new Dictionary<string, Entry>();
-
         private readonly SemaphoreSlim _runGate;
+        private readonly INotifier<LogEntry> _notifier;
 
-        public Scheduler(Configuration configuration, ILogger logger, IClock clock)
+        public Scheduler(Configuration configuration, ILogger logger, IClock clock, INotifier<LogEntry> notifier = null)
         {
             Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(logger);
@@ -97,6 +132,7 @@ namespace BuildXL.Cache.Monitor.App
             _clock = clock;
 
             _runGate = new SemaphoreSlim(_configuration.MaximumConcurrency);
+            _notifier = notifier;
         }
 
         public void Add(IRule rule, TimeSpan pollingPeriod)
@@ -187,6 +223,7 @@ namespace BuildXL.Cache.Monitor.App
             var rule = entry.Rule;
             var stopwatch = new Stopwatch();
             var failed = false;
+            RuleContext context = null;
             Exception exception = null;
             try
             {
@@ -200,8 +237,9 @@ namespace BuildXL.Cache.Monitor.App
 
                 _logger.Debug($"Running rule `{rule.Identifier}`. `{_runGate.CurrentCount}` more allowed to run");
 
+                context = new RuleContext(Guid.NewGuid(), _clock.UtcNow);
                 stopwatch.Restart();
-                await rule.Run();
+                await rule.Run(context);
             }
             catch (Exception thrownException)
             {
@@ -235,6 +273,15 @@ namespace BuildXL.Cache.Monitor.App
                         _logger.Flush();
                     }
                 }
+
+                _notifier?.Emit(new LogEntry
+                {
+                    RunTimeUtc = context?.RunTimeUtc ?? _clock.UtcNow,
+                    RuleIdentifier = rule.Identifier,
+                    RunGuid = context?.RunGuid ?? Guid.Empty,
+                    Elapsed = stopwatch.Elapsed,
+                    ErrorMessage = failed ? exception.ToString() : "",
+                });
             }
         }
 

@@ -13,7 +13,7 @@ using Newtonsoft.Json;
 
 namespace BuildXL.Cache.Monitor.App.Notifications
 {
-    internal class KustoNotifier : INotifier, IDisposable
+    internal class KustoWriter<T> : IDisposable, INotifier<T>
     {
         public class Configuration
         {
@@ -21,7 +21,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             public string KustoTableName { get; set; }
 
-            public string KustoTableIngestionMappingName { get; set; }
+            public string KustoTableIngestionMappingName { get; set; } = null;
 
             public TimeSpan FlushInterval { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -30,69 +30,15 @@ namespace BuildXL.Cache.Monitor.App.Notifications
             public int MaxDegreeOfParallelism { get; set; } = 5;
         }
 
-        private static readonly List<JsonColumnMapping> KustoJsonMapping = new List<JsonColumnMapping>()
-            {
-                new JsonColumnMapping()
-                {
-                    ColumnName = "RuleIdentifier",
-                    JsonPath = "$.RuleIdentifier",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "RuleRunTimeUtc",
-                    JsonPath = "$.RuleRunTimeUtc",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "CreationTimeUtc",
-                    JsonPath = "$.CreationTimeUtc",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "EventTimeUtc",
-                    JsonPath = "$.EventTimeUtc",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "Severity",
-                    JsonPath = "$.Severity",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "SeverityFriendly",
-                    JsonPath = "$.SeverityFriendly",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "Environment",
-                    JsonPath = "$.Environment",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "Stamp",
-                    JsonPath = "$.Stamp",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "Message",
-                    JsonPath = "$.Message",
-                },
-                new JsonColumnMapping()
-                {
-                    ColumnName = "Summary",
-                    JsonPath = "$.Summary",
-                },
-            };
-
         private readonly ILogger _logger;
         private readonly Configuration _configuration;
         private readonly IKustoIngestClient _kustoIngestClient;
 
         private readonly KustoIngestionProperties _kustoIngestionProperties;
 
-        private readonly NagleQueue<Notification> _queue;
+        private readonly NagleQueue<T> _queue;
 
-        public KustoNotifier(Configuration configuration, ILogger logger, IKustoIngestClient kustoIngestClient)
+        public KustoWriter(Configuration configuration, ILogger logger, IKustoIngestClient kustoIngestClient)
         {
             Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(logger);
@@ -107,36 +53,30 @@ namespace BuildXL.Cache.Monitor.App.Notifications
                 Format = DataSourceFormat.json,
             };
 
-            if (string.IsNullOrEmpty(_configuration.KustoTableIngestionMappingName))
-            {
-                _kustoIngestionProperties.JsonMapping = KustoJsonMapping;
-            }
-            else
+            if (!string.IsNullOrEmpty(_configuration.KustoTableIngestionMappingName))
             {
                 _kustoIngestionProperties.JSONMappingReference = _configuration.KustoTableIngestionMappingName;
             }
 
-            _queue = NagleQueue<Notification>.Create(FlushAsync,
+            _queue = NagleQueue<T>.Create(FlushAsync,
                 _configuration.MaxDegreeOfParallelism,
                 _configuration.FlushInterval,
                 _configuration.BatchSize);
         }
 
-        public void Emit(Notification notification)
+        public void Emit(T row)
         {
-            Contract.RequiresNotNull(notification);
-
-            _queue.Enqueue(notification);
+            _queue.Enqueue(row);
         }
 
-        private async Task FlushAsync(IReadOnlyList<Notification> notifications)
+        private async Task FlushAsync(IReadOnlyList<T> rows)
         {
-            Contract.Assert(notifications.Count > 0);
+            Contract.Assert(rows.Count > 0);
 
             try
             {
-                _logger.Debug($"Ingesting {notifications.Count} notifications into Kusto");
-                var statuses = await KustoIngestAsync(notifications);
+                _logger.Debug($"Ingesting {rows.Count} notifications into Kusto");
+                var statuses = await KustoIngestAsync(rows);
 
                 var statistics = statuses.GroupBy(status => status.Status).ToDictionary(kvp => kvp.Key, kvp => kvp.Count());
                 var statisticsLine = string.Join(", ", statistics.Select(kvp => $"{kvp.Key}={kvp.Value}"));
@@ -146,7 +86,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
                     severity = Severity.Error;
                 }
 
-                _logger.Log(severity, $"Ingested {notifications.Count} with disaggregation: {statisticsLine}");
+                _logger.Log(severity, $"Ingested {rows.Count} with disaggregation: {statisticsLine}");
             }
             catch (Exception exception)
             {
@@ -155,16 +95,16 @@ namespace BuildXL.Cache.Monitor.App.Notifications
             }
         }
 
-        private async Task<IEnumerable<IngestionStatus>> KustoIngestAsync(IReadOnlyList<Notification> notifications)
+        private async Task<IEnumerable<IngestionStatus>> KustoIngestAsync(IReadOnlyList<T> rows)
         {
-            Contract.Requires(notifications.Count > 0);
+            Contract.Requires(rows.Count > 0);
 
             using var stream = new MemoryStream();
             using var writer = new StreamWriter(stream, encoding: Encoding.UTF8);
 
-            foreach (var notification in notifications)
+            foreach (var row in rows)
             {
-                await writer.WriteLineAsync(JsonConvert.SerializeObject(notification));
+                await writer.WriteLineAsync(JsonConvert.SerializeObject(row));
             }
 
             await writer.FlushAsync();

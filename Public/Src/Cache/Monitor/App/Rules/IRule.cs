@@ -15,6 +15,6 @@ namespace BuildXL.Cache.Monitor.App.Rules
         /// </summary>
         string Identifier { get; }
 
-        Task Run();
+        Task Run(RuleContext context);
     }
 }

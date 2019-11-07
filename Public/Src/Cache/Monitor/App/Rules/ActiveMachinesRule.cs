@@ -56,10 +56,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
         }
 #pragma warning restore CS0649
 
-        public override async Task Run()
+        public override async Task Run(RuleContext context)
         {
-            var ruleRunTimeUtc = _configuration.Clock.UtcNow;
-
             // NOTE(jubayard): When a summarize is run over an empty result set, Kusto produces a single (null) row,
             // which is why we need to filter it out.
             // NOTE(jubayard): The Kusto ingestion delay needs to be taken into consideration to avoid the number of
@@ -77,7 +75,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
-                Emit(Severity.Fatal,
+                Emit(context, Severity.Fatal,
                     $"Machines haven't produced any logs for at least `{_configuration.LookbackPeriod}`");
                 return;
             }
@@ -90,7 +88,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             if (prediction.Count == 0)
             {
-                Emit(Severity.Fatal,
+                Emit(context, Severity.Fatal,
                     $"Machines haven't produced any logs for at least `{_configuration.AnomalyDetectionHorizon}`");
                 return;
             }
@@ -107,7 +105,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             range2.Check(prediction.Select(r => (double)r.ActiveMachines), (index, valueDouble) => {
                 var value = (long)Math.Ceiling(valueDouble);
 
-                Emit(Severity.Warning,
+                Emit(context, Severity.Warning,
                     $"`{value}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });

@@ -1,20 +1,22 @@
 ﻿using System;
-using System.Data;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.Monitor.App.Rules;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
 namespace BuildXL.Cache.Monitor.App.Notifications
 {
-
     internal class Notification
     {
         /// <summary>
         /// Name of the rule that created the notification.
         /// </summary>
         public string RuleIdentifier { get; }
+
+        /// <summary>
+        /// Guid uniquely identifying the run that produced this notification.
+        /// </summary>
+        public Guid RuleRunGuid { get; }
 
         /// <summary>
         /// When the rule that emitted the notification object was triggered to run.
@@ -44,12 +46,13 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
         public string Summary { get; }
 
-        public Notification(string rule, DateTime ruleRunTimeUtc, DateTime creationTimeUtc, DateTime eventTimeUtc, Severity severity, Env environment, string stamp, string message, string summary = null)
+        public Notification(string rule, Guid ruleRunGuid, DateTime ruleRunTimeUtc, DateTime creationTimeUtc, DateTime eventTimeUtc, Severity severity, Env environment, string stamp, string message, string summary = null)
         {
             Contract.RequiresNotNullOrEmpty(rule);
             Contract.RequiresNotNullOrEmpty(message);
 
             RuleIdentifier = rule;
+            RuleRunGuid = ruleRunGuid;
             RuleRunTimeUtc = ruleRunTimeUtc;
 
             CreationTimeUtc = creationTimeUtc;

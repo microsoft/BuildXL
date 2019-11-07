@@ -97,6 +97,7 @@ namespace BuildXL.Cache.Monitor.App
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitor",
+                KustoTableIngestionMappingName = "MonitorIngestionMapping",
             };
 
             public Scheduler.Configuration Scheduler { get; set; } = new Scheduler.Configuration() {
@@ -113,6 +114,7 @@ namespace BuildXL.Cache.Monitor.App
             {
                 KustoDatabaseName = "CloudBuildCBTest",
                 KustoTableName = "BuildXLCacheMonitorSchedulerLog",
+                KustoTableIngestionMappingName = "MonitorIngestionMapping",
             };
         }
 

@@ -53,10 +53,9 @@ namespace BuildXL.Cache.Monitor.App.Notifications
                 Format = DataSourceFormat.json,
             };
 
-            if (!string.IsNullOrEmpty(_configuration.KustoTableIngestionMappingName))
-            {
-                _kustoIngestionProperties.JSONMappingReference = _configuration.KustoTableIngestionMappingName;
-            }
+            Contract.RequiresNotNullOrEmpty(_configuration.KustoTableIngestionMappingName,
+                "Kusto ingestion will fail to authenticate without a proper ingestion mapping.");
+            _kustoIngestionProperties.JSONMappingReference = _configuration.KustoTableIngestionMappingName;
 
             _queue = NagleQueue<T>.Create(FlushAsync,
                 _configuration.MaxDegreeOfParallelism,

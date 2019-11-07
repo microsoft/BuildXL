@@ -182,6 +182,9 @@ public:
         {
             // If caching is disabled, and no one else is using pathCache_, and we came here first:
             //   --> safe to release old path cache left to be garbage collected
+            // NOTE: even if someone else comes in after we've checked `cacheCallCnt_ == 1`, 
+            //       because once caching is disabled it stays disabled, they'll get to use the new path 
+            //       cache object, so it's still safe to release oldPathCache_)
             if (cacheCallCnt_ == 1 && callCnt.ValueBeforeTheIncrement() == 0 && oldPathCache_ != nullptr)
             {
                 OSSafeReleaseNULL(oldPathCache_);

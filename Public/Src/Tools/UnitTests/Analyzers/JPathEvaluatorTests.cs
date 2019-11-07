@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using BuildXL.Execution.Analyzer.JPath;
 using BuildXL.FrontEnd.Script.Debugger;
+using Newtonsoft.Json.Linq;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -143,7 +144,23 @@ namespace Test.Tool.Analyzers
         [InlineData("$grep -v (/.$/, 'ab' ++ 'cd')",                  "[]")]
         [InlineData("$grep -v -o (/.$/, 'ab' ++ 'cd')",               "[]")]
         [InlineData("$grep -v -o -g 'G' (/(?<G>.).$/, 'ab' ++ 'cd')", "[]")]
-        // sort + uniq
+        // sort numeric
+        [InlineData("(111 ++ 3 ++ 22) | $sort -n",    "[3, 22, 111]")]
+        [InlineData("(111 ++ 3 ++ 22) | $sort -n -r", "[111, 22, 3]")]
+        // sort as string
+        [InlineData("(111 ++ 3 ++ 22) | $sort",       "[111, 22, 3]")]
+        [InlineData("(111 ++ 3 ++ 22) | $sort -r",    "[3, 22, 111]")]
+        // sort by field
+        [InlineData("({a: 1, b: 2} ++ {a: 2, b: 1}) | $sort -n -k 'a'", "[{a: 1, b: 2}, {a: 2, b: 1}]")]
+        [InlineData("({a: 1, b: 2} ++ {a: 2, b: 1}) | $sort -n -k 'b'", "[{a: 2, b: 1}, {a: 1, b: 2}]")]
+        // uniq
+        [InlineData("(1 ++ 2 ++ 1) | $uniq",    "[1, 2]")]
+        [InlineData("(1 ++ 2 ++ 1) | $uniq -c", "[{Key: '1', Count: 2, Elems: [1, 1]}, {Key: '2', Count: 1, Elems: [2]}]")]
+        // uniq by field
+        [InlineData("({a: 1} ++ {a: 2} ++ {a: 3, b: 2}) | $uniq -k 'a' | $count", "[3]")]
+        [InlineData("({a: 1} ++ {a: 2} ++ {a: 3, b: 2}) | $uniq -k 'b' | $count", "[2]")]
+        [InlineData("({a: 1} ++ {a: 2} ++ {a: 3, b: 2}) | $uniq -k 'c' | $count", "[1]")]
+        // uniq + sort
         [InlineData("(('a' ++ 'b' ++ 'a') | $uniq -c | $sort -n -r -k 'Count').($str(Count, ': ', Key))", "['2: a', '1: b']")]
         public void TestLibraryFunc(string exprStr, string expectedResultJson)
         {
@@ -157,9 +174,9 @@ namespace Test.Tool.Analyzers
             XAssert.IsTrue(maybeResult.Succeeded);
             var result = maybeResult.Result;
 
-            var j1 = Newtonsoft.Json.Linq.JArray.Parse(expectedResultJson);
-            var j2 = Newtonsoft.Json.Linq.JArray.Parse(JsonSerialize(result.ToArray()));
-            XAssert.AreEqual(j1.ToString(), j2.ToString());
+            var j1 = JArray.Parse(expectedResultJson);
+            var j2 = JArray.Parse(JsonSerialize(result.ToArray()));
+            XAssert.IsTrue(JToken.DeepEquals(j1, j2), "Expected: {0}, Actual: {1}", j1, j2);
         }
 
         private Evaluator.Env CreateEnv(object current, Evaluator.Env parent = null)
@@ -171,10 +188,10 @@ namespace Test.Tool.Analyzers
         {
             return obj switch
             {
-                int i         => new ObjectInfo(preview: i.ToString(), original: i),
-                string str    => new ObjectInfo(preview: str, original: str),
-                ObjectInfo oi => oi,
-                _             => Renderer.GenericObjectInfo(obj)
+                int i              => new ObjectInfo(preview: i.ToString(), original: i),
+                string str         => new ObjectInfo(preview: str, original: str),
+                ObjectInfo      oi => oi,
+                _                  => Renderer.GenericObjectInfo(obj)
             };
         }
 

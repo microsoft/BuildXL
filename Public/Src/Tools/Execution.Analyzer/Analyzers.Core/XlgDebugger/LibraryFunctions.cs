@@ -85,14 +85,15 @@ namespace BuildXL.Execution.Analyzer
 
         private static Result Uniq(Evaluator.Args args)
         {
-            var fieldToSortBy = args.GetStrSwitch("k", null);
+            var fieldToGroupBy = args.GetStrSwitch("k", null);
             Func<object, object> keySelector = o => o;
-            if (!string.IsNullOrEmpty(fieldToSortBy))
+            if (!string.IsNullOrEmpty(fieldToGroupBy))
             {
-                keySelector = o => args.Eval.Resolve(o).Properties.FirstOrDefault(p => p.Name == fieldToSortBy)?.Value;
+                keySelector = o => args.Eval.Resolve(o).Properties.FirstOrDefault(p => p.Name == fieldToGroupBy)?.Value;
             }
 
-            var groups = args.Flatten().GroupBy(obj => args.Preview(keySelector(obj)));
+            var aa = args.Flatten();
+            var groups = aa.GroupBy(obj => args.Preview(keySelector(obj)));
 
             if (args.HasSwitch("c")) // count objects in each group
             {
@@ -103,8 +104,8 @@ namespace BuildXL.Execution.Analyzer
                             preview: $"{grp.Count()}: {grp.Key}",
                             properties: new[]
                             {
-                                new Property(name: "Count", value: grp.Count()),
                                 new Property(name: "Key", value: grp.Key),
+                                new Property(name: "Count", value: grp.Count()),
                                 new Property(name: "Elems", value: grp.ToArray())
                             });
                     })

@@ -755,7 +755,14 @@ namespace BuildXL.Execution.Analyzer.JPath
         /// 
         /// Every object can be resolved to something, so this function never fails.
         /// </summary>
-        public string PreviewObj(object obj) => Resolve(obj)?.Preview ?? obj?.ToString() ?? "<null>";
+        public string PreviewObj(object obj)
+        {
+            if (obj is Result r && r.IsScalar)
+            {
+                obj = r.First();
+            }
+            return Resolve(obj)?.Preview ?? obj?.ToString() ?? "<null>";
+        }
 
         internal ObjectInfo Resolve(object obj) => TopEnv?.Resolver?.Invoke(obj);
 

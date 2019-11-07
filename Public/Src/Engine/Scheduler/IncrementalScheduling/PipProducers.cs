@@ -20,6 +20,16 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly ConcurrentBigMap<PipStableId, HashSet<AbsolutePath>> m_producedPaths;
 
         /// <summary>
+        /// Number of producers.
+        /// </summary>
+        public int ProducerCount => m_producedPaths.Count;
+
+        /// <summary>
+        /// Number of produced paths.
+        /// </summary>
+        public int ProducedPathCount => m_pipProducers.Count;
+
+        /// <summary>
         /// Creates a new instance of <see cref="PipProducers"/>.
         /// </summary>
         public static PipProducers CreateNew() => new PipProducers(new ConcurrentBigMap<AbsolutePath, PipStableId>(), new ConcurrentBigMap<PipStableId, HashSet<AbsolutePath>>());

@@ -1108,6 +1108,12 @@ namespace BuildXL.Engine
 
                 mutableConfig.Logging.StoreFingerprints = initialCommandLineConfiguration.Logging.StoreFingerprints ?? false;
                 mutableConfig.Sandbox.RetryOnAzureWatsonExitCode = true;
+
+                mutableConfig.Schedule.MaximumRamUtilizationPercentage = 90;
+                mutableConfig.Schedule.MinimumTotalAvailableRamMb = 20000000;
+
+                // Spec cache is disabled as most builds are happening on SSDs. 
+                mutableConfig.Cache.CacheSpecs = SpecCachingOption.Disabled;
             }
             else
             {

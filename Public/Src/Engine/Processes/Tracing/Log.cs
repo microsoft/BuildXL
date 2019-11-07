@@ -263,6 +263,20 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
+            (int)LogEventId.MoreBytesWrittenThanBufferSize,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}. NumAssignedProcess: {numAssignedProcesses}, NumProcessIdsInList: {numProcessIdsInList}.")]
+        public abstract void MoreBytesWrittenThanBufferSize(
+            LoggingContext context,
+            long bytesWritten,
+            long bufferSizeInBytes,
+            long numAssignedProcesses,
+            long numProcessIdsInList);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessIgnoringPathWithWildcardsFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -828,6 +842,20 @@ namespace BuildXL.Processes.Tracing
             string path,
             int errorCode,
             string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Failed to preserve output directory '{directory}' because '{file}' cannot be made private, contents of the directory will be deleted")]
+        public abstract void PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string directory,
+            string file);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessChangeAffectedInputsWrittenFileCreationFailed,

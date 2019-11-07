@@ -86,7 +86,10 @@ namespace BuildXL.Cache.ContentStore.Stores
         private Task _processReserveRequestsTask;
 
         private readonly DistributedEvictionSettings _distributedEvictionSettings;
-        private Task<PurgeResult> _purgeTask;
+
+        private static readonly Task<PurgeResult> CompletedPurgeTask = Task.FromResult(new PurgeResult(reserveSize: 0, hashesToPurgeCount: 0, quotaDescription: null));
+
+        private Task<PurgeResult> _purgeTask = CompletedPurgeTask;
         private readonly object _purgeTaskLock = new object();
 
         /// <inheritdoc />
@@ -164,7 +167,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _processReserveRequestsTask;
             }
 
-            if (_purgeTask != null)
+            if (!_purgeTask.IsCompleted)
             {
                 context.TraceDebug($"{_tracer.Name}: waiting for purge task.");
                 return await _purgeTask;
@@ -206,20 +209,12 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             async Task<BoolResult> syncCoreAsync()
             {
-                var purgeTask = _purgeTask;
-                if (purgeTask != null)
-                {
-                    await purgeTask.ThrowIfFailure();
-                }
+                await _purgeTask.ThrowIfFailure();
 
                 // Ensure there are no pending requests.
                 await SendSyncRequest(operationContext, purge).ThrowIfFailure();
 
-                purgeTask = _purgeTask;
-                if (purgeTask != null)
-                {
-                    await purgeTask.ThrowIfFailure();
-                }
+                await _purgeTask.ThrowIfFailure();
 
                 return BoolResult.Success;
             }
@@ -549,11 +544,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private void StartPurgeIfNeeded(Context context, string reason)
         {
-            if (_purgeTask == null)
+            if (_purgeTask.IsCompleted)
             {
                 lock (_purgeTaskLock)
                 {
-                    if (_purgeTask == null)
+                    if (_purgeTask.IsCompleted)
                     {
                         _tracer.Debug(context, $"{Component}: Purge stated because {reason}. Current Size={CurrentSize}");
                         _purgeTask = Task.Run(() => PurgeAsync(context));
@@ -703,7 +698,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (_evictionQueue.IsEmpty)
                 {
-                    _purgeTask = null;
+                    _purgeTask = CompletedPurgeTask;
                     return false;
                 }
             }

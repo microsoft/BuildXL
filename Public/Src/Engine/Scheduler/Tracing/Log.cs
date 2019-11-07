@@ -3809,6 +3809,33 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan(LoggingContext context, int pipCount, long elapsedMs);
 
         [GeneratedEvent(
+           (int)EventId.IncrementalSchedulingStateStatsAfterLoad,
+           EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Scheduler,
+           Keywords = (int)Keywords.UserMessage,
+           Message = "N/A")]
+        public abstract void IncrementalSchedulingStateStatsAfterLoad(LoggingContext context, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
+           (int)EventId.IncrementalSchedulingStateStatsAfterScan,
+           EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Scheduler,
+           Keywords = (int)Keywords.UserMessage,
+           Message = "N/A")]
+        public abstract void IncrementalSchedulingStateStatsAfterScan(LoggingContext context, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
+           (int)EventId.IncrementalSchedulingStateStatsEnd,
+           EventGenerators = EventGenerators.TelemetryOnly | Generators.Statistics,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Scheduler,
+           Keywords = (int)Keywords.UserMessage,
+           Message = "N/A")]
+        public abstract void IncrementalSchedulingStateStatsEnd(LoggingContext context, IDictionary<string, long> stats);
+
+        [GeneratedEvent(
             (ushort)EventId.ServicePipStarting,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

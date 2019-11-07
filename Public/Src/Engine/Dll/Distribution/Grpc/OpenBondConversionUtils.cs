@@ -212,6 +212,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PathValue = i.PathValue,
                     ReparsePointType = (FileArtifactKeyedHash.Types.GrpcReparsePointType)i.ReparsePointType,
                     RewriteCount = i.RewriteCount,
+                    IsSourceAffected = i.IsSourceAffected,
                 };
 
                 if (i.ReparsePointTarget != null)
@@ -280,7 +281,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                     PathValue = i.PathValue,
                     ReparsePointTarget = i.ReparsePointTarget,
                     ReparsePointType = (BondReparsePointType)((int)i.ReparsePointType),
-                    RewriteCount = i.RewriteCount
+                    RewriteCount = i.RewriteCount,
+                    IsSourceAffected = i.IsSourceAffected,
                 });
             }
 

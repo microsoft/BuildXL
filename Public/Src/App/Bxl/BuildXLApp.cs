@@ -339,7 +339,11 @@ namespace BuildXL
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
-                        (int)Engine.Tracing.LogEventId.GrpcSettings
+                        (int)Engine.Tracing.LogEventId.GrpcSettings,
+                        (int)Engine.Tracing.LogEventId.ChosenABTesting,
+                        (int)EventId.SynchronouslyWaitedForCache,
+                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
+                        (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
                     },
                     // all errors should be included in a dev log
                     EventLevel.Error));

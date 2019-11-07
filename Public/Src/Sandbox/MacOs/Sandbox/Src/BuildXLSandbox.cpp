@@ -3,6 +3,7 @@
 
 #include <kern/clock.h>
 
+#include "Alloc.hpp"
 #include "BuildXLSandbox.hpp"
 #include "CacheRecord.hpp"
 #include "Listeners.hpp"
@@ -418,8 +419,8 @@ bool const BuildXLSandbox::SendAccessReport(AccessReport &report, SandboxedPip *
     pid_t clientPid = pip->getClientPid();
     ClientInfo *client = GetClientInfo(clientPid);
 
-    Timespan getClientInfoDuration      = stopwatch.lap();
-    Counters()->getClientInfo          += getClientInfoDuration;
+    Timespan getClientInfoDuration  = stopwatch.lap();
+    Counters()->getClientInfo      += getClientInfoDuration;
     pip->Counters()->getClientInfo += getClientInfoDuration;
 
     if (client == nullptr)
@@ -604,6 +605,13 @@ typedef struct {
 
 static int BytesInAMegabyte = 1024 * 1024;
 
+#define SET_COUNT_AND_SIZE(cnt, cls) do { \
+  (cnt).count = cls::metaClass->getInstanceCount(); \
+  (cnt).size = (double)sizeof(cls); \
+} while(0)
+
+#define COUNT_AND_SIZE(cls) { .count = cls::metaClass->getInstanceCount(), .size = (double)sizeof(cls) }
+
 IntrospectResponse BuildXLSandbox::Introspect() const
 {
     EnterMonitor
@@ -612,14 +620,17 @@ IntrospectResponse BuildXLSandbox::Introspect() const
     {
         .numAttachedClients  = connectedClients_->getCount(),
         .counters            = counters_,
+        .memory              =
+        {
+            .totalAllocatedBytes = Alloc::numCurrentlyAllocatedBytes(),
+            .fastNodes           = COUNT_AND_SIZE(NodeFast),
+            .lightNodes          = COUNT_AND_SIZE(NodeLight),
+            .cacheRecords        = COUNT_AND_SIZE(CacheRecord)
+        },
         .kextConfig          = config_,
         .numReportedPips     = 0,
         .pips                = {0}
     };
-
-    Trie::getUintNodeCounts(&result.counters.uintNodes);
-    Trie::getPathNodeCounts(&result.counters.pathNodes);
-    Trie::getLightNodeCounts(&result.counters.lightNodes);
 
     ReportCounters *reportCounters = &result.counters.reportCounters;
     reportCounters->freeListSizeMB =

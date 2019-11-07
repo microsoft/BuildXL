@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Tracing
         CacheClientStats = 50,
         CatastrophicFailureCausedByCorruptedCache = 51,
         ProcessingPipOutputFileFailed = 52,
-        // Reserved = 53,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
         // Reserved = 54,
         // Reserved = 55,
         // Reserved = 56,
@@ -975,6 +975,10 @@ namespace BuildXL.Utilities.Tracing
         IncrementalSchedulingPipOfOtherGraphIsDirtyDuringScan = 8077,
         IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan = 8078,
         IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan = 8079,
+
+        IncrementalSchedulingStateStatsAfterLoad = 8080,
+        IncrementalSchedulingStateStatsAfterScan = 8081,
+        IncrementalSchedulingStateStatsEnd = 8082,
 
         // Server mode
         UsingExistingServer = 8100,

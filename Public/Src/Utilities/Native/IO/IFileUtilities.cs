@@ -129,7 +129,6 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// Does not support paths longer than MAX_PATH
         /// </remarks>
-        /// <returns>If true is returned, the move proceeded and completed. </returns>
         /// <exception cref="BuildXLException">
         /// Thrown if the file move fails in a recoverable manner, including if the destination
         /// already exists and <paramref name="replaceExisting" /> is set to false or if the source doesn't exist
@@ -137,7 +136,7 @@ namespace BuildXL.Native.IO
         /// <param name="source">Full path of the source</param>
         /// <param name="destination">Full path of the destination</param>
         /// <param name="replaceExisting">whether to replace an existing file at the destination</param>
-        Task<bool> MoveFileAsync(string source, string destination, bool replaceExisting);
+        Task MoveFileAsync(string source, string destination, bool replaceExisting);
 
         /// <summary>
         /// Creates a copy on write clone of files if supported by the underlying OS.

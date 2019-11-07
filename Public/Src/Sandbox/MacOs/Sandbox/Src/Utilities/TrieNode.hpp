@@ -56,7 +56,7 @@ protected:
      * @param lock A lock unique to the parent tree to use when needed.
      * @result True IFF this node contains a child node with key 'key' after this method returns.
      */
-    virtual Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock) = 0;
+    virtual Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock, bool *outNewNodeCreated) = 0;
 
     /*! Calls 'callback' for every node in the tree rooted in this node (the traversal is pre-order) */
     virtual void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) = 0;
@@ -90,7 +90,11 @@ private:
     /*! Pointer to the first child node */
     NodeLight *children_;
 
-    NodeLight* findChild(uint key, bool createIfMissing, IORecursiveLock *maybeNulllock, IORecursiveLock *nonNullLock);
+    NodeLight* findChild(uint key,
+                         bool createIfMissing,
+                         IORecursiveLock *maybeNulllock,
+                         IORecursiveLock *nonNullLock,
+                         bool *outNewNodeCreated);
 
     bool init(uint key);
 
@@ -100,9 +104,9 @@ public:
 
 protected:
 
-    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock) override
+    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock, bool *outNewNodeCreated) override
     {
-        return findChild(key, createIfMissing, nullptr, lock);
+        return findChild(key, createIfMissing, nullptr, lock, outNewNodeCreated);
     }
 
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
@@ -137,7 +141,7 @@ public:
 
 protected:
 
-    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock) override;
+    Node* findChild(uint key, bool createIfMissing, IORecursiveLock *lock, bool *outNewNodeCreated) override;
     void traverse(bool computeKey, void *callbackArgs, traverse_fn callback) override;
     void free() override;
 };

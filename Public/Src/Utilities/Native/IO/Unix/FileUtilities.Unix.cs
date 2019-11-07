@@ -421,17 +421,26 @@ namespace BuildXL.Native.IO.Unix
                         using (FileStream destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
                         {
                             await sourceStream.CopyToAsync(destinationStream);
+
+                            var mode = GetFilePermissionsForFilePath(source, followSymlink: false);
+                            var result = SetFilePermissionsForFilePath(destination, checked((FilePermissions)mode), followSymlink: false);
+
+                            if (result < 0)
+                            {
+                                throw new BuildXLException($"Failed to set permissions for file copy at '{destination}' - error: {Marshal.GetLastWin32Error()}");
+                            }
+
                             onCompletion?.Invoke(sourceStream.SafeFileHandle, destinationStream.SafeFileHandle);
                         }
                     }
 
                     return true;
                 },
-                ex => { throw new BuildXLException("File copy failed", ex); });
+                ex => { throw new BuildXLException(I($"File copy from '{source}' to '{destination}' failed"), ex); });
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveFileAsync(
+        public Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false)
@@ -439,7 +448,7 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run<bool>(
+            return Task.Run(
                 () => ExceptionUtilities.HandleRecoverableIOException(
                     () =>
                     {
@@ -449,9 +458,8 @@ namespace BuildXL.Native.IO.Unix
                         }
 
                         File.Move(source, destination);
-                        return true;
                     },
-                    ex => { throw new BuildXLException("File move failed", ex); }));
+                    ex => { throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex); }));
         }
 
         /// <inheritdoc />

@@ -786,7 +786,7 @@ namespace BuildXL.Engine
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(ReadSidebandFile)
+                .SelectMany(fileName => ReadSidebandFile(loggingContext, fileName))
                 .ToArray();
 
             if (distinctRecordedWrites.Any())

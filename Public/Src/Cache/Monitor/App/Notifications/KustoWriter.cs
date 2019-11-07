@@ -21,7 +21,7 @@ namespace BuildXL.Cache.Monitor.App.Notifications
 
             public string KustoTableName { get; set; }
 
-            public string KustoTableIngestionMappingName { get; set; };
+            public string KustoTableIngestionMappingName { get; set; }
 
             public TimeSpan FlushInterval { get; set; } = TimeSpan.FromSeconds(5);
 

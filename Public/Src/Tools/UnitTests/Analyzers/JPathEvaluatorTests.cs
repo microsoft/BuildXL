@@ -35,12 +35,18 @@ namespace Test.Tool.Analyzers
         }
 #pragma warning restore CS0649
 
+        private Evaluator.Env RootEnv { get; }
+
         public JPathEvaluatorTests(ITestOutputHelper output)
            : base(output)
         {
+            RootEnv = new Evaluator.Env(
+                parent: null,
+                current: Evaluator.Result.Scalar(new Val()),
+                resolver: Resolver,
+                vars: global::BuildXL.Execution.Analyzer.LibraryFunctions.All.ToDictionary(
+                    func => "$" + func.Name, func => Evaluator.Result.Scalar(func)));
         }
-
-        private const string Env1 = "Curr: 1";
 
         [Theory]
         // root expr 
@@ -52,10 +58,10 @@ namespace Test.Tool.Analyzers
         [InlineData("_.N", "{Curr: {N: 1}, Parent: {Curr: {N: 2}}}", "[1]")]
         [InlineData("_.X", "{Curr: {N: 1}, Parent: {Curr: {N: 2}}}", "[]")]
         // var expr
-        [InlineData("$x", "{Vars: {'$x': 1}}", "[1]" )]
-        [InlineData("$y", "{Vars: {'$x': 1}}", "[]" )]
-        [InlineData("$y", "{Vars: {'$x': 1}, Parent: {Vars: {'$y': 2}}}", "[2]" )]
-        [InlineData("$y", "{Vars: {'$y': 1}, Parent: {Vars: {'$y': 2}}}", "[1]" )]
+        [InlineData("$x", "{Vars: {'$x': 1}}", "[1]")]
+        [InlineData("$y", "{Vars: {'$x': 1}}", "[]")]
+        [InlineData("$y", "{Vars: {'$x': 1}, Parent: {Vars: {'$y': 2}}}", "[2]")]
+        [InlineData("$y", "{Vars: {'$y': 1}, Parent: {Vars: {'$y': 2}}}", "[1]")]
         // union / arithmetic addition
         [InlineData("1 + 1", "{}", "[2]")]
         [InlineData("1 @+ 1", "{}", "[1]")]
@@ -71,40 +77,40 @@ namespace Test.Tool.Analyzers
         [InlineData("(1 ++ 2) & (1 ++ 3)", "{}", "[1]")]
         [InlineData("(1 ++ 2) & (3 ++ 5)", "{}", "[]")]
         // match
-        [InlineData("'Hello World' ~ 'wor'",     "{}", "[true]")]
-        [InlineData("'Hello World' ~ 'Wor'",     "{}", "[true]")]
-        [InlineData("'Hello World' ~ /wor/",     "{}", "[false]")]
+        [InlineData("'Hello World' ~ 'wor'", "{}", "[true]")]
+        [InlineData("'Hello World' ~ 'Wor'", "{}", "[true]")]
+        [InlineData("'Hello World' ~ /wor/", "{}", "[false]")]
         [InlineData("'Hello World' ~ /(?i)wor/", "{}", "[true]")]
         [InlineData("('Hello' ++ 'World') ~ /(?i)wor/", "{}", "[true]")]
-        [InlineData("('Hello' ++ 'World') ~ /Hel/",   "{}", "[true]")]
-        [InlineData("('Hello' ++ 'World') ~ /hel/",   "{}", "[false]")]
+        [InlineData("('Hello' ++ 'World') ~ /Hel/", "{}", "[true]")]
+        [InlineData("('Hello' ++ 'World') ~ /hel/", "{}", "[false]")]
         // negative match 
-        [InlineData("'Hello World' !~ 'wor'",     "{}", "[false]")]
-        [InlineData("'Hello World' !~ 'Wor'",     "{}", "[false]")]
-        [InlineData("'Hello World' !~ /wor/",     "{}", "[true]")]
+        [InlineData("'Hello World' !~ 'wor'", "{}", "[false]")]
+        [InlineData("'Hello World' !~ 'Wor'", "{}", "[false]")]
+        [InlineData("'Hello World' !~ /wor/", "{}", "[true]")]
         [InlineData("'Hello World' !~ /(?i)wor/", "{}", "[false]")]
         // index expression
-        [InlineData("AN[0]",  "{Curr: {AN: [1, 2, 3]}}", "[1]")]
+        [InlineData("AN[0]", "{Curr: {AN: [1, 2, 3]}}", "[1]")]
         [InlineData("(1 ++ 2 ++ 3)[-1]", "{}", "[3]")]
         [InlineData("(1 ++ 2 ++ 3)[-3]", "{}", "[1]")]
-        [InlineData("(1 ++ 2 ++ 3)[5]",  "{}", "[]")]
+        [InlineData("(1 ++ 2 ++ 3)[5]", "{}", "[]")]
         [InlineData("(1 ++ 2 ++ 3)[-5]", "{}", "[]")]
         [InlineData("(1 ++ 2 ++ 3)[1]", "{}", "[2]")]
         // range expression
-        [InlineData("AN[0..0]",  "{Curr: {AN: [1, 2, 3]}}", "[1]")]
-        [InlineData("(1 ++ 2 ++ 3)[0..0]",   "{}", "[1]")]
-        [InlineData("(1 ++ 2 ++ 3)[0..1]",   "{}", "[1, 2]")]
-        [InlineData("(1 ++ 2 ++ 3)[0..-1]",  "{}", "[1, 2, 3]")]
+        [InlineData("AN[0..0]", "{Curr: {AN: [1, 2, 3]}}", "[1]")]
+        [InlineData("(1 ++ 2 ++ 3)[0..0]", "{}", "[1]")]
+        [InlineData("(1 ++ 2 ++ 3)[0..1]", "{}", "[1, 2]")]
+        [InlineData("(1 ++ 2 ++ 3)[0..-1]", "{}", "[1, 2, 3]")]
         [InlineData("(1 ++ 2 ++ 3)[-2..-1]", "{}", "[2, 3]")]
-        [InlineData("(1 ++ 2 ++ 3)[2..1]",   "{}", "[]")]
+        [InlineData("(1 ++ 2 ++ 3)[2..1]", "{}", "[]")]
         [InlineData("(1 ++ 2 ++ 3)[-1..-2]", "{}", "[]")]
         // map expr
-        [InlineData("AV.N",   "{Curr: {AV: [{N: 1}, {N: 2}, {N: 3}]}}", "[1, 2, 3]")]
-        [InlineData("AV.S",   "{Curr: {AV: [{S: '1'}, {}, {'S': '3'}]}}", "['1', '3']")]
-        [InlineData("AV.AN",  "{Curr: {AV: [{AN: [1]}, {}, {AN: [2, 3]}]}}", "[1, 2, 3]")]
+        [InlineData("AV.N", "{Curr: {AV: [{N: 1}, {N: 2}, {N: 3}]}}", "[1, 2, 3]")]
+        [InlineData("AV.S", "{Curr: {AV: [{S: '1'}, {}, {'S': '3'}]}}", "['1', '3']")]
+        [InlineData("AV.AN", "{Curr: {AV: [{AN: [1]}, {}, {AN: [2, 3]}]}}", "[1, 2, 3]")]
         // filter expr
-        [InlineData("AV[N > 1].N",   "{Curr: {AV: [{N: 1}, {N: 2}, {N: 3}]}}", "[2, 3]")]
-        [InlineData("AV[X > 1].N",   "{Curr: {AV: [{N: 1}, {N: 2}, {N: 3}]}}", "[]")]
+        [InlineData("AV[N > 1].N", "{Curr: {AV: [{N: 1}, {N: 2}, {N: 3}]}}", "[2, 3]")]
+        [InlineData("AV[X > 1].N", "{Curr: {AV: [{N: 1}, {N: 2}, {N: 3}]}}", "[]")]
         [InlineData("AV[S ~ '1'].S", "{Curr: {AV: [{S: '1'}, {S: '2'}, {S: '12'}]}}", "['1', '12']")]
         [InlineData("AV[S ~ /^1$/].S", "{Curr: {AV: [{S: '1'}, {S: '2'}, {S: '12'}]}}", "['1']")]
         // cardinality 
@@ -121,6 +127,32 @@ namespace Test.Tool.Analyzers
         {
             var env = Convert(JsonDeserialize<Env>(envStr));
             var evaluator = new Evaluator(env, enableCaching: false);
+            EvaluateAndAssertResult(evaluator, exprStr, expectedResultJson);
+        }
+
+        [Theory]
+        // grep tests
+        [InlineData("$grep('A', 'ab' ++ 'cd')",                    "['ab']")]
+        [InlineData("$grep -o ('A', 'ab' ++ 'cd')",                "['a']")]
+        [InlineData("$grep(/.$/, 'ab' ++ 'cd')",                   "['ab', 'cd']")]
+        [InlineData("$grep -o (/.$/, 'ab' ++ 'cd')",               "['b', 'd']")]
+        [InlineData("$grep -o -g 'G' (/(?<G>.).$/, 'ab' ++ 'cd')", "['a', 'c']")]
+        // grep -v 
+        [InlineData("$grep -v ('A', 'ab' ++ 'cd')",                   "['cd']")]
+        [InlineData("$grep -v -o ('A', 'ab' ++ 'cd')",                "['cd']")]
+        [InlineData("$grep -v (/.$/, 'ab' ++ 'cd')",                  "[]")]
+        [InlineData("$grep -v -o (/.$/, 'ab' ++ 'cd')",               "[]")]
+        [InlineData("$grep -v -o -g 'G' (/(?<G>.).$/, 'ab' ++ 'cd')", "[]")]
+        // sort + uniq
+        [InlineData("(('a' ++ 'b' ++ 'a') | $uniq -c | $sort -n -r -k 'Count').($str(Count, ': ', Key))", "['2: a', '1: b']")]
+        public void TestLibraryFunc(string exprStr, string expectedResultJson)
+        {
+            var evaluator = new Evaluator(RootEnv, enableCaching: false);
+            EvaluateAndAssertResult(evaluator, exprStr, expectedResultJson);
+        }
+
+        private void EvaluateAndAssertResult(Evaluator evaluator, string exprStr, string expectedResultJson)
+        {
             var maybeResult = JPath.TryParse(exprStr).Then(expr => JPath.TryEval(evaluator, expr));
             XAssert.IsTrue(maybeResult.Succeeded);
             var result = maybeResult.Result;
@@ -139,9 +171,10 @@ namespace Test.Tool.Analyzers
         {
             return obj switch
             {
-                int i      => new ObjectInfo(preview: i.ToString(), original: i),
-                string str => new ObjectInfo(preview: str, original: str),
-                _          => Renderer.GenericObjectInfo(obj)
+                int i         => new ObjectInfo(preview: i.ToString(), original: i),
+                string str    => new ObjectInfo(preview: str, original: str),
+                ObjectInfo oi => oi,
+                _             => Renderer.GenericObjectInfo(obj)
             };
         }
 
@@ -171,7 +204,7 @@ namespace Test.Tool.Analyzers
             }
         }
 
-        private static Evaluator.Env Convert(Env env)
+        private Evaluator.Env Convert(Env env)
         {
             return env == null
                 ? null

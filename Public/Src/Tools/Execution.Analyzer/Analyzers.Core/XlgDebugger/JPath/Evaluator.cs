@@ -737,7 +737,7 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             string substr(string s, int index, int length)
             {
-                return index >= 0 && index < length
+                return index >= 0
                     ? s.Substring(index, length)
                     : string.Empty;
             }

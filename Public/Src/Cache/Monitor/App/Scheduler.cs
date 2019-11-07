@@ -191,7 +191,15 @@ namespace BuildXL.Cache.Monitor.App
                     {
                         // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
                         await Task.Yield();
-                        await RunRuleAsync(entry);
+
+                        try
+                        {
+                            await RunRuleAsync(entry);
+                        }
+                        catch (Exception exception)
+                        {
+                            _logger.Error($"Scheduler threw an exception while running rule: {exception.GetType()} {exception.StackTrace}");
+                        }
                     });
                 }
 
@@ -268,9 +276,9 @@ namespace BuildXL.Cache.Monitor.App
                     else
                     {
                         // NOTE(jubayard): for very long exceptions, the description overwhelms the buffer.
+                        _logger.Error($"{logMessage}. An exception has been caught and the rule has been disabled.");
                         _logger.Flush();
-                        _logger.Error($"{logMessage}. An exception has been caught and the rule has been disabled. Exception: {exception}");
-                        _logger.Flush();
+                        _logger.Error($"Exception: {exception?.ToString()}");
                     }
                 }
 
@@ -280,7 +288,7 @@ namespace BuildXL.Cache.Monitor.App
                     RuleIdentifier = rule.Identifier,
                     RunGuid = context?.RunGuid ?? Guid.Empty,
                     Elapsed = stopwatch.Elapsed,
-                    ErrorMessage = failed ? exception.ToString() : "",
+                    ErrorMessage = failed ? exception?.ToString() : "",
                 });
             }
         }

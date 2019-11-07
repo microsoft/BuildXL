@@ -37,7 +37,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
             /// <summary>
             /// Minimum valid size. A checkpoint smaller than this triggers a fatal error.
             /// </summary>
-            public string MinimumValidSize { get; set; } = "200MB";
+            public string MinimumValidSize { get; set; } = "1KB";
 
             public long MinimumValidSizeBytes => MinimumValidSize.ToSize();
 
@@ -105,19 +105,19 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             var detectionHorizon = now - _configuration.AnomalyDetectionHorizon;
 
-            var variability = new CheckPercentualDifference<Result>(r => r.TotalSize, _configuration.MaximumPercentualDifference);
-            variability.Check(results, (index, result) => {
-                if (result.PreciseTimeStamp < detectionHorizon)
+            results
+                .Select(r => (double)r.TotalSize)
+                .OverPercentualDifference(_configuration.MaximumPercentualDifference)
+                .Where(evaluation => results[evaluation.Index].PreciseTimeStamp >= detectionHorizon)
+                .Perform(index =>
                 {
-                    return;
-                }
-
-                var previousResult = results[index - 1];
-                Emit(context, "SizeDerivative", Severity.Warning,
-                    $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`, which is higher than the threshold of `{_configuration.MaximumPercentualDifference * 100.0}%`",
-                    $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`",
-                    eventTimeUtc: result.PreciseTimeStamp);
-            });
+                    var result = results[index];
+                    var previousResult = results[index - 1];
+                    Emit(context, "SizeDerivative", Severity.Warning,
+                        $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`, which is higher than the threshold of `{_configuration.MaximumPercentualDifference * 100.0}%`",
+                        $"Checkpoint size went from `{previousResult.TotalSize.ToSizeExpression()}` to `{result.TotalSize.ToSizeExpression()}`",
+                        eventTimeUtc: result.PreciseTimeStamp);
+                });
 
             var training = new List<Result>();
             var prediction = new List<Result>();
@@ -129,12 +129,15 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 return;
             }
 
-            var range = new CheckRange<long>(Comparer<long>.Default, _configuration.MinimumValidSizeBytes, _configuration.MaximumValidSizeBytes);
-            range.Check(prediction.Select(r => r.TotalSize), (index, value) => {
-                Emit(context, "SizeValidRange", Severity.Warning,
-                    $"Checkpoint size `{value.ToSizeExpression()}` out of valid range [`{_configuration.MinimumValidSize}`, `{_configuration.MaximumValidSize}`]",
-                    eventTimeUtc: prediction[index].PreciseTimeStamp);
-            });
+            prediction
+                .Select(p => p.TotalSize)
+                .NotInRange(_configuration.MinimumValidSizeBytes, _configuration.MaximumValidSizeBytes)
+                .PerformOnLast(index => {
+                    var result = prediction[index];
+                    Emit(context, "SizeValidRange", Severity.Warning,
+                        $"Checkpoint size `{result.TotalSize.ToSizeExpression()}` out of valid range [`{_configuration.MinimumValidSize}`, `{_configuration.MaximumValidSize}`]",
+                        eventTimeUtc: result.PreciseTimeStamp);
+                });
 
             if (training.Count < _configuration.MinimumTrainingPercentOfData * results.Count)
             {
@@ -142,16 +145,17 @@ namespace BuildXL.Cache.Monitor.App.Rules
             }
 
             var lookbackSizes = training.Select(r => r.TotalSize);
-            var lookbackMin = (long)Math.Floor((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
-            var lookbackMax = (long)Math.Ceiling((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
-            var range2 = new CheckRange<double>(Comparer<double>.Default, lookbackMin, lookbackMax);
-            range2.Check(prediction.Select(r => (double)r.TotalSize), (index, valueDouble) => {
-                var value = (long)Math.Ceiling(valueDouble);
-
-                Emit(context, "SizeExpectedRange", Severity.Warning,
-                    $"Checkpoint size `{value.ToSizeExpression()}` out of expected range [`{lookbackMin.ToSizeExpression()}`, `{lookbackMax.ToSizeExpression()}`]",
-                    eventTimeUtc: prediction[index].PreciseTimeStamp);
-            });
+            var expectedMin = (long)Math.Floor((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
+            var expectedMax = (long)Math.Ceiling((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
+            prediction
+                .Select(p => p.TotalSize)
+                .NotInRange(expectedMin, expectedMax)
+                .PerformOnLast(index => {
+                    var result = prediction[index];
+                    Emit(context, "SizeExpectedRange", Severity.Warning,
+                        $"Checkpoint size `{result.TotalSize.ToSizeExpression()}` out of expected range [`{expectedMin.ToSizeExpression()}`, `{expectedMax.ToSizeExpression()}`]",
+                        eventTimeUtc: result.PreciseTimeStamp);
+                });
         }
     }
 }

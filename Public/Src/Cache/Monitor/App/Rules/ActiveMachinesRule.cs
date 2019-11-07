@@ -99,14 +99,11 @@ namespace BuildXL.Cache.Monitor.App.Rules
             }
 
             var lookbackSizes = training.Select(r => r.ActiveMachines);
-            double lookbackMin = Math.Ceiling((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
-            double lookbackMax = Math.Floor((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
-            var range2 = new CheckRange<double>(Comparer<double>.Default, lookbackMin, lookbackMax);
-            range2.Check(prediction.Select(r => (double)r.ActiveMachines), (index, valueDouble) => {
-                var value = (long)Math.Ceiling(valueDouble);
-
+            var lookbackMin = (long)Math.Ceiling((1 - _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Min());
+            var lookbackMax = (long)Math.Floor((1 + _configuration.MaximumGrowthWrtToLookback) * lookbackSizes.Max());
+            prediction.Select(p => p.ActiveMachines).NotInRange(lookbackMin, lookbackMax).Perform(index => {
                 Emit(context, "ExpectedRange", Severity.Warning,
-                    $"`{value}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
+                    $"`{prediction[index].ActiveMachines}` active machines, outside of expected range [`{lookbackMin}`, `{lookbackMax}`]",
                     eventTimeUtc: prediction[index].PreciseTimeStamp);
             });
         }

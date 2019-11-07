@@ -17,7 +17,7 @@ public:
 
     /*!
      * Constructor: atomically increments a given int pointer and remembers the value before the increment.
-     * The pointer is also remembers and is automatically decremented in the distructor.
+     * The pointer is also remembered and is automatically decremented in the destructor.
      */
     AutoIncDec(volatile SInt32 *cnt)
     {

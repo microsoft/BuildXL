@@ -54,19 +54,19 @@ private:
 
     /*!
      * Maps every accessed path to a 'CacheRecord' object (which contains caching information regarding that path).
-     * IMPORTANT: increment/decrement cacheCallCnt_ around every use
+     * IMPORTANT: increment/decrement cacheCallCnt_ around every use.
      */
     Trie *pathCache_;
 
     /*! Old path cache left to be garbage collected (in 'cacheLookup' method) after caching was dynamically disabled. */
     Trie *oldPathCache_;
 
-    /*! Counts the number of concurrent calls to 'cacheLookup' method */
+    /*! Counts the number of concurrent calls to 'pathCache_' */
     int cacheCallCnt_;
 
     /*!
      * Starts out as false and becomes true if we decide to disable caching for this pip.
-     * INVARIANT: once disabled, it stays disabled
+     * INVARIANT: once disabled, it stays disabled.
      */
     bool disableCaching_;
 

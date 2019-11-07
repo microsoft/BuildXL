@@ -212,10 +212,22 @@ namespace BuildXL.Execution.Analyzer
         {
             var pattern = args[0];
             var flip = args.HasSwitch("v");
+            var printMatchOnly = args.HasSwitch("o");
+            var groupName = args.GetStrSwitch("g", defaultValue: "0");
             return args
                 .Skip(1)
                 .SelectMany(result => result)
-                .Where(obj => flip ^ args.Matches(args.Preview(obj), pattern))
+                .Select(obj => 
+                {
+                    var str = args.Preview(obj);
+                    var match = args.Eval.Match(str, pattern, groupName);
+                    var matches = !string.IsNullOrEmpty(match);
+                    var shouldInclude = flip ^ matches;
+                    return shouldInclude
+                        ? (flip || !printMatchOnly) ? str : match
+                        : null;
+                })
+                .Where(str => str != null)
                 .ToArray();
         }
 

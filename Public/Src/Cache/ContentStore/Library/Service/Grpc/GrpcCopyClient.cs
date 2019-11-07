@@ -259,9 +259,9 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         }
 
         /// <summary>
-        /// Pushes content to another machine.
+        /// Pushes content to another machine. Failure to open the source stream should return a null stream.
         /// </summary>
-        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Stream source)
+        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Stream>> source)
         {
             try
             {
@@ -288,7 +288,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     }
                 }
 
-                await StreamContentAsync(source, new byte[_bufferSize], requestStream, context.Token);
+                var stream = await source();
+
+                if (stream == null)
+                {
+                    await requestStream.CompleteAsync();
+                    return new BoolResult("Failed to retrieve source stream.");
+                }
+
+                using (stream)
+                {
+                    await StreamContentAsync(stream, new byte[_bufferSize], requestStream, context.Token);
+                }
+
                 await requestStream.CompleteAsync();
 
                 var responseStream = call.ResponseStream;

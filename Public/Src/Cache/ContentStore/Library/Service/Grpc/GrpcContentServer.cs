@@ -397,6 +397,13 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return;
             }
 
+            if (store.HasContentLocally(cacheContext, hash))
+            {
+                Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because content is already local.");
+                await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "false" } });
+                return;
+            }
+
             if (!_ongoingPushes.Add(hash))
             {
                 Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because another request to push it is already being handled.");
@@ -406,13 +413,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             try
             {
-                if (store.HasContentLocally(cacheContext, hash))
-                {
-                    Tracer.Debug(cacheContext, $"{nameof(HandlePushFileAsync)}: Copy of {hash.ToShortString()} skipped because content is already local.");
-                    await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "false" } });
-                    return;
-                }
-
                 await callContext.WriteResponseHeadersAsync(new Metadata { { "should_copy", "true" } });
 
                 var tempFilePath = AbsolutePath.CreateRandomFileName(_tempDirectory);

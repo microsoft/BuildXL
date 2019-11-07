@@ -93,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
         }
 
         /// <inheritdoc />
-        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Stream source, MachineLocation targetMachine)
+        public async Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, Func<Task<Stream>> source, MachineLocation targetMachine)
         {
             var targetPath = new AbsolutePath(targetMachine.Path);
             var targetMachineName = targetPath.IsLocal ? "localhost" : targetPath.GetSegments()[0];

@@ -2,9 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -54,10 +54,10 @@ namespace BuildXL.Cache.ContentStore.App
                 var rpcClient = rpcClientWrapper.Value;
                 var path = new AbsolutePath(sourcePath);
 
-                using var stream = File.OpenRead(path.Path);
+                using Stream stream = File.OpenRead(path.Path);
 
                 // This action is synchronous to make sure the calling application doesn't exit before the method returns.
-                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, stream)).Result;
+                var copyFileResult = retryPolicy.ExecuteAsync(() => rpcClient.PushFileAsync(operationContext, hash, () => Task.FromResult(stream))).Result;
                 if (!copyFileResult.Succeeded)
                 {
                     _logger.Error($"{copyFileResult}");

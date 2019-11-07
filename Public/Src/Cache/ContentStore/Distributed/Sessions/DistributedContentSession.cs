@@ -426,13 +426,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         {
             if (Settings.PushProactiveCopies)
             {
-                var streamResult = await Inner.OpenStreamAsync(context, hash, context.Token);
-                if (!streamResult.Succeeded)
-                {
-                    return new BoolResult(streamResult);
-                }
+                return await DistributedCopier.PushFileAsync(
+                    context,
+                    hash,
+                    target,
+                    async () =>
+                    {
+                        var streamResult = await Inner.OpenStreamAsync(context, hash, context.Token);
+                        if (streamResult.Succeeded)
+                        {
+                            return streamResult.Stream;
+                        }
 
-                return await DistributedCopier.PushFileAsync(context, hash, target, streamResult.Stream, isInsideRing);
+                        return null;
+                    }
+                    , isInsideRing);
             }
             else
             {

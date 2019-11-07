@@ -122,12 +122,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         SentAddLocationsHashes,
 
         /// <nodoc />
-        SentAddLocationsWithoutTouchingEvents,
-
-        /// <nodoc />
-        SentAddLocationsWithoutTouchingHashes,
-
-        /// <nodoc />
         SentRemoveLocationsEvents,
 
         /// <nodoc />

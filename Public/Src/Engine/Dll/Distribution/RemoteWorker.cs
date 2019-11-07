@@ -117,11 +117,11 @@ namespace BuildXL.Engine.Distribution
             m_sendThread = new Thread(SendBuildRequests);
         }
 
-        public override void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget)
+        public override void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, PipExecutionContext context)
         {
             m_pipGraph = pipGraph;
             m_workerExecutionLogTarget = executionLogTarget;
-            base.Initialize(pipGraph, executionLogTarget);
+            base.Initialize(pipGraph, executionLogTarget, context);
         }
 
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
@@ -635,7 +635,8 @@ namespace BuildXL.Engine.Distribution
                 Fingerprint = fingerprint.Hash.ToBondFingerprint(),
                 Priority = runnable.Priority,
                 Step = (int)runnable.Step,
-                ExpectedRamUsageMb = processRunnable?.ExpectedRamUsageMb,
+                ExpectedRamUsageMb = processRunnable?.ExpectedMemoryCounters?.PeakWorkingSetMb,
+                ExpectedCommitUsageMb = processRunnable?.ExpectedMemoryCounters?.PeakCommitUsageMb,
                 SequenceNumber = Interlocked.Increment(ref m_nextSequenceNumber),
             };
 
@@ -946,7 +947,20 @@ namespace BuildXL.Engine.Distribution
 
             m_cacheValidationContentHash = attachCompletionInfo.WorkerCacheValidationContentHash;
             TotalProcessSlots = attachCompletionInfo.MaxConcurrency;
-            TotalMemoryMb = attachCompletionInfo.AvailableRamMb;
+            TotalRamMb = attachCompletionInfo.AvailableRamMb;
+            TotalCommitMb = attachCompletionInfo.AvailableCommitMb;
+
+            if (TotalRamMb == 0)
+            {
+                // If BuildXL did not properly retrieve the available ram, then we use the default: 100gb
+                TotalRamMb = 100000;
+                Logger.Log.WorkerTotalRamMb(m_appLoggingContext, Name, TotalRamMb.Value, TotalCommitMb.Value);
+            }
+
+            if (TotalCommitMb == 0)
+            {
+                TotalCommitMb = (int)(TotalRamMb * 1.5);
+            }
 
             var validateCacheSuccess = await ValidateCacheConnection();
 

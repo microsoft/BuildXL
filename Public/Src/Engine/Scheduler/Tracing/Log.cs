@@ -4336,13 +4336,31 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void KextFailureNotificationReceived(LoggingContext context, int errorCode, string description);
 
         [GeneratedEvent(
-            (ushort)EventId.LowMemory,
+            (ushort)EventId.LowRamMemory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = "Machine ran out of physical ram and had to fall back to the page file: {machineAvailablePhysicalMb} MB - {machineRamUsagePercentage}%.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LowRamMemory(LoggingContext context, int machineAvailablePhysicalMb, int machineRamUsagePercentage);
+
+        [GeneratedEvent(
+            (ushort)EventId.LowCommitMemory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.HostApplication,
+            Message = "Machine ran out of commit memory: {machineAvailableCommitMb} MB - {machineCommitUsagePercentage}%.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LowCommitMemory(LoggingContext context, int machineAvailableCommitMb, int machineCommitUsagePercentage);
+
+        [GeneratedEvent(
+            (ushort)EventId.HitLowMemorySmell,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
             Message = "Machine ran out of physical ram and had to fall back to the page file. This can dramatically impact build performance. Either too much concurrency was used during the build or the memory throttling options were not effective. Try adjusting the following options: /maxproc, /maxRamUtilizationPercentage, /minAvailableRamMb. See verbose help text for details: {MainExecutableName} /help:verbose",
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void LowMemory(LoggingContext context, long machineMinimumAvailablePhysicalMB);
+        public abstract void HitLowMemorySmell(LoggingContext context);
 
         [GeneratedEvent(
             (int)EventId.InvalidSharedOpaqueDirectoryDueToOverlap,
@@ -4546,8 +4564,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, PeakPagefileUsageMb: {peakPagefileUsageMb}")]
-        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, uint numProcesses, ulong expectedDurationSec, double actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int peakPagefileUsageMb);
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, DefaultMemoryUsageMb: {defaultMemoryUsageMb}, ExpectedMemoryUsageMb: {expectedMemoryUsageMb}, PeakVirtualMemoryMb: {peakVirtualMemoryMb}, PeakWorkingSetMb: {peakWorkingSetMb}, ExpectedCommitUsageMb: {expectedCommitUsageMb}, PeakCommitUsageMb: {peakCommitUsageMb}")]
+        internal abstract void ProcessPipExecutionInfo(LoggingContext loggingContext, string pipDescription, uint numProcesses, ulong expectedDurationSec, double actualDurationSec, int processorUseInPercents, int defaultMemoryUsageMb, int expectedMemoryUsageMb, int peakVirtualMemoryMb, int peakWorkingSetMb, int expectedCommitUsageMb, int peakCommitUsageMb);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,

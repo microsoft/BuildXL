@@ -1136,7 +1136,7 @@ namespace BuildXL.Scheduler
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
-        /// <param name="expectedRamUsageMb">the expected ram usage for the process in megabytes</param>
+        /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
             OperationContext operationContext,
@@ -1147,7 +1147,7 @@ namespace BuildXL.Scheduler
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
             Action<int> processIdListener = null,
-            int expectedRamUsageMb = 0)
+            ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters))
         {
             var context = environment.Context;
             var counters = environment.Counters;
@@ -1309,7 +1309,7 @@ namespace BuildXL.Scheduler
                 .ExecuteWithResources(
                     operationContext,
                     pip.PipId,
-                    expectedRamUsageMb,
+                    expectedMemoryCounters,
                     allowResourceBasedCancellation,
                     async (resourceLimitCancellationToken, registerQueryRamUsageMb) =>
                     {
@@ -1328,7 +1328,7 @@ namespace BuildXL.Scheduler
                                         processDescription,
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                                         peakMemoryMb: lastObservedPeakRamUsage,
-                                        expectedMemoryMb: expectedRamUsageMb);
+                                        expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb);
 
                                     using (operationContext.StartAsyncOperation(PipExecutorCounter.ResourceLimitCancelProcessDuration))
                                     {
@@ -1386,7 +1386,7 @@ namespace BuildXL.Scheduler
                                         using (counters[PipExecutorCounter.QueryRamUsageDuration].Start())
                                         {
                                             lastObservedPeakRamUsage =
-                                                (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakWorkingSet() ?? 0));
+                                                (int)ByteSizeFormatter.ToMegabytes(executor.GetActivePeakWorkingSet() ?? 0);
                                         }
 
                                         return lastObservedPeakRamUsage;
@@ -1544,9 +1544,8 @@ namespace BuildXL.Scheduler
                                         operationContext,
                                         processDescription,
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
-                                        peakMemoryMb:
-                                            (int)ByteSizeFormatter.ToMegabytes((long)(result.JobAccountingInformation?.MemoryCounters.PeakWorkingSet ?? 0)),
-                                        expectedMemoryMb: expectedRamUsageMb,
+                                        peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
+                                        expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
                             }

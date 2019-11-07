@@ -419,7 +419,8 @@ namespace BuildXL.Engine.Distribution
             {
                 WorkerId = WorkerId,
                 MaxConcurrency = m_maxProcesses,
-                AvailableRamMb = m_scheduler.LocalWorker.TotalMemoryMb,
+                AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb,
+                AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb,
                 WorkerCacheValidationContentHash = cacheValidationContentHash.ToBondContentHash(),
             };
 
@@ -583,7 +584,10 @@ namespace BuildXL.Engine.Distribution
                         var fingerprint = pipBuildRequest.Fingerprint.ToFingerprint();
                         processRunnable.SetCacheResult(RunnableFromCacheResult.CreateForMiss(new WeakContentFingerprint(fingerprint)));
 
-                        processRunnable.ExpectedRamUsageMb = pipBuildRequest.ExpectedRamUsageMb;
+                        processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
+                            peakVirtualMemoryUsageMb: pipBuildRequest.ExpectedRamUsageMb ?? 0,
+                            peakWorkingSetMb: pipBuildRequest.ExpectedRamUsageMb ?? 0,
+                            peakCommitUsageMb: pipBuildRequest.ExpectedCommitUsageMb ?? 0);
                     }
 
                     break;

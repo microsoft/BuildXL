@@ -530,7 +530,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// Total committed memory in MB. This is not an indication of physical memory usage.
             /// </summary>
-            public int? CommitTotalMb;
+            public int? CommitUsedMb;
 
             /// <summary>
             /// Maximum memory that can be committed in MB. If the page file can be extended, this is a soft limit.
@@ -769,7 +769,7 @@ namespace BuildXL.Utilities
                         var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitTotal) / commitLimit));
 
                         perfInfo.CommitUsagePercentage = commitUsagePercentage;
-                        perfInfo.CommitTotalMb = commitTotal;
+                        perfInfo.CommitUsedMb = commitTotal;
                         perfInfo.CommitLimitMb = commitLimit;
                     }
 

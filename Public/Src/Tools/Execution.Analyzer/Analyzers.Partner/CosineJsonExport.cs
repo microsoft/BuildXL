@@ -794,10 +794,10 @@ namespace BuildXL.Execution.Analyzer
                         m_writer.WriteValue(processPerformance.KernelTime.Ticks);
                     }
 
-                    if (processPerformance.MemoryCounters.PeakWorkingSet != 0)
+                    if (processPerformance.MemoryCounters.PeakWorkingSetMb != 0)
                     {
-                        m_writer.WritePropertyName("peakMemory");
-                        m_writer.WriteValue(processPerformance.MemoryCounters.PeakWorkingSet);
+                        m_writer.WritePropertyName("peakMemoryMb");
+                        m_writer.WriteValue(processPerformance.MemoryCounters.PeakWorkingSetMb);
                     }
 
                     if (processPerformance.IO.GetAggregateIO().TransferCount > 0)

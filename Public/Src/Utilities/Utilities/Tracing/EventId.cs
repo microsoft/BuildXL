@@ -540,6 +540,7 @@ namespace BuildXL.Utilities.Tracing
         DeletingOutputsFromSharedOpaqueSidebandFilesStarted = 867,
         DeletingSharedOpaqueSidebandFilesStarted = 868,
         ScrubbingProgress = 869,
+        CannotReadSidebandFile = 870,
 
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,

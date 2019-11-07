@@ -82,7 +82,9 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             public bool Equals(Result other)
             {
-                return other != null && m_identity.Equals(other.m_identity);
+                return other != null
+                    && Count == other.Count
+                    && Enumerable.Range(0, Count).All(idx => Value[idx] == other.Value[idx]);
             }
 
             public override bool Equals(object obj)
@@ -546,13 +548,17 @@ namespace BuildXL.Execution.Analyzer.JPath
 
                         return TopEnv
                             .Current
-                            .Where(obj => ToBool(InNewEnv(Result.Scalar(obj), filterExpr.Filter)))
-                            .ToList();
+                            .ToArray()
+                            .AsParallel()
+                            .Where(obj => ToBool(new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching).Eval(filterExpr.Filter)))
+                            .ToArray();
 
                     case MapExpr mapExpr:
                         var lhs = Eval(mapExpr.Lhs);
                         return lhs
-                            .Select(obj => InNewEnv(Result.Scalar(obj), mapExpr.Sub))
+                            .ToArray()
+                            .AsParallel()
+                            .Select(obj => new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching).Eval(mapExpr.Sub))
                             .SelectMany(result => result) // automatically flatten
                             .ToArray();
 

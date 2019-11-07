@@ -30,6 +30,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
@@ -842,9 +843,16 @@ namespace BuildXL.Engine
         {
             using (var sidebandReader = new SidebandReader(sidebandFile))
             {
-                sidebandReader.ReadHeader(ignoreChecksum: true);
-                sidebandReader.ReadMetadata();
-                return sidebandReader.ReadRecordedPaths().ToArray();
+                try
+                {
+                    sidebandReader.ReadHeader(ignoreChecksum: true);
+                    sidebandReader.ReadMetadata();
+                    return sidebandReader.ReadRecordedPaths().ToArray();
+                }
+                catch (IOException)
+                {
+                    return CollectionUtilities.EmptyArray<string>();
+                }
             }
         }
 

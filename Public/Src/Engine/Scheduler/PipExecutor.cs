@@ -143,8 +143,6 @@ namespace BuildXL.Scheduler
             var pipInfo = new PipInfo(pip, context);
             var pipDescription = pipInfo.Description;
 
-
-
             string destination = pip.Destination.Path.ToString(pathTable);
             string source = pip.Source.Path.ToString(pathTable);
 
@@ -1825,7 +1823,7 @@ namespace BuildXL.Scheduler
         {
             var fp = env.ContentFingerprinter.StaticFingerprintLookup(pip.PipId);
             return new SidebandMetadata(
-                pip.PipId.Value, 
+                pip.PipId.Value,
                 // in some tests the static fingerprint can have 0 length in which case ToByteArray() throws
                 fp.Length > 0 ? fp.ToByteArray() : new byte[0]);
         }

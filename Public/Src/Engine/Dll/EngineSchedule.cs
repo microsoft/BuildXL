@@ -839,7 +839,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private static string[] ReadSidebandFile(string sidebandFile)
+        private static string[] ReadSidebandFile(LoggingContext loggingContext, string sidebandFile)
         {
             using (var sidebandReader = new SidebandReader(sidebandFile))
             {
@@ -849,8 +849,9 @@ namespace BuildXL.Engine
                     sidebandReader.ReadMetadata();
                     return sidebandReader.ReadRecordedPaths().ToArray();
                 }
-                catch (IOException)
+                catch (IOException e)
                 {
+                    Logger.Log.CannotReadSidebandFile(sidebandFile, e.Message);
                     return CollectionUtilities.EmptyArray<string>();
                 }
             }

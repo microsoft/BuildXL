@@ -251,13 +251,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         public override bool Equals(ContentLocationEventData other)
         {
             var rhs = (AddContentLocationEventData)other;
-            return base.Equals(other) && ContentSizes.SequenceEqual(rhs.ContentSizes);
+            return base.Equals(other) && (Touch == rhs.Touch) && ContentSizes.SequenceEqual(rhs.ContentSizes);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return (base.GetHashCode(), ContentSizes.GetHashCode()).GetHashCode();
+            return (base.GetHashCode(), ContentSizes.GetHashCode(), Touch).GetHashCode();
         }
     }
 

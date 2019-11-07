@@ -851,7 +851,7 @@ namespace BuildXL.Engine
                 }
                 catch (IOException e)
                 {
-                    Logger.Log.CannotReadSidebandFile(sidebandFile, e.Message);
+                    Logger.Log.CannotReadSidebandFile(loggingContext, sidebandFile, e.Message);
                     return CollectionUtilities.EmptyArray<string>();
                 }
             }

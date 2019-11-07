@@ -14,7 +14,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "runtime.osx-x64.BuildXL", version: "2.8.99" },
     { id: "Aria.Cpp.SDK", version: "8.5.6" },
 
-    { id: "CB.QTest", version: "19.10.17.210051" },
+    { id: "CB.QTest", version: "19.11.5.170405" },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 

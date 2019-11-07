@@ -100,11 +100,12 @@ namespace BuildXL.Execution.Analyzer
                     .Select(grp =>
                     {
                         return new ObjectInfo(
-                            preview: $"{grp.Count()}: {args.Preview(grp.First())}",
+                            preview: $"{grp.Count()}: {grp.Key}",
                             properties: new[]
                             {
                                 new Property(name: "Count", value: grp.Count()),
-                                new Property(name: "Value", value: grp.First())
+                                new Property(name: "Key", value: grp.Key),
+                                new Property(name: "Elems", value: grp.ToArray())
                             });
                     })
                     .ToArray();

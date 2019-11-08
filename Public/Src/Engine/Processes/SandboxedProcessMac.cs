@@ -58,20 +58,19 @@ namespace BuildXL.Processes
 
         private long m_processKilledFlag = 0;
 
-        /// <summary>
-        /// Returns the associated PipId
-        /// </summary>
-        private long PipId => ProcessInfo.FileAccessManifest.PipId;
-
         private ulong m_processExitTimeNs = ulong.MaxValue;
 
         private bool HasProcessExitBeenReceived => m_processExitTimeNs != ulong.MaxValue;
 
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
-        private ISandboxConnection SandboxConnection => ProcessInfo.SandboxConnection;
+        private long PipId { get; }
 
-        private TimeSpan ChildProcessTimeout => ProcessInfo.NestedProcessTerminationTimeout;
+        private ISandboxConnection SandboxConnection { get; }
+
+        private TimeSpan ChildProcessTimeout { get; }
+
+        private TimeSpan? ReportQueueProcessTimeoutForTests { get; }
 
         /// <summary>
         /// Accumulates the time (in microseconds) access reports spend in the report queue
@@ -87,7 +86,7 @@ namespace BuildXL.Processes
         /// Timeout period for inactivity from the sandbox kernel extension.
         /// </summary>
         internal TimeSpan ReportQueueProcessTimeout => SandboxConnection.IsInTestMode
-            ? ProcessInfo.ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
+            ? ReportQueueProcessTimeoutForTests ?? TimeSpan.FromSeconds(100)
             : TimeSpan.FromMinutes(45);
 
         private Task m_processTreeTimeoutTask;
@@ -95,7 +94,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Allowed surviving child process names.
         /// </summary>
-        private string[] AllowedSurvivingChildProcessNames => ProcessInfo.AllowedSurvivingChildProcessNames;
+        private string[] AllowedSurvivingChildProcessNames { get; }
 
         private bool IgnoreReportedAccesses { get; }
 
@@ -114,6 +113,11 @@ namespace BuildXL.Processes
             Contract.Requires(info.FileAccessManifest != null);
             Contract.Requires(info.SandboxConnection != null);
 
+            PipId = info.FileAccessManifest.PipId;
+            SandboxConnection = info.SandboxConnection;
+            ChildProcessTimeout = info.NestedProcessTerminationTimeout;
+            AllowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
+            ReportQueueProcessTimeoutForTests = info.ReportQueueProcessTimeoutForTests;
             IgnoreReportedAccesses = ignoreReportedAccesses;
 
             MeasureCpuTime = overrideMeasureTime.HasValue
@@ -145,7 +149,7 @@ namespace BuildXL.Processes
                 });
 
             // install a 'ProcessStarted' handler that informs the sandbox of the newly started process
-            ProcessStarted += () => OnProcessStartedAsync().GetAwaiter().GetResult();
+            ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
         }
 
         private void UpdatePerfCounters()
@@ -180,9 +184,9 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        protected override System.Diagnostics.Process CreateProcess()
+        protected override System.Diagnostics.Process CreateProcess(SandboxedProcessInfo info)
         {
-            var process = base.CreateProcess();
+            var process = base.CreateProcess(info);
 
             process.StartInfo.FileName = "/bin/sh";
             process.StartInfo.Arguments = string.Empty;
@@ -199,7 +203,7 @@ namespace BuildXL.Processes
         /// piped to its standard input.  Therefore, in this handler we first notify the sandbox of the new process (so that
         /// it starts tracking it) and then just send the actual process command line to /bin/sh via its standard input.
         /// </summary>
-        private async Task OnProcessStartedAsync()
+        private async Task OnProcessStartedAsync(SandboxedProcessInfo info)
         {
             // Generate "Process Created" report because the rest of the system expects to see it before any other file access reports
             //
@@ -209,7 +213,7 @@ namespace BuildXL.Processes
             ReportProcessCreated();
 
             // Allow read access for /bin/sh
-            ProcessInfo.FileAccessManifest.AddPath(
+            info.FileAccessManifest.AddPath(
                 AbsolutePath.Create(PathTable, Process.StartInfo.FileName),
                 mask: FileAccessPolicy.MaskNothing,
                 values: FileAccessPolicy.AllowReadAlways);
@@ -219,14 +223,16 @@ namespace BuildXL.Processes
                 m_perfCollector.Start();
             }
 
-            if (!SandboxConnection.NotifyPipStarted(ProcessInfo.FileAccessManifest, this))
+            string processStdinFileName = await FlushStandardInputToFileIfNeededAsync(info);
+
+            if (!SandboxConnection.NotifyPipStarted(info.FileAccessManifest, this))
             {
                 ThrowCouldNotStartProcess("Failed to notify kernel extension about process start, make sure the extension is loaded");
             }
 
             try
             {
-                await FeedStdInAsync();
+                await FeedStdInAsync(info, processStdinFileName);
                 m_processTreeTimeoutTask = ProcessTreeTimeoutTask();
             }
             catch (IOException e)
@@ -235,6 +241,14 @@ namespace BuildXL.Processes
                 // When that happens, instead of crashing, just make sure the process is killed.
                 LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
                 await KillAsync();
+            }
+            finally
+            {
+                // release the FileAccessManifest memory
+                // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object 
+                //       unreachable and thus available for garbage collection.  We call Release() here explicitly 
+                //       just to emphasise the importance of reclaiming this memory.
+                info.FileAccessManifest.Release();
             }
         }
 
@@ -375,13 +389,12 @@ namespace BuildXL.Processes
             }
         }
 
-        private async Task FeedStdInAsync()
+        private async Task FeedStdInAsync(SandboxedProcessInfo info, [CanBeNull] string processStdinFileName)
         {
-            string processStdinFileName = await FlushStandardInputToFileIfNeededAsync();
             string redirectedStdin      = processStdinFileName != null ? $" < {processStdinFileName}" : string.Empty;
-            string escapedArguments     = ProcessInfo.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
+            string escapedArguments     = info.Arguments.Replace(Environment.NewLine, "\\" + Environment.NewLine);
 
-            string line = I($"exec {ProcessInfo.FileName} {escapedArguments} {redirectedStdin}");
+            string line = I($"exec {info.FileName} {escapedArguments} {redirectedStdin}");
 
             LogProcessState("Feeding stdin: " + line);
             await Process.StandardInput.WriteLineAsync(line);
@@ -550,7 +563,7 @@ namespace BuildXL.Processes
 
         private void HandleAccessReport(AccessReport report)
         {
-            if (ProcessInfo.FileAccessManifest.ReportFileAccesses)
+            if (ShouldReportFileAccesses)
             {
                 LogProcessState("Access report received: " + AccessReportToString(report));
             }
@@ -650,16 +663,16 @@ namespace BuildXL.Processes
         /// If <see cref="SandboxedProcessInfo.StandardInputReader"/> is set, it flushes the content of that reader
         /// to a file in the process's working directory and returns the absolute path of that file; otherwise returns null.
         /// </summary>
-        private async Task<string> FlushStandardInputToFileIfNeededAsync()
+        private async Task<string> FlushStandardInputToFileIfNeededAsync(SandboxedProcessInfo info)
         {
-            if (ProcessInfo.StandardInputReader == null)
+            if (info.StandardInputReader == null)
             {
                 return null;
             }
 
-            string stdinFileName = Path.Combine(Process.StartInfo.WorkingDirectory, ProcessInfo.PipSemiStableHash + ".stdin");
-            string stdinText = await ProcessInfo.StandardInputReader.ReadToEndAsync();
-            Encoding encoding = ProcessInfo.StandardInputEncoding ?? Console.InputEncoding;
+            string stdinFileName = Path.Combine(Process.StartInfo.WorkingDirectory, info.PipSemiStableHash + ".stdin");
+            string stdinText = await info.StandardInputReader.ReadToEndAsync();
+            Encoding encoding = info.StandardInputEncoding ?? Console.InputEncoding;
             byte[] stdinBytes = encoding.GetBytes(stdinText);
             bool stdinFileWritten = await FileUtilities.WriteAllBytesAsync(stdinFileName, stdinBytes);
             if (!stdinFileWritten)
@@ -668,7 +681,7 @@ namespace BuildXL.Processes
             }
 
             // Allow read from the created stdin file
-            ProcessInfo.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowRead);
+            info.FileAccessManifest.AddPath(AbsolutePath.Create(PathTable, stdinFileName), mask: FileAccessPolicy.MaskNothing, values: FileAccessPolicy.AllowRead);
 
             return stdinFileName;
         }

@@ -852,6 +852,32 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Explicitly releases most of its memory.
+        /// </summary>
+        internal void Release()
+        {
+            m_normalizedFragments?.Clear();
+            var workList = new Stack<Node>();
+            workList.Push(m_rootNode);
+            while (workList.Any())
+            {
+                var node = workList.Pop();
+                if (node == null)
+                {
+                    continue;
+                }
+                if (node.Children != null)
+                {
+                    foreach (var child in node.Children)
+                    {
+                        workList.Push(child);
+                    }
+                }
+                node.ReleaseChildren();
+            }
+        }
+
+        /// <summary>
         /// Serializes this manifest.
         /// </summary>
         public void Serialize(Stream stream)
@@ -1146,6 +1172,14 @@ namespace BuildXL.Processes
             /// Returns children nodes.
             /// </summary>
             internal IEnumerable<Node> Children => m_children?.Values;
+
+            /// <summary>
+            /// Releases all children nodes, allowing all that memory to be reclaimed by the garbage collector.
+            /// </summary>
+            internal void ReleaseChildren()
+            {
+                m_children?.Clear();
+            }
 
             /// <summary>
             /// The path ID as understood by the owning path table.

@@ -252,7 +252,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             _nagleOperationTracer?.Dispose();
 
@@ -268,7 +268,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _inMemoryCacheFlushTimer = null;
             }
 
-            return base.ShutdownCoreAsync(context);
+            await _flushTask;
+
+            return await base.ShutdownCoreAsync(context);
         }
 
         /// <nodoc />

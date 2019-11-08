@@ -283,6 +283,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo)
         {
             Contract.Assert(_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore), "GetLruPages can only be called when local location store is enabled");
+
+            // Counter for successful eviction candidates. Different than total number of eviction candidates, because this only increments when candidate is above minimum eviction age
             int evictionCount = 0;
 
             // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove

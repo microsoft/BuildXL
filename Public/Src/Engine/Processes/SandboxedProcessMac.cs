@@ -54,6 +54,8 @@ namespace BuildXL.Processes
 
         private IEnumerable<ReportedProcess> m_survivingChildProcesses = null;
 
+        private PipKextStats? m_pipKextStats = null;
+
         private long m_processKilledFlag = 0;
 
         /// <summary>
@@ -313,6 +315,12 @@ namespace BuildXL.Processes
                 KillAllChildProcesses();
             }
 
+            if (m_pipKextStats != null)
+            {
+                var statsJson = Newtonsoft.Json.JsonConvert.SerializeObject(m_pipKextStats.Value);
+                LogProcessState($"Process Kext Stats: {statsJson}");
+            }
+
             base.Dispose();
         }
 
@@ -449,11 +457,11 @@ namespace BuildXL.Processes
         {
             var report = new Sandbox.AccessReport
             {
-                Operation     = FileOperation.OpProcessStart,
-                Pid           = Process.Id,
-                PipId         = PipId,
-                Path          = Process.StartInfo.FileName,
-                Status        = (uint)FileAccessStatus.Allowed
+                Operation      = FileOperation.OpProcessStart,
+                Pid            = Process.Id,
+                PipId          = PipId,
+                PathOrPipStats = Sandbox.AccessReport.EncodePath(Process.StartInfo.FileName),
+                Status         = (uint)FileAccessStatus.Allowed
             };
 
             ReportFileAccess(ref report);
@@ -554,7 +562,7 @@ namespace BuildXL.Processes
 
                 // caching path existence checks would speed things up, but it would not be semantically sound w.r.t. our unit tests
                 // TODO: check if the tests are overspecified because in practice BuildXL doesn't really rely much on the outcome of this check
-                var reportPath = report.Path;
+                var reportPath = report.DecodePath();
 
                 // Set the process exit time once we receive it from the sandbox kernel extension report queue
                 if (report.Operation == FileOperation.OpProcessExit && report.Pid == Process.Id)
@@ -598,7 +606,7 @@ namespace BuildXL.Processes
                         {
                             AccessReport reportClone = report;
                             reportClone.Operation = FileOperation.OpKAuthWriteFile;
-                            reportClone.Path = Path.Combine(dir, fileName);
+                            reportClone.PathOrPipStats = AccessReport.EncodePath(Path.Combine(dir, fileName));
                             ReportFileAccess(ref reportClone);
                         });
                 }
@@ -611,6 +619,7 @@ namespace BuildXL.Processes
 
                 if (report.Operation == FileOperation.OpProcessTreeCompleted)
                 {
+                    m_pipKextStats = report.DecodePipKextStats();
                     m_pendingReports.Complete();
                 }
                 else
@@ -703,7 +712,7 @@ namespace BuildXL.Processes
                 shareMode           = ShareMode.FILE_SHARE_READ;
                 creationDisposition = CreationDisposition.OPEN_ALWAYS;
                 flagsAndAttributes  = 0;
-                path                = report.Path;
+                path                = report.DecodePath();
                 enumeratePattern    = string.Empty;
                 processArgs         = string.Empty;
 
@@ -725,7 +734,7 @@ namespace BuildXL.Processes
             var status          = report.Status;
             var explicitLogging = report.ExplicitLogging != 0 ? 1 : 0;
             var error           = report.Error;
-            var path            = report.Path;
+            var path            = report.DecodePath();
             var processTime     = (long)(report.Statistics.EnqueueTime - report.Statistics.CreationTime) / 1000;
             var queueTime       = (long)(report.Statistics.DequeueTime - report.Statistics.EnqueueTime) / 1000;
 

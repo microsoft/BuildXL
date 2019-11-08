@@ -236,11 +236,6 @@ namespace BuildXL.Utilities.Configuration
         bool IncrementalScheduling { get; }
 
         /// <summary>
-        /// Enables graph-agnostic incremental scheduling when <see cref="IncrementalScheduling"/> is set to true.
-        /// </summary>
-        bool GraphAgnosticIncrementalScheduling { get; }
-
-        /// <summary>
         /// Computes static fingerprints of pips during graph construction.
         /// </summary>
         /// <remarks>

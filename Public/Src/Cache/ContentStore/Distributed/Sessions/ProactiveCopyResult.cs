@@ -11,6 +11,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <nodoc />
         public bool WasProactiveCopyNeeded { get; }
 
+        public BoolResult RingCopyResult { get; }
+
+        public BoolResult OutsideRingCopyResult { get; }
+
         /// <nodoc />
         public static ProactiveCopyResult CopyNotRequiredResult { get; } = new ProactiveCopyResult();
 
@@ -23,6 +27,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         public ProactiveCopyResult(BoolResult ringCopyResult, BoolResult outsideRingCopyResult)
             : base(GetErrorMessage(ringCopyResult, outsideRingCopyResult), GetDiagnostics(ringCopyResult, outsideRingCopyResult))
         {
+            RingCopyResult = ringCopyResult;
+            OutsideRingCopyResult = outsideRingCopyResult;
         }
 
         /// <nodoc />

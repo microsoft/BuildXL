@@ -68,7 +68,8 @@ namespace BuildXL.Cache.ContentStore.Vfs
                         {
                             { configuration.CacheName, configuration.ServerRootPath }
                         },
-                        configuration.ServerGrpcPort)))
+                        configuration.ServerGrpcPort,
+                        fileSystem)))
                 {
                     await server.StartupAsync(context).ThrowIfFailure();
 

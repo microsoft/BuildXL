@@ -1,5 +1,5 @@
 AnnotatedSessions(ago(60d), ago(0d))
 | where MSRReportable == 1
 | extend Month = startofmonth(TimeBucket)
-| summarize UniqueSessions = dcount(UniqueSession), UniqueUsers = dcount(UserName) by Month, Customer, Infra
+| summarize UniqueSessions = sum(SessionCount), UniqueUsers = dcount(UserName) by Month, Customer, Infra
 | order by Month asc nulls last, Customer, Infra

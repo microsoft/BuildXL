@@ -80,8 +80,11 @@ namespace BuildXL.Execution.Analyzer.JPath
         {
             try
             {
-                var regex = new Regex(context.Value.Text.Trim('/', '!'));
-                return new RegexLit(regex);
+                var regexStr = 
+                    context.Value.Text.StartsWith("/") ? context.Value.Text.Trim('/') :
+                    context.Value.Text.StartsWith("!") ? context.Value.Text.Trim('!') :
+                    context.Value.Text;
+                return new RegexLit(new Regex(regexStr));
             }
             catch (ArgumentException e)
             {

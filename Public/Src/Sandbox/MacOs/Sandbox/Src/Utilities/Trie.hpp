@@ -72,6 +72,9 @@ private:
     /*! The size of the tree (i.e., number of records stored) and not the number of nodes in the tree. */
     uint size_;
 
+    /*! The number of nodes in this tree */
+    uint nodeCount_;
+
     /*! Callback function to call whenever the size of the tree changes. */
     on_change_fn onChangeCallback_;
 
@@ -197,10 +200,15 @@ private:
     /*! Creates either a Uint or a Path node, based on the kind of this trie. */
     Node* createNode(uint key)
     {
-        return isLightTrie() ? (Node*)NodeLight::create(key) :
-               isUintTrie()  ? (Node*)NodeFast::createUintNode() :
-               isPathTrie()  ? (Node*)NodeFast::createPathNode() :
-               nullptr;
+        Node* node = isLightTrie() ? (Node*)NodeLight::create(key) :
+                     isUintTrie()  ? (Node*)NodeFast::createUintNode() :
+                     isPathTrie()  ? (Node*)NodeFast::createPathNode() :
+                     nullptr;
+        if (node != nullptr)
+        {
+            OSIncrementAtomic(&nodeCount_);
+        }
+        return node;
     }
 
     /*!
@@ -216,8 +224,17 @@ public:
     /*!
      * Returns the size of the tree (i.e., the number of values stored).
      */
-    inline uint getCount() { return size_; }
+    uint getCount() { return size_; }
 
+    /*!
+     * Returns the number of trie nodes in this tree.
+     */
+    uint getNodeCount() { return nodeCount_; }
+
+    /*!
+     * Returns the size in bytes of each node in this tree.
+     */
+    uint getNodeSize() { return isLightTrie() ? sizeof(NodeLight) : sizeof(NodeFast); }
     /*!
      * Callback to be invoked every time the size of this tree changes.
      */

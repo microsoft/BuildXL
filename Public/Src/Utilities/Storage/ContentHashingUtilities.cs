@@ -129,6 +129,15 @@ namespace BuildXL.Storage
         }
 
         /// <summary>
+        /// Sets the ContentHasher idle pool size
+        /// </summary>
+        public static void SetContentHasherIdlePoolSize(int idlePoolSize)
+        {
+            Contract.Requires(!s_isInitialized, "ContentHasher idle pool size must be specified before setting the default hash type");
+            HashInfoLookup.ContentHasherIdlePoolSize = idlePoolSize;
+        }
+
+        /// <summary>
         /// Create a ContentHash with all zeros except the given value in the first byte and the algorithm ID in the last byte.
         /// </summary>
         public static ContentHash CreateSpecialValue(byte first)

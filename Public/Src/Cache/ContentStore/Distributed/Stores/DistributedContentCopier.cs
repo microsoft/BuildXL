@@ -2,12 +2,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Sessions;
@@ -39,11 +37,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         private readonly SemaphoreSlim _proactiveCopyIoGate;
 
         private readonly IReadOnlyList<TimeSpan> _retryIntervals;
-        private readonly TimeSpan _timeoutForPoractiveCopies;
+        private readonly TimeSpan _timeoutForProactiveCopies;
         private readonly int _maxRetryCount;
         private readonly DisposableDirectory _tempFolderForCopies;
         private readonly IFileCopier<T> _remoteFileCopier;
-        private readonly ICopyRequester _copyRequester;
+        private readonly IProactiveCopier _copyRequester;
         private readonly IFileExistenceChecker<T> _remoteFileExistenceChecker;
         private readonly IPathTransformer<T> _pathTransformer;
         private readonly IContentLocationStore _contentLocationStore;
@@ -68,7 +66,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<T> fileCopier,
             IFileExistenceChecker<T> fileExistenceChecker,
-            ICopyRequester copyRequester,
+            IProactiveCopier copyRequester,
             IPathTransformer<T> pathTransformer,
             IContentLocationStore contentLocationStore)
         {
@@ -90,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             _proactiveCopyIoGate = new SemaphoreSlim(_settings.MaxConcurrentProactiveCopyOperations);
             _retryIntervals = settings.RetryIntervalForCopies;
             _maxRetryCount = settings.MaxRetryCount;
-            _timeoutForPoractiveCopies = settings.TimeoutForProactiveCopies;
+            _timeoutForProactiveCopies = settings.TimeoutForProactiveCopies;
         }
 
         /// <inheritdoc />
@@ -242,14 +240,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// </summary>
         public Task<BoolResult> RequestCopyFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, bool isInsideRing)
         {
-            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
+            return _proactiveCopyIoGate.GatedOperationAsync(async ts =>
                 {
-                    var cts = new CancellationTokenSource();
-                    cts.CancelAfter(_timeoutForPoractiveCopies);
+                    using var cts = new CancellationTokenSource();
+                    cts.CancelAfter(_timeoutForProactiveCopies);
                     // Creating new operation context with a new token, but the newly created context 
                     // still would have the same tracing context to simplify proactive copy trace analysis.
                     var innerContext = context.WithCancellationToken(cts.Token);
-                    return context.PerformOperationAsync(
+                    return await context.PerformOperationAsync(
                         Tracer,
                         operation: () => _copyRequester.RequestCopyFileAsync(innerContext, hash, targetLocation),
                         traceOperationStarted: false,
@@ -258,11 +256,40 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                             $"TargetLocation=[{targetLocation}] " +
                             $"InsideRing={isInsideRing} " +
                             $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
-                            $"IOGate.Wait={ts.TotalMilliseconds}ms." +
-                            $"Timeout={_timeoutForPoractiveCopies}" +
+                            $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
+                            $"Timeout={_timeoutForProactiveCopies} " +
                             $"TimedOut={cts.Token.IsCancellationRequested}"
                         );
                 },
+                context.Token);
+        }
+
+        /// <summary>
+        /// Pushes content to another machine.
+        /// </summary>
+        public Task<BoolResult> PushFileAsync(OperationContext context, ContentHash hash, MachineLocation targetLocation, Func<Task<Stream>> streamFactory, bool isInsideRing)
+        {
+            return _proactiveCopyIoGate.GatedOperationAsync(ts =>
+            {
+                var cts = new CancellationTokenSource();
+                cts.CancelAfter(_timeoutForProactiveCopies);
+                // Creating new operation context with a new token, but the newly created context 
+                // still would have the same tracing context to simplify proactive copy trace analysis.
+                var innerContext = context.WithCancellationToken(cts.Token);
+                return context.PerformOperationAsync(
+                    Tracer,
+                    operation: () => _copyRequester.PushFileAsync(innerContext, hash, streamFactory, targetLocation),
+                    traceOperationStarted: false,
+                    extraEndMessage: result =>
+                        $"ContentHash={hash.ToShortString()} " +
+                        $"TargetLocation=[{targetLocation}] " +
+                        $"InsideRing={isInsideRing} " +
+                        $"IOGate.OccupiedCount={_settings.MaxConcurrentProactiveCopyOperations - _proactiveCopyIoGate.CurrentCount} " +
+                        $"IOGate.Wait={ts.TotalMilliseconds}ms. " +
+                        $"Timeout={_timeoutForProactiveCopies} " +
+                        $"TimedOut={cts.Token.IsCancellationRequested}"
+                    );
+            },
                 context.Token);
         }
 

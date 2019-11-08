@@ -11,6 +11,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 See the [the BuildXL Release Management page for the Production environment](https://dev.azure.com/mseng/domino/_release?definitionId=21&definitionEnvironmentId=112&_a=environment-summary) for full commit-level details for what is included in each build.
 When a BuildXL developer implements a feature, fixes an important bug, solves an issue brought up by a customer, or makes any other notable change, they are encouraged to add an entry here.
 
+# 0.1.0-20191102.0.2 (Release [45962](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=45962&_a=release-pipeline-progress)). Released 11/06/2019
+- Improvements in memory-based scheduler throttling.
+- Make the ProcessRunScriptAnalyzer x-plat compatible.
+- [macOS] Low memory resource throttling improvements.
+- Include GlobalDependencies in DumpPip analyzer.
+- Fixes/improvements in Xlg Debugger.
+- Prevent crashes caused by FP store logging.
+- New default arguments for CloudBuild.
+
+
 # 0.1.0-20191025.2.1 (Release [45157](https://dev.azure.com/mseng/Domino/_releaseProgress?releaseId=45157&_a=release-pipeline-progress)). Released 10/30/2019
 - Fix crashes in process dumper, and only dump processes under the same username
 - Fix access control check with scrubbing in net core builds.

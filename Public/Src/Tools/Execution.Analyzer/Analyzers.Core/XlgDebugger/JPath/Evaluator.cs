@@ -82,7 +82,9 @@ namespace BuildXL.Execution.Analyzer.JPath
 
             public bool Equals(Result other)
             {
-                return other != null && m_identity.Equals(other.m_identity);
+                return other != null
+                    && Count == other.Count
+                    && Enumerable.Range(0, Count).All(idx => Value[idx] == other.Value[idx]);
             }
 
             public override bool Equals(object obj)
@@ -546,13 +548,17 @@ namespace BuildXL.Execution.Analyzer.JPath
 
                         return TopEnv
                             .Current
-                            .Where(obj => ToBool(InNewEnv(Result.Scalar(obj), filterExpr.Filter)))
-                            .ToList();
+                            .ToArray()
+                            .AsParallel()
+                            .Where(obj => ToBool(new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching).Eval(filterExpr.Filter)))
+                            .ToArray();
 
                     case MapExpr mapExpr:
                         var lhs = Eval(mapExpr.Lhs);
                         return lhs
-                            .Select(obj => InNewEnv(Result.Scalar(obj), mapExpr.Sub))
+                            .ToArray()
+                            .AsParallel()
+                            .Select(obj => new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching).Eval(mapExpr.Sub))
                             .SelectMany(result => result) // automatically flatten
                             .ToArray();
 
@@ -713,13 +719,35 @@ namespace BuildXL.Execution.Analyzer.JPath
         /// <param name="rhs">Must be a scalar string or regular expression</param>
         public bool Matches(string lhsStr, Result rhs)
         {
+            return !string.IsNullOrEmpty(Match(lhsStr, rhs));
+        }
+
+        /// <summary>
+        /// Returns a substring of <paramref name="lhsStr"/> matching <paramref name="rhs"/>.
+        /// </summary>
+        public string Match(string lhsStr, Result rhs, string groupName = null)
+        {
             var rhsVal = ToScalar(rhs);
             return rhsVal switch
             {
-                string str  => lhsStr.ToUpperInvariant().Contains(str.ToUpperInvariant()),
-                Regex regex => regex.Match(lhsStr).Success,
-                _           => throw TypeError(rhsVal, "string | Regex")
+                string str => substr(lhsStr, lhsStr.IndexOf(str, StringComparison.OrdinalIgnoreCase), str.Length),
+                Regex regex => match(regex.Match(lhsStr)),
+                _ => throw TypeError(rhsVal, "string | Regex")
             };
+
+            string substr(string s, int index, int length)
+            {
+                return index >= 0
+                    ? s.Substring(index, length)
+                    : string.Empty;
+            }
+
+            string match(Match m)
+            {
+                return m.Success
+                    ? groupName != null ? m.Groups[groupName].Value : m.Value
+                    : string.Empty;
+            }
         }
 
         /// <summary>
@@ -727,7 +755,14 @@ namespace BuildXL.Execution.Analyzer.JPath
         /// 
         /// Every object can be resolved to something, so this function never fails.
         /// </summary>
-        public string PreviewObj(object obj) => Resolve(obj)?.Preview ?? obj?.ToString() ?? "<null>";
+        public string PreviewObj(object obj)
+        {
+            if (obj is Result r && r.IsScalar)
+            {
+                obj = r.First();
+            }
+            return Resolve(obj)?.Preview ?? obj?.ToString() ?? "<null>";
+        }
 
         internal ObjectInfo Resolve(object obj) => TopEnv?.Resolver?.Invoke(obj);
 

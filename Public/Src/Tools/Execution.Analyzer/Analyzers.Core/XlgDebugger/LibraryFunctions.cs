@@ -10,6 +10,7 @@ using BuildXL.Execution.Analyzer.JPath;
 
 using IEnum = System.Collections.IEnumerable;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;
+using BuildXL.FrontEnd.Script.Debugger;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -18,9 +19,10 @@ namespace BuildXL.Execution.Analyzer
         public static readonly Function SaveFunction = new Function(name: "save", minArity: 2, func: Save);
         public static readonly Function AppendFunction = new Function(name: "append", minArity: 2, func: Append);
 
-        public static readonly IReadOnlyList<Function> All = new List<Function>
+        public static IReadOnlyList<Function> All { get; } = new List<Function>
         {
              new Function(name: "sum",    minArity: 1, func: Sum),
+             new Function(name: "avg",    minArity: 1, func: Avg),
              new Function(name: "cut",    minArity: 1, func: Cut),
              new Function(name: "count",  minArity: 1, func: Count),
              new Function(name: "uniq",   minArity: 1, func: Uniq),
@@ -42,6 +44,14 @@ namespace BuildXL.Execution.Analyzer
                 .Flatten()
                 .Select(obj => args.ToNumber(obj))
                 .Sum();
+        }
+
+        private static Result Avg(Evaluator.Args args)
+        {
+            return (long)args
+                .Flatten()
+                .Select(obj => args.ToNumber(obj))
+                .Average();
         }
 
         private static Result Cut(Evaluator.Args args)
@@ -75,12 +85,30 @@ namespace BuildXL.Execution.Analyzer
 
         private static Result Uniq(Evaluator.Args args)
         {
-            var groups = args.Flatten().GroupBy(obj => args.Preview(obj));
+            var fieldToGroupBy = args.GetStrSwitch("k", null);
+            Func<object, object> keySelector = o => o;
+            if (!string.IsNullOrEmpty(fieldToGroupBy))
+            {
+                keySelector = o => args.Eval.Resolve(o).Properties.FirstOrDefault(p => p.Name == fieldToGroupBy)?.Value;
+            }
+
+            var aa = args.Flatten();
+            var groups = aa.GroupBy(obj => args.Preview(keySelector(obj)));
 
             if (args.HasSwitch("c")) // count objects in each group
             {
                 return groups
-                    .Select(grp => $"{grp.Count()}\t{args.Preview(grp.First())}")
+                    .Select(grp =>
+                    {
+                        return new ObjectInfo(
+                            preview: $"{grp.Count()}: {grp.Key}",
+                            properties: new[]
+                            {
+                                new Property(name: "Key", value: grp.Key),
+                                new Property(name: "Count", value: grp.Count()),
+                                new Property(name: "Elems", value: grp.ToArray())
+                            });
+                    })
                     .ToArray();
             }
             else
@@ -95,9 +123,18 @@ namespace BuildXL.Execution.Analyzer
         {
             var objs = args.Flatten();
 
-            var ordered = args.HasSwitch("n") // numeric sorting (otherwise string sorting)
-                ? objs.OrderBy(args.ToNumber)
-                : objs.OrderBy(args.Preview);
+            var fieldToSortBy = args.GetStrSwitch("k", null);
+            Func<object, object> keySelector = o => o;
+            if (!string.IsNullOrEmpty(fieldToSortBy))
+            {
+                keySelector = o => args.Eval.Resolve(o).Properties.FirstOrDefault(p => p.Name == fieldToSortBy)?.Value;
+            }
+
+            IComparer<object> comparer = args.HasSwitch("n") 
+                ? Comparer<object>.Create((lhs, rhs) => Comparer<long?>.Default.Compare(args.Eval.TryToNumber(lhs), args.Eval.TryToNumber(rhs)))
+                : Comparer<object>.Create((lhs, rhs) => Comparer<string>.Default.Compare(args.Preview(lhs), args.Preview(rhs)));
+
+            var ordered = objs.OrderBy(keySelector, comparer);
 
             var finalOrder = args.HasSwitch("r") // reverse
                 ? ordered.Reverse()
@@ -176,10 +213,22 @@ namespace BuildXL.Execution.Analyzer
         {
             var pattern = args[0];
             var flip = args.HasSwitch("v");
+            var printMatchOnly = args.HasSwitch("o");
+            var groupName = args.GetStrSwitch("g", defaultValue: "0");
             return args
                 .Skip(1)
                 .SelectMany(result => result)
-                .Where(obj => flip ^ args.Matches(args.Preview(obj), pattern))
+                .Select(obj => 
+                {
+                    var str = args.Preview(obj);
+                    var match = args.Eval.Match(str, pattern, groupName);
+                    var matches = !string.IsNullOrEmpty(match);
+                    var shouldInclude = flip ^ matches;
+                    return shouldInclude
+                        ? (flip || !printMatchOnly) ? str : match
+                        : null;
+                })
+                .Where(str => str != null)
                 .ToArray();
         }
 

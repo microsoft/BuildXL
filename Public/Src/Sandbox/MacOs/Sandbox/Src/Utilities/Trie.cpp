@@ -30,6 +30,7 @@ bool Trie::init(TrieKind kind)
     }
 
     size_ = 0;
+    nodeCount_ = 0;
     kind_ = mergeKindAndImpl(kind, g_bxl_enable_light_trie ? kLightTrie : kFastTrie);
     onChangeData_ = nullptr;
     onChangeCallback_ = nullptr;
@@ -60,6 +61,7 @@ void Trie::free()
     lock_ = nullptr;
     root_ = nullptr;
     size_ = 0;
+    nodeCount_ = 0;
 
     super::free();
 }
@@ -472,6 +474,7 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
 
     Node *currNode = root_;
     unsigned char ch;
+    bool outNewNodeCreated = false;
     while ((ch = *path++) != '\0')
     {
         int idx = s_char2idx[ch];
@@ -479,10 +482,14 @@ Node* Trie::findPathNode(const char *path, bool createIfMissing)
         {
             return nullptr;
         }
-        currNode = currNode->findChild(idx, createIfMissing, lock_);
+        currNode = currNode->findChild(idx, createIfMissing, lock_, &outNewNodeCreated);
         if (currNode == nullptr)
         {
             return nullptr;
+        }
+        if (outNewNodeCreated)
+        {
+            OSIncrementAtomic(&nodeCount_);
         }
     }
 
@@ -497,14 +504,19 @@ Node* Trie::findUintNode(uint64_t key, bool createIfMissing)
         return nullptr;
     }
 
+    bool outNewNodeCreated = false;
     Node *currNode = root_;
     while (true)
     {
         int lsd = key % 10;
-        currNode = currNode->findChild(lsd, createIfMissing, lock_);
+        currNode = currNode->findChild(lsd, createIfMissing, lock_, &outNewNodeCreated);
         if (!currNode)
         {
             return nullptr;
+        }
+        if (outNewNodeCreated)
+        {
+            OSIncrementAtomic(&nodeCount_);
         }
 
         if (key < 10)

@@ -12,6 +12,7 @@ using System.Net;
 using BuildXL.App.Tracing;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -131,6 +132,7 @@ namespace BuildXL
                 var pathTable = new PathTable();
 
                 ICommandLineConfiguration configuration;
+                ContentHashingUtilities.SetContentHasherIdlePoolSize(10);
                 if (!args.TryParse(rawArgs.ToArray(), pathTable, out configuration))
                 {
                     return ExitKind.InvalidCommandLine;

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// <summary>
     ///     An <see cref="IContentStore"/> implemented over <see cref="FileSystemContentStoreInternal"/>
     /// </summary>
-    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore, IStreamStore
+    public class FileSystemContentStore : StartupShutdownBase, IContentStore, IAcquireDirectoryLock, IRepairStore, ILocalContentStore, IStreamStore, IPushFileHandler
     {
         private const string Component = nameof(FileSystemContentStore);
 
@@ -235,5 +236,17 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         /// <inheritdoc />
         public void PostInitializationCompleted(Context context, BoolResult result) { }
+
+        /// <inheritdoc />
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        {
+            return Store.PutFileAsync(context, sourcePath, FileRealizationMode.Copy, hash, pinRequest: null);
+        }
+
+        /// <inheritdoc />
+        public bool HasContentLocally(Context context, ContentHash hash)
+        {
+            return Store.Contains(hash);
+        }
     }
 }

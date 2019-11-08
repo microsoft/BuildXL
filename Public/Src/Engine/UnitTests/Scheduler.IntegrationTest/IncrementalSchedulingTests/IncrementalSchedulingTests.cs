@@ -431,11 +431,56 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 .AssertCacheHit(process.PipId); // no changes to the source file, thus pip gets cache hit.
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DynamicObservationChangeShouldNotCauseOverSchedule(bool triggerFileInsideDirectory)
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var inputF = CreateSourceFile(directoryPath);
+            var inputG = CreateSourceFile(directoryPath);
+            var inputH = triggerFileInsideDirectory ? CreateSourceFile(directoryPath) : CreateSourceFile();
+            
+            // file h points to path to f.
+            ModifyFile(inputH, ArtifactToString(inputF));
+
+            var outputX = CreateOutputFileArtifact();
+            var pipBuilderA = CreatePipBuilder(new[] { 
+                Operation.ReadFileFromOtherFile(inputH, doNotInfer: triggerFileInsideDirectory), 
+                Operation.WriteFile(outputX) });
+            pipBuilderA.AddInputDirectory(sealedDirectory.Directory);
+            var processA = SchedulePipBuilder(pipBuilderA).Process;
+
+            RunScheduler().AssertCacheMiss(processA.PipId);
+
+            // Modifying f should make A scheduled.
+            ModifyFile(inputF);
+
+            RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
+
+            // Modifying g should not make A scheduled.
+            ModifyFile(inputG);
+
+            RunScheduler().AssertNotScheduled(processA.PipId);
+
+            // file h points to path to g.
+            ModifyFile(inputH, ArtifactToString(inputG));
+
+            RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
+
+            // Modifying f should not make A scheduled.
+            ModifyFile(inputF);
+
+            RunScheduler().AssertNotScheduled(processA.PipId);
+        }
+
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 
         protected void ModifyFile(FileArtifact file, string content = null)
         {
-            File.WriteAllText(ArtifactToString(file), content ?? System.Guid.NewGuid().ToString());
+            File.WriteAllText(ArtifactToString(file), content ?? Guid.NewGuid().ToString());
         }
     }
 }

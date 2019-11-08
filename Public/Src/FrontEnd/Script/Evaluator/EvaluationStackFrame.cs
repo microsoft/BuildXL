@@ -302,6 +302,17 @@ namespace BuildXL.FrontEnd.Script
             return result;
         }
 
+        /// <summary>
+        /// Tears down the internal object pool to save memory
+        /// </summary>
+        public static void TearDownPool()
+        {
+            for (int i = 0; i < s_framePools.Length; i++)
+            {
+                s_framePools[i].Clear();
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetArguments(EvaluationResult argument0)
         {

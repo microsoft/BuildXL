@@ -325,12 +325,13 @@ For the most up-to-date list of library functions see [LibraryFunctions.cs](/Pub
 | Function  | Switches | Semantics |
 | --- | --- | --- | 
 | `$sum` | | Converts every arg to number and computes their sum.  Fails if any argument is not a number. |
+| `$avg` | | Converts every arg to number and computes their average.  Fails if any argument is not a number. |
 | `$cut` | `-d <delim> -f <fld1>,...,<fldN>` | Similar to `/usr/bin/cut` |
 | `$count` | | Flattens all arguments and returns their count. |
-| `$uniq` | `-c` | Flattens all arguments and dedupes them.  When `-c` is provided, the output contains the count of each returned value. |
-| `$sort` | `-n -r` | Sorts the elements.  `-n` implies numeric sorting, and `-r` sorting in descending order |
+| `$uniq` | `-c -k <fld>` | Flattens all arguments and dedupes them.  When `-k <fld>` is specified, elements are deduped by their `<fld>` property values.  When `-c` is provided, the output contains the count of each returned value. |
+| `$sort` | `-n -r -k <fld>` | Sorts the elements.  `-n` implies numeric sorting, and `-r` sorting in descending order.  If `-k <fld>` is specified, elements are sorted by their `<fld>` property values |
 | `$join` | `-d <delim>` | Joins all elements by `delim`; when `delim` is not provided, platform-specific EOL is used |
-| `$grep` | `-v` | The first argument is a pattern; from the rest of the arguments, selects those that [match](#Match-Operator) the pattern.  `-v` implies inverse selection. |
+| `$grep` | `-v -o -g <grp>` | The first argument is a pattern; from the rest of the arguments, selects those that [match](#Match-Operator) the pattern; when `-o` is specified, only the matched substring is printed (in this case `-g <grp>` specifies the name of the RegEx group whose value to print). `-v` implies inverse selection. |
 | `$str` | | Concatenates all args into a string |
 | `$head` | `-n <num>` | Flattens all args and takes first `num`. |
 | `$tail` | `-n <num>` | Flattens all args and takes last `num`. |

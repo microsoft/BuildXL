@@ -1062,6 +1062,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 }
             }
 
+            StateStats.LogStats(this, Tracing.Logger.Log.IncrementalSchedulingStateStatsAfterScan);
+
             Tracing.Logger.Log.IncrementalSchedulingPreciseChange(
                 m_loggingContext,
                 preciseDirtyNodes,
@@ -1119,6 +1121,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     }
                 }
             }
+
+            StateStats.LogStats(this, Tracing.Logger.Log.IncrementalSchedulingStateStatsEnd);
 
             Tracing.Logger.Log.IncrementalSchedulingSaveState(
                 m_loggingContext, 
@@ -1496,7 +1500,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 Contract.Assert(dirtyNodeTrackerSerializedState != null);
                 dirtyNodeTracker = new DirtyNodeTracker(pipGraph.DataflowGraph, dirtyNodeTrackerSerializedState);
             }
-            else if (configuration.Schedule.GraphAgnosticIncrementalScheduling)
+            else
             {
                 // Re-initialize dirty node tracker.
                 dirtyNodeTracker = CreateInitialDirtyNodeTracker(pipGraph, false);
@@ -1530,12 +1534,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     pipGraph.GraphId.ToString(),
                     (long)processGraphChangeStopwatch.TotalElapsed.TotalMilliseconds);
             }
-            else
-            {
-                return null;
-            }
 
-            return new GraphAgnosticIncrementalSchedulingState(
+            var state = new GraphAgnosticIncrementalSchedulingState(
                 loggingContext,
                 loadedAtomicSaveToken,
                 pipGraph,
@@ -1556,6 +1556,10 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 indexToGraphLogs,
                 analysisModeOnly ? engineStateId : Guid.NewGuid(), // Renew if not analysis mode.
                 tempDirectoryCleaner);
+
+            StateStats.LogStats(state, Tracing.Logger.Log.IncrementalSchedulingStateStatsAfterLoad);
+
+            return state;
         }
 
         private static Possible<Unit> TryLoad(string incrementalSchedulingStatePath, Action<BuildXLReader> load)
@@ -2295,6 +2299,30 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         }
 
         #endregion Logging
+
+        #region State stats
+
+        private static class StateStats
+        {
+            public static void LogStats(GraphAgnosticIncrementalSchedulingState state, Action<LoggingContext, IDictionary<string, long>> logAction)
+            {
+                logAction(state.m_loggingContext, CreateStats(state));
+            }
+
+            private static IDictionary<string, long> CreateStats(GraphAgnosticIncrementalSchedulingState state) =>
+                new Dictionary<string, long>()
+                {
+                    ["CleanPips"] = state.m_cleanPips.Count,
+                    ["MaterializedPips"] = state.m_materializedPips.Count,
+                    ["PipOrigins"] = state.m_pipOrigins.Count,
+                    ["PipProducers"] = state.m_pipProducers.ProducerCount,
+                    ["ProducedPaths"] = state.m_pipProducers.ProducedPathCount,
+                    ["DynamicallyObservedFiles"] = state.m_dynamicallyObservedFiles.Count,
+                    ["DynamicallyObservedEnumerations"] = state.m_dynamicallyObservedEnumerations.Count
+                };
+        }
+
+        #endregion
 
         #region Helpers
 

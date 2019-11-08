@@ -30,6 +30,7 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
@@ -785,7 +786,7 @@ namespace BuildXL.Engine
                 .AsParallel()
                 .WithDegreeOfParallelism(Environment.ProcessorCount)
                 .WithCancellation(scheduler.Context.CancellationToken)
-                .SelectMany(ReadSidebandFile)
+                .SelectMany(fileName => ReadSidebandFile(loggingContext, fileName))
                 .ToArray();
 
             if (distinctRecordedWrites.Any())
@@ -838,13 +839,21 @@ namespace BuildXL.Engine
             }
         }
 
-        private static string[] ReadSidebandFile(string sidebandFile)
+        private static string[] ReadSidebandFile(LoggingContext loggingContext, string sidebandFile)
         {
             using (var sidebandReader = new SidebandReader(sidebandFile))
             {
-                sidebandReader.ReadHeader(ignoreChecksum: true);
-                sidebandReader.ReadMetadata();
-                return sidebandReader.ReadRecordedPaths().ToArray();
+                try
+                {
+                    sidebandReader.ReadHeader(ignoreChecksum: true);
+                    sidebandReader.ReadMetadata();
+                    return sidebandReader.ReadRecordedPaths().ToArray();
+                }
+                catch (IOException e)
+                {
+                    Logger.Log.CannotReadSidebandFile(loggingContext, sidebandFile, e.Message);
+                    return CollectionUtilities.EmptyArray<string>();
+                }
             }
         }
 

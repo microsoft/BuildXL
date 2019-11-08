@@ -6,7 +6,7 @@ import * as MacServices from "BuildXL.Sandbox.MacOS";
 
 namespace TestProcess {
     @@public
-    export const exe = BuildXLSdk.nativeExecutable({
+    export const exe = BuildXLSdk.executable({
         assemblyName: "Test.BuildXL.Executables.TestProcess",
         sources: globR(d`.`, "*.cs"),
         defineConstants: [ "TestProcess" ],

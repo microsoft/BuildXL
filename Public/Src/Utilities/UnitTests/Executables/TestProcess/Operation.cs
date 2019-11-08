@@ -971,10 +971,6 @@ namespace Test.BuildXL.Executables.TestProcess
 
         private string DoAugmentedReadFile(string path = null)
         {
-#if PLATFORM_OSX
-            // Mac has trouble compiling this to native code
-            throw new NotImplementedException();            
-#else
             path = path ?? PathAsString;
             var success = AugmentedManifestReporter.Instance.TryReportFileReads(new[] { path });
 
@@ -984,15 +980,10 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             return string.Empty;
-#endif
         }
 
         private string DoAugmentedWriteFile(string path = null)
         {
-#if PLATFORM_OSX
-            // Mac has trouble compiling this to native code
-            throw new NotImplementedException();            
-#else
             path = path ?? PathAsString;
             var success = AugmentedManifestReporter.Instance.TryReportFileCreations(new[] { path });
 
@@ -1002,7 +993,6 @@ namespace Test.BuildXL.Executables.TestProcess
             }
 
             return string.Empty;
-#endif
         }
 
         private string DoReadRequiredFile()

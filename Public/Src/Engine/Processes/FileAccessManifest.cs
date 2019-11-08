@@ -23,12 +23,11 @@ namespace BuildXL.Processes
     public sealed class FileAccessManifest
     {
         private readonly Dictionary<StringId, NormalizedPathString> m_normalizedFragments = new Dictionary<StringId, NormalizedPathString>();
-        private readonly PathTable m_pathTable;
 
         /// <summary>
         /// Represents the invalid scope.
         /// </summary>
-        private readonly Node m_rootNode;
+        private Node m_rootNode;
 
         /// <summary>
         /// File access manifest flags.
@@ -52,7 +51,7 @@ namespace BuildXL.Processes
         {
             Contract.Requires(pathTable != null);
 
-            m_pathTable = pathTable;
+            PathTable = pathTable;
             m_rootNode = Node.CreateRootNode();
             DirectoryTranslator = translateDirectories;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox;
@@ -110,6 +109,15 @@ namespace BuildXL.Processes
         /// Flag indicating if the manifest tree block is sealed.
         /// </summary>
         public bool IsManifestTreeBlockSealed => m_sealedManifestTreeBlock != null;
+
+        /// <summary>
+        /// Flag indicating if the manifest tree is available
+        /// </summary>
+        /// <remarks>
+        /// The regular deserialization of the manifest leaves only a byte representation of the node tree, that is 
+        /// good enough for most purposes. However, in some cases we need to perform a full deserialization
+        /// </remarks>
+        public bool IsManifestTreeHydrated => !IsManifestTreeBlockSealed || m_rootNode.Children != null;
 
         /// <summary>
         /// If true, then the detoured file access functions will write diagnostic messages
@@ -443,6 +451,9 @@ namespace BuildXL.Processes
         [CanBeNull]
         public SubstituteProcessExecutionInfo SubstituteProcessExecutionInfo { get; set; }
 
+        /// <nodoc/>
+        public PathTable PathTable { get; }
+
         /// <summary>
         /// Adds a policy to an entire scope
         /// </summary>
@@ -482,6 +493,11 @@ namespace BuildXL.Processes
         public bool TryFindManifestPathFor(AbsolutePath path, out AbsolutePath manifestPath, out FileAccessPolicy nodePolicy)
         {
             Contract.Requires(path.IsValid);
+
+            // The manifest could be the result of a deserialization process, so the tree node may not be available. Make sure it is 
+            // hydrated before we try to do anything with it
+            HydrateTreeNodeIfNeeded();
+
             Contract.Assert(m_rootNode.IsPolicyFinalized);
 
             var resultNode = m_rootNode.FindNodeFor(this, path);
@@ -515,15 +531,15 @@ namespace BuildXL.Processes
             }
 
             writer.Write(SubstituteProcessExecutionInfo.ShimAllProcesses ? (uint)1 : (uint)0);
-            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(m_pathTable));
+            WriteChars(writer, SubstituteProcessExecutionInfo.SubstituteProcessExecutionShimPath.ToString(PathTable));
             writer.Write((uint)SubstituteProcessExecutionInfo.ShimProcessMatches.Count);
 
             if (SubstituteProcessExecutionInfo.ShimProcessMatches.Count > 0)
             {
                 foreach (ShimProcessMatch match in SubstituteProcessExecutionInfo.ShimProcessMatches)
                 {
-                    WriteChars(writer, match.ProcessName.ToString(m_pathTable.StringTable));
-                    WriteChars(writer, match.ArgumentMatch.IsValid ? match.ArgumentMatch.ToString(m_pathTable.StringTable) : null);
+                    WriteChars(writer, match.ProcessName.ToString(PathTable.StringTable));
+                    WriteChars(writer, match.ArgumentMatch.IsValid ? match.ArgumentMatch.ToString(PathTable.StringTable) : null);
                 }
             }
         }
@@ -908,6 +924,10 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserialize an instance of <see cref="FileAccessManifest"/> from stream.
         /// </summary>
+        /// <remarks>
+        /// This method does not perform a full fidelity deserialization, since the node tree is left as a byte array, available
+        /// via <see cref="GetManifestTreeBytes"/>. To get the full fidelity manifest back, call HydrateTreeNode
+        /// </remarks>
         public static FileAccessManifest Deserialize(Stream stream)
         {
             Contract.Requires(stream != null);
@@ -938,6 +958,20 @@ namespace BuildXL.Processes
                     m_sealedManifestTreeBlock = sealedManifestTreeBlock,
                     m_messageCountSemaphoreName = messageCountSemaphoreName
                 };
+            }
+        }
+
+        private void HydrateTreeNodeIfNeeded()
+        {
+            if (IsManifestTreeHydrated)
+            {
+                return;
+            }
+            
+            using (var stream = new MemoryStream(m_sealedManifestTreeBlock))
+            using (var reader = new BinaryReader(stream, Encoding.Unicode, leaveOpen: true))
+            {
+                (m_rootNode, _) = Node.InternalDeserialize(reader);
             }
         }
 
@@ -1086,6 +1120,12 @@ namespace BuildXL.Processes
                 HashCode = ProcessUtilities.NormalizeAndHashPath(path, out Bytes);
             }
 
+            public NormalizedPathString(byte[] utf16EncodedBytes, int hashCode)
+            {
+                Bytes = utf16EncodedBytes;
+                HashCode = hashCode;
+            }
+
             public bool IsValid
             {
                 get { return Bytes != null; }
@@ -1117,6 +1157,35 @@ namespace BuildXL.Processes
                     }
                 }
             }
+
+            public static byte[] DeserializeBytes(BinaryReader reader)
+            {
+                // This is a UTF16-byte encoded array, terminating with a null character
+                // That means two consecutive 0-bytes representing null
+                var bytes = new List<byte>();
+                
+                bytes.Add(reader.ReadByte());
+                bytes.Add(reader.ReadByte());
+
+                bool fourByteAligned = false;
+
+                while (bytes[bytes.Count - 1] != 0 || bytes[bytes.Count - 2] != 0)
+                {
+                    bytes.Add(reader.ReadByte());
+                    bytes.Add(reader.ReadByte());
+                    fourByteAligned = !fourByteAligned;
+                }
+
+                // The encoded byte array is 4-byte aligned, and padding is there if needed
+                if (!fourByteAligned)
+                {
+                    var pad = reader.ReadUInt16();
+                    Contract.Assert(pad == 0);
+                }
+
+                return bytes.ToArray();
+            }
+
 
             public override string ToString()
             {
@@ -1301,24 +1370,24 @@ namespace BuildXL.Processes
             /// <summary>
             /// Returns the lowest node in the node tree that contains the given path
             /// </summary>
-            public Node FindNodeFor(FileAccessManifest owner, AbsolutePath path)
+            public Node FindNodeFor(FileAccessManifest owner, AbsolutePath pathToLookUp)
             {
-                Contract.Requires(path.IsValid);
+                Contract.Requires(pathToLookUp.IsValid);
                 Contract.Requires(owner != null);
 
-                if (PathId == path)
+                if (PathId == pathToLookUp)
                 {
                     return this;
                 }
 
-                var container = path.GetParent(owner.m_pathTable);
+                var container = pathToLookUp.GetParent(owner.PathTable);
                 var node = container.IsValid ? 
                     FindNodeFor(owner, container) : 
                     this;
 
-                if (node.TryGetChild(owner, path, out var result, out _))
+                if (node.TryGetChild(owner, pathToLookUp, out var result, out _))
                 {
-                    return result;
+                        return result;
                 }
 
                 return node;
@@ -1348,7 +1417,7 @@ namespace BuildXL.Processes
                 Contract.Requires(path.IsValid);
                 Contract.Ensures(Contract.Result<Node>() != null);
 
-                StringId fragment = path.GetName(owner.m_pathTable).StringId;
+                StringId fragment = path.GetName(owner.PathTable).StringId;
 
                 // We cache normalized fragments to avoid excessive memory allocations;
                 // in particular, we can avoid the allocation associated with creating a new NormalizedPathString
@@ -1357,7 +1426,7 @@ namespace BuildXL.Processes
                 {
                     owner.m_normalizedFragments.Add(
                         fragment,
-                        normalizedFragment = new NormalizedPathString(owner.m_pathTable.StringTable.GetString(fragment)));
+                        normalizedFragment = new NormalizedPathString(owner.PathTable.StringTable.GetString(fragment)));
                 }
 
                 node = null;
@@ -1401,7 +1470,7 @@ namespace BuildXL.Processes
                 Contract.Requires(path.IsValid);
                 Contract.Ensures(Contract.Result<Node>() != null);
 
-                var container = path.GetParent(owner.m_pathTable);
+                var container = path.GetParent(owner.PathTable);
                 var node = container.IsValid ? AddPath(owner, container) : this;
                 return node.GetOrCreateChild(owner, path);
             }
@@ -1451,6 +1520,56 @@ namespace BuildXL.Processes
 
                 NodeScope = new FileAccessScope(mask: apply.Mask & NodeScope.Mask, values: apply.Values | NodeScope.Values);
                 ExpectedUsn = expectedUsn;
+            }
+
+            /// <nodoc/>
+            public static (Node, NormalizedPathString) InternalDeserialize(BinaryReader reader)
+            {
+#if DEBUG
+                uint foodCafe = reader.ReadUInt32(); // "food cafe"
+                Contract.Assert((uint)0xF00DCAFE == foodCafe);
+#endif
+                uint normalizedFragmentHash = reader.ReadUInt32();
+                uint conePolicy = reader.ReadUInt32();
+                uint nodePolicy = reader.ReadUInt32();
+                uint pathIdValue = reader.ReadUInt32();
+                ulong expectedUsnValue = reader.ReadUInt64();
+                uint bucketCount = reader.ReadUInt32();
+
+                int childrenCount = 0;
+                for (int i = 0; i < bucketCount; i++)
+                {
+                    uint offset = reader.ReadUInt32();
+                    // An offset with 0 means no child was stored there
+                    if (offset != 0)
+                    {
+                        childrenCount++;
+                    }
+                }
+
+                unchecked
+                {
+                    var normalizedPathString = new NormalizedPathString(NormalizedPathString.DeserializeBytes(reader), (int)normalizedFragmentHash);
+
+                    Node node = new Node(new AbsolutePath((int)pathIdValue));
+                    node.m_conePolicy = (FileAccessPolicy)conePolicy;
+                    node.m_nodePolicy = (FileAccessPolicy)nodePolicy;
+                    node.ExpectedUsn = new Usn(expectedUsnValue);
+                    node.m_isPolicyFinalized = true;
+
+                    if (childrenCount > 0)
+                    {
+                        node.m_children = new Dictionary<NormalizedPathString, Node>(childrenCount);
+                    }
+
+                    for (int i = 0; i < childrenCount; i++)
+                    {
+                        (Node child, NormalizedPathString childNormalizedPathString) = InternalDeserialize(reader);
+                        node.m_children[childNormalizedPathString] = child;
+                    }
+
+                    return (node, normalizedPathString);
+                }
             }
 
             public void InternalSerialize(NormalizedPathString normalizedFragment, BinaryWriter writer)

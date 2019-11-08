@@ -30,7 +30,8 @@ namespace BuildXL.Processes
         /// <summary>
         /// We shouldn't try to close this handle. Detours takes care of that.
         /// </summary>
-        [CanBeNull] private readonly SafeFileHandle m_detoursReportHandle;
+        [CanBeNull] 
+        private readonly SafeFileHandle m_detoursReportHandle;
         private readonly UnicodeEncoding m_encoding;
 
         /// <nodoc/>

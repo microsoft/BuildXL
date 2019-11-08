@@ -35,12 +35,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 // We spawn a process, since breakaway happens for child processes only
                 Operation.Spawn(Context.PathTable, waitToFinish: true, 
-                    // Read and write a file. This accesses will not be observed
-                    Operation.ReadFile(source),
+                    // Write a file. This access will not be observed
                     Operation.WriteFile(outputInSharedOpaque, doNotInfer: true)),
                 // Report the augmented accesses (in the root process, which is detoured normally) without actually
                 // performing any IO
-                Operation.AugmentedRead(source),
                 Operation.AugmentedWrite(outputInSharedOpaque, doNotInfer: true),
             });
             builder.AddOutputDirectory(sharedOpaqueDirPath, kind: SealDirectoryKind.SharedOpaque);
@@ -57,10 +55,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.Delete(ArtifactToString(outputInSharedOpaque));
             RunScheduler().AssertCacheHit(pip.Process.PipId);
             XAssert.IsTrue(File.Exists(ArtifactToString(outputInSharedOpaque)));
-
-            // Modify the input and make sure the pip is re-run. This means the read access reached detours via augmentation.
-            File.WriteAllText(ArtifactToString(source), "New content");
-            RunScheduler().AssertCacheMiss(pip.Process.PipId);
-        }
+         }
     }
 }

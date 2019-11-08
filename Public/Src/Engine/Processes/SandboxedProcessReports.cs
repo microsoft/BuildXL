@@ -570,9 +570,10 @@ namespace BuildXL.Processes
                 out errorMessage);
 
             // Augmented file accesses never have the manifest path set, since there is no easy access to the manifest for 
-            // processes to use
+            // processes to use.
             // Let's recreate the manifest path based on the current path and manifest
-            if (string.IsNullOrEmpty(path) || !AbsolutePath.TryCreate(m_pathTable, path, out var absolutePath))
+            // The manifest may have its own path table after deserialization, so make sure we use the right one
+            if (string.IsNullOrEmpty(path) || !AbsolutePath.TryCreate(m_manifest.PathTable, path, out var absolutePath))
             {
                 return result;
             }

@@ -89,14 +89,9 @@ namespace BuildXL.Cache.ContentStore.Stores
         private Task? _processReserveRequestsTask;
 
         private readonly DistributedEvictionSettings _distributedEvictionSettings;
-<<<<<<< HEAD
-        private Task<PurgeResult>? _purgeTask;
-=======
-
         private static readonly Task<PurgeResult> CompletedPurgeTask = Task.FromResult(new PurgeResult(reserveSize: 0, hashesToPurgeCount: 0, quotaDescription: null));
 
         private Task<PurgeResult> _purgeTask = CompletedPurgeTask;
->>>>>>> upstream/master
         private readonly object _purgeTaskLock = new object();
 
         /// <inheritdoc />
@@ -174,15 +169,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _processReserveRequestsTask;
             }
 
-<<<<<<< HEAD
-            var purgeTask = _purgeTask;
-            if (purgeTask != null)
-=======
             if (!_purgeTask.IsCompleted)
->>>>>>> upstream/master
             {
                 context.TraceDebug($"{_tracer.Name}: waiting for purge task.");
-                return await purgeTask;
+                return await _purgeTask;
             }
 
             return BoolResult.Success;

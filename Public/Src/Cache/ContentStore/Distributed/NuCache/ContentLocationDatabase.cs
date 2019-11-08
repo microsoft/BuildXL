@@ -268,6 +268,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _inMemoryCacheFlushTimer = null;
             }
 
+            // NOTE(jubayard): there could be a flush in progress as this is done. Either way, any writes performed
+            // after the last checkpoint will be completely lost. Since no checkpoints will be created after this runs,
+            // it doesn't make any sense to flush here. However, we can't close the DB or anything like that until this
+            // flush is over.
             await _flushTask;
 
             return await base.ShutdownCoreAsync(context);
@@ -728,6 +732,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer,
                     async () =>
                     {
+                        // NOTE(jubayard): notice that the count of the dictionary is actually the number of unique
+                        // updated entries, which can be much less than the number of actual updates performed (i.e. if
+                        // the updates are performed on a single entry). We need to make sure we discount the "precise"
+                        // number of updates that are written to disk.
                         long flushedEntries = _cacheUpdatesSinceLastFlush;
                         try
                         {

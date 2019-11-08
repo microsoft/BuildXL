@@ -77,6 +77,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private long _cacheUpdatesSinceLastFlush = 0;
 
+        internal long CacheUpdatesSinceLastFlush => _cacheUpdatesSinceLastFlush;
+
         /// <summary>
         /// Controls cache flushing due to timeout.
         /// </summary>
@@ -90,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _flushTaskLock = new object();
 
-        private Task _flushTask = BoolResult.SuccessTask;
+        internal Task FlushTask { get; private set; } = BoolResult.SuccessTask;
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -258,13 +260,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             lock (TimerChangeLock)
             {
+#pragma warning disable AsyncFixer02
                 _gcTimer?.Dispose();
+#pragma warning restore AsyncFixer02
+
                 _gcTimer = null;
             }
 
             lock (_cacheFlushTimerLock)
             {
+#pragma warning disable AsyncFixer02
                 _inMemoryCacheFlushTimer?.Dispose();
+#pragma warning restore AsyncFixer02
+
                 _inMemoryCacheFlushTimer = null;
             }
 
@@ -272,7 +280,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // after the last checkpoint will be completely lost. Since no checkpoints will be created after this runs,
             // it doesn't make any sense to flush here. However, we can't close the DB or anything like that until this
             // flush is over.
-            await _flushTask;
+            await FlushTask;
 
             return await base.ShutdownCoreAsync(context);
         }
@@ -663,7 +671,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _inMemoryCache.Store(context, hash, entry);
 
                 var updates = Interlocked.Increment(ref _cacheUpdatesSinceLastFlush);
-                if (_configuration.CacheMaximumUpdatesPerFlush > 0 && updates >= _configuration.CacheMaximumUpdatesPerFlush && _flushTask.IsCompleted)
+                if (_configuration.CacheMaximumUpdatesPerFlush > 0 && updates >= _configuration.CacheMaximumUpdatesPerFlush && FlushTask.IsCompleted)
                 {
                     // We trigger a flush following the indicated number of operations. However, high load can cause
                     // flushes to run for too long, hence, we trigger the logic every time after we go over the
@@ -702,13 +710,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             bool renewed = false;
-            if (_flushTask.IsCompleted)
+            if (FlushTask.IsCompleted)
             {
                 lock (_flushTaskLock)
                 {
-                    if (_flushTask.IsCompleted)
+                    if (FlushTask.IsCompleted)
                     {
-                        _flushTask = forceCacheFlushAsync(context, counter);
+                        FlushTask = forceCacheFlushAsync(context, counter);
                         renewed = true;
                     }
                 }
@@ -716,7 +724,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (blocking)
             {
-                _flushTask.GetAwaiter().GetResult();
+                FlushTask.GetAwaiter().GetResult();
             }
 
             return renewed && blocking;

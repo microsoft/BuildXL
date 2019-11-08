@@ -726,11 +726,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer,
                     async () =>
                     {
-                        long flushedEntries = 0;
+                        long flushedEntries = _cacheUpdatesSinceLastFlush;
                         try
                         {
                             var flushCounters = await _inMemoryCache.FlushAsync(context);
-                            flushedEntries = flushCounters[FlushableCache.FlushableCacheCounters.Persisted].Value;
                             return Result.Success(flushCounters);
                         }
                         finally

@@ -859,7 +859,7 @@ namespace BuildXL.Processes
             m_normalizedFragments?.Clear();
             var workList = new Stack<Node>();
             workList.Push(m_rootNode);
-            while (workList.Any())
+            while (workList.Count > 0)
             {
                 var node = workList.Pop();
                 if (node == null)

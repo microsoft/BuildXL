@@ -476,6 +476,50 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             RunScheduler().AssertNotScheduled(processA.PipId);
         }
 
+        [Fact]
+        public void ModifyingProbedStaticInputCausesRescheduledAndRebuild()
+        {
+            var probedInput = CreateSourceFile();
+
+            var process = CreateAndSchedulePipBuilder(new[] 
+            {
+                Operation.Probe(probedInput),
+                Operation.ReadFile(CreateSourceFile()), 
+                Operation.WriteFile(CreateOutputFileArtifact()) 
+            }).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            ModifyFile(probedInput);
+
+            RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
+        }
+
+        [Fact]
+        public void ModifyingProbedDynamicInputCausesRescheduledButNotRebuild()
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var probedInput = CreateSourceFile(directoryPath);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.Probe(probedInput, doNotInfer: true),
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+
+            var process = SchedulePipBuilder(pipBuilder).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            ModifyFile(probedInput);
+
+            RunScheduler().AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
+        }
+
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 
         protected void ModifyFile(FileArtifact file, string content = null)

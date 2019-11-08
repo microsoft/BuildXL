@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Storage.ChangeTracking;
@@ -16,7 +15,6 @@ using BuildXL.Utilities.Tasks;
 using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using AssemblyHelper = BuildXL.Utilities.AssemblyHelper;
 
 namespace Test.BuildXL.Storage.Admin
 {
@@ -27,15 +25,29 @@ namespace Test.BuildXL.Storage.Admin
     {
         #region Singly-linked file and directory invalidations
 
-        [FactIfSupported(requiresJournalScan: true)]
-        public void DetectDataChangeToExistentFileAndCheckpoint()
+        [TheoryIfSupported(requiresJournalScan: true)]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DetectDataChangeToExistentFileAndCheckpoint(bool probeAndTrack)
         {
+            Action<ChangeDetectionSupport, string> track = (s, f) =>
+            {
+                if (probeAndTrack)
+                {
+                    s.ProbeAndTrackPath(PathExistence.ExistsAsFile, f);
+                }
+                else
+                {
+                    s.Track(f);
+                }
+            };
+
             const string FileName = @"FileToModify";
             
             WriteFile(FileName, "Original");
 
             ChangeDetectionSupport support = InitializeChangeDetectionSupport();
-            support.Track(FileName);
+            track(support, FileName);
 
             WriteFile(FileName, "Modified");
 
@@ -43,7 +55,7 @@ namespace Test.BuildXL.Storage.Admin
             changedPaths.AssertChangedExactly(DataOrMetadataChanged(FileName));
 
             // Track the file again (the path will not trigger again otherwise). We shouldn't see the modification a second time.
-            support.Track(FileName);
+            track(support, FileName);
 
             // No change notifications were expected; last change was before the last checkpoint
             changedPaths = support.ProcessChanges();

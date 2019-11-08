@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public TimeSpan Age(IClock clock) => clock.UtcNow - LastAccessTime;
 
         /// <nodoc />
-        public TimeSpan? EffectiveAge => EffectiveLastAccessTime == null ? (TimeSpan?)null : DateTime.UtcNow - EffectiveLastAccessTime.Value;
+        public TimeSpan? EffectiveAge(IClock clock) => EffectiveLastAccessTime == null ? (TimeSpan?)null : clock.UtcNow - EffectiveLastAccessTime.Value;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ContentHashWithLastAccessTimeAndReplicaCount"/> struct.

@@ -91,6 +91,8 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.Cache.Interfaces`,
         deployment: Cache.NugetPackages.interfaces,
         dependencies: [
+            { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion},
+
             importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net472"}).pkg,
             importFrom("System.Interactive.Async").withQualifier({targetFramework: "net472"}).pkg,
         ]

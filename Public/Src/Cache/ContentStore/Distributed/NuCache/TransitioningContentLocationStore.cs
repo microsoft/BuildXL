@@ -316,10 +316,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
 
             return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer)
-                .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, ref evictionCount));
+                .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
         }
 
-        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge, ref int evictionCount)
+        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
         {
             if (candidate.Age > evictionMinAge)
             {
@@ -327,7 +327,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return true;
             }
 
-            context.Debug($"Previous successful eviction attempts = {evictionCount}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
+            context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
                 $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
             return false;
         }

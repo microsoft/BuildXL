@@ -540,6 +540,7 @@ namespace BuildXL.Utilities.Tracing
         DeletingOutputsFromSharedOpaqueSidebandFilesStarted = 867,
         DeletingSharedOpaqueSidebandFilesStarted = 868,
         ScrubbingProgress = 869,
+        CannotReadSidebandFile = 870,
 
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,
@@ -976,6 +977,10 @@ namespace BuildXL.Utilities.Tracing
         IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan = 8078,
         IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan = 8079,
 
+        IncrementalSchedulingStateStatsAfterLoad = 8080,
+        IncrementalSchedulingStateStatsAfterScan = 8081,
+        IncrementalSchedulingStateStatsEnd = 8082,
+
         // Server mode
         UsingExistingServer = 8100,
         AppServerBuildStart = 8101,
@@ -1152,5 +1157,8 @@ namespace BuildXL.Utilities.Tracing
 
         FailedToLoadPipGraphFragment = 14502,
         PipCacheLookupStats = 14503,
+
+        ProcessRetries = 14504,
+        ProcessPattern = 14505,
     }
 }

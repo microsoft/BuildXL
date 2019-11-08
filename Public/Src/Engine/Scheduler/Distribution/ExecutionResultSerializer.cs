@@ -154,6 +154,9 @@ namespace BuildXL.Scheduler.Distribution
                 result = PipResultStatus.NotMaterialized;
             }
 
+            var pipProperties = ReadPipProperties(reader);
+            var hasUserRetries = reader.ReadBoolean();
+
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
                 numberOfWarnings,
@@ -172,7 +175,9 @@ namespace BuildXL.Scheduler.Distribution
                 cacheDescriptor,
                 converged,
                 pathSet,
-                cacheLookupCounters);
+                cacheLookupCounters,
+                pipProperties,
+                hasUserRetries);
 
             return processExecutionResult;
         }
@@ -231,6 +236,9 @@ namespace BuildXL.Scheduler.Distribution
             {
                 result.CacheLookupPerfInfo.Serialize(writer);
             }
+
+            WritePipProperties(writer, result.PipProperties);
+            writer.Write(result.HasUserRetries);
         }
 
         private static TwoPhaseCachingInfo ReadTwoPhaseCachingInfo(BuildXLReader reader)
@@ -612,6 +620,52 @@ namespace BuildXL.Scheduler.Distribution
         {
             WriteAbsolutePath(writer, file.Path);
             writer.WriteCompact(file.RewriteCount);
+        }
+
+        private static IReadOnlyDictionary<string, int> ReadPipProperties(BuildXLReader reader)
+        {
+            bool hasPipProperties = reader.ReadBoolean();
+
+            if (!hasPipProperties)
+            {
+                return null;
+            }
+            else
+            {
+                int count = reader.ReadInt32Compact();
+
+                var pipProperties = new Dictionary<string, int>();
+
+                for (int i = 0; i < count; i++)
+                {
+                    string key = reader.ReadString();
+                    pipProperties[key] = reader.ReadInt32Compact();
+                }
+
+                return pipProperties;
+            }
+        }
+
+        private static void WritePipProperties(BuildXLWriter writer, IReadOnlyDictionary<string, int> pipProperties)
+        {
+            bool hasPipProperties = pipProperties != null && pipProperties.Count != 0;
+
+            if (!hasPipProperties)
+            {
+                writer.Write(false);
+            }
+            else
+            {
+                writer.Write(true);
+
+                writer.WriteCompact(pipProperties.Count);
+
+                foreach (string key in pipProperties.Keys)
+                {
+                    writer.Write(key);
+                    writer.WriteCompact(pipProperties[key]);
+                }
+            }
         }
     }
 }

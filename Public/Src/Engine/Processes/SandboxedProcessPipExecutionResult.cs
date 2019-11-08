@@ -76,12 +76,14 @@ namespace BuildXL.Processes
         /// <param name="exitCode">The error code form execution of the process if it ran</param>
         /// <param name="detouringStatuses">The detours statuses recorded for this pip</param>
         /// <param name="maxDetoursHeapSize">The max detours heap size for the processes of this pip</param>
+        /// <param name="pipProperties">Additional pip properties that need to be bubbled up to session telemetry</param>
         /// <returns>A new instance of SandboxedProcessPipExecutionResult.</returns>
         internal static SandboxedProcessPipExecutionResult PreparationFailure(
             int numberOfProcessLaunchRetries = 0,
             int exitCode = 0,
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses = null,
-            long maxDetoursHeapSize = 0)
+            long maxDetoursHeapSize = 0,
+            Dictionary<string, int> pipProperties = null)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.PreparationFailed,
@@ -101,7 +103,8 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: ContainerConfiguration.DisabledIsolation);
+                containerConfiguration: ContainerConfiguration.DisabledIsolation,
+                pipProperties: pipProperties);
         }
 
         internal static SandboxedProcessPipExecutionResult DetouringFailure(SandboxedProcessPipExecutionResult result)
@@ -124,7 +127,8 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: result.AllReportedFileAccesses,
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: result.MaxDetoursHeapSizeInBytes,
-                containerConfiguration: result.ContainerConfiguration);
+                containerConfiguration: result.ContainerConfiguration,
+                pipProperties: result.PipProperties);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToUserSpecifiedExitCode(
@@ -139,7 +143,8 @@ namespace BuildXL.Processes
             long maxDetoursHeapSize,
             ContainerConfiguration containerConfiguration,
             Tuple<AbsolutePath, Encoding> encodedStandardError,
-            Tuple<AbsolutePath, Encoding> encodedStandardOutput)
+            Tuple<AbsolutePath, Encoding> encodedStandardOutput,
+            Dictionary<string, int> pipProperties)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode,
@@ -159,7 +164,8 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: containerConfiguration);
+                containerConfiguration: containerConfiguration,
+                pipProperties: pipProperties);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToAzureWatsonExitCode(
@@ -172,7 +178,8 @@ namespace BuildXL.Processes
             long processSandboxedProcessResultMs,
             long processStartTime,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            Dictionary<string, int> pipProperties)
         {
             return new SandboxedProcessPipExecutionResult(
                 SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToAzureWatsonExitCode,
@@ -192,7 +199,8 @@ namespace BuildXL.Processes
                 allReportedFileAccesses: null,
                 detouringStatuses: detouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
-                containerConfiguration: containerConfiguration);
+                containerConfiguration: containerConfiguration,
+                pipProperties: pipProperties);
         }
 
         internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
@@ -214,7 +222,8 @@ namespace BuildXL.Processes
                    result.AllReportedFileAccesses,
                    result.DetouringStatuses,
                    result.MaxDetoursHeapSizeInBytes,
-                   result.ContainerConfiguration);
+                   result.ContainerConfiguration,
+                   result.PipProperties);
 
         /// <summary>
         /// Indicates if the pip succeeded.
@@ -292,6 +301,17 @@ namespace BuildXL.Processes
         /// </summary>
         public ContainerConfiguration ContainerConfiguration { get; }
 
+        /// <summary>
+        /// Extract a pip property and the count of that property, if a value matching the PipProperty regex was defined in the process output
+        /// </summary>
+        public Dictionary<string, int> PipProperties { get; set; }
+
+        /// <summary>
+        /// A flag to denote if the process was retried based on a User set retry code
+        /// </summary>
+        public bool HadUserRetries { get; set; }
+
+
         /// <nodoc />
         public SandboxedProcessPipExecutionResult(
             SandboxedProcessPipExecutionStatus status,
@@ -311,7 +331,8 @@ namespace BuildXL.Processes
             IReadOnlyList<ReportedFileAccess> allReportedFileAccesses,
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses,
             long maxDetoursHeapSize,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            Dictionary<string, int> pipProperties)
         {
             Contract.Requires(
                 (status == SandboxedProcessPipExecutionStatus.PreparationFailed || status == SandboxedProcessPipExecutionStatus.ShouldBeRetriedDueToUserSpecifiedExitCode) ||
@@ -343,6 +364,7 @@ namespace BuildXL.Processes
             MaxDetoursHeapSizeInBytes = maxDetoursHeapSize;
             SharedDynamicDirectoryWriteAccesses = sharedDynamicDirectoryWriteAccesses;
             ContainerConfiguration = containerConfiguration;
+            PipProperties = pipProperties;
         }
 
         /// <summary>

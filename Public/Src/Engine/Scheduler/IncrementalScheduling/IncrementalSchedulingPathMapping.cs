@@ -33,6 +33,11 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly ConcurrentBigMap<T, List<AbsolutePath>> m_valueToPathApproximation;
 
         /// <summary>
+        /// Number of mappings.
+        /// </summary>
+        public int Count => m_pathToValue.Where(kvp => kvp.Value != null && kvp.Value.Count > 0).Count();
+
+        /// <summary>
         /// Creates an instance of <see cref="IncrementalSchedulingPathMapping{T}"/>
         /// </summary>
         public IncrementalSchedulingPathMapping()

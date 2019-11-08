@@ -257,11 +257,11 @@ namespace Test.BuildXL.Processes
         {
             var report = new Sandbox.AccessReport
             {
-                Operation = operation,
-                Statistics = stats,
-                Pid        = pid,
-                Path       = path,
-                Status     = allowed ? (uint)FileAccessStatus.Allowed : (uint)FileAccessStatus.Denied
+                Operation      = operation,
+                Statistics     = stats,
+                Pid            = pid,
+                PathOrPipStats = Sandbox.AccessReport.EncodePath(path),
+                Status         = allowed ? (uint)FileAccessStatus.Allowed : (uint)FileAccessStatus.Denied
             };
 
             proc.PostAccessReport(report);

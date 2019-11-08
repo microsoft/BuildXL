@@ -421,6 +421,15 @@ namespace BuildXL.Native.IO.Unix
                         using (FileStream destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
                         {
                             await sourceStream.CopyToAsync(destinationStream);
+
+                            var mode = GetFilePermissionsForFilePath(source, followSymlink: false);
+                            var result = SetFilePermissionsForFilePath(destination, checked((FilePermissions)mode), followSymlink: false);
+
+                            if (result < 0)
+                            {
+                                throw new BuildXLException($"Failed to set permissions for file copy at '{destination}' - error: {Marshal.GetLastWin32Error()}");
+                            }
+
                             onCompletion?.Invoke(sourceStream.SafeFileHandle, destinationStream.SafeFileHandle);
                         }
                     }

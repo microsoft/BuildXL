@@ -24,6 +24,28 @@ namespace ContentStoreTest.FileSystem
         {
         }
 
+        [Fact(Skip = "Test does not work on all versions of Windows where BuildXL tests run")]
+        [Trait("Category", "WindowsOSOnly")] 
+        public async Task TestDeleteWithOpenFileStream()
+        {
+            using (var testDirectory = new DisposableDirectory(FileSystem, FileSystem.GetTempPath() / "TestDir"))
+            {
+                var path = testDirectory.Path / Guid.NewGuid().ToString();
+                var otherPath = testDirectory.Path / Guid.NewGuid().ToString();
+                FileSystem.WriteAllText(path, "Hello");
+                FileSystem.WriteAllText(otherPath, "Other");
+
+                using (Stream stream = await FileSystem.OpenAsync(path, FileAccess.Read, FileMode.Open, FileShare.Read | FileShare.Delete))
+                {
+                    FileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
+
+                    FileSystem.FileExists(path).Should().BeFalse();
+
+                    FileSystem.MoveFile(otherPath, path, replaceExisting: false);
+                }
+            }
+        }
+
         [Fact]
         public void TryGetFileAttributeReturnsFalseForNonExistingFile()
         {

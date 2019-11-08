@@ -140,7 +140,6 @@ namespace BuildXL
 
                 ICommandLineConfiguration configuration;
                 ContentHashingUtilities.SetContentHasherIdlePoolSize(10);
-                ContentHashingUtilities.SetDefaultHashType();
                 if (!args.TryParse(rawArgs.ToArray(), pathTable, out configuration))
                 {
                     return ExitKind.InvalidCommandLine;

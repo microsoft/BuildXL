@@ -2409,7 +2409,6 @@ namespace BuildXL.Engine
         {
             Contract.Requires(path.IsValid);
 
-            // var translatedPath = m_translator?.Translate(Context.PathTable, path) ?? path;
             bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, path, out AbsolutePath finalPath);
             if (!possiblyEnabled)
             {
@@ -2418,7 +2417,7 @@ namespace BuildXL.Engine
                     loggingContext,
                     drive,
                     path.ToString(Context.PathTable),
-                    path != finalPath ? finalPath.ToString(Context.PathTable) : string.Empty,
+                    finalPath.IsValid ? finalPath.ToString(Context.PathTable) : string.Empty,
                     GetConfigureJournalCommand(drive));
             }
 
@@ -2445,10 +2444,14 @@ namespace BuildXL.Engine
 
             finalPath = path;
 
+            // We open the path without reparse point flag. This will returns the handle to the final path, if the original
+            // path is a junction or symlink. This means that we will check the journal availability of the volume where the final path
+            // resides.
             OpenFileResult result = FileUtilities.TryOpenDirectory(
                 path.ToString(pathTable),
                 FileShare.Delete | FileShare.ReadWrite,
                 out SafeFileHandle handle);
+
             using (handle)
             {
                 if (result.Succeeded)
@@ -2461,11 +2464,14 @@ namespace BuildXL.Engine
                     {
                         try
                         {
+                            // For correct reporting, we try to get the final path, so that we know precisely which volume
+                            // that does not have the journal capability.
                             string finalPathStr = FileUtilities.GetFinalPathNameByHandle(handle);
                             finalPath = AbsolutePath.Create(pathTable, finalPathStr);
                         }
                         catch (NativeWin32Exception)
                         {
+                            // GetFinalPathNameByHandle currently only throws NativeWin32Exception.
                             finalPath = path;
                         }
 

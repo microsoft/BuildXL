@@ -219,7 +219,7 @@ namespace BuildXL.Cache.Host.Configuration
         /// A candidate must have an age older than this amount, or else it won't be evicted.
         /// </summary>
         [DataMember]
-        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.FromMinutes(30);
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
 
         /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.

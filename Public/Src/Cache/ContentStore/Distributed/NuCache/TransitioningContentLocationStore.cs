@@ -14,6 +14,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -33,18 +34,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly LocalLocationStore _localLocationStore;
         private readonly RedisContentLocationStore _redisContentLocationStore;
         private readonly RedisContentLocationStoreConfiguration _configuration;
+        private readonly IClock _clock;
 
         /// <nodoc />
         public TransitioningContentLocationStore(
             RedisContentLocationStoreConfiguration configuration,
             RedisContentLocationStore redisContentLocationStore,
-            LocalLocationStore localLocationStore)
+            LocalLocationStore localLocationStore,
+            IClock clock)
         {
             Contract.Requires(configuration != null);
+            Contract.Requires(clock != null);
 
             _configuration = configuration;
             _localLocationStore = localLocationStore;
             _redisContentLocationStore = redisContentLocationStore;
+            _clock = clock;
 
             Contract.Assert(!_configuration.HasReadOrWriteMode(ContentLocationMode.Redis) || _redisContentLocationStore != null);
             Contract.Assert(!_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore) || _localLocationStore != null);
@@ -296,7 +301,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 var first = contentHashesWithInfo[0];
                 var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
 
-                context.Debug($"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age}, lastAge={last.Age}");
+                context.Debug($"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age(_clock)}, lastAge={last.Age(_clock)}");
             }
 
             var operationContext = new OperationContext(context);
@@ -323,14 +328,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
         {
-            if (candidate.Age > evictionMinAge)
+            if (candidate.Age(_clock) >= evictionMinAge)
             {
                 evictionCount++;
                 return true;
             }
-
             context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
-                $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age}.");
+                $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge}, age = {candidate.Age(_clock)}.");
             return false;
         }
 

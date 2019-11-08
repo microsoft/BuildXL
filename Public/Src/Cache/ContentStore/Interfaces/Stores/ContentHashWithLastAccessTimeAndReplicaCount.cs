@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Stores
 {
@@ -40,7 +41,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Stores
         public readonly DateTime? EffectiveLastAccessTime;
 
         /// <nodoc />
-        public TimeSpan Age => DateTime.UtcNow - LastAccessTime;
+        public TimeSpan Age(IClock clock) => clock.UtcNow - LastAccessTime;
 
         /// <nodoc />
         public TimeSpan? EffectiveAge => EffectiveLastAccessTime == null ? (TimeSpan?)null : DateTime.UtcNow - EffectiveLastAccessTime.Value;

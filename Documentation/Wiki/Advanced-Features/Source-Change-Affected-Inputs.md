@@ -42,3 +42,25 @@ Example of Dscript code:
         workingDirectory: d`.` 
     });
 ```
+
+# Caching Behavior
+When a process requires to know its source affected change inputs, BuildXL assumes that this process needs to use this information to do something. So it treats this computation result as an input of the process and counts it in the fingerprint. If the affected inputs of a process change, this process will get a cache miss. The process's cache behavior will be different from when the feature is disabled.
+
+## Example
+Suppose that we have the following pip dependency graph
+```
+infileA --> (processA) --> outfileA --> (processC) --> outfileC   
+                                     /
+infileB --> (processB) --> outfileB -                           
+```
+
+When processC disables the feature, only `outfileA` and `outfileB` are taken into account for processC's fingerprinting. But when processC enables the feature, its `affected inputs` is also taken into account for fingerprinting. The below table illustrates the fingerprint represents of processC in a sequence of builds. Build0 is a base build. Both infileA and infileB has no change in Build0. In Build3, infileB reverts the change in Build2 and back to version in Build1. When the feature is disabled, processC's fingerprint in Build3 is identical to the one in Build1. So processC gets a cache hit. However, when the feature is enabled, its fingerprint in Build3 can't find any match in the previous builds. So it gets a cache miss.
+
+|         | infileA Content | infileB Content| Affected Inputs of ProcessC |Fingerprint of ProcessC (Feature Enabled) | Fingerprint of ProcessC (Feature Disabled) | 
+|---------|:---------------:|:--------------:|:---------------------------:|:----------------------------------------:|:------------------------------------------:|
+| Build0  | a               |  b             |  None                       |a+b               |  a+b                  |
+| Build1  | a'              |  b             |  outfileA                   |a'+b+outfileA     |  a'+b                 |
+| Build2  | a'              |  b'            |  outfileB                   |a'+b'+outfileB    |  a'+b'                |
+| Build3  | a'              |  b             |  outfileB                   |a'+b+outfileB     |  a'+b                 |
+
+

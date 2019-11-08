@@ -144,7 +144,7 @@ namespace ContentStoreTest.Distributed.Stores
             IAbsFileSystem fileSystem,
             IFileCopier<AbsolutePath> fileCopier,
             IFileExistenceChecker<AbsolutePath> fileExistenceChecker,
-            ICopyRequester copyRequester,
+            IProactiveCopier copyRequester,
             IPathTransformer<AbsolutePath> pathTransformer,
             IContentLocationStore contentLocationStore)
                 : base(workingDirectory, settings, fileSystem, fileCopier, fileExistenceChecker, copyRequester, pathTransformer, contentLocationStore)
@@ -239,7 +239,7 @@ namespace ContentStoreTest.Distributed.Stores
             public CounterSet GetCounters(Context context) => null;
 
             /// <inheritdoc />
-            public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint) => null;
+            public Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch) => null;
 
             /// <inheritdoc />
             public Task<BoolResult> PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] blob) => null;

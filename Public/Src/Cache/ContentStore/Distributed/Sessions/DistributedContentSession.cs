@@ -264,11 +264,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (registerResult && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
             {
                 // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
-                WithOperationContext(
+                var proactiveCopyTask = WithOperationContext(
                     context,
                     CancellationToken.None,
-                    operationContext => RequestProactiveCopyIfNeededAsync(operationContext, result.ContentHash, path)
-                ).FireAndForget(context);
+                    operationContext => ProactiveCopyIfNeededAsync(operationContext, result.ContentHash, path)
+                );
+
+                if (Settings.InlineProactiveCopies)
+                {
+                    var proactiveCopyResult = await proactiveCopyTask;
+
+                    // Only fail if all copies failed.
+                    if (!proactiveCopyResult.Succeeded && proactiveCopyResult.RingCopyResult?.Succeeded == false && proactiveCopyResult.OutsideRingCopyResult?.Succeeded == false)
+                    {
+                        return new PutResult(proactiveCopyResult);
+                    }
+                }
+                else
+                {
+                    proactiveCopyTask.FireAndForget(context);
+                }
             }
 
             return registerResult;
@@ -293,7 +308,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return putResult;
         }
 
-        private Task<ProactiveCopyResult> RequestProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, string path = null)
+        private Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -345,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 if (candidates.Length > 0)
                                 {
                                     var candidate = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
-                                    insideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate, isInsideRing: true);
+                                    insideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: true);
                                 }
                                 else
                                 {
@@ -386,7 +401,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             if (getLocationResult.Succeeded)
                             {
                                 var candidate = getLocationResult.Value;
-                                outsideRingCopyTask = DistributedCopier.RequestCopyFileAsync(context, hash, candidate, isInsideRing: false);
+                                outsideRingCopyTask = RequestOrPushContentAsync(context, hash, candidate, isInsideRing: false);
                             }
                             else
                             {
@@ -405,6 +420,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         _pendingProactivePuts.Remove(hash);
                     }
                 });
+        }
+
+        private async Task<BoolResult> RequestOrPushContentAsync(OperationContext context, ContentHash hash, MachineLocation target, bool isInsideRing)
+        {
+            if (Settings.PushProactiveCopies)
+            {
+                return await DistributedCopier.PushFileAsync(
+                    context,
+                    hash,
+                    target,
+                    async () =>
+                    {
+                        var streamResult = await Inner.OpenStreamAsync(context, hash, context.Token);
+                        if (streamResult.Succeeded)
+                        {
+                            return streamResult.Stream;
+                        }
+
+                        return null;
+                    }
+                    , isInsideRing);
+            }
+            else
+            {
+                return await DistributedCopier.RequestCopyFileAsync(context, hash, target, isInsideRing);
+            }
         }
 
         /// <inheritdoc />

@@ -14,13 +14,14 @@ namespace BuildXL.Cache.ContentStore.Service
     public sealed class LocalServerConfiguration
     {
         /// <nodoc />
-        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, int? bufferSizeForGrpcCopies = null, int? gzipBarrierSizeForGrpcCopies = null)
+        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, IAbsFileSystem fileSystem, int? bufferSizeForGrpcCopies = null, int? gzipBarrierSizeForGrpcCopies = null)
         {
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
+            FileSystem = fileSystem;
         }
 
         /// <nodoc />
@@ -109,6 +110,9 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public int? GrpcThreadPoolSize { get; set; }
+
+        /// <nodoc />
+        public IAbsFileSystem FileSystem { get; set; }
 
         /// <inheritdoc />
         public override string ToString()

@@ -196,6 +196,8 @@ namespace BuildXL.Processes
 
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
+        private bool m_inCloudBuild;
+
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
         /// </summary>
@@ -227,7 +229,8 @@ namespace BuildXL.Processes
             VmInitializer vmInitializer = null,
             SubstituteProcessExecutionInfo shimInfo = null,
             IReadOnlyList<RelativePath> incrementalTools = null,
-            IReadOnlyList<AbsolutePath> changeAffectedInputs = null)
+            IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
+            bool? inCloudBuild = false)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -359,6 +362,7 @@ namespace BuildXL.Processes
             }
 
             m_changeAffectedInputs = changeAffectedInputs;
+            m_inCloudBuild = inCloudBuild ?? false;
         }
 
         /// <inheritdoc />
@@ -3648,7 +3652,7 @@ namespace BuildXL.Processes
             return rootDirectory.IsValid ? rootDirectory.Combine(pathTable, pip.FormattedSemiStableHash).ToString(pathTable) : null;
         }
 
-        private static void FormatOutputAndPaths(string standardOut, string standardError,
+        private void FormatOutputAndPaths(string standardOut, string standardError,
             string standardOutPath, string standardErrorPath,
             out string outputToLog, out string pathsToLog)
         {
@@ -3660,7 +3664,9 @@ namespace BuildXL.Processes
             outputToLog = (standardOutEmpty ? string.Empty : standardOut) +
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardError);
-            pathsToLog = (standardOutEmpty ? string.Empty : standardOutPath) +
+            pathsToLog = m_inCloudBuild 
+                ? string.Empty 
+                : (standardOutEmpty ? string.Empty : standardOutPath) + 
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardErrorPath);
         }

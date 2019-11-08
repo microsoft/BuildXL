@@ -1378,7 +1378,8 @@ namespace BuildXL.Scheduler
                                     vmInitializer: environment.VmInitializer,
                                     tempDirectoryCleaner: environment.TempCleaner,
                                     incrementalTools: configuration.IncrementalTools,
-                                    changeAffectedInputs: changeAffectedInputs);
+                                    changeAffectedInputs: changeAffectedInputs,
+                                    inCloudBuild: configuration.InCloudBuild);
 
                                 registerQueryRamUsageMb(
                                     () =>
@@ -3107,7 +3108,8 @@ namespace BuildXL.Scheduler
                 directoryTranslator: environment.DirectoryTranslator,
                 vmInitializer: environment.VmInitializer,
                 tempDirectoryCleaner: environment.TempCleaner,
-                incrementalTools: configuration.IncrementalTools);
+                incrementalTools: configuration.IncrementalTools,
+                inCloudBuild: configuration.InCloudBuild);
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {

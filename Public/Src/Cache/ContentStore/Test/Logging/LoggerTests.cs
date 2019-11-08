@@ -22,6 +22,9 @@ namespace ContentStoreTest.Logging
         private const string ExceptionalFormattedMessage =
             "argument 1, Exception=[System.InvalidOperationException: text]";
 
+        private const string ExceptionalFormattedMessageNoArgs =
+            "argument {0}, Exception=[System.InvalidOperationException: text]";
+
         private readonly Exception _exception = new InvalidOperationException("text");
 
         private class LogWriteArgs
@@ -144,6 +147,7 @@ namespace ContentStoreTest.Logging
         public void FatalMethodWritesCorrectMessage()
         {
             InvokeLoggerMethod(logger => logger.Fatal(MessageFormat, Arg)).MessageString.Should().Be(FormattedMessage);
+            InvokeLoggerMethod(logger => logger.Fatal(MessageFormat)).MessageString.Should().Be(MessageFormat);
         }
 
         [Fact]
@@ -157,6 +161,7 @@ namespace ContentStoreTest.Logging
         public void ErrorMethodWritesCorrectMessage()
         {
             InvokeLoggerMethod(logger => logger.Error(MessageFormat, Arg)).MessageString.Should().Be(FormattedMessage);
+            InvokeLoggerMethod(logger => logger.Error(MessageFormat)).MessageString.Should().Be(MessageFormat);
         }
 
         [Fact]
@@ -165,6 +170,14 @@ namespace ContentStoreTest.Logging
             InvokeLoggerMethod(logger => logger.Error(_exception, MessageFormat, Arg))
                 .MessageString.Should()
                 .Be(ExceptionalFormattedMessage);
+        }
+
+        [Fact]
+        public void ErrorMethodWritesCorrectExceptionalMessageNoArgs()
+        {
+            InvokeLoggerMethod(logger => logger.Error(_exception, MessageFormat))
+                .MessageString.Should()
+                .Be(ExceptionalFormattedMessageNoArgs);
         }
 
         [Fact]
@@ -203,6 +216,7 @@ namespace ContentStoreTest.Logging
         public void WarnMethodWritesCorrectMessage()
         {
             InvokeLoggerMethod(logger => logger.Warning(MessageFormat, Arg)).MessageString.Should().Be(FormattedMessage);
+            InvokeLoggerMethod(logger => logger.Warning(MessageFormat)).MessageString.Should().Be(MessageFormat);
         }
 
         [Fact]
@@ -215,6 +229,7 @@ namespace ContentStoreTest.Logging
         public void NormalMethodWritesCorrectMessage()
         {
             InvokeLoggerMethod(logger => logger.Always(MessageFormat, Arg)).MessageString.Should().Be(FormattedMessage);
+            InvokeLoggerMethod(logger => logger.Always(MessageFormat)).MessageString.Should().Be(MessageFormat);
         }
 
         [Fact]
@@ -227,6 +242,7 @@ namespace ContentStoreTest.Logging
         public void InfoMethodWritesCorrectMessage()
         {
             InvokeLoggerMethod(logger => logger.Info(MessageFormat, Arg)).MessageString.Should().Be(FormattedMessage);
+            InvokeLoggerMethod(logger => logger.Info(MessageFormat)).MessageString.Should().Be(MessageFormat);
         }
 
         [Fact]
@@ -239,6 +255,7 @@ namespace ContentStoreTest.Logging
         public void DebugMethodWritesCorrectMessage()
         {
             InvokeLoggerMethod(logger => logger.Debug(MessageFormat, Arg)).MessageString.Should().Be(FormattedMessage);
+            InvokeLoggerMethod(logger => logger.Debug(MessageFormat)).MessageString.Should().Be(MessageFormat);
         }
 
         [Fact]
@@ -260,6 +277,14 @@ namespace ContentStoreTest.Logging
             InvokeLoggerMethod(logger => logger.Diagnostic(MessageFormat, Arg))
                 .MessageString.Should()
                 .Be(FormattedMessage);
+        }
+
+        [Fact]
+        public void DiagnosticMethodWritesCorrectMessageNoArgs()
+        {
+            InvokeLoggerMethod(logger => logger.Diagnostic(MessageFormat))
+                .MessageString.Should()
+                .Be(MessageFormat);
         }
 
         [Fact]
@@ -290,6 +315,14 @@ namespace ContentStoreTest.Logging
             InvokeLoggerMethod(logger => logger.LogFormat(Severity.Diagnostic, MessageFormat, Arg))
                 .MessageString.Should()
                 .Be(FormattedMessage);
+        }
+
+        [Fact]
+        public void LogFormatMethodWritesCorrectMessageNoArgs()
+        {
+            InvokeLoggerMethod(logger => logger.LogFormat(Severity.Diagnostic, MessageFormat))
+                .MessageString.Should()
+                .Be(MessageFormat);
         }
 
         private static LogWriteArgs InvokeLoggerMethod(Action<ILogger> action)

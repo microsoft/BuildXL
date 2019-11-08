@@ -145,6 +145,14 @@ namespace Test.BuildXL.Engine
                     }
             };
 
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                AbsolutePath substSourcePath = AbsolutePath.Create(Context.PathTable, substSource);
+                AbsolutePath substTargetPath = AbsolutePath.Create(Context.PathTable, substTarget);
+                Configuration.Engine.DirectoriesToTranslate.Add(
+                    new TranslateDirectoryData(I($"{substSource}<{substTarget}"), substSourcePath, substTargetPath));
+            }
+
             AbsolutePath Combine(AbsolutePath parent, string name)
             {
                 return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));

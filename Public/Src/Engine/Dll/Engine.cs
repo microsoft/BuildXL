@@ -2409,12 +2409,17 @@ namespace BuildXL.Engine
         {
             Contract.Requires(path.IsValid);
 
-            var translatedPath = m_translator?.Translate(Context.PathTable, path) ?? path;
-            bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, translatedPath);
+            // var translatedPath = m_translator?.Translate(Context.PathTable, path) ?? path;
+            bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, path, out AbsolutePath finalPath);
             if (!possiblyEnabled)
             {
-                var drive = translatedPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
-                Logger.Log.JournalRequiredOnVolumeError(loggingContext, drive, GetConfigureJournalCommand(drive));
+                var drive = finalPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
+                Logger.Log.JournalRequiredOnVolumeError(
+                    loggingContext,
+                    drive,
+                    path.ToString(Context.PathTable),
+                    path != finalPath ? finalPath.ToString(Context.PathTable) : string.Empty,
+                    GetConfigureJournalCommand(drive));
             }
 
             return possiblyEnabled;
@@ -2433,10 +2438,12 @@ namespace BuildXL.Engine
         /// Low-risk check if a path is definitely on a volume with a disabled change journal. In some configurations, the journal is
         /// required and so we want to fail early if misconfiguration is apparent.
         /// </summary>
-        private static bool IsJournalPossiblyAvailableForPath(PathTable pathTable, AbsolutePath path)
+        private static bool IsJournalPossiblyAvailableForPath(PathTable pathTable, AbsolutePath path, out AbsolutePath finalPath)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(path.IsValid);
+
+            finalPath = path;
 
             OpenFileResult result = FileUtilities.TryOpenDirectory(
                 path.ToString(pathTable),
@@ -2452,6 +2459,16 @@ namespace BuildXL.Engine
                     if (!possibleIdentity.Succeeded &&
                         possibleIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported)
                     {
+                        try
+                        {
+                            string finalPathStr = FileUtilities.GetFinalPathNameByHandle(handle);
+                            finalPath = AbsolutePath.Create(pathTable, finalPathStr);
+                        }
+                        catch (NativeWin32Exception)
+                        {
+                            finalPath = path;
+                        }
+
                         return false;
                     }
                 }

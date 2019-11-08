@@ -2405,8 +2405,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
-            Message = "The volume, '{drive}' does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
-        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string command);
+            Message = "The volume, '{drive}' (checked path: '{checkedPath}', final path: '{finalPath}') does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
+        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string checkedPath, string finalPath, string command);
 
         [GeneratedEvent(
             (int)EventId.StartEngineRun,

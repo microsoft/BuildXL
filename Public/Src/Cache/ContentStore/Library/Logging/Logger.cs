@@ -152,7 +152,12 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <inheritdoc />
         public void Fatal(Exception exception, string messageFormat, params object[] messageArgs)
         {
-            var messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
+            var messageIn = messageFormat;
+            if (messageArgs != null && messageArgs.Length > 0)
+            {
+                messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
+            }
+
             var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, exception);
             LogString(Severity.Fatal, message);
             Flush();
@@ -168,7 +173,12 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <inheritdoc />
         public void Error(Exception exception, string messageFormat, params object[] messageArgs)
         {
-            var messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
+            var messageIn = messageFormat;
+            if (messageArgs != null && messageArgs.Length > 0)
+            {
+                messageIn = string.Format(CultureInfo.CurrentCulture, messageFormat, messageArgs);
+            }
+
             var message = string.Format(CultureInfo.CurrentCulture, "{0}, Exception=[{1}]", messageIn, ResultBase.GetExceptionString(exception));
             LogString(Severity.Error, message);
             Flush();
@@ -221,7 +231,12 @@ namespace BuildXL.Cache.ContentStore.Logging
         /// <inheritdoc />
         public void LogFormat(Severity severity, string messageFormat, params object[] messageArgs)
         {
-            LogString(severity, string.Format(CultureInfo.InvariantCulture, messageFormat, messageArgs));
+            if (messageArgs != null && messageArgs.Length > 0)
+            {
+                messageFormat = string.Format(CultureInfo.InvariantCulture, messageFormat, messageArgs);
+            }
+
+            LogString(severity, messageFormat);
         }
 
         private void LogString(Severity severity, string message)

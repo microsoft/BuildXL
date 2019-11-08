@@ -2409,12 +2409,16 @@ namespace BuildXL.Engine
         {
             Contract.Requires(path.IsValid);
 
-            var translatedPath = m_translator?.Translate(Context.PathTable, path) ?? path;
-            bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, translatedPath);
+            bool possiblyEnabled = IsJournalPossiblyAvailableForPath(Context.PathTable, path, out AbsolutePath finalPath);
             if (!possiblyEnabled)
             {
-                var drive = translatedPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
-                Logger.Log.JournalRequiredOnVolumeError(loggingContext, drive, GetConfigureJournalCommand(drive));
+                var drive = finalPath.GetRoot(Context.PathTable).ToString(Context.PathTable).TrimEnd('\\');
+                Logger.Log.JournalRequiredOnVolumeError(
+                    loggingContext,
+                    drive,
+                    path.ToString(Context.PathTable),
+                    finalPath.IsValid ? finalPath.ToString(Context.PathTable) : string.Empty,
+                    GetConfigureJournalCommand(drive));
             }
 
             return possiblyEnabled;
@@ -2433,15 +2437,21 @@ namespace BuildXL.Engine
         /// Low-risk check if a path is definitely on a volume with a disabled change journal. In some configurations, the journal is
         /// required and so we want to fail early if misconfiguration is apparent.
         /// </summary>
-        private static bool IsJournalPossiblyAvailableForPath(PathTable pathTable, AbsolutePath path)
+        private static bool IsJournalPossiblyAvailableForPath(PathTable pathTable, AbsolutePath path, out AbsolutePath finalPath)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(path.IsValid);
 
+            finalPath = path;
+
+            // We open the path without reparse point flag. This will returns the handle to the final path, if the original
+            // path is a junction or symlink. This means that we will check the journal availability of the volume where the final path
+            // resides.
             OpenFileResult result = FileUtilities.TryOpenDirectory(
                 path.ToString(pathTable),
                 FileShare.Delete | FileShare.ReadWrite,
                 out SafeFileHandle handle);
+
             using (handle)
             {
                 if (result.Succeeded)
@@ -2452,6 +2462,19 @@ namespace BuildXL.Engine
                     if (!possibleIdentity.Succeeded &&
                         possibleIdentity.Failure.Content == VersionedFileIdentity.IdentityUnavailabilityReason.NotSupported)
                     {
+                        try
+                        {
+                            // For correct reporting, we try to get the final path, so that we know precisely which volume
+                            // that does not have the journal capability.
+                            string finalPathStr = FileUtilities.GetFinalPathNameByHandle(handle);
+                            finalPath = AbsolutePath.Create(pathTable, finalPathStr);
+                        }
+                        catch (NativeWin32Exception)
+                        {
+                            // GetFinalPathNameByHandle currently only throws NativeWin32Exception.
+                            finalPath = path;
+                        }
+
                         return false;
                     }
                 }

@@ -44,6 +44,6 @@ namespace Test.Tool.Analyzers {
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe
         ],
-        runTestArgs: { weight: 10 }, 
+        runTestArgs: { weight: 2 }, 
     });
 }

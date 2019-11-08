@@ -48,7 +48,6 @@ namespace BuildXL.Scheduler.Distribution
         private int m_acquiredIpcSlots;
         private ContentTrackingSet m_availableContent;
         private ContentTrackingSet m_availableHashes;
-        private PipExecutionContext m_context;
         private SemaphoreSet<StringId> m_workerSemaphores;
         private readonly WorkerPipStateManager m_workerPipStateManager;
         private WorkerNodeStatus m_status;
@@ -569,6 +568,18 @@ namespace BuildXL.Scheduler.Distribution
                 return null;
             }
 
+            if (!m_ramSemaphoreNameId.IsValid)
+            {
+                m_ramSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(RamSemaphoreName);
+                m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+            }
+
+            if (!m_commitSemaphoreNameId.IsValid)
+            {
+                m_commitSemaphoreNameId = runnableProcess.Environment.Context.StringTable.AddString(CommitSemaphoreName);
+                m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
+            }
+
             var expectedMemoryCounters = GetExpectedMemoryCounters(runnableProcess);
 
             return new ProcessSemaphoreInfo[]
@@ -741,17 +752,10 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Initializes the worker after attach
         /// </summary>
-        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, PipExecutionContext context)
+        public virtual void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget)
         {
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);
-            m_context = context;
-
-            m_ramSemaphoreNameId = m_context.StringTable.AddString(RamSemaphoreName);
-            m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
-
-            m_commitSemaphoreNameId = m_context.StringTable.AddString(CommitSemaphoreName);
-            m_commitSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_commitSemaphoreNameId, ProcessExtensions.PercentageResourceLimit);
         }
 
         /// <summary>

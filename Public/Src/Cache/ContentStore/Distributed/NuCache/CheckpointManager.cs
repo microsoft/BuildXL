@@ -80,6 +80,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public Task<BoolResult> CreateCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)
         {
             context = context.CreateNested();
+
+            long checkpointSize = 0;
             return context.PerformOperationAsync(
                 _tracer,
                 async () =>
@@ -92,6 +94,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             // Saving checkpoint for the database into the temporary folder
                             _database.SaveCheckpoint(context, _checkpointStagingDirectory).ThrowIfFailure();
+
+                            checkpointSize = _fileSystem.EnumerateFiles(_checkpointStagingDirectory, EnumerateOptions.Recurse)
+                                .Select(s => _fileSystem.GetFileSize(s.FullPath))
+                                .Sum();
 
                             if (_configuration.UseIncrementalCheckpointing)
                             {
@@ -112,7 +118,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 extraStartMessage: $"SequencePoint=[{sequencePoint}]",
-                extraEndMessage: _ => $"SequencePoint=[{sequencePoint}]");
+                extraEndMessage: result => $"SequencePoint=[{sequencePoint}] CheckpointSize=[{checkpointSize}]");
         }
 
         private async Task CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)

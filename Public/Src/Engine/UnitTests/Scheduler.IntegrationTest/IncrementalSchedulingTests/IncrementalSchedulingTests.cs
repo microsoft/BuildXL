@@ -496,7 +496,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
         }
 
         [Fact]
-        public void ModifyingProbedDynamicInputCausesRescheduledButNotRebuild()
+        public void ModifyingProbedDynamicInputDoesNotCauseRescheduled()
         {
             var directoryPath = CreateUniqueDirectory(SourceRoot);
             var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
@@ -517,14 +517,43 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             ModifyFile(probedInput);
 
+            RunScheduler().AssertNotScheduled(process.PipId);
+        }
+
+        [Fact]
+        public void RemovingProbedDynamicInputCauseRescheduledAndRebuild()
+        {
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var probedInput = CreateSourceFile(directoryPath);
+
+            var pipBuilder = CreatePipBuilder(new[]
+            {
+                Operation.Probe(probedInput, doNotInfer: true),
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            pipBuilder.AddInputDirectory(sealedDirectory.Directory);
+
+            var process = SchedulePipBuilder(pipBuilder).Process;
+
+            RunScheduler().AssertCacheMiss(process.PipId);
+
+            DeleteFile(probedInput);
+
+            RunScheduler().AssertScheduled(process.PipId).AssertCacheMiss(process.PipId);
+
+            // Re-introducing the file should reschedule the pip, but it should get a cache hit.
+            ModifyFile(probedInput);
+
             RunScheduler().AssertScheduled(process.PipId).AssertCacheHit(process.PipId);
         }
 
         protected string ReadAllText(FileArtifact file) => File.ReadAllText(ArtifactToString(file));
 
-        protected void ModifyFile(FileArtifact file, string content = null)
-        {
-            File.WriteAllText(ArtifactToString(file), content ?? Guid.NewGuid().ToString());
-        }
+        protected void ModifyFile(FileArtifact file, string content = null) => File.WriteAllText(ArtifactToString(file), content ?? Guid.NewGuid().ToString());
+
+        protected void DeleteFile(FileArtifact file) => File.Delete(ArtifactToString(file));
     }
 }

@@ -116,6 +116,7 @@ namespace BuildXL.Scheduler.Distribution
             var directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifact>)>.FromWithoutCopy(ReadDirectoryOutputs(reader));
             var mustBeConsideredPerpetuallyDirty = reader.ReadBoolean();
             var dynamicallyObservedFiles = reader.ReadReadOnlyArray(ReadAbsolutePath);
+            var dynamicallyProbedFiles = reader.ReadReadOnlyArray(ReadAbsolutePath);
             var dynamicallyObservedEnumerations = reader.ReadReadOnlyArray(ReadAbsolutePath);
             var allowedUndeclaredSourceReads = reader.ReadReadOnlySet(ReadAbsolutePath);
             var absentPathProbesUnderOutputDirectories = reader.ReadReadOnlySet(ReadAbsolutePath);
@@ -168,6 +169,7 @@ namespace BuildXL.Scheduler.Distribution
                 whitelistedFileAccessViolations,
                 mustBeConsideredPerpetuallyDirty,
                 dynamicallyObservedFiles,
+                dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads,
                 absentPathProbesUnderOutputDirectories,
@@ -210,6 +212,7 @@ namespace BuildXL.Scheduler.Distribution
             WriteDirectoryOutputs(writer, result.DirectoryOutputs);
             writer.Write(result.MustBeConsideredPerpetuallyDirty);
             writer.Write(result.DynamicallyObservedFiles, WriteAbsolutePath);
+            writer.Write(result.DynamicallyProbedFiles, WriteAbsolutePath);
             writer.Write(result.DynamicallyObservedEnumerations, WriteAbsolutePath);
             writer.Write(result.AllowedUndeclaredReads, WriteAbsolutePath);
             writer.Write(result.AbsentPathProbesUnderOutputDirectories, WriteAbsolutePath);

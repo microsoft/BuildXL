@@ -708,6 +708,7 @@ namespace Test.BuildXL.Scheduler
                         result.PerformanceInfo,
                         result.MustBeConsideredPerpetuallyDirty,
                         result.DynamicallyObservedFiles,
+                        result.DynamicallyProbedFiles,
                         result.DynamicallyObservedEnumerations);
                 }
             }

@@ -68,6 +68,11 @@ namespace Test.BuildXL.Scheduler
                     CreateSourceFile().Path,
                     CreateSourceFile().Path
                 ),
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
+                    CreateSourceFile().Path,
+                    CreateSourceFile().Path
+                ),
                 dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
                     CreateSourceFile().Path
                 ),
@@ -135,6 +140,7 @@ namespace Test.BuildXL.Scheduler
                 r => r.FileAccessViolationsNotWhitelisted.Count,
                 r => r.MustBeConsideredPerpetuallyDirty,
                 r => r.DynamicallyObservedFiles.Length,
+                r => r.DynamicallyProbedFiles.Length,
                 r => r.DynamicallyObservedEnumerations.Length,
                 r => r.AllowedUndeclaredReads.Count,
 
@@ -188,6 +194,11 @@ namespace Test.BuildXL.Scheduler
             for (int i = 0; i < processExecutionResult.DynamicallyObservedFiles.Length; i++)
             {
                 AssertEqual(processExecutionResult.DynamicallyObservedFiles[i], deserializedProcessExecutionResult.DynamicallyObservedFiles[i]);
+            }
+
+            for (int i = 0; i < processExecutionResult.DynamicallyProbedFiles.Length; i++)
+            {
+                AssertEqual(processExecutionResult.DynamicallyProbedFiles[i], deserializedProcessExecutionResult.DynamicallyProbedFiles[i]);
             }
 
             for (int i = 0; i < processExecutionResult.DynamicallyObservedEnumerations.Length; i++)

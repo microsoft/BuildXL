@@ -42,7 +42,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var namedCacheRoots = new Dictionary<string, AbsolutePath> {[CacheName] = backendCacheDirectory / "Root"};
 
             var grpcPort = PortExtensions.GetNextAvailablePort();
-            var serverConfiguration = new LocalServerConfiguration(backendCacheDirectory, namedCacheRoots, grpcPort)
+            var serverConfiguration = new LocalServerConfiguration(backendCacheDirectory, namedCacheRoots, grpcPort, FileSystem)
             {
                 GrpcPortFileName = null, // Port is well known at configuration time, no need to expose it.
             };

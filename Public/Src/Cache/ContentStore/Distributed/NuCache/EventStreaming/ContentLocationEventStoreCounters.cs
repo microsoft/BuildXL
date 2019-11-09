@@ -117,6 +117,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         SentAddLocationsEvents,
+
         /// <nodoc />
         SentAddLocationsHashes,
 

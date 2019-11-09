@@ -143,8 +143,6 @@ namespace BuildXL.Scheduler
             var pipInfo = new PipInfo(pip, context);
             var pipDescription = pipInfo.Description;
 
-
-
             string destination = pip.Destination.Path.ToString(pathTable);
             string source = pip.Source.Path.ToString(pathTable);
 
@@ -1344,7 +1342,9 @@ namespace BuildXL.Scheduler
                             int remainingInternalSandboxedProcessExecutionFailureRetries = InternalSandboxedProcessExecutionFailureRetryCountMax;
 
                             int retryCount = 0;
+                            bool userRetry = false;
                             SandboxedProcessPipExecutionResult result;
+                            var aggregatePipProperties = new Dictionary<string, int>();
 
                             // Retry pip count up to limit if we produce result without detecting file access.
                             // There are very rare cases where a child process is started not Detoured and we don't observe any file accesses from such process.
@@ -1406,6 +1406,21 @@ namespace BuildXL.Scheduler
 
                                 ++retryCount;
 
+                                if (result.PipProperties != null)
+                                {
+                                    foreach (var kvp in result.PipProperties)
+                                    {
+                                        if (aggregatePipProperties.TryGetValue(kvp.Key, out var value))
+                                        {
+                                            aggregatePipProperties[kvp.Key] = value + kvp.Value;
+                                        }
+                                        else
+                                        {
+                                            aggregatePipProperties.Add(kvp.Key, kvp.Value);
+                                        }
+                                    }
+                                }
+
                                 lock (s_telemetryDetoursHeapLock)
                                 {
                                     if (counters.GetCounterValue(PipExecutorCounter.MaxDetoursHeapInBytes) <
@@ -1448,6 +1463,7 @@ namespace BuildXL.Scheduler
                                                 break;
                                         }
 
+                                        counters.AddToCounter(PipExecutorCounter.RetriedInternalExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                                         continue;
                                     }
 
@@ -1523,6 +1539,8 @@ namespace BuildXL.Scheduler
                                         remainingUserRetries,
                                         stdErr,
                                         stdOut);
+                                    userRetry = true;
+                                    counters.AddToCounter(PipExecutorCounter.RetriedUserExecutionDuration, result.PrimaryProcessTimes.TotalWallClockTime);
                                     counters.IncrementCounter(PipExecutorCounter.ProcessUserRetries);
 
                                     continue;
@@ -1549,6 +1567,17 @@ namespace BuildXL.Scheduler
                                         expectedMemoryMb: expectedRamUsageMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
+                            }
+
+                            if (userRetry)
+                            {
+                                counters.IncrementCounter(PipExecutorCounter.ProcessUserRetriesImpactedPipsCount);
+                                result.HadUserRetries = true;
+                            }
+
+                            if (aggregatePipProperties.Count > 0)
+                            {
+                                result.PipProperties = aggregatePipProperties;
                             }
 
                             return result;
@@ -1825,7 +1854,7 @@ namespace BuildXL.Scheduler
         {
             var fp = env.ContentFingerprinter.StaticFingerprintLookup(pip.PipId);
             return new SidebandMetadata(
-                pip.PipId.Value, 
+                pip.PipId.Value,
                 // in some tests the static fingerprint can have 0 length in which case ToByteArray() throws
                 fp.Length > 0 ? fp.ToByteArray() : new byte[0]);
         }

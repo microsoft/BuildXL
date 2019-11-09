@@ -10,6 +10,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
+#include "AutoIncDec.hpp"
 #include "BuildXLSandboxShared.hpp"
 #include "CacheRecord.hpp"
 #include "FileAccessManifestParser.hpp"
@@ -51,8 +52,23 @@ private:
     /*! Number of processses in this pip's process tree */
     int processTreeCount_;
 
-    /*! Maps every accessed path to a 'CacheRecord' object (which contains caching information regarding that path) */
+    /*!
+     * Maps every accessed path to a 'CacheRecord' object (which contains caching information regarding that path).
+     * IMPORTANT: increment/decrement cacheCallCnt_ around every use.
+     */
     Trie *pathCache_;
+
+    /*! Old path cache left to be garbage collected (in 'cacheLookup' method) after caching was dynamically disabled. */
+    Trie *oldPathCache_;
+
+    /*! Counts the number of concurrent calls to 'pathCache_' */
+    int cacheCallCnt_;
+
+    /*!
+     * Starts out as false and becomes true if we decide to disable caching for this pip.
+     * INVARIANT: once disabled, it stays disabled.
+     */
+    bool disableCaching_;
 
     /*! A thread-local storage for remembering the last looked up path by every thread. */
     ThreadLocal *lastPathLookup_;
@@ -98,22 +114,22 @@ public:
     AllCounters* Counters() { return &counters_; }
 
     /*! Number of elements in the 'lastPathLookup' dictionary. */
-    uint getLastPathLookupElemCount() { return lastPathLookup_->getCount(); }
+    uint getLastPathLookupElemCount() const { return lastPathLookup_->getCount(); }
 
     /*! Number of nodes in the 'lastPathLookup' dictionary. */
-    uint getLastPathLookupNodeCount() { return lastPathLookup_->getNodeCount(); }
+    uint getLastPathLookupNodeCount() const { return lastPathLookup_->getNodeCount(); }
 
     /*! Size in bytes of each node in the 'lastPathLookup' dictionary. */
-    uint getLastPathLookupNodeSize() { return lastPathLookup_->getNodeSize(); }
+    uint getLastPathLookupNodeSize() const { return lastPathLookup_->getNodeSize(); }
 
     /*! Number of elements in the 'pathCache' dictionary. */
-    uint getPathCacheElemCount() { return pathCache_->getCount(); }
+    uint getPathCacheElemCount() { AutoIncDec cnt(&cacheCallCnt_); return pathCache_->getCount(); }
 
     /*! Number of nodes in the 'pathCache' dictionary. */
-    uint getPathCacheNodeCount() { return pathCache_->getNodeCount(); }
+    uint getPathCacheNodeCount() { AutoIncDec cnt(&cacheCallCnt_); return pathCache_->getNodeCount(); }
 
     /*! Size in bytes of each node in the 'pathCache' dictionary. */
-    uint getPathCacheNodeSize() { return pathCache_->getNodeSize(); }
+    uint getPathCacheNodeSize() { AutoIncDec cnt(&cacheCallCnt_); return pathCache_->getNodeSize(); }
 
     /*!
      * Uses a thread-local storage to save a given path as the last path that was looked up on the current thread.
@@ -137,7 +153,7 @@ public:
     }
 
     /*! Information about this pip that can be queried from user space */
-    PipInfo introspect() const;
+    PipInfo introspect();
 
 #pragma mark Process Tree Tracking
 
@@ -157,21 +173,41 @@ public:
      * If no such record exists, a new one is created and associated with the path.
      * Return value of NULL indicates that there is an inherent reason why the path cannot be added to cache.
      */
-    inline CacheRecord* cacheLookup(const char *path)
+    CacheRecord* cacheLookup(const char *path)
     {
-        if (!g_bxl_enable_cache)
+        AutoIncDec callCnt(&cacheCallCnt_);
+
+        // check if we dynamically decided to disable caching for this pip
+        if (RefreshDisableCaching())
         {
+            // If caching is disabled, and no one else is using pathCache_, and we came here first:
+            //   --> safe to release old path cache left to be garbage collected
+            // NOTE: even if someone else comes in after we've checked `cacheCallCnt_ == 1`, 
+            //       because once caching is disabled it stays disabled, they'll get to use the new path 
+            //       cache object, so it's still safe to release oldPathCache_)
+            if (cacheCallCnt_ == 1 && callCnt.ValueBeforeTheIncrement() == 0 && oldPathCache_ != nullptr)
+            {
+                OSSafeReleaseNULL(oldPathCache_);
+            }
+
             return nullptr;
         }
-
-        OSObject *value = pathCache_->getOrAdd(path, nullptr, CacheRecordFactory);
-        return OSDynamicCast(CacheRecord, value);
+        else
+        {
+            OSObject *value = pathCache_->getOrAdd(path, nullptr, CacheRecordFactory);
+            return OSDynamicCast(CacheRecord, value);
+        }
     }
 
 #pragma mark Static Methods
 
     /*! Factory method. The caller is responsible for releasing the returned object. */
     static SandboxedPip* create(pid_t clientPid, pid_t processPid, Buffer *payload);
+
+private:
+
+    bool RefreshDisableCaching();
+    inline bool ShouldDisableCaching();
 };
 
 #endif /* SandboxedPip_hpp */

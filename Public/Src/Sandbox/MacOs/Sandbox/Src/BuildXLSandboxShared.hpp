@@ -85,6 +85,9 @@ public:
         return count_;
     }
 
+    uint32_t operator+ (Counter other) { return count_ + other.count_; }
+    double operator* (double other)    { return count_ * other; }
+
     void operator++ (int)
     {
 #if MAC_OS_SANDBOX

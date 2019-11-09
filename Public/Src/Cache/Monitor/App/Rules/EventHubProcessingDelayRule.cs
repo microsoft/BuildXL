@@ -53,9 +53,12 @@ namespace BuildXL.Cache.Monitor.App.Rules
         public override async Task Run(RuleContext context)
         {
             var query =
-                $@"let MasterEvents = CloudBuildLogEvent
+                $@"
+                let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
+                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                let MasterEvents = CloudBuildLogEvent
+                | where PreciseTimeStamp between (start .. end)
                 | where Stamp == ""{_configuration.Stamp}""
-                | where PreciseTimeStamp > ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)})
                 | where Service == ""{Constants.MasterServiceName}"";
                 let MaximumDelayFromReceivedEvents = MasterEvents
                 | where Message has ""ReceivedEvent""
@@ -73,30 +76,22 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 | order by PreciseTimeStamp desc";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
-            var now = _configuration.Clock.UtcNow;
+            var now = _configuration.Clock.UtcNow - Constants.KustoIngestionDelay;
             if (results.Count == 0)
             {
                 Emit(context, "NoLogs", Severity.Fatal,
-                    $"No events processed for at least {_configuration.LookbackPeriod}");
+                    $"No events processed for at least {_configuration.LookbackPeriod}",
+                    eventTimeUtc: now);
                 return;
             }
 
             var delay = results[0].MaxDelay;
-
-            if (delay >= _configuration.WarningThreshold)
+            Utilities.SeverityFromThreshold(delay, _configuration.WarningThreshold, _configuration.ErrorThreshold, (severity, threshold) =>
             {
-                var severity = Severity.Warning;
-                var threshold = _configuration.WarningThreshold;
-                if (delay >= _configuration.ErrorThreshold)
-                {
-                    severity = Severity.Error;
-                    threshold = _configuration.ErrorThreshold;
-                }
-
                 Emit(context, "DelayThreshold", severity,
                     $"EventHub processing delay `{delay}` above threshold `{threshold}`. Master is {results[0].Machine}",
                     eventTimeUtc: results[0].PreciseTimeStamp);
-            }
+            });
         }
     }
 }

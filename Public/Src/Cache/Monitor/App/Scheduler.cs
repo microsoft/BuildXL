@@ -48,7 +48,7 @@ namespace BuildXL.Cache.Monitor.App
             /// <summary>
             /// Number of rules that may be run in parallel
             /// </summary>
-            public int MaximumConcurrency { get; set; } = 10;
+            public int MaximumConcurrency { get; set; } = 20;
         }
 
         private enum State
@@ -192,6 +192,7 @@ namespace BuildXL.Cache.Monitor.App
                         // NOTE(jubayard): make sure this runs in a different thread than the scheduler.
                         await Task.Yield();
 
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
                         try
                         {
                             await RunRuleAsync(entry);
@@ -200,6 +201,7 @@ namespace BuildXL.Cache.Monitor.App
                         {
                             _logger.Fatal($"Scheduler threw an exception while running rule: {exception?.ToString()}");
                         }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
                     });
                 }
 

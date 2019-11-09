@@ -18,9 +18,9 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
             public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(2);
 
-            public TimeSpan WarningThreshold { get; set; } = TimeSpan.FromMinutes(30);
+            public TimeSpan WarningThreshold { get; set; } = TimeSpan.FromMinutes(45);
 
-            public TimeSpan ErrorThreshold { get; set; } = TimeSpan.FromMinutes(45);
+            public TimeSpan ErrorThreshold { get; set; } = TimeSpan.FromHours(1);
         }
 
         private readonly Configuration _configuration;
@@ -38,6 +38,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
         private class Result
         {
             public DateTime PreciseTimeStamp;
+            public TimeSpan Age;
             public string Machine;
         }
 #pragma warning restore CS0649
@@ -46,40 +47,36 @@ namespace BuildXL.Cache.Monitor.App.Rules
         {
             // NOTE(jubayard): When a summarize is run over an empty result set, Kusto produces a single (null) row,
             // which is why we need to filter it out.
+            var now = _configuration.Clock.UtcNow - Constants.KustoIngestionDelay;
             var query =
-                $@"CloudBuildLogEvent
-                | where PreciseTimeStamp > ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)})
+                $@"
+                let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
+                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                CloudBuildLogEvent
+                | where PreciseTimeStamp between (start .. end)
                 | where Stamp == ""{_configuration.Stamp}""
                 | where Service == ""{Constants.MasterServiceName}""
                 | where Message contains ""CreateCheckpointAsync stop""
                 | summarize (PreciseTimeStamp, Machine)=arg_max(PreciseTimeStamp, Machine)
+                | extend Age = end - PreciseTimeStamp
                 | where not(isnull(PreciseTimeStamp))";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
-            var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
                 Emit(context, "NoLogs", Severity.Fatal,
-                    $"No checkpoints produced for at least {_configuration.LookbackPeriod}");
+                    $"No checkpoints produced for at least {_configuration.LookbackPeriod}",
+                    eventTimeUtc: now);
                 return;
             }
 
-            var age = now - results[0].PreciseTimeStamp;
-
-            if (age >= _configuration.WarningThreshold)
+            var age = results[0].Age;
+            Utilities.SeverityFromThreshold(age, _configuration.WarningThreshold, _configuration.ErrorThreshold, (severity, threshold) =>
             {
-                var severity = Severity.Warning;
-                var threshold = _configuration.WarningThreshold;
-                if (age >= _configuration.ErrorThreshold)
-                {
-                    severity = Severity.Error;
-                    threshold = _configuration.ErrorThreshold;
-                }
-
                 Emit(context, "CreationThreshold", severity,
                     $"Newest checkpoint age `{age}` above threshold `{threshold}`. Master is {results[0].Machine}",
                     eventTimeUtc: results[0].PreciseTimeStamp);
-            }
+            });
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 
 namespace BuildXL.Cache.Monitor.App
 {
@@ -27,6 +28,26 @@ namespace BuildXL.Cache.Monitor.App
                 else
                 {
                     falseSet.Add(entry);
+                }
+            }
+        }
+
+        public static void SeverityFromThreshold<T>(T value, T threshold, T errorThreshold, Action<Severity, T> action, IComparer<T> comparer = null, Severity severity = Severity.Warning)
+        {
+            if (comparer == null)
+            {
+                comparer = Comparer<T>.Default;
+            }
+
+            if (comparer.Compare(value, threshold) >= 0)
+            {
+                if (comparer.Compare(value, errorThreshold) >= 0)
+                {
+                    action(severity + 1, errorThreshold);
+                }
+                else
+                {
+                    action(severity, threshold);
                 }
             }
         }

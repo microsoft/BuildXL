@@ -62,21 +62,25 @@ namespace BuildXL.Cache.Monitor.App.Rules
             // which is why we need to filter it out.
             // NOTE(jubayard): The Kusto ingestion delay needs to be taken into consideration to avoid the number of
             // machines being reported as much less than they actually are.
+            var now = _configuration.Clock.UtcNow - Constants.KustoIngestionDelay;
             var query =
-                $@"CloudBuildLogEvent
-                   | where PreciseTimeStamp between (ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)}) .. ago({CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)}))
-                   | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
-                   | where Stamp == ""{_configuration.Stamp}""
-                   | summarize ActiveMachines=dcount(Machine, {_configuration.DistinctCountPrecision}) by bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinningPeriod)})
-                   | sort by PreciseTimeStamp asc
-                   | where not(isnull(PreciseTimeStamp))";
+                $@"
+                let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
+                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                CloudBuildLogEvent
+                | where PreciseTimeStamp between (start .. end)
+                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}""
+                | where Stamp == ""{_configuration.Stamp}""
+                | summarize ActiveMachines=dcount(Machine, {_configuration.DistinctCountPrecision}) by bin(PreciseTimeStamp, {CslTimeSpanLiteral.AsCslString(_configuration.BinningPeriod)})
+                | sort by PreciseTimeStamp asc
+                | where not(isnull(PreciseTimeStamp))";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
-            var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
                 Emit(context, "NoLogs", Severity.Fatal,
-                    $"Machines haven't produced any logs for at least `{_configuration.LookbackPeriod}`");
+                    $"Machines haven't produced any logs for at least `{_configuration.LookbackPeriod}`",
+                    eventTimeUtc: now);
                 return;
             }
 
@@ -89,7 +93,8 @@ namespace BuildXL.Cache.Monitor.App.Rules
             if (prediction.Count == 0)
             {
                 Emit(context, "NoLogs", Severity.Fatal,
-                    $"Machines haven't produced any logs for at least `{_configuration.AnomalyDetectionHorizon}`");
+                    $"Machines haven't produced any logs for at least `{_configuration.AnomalyDetectionHorizon}`",
+                    eventTimeUtc: now);
                 return;
             }
 

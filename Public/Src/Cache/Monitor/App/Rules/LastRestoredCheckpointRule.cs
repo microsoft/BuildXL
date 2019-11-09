@@ -4,6 +4,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Utilities;
 using Kusto.Data.Common;
 
 namespace BuildXL.Cache.Monitor.App.Rules
@@ -17,13 +18,15 @@ namespace BuildXL.Cache.Monitor.App.Rules
             {
             }
 
-            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromDays(1);
+            public TimeSpan LookbackPeriod { get; set; } = TimeSpan.FromHours(2);
 
             public TimeSpan ActivityThreshold { get; set; } = TimeSpan.FromHours(1);
 
-            public int FatalMissingMachinesThreshold { get; set; } = 20;
+            public int MissingRestoreMachinesThreshold { get; set; } = 20;
 
-            public TimeSpan ErrorThreshold { get; set; } = TimeSpan.FromMinutes(45);
+            public int OldRestoreMachinesThreshold { get; set; } = 5;
+
+            public TimeSpan CheckpointAgeErrorThreshold { get; set; } = TimeSpan.FromMinutes(45);
         }
 
         private readonly Configuration _configuration;
@@ -41,76 +44,82 @@ namespace BuildXL.Cache.Monitor.App.Rules
         private class Result
         {
             public string Machine;
+            public DateTime LastActivityTime;
             public DateTime? LastRestoreTime;
+            public TimeSpan? Age;
         }
 #pragma warning restore CS0649
 
         public override async Task Run(RuleContext context)
         {
+            var now = _configuration.Clock.UtcNow - Constants.KustoIngestionDelay;
             var query =
                 $@"
+                let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
+                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                let activity = end - {CslTimeSpanLiteral.AsCslString(_configuration.ActivityThreshold)};
                 let Events = CloudBuildLogEvent
-                | where PreciseTimeStamp > ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)})
+                | where PreciseTimeStamp between (start .. end)
                 | where Stamp == ""{_configuration.Stamp}""
-                | where Service == ""{Constants.ServiceName}"";
+                | where Service == ""{Constants.ServiceName}"" or Service == ""{Constants.MasterServiceName}"";
                 let Machines = Events
-                | summarize LastActivityTime=max(PreciseTimeStamp) by Machine
-                | where LastActivityTime >= ago({CslTimeSpanLiteral.AsCslString(_configuration.ActivityThreshold)})
-                | project-away LastActivityTime;
+                | where PreciseTimeStamp >= activity
+                | summarize LastActivityTime=max(PreciseTimeStamp) by Machine;
                 let Restores = Events
                 | where Message has ""RestoreCheckpointAsync stop""
                 | summarize LastRestoreTime=max(PreciseTimeStamp) by Machine;
                 Machines
                 | join hint.strategy=broadcast kind=leftouter Restores on Machine
                 | project-away Machine1
+                | extend Age=LastActivityTime - LastRestoreTime
                 | where not(isnull(Machine))";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
-            var now = _configuration.Clock.UtcNow;
             if (results.Count == 0)
             {
                 Emit(context, "NoLogs", Severity.Fatal,
-                    $"No machines logged anything in the last day");
+                    $"No machines logged anything in the last day",
+                    eventTimeUtc: now);
                 return;
             }
 
-            var missing = new List<string>();
-            var failures = new List<Tuple<string, TimeSpan>>();
+            var missing = new List<Result>();
+            var failures = new List<Result>();
             foreach (var result in results)
             {
                 if (!result.LastRestoreTime.HasValue)
                 {
-                    missing.Add(result.Machine);
+                    missing.Add(result);
                     continue;
                 }
 
-                var age = now - result.LastRestoreTime.Value;
-                if (age >= _configuration.ErrorThreshold)
+                if (result.Age.Value >= _configuration.CheckpointAgeErrorThreshold)
                 {
-                    failures.Add(new Tuple<string, TimeSpan>(result.Machine, age));
+                    failures.Add(result);
                 }
             }
 
-            if (missing.Count > 0)
+            Utilities.SeverityFromThreshold(missing.Count, 1, _configuration.MissingRestoreMachinesThreshold, (severity, threshold) =>
             {
-                var severity = missing.Count < _configuration.FatalMissingMachinesThreshold ? Severity.Error : Severity.Fatal;
-                var formattedMissing = missing.Select(m => $"`{m}`");
+                var formattedMissing = missing.Select(m => $"`{m.Machine}`");
                 var machinesCsv = string.Join(", ", formattedMissing);
                 var shortMachinesCsv = string.Join(", ", formattedMissing.Take(5));
                 Emit(context, "NoRestoresThreshold", severity,
                     $"Found {missing.Count} machine(s) active in the last `{_configuration.ActivityThreshold}`, but without checkpoints restored in at least `{_configuration.LookbackPeriod}`: {machinesCsv}",
-                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`. Examples: {shortMachinesCsv}");
-            }
+                    $"`{missing.Count}` machine(s) haven't restored checkpoints in at least `{_configuration.LookbackPeriod}`. Examples: {shortMachinesCsv}",
+                    eventTimeUtc: now);
+            });
 
-            if (failures.Count > 0)
+            Utilities.SeverityFromThreshold(failures.Count, 1, _configuration.OldRestoreMachinesThreshold, (severity, threshold) =>
             {
-                var formattedFailures = failures.Select(f => $"`{f.Item1}` ({f.Item2})");
+                var formattedFailures = failures.Select(f => $"`{f.Machine}` ({f.Age.Value})");
                 var machinesCsv = string.Join(", ", formattedFailures);
                 var shortMachinesCsv = string.Join(", ", formattedFailures.Take(5));
-                Emit(context, "OldRestores", Severity.Error,
-                    $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.ErrorThreshold}`): {machinesCsv}",
-                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.ErrorThreshold}`. Examples: {shortMachinesCsv}");
-            }
+                Emit(context, "OldRestores", severity,
+                    $"Found `{failures.Count}` machine(s) active in the last `{_configuration.ActivityThreshold}`, but with old checkpoints (at least `{_configuration.CheckpointAgeErrorThreshold}`): {machinesCsv}",
+                    $"`{failures.Count}` machine(s) have checkpoints older than `{_configuration.CheckpointAgeErrorThreshold}`. Examples: {shortMachinesCsv}",
+                    eventTimeUtc: now);
+            });
         }
     }
 }

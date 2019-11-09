@@ -83,20 +83,23 @@ namespace BuildXL.Cache.Monitor.App.Rules
             // NOTE(jubayard): When a summarize is run over an empty result set, Kusto produces a single (null) row,
             // which is why we need to filter it out.
             var query =
-                $@"CloudBuildLogEvent
-                   | where PreciseTimeStamp > ago({CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)})
-                   | where Service == ""{Constants.MasterServiceName}""
-                   | where Stamp == ""{_configuration.Stamp}""
-                   | where Message has ""Touching blob"" or Message has ""Uploading blob""
-                   | project PreciseTimeStamp, Machine, Message
-                   | parse Message with Id "" "" * ""of size "" Size: long "" "" *
-                   | summarize PreciseTimeStamp = min(PreciseTimeStamp), TotalSize = sum(Size) by Id
-                   | project PreciseTimeStamp, TotalSize
-                   | sort by PreciseTimeStamp asc
-                   | where not(isnull(PreciseTimeStamp))";
+                $@"
+                let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
+                let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
+                CloudBuildLogEvent
+                | where PreciseTimeStamp between (start .. end)
+                | where Service == ""{Constants.MasterServiceName}""
+                | where Stamp == ""{_configuration.Stamp}""
+                | where Message has ""Touching blob"" or Message has ""Uploading blob""
+                | project PreciseTimeStamp, Machine, Message
+                | parse Message with Id "" "" * ""of size "" Size: long "" "" *
+                | summarize PreciseTimeStamp = min(PreciseTimeStamp), TotalSize = sum(Size) by Id
+                | project PreciseTimeStamp, TotalSize
+                | sort by PreciseTimeStamp asc
+                | where not(isnull(PreciseTimeStamp))";
             var results = (await QuerySingleResultSetAsync<Result>(query)).ToList();
 
-            var now = _configuration.Clock.UtcNow;
+            var now = _configuration.Clock.UtcNow - Constants.KustoIngestionDelay;
             if (results.Count == 0)
             {
                 _configuration.Logger.Error($"No checkpoints have been produced for at least {_configuration.LookbackPeriod}");
@@ -109,7 +112,7 @@ namespace BuildXL.Cache.Monitor.App.Rules
                 .Select(r => (double)r.TotalSize)
                 .OverPercentualDifference(_configuration.MaximumPercentualDifference)
                 .Where(evaluation => results[evaluation.Index].PreciseTimeStamp >= detectionHorizon)
-                .Perform(index =>
+                .PerformOnLast(index =>
                 {
                     var result = results[index];
                     var previousResult = results[index - 1];

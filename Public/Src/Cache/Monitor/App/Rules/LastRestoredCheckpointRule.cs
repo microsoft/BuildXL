@@ -52,10 +52,10 @@ namespace BuildXL.Cache.Monitor.App.Rules
 
         public override async Task Run(RuleContext context)
         {
-            var now = _configuration.Clock.UtcNow - Constants.KustoIngestionDelay;
+            var now = _configuration.Clock.UtcNow;
             var query =
                 $@"
-                let end = now() - {CslTimeSpanLiteral.AsCslString(Constants.KustoIngestionDelay)};
+                let end = now();
                 let start = end - {CslTimeSpanLiteral.AsCslString(_configuration.LookbackPeriod)};
                 let activity = end - {CslTimeSpanLiteral.AsCslString(_configuration.ActivityThreshold)};
                 let Events = CloudBuildLogEvent

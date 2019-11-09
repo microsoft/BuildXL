@@ -54,6 +54,7 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 * [Service Pips](Wiki/Service-Pips.md)
 * [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
 * [Determinism Probe](Wiki/Advanced-Features/Determinism-Probe.md)
+* [Source Change Affected Inputs](Wiki/Advanced-Features/Source-Change-Affected-Inputs.md)
 
 ## Logging and Analysis
 * [Console Output](Wiki/How-To-Run-BuildXL/Console-output.md)

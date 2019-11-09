@@ -427,6 +427,11 @@ namespace Test.BuildXL.Scheduler
                 XAssert.IsTrue(m_journalState.IsEnabled, "Incremental scheduling requires that journal is enabled");
             }
 
+            if (!DirectoryTranslator.Sealed && TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                DirectoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
             // Seal the translator if not sealed
             DirectoryTranslator.Seal();
 

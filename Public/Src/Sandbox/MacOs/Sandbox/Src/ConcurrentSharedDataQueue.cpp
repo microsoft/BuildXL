@@ -291,19 +291,30 @@ bool ConcurrentSharedDataQueue::enqueueWithLocking(const EnqueueArgs &args)
 bool ConcurrentSharedDataQueue::sendReport(const AccessReport &report)
 {
     bool sent = queue_->enqueue((void*)&report, sizeof(AccessReport));
-    if (!sent)
+    if (sent)
     {
+        reportCounters_->totalNumSent++;
+        return true;
+    }
+    else if (enableBatching_)
+    {
+        // failed to enqueue into IOSharedDataQueue and batching is enabled
+        //   --> re-queue into our own batching queue and keep chugging along
+        return enqueueWithBatching({
+            .report = report,
+            .cacheRecord = nullptr
+        });
+    }
+    else
+    {
+        // failed to enqueue into IOSharedDataQueue and we are not using our own batching
+        //   --> fail hard
         log_error("Could not send data to shared queue from TID(%lld)", thread_tid(current_thread()));
         drainingDone_ = true;
         unrecoverableFailureOccurred_ = true;
         InvokeAsyncFailureHandle(kIOReturnNoMemory);
+        return false;
     }
-    else
-    {
-        reportCounters_->totalNumSent++;
-    }
-
-    return sent;
 }
 
 bool ConcurrentSharedDataQueue::enqueueWithBatching(const EnqueueArgs &args)
@@ -352,7 +363,7 @@ void ConcurrentSharedDataQueue::drainQueue()
 
         if (payload->cacheRecord == nullptr)
         {
-            sendReport(payload->report);
+            drainingDone_ = !sendReport(payload->report);
         }
         else if (payload->cacheRecord->HasStrongerRequestedAccess((RequestedAccess)payload->report.requestedAccess))
         {
@@ -360,7 +371,7 @@ void ConcurrentSharedDataQueue::drainQueue()
         }
         else
         {
-            sendReport(payload->report);
+            drainingDone_ = !sendReport(payload->report);
         }
 
         releaseElem(elem);

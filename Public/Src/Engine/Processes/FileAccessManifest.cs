@@ -854,7 +854,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Explicitly releases most of its memory.
         /// </summary>
-        internal void Release()
+        internal void ReleaseNodes()
         {
             m_normalizedFragments?.Clear();
             var workList = new Stack<Node>();

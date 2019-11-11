@@ -9,6 +9,7 @@ using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 

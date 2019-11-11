@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
+using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;

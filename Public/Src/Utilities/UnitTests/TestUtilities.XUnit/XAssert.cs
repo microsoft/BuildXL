@@ -359,7 +359,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         public static void All<T>(IEnumerable<T> container, Predicate<T> condition)
         {
             var failures = container.Where(elem => !condition(elem)).ToArray();
-            AssertNoFailures(failures);
+            AssertNoFailures(container, failures.Select(e => (elem: e, exception: (Exception)null)).ToArray());
         }
 
         public static void All<T>(IEnumerable<T> container, Action<T> action)

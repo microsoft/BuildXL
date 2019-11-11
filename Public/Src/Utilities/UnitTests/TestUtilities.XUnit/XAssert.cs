@@ -332,7 +332,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 if (!container.Contains(elem))
                 {
-                    Assert.True(false, I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
+                    Fail(I($"Element '{elem}' not found in container: {RenderContainer(container)}"));
                 }
             }
         }
@@ -344,7 +344,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 if (container.Contains(elem))
                 {
-                    Assert.True(false, I($"Element '{elem}' found in container: {RenderContainer(container)}"));
+                    Fail(I($"Element '{elem}' found in container: {RenderContainer(container)}"));
                 }
             }
         }
@@ -362,8 +362,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             if (failures.Length > 0)
             {
                 var nl = Environment.NewLine;
-                Assert.True(
-                    false, 
+                Fail(
                     $"{failures.Length} out of {container.Count()} items did not pass the predicate;{nl}" +
                     $"  Failed items: {RenderContainer(failures)}{nl}" +
                     $"  All items: {RenderContainer(container)}");

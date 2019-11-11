@@ -779,7 +779,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 if (bytes != null && putResult.Succeeded)
                 {
                     // Fire and forget since this step is optional.
-                    await ContentLocationStore.PutBlobAsync(operationContext, putResult.ContentHash, bytes).FireAndForgetAndReturnTask(context);
+                    // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
+                    WithOperationContext(
+                        context,
+                        CancellationToken.None,
+                        opContext => ContentLocationStore.PutBlobAsync(opContext, putResult.ContentHash, bytes)
+                        ).FireAndForget(context);
                 }
 
                 return putResult;
@@ -1025,6 +1030,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, cancel, UrgencyHint.Nominal);
                 if (updated.Succeeded)
                 {
+                    if (Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
+                    {
+                        // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
+                        var proactiveCopyTask = WithOperationContext(
+                            operationContext,
+                            CancellationToken.None,
+                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash));
+
+                        if (Settings.InlineProactiveCopies)
+                        {
+                            var proactiveCopyResult = await proactiveCopyTask;
+
+                            // Only fail if all copies failed.
+                            if (!proactiveCopyResult.Succeeded && proactiveCopyResult.RingCopyResult?.Succeeded == false && proactiveCopyResult.OutsideRingCopyResult?.Succeeded == false)
+                            {
+                                return new PinResult(proactiveCopyResult);
+                            }
+                        }
+                        else
+                        {
+                            proactiveCopyTask.FireAndForget(operationContext);
+                        }
+                    }
+
                     return DistributedPinResult.SuccessByLocalCopy();
                 }
                 else

@@ -268,11 +268,11 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 /// <summary>
 /// Gets the next symlink target of a path.
 /// </summary>
-static bool TryGetNextTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
+static bool TryGetNextTarget(_In_ const wstring& path, _Inout_ HANDLE& hInput, _Inout_ wstring& target)
 {
     DWORD lastError = GetLastError();
 
-    HANDLE hFile = hInput != INVALID_HANDLE_VALUE
+    hInput = hInput != INVALID_HANDLE_VALUE
         ? hInput
         : CreateFileW(
             path.c_str(),
@@ -283,7 +283,7 @@ static bool TryGetNextTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inou
             FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
             NULL);
 
-    if (hFile == INVALID_HANDLE_VALUE)
+    if (hInput == INVALID_HANDLE_VALUE)
     {
         SetLastError(lastError);
         return false;
@@ -299,7 +299,7 @@ static bool TryGetNextTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inou
         buffer.clear();
         buffer.resize(bufferSize);
         BOOL success = DeviceIoControl(
-            hFile,
+            hInput,
             FSCTL_GET_REPARSE_POINT,
             nullptr,
             0,
@@ -348,11 +348,6 @@ static bool TryGetNextTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inou
     }
 
     GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, target);
-
-    if (hFile != hInput)
-    {
-        CloseHandle(hFile);
-    }
 
     SetLastError(lastError);
 
@@ -534,7 +529,14 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
 
             // Get the next target of the directory symlink.
             wstring target;
-            if (!TryGetNextTarget(result, INVALID_HANDLE_VALUE, target))
+            HANDLE handle = INVALID_HANDLE_VALUE;
+            bool getNextTargetResult = !TryGetNextTarget(result, handle, target);
+            if (handle != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(handle);
+            }
+
+            if (!getNextTargetResult)
             {
                 return false;
             }
@@ -573,7 +575,7 @@ static bool TryResolveRelativeTarget(_In_ const wstring& path, _In_ const wstrin
 /// <summary>
 /// Get the next path of a reparse point path.
 /// </summary>
-static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& result)
+static bool TryGetNextPath(_In_ const wstring& path, _Inout_ HANDLE& hInput, _Inout_ wstring& result)
 {
     wstring target;
 
@@ -608,18 +610,21 @@ static bool TryGetNextPath(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_
 /// <summary>
 /// Gets chains of the paths leading to and including the final path given the file name.
 /// </summary>
-static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& finalPaths)
+static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput,  _Inout_ vector<wstring>& finalPaths, _Inout_ vector<HANDLE>& handles)
 {
-    finalPaths.push_back(path.GetPathString());
+    auto pathString = path.GetPathString();
+    finalPaths.push_back(pathString);
 
     wstring nextPath;
-
-    if (!TryGetNextPath(path.GetPathString(), hInput, nextPath))
+    HANDLE nextHandle = hInput;
+    bool tryGetNextPathResult = !TryGetNextPath(pathString, nextHandle, nextPath);
+    handles.push_back(nextHandle);
+    if (!tryGetNextPathResult)
     {
         return;
     }
 
-    DetourGetFinalPaths(CanonicalizedPath::Canonicalize(nextPath.c_str()), INVALID_HANDLE_VALUE, finalPaths);
+    DetourGetFinalPaths(CanonicalizedPath::Canonicalize(nextPath.c_str()), INVALID_HANDLE_VALUE, finalPaths, handles);
 }
 
 /// <summary>
@@ -685,6 +690,7 @@ static bool IsHandleOrPathToDirectory(_In_ HANDLE hFile, _In_ LPCWSTR lpFileName
 /// </summary>
 static bool EnforceReparsePointAccess(
     const wstring& reparsePointPath,
+    const HANDLE& fileHandle,
     const DWORD dwDesiredAccess,
     const DWORD dwShareMode,
     const DWORD dwCreationDisposition,
@@ -734,14 +740,10 @@ static bool EnforceReparsePointAccess(
         if (WantsReadAccess(dwDesiredAccess) || WantsProbeOnlyAccess(dwDesiredAccess))
         {
             FileReadContext readContext;
-            WIN32_FIND_DATA findData;
 
-            HANDLE findDataHandle = FindFirstFileW(fullPath.c_str(), &findData);
-
-            if (findDataHandle != INVALID_HANDLE_VALUE)
+            if (fileHandle != INVALID_HANDLE_VALUE)
             {
                 readContext.FileExistence = FileExistence::Existent;
-                FindClose(findDataHandle);
             }
 
             // Note that 'handle' is allowed invalid for this check. Some tools poke at directories without
@@ -750,7 +752,7 @@ static bool EnforceReparsePointAccess(
             // We skip this to avoid the fallback probe if we don't believe the path exists, since increasing failed-probe volume is dangerous for perf.
             readContext.OpenedDirectory = 
                 (readContext.FileExistence == FileExistence::Existent) 
-                && IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, fullPath.c_str(), false);
+                && IsHandleOrPathToDirectory(fileHandle, fullPath.c_str(), false);
 
             RequestedReadAccess requestedReadAccess = WantsProbeOnlyAccess(dwDesiredAccess) ? RequestedReadAccess::Probe : RequestedReadAccess::Read;
             accessCheck = AccessCheckResult::Combine(accessCheck, policyResult.CheckReadAccess(requestedReadAccess, readContext));
@@ -805,15 +807,23 @@ static bool EnforceChainOfReparsePointAccesses(
     }
 
     vector<wstring> fullPaths;
-    DetourGetFinalPaths(path, reparsePointHandle, fullPaths);
+    vector<HANDLE> handles;
+    DetourGetFinalPaths(path, reparsePointHandle, fullPaths, handles);
 
     bool success = true;
 
-    for (vector<wstring>::iterator it = fullPaths.begin(); it != fullPaths.end(); ++it)
+    vector<HANDLE>::iterator handleIt;
+    vector<wstring>::iterator it;
+    for (it = fullPaths.begin(), handleIt = handles.begin(); handleIt != handles.end(); ++it, ++handleIt)
     {
-        if (!EnforceReparsePointAccess(*it, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes, pNtStatus, enforceAccess, isCreateDirectory))
+        if (!EnforceReparsePointAccess(*it, *handleIt, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes, pNtStatus, enforceAccess, isCreateDirectory))
         {
             success = false;
+        }
+
+        if (*handleIt != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(*handleIt);
         }
     }
 
@@ -831,7 +841,7 @@ static bool EnforceChainOfReparsePointAccessesForNonCreateFile(
     if (!IgnoreNonCreateFileReparsePoints() && !IgnoreReparsePoints())
     {
         CanonicalizedPath canonicalPath = CanonicalizedPath::Canonicalize(fileOperationContext.NoncanonicalPath);
- 
+
         if (IsReparsePoint(canonicalPath.GetPathString()))
         {
             bool accessResult = EnforceChainOfReparsePointAccesses(

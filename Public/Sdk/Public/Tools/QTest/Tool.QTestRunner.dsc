@@ -204,7 +204,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
             "--vstestSettingsFile ", 
-            qCodeCoverageEnumType === dynamicCodeCovString 
+            qCodeCoverageEnumType === dynamicCodeCovString && args.vstestSettingsFileForCoverage !== undefined
                 ? Artifact.input(args.vstestSettingsFileForCoverage) 
                 : Artifact.input(args.vstestSettingsFile)
         ),

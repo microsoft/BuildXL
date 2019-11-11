@@ -117,11 +117,11 @@ namespace BuildXL.Engine.Distribution
             m_sendThread = new Thread(SendBuildRequests);
         }
 
-        public override void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, PipExecutionContext context)
+        public override void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget)
         {
             m_pipGraph = pipGraph;
             m_workerExecutionLogTarget = executionLogTarget;
-            base.Initialize(pipGraph, executionLogTarget, context);
+            base.Initialize(pipGraph, executionLogTarget);
         }
 
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;

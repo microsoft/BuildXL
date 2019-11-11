@@ -116,7 +116,7 @@ namespace BuildXL.Tracing
         /// <param name="description"></param>
         public void UnexpectedCondition(LoggingContext loggingContext, string description)
         {
-            lock (s_currentSessionId)
+            lock (s_unexpectedConditionLoggerLock)
             {
                 // Check and reset the context for what build session this in case the server process is reused
                 if (s_currentSessionId != loggingContext.GetRootContext().Session.Id)
@@ -125,10 +125,14 @@ namespace BuildXL.Tracing
                     s_unexpectedConditionsLogged = 0;
                 }
 
-                s_unexpectedConditionsLogged++;
+                // Guard against overflowing in case a huge number of unexpected conditions happen
+                if (s_unexpectedConditionsLogged < int.MaxValue)
+                {
+                    s_unexpectedConditionsLogged++;
+                }
 
                 // Only log to telemetry fir the first 5 unexpected conditions per build session
-                if (s_unexpectedConditionsLogged <= 5)
+                if (s_unexpectedConditionsLogged <= MaxTelemetryUnexpectedConditions)
                 {
                     UnexpectedConditionTelemetry(loggingContext, description);
                 }
@@ -141,6 +145,12 @@ namespace BuildXL.Tracing
 
         private static int s_unexpectedConditionsLogged = 0;
         private static string s_currentSessionId = string.Empty;
+        private static readonly object s_unexpectedConditionLoggerLock = new object();
+
+        /// <summary>
+        /// Maximum number of unexpected conditions to send to telemetry
+        /// </summary>
+        public const int MaxTelemetryUnexpectedConditions = 5;
 
         [GeneratedEvent(
             (ushort)EventId.UnexpectedConditionLocal,

@@ -387,7 +387,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             if (failures.Length > 0)
             {
                 var nl = Environment.NewLine;
-                var errorMessage = $"{failures.Length} out of {container.Count()} items did not pass the predicate;{nl}" +
+                var errorMessage = $"XAssert.All() Failure: {failures.Length} out of {container.Count()} items did not pass;{nl}" +
                     $"  Failed items: {RenderContainer(failures)}{nl}" +
                     $"  All items: {RenderContainer(container)}";
                 var exceptions = failures.Where(t => t.exception != null).ToArray();
@@ -395,7 +395,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 {
                     var exceptionsStr = string.Join(
                         $"{nl}====================================================={nl}",
-                        exceptions.Select(t => $"{nl}  *  {t.exception.ToString()}"));
+                        exceptions.Select(t => $"{nl}  [{t.elem}]  {t.exception.ToString()}"));
                     errorMessage += $"{nl}  Exceptions:{exceptionsStr}";
                 }
                 Fail(errorMessage);

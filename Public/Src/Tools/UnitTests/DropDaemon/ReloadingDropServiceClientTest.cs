@@ -185,7 +185,12 @@ namespace Test.Tool.DropDaemon
             throw new NotImplementedException();
         }
 
-        Task IDropServiceClient.DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache)
+        Task IDropDownloader.DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<DownloadResult> IDropDownloader.DownloadManifestToFilePathAsync(string dropName, string filePath, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

@@ -2495,14 +2495,14 @@ namespace BuildXL.Scheduler
                                 {
                                     var processPip = (Process)pip;
 
-                                    if (result.DynamicallyObservedFiles.Length > 0 || result.DynamicallyObservedEnumerations.Length > 0 ||
-                                        processPip.DirectoryOutputs.Length > 0)
+                                    if (result.HasDynamicObservations || processPip.DirectoryOutputs.Length > 0)
                                     {
                                         using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.RecordDynamicObservationsDuration))
                                         {
                                             IncrementalSchedulingState.RecordDynamicObservations(
                                                 nodeId,
                                                 result.DynamicallyObservedFiles.Select(path => path.ToString(Context.PathTable)),
+                                                result.DynamicallyProbedFiles.Select(path => path.ToString(Context.PathTable)),
                                                 result.DynamicallyObservedEnumerations.Select(path => path.ToString(Context.PathTable)),
                                                 processPip.DirectoryOutputs.Select(
                                                     d =>

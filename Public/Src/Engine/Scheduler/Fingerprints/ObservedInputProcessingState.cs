@@ -18,6 +18,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
         // NOTE: Be sure to add any collections created here to Clear
         public readonly List<AbsolutePath> DynamicallyObservedFiles = new List<AbsolutePath>();
+        public readonly List<AbsolutePath> DynamicallyProbedFiles = new List<AbsolutePath>();
         public readonly HashSet<AbsolutePath> AllowedUndeclaredReads = new HashSet<AbsolutePath>();
         public readonly HashSet<AbsolutePath> AbsentPathProbesUnderNonDependenceOutputDirectories = new HashSet<AbsolutePath>();
         public readonly List<AbsolutePath> DynamicallyObservedEnumerations = new List<AbsolutePath>();
@@ -40,6 +41,7 @@ namespace BuildXL.Scheduler.Fingerprints
         private void Clear()
         {
             DynamicallyObservedFiles.Clear();
+            DynamicallyProbedFiles.Clear();
             AllowedUndeclaredReads.Clear();
             AbsentPathProbesUnderNonDependenceOutputDirectories.Clear();
             DynamicallyObservedEnumerations.Clear();

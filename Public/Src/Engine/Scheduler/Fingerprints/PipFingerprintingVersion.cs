@@ -40,7 +40,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 66: Changed rendering of VSO hashes
         /// 67: Added SourceChangeAffectedContents
         /// 68: Added ChildProcessesToBreakawayFromSandbox
+        /// 69: Added dynamic existing probe.
         /// </remarks>
-        TwoPhaseV2 = 68,
+        TwoPhaseV2 = 69,
     }
 }

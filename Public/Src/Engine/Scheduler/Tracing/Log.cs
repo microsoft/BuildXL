@@ -3643,8 +3643,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)Keywords.UserMessage,
-            Message = "Artifact changes inferred by journal scanning: Newly added files: {0} | Newly added directories: {1} | Changed static files: {2} | Changed dynamically observed files (possibly path probes): {3} | Changed dynamically observed enumeration memberships: {4} | Perpetually dirty pips: {5}")]
-        public abstract void IncrementalSchedulingArtifactChangesCounters(LoggingContext context, long newlyAddedFiles, long newlyAddedDirectories, long changedStaticFiles, long changedDynamicallyObservedFiles, long changedDynamicallyObservedEnumerationMembership, long perpetuallyDirtyPips);
+            Message = "Artifact changes inferred by journal scanning: Newly added files: {newlyAddedFiles} | Newly added directories: {newlyAddedDirectories} | Changed static files: {changedStaticFiles} | Changed dynamically read files: {changedDynamicallyObservedFiles} | Changed dynamically probed files: {changedDynamicallyProbedFiles} | Changed dynamically observed enumeration memberships: {changedDynamicallyObservedEnumerationMembership} | Perpetually dirty pips: {perpetuallyDirtyPips}")]
+        public abstract void IncrementalSchedulingArtifactChangesCounters(LoggingContext context, long newlyAddedFiles, long newlyAddedDirectories, long changedStaticFiles, long changedDynamicallyObservedFiles, long changedDynamicallyProbedFiles, long changedDynamicallyObservedEnumerationMembership, long perpetuallyDirtyPips);
 
         [GeneratedEvent(
             (int)EventId.IncrementalSchedulingArtifactChangeSample,
@@ -3814,8 +3814,8 @@ namespace BuildXL.Scheduler.Tracing
            EventLevel = Level.Verbose,
            EventTask = (ushort)Tasks.Scheduler,
            Keywords = (int)Keywords.UserMessage,
-           Message = "Dirty pips due to changes in dynamic observation after journal scan: Dynamic paths: {dynamicPathCount} | Dynamic path enumerations: {dynamicPathEnumerationCount} | Elapsed time: {elapsedMs}ms")]
-        public abstract void IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan(LoggingContext context, int dynamicPathCount, int dynamicPathEnumerationCount, long elapsedMs);
+           Message = "Dirty pips due to changes in dynamic observation after journal scan: Dynamic read paths: {dynamicPathCount} | Dynamic probed paths: {dynamicProbeCount} | Dynamic path enumerations: {dynamicPathEnumerationCount} | Elapsed time: {elapsedMs}ms")]
+        public abstract void IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan(LoggingContext context, int dynamicPathCount, int dynamicProbeCount, int dynamicPathEnumerationCount, long elapsedMs);
 
         [GeneratedEvent(
            (int)EventId.IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan,

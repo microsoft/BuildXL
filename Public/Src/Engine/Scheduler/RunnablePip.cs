@@ -504,6 +504,7 @@ namespace BuildXL.Scheduler
                 perf,
                 result.MustBeConsideredPerpetuallyDirty,
                 result.DynamicallyObservedFiles,
+                result.DynamicallyProbedFiles,
                 result.DynamicallyObservedEnumerations);
         }
 

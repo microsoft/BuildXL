@@ -297,6 +297,7 @@ namespace BuildXL.Scheduler
                         false,
                         // report accesses to symlink chain elements
                         symlinkChain,
+                        ReadOnlyArray<AbsolutePath>.Empty,
                         ReadOnlyArray<AbsolutePath>.Empty);
                 }
                 catch (BuildXLException ex)
@@ -1676,6 +1677,7 @@ namespace BuildXL.Scheduler
 
                 // Store the dynamically observed accesses
                 processExecutionResult.DynamicallyObservedFiles = observedInputValidationResult.DynamicallyObservedFiles;
+                processExecutionResult.DynamicallyProbedFiles = observedInputValidationResult.DynamicallyProbedFiles;
                 processExecutionResult.DynamicallyObservedEnumerations = observedInputValidationResult.DynamicallyObservedEnumerations;
                 processExecutionResult.AllowedUndeclaredReads = observedInputValidationResult.AllowedUndeclaredSourceReads;
                 processExecutionResult.AbsentPathProbesUnderOutputDirectories = observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories;
@@ -2586,6 +2588,9 @@ namespace BuildXL.Scheduler
                     dynamicallyObservedFiles: observedInputProcessingResult.HasValue
                         ? observedInputProcessingResult.Value.DynamicallyObservedFiles
                         : ReadOnlyArray<AbsolutePath>.Empty,
+                    dynamicallyProbedFiles: observedInputProcessingResult.HasValue
+                        ? observedInputProcessingResult.Value.DynamicallyProbedFiles
+                        : ReadOnlyArray<AbsolutePath>.Empty,
                     dynamicallyObservedEnumerations: observedInputProcessingResult.HasValue
                         ? observedInputProcessingResult.Value.DynamicallyObservedEnumerations
                         : ReadOnlyArray<AbsolutePath>.Empty,
@@ -2641,6 +2646,7 @@ namespace BuildXL.Scheduler
                 ? RunnableFromCacheResult.CreateForHit(
                     weakFingerprint: executionResult.TwoPhaseCachingInfo.WeakFingerprint,
                     dynamicallyObservedFiles: executionResult.DynamicallyObservedFiles,
+                    dynamicallyProbedFiles: executionResult.DynamicallyProbedFiles,
                     dynamicallyObservedEnumerations: executionResult.DynamicallyObservedEnumerations,
                     allowedUndeclaredSourceReads: executionResult.AllowedUndeclaredReads,
                     absentPathProbesUnderNonDependenceOutputDirectories: executionResult.AbsentPathProbesUnderOutputDirectories,
@@ -2971,6 +2977,7 @@ namespace BuildXL.Scheduler
                 // This is the cache-hit path, so there were no uncacheable file accesses.
                 MustBeConsideredPerpetuallyDirty = false,
                 DynamicallyObservedFiles = runnableFromCacheCheckResult.DynamicallyObservedFiles,
+                DynamicallyProbedFiles = runnableFromCacheCheckResult.DynamicallyProbedFiles,
                 DynamicallyObservedEnumerations = runnableFromCacheCheckResult.DynamicallyObservedEnumerations,
                 AllowedUndeclaredReads = runnableFromCacheCheckResult.AllowedUndeclaredReads,
                 AbsentPathProbesUnderOutputDirectories = runnableFromCacheCheckResult.AbsentPathProbesUnderNonDependenceOutputDirectories,

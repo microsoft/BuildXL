@@ -417,8 +417,8 @@ namespace BuildXL.Utilities.Tracing
         CancellationRequested = 470,
 
         TelemetryShutDown = 471,
-        UnexpectedCondition = 472,
-        // was TelemetryRecoverableException = 473,
+        UnexpectedConditionLocal = 472,
+        UnexpectedConditionTelemetry = 473,
         TelemetryShutDownException = 474,
         // was ServerDeploymentDirectoryHashMismatch = 475,
         TelemetryShutdownTimeout = 476,

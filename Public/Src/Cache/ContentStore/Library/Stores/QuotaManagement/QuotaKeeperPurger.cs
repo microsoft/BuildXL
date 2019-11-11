@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
@@ -14,6 +15,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Utils;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -76,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
         }
 
-        private bool StopPurging(out string stopReason, out IQuotaRule rule) => _quotaKeeper.StopPurging(out stopReason, out rule);
+        private bool StopPurging([NotNullWhen(true)]out string? stopReason, [NotNullWhen(true)]out IQuotaRule? rule) => _quotaKeeper.StopPurging(out stopReason, out rule);
 
         private async Task<BoolResult> EvictLocalAsync()
         {
@@ -221,26 +224,26 @@ namespace BuildXL.Cache.ContentStore.Stores
                     unpinnedHashes.Select(hash => Tuple.Create(hash, !unpurgedHashes.ContainsKey(hash.ContentHash))).ToList();
 
                 // Unregister hashes that can be safely evicted and get distributed last-access time for the rest
-                var contentHashesInfoRemoteResult =
-                    await trimOrGetLastAccessTimeAsync(_context, unpinnedHashesWithCheck, _token, UrgencyHint.High);
+                var contentHashesInfoRemoteResult = await trimOrGetLastAccessTimeAsync(_context, unpinnedHashesWithCheck, _token, UrgencyHint.High);
 
                 if (!contentHashesInfoRemoteResult.Succeeded)
                 {
                     return (finishedPurging: false, contentHashesInfoRemoteResult);
                 }
 
-                var purgeInfo = await ProcessHashesForEvictionAsync(
+                Contract.AssertNotNull(contentHashesInfoRemoteResult.Data);
+                var (finished, result) = await ProcessHashesForEvictionAsync(
                     contentHashesInfoRemoteResult.Data,
                     unpurgedHashes,
                     hashQueue,
                     evictedHashes);
 
-                if (purgeInfo.purgeResult != null)
+                if (result != null)
                 {
-                    return purgeInfo; // Purging encountered an error.
+                    return (finished, result); // Purging encountered an error.
                 }
 
-                finishedPurging = purgeInfo.finishedPurging;
+                finishedPurging = finished;
             }
 
             return (finishedPurging, BoolResult.Success);
@@ -286,7 +289,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return unpinnedHashes;
         }
 
-        private async Task<(bool finishedPurging, BoolResult purgeResult)> ProcessHashesForEvictionAsync(
+        private async Task<(bool finishedPurging, BoolResult? purgeResult)> ProcessHashesForEvictionAsync(
             IList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithRemoteInfo,
             Dictionary<ContentHash, Tuple<bool, DateTime>> unpurgedHashes,
             PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount> hashQueue,
@@ -348,7 +351,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             // Null is special value here that prevents the purge loop from exiting.
-            return (finishedPurging, (PurgeResult)null);
+            return (finishedPurging, (PurgeResult?)null);
         }
 
         private PriorityQueue<ContentHashWithLastAccessTimeAndReplicaCount> CreatePriorityQueue(

@@ -359,13 +359,46 @@ namespace Test.BuildXL.TestUtilities.Xunit
         public static void All<T>(IEnumerable<T> container, Predicate<T> condition)
         {
             var failures = container.Where(elem => !condition(elem)).ToArray();
+            AssertNoFailures(failures);
+        }
+
+        public static void All<T>(IEnumerable<T> container, Action<T> action)
+        {
+            var failures = container
+                .Select(elem =>
+                {
+                    try
+                    {
+                        action(elem);
+                        return (elem, exception: null);
+                    }
+                    catch (Exception exception)
+                    {
+                        return (elem, exception);
+                    }
+                })
+                .Where(t => t.exception != null)
+                .ToArray();
+            AssertNoFailures(container, failures);
+        }
+
+        private static void AssertNoFailures<T>(IEnumerable<T> container, (T elem, Exception exception)[] failures)
+        {
             if (failures.Length > 0)
             {
                 var nl = Environment.NewLine;
-                Fail(
-                    $"{failures.Length} out of {container.Count()} items did not pass the predicate;{nl}" +
+                var errorMessage = $"{failures.Length} out of {container.Count()} items did not pass the predicate;{nl}" +
                     $"  Failed items: {RenderContainer(failures)}{nl}" +
-                    $"  All items: {RenderContainer(container)}");
+                    $"  All items: {RenderContainer(container)}";
+                var exceptions = failures.Where(t => t.exception != null).ToArray();
+                if (exceptions.Any())
+                {
+                    var exceptionsStr = string.Join(
+                        $"{nl}====================================================={nl}",
+                        exceptions.Select(t => $"{nl}  *  {t.exception.ToString()}"));
+                    errorMessage += $"{nl}  Exceptions:{exceptionsStr}";
+                }
+                Fail(errorMessage);
             }
         }
 

@@ -1030,7 +1030,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, cancel, UrgencyHint.Nominal);
                 if (updated.Succeeded)
                 {
-                    if (Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
+                    if (Settings.ProactiveCopyOnPin && Settings.ProactiveCopyMode != ProactiveCopyMode.Disabled)
                     {
                         // Since the rest of the operation is done asynchronously, create new context to stop cancelling operation prematurely.
                         var proactiveCopyTask = WithOperationContext(

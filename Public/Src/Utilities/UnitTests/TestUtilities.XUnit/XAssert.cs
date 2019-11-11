@@ -356,12 +356,20 @@ namespace Test.BuildXL.TestUtilities.Xunit
             return I($"[{nl}{string.Join("," + nl, elems)}{nl}]");
         }
 
+        /// <summary>
+        /// Asserts that <paramref name="condition"/> holds for every element in <paramref name="container"/>.
+        /// </summary>
         public static void All<T>(IEnumerable<T> container, Predicate<T> condition)
         {
             var failures = container.Where(elem => !condition(elem)).ToArray();
             AssertNoFailures(container, failures.Select(e => (elem: e, exception: (Exception)null)).ToArray());
         }
 
+        /// <summary>
+        /// Invokes <paramref name="action"/> on every element in <paramref name="container"/>.
+        /// The action itself is supposed to assert properties about the element it was given
+        /// (e.g., by calling some other XAssert.* methods).
+        /// </summary>
         public static void All<T>(IEnumerable<T> container, Action<T> action)
         {
             var failures = container
@@ -388,7 +396,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             {
                 var nl = Environment.NewLine;
                 var errorMessage = $"XAssert.All() Failure: {failures.Length} out of {container.Count()} items did not pass;{nl}" +
-                    $"  Failed items: {RenderContainer(failures)}{nl}" +
+                    $"  Failed items: {RenderContainer(failures.Select(t => t.elem))}{nl}" +
                     $"  All items: {RenderContainer(container)}";
                 var exceptions = failures.Where(t => t.exception != null).ToArray();
                 if (exceptions.Any())

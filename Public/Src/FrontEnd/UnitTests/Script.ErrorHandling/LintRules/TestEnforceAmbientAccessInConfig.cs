@@ -67,6 +67,7 @@ namespace Test.DScript.Ast.ErrorHandling
         [InlineData("Context.getUserHomeDirectory()")]
         [InlineData("Context.getLastActiveUsePath()")]
         [InlineData("Context.getSpecFile()")]
+        [InlineData("Context.getCurrentHost()")]
         [InlineData("MutableSet.empty()")]
         [InlineData("Set.empty()")]
         [InlineData("Map.empty()")]
@@ -97,7 +98,8 @@ namespace Test.DScript.Ast.ErrorHandling
                 "ScheduleProcessPip",
                 "WriteDataCore",
                 "GetBuildXLBinDirectoryToBeDeprecated",
-                "GetNewIpcMoniker"
+                "GetNewIpcMoniker",
+                "GetBuildEngineDirectoryToBeDeprecated",
             };
 
             // Extract string parameter for each InlineDataAttribute for each method.
@@ -109,14 +111,15 @@ namespace Test.DScript.Ast.ErrorHandling
             XAssert.All(GetAmbientMethods(AmbientContext.ContextName, typeof(AmbientContext))
                 .Concat(GetAmbientMethods(AmbientTransformerOriginal.Name, typeof(AmbientTransformerOriginal)))
                 .Concat(GetAmbientMethods(AmbientContract.ContractName, typeof(AmbientContract)))
-                .Concat(GetAmbientMethods(AmbientFile.FileName, typeof(AmbientFile))),
-                funcName => inlineDataContent.Contains(funcName));
+                .Concat(GetAmbientMethods(AmbientFile.FileName, typeof(AmbientFile)))
+                .ToArray(),
+                funcName => XAssert.Contains(inlineDataContent, funcName));
 
             IEnumerable<string> GetAmbientMethods(string name, System.Type type)
             {
                 return type.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly)
                     .Where(mi => mi.ReturnType == typeof(EvaluationResult) && !ignoredMethods.Contains(mi.Name))
-                    .Select(mi => $"{name}.{mi.Name}");
+                    .Select(mi => $"{name}.{char.ToLowerInvariant(mi.Name[0])}{mi.Name.Substring(1)}");
             }
         }
     }

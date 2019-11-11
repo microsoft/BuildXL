@@ -105,7 +105,7 @@ namespace Test.DScript.Ast.ErrorHandling
                 .Select(s => s.Substring(0, s.IndexOf("(")))
                 .ToArray();
 
-            Assert.All(GetAmbientMethods(AmbientContext.ContextName, typeof(AmbientContext))
+            XAssert.All(GetAmbientMethods(AmbientContext.ContextName, typeof(AmbientContext))
                 .Concat(GetAmbientMethods(AmbientTransformerOriginal.Name, typeof(AmbientTransformerOriginal)))
                 .Concat(GetAmbientMethods(AmbientContract.ContractName, typeof(AmbientContract)))
                 .Concat(GetAmbientMethods(AmbientFile.FileName, typeof(AmbientFile))),

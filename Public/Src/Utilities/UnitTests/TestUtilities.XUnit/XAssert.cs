@@ -356,6 +356,20 @@ namespace Test.BuildXL.TestUtilities.Xunit
             return I($"[{nl}{string.Join("," + nl, elems)}{nl}]");
         }
 
+        public static void All<T>(IEnumerable<T> container, Predicate<T> condition)
+        {
+            var failures = container.Where(elem => !condition(elem)).ToArray();
+            if (failures.Length > 0)
+            {
+                var nl = Environment.NewLine;
+                Assert.True(
+                    false, 
+                    $"{failures.Length} out of {container.Count()} items did not pass the predicate;{nl}" +
+                    $"  Failed items: {RenderContainer(failures)}{nl}" +
+                    $"  All items: {RenderContainer(container)}");
+            }
+        }
+
         /// <nodoc/>
         [StringFormatMethod("format")]
         public static void Fail(string format, params object[] args)

@@ -346,7 +346,7 @@ namespace M {
 
             result.ExpectNoError();
             result.ExpectValues(6);
-            Assert.All(result.Values, e => Assert.Equal(true, e));
+            XAssert.All(result.Values, e => Assert.Equal(true, e));
         }
 
         private static void CheckMap(DsMap map, IEnumerable<KeyValuePair<object, object>> keyValuePairs, bool exactMatch = true, IEnumerable<object> notExistKeys = null)

@@ -109,7 +109,7 @@ function createArtifact(value: Transformer.InputArtifact | Transformer.OutputArt
             var processPips = pipGraph.RetrievePipsOfType(PipType.Process).ToList();
 
             // assert edges exist
-            Assert.All(
+            XAssert.All(
                 file2file.Edges,
                 edge =>
                 {

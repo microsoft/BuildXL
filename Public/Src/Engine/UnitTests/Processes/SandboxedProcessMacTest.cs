@@ -194,6 +194,7 @@ namespace Test.BuildXL.Processes
                 };
 
                 var result = await process.GetResultAsync();
+                await postTask1; // await here as well just to make AsyncFixer happy
 
                 XAssert.IsTrue(result.Killed, "Expected process to have been killed");
                 XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");

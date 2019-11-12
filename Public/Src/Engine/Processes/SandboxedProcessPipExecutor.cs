@@ -196,8 +196,6 @@ namespace BuildXL.Processes
 
         private FileAccessPolicy DefaultMask => NoFakeTimestamp ? ~FileAccessPolicy.Deny : ~FileAccessPolicy.AllowRealInputTimestamps;
 
-        private bool m_suppressStdPathsInLog;
-
         /// <summary>
         /// Creates an executor for a process pip. Execution can then be started with <see cref="RunAsync" />.
         /// </summary>
@@ -229,8 +227,7 @@ namespace BuildXL.Processes
             VmInitializer vmInitializer = null,
             SubstituteProcessExecutionInfo shimInfo = null,
             IReadOnlyList<RelativePath> incrementalTools = null,
-            IReadOnlyList<AbsolutePath> changeAffectedInputs = null,
-            bool? inCloudBuild = false)
+            IReadOnlyList<AbsolutePath> changeAffectedInputs = null)
         {
             Contract.Requires(pip != null);
             Contract.Requires(context != null);
@@ -362,7 +359,6 @@ namespace BuildXL.Processes
             }
 
             m_changeAffectedInputs = changeAffectedInputs;
-            m_suppressStdPathsInLog = inCloudBuild ?? false;
         }
 
         /// <inheritdoc />
@@ -3664,7 +3660,7 @@ namespace BuildXL.Processes
             outputToLog = (standardOutEmpty ? string.Empty : standardOut) +
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardError);
-            pathsToLog = m_suppressStdPathsInLog 
+            pathsToLog = m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputAlways
                 ? string.Empty 
                 : (standardOutEmpty ? string.Empty : standardOutPath) + 
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +

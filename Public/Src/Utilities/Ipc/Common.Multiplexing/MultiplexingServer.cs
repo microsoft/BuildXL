@@ -224,7 +224,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
             {
                 Logger.Verbose("({0}) Waiting to receive request...", Name);
                 var request = await Request.DeserializeAsync(m_stream, token);
-                Logger.Verbose("({0}) Request received: {1}", Name, request);
+                Logger.Verbose($"({Name}) Received request #{request.Id}");
 
                 request.Operation.Timestamp.Daemon_AfterReceivedTime = DateTime.UtcNow;
 
@@ -241,7 +241,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
             {
                 request.Operation.Timestamp.Daemon_BeforeExecuteTime = DateTime.UtcNow;
 
-                Logger.Verbose("({0}) Executing request {1}", Name, request);
+                Logger.Verbose($"({Name}) Executing request #{request.Id}");
                 var ipcResult = await Utils.HandleExceptionsAsync(
                     IpcResultStatus.ExecutionError,
                     () => m_parent.m_executor.ExecuteAsync(request.Operation));
@@ -249,20 +249,20 @@ namespace BuildXL.Ipc.Common.Multiplexing
                 if (request.Operation.ShouldWaitForServerAck)
                 {
                     var response = new Response(request.Id, ipcResult);
-                    Logger.Verbose("({0}) Posting response {1}", Name, response);
+                    Logger.Verbose($"({Name}) Posting response #{request.Id}");
                     m_sendResponseBlock.Post(response);
                 }
                 else
                 {
-                    Logger.Verbose("({0}) Response not requested for request {1}", Name, request);
+                    Logger.Verbose($"({Name}) Response not requested for request #{request.Id}");
                 }
             }
 
             private async Task SendResponseAsync(Response response)
             {
-                Logger.Verbose("({0}) Sending response {1} ...", Name, response);
+                Logger.Verbose($"({Name}) Sending response #{response.RequestId}");
                 await response.SerializeAsync(m_stream);
-                Logger.Verbose("({0}) Response sent: {1}", Name, response);
+                Logger.Verbose($"({Name}) Sent response #{response.RequestId}");
             }
 
             private bool TryDisconnectClient(TClient client)

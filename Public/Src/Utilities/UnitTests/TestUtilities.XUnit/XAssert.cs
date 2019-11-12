@@ -357,7 +357,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
-        /// Asserts that <paramref name="condition"/> holds for every element in <paramref name="container"/>.
+        /// Asserts that <paramref name="condition"/> holds for every element in <paramref name="container"/>
         /// </summary>
         public static void All<T>(IEnumerable<T> container, Predicate<T> condition)
         {

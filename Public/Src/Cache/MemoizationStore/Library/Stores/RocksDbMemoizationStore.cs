@@ -14,6 +14,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class RocksDbMemoizationStore : DatabaseMemoizationStore
     {
+        /// <nodoc />
         public RocksDbContentLocationDatabase RocksDbDatabase { get; }
 
         /// <nodoc />

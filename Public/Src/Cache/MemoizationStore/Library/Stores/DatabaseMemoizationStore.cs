@@ -31,7 +31,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         /// The database backing the store
         /// </summary>
-        protected virtual MemoizationDatabase MemoizationDatabase { get; }
+        public virtual MemoizationDatabase Database { get; }
 
         /// <summary>
         ///     Store tracer.
@@ -54,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             Contract.Requires(database != null);
 
             _tracer = new MemoizationStoreTracer(database.Name);
-            MemoizationDatabase = database;
+            Database = database;
         }
 
         /// <summary>
@@ -101,26 +101,26 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return  MemoizationDatabase.StartupAsync(context);
+            return  Database.StartupAsync(context);
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            return MemoizationDatabase.ShutdownAsync(context);
+            return Database.ShutdownAsync(context);
         }
 
         /// <inheritdoc />
         public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             var ctx = new OperationContext(context);
-            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => MemoizationDatabase.EnumerateStrongFingerprintsAsync(ctx));
+            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => Database.EnumerateStrongFingerprintsAsync(ctx));
         }
 
         internal async Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            var result = await MemoizationDatabase.GetContentHashListAsync(ctx, strongFingerprint, preferShared: false);
+            var result = await Database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: false);
             return result.Succeeded
                 ? new GetContentHashListResult(result.Value.contentHashListInfo)
                 : new GetContentHashListResult(result);
@@ -144,7 +144,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                        var determinism = contentHashListWithDeterminism.Determinism;
 
                        // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                       var oldContentHashListWithDeterminism = await MemoizationDatabase.GetContentHashListAsync(
+                       var oldContentHashListWithDeterminism = await Database.GetContentHashListAsync(
                            ctx, 
                            strongFingerprint,
                            // Prefer shared result because conflicts are resolved at shared level
@@ -170,7 +170,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                            // Replace if incoming has better determinism or some content for the existing
                            // entry is missing. The entry could have changed since we fetched the old value
                            // earlier, hence, we need to check it hasn't.
-                           var exchanged = await MemoizationDatabase.CompareExchange(
+                           var exchanged = await Database.CompareExchange(
                               ctx,
                               strongFingerprint,
                               replacementToken,
@@ -214,7 +214,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             return ctx.PerformOperationAsync(
                 _tracer,
-                () => MemoizationDatabase.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
+                () => Database.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
                 extraEndMessage: r => $"WeakFingerprint=[{weakFingerprint}], Level={level}",
                 traceOperationStarted: false);
         }

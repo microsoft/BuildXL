@@ -138,7 +138,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     // Notice we don't increment the clock here
                     await session.AddOrGetContentHashListAsync(context, strongFingerprint2, contentHashListWithDeterminism2, Token).ShouldBeSuccess();
 
-                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
+                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.RocksDbDatabase;
                     Contract.Assert(database != null);
 
                     var ctx = new OperationContext(context);
@@ -195,7 +195,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                     await session.GetContentHashListAsync(context, strongFingerprint1, Token).ShouldBeSuccess();
                     _clock.Increment();
 
-                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.Database;
+                    RocksDbContentLocationDatabase database = (store as RocksDbMemoizationStore)?.RocksDbDatabase;
                     Contract.Assert(database != null);
 
                     var ctx = new OperationContext(context);

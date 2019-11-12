@@ -14,6 +14,8 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class RocksDbMemoizationStore : DatabaseMemoizationStore
     {
+        public RocksDbContentLocationDatabase RocksDbDatabase { get; }
+
         /// <nodoc />
         public RocksDbMemoizationStore(ILogger logger, IClock clock, RocksDbMemoizationStoreConfiguration config) 
             : this(logger, new RocksDbMemoizationDatabase(config, clock))
@@ -25,6 +27,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public RocksDbMemoizationStore(ILogger logger, RocksDbMemoizationDatabase database)
             : base(database)
         {
+            RocksDbDatabase = (RocksDbContentLocationDatabase)database.Database;
         }
     }
 }

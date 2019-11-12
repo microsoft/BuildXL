@@ -1442,8 +1442,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Update the entry if the current entry is newer
                     // TODO: Use real versioning scheme for updates to resolve possible race conditions and
                     // issues with time comparison due to clock skew
-                    shouldReplace: oldEntry => oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc,
-                    newLastAccessTime: entry.LastAccessTimeUtc);
+                    shouldReplace: oldEntry => oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc);
             }
         }
     }

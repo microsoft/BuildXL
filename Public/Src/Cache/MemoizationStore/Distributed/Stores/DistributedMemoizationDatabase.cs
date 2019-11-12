@@ -28,6 +28,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedMemoizationDatabase));
 
+        /// <nodoc />
         public DistributedMemoizationDatabase(LocalLocationStore localLocationStore, MemoizationDatabase sharedDatabase)
         {
             _localDatabase = new RocksDbMemoizationDatabase(localLocationStore.Database, ownsDatabase: false);

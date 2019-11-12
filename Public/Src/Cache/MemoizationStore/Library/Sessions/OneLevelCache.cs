@@ -72,27 +72,5 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         {
             return Task.FromResult(BoolResult.Success);
         }
-
-        /// <inheritdoc />
-        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
-        {
-            if (ContentStore is IPushFileHandler handler)
-            {
-                return handler.HandlePushFileAsync(context, hash, sourcePath, token);
-            }
-
-            return Task.FromResult(new PutResult(new InvalidOperationException($"{nameof(ContentStore)} does not implement {nameof(IPushFileHandler)}"), hash));
-        }
-
-        /// <inheritdoc />
-        public bool HasContentLocally(Context context, ContentHash hash)
-        {
-            if (ContentStore is IPushFileHandler handler)
-            {
-                return handler.HasContentLocally(context, hash);
-            }
-
-            return false;
-        }
     }
 }

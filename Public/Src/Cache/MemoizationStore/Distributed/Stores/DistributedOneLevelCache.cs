@@ -45,6 +45,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
             _distributedContentStore = distributedContentStore;
         }
 
+        /// <inheritdoc />
         protected override async Task<(BoolResult contentStoreResult, BoolResult memoizationStoreResult)> CreateAndStartStoresAsync(OperationContext context)
         {
             var contentStoreResult = await ContentStore.StartupAsync(context);

@@ -864,11 +864,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// false otherwise.
         /// </returns>
         public abstract Possible<bool> TryUpsert(
-            OperationContext context, 
-            StrongFingerprint strongFingerprint, 
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism replacement,
-            Func<MetadataEntry, bool> shouldReplace,
-            long? newLastAccessTime = null);
+            Func<MetadataEntry, bool> shouldReplace);
 
         /// <summary>
         /// Load a ContentHashList.

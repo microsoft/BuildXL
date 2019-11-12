@@ -28,6 +28,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class DatabaseMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
+        /// <summary>
+        /// The database backing the store
+        /// </summary>
         protected virtual MemoizationDatabase MemoizationDatabase { get; }
 
         /// <summary>
@@ -117,7 +120,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         internal async Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            var result = await MemoizationDatabase.GetContentHashListAsync(ctx, strongFingerprint);
+            var result = await MemoizationDatabase.GetContentHashListAsync(ctx, strongFingerprint, preferShared: false);
             return result.Succeeded
                 ? new GetContentHashListResult(result.Value.contentHashListInfo)
                 : new GetContentHashListResult(result);

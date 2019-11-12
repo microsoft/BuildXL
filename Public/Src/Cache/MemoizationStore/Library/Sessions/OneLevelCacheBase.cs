@@ -32,12 +32,12 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     public abstract class OneLevelCacheBase : StartupShutdownBase, ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
     {
         /// <summary>
-        ///     Exposes the ContentStore to subclasses. NOTE: Only available after calling <see cref="CreateAndStartStoresAsync(Context)"/>
+        ///     Exposes the ContentStore to subclasses. NOTE: Only available after calling <see cref="CreateAndStartStoresAsync(OperationContext)"/>
         /// </summary>
         protected IContentStore ContentStore { get; set; }
 
         /// <summary>
-        ///     Exposes the MemoizationStore to subclasses. NOTE: Only available after calling <see cref="CreateAndStartStoresAsync(Context)"/>
+        ///     Exposes the MemoizationStore to subclasses. NOTE: Only available after calling <see cref="CreateAndStartStoresAsync(OperationContext)"/>
         /// </summary>
         protected IMemoizationStore MemoizationStore { get; set; }
 
@@ -47,25 +47,32 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         /// <nodoc />
         protected abstract CacheTracer CacheTracer { get; }
 
-        private bool _disposed;
-
         /// <summary>
         ///     Determines if the content session will be passed to the memoization store when constructing a non-readonly session.
         /// </summary>
         private readonly bool _passContentToMemoization = true;
 
+        /// <nodoc />
         public OneLevelCacheBase(Guid id, bool passContentToMemoization)
         {
             _passContentToMemoization = passContentToMemoization;
             Id = id;
         }
 
+        /// <inheritdoc />
         public Guid Id { get; }
 
         /// <summary>
-        /// Creates and starts the content store
+        /// Creates and starts the content store and memoization store
         /// </summary>
         protected abstract Task<(BoolResult contentStoreResult, BoolResult memoizationStoreResult)> CreateAndStartStoresAsync(OperationContext context);
+
+        /// <inheritdoc />
+        protected override void DisposeCore()
+        {
+            MemoizationStore?.Dispose();
+            ContentStore?.Dispose();
+        }
 
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)

@@ -73,12 +73,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
 
 
         /// <inheritdoc />
-        public override Possible<bool> TryUpdate(
-            OperationContext context, 
-            StrongFingerprint strongFingerprint, 
-            ContentHashListWithDeterminism replacement, 
-            Func<MetadataEntry, bool> shouldReplace,
-            long? newLastAccessTime = null)
+        public override Possible<bool> TryUpsert(
+            OperationContext context,
+            StrongFingerprint strongFingerprint,
+            ContentHashListWithDeterminism replacement,
+            Func<MetadataEntry, bool> shouldReplace)
         {
             throw new NotImplementedException();
         }

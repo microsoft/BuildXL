@@ -695,8 +695,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             OperationContext context,
             StrongFingerprint strongFingerprint,
             ContentHashListWithDeterminism replacement,
-            Func<MetadataEntry, bool> shouldReplace,
-            long? newLastAccessTime = null)
+            Func<MetadataEntry, bool> shouldReplace)
         {
             return _keyValueStore.Use(
                 store =>

@@ -37,7 +37,6 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         private const string IdFileName = "Cache.id";
 
         private readonly IAbsFileSystem _fileSystem;
-        private bool _disposed;
 
         /// <summary>
         ///     Content Stores:
@@ -214,20 +213,10 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         }
 
         /// <inheritdoc />
-        protected override void Dispose(bool disposing)
+        protected override void DisposeCore()
         {
-            if (_disposed)
-            {
-                return;
-            }
-
-            if (disposing)
-            {
-                _fileSystem?.Dispose();
-            }
-
-            _disposed = true;
-            base.Dispose(disposing);
+            _fileSystem?.Dispose();
+            base.DisposeCore();
         }
     }
 }

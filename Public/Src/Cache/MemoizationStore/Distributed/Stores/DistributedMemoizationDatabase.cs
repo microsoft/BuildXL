@@ -55,7 +55,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
                 new UpdateMetadataEntryEventData(
                     _localLocationStore.LocalMachineId, 
                     strongFingerprint, 
-                    new MetadataEntry(replacement, _localLocationStore.Clock.UtcNow.ToFileTimeUtc()))).ThrowIfFailure();
+                    new MetadataEntry(replacement, _localLocationStore.EventStore.Clock.UtcNow.ToFileTimeUtc()))).ThrowIfFailure();
             return result;
         }
 

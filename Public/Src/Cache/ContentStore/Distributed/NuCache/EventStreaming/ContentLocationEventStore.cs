@@ -21,6 +21,7 @@ using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Time;
 
 #nullable enable
 
@@ -46,6 +47,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         protected readonly IContentLocationEventHandler EventHandler;
 
+        /// <nodoc />
+        public IClock Clock { get; }
+
         private readonly CentralStorage _storage;
         private readonly Interfaces.FileSystem.AbsolutePath _workingDirectory;
         private readonly IAbsFileSystem _fileSystem;
@@ -68,13 +72,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             string name,
             IContentLocationEventHandler eventHandler,
             CentralStorage centralStorage,
-            Interfaces.FileSystem.AbsolutePath workingDirectory)
+            Interfaces.FileSystem.AbsolutePath workingDirectory,
+            IClock clock)
         {
             Contract.RequiresNotNull(configuration);
             Contract.RequiresNotNull(name);
             Contract.RequiresNotNull(eventHandler);
             Contract.RequiresNotNull(centralStorage);
             Contract.RequiresNotNull(workingDirectory);
+            Contract.RequiresNotNull(clock);
 
             _configuration = configuration;
             _fileSystem = new PassThroughFileSystem();
@@ -82,6 +88,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             _workingDisposableDirectory = new DisposableDirectory(_fileSystem, workingDirectory);
             _workingDirectory = workingDirectory;
             EventHandler = eventHandler;
+            Clock = clock;
             var tracer = new Tracer(name) { LogOperationStarted = false };
             Tracer = tracer;
 
@@ -97,10 +104,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             IContentLocationEventHandler eventHandler,
             string localMachineName,
             CentralStorage centralStorage,
-            Interfaces.FileSystem.AbsolutePath workingDirectory)
+            Interfaces.FileSystem.AbsolutePath workingDirectory,
+            IClock clock)
         {
             Contract.RequiresNotNull(configuration);
-            return new EventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, workingDirectory);
+            return new EventHubContentLocationEventStore(configuration, eventHandler, localMachineName, centralStorage, workingDirectory, clock);
         }
 
         /// <summary>

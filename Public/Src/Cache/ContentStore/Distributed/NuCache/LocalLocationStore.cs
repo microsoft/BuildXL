@@ -62,9 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public IGlobalLocationStore GlobalStore { get; }
 
         /// <nodoc />
-        public IClock Clock => _clock;
-
-        /// <nodoc />
         public LocalLocationStoreConfiguration Configuration => _configuration;
 
         /// <nodoc />
@@ -209,7 +206,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 new ContentLocationDatabaseAdapter(Database, ClusterState),
                 GlobalStore.LocalMachineLocation.ToString(),
                 CentralStorage,
-                configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder
+                configuration.Checkpoint.WorkingDirectory / "reconciles" / subfolder,
+                _clock
                 );
         }
 

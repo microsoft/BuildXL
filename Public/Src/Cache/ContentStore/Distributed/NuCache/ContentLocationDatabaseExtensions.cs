@@ -1,9 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -12,6 +15,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// </summary>
     public static class ContentLocationDatabaseExtensions
     {
+        /// <summary>
+        /// Performs a compare exchange operation on metadata, while ensuring all invariants are kept. If the
+        /// fingerprint is not present, then it is inserted.
+        /// </summary>
+        /// <returns>
+        /// Result providing the call's completion status. True if the replacement was completed successfully, false otherwise.
+        /// </returns>
+        public static Possible<bool> CompareExchange(
+            this ContentLocationDatabase database,
+            OperationContext context, 
+            StrongFingerprint strongFingerprint, 
+            ContentHashListWithDeterminism expected,
+            ContentHashListWithDeterminism replacement)
+        {
+            return database.TryUpsert(
+                context,
+                strongFingerprint,
+                replacement,
+                entry => entry.ContentHashListWithDeterminism.Equals(expected));
+        }
+
         /// <summary>
         /// Enumerates all the hashes with <see cref="ContentLocationEntry"/> from a <paramref name="database"/> for a given <paramref name="currentMachineId"/>.
         /// </summary>

@@ -204,7 +204,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             RemoveMachine,
             Touch,
             Create,
-            Delete
+            Delete,
+            UpdateMetadataEntry
         }
     }
 }

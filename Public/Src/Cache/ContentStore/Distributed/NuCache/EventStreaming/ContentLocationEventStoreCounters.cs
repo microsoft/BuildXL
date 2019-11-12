@@ -31,6 +31,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         DispatchReconcile,
 
         /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        DispatchUpdateMetadata,
+
+        /// <nodoc />
         DispatchAddLocationsHashes,
 
         /// <nodoc />
@@ -77,6 +81,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
         PublishAddLocations,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        PublishUpdateContentHashList,
 
         /// <nodoc />
         [CounterType(CounterType.Stopwatch)]

@@ -34,6 +34,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using System.Runtime.CompilerServices;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -59,6 +60,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         /// <nodoc />
         public IGlobalLocationStore GlobalStore { get; }
+
+        /// <nodoc />
+        public IClock Clock => _clock;
+
+        /// <nodoc />
+        public LocalLocationStoreConfiguration Configuration => _configuration;
 
         /// <nodoc />
         public MachineReputationTracker MachineReputationTracker { get; private set; }
@@ -1422,6 +1429,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     _database.LocationRemoved(context, hash, sender, reconciling);
                 }
+            }
+
+            /// <inheritdoc />
+            public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
+            {
+                _database.TryUpsert(
+                    context,
+                    strongFingerprint,
+                    entry.ContentHashListWithDeterminism,
+
+                    // Update the entry if the current entry is newer
+                    // TODO: Use real versioning scheme for updates to resolve possible race conditions and
+                    // issues with time comparison due to clock skew
+                    shouldReplace: oldEntry => oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc,
+                    newLastAccessTime: entry.LastAccessTimeUtc);
             }
         }
     }

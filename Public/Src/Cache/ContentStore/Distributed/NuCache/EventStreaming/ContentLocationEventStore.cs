@@ -20,6 +20,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Cache.ContentStore.Distributed.Tracing.TracingStructuredExtensions;
 using static BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming.ContentLocationEventStoreCounters;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 #nullable enable
 
@@ -149,6 +150,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     using (counters[DispatchReconcile].Start())
                     {
                         await DeserializeAndDispatchReconcileEventAsync(context, reconcileContent, counters);
+                    }
+                    break;
+                case UpdateMetadataEntryEventData updateMetadata:
+                    using (counters[DispatchUpdateMetadata].Start())
+                    {
+                        EventHandler.MetadataUpdated(context, updateMetadata.StrongFingerprint, updateMetadata.Entry);
                     }
                     break;
                 default:
@@ -326,6 +333,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     return EntryOperation.RemoveMachine;
                 case EventKind.Touch:
                     return EntryOperation.Touch;
+                case EventKind.UpdateMetadataEntry:
+                    return EntryOperation.UpdateMetadataEntry;
                 default:
                     // NOTE: This is invalid because reconciliation events should not have associated hashes
                     // The derived add/remove events will have the hashes
@@ -374,6 +383,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 },
                 Counters[PublishReconcile],
                 extraEndMessage: _ => $"AddedContent={addedContent.Count}, RemovedContent={removedContent.Count}, TotalContent={addedContent.Count + removedContent.Count}");
+        }
+
+        /// <summary>
+        /// Notify that the content hash list entry was updated.
+        /// </summary>
+        public BoolResult UpdateMetadataEntry(OperationContext context, UpdateMetadataEntryEventData data)
+        {
+            return context.PerformOperation(
+                Tracer,
+                () =>
+                {
+                    Publish(context, data);
+                    return BoolResult.Success;
+                },
+                Counters[PublishUpdateContentHashList]);
         }
 
         /// <summary>

@@ -145,7 +145,7 @@ namespace BuildXL.Cache.Host.Service.Internal
             return cacheFactory.CreateMemoizationStore(_logger);
         }
 
-        public IContentStore CreateContentStore(AbsolutePath localCacheRoot)
+        public DistributedContentStore<AbsolutePath> CreateContentStore(AbsolutePath localCacheRoot)
         {
             var redisContentLocationStoreFactory = CreateRedisCacheFactory(localCacheRoot, out var redisContentLocationStoreConfiguration);
 

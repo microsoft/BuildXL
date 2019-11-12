@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-extern alias Async;
-
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -21,10 +19,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class RocksDbMemoizationDatabase : MemoizationDatabase
     {
-        internal RocksDbContentLocationDatabase Database { get; }
+        internal ContentLocationDatabase Database { get; }
 
         /// <inheritdoc />
         protected override Tracer Tracer { get; }
+
+        private readonly bool _ownsDatabase;
 
         /// <nodoc />
         public RocksDbMemoizationDatabase(RocksDbMemoizationStoreConfiguration config, IClock clock)
@@ -33,9 +33,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <nodoc />
-        public RocksDbMemoizationDatabase(RocksDbContentLocationDatabase database)
+        public RocksDbMemoizationDatabase(ContentLocationDatabase database, bool ownsDatabase = true)
         {
             Tracer = new Tracer(nameof(RocksDbMemoizationDatabase));
+            _ownsDatabase = ownsDatabase;
             Database = database;
         }
 
@@ -52,7 +53,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        public override Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared)
         {
             var contentHashListResult = Database.GetContentHashList(context, strongFingerprint);
             return contentHashListResult.Succeeded
@@ -69,12 +70,22 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            if (!_ownsDatabase)
+            {
+                return BoolResult.SuccessTask;
+            }
+
             return Database.StartupAsync(context);
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            if (!_ownsDatabase)
+            {
+                return BoolResult.SuccessTask;
+            }
+
             return Database.ShutdownAsync(context);
         }
     }

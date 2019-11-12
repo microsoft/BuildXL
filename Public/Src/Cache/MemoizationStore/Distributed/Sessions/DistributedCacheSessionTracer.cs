@@ -42,7 +42,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Sessions
         /// Initializes a new instance of the <see cref="DistributedCacheSessionTracer" /> class.
         /// </summary>
         public DistributedCacheSessionTracer(ILogger logger, string name)
-            : base(logger, name)
+            : base(name)
         {
             CallCounters.Add(_getSelectorsCallCounter = new CallCounter(GetSelectorsCallName));
             CallCounters.Add(_addSelectorsCallCounter = new CallCounter(AddSelectorsCallName));

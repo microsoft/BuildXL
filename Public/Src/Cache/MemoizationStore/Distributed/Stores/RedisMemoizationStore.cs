@@ -15,13 +15,13 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Stores
     {
         /// <nodoc />
         private RedisMemoizationStore(ILogger logger, IClock clock, RedisDatabaseAdapter redis, TimeSpan memoizationExpiryTime)
-            : base(logger, new RedisMemoizationDatabase(redis, clock, memoizationExpiryTime))
+            : base(new RedisMemoizationDatabase(redis, clock, memoizationExpiryTime))
         {
         }
 
         /// <nodoc />
         public RedisMemoizationStore(ILogger logger, RedisMemoizationDatabase database)
-            : base(logger, database)
+            : base(database)
         {
         }
 

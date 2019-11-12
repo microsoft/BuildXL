@@ -28,7 +28,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
     /// </summary>
     public class DatabaseMemoizationStore : StartupShutdownBase, IMemoizationStore
     {
-        private readonly MemoizationDatabase _database;
+        protected virtual MemoizationDatabase MemoizationDatabase { get; }
 
         /// <summary>
         ///     Store tracer.
@@ -46,13 +46,21 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
         /// </summary>
-        public DatabaseMemoizationStore(ILogger logger, MemoizationDatabase database)
+        public DatabaseMemoizationStore(MemoizationDatabase database)
         {
-            Contract.Requires(logger != null);
             Contract.Requires(database != null);
 
-            _tracer = new MemoizationStoreTracer(logger, database.Name);
-            _database = database;
+            _tracer = new MemoizationStoreTracer(database.Name);
+            MemoizationDatabase = database;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DatabaseMemoizationStore"/> class.
+        /// </summary>
+        protected DatabaseMemoizationStore(ILogger logger, string name)
+        {
+            Contract.Requires(logger != null);
+            _tracer = new MemoizationStoreTracer(name);
         }
 
         /// <inheritdoc />
@@ -90,26 +98,26 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <inheritdoc />
         protected override Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            return  _database.StartupAsync(context);
+            return  MemoizationDatabase.StartupAsync(context);
         }
 
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            return _database.ShutdownAsync(context);
+            return MemoizationDatabase.ShutdownAsync(context);
         }
 
         /// <inheritdoc />
         public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             var ctx = new OperationContext(context);
-            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => _database.EnumerateStrongFingerprintsAsync(ctx));
+            return AsyncEnumerableExtensions.CreateSingleProducerTaskAsyncEnumerable<StructResult<StrongFingerprint>>(() => MemoizationDatabase.EnumerateStrongFingerprintsAsync(ctx));
         }
 
         internal async Task<GetContentHashListResult> GetContentHashListAsync(Context context, StrongFingerprint strongFingerprint, CancellationToken cts)
         {
             var ctx = new OperationContext(context, cts);
-            var result = await _database.GetContentHashListAsync(ctx, strongFingerprint);
+            var result = await MemoizationDatabase.GetContentHashListAsync(ctx, strongFingerprint);
             return result.Succeeded
                 ? new GetContentHashListResult(result.Value.contentHashListInfo)
                 : new GetContentHashListResult(result);
@@ -133,7 +141,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                        var determinism = contentHashListWithDeterminism.Determinism;
 
                        // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                       var oldContentHashListWithDeterminism = await _database.GetContentHashListAsync(ctx, strongFingerprint);
+                       var oldContentHashListWithDeterminism = await MemoizationDatabase.GetContentHashListAsync(
+                           ctx, 
+                           strongFingerprint,
+                           // Prefer shared result because conflicts are resolved at shared level
+                           preferShared: true);
 
                        var (oldContentHashListInfo, replacementToken) = oldContentHashListWithDeterminism.Succeeded
                         ? (oldContentHashListWithDeterminism.Value.contentHashListInfo, oldContentHashListWithDeterminism.Value.replacementToken)
@@ -155,7 +167,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                            // Replace if incoming has better determinism or some content for the existing
                            // entry is missing. The entry could have changed since we fetched the old value
                            // earlier, hence, we need to check it hasn't.
-                           var exchanged = await _database.CompareExchange(
+                           var exchanged = await MemoizationDatabase.CompareExchange(
                               ctx,
                               strongFingerprint,
                               replacementToken,
@@ -199,7 +211,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             return ctx.PerformOperationAsync(
                 _tracer,
-                () => _database.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
+                () => MemoizationDatabase.GetLevelSelectorsAsync(ctx, weakFingerprint, level),
                 extraEndMessage: r => $"WeakFingerprint=[{weakFingerprint}], Level={level}",
                 traceOperationStarted: false);
         }

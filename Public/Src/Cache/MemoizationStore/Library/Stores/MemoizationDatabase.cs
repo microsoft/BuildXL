@@ -38,7 +38,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// <summary>
         /// Load a ContentHashList and the token used to replace it.
         /// </summary>
-        public abstract Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint);
+        public abstract Task<Result<(ContentHashListWithDeterminism contentHashListInfo, string replacementToken)>> GetContentHashListAsync(OperationContext context, StrongFingerprint strongFingerprint, bool preferShared);
 
         /// <summary>
         /// Enumerates all strong fingerprints

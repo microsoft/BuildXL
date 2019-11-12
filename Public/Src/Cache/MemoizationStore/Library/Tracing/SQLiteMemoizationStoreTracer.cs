@@ -34,7 +34,7 @@ namespace BuildXL.Cache.MemoizationStore.Tracing
         /// <param name="logger">Logger</param>
         /// <param name="name">Tracer Name</param>
         public SQLiteMemoizationStoreTracer(ILogger logger, string name)
-            : base(logger, name)
+            : base(name)
         {
             Counters.Add(_masterDbCorruptionCount = new Counter("MasterDbCorruptionCount"));
             Counters.Add(_backupDbCorruptionCount = new Counter("BackupDbCorruptionCount"));

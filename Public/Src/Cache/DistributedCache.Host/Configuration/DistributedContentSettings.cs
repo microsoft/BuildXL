@@ -581,6 +581,9 @@ namespace BuildXL.Cache.Host.Configuration
         public bool EnableMetadataStore { get; set; } = false;
 
         [DataMember]
+        public bool EnableDistributedCache { get; set; } = false;
+
+        [DataMember]
         public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
         [DataMember]

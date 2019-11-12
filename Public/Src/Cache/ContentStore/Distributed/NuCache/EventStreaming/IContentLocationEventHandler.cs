@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 {
@@ -27,5 +28,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// The content specified by the <paramref name="hashes"/> was touched at <paramref name="accessTime"/>.
         /// </summary>
         void ContentTouched(OperationContext context, MachineId sender, IReadOnlyList<ShortHash> hashes, UnixTime accessTime);
+
+        /// <summary>
+        /// The specified metadata entry with the given strong fingerprint key was updated
+        /// </summary>
+        void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry);
     }
 }

@@ -203,7 +203,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     },
                     invalidationHandler: failure => OnDatabaseInvalidated(context, failure),
                     onFailureDeleteExistingStoreAndRetry: _configuration.OnFailureDeleteExistingStoreAndRetry,
-                    onStoreReset: failure => {
+                    onStoreReset: failure =>
+                    {
                         Tracer.Error(context, $"RocksDb critical error caused store to reset: {failure.DescribeIncludingInnerFailures()}");
                     });
 
@@ -661,14 +662,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var metadata = DeserializeMetadataEntry(data);
                         result = metadata.ContentHashListWithDeterminism;
 
-                                // Update the time, only if no one else has changed it in the mean time. We don't
-                                // really care if this succeeds or not, because if it doesn't it only means someone
-                                // else changed the stored value before this operation but after it was read.
-                                Analysis.IgnoreResult(CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
+                        // Update the time, only if no one else has changed it in the mean time. We don't
+                        // really care if this succeeds or not, because if it doesn't it only means someone
+                        // else changed the stored value before this operation but after it was read.
+                        Analysis.IgnoreResult(this.CompareExchange(context, strongFingerprint, metadata.ContentHashListWithDeterminism, metadata.ContentHashListWithDeterminism));
 
-                                // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
-                                // hashes exist. Moreover, we can prune content.
-                            }
+                        // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
+                        // hashes exist. Moreover, we can prune content.
+                    }
                 });
 
             if (!status.Succeeded)
@@ -690,11 +691,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly object[] _metadataLocks = Enumerable.Range(0, byte.MaxValue + 1).Select(s => new object()).ToArray();
 
         /// <inheritdoc />
-        public override Possible<bool> CompareExchange(
+        public override Possible<bool> TryUpsert(
             OperationContext context,
             StrongFingerprint strongFingerprint,
-            ContentHashListWithDeterminism expected,
-            ContentHashListWithDeterminism replacement)
+            ContentHashListWithDeterminism replacement,
+            Func<MetadataEntry, bool> shouldReplace,
+            long? newLastAccessTime = null)
         {
             return _keyValueStore.Use(
                 store =>
@@ -706,12 +708,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
                         {
                             var current = DeserializeMetadataEntry(data);
-                            if (!current.ContentHashListWithDeterminism.Equals(expected))
+                            if (!shouldReplace(current))
                             {
                                 return false;
                             }
                         }
-                        
+
                         var replacementMetadata = new MetadataEntry(replacement, Clock.UtcNow.ToFileTimeUtc());
                         store.Put(key, SerializeMetadataEntry(replacementMetadata), nameof(Columns.Metadata));
                     }
@@ -745,7 +747,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             return result;
         }
-        
+
         /// <inheritdoc />
         public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
@@ -789,7 +791,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             return DeserializeCore(bytes, reader => StrongFingerprint.Deserialize(reader));
         }
-        
+
         private byte[] GetMetadataKey(StrongFingerprint strongFingerprint)
         {
             return SerializeStrongFingerprint(strongFingerprint);
@@ -813,7 +815,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
-            return _keyValueStore.Use(store => {
+            return _keyValueStore.Use(store =>
+            {
                 // The strategy here is to follow what the SQLite memoization store does: we want to keep the top K
                 // elements by last access time (i.e. an LRU policy). This is slightly worse than that, because our
                 // iterator will go stale as time passes: since we iterate over a snapshot of the DB, we can't

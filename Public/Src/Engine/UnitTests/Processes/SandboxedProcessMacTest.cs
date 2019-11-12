@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -111,6 +112,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
+        [SuppressMessage("AsyncUsage", "AsyncFixer04:DisposableObjectUsedInFireForgetAsyncCall", Justification = "The task is awaited before the object is disposed")]
         [FactIfSupported(requiresUnixBasedOperatingSystem: true)]
         public async Task CheckProcessTreeTimoutOnNestedChildProcessTimeoutWhenRootProcessExitedAsync()
         {

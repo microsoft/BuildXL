@@ -152,5 +152,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         {
             throw new NotImplementedException();
         }
+
+        internal override Result<long> GetContentDatabaseSizeBytes()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

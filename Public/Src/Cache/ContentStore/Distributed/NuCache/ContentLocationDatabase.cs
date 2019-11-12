@@ -995,5 +995,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return MachineIdSet.HasMachineId(reader, localIndex);
                 });
         }
+
+        internal abstract Result<long> GetContentDatabaseSizeBytes();
     }
 }

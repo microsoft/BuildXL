@@ -439,7 +439,7 @@ namespace BuildXL.Processes
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
                     });
 
-                    memoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
                 }
                 catch(OverflowException ex)
                 {
@@ -453,7 +453,7 @@ namespace BuildXL.Processes
                         WriteTransferCount = 0
                     });
 
-                    memoryCounters = new ProcessMemoryCounters(0, 0, 0);
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, 0, 0);
                 }
 
                 return new JobObject.AccountingInformation

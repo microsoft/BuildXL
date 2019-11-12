@@ -180,6 +180,7 @@ namespace BuildXL.Engine.Tracing
         DistributionBondCall = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
+        WorkerTotalRamMb = 7044,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,

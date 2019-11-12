@@ -50,7 +50,7 @@ namespace Test.BuildXL.Scheduler
                     default(IOCounters),
                     TimeSpan.FromMinutes(3),
                     TimeSpan.FromMinutes(3),
-                    new ProcessMemoryCounters(12324, 12325, 12326),
+                    ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326),
                     33,
                     7),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
@@ -131,9 +131,9 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
                 r => r.PerformanceInformation.UserTime,
                 r => r.PerformanceInformation.KernelTime,
-                r => r.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsage,
-                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSet,
-                r => r.PerformanceInformation.MemoryCounters.PeakPagefileUsage,
+                r => r.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSetMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakCommitUsageMb,
 
                 r => r.PerformanceInformation.NumberOfProcesses,
 

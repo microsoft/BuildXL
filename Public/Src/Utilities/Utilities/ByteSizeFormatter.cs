@@ -16,9 +16,9 @@ namespace BuildXL.Utilities
         private const long TB = 1024 * GB;
 
         /// <nodoc />
-        public static long ToMegabytes(long bytes)
+        public static long ToMegabytes(ulong bytes)
         {
-            return bytes / MB;
+            return (long)(bytes / (ulong)MB);
         }
 
         /// <nodoc />

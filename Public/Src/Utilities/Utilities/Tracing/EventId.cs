@@ -1110,13 +1110,15 @@ namespace BuildXL.Utilities.Tracing
         ServerModeDisabled = 14004,
         GraphCacheCheckJournalDisabled = 14005,
         SlowCacheInitialization = 14006,
-        LowMemory = 14007,
+        LowRamMemory = 14007,
         // Elsewhere  = 14008,
         // Elsewhere  = 14009,
         BuildHasPerfSmells = 14010,
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
         ProblematicWorkerExitError = 14013,
+        LowCommitMemory = 14014,
+        HitLowMemorySmell = 14015,
 
         // Graph validation.
         InvalidGraphSinceOutputDirectoryContainsSourceFile = 14100,

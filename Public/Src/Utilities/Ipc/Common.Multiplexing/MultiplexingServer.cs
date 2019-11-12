@@ -244,7 +244,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
                 Logger.Verbose($"({Name}) Executing request #{request.Id}");
                 var ipcResult = await Utils.HandleExceptionsAsync(
                     IpcResultStatus.ExecutionError,
-                    () => m_parent.m_executor.ExecuteAsync(request.Operation));
+                    () => m_parent.m_executor.ExecuteAsync(request.Id, request.Operation));
 
                 if (request.Operation.ShouldWaitForServerAck)
                 {

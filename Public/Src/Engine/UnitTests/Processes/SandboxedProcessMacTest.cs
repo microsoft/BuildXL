@@ -29,6 +29,10 @@ namespace Test.BuildXL.Processes
         {
             public ulong MinReportQueueEnqueueTime { get; set; }
 
+            public delegate void ProcessTerminatedHandler(long pipId, int processId);
+
+            public event ProcessTerminatedHandler ProcessTerminated;
+
             public TimeSpan CurrentDrought
             {
                 get
@@ -49,7 +53,7 @@ namespace Test.BuildXL.Processes
 
             public bool NotifyPipStarted(FileAccessManifest fam, SandboxedProcessMac process) { return true; }
 
-            public void NotifyPipProcessTerminated(long pipId, int processId) { }
+            public void NotifyPipProcessTerminated(long pipId, int processId) { ProcessTerminated?.Invoke(pipId, processId); }
 
             public bool NotifyProcessFinished(long pipId, SandboxedProcessMac process) { return true; }
 
@@ -78,14 +82,10 @@ namespace Test.BuildXL.Processes
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
 
             using (var process = CreateAndStartSandboxedProcess(processInfo))
-            using (var taskCancelationSource = new CancellationTokenSource())
             {
-                // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
-                // has been reached.
-                ContinouslyPostAccessReports(process, taskCancelationSource.Token);
+                // Post nothing to the report queue, and the process tree must be timed out
+                // after ReportQueueProcessTimeout has been reached.
                 var result = await process.GetResultAsync();
-
-                taskCancelationSource.Cancel();
 
                 XAssert.IsTrue(result.Killed, "Expected process to have been killed");
                 XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
@@ -101,14 +101,10 @@ namespace Test.BuildXL.Processes
             // Set the last enqueue time to now
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
             using (var process = CreateAndStartSandboxedProcess(processInfo, measureTime: true))
-            using (var taskCancelationSource = new CancellationTokenSource())
             {
                 // Post nothing to the report queue, and the process tree must be timed out after ReportQueueProcessTimeout
                 // has been reached, including the stuck root process
-                ContinouslyPostAccessReports(process, taskCancelationSource.Token);
                 var result = await process.GetResultAsync();
-
-                taskCancelationSource.Cancel();
 
                 XAssert.IsTrue(result.Killed, "Expected process to have been killed");
                 XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
@@ -125,12 +121,16 @@ namespace Test.BuildXL.Processes
             s_connection.MinReportQueueEnqueueTime = Sandbox.GetMachAbsoluteTime();
 
             using (var process = CreateAndStartSandboxedProcess(processInfo))
-            using (var taskCancelationSource = new CancellationTokenSource())
             {
                 var time = s_connection.MinReportQueueEnqueueTime;
-
                 var childProcessPath = "/dummy/exe2";
-                var instructions = new List<ReportInstruction>()
+                var childProcessPid = process.ProcessId + 1;
+
+                // first post some reports indicating that
+                //   - a child process was spawned
+                //   - the main process exited
+                // (not posting that the child process exited)
+                var postTask1 = GetContinuouslyPostAccessReportsTask(process, new List<ReportInstruction>
                 {
                     new ReportInstruction() {
                         Process = process,
@@ -140,7 +140,7 @@ namespace Test.BuildXL.Processes
                             EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(100).Ticks * 100),
                             DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(200).Ticks * 100),
                         },
-                        Pid = 1235,
+                        Pid = childProcessPid,
                         Path = childProcessPath,
                         Allowed = true
                     },
@@ -164,39 +164,36 @@ namespace Test.BuildXL.Processes
                             EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(500).Ticks * 100),
                             DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(600).Ticks * 100),
                         },
-                        Pid = 1235,
+                        Pid = childProcessPid,
                         Path = childProcessPath,
                         Allowed = true
                     },
-                    new ReportInstruction() {
-                        Process = process,
-                        Operation = FileOperation.OpProcessExit,
-                        Stats = new Sandbox.AccessReportStatistics()
-                        {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(700).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(800).Ticks * 100),
-                        },
-                        Pid = 1235,
-                        Path = childProcessPath,
-                        Allowed = true
-                    },
-                    new ReportInstruction() {
-                        Process = process,
-                        Operation = FileOperation.OpProcessTreeCompleted,
-                        Stats = new Sandbox.AccessReportStatistics()
-                        {
-                            EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(900).Ticks * 100),
-                            DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(1000).Ticks * 100),
-                        },
-                        Pid = process.ProcessId,
-                        Path = "/dummy/exe",
-                        Allowed = true
-                    },
+                });
+
+                // SandboxedProcessMac should decide to kill the process because its child survived; 
+                // when it does that, it will call this callback.  When that happens, we must post 
+                // OpProcessTreeCompleted because SandboxedProcessMac will keep waiting for it.
+                s_connection.ProcessTerminated += (pipId, pid) =>
+                {
+                    postTask1.GetAwaiter().GetResult();
+                    ContinuouslyPostAccessReports(process, new List<ReportInstruction>
+                    {
+                        new ReportInstruction() {
+                            Process = process,
+                            Operation = FileOperation.OpProcessTreeCompleted,
+                            Stats = new Sandbox.AccessReportStatistics()
+                            {
+                                EnqueueTime = time + ((ulong) TimeSpan.FromMilliseconds(900).Ticks * 100),
+                                DequeueTime = time + ((ulong) TimeSpan.FromMilliseconds(1000).Ticks * 100),
+                            },
+                            Pid = process.ProcessId,
+                            Path = "/dummy/exe",
+                            Allowed = true
+                        }
+                    });
                 };
 
-                ContinouslyPostAccessReports(process, taskCancelationSource.Token, instructions);
                 var result = await process.GetResultAsync();
-                taskCancelationSource.Cancel();
 
                 XAssert.IsTrue(result.Killed, "Expected process to have been killed");
                 XAssert.IsFalse(result.TimedOut, "Didn't expect process to have timed out");
@@ -219,37 +216,28 @@ namespace Test.BuildXL.Processes
             return process;
         }
 
-        private void ContinouslyPostAccessReports(SandboxedProcessMac process, CancellationToken token, List<ReportInstruction> instructions = null)
+        private void ContinuouslyPostAccessReports(SandboxedProcessMac process, List<ReportInstruction> instructions)
         {
-            Analysis.IgnoreResult(
-                Task.Run(async () =>
+            Analysis.IgnoreResult(GetContinuouslyPostAccessReportsTask(process, instructions), "fire and forget");
+        }
+
+        private Task GetContinuouslyPostAccessReportsTask(SandboxedProcessMac process, List<ReportInstruction> instructions)
+        {
+            XAssert.IsNotNull(process);
+            XAssert.IsNotNull(instructions);
+            return Task.Run(async () =>
+            {
+                foreach (var instr in instructions)
                 {
-                    int count = 0;
+                    PostAccessReport(instr.Process, instr.Operation, instr.Stats, instr.Pid, instr.Path, instr.Allowed);
 
-                    while (true)
-                    {
-                        if (token.IsCancellationRequested)
-                        {
-                            break;
-                        }
+                    // Advance the minimum enqueue time
+                    s_connection.MinReportQueueEnqueueTime = instr.Stats.EnqueueTime;
 
-                        if (instructions != null && count < instructions.Count)
-                        {
-                            PostAccessReport(instructions[count].Process, instructions[count].Operation,
-                                            instructions[count].Stats, instructions[count].Pid,
-                                            instructions[count].Path, instructions[count].Allowed);
-
-
-                            // Advance the minimum enqueue time
-                            s_connection.MinReportQueueEnqueueTime = instructions[count].Stats.EnqueueTime;
-
-                            count++;
-                        }
-                        await Task.Delay(100);
-                    }
-                }, token)
-                , justification: "Fire and forget"
-            );
+                    // wait a bit before sending the next one
+                    await Task.Delay(100);
+                }
+            });
         }
 
         private static Sandbox.AccessReport PostAccessReport(SandboxedProcessMac proc, FileOperation operation, Sandbox.AccessReportStatistics stats,

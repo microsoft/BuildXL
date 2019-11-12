@@ -1434,7 +1434,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             /// <inheritdoc />
             public void MetadataUpdated(OperationContext context, StrongFingerprint strongFingerprint, MetadataEntry entry)
             {
-                _database.TryUpsert(
+                Analysis.IgnoreResult(_database.TryUpsert(
                     context,
                     strongFingerprint,
                     entry.ContentHashListWithDeterminism,
@@ -1442,7 +1442,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // Update the entry if the current entry is newer
                     // TODO: Use real versioning scheme for updates to resolve possible race conditions and
                     // issues with time comparison due to clock skew
-                    shouldReplace: oldEntry => oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc);
+                    shouldReplace: oldEntry => oldEntry.LastAccessTimeUtc <= entry.LastAccessTimeUtc));
             }
         }
     }

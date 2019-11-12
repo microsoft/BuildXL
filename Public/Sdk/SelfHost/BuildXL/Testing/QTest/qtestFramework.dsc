@@ -132,6 +132,13 @@ function runTest(args : TestRunArguments) : File[] {
         qTestAdditionalOptions: additionalOptions,
         qTestTimeoutSec: 540,
         useVsTest150:true,
+        // Setting file can be passed through vstestSettingsFile or vstestSettingsFileForCoverage.
+        // For BuildXL selfhost, ensure that the setting file disable parallelism. QTest by default run unit test methods in sequence,
+        // but some of test adapter (our selfhost is using a test adapter) do not respect that, and must be told explicitly
+        // in the setting file.
+        //    <RunConfiguration>
+        //        <DisableParallelization>True</DisableParallelization >
+        //    </RunConfiguration>
         vstestSettingsFile: f`test.runsettings`,
         qTestTool: qTestTool,
         qTestLogs: logDir,

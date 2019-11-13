@@ -98,7 +98,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // between the reported value and the actual size on disk: updates will get in in-between.
                             // The better alternative is to actually open the checkpoint and ask, but it seems like too
                             // much.
-                            checkpointSize = _database.GetContentDatabaseSizeBytes().ThrowIfFailure();
+                            checkpointSize = _database.GetContentDatabaseSizeBytes().GetValueOrDefault(-1);
+
 
                             // Saving checkpoint for the database into the temporary folder
                             _database.SaveCheckpoint(context, _checkpointStagingDirectory).ThrowIfFailure();
@@ -122,7 +123,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 },
                 extraStartMessage: $"SequencePoint=[{sequencePoint}]",
-                extraEndMessage: result => $"SequencePoint=[{sequencePoint}] Id=[{checkpointId}] Size=[{checkpointSize}]");
+                extraEndMessage: result => $"SequencePoint=[{sequencePoint}] Id=[{checkpointId}] SizeMb=[{(checkpointSize < 0 ? checkpointSize:checkpointSize*1e-6)}]");
         }
 
         private async Task<string> CreateFullCheckpointAsync(OperationContext context, EventSequencePoint sequencePoint)

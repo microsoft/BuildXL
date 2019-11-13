@@ -894,7 +894,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }).ToBoolResult();
         }
 
-        internal override Result<long> GetContentDatabaseSizeBytes()
+        /// <inheritdoc />
+        public override Result<long> GetContentDatabaseSizeBytes()
         {
             return _keyValueStore.Use(store =>
             {

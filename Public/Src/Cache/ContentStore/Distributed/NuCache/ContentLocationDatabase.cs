@@ -996,6 +996,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 });
         }
 
-        internal abstract Result<long> GetContentDatabaseSizeBytes();
+        /// <inheritdoc />
+        public abstract Result<long> GetContentDatabaseSizeBytes();
     }
 }

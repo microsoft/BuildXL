@@ -932,15 +932,15 @@ namespace Test.BuildXL.Scheduler
                     string workingDirectory = GetFullPath("work");
                     AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
 
-                    string destination = GetFullPath("dest");
-                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+                    string stdOut = GetFullPath("out");
+                    AbsolutePath stdOutPath = AbsolutePath.Create(env.Context.PathTable, stdOut);
 
-                    File.WriteAllText(destination, BadContents);
+                    File.WriteAllText(stdOut, BadContents);
 
                     Process pip = CreateErrorProcess(
                         env.Context,
                         workingDirectoryAbsolutePath,
-                        destinationAbsolutePath, 
+                        stdOutPath,
                         errorPattern: regexMatchesSomething ? "ERROR" : "NOMATCH",
                         errorMessageLength: errorMessageLength);
                     var testRunChecker = new TestRunChecker();
@@ -980,6 +980,15 @@ namespace Test.BuildXL.Scheduler
                             "Non-truncated error message was not found in error event. Full output:" + log);
                     }
 
+                    if (outputReportingMode == OutputReportingMode.FullOutputAlways)
+                    {
+                        XAssert.IsFalse(log.Contains(stdOut));
+                    }
+                    else
+                    {
+                        XAssert.IsTrue(log.Contains(stdOut));
+                    }
+
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
@@ -997,10 +1006,10 @@ namespace Test.BuildXL.Scheduler
                     string workingDirectory = GetFullPath("work");
                     AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
 
-                    string destination = GetFullPath("dest");
-                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+                    string stdout = GetFullPath("out");
+                    AbsolutePath stdOutPath = AbsolutePath.Create(env.Context.PathTable, stdout);
 
-                    File.WriteAllText(destination, BadContents);
+                    File.WriteAllText(stdout, BadContents);
 
                     var builder = new StringBuilder();
                     builder.AppendLine("@echo off");
@@ -1019,7 +1028,7 @@ namespace Test.BuildXL.Scheduler
                     Process pip = CreateErrorProcess(
                         env.Context,
                         workingDirectoryAbsolutePath,
-                        destinationAbsolutePath,
+                        stdOutPath,
                         errorPattern: "ERROR",
                         errorMessageLength: 0,
                         scriptContent: builder.ToString());

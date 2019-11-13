@@ -1183,6 +1183,8 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallDetouredAccessesCreateSymlinkForQBuild);
     IF_COMMAND(CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag);
     IF_COMMAND(CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag);
+    IF_COMMAND(CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks);
+    IF_COMMAND(CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks);
     
 #undef IF_COMMAND1
 #undef IF_COMMAND2

@@ -2642,9 +2642,10 @@ BOOL WINAPI Detoured_CopyFileExW(
         return FALSE;
     }
 
+    bool copySymlink = (dwCopyFlags & COPY_FILE_COPY_SYMLINK) != 0;
+
     // When COPY_FILE_COPY_SYMLINK is specified, then no need to enforce chain of symlink accesses.
-    if ((dwCopyFlags & COPY_FILE_COPY_SYMLINK) == 0 &&
-        !EnforceChainOfReparsePointAccessesForNonCreateFile(sourceOpContext))
+    if (!copySymlink && !EnforceChainOfReparsePointAccessesForNonCreateFile(sourceOpContext))
     {
         return FALSE;
     }
@@ -2658,6 +2659,19 @@ BOOL WINAPI Detoured_CopyFileExW(
         ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, denyError);
         destAccessCheck.SetLastErrorToDenialError();
         return FALSE;
+    }
+
+    if ((!copySymlink || !IsReparsePoint(lpExistingFileName))
+        && IsReparsePoint(lpNewFileName))
+    {
+        // If not copying symlink or the source of copy is not a symlink
+        // but the destination of the copy is a symlink, then enforce chain of reparse point.
+        // For example, if we copy a concrete file f to an existing symlink s pointing to g, then
+        // if g exists, then g will be modified, but if g doesn't exist, then g will be created.
+        if (!EnforceChainOfReparsePointAccessesForNonCreateFile(destinationOpContext))
+        {
+            return false;
+        }
     }
 
     // Now we can safely try to copy, but note that the corresponding read of the source file may end up disallowed

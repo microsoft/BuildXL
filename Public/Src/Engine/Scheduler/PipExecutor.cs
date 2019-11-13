@@ -1879,17 +1879,40 @@ namespace BuildXL.Scheduler
         ///   a non-null result is returned.
         /// - If cache lookup fails (i.e., the result is inconclusive due to failed hashing, etc.), a null result is returned.
         /// </summary>
-        public static Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
+        public static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
             ProcessRunnablePip processRunnable,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)
         {
-            return TryCheckProcessRunnableFromCacheAsync(
+            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
+            {
+                PipId = processRunnable.PipId,
+                CacheMissType = PipCacheMissType.Invalid,
+            };
+
+            var runnableFromCacheResult = await TryCheckProcessRunnableFromCacheAsync(
                 processRunnable,
                 state,
                 cacheableProcess,
                 computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
-                canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0);
+                pipCacheMiss,
+                canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
+                isWeakFingerprintAugmented: false);
+
+            if (!runnableFromCacheResult.CanRunFromCache)
+            {
+                Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
+                processRunnable.Environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
+
+                Logger.Log.ScheduleProcessPipCacheMiss(
+                    processRunnable.OperationContext,
+                    cacheableProcess.Description,
+                    runnableFromCacheResult.Fingerprint.ToString());
+
+                processRunnable.Environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
+            }
+
+            return runnableFromCacheResult;           
         }
 
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
@@ -1897,10 +1920,13 @@ namespace BuildXL.Scheduler
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess,
             Func<WeakContentFingerprint> computeWeakFingerprint,
-            bool canAugmentWeakFingerprint)
+            BoxRef<PipCacheMissEventData> pipCacheMiss,
+            bool canAugmentWeakFingerprint,
+            bool isWeakFingerprintAugmented)
         {
             Contract.Requires(processRunnable != null);
             Contract.Requires(cacheableProcess != null);
+            Contract.Requires(!isWeakFingerprintAugmented || !canAugmentWeakFingerprint);
 
             var operationContext = processRunnable.OperationContext;
             var environment = processRunnable.Environment;
@@ -1913,12 +1939,6 @@ namespace BuildXL.Scheduler
             Contract.Assume(content != null);
 
             var process = cacheableProcess.Process;
-
-            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
-            {
-                PipId = process.PipId,
-                CacheMissType = PipCacheMissType.Invalid,
-            };
 
             var processFingerprintComputationResult = new ProcessFingerprintComputationEventData
             {
@@ -1981,6 +2001,7 @@ namespace BuildXL.Scheduler
 
                 // Augmented weak fingerprint used for storing cache entry in case of cache miss
                 WeakContentFingerprint? augmentedWeakFingerprint = null;
+                BoxRef<PipCacheMissEventData> augmentedWeakFingerprintMiss = null;
 
                 if (cacheableProcess.ShouldHaveArtificialMiss())
                 {
@@ -2209,6 +2230,11 @@ namespace BuildXL.Scheduler
                             {
                                 // The strong fingeprint is the marker fingerprint indicating that computing an augmented weak fingerprint is required.
                                 augmentedWeakFingerprint = new WeakContentFingerprint(strongFingerprint.Value.Hash);
+                                augmentedWeakFingerprintMiss = new PipCacheMissEventData
+                                {
+                                    PipId = processRunnable.PipId,
+                                    CacheMissType = PipCacheMissType.Invalid,
+                                };
                                 performedLookupForAugmentedWeakFingerprint = true;
 
                                 // Notice this is a recursive call to same method with augmented weak fingerprint but disallowing
@@ -2218,7 +2244,9 @@ namespace BuildXL.Scheduler
                                     state,
                                     cacheableProcess,
                                     () => augmentedWeakFingerprint.Value,
-                                    canAugmentWeakFingerprint: false);
+                                    augmentedWeakFingerprintMiss,
+                                    canAugmentWeakFingerprint: false,
+                                    isWeakFingerprintAugmented: true);
 
                                 string keepAliveResult = "N/A";
 
@@ -2319,22 +2347,40 @@ namespace BuildXL.Scheduler
                             // or a mismatch of strong fingerprints (at least one ref checked).
                             if (numCacheEntriesVisited == 0)
                             {
-                                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
-                                Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
-                                    operationContext,
-                                    description,
-                                    weakFingerprint.ToString());
+                                if (isWeakFingerprintAugmented)
+                                {
+                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints;
+                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint.ToString());
+                                }
+                                else
+                                {
+                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
+                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint.ToString());
+                                }
                             }
                             else
                             {
-                                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToStrongFingerprints;
-                                Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
-                                    operationContext,
-                                    description,
-                                    weakFingerprint.ToString());
+                                // If we checked an augmented weak fingerprint during cache lookup, use its cache miss classification.                                
+                                if (augmentedWeakFingerprintMiss != null)
+                                {
+                                    pipCacheMiss.Value.CacheMissType = augmentedWeakFingerprintMiss.Value.CacheMissType;
+                                }
+                                else
+                                {
+                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToStrongFingerprints;
+                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint.ToString());
+                                }
                             }
                         }
-
                     }
 
                     if (maybeUsableCacheEntry.HasValue)
@@ -2456,19 +2502,7 @@ namespace BuildXL.Scheduler
                     maybeUsableProcessingResult,
                     cacheResultWeakFingerprint);
 
-                if (!runnableFromCacheResult.CanRunFromCache
-                    // Don't perform redundant cache miss logging if already handled for augmented weak fingerprint
-                    && !performedLookupForAugmentedWeakFingerprint)
-                {
-                    Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
-                    environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
 
-                    Logger.Log.ScheduleProcessPipCacheMiss(
-                        operationContext,
-                        cacheableProcess.Description,
-                        runnableFromCacheResult.Fingerprint.ToString());
-                    environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
-                }
 
                 return runnableFromCacheResult;
             }

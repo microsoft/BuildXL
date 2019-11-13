@@ -43,16 +43,19 @@ namespace VBCSCompilerLogger
             {
                 // We are only interested in CSharp and VisualBasic tasks
                 string language;
-                string arguments;
+                string extractedArguments;
+                string error;
+                bool success;
+
                 switch (commandLine.TaskName)
                 {
                     case CscTaskName:
                         language = LanguageNames.CSharp;
-                        arguments = GetArgumentsFromCommandLine(CscToolName, commandLine.CommandLine);
+                        success = TryGetArgumentsFromCommandLine(CscToolName, commandLine.CommandLine, out extractedArguments, out error);
                         break;
                     case VbcTaskName:
                         language = LanguageNames.VisualBasic;
-                        arguments = GetArgumentsFromCommandLine(VbcToolName, commandLine.CommandLine);
+                        success = TryGetArgumentsFromCommandLine(VbcToolName, commandLine.CommandLine, out extractedArguments, out error);
                         break;
                     default:
                         return;
@@ -61,27 +64,33 @@ namespace VBCSCompilerLogger
                 // We were able to split the compiler invocation from its arguments. This is the indicator
                 // that something didn't go as expected. Since failing to parse the command line means we
                 // are not catching all inputs/outputs properly, we have no option but to fail the corresponding pip
-                if (arguments == null)
+                if (!success)
                 {
-                    throw new ArgumentException($"Unexpected tool name in command line. Expected '{CscToolName}' or '{VbcToolName}', but got: {commandLine.CommandLine}");
+                    throw new ArgumentException(error);
                 }
 
-                var parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, arguments, commandLine.ProjectFile);
+                var parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments, commandLine.ProjectFile);
                 RegisterAccesses(parsedCommandLine);
             }
         }
 
-        private string GetArgumentsFromCommandLine(string toolToTrim, string commandLine)
+        private bool TryGetArgumentsFromCommandLine(string toolToTrim, string commandLine, out string arguments, out string error)
         {
             toolToTrim += " ";
             int index = commandLine.IndexOf(toolToTrim, StringComparison.OrdinalIgnoreCase);
             
             if (index == -1)
             {
-                return null;
+                arguments = null;
+                error = $"Unexpected tool name in command line. Expected '{CscToolName}' or '{VbcToolName}', but got: {commandLine}";
+                
+                return false;
             }
 
-            return commandLine.Substring(index + toolToTrim.Length);
+            arguments = commandLine.Substring(index + toolToTrim.Length);
+            error = string.Empty;
+
+            return true;
         }
 
         private void RegisterAccesses(CommandLineArguments args)

@@ -108,6 +108,52 @@ function validateArguments(args: QTestArguments): void {
     }
 }
 
+function findFlakyFile(): File {
+    let configDirectory = d`${Context.getMount("SourceRoot").path}\.config`;
+    let flakyFileName = "CloudBuild.FlakyTests.json";
+
+    // Find the file path in the config directory
+    let flakyFiles = globR(configDirectory, flakyFileName);
+    if (flakyFiles.length > 0) {
+        return flakyFiles[0];
+    }
+}
+
+function getDirToDeploy(args: QTestArguments, flakyFile: File) : StaticDirectory {
+    if (!args.qTestInputs && !flakyFile) return args.qTestDirToDeploy;
+
+    let qTestDirtoDeployCreated = Context.getNewOutputDirectory("qtestRun");
+    let copiedFiles: File[] = [];
+    if (args.qTestInputs) {
+        copiedFiles = args.qTestInputs.map(
+            f => Transformer.copyFile(
+                f,
+                p`${qTestDirtoDeployCreated}/${f.name}`,
+                args.tags
+            )
+        );
+    } else {
+        copiedFiles = args.qTestDirToDeploy.contents.map(
+            f => Transformer.copyFile(
+                f,
+                p`${qTestDirtoDeployCreated}/${args.qTestDirToDeploy.getRelative(f.path)}`,
+                args.tags
+            )
+        );
+    }
+    if (flakyFile) {
+        // Add flaky suppression file to the directory to be deployed.
+        let f = Transformer.copyFile(flakyFile, p`${qTestDirtoDeployCreated}/.config/${flakyFile.name}`);
+        copiedFiles = copiedFiles.concat([f]);
+    }
+
+    return Transformer.sealDirectory({
+        root: qTestDirtoDeployCreated,
+        files: copiedFiles,
+        scrub: true,
+    });
+}
+
 /**
  * Evaluate (i.e. schedule) QTest runner with specified arguments.
  */
@@ -125,29 +171,12 @@ export function runQTest(args: QTestArguments): Result {
     let sandboxDir = Context.getNewOutputDirectory("sandbox");
     let qtestSandboxInternal = p`${sandboxDir}/qtest`;
 
-    // If qTestInputs is used to deploy files needed to run the test, 
-    // We need to create a deployment directory name qtestdirtodeploy and copy these files into it.
+    // If qTestInputs is used to deploy files needed to run the test or if flaky suppression file exists, 
+    // We need to create a deployment directory name qtestdirtodeploy and copy the qTest input files into it.
     // Then the copied files are passed as dependecy as input to the qtest pip
-    let qTestDirToDeploy = undefined;
-    if (args.qTestInputs) {
-        let qTestDirtoDeployCreated = Context.getNewOutputDirectory("qtestRun");
-        let copiedFiles = args.qTestInputs.map(
-            f => Transformer.copyFile(
-                f,
-                p`${qTestDirtoDeployCreated}/${f.name}`,
-                args.tags
-            )
-        );
-        qTestDirToDeploy = Transformer.sealDirectory({
-            root: qTestDirtoDeployCreated,
-            files: copiedFiles,
-            scrub: true,
-        });
-    } 
-
-    // If no qTestInputs is specified, use the qTestDirToDeploy
-    qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
-
+    let flakyFile = findFlakyFile();
+    let qTestDirToDeploy = getDirToDeploy(args, flakyFile);
+    
     // Microsoft internal cloud service use only
     // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
     let qTestContextInfoFile = Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo") || Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo");
@@ -222,7 +251,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
-        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile)
+        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile),
+        Cmd.option("--flakyTestManagementMode ", flakyFile ? "SourceCode" : "None")
     ];          
 
     let unsafeOptions = {

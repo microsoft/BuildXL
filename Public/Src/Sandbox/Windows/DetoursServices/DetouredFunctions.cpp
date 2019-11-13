@@ -268,11 +268,11 @@ static void GetTargetNameFromReparseData(_In_ PREPARSE_DATA_BUFFER pReparseDataB
 /// <summary>
 /// Gets the next symlink target of a path.
 /// </summary>
-static bool TryGetNextTarget(_In_ const wstring& path, _Inout_ HANDLE& hInput, _Inout_ wstring& target)
+static bool TryGetNextTarget(_In_ const wstring& path, _In_ HANDLE hInput, _Inout_ wstring& target)
 {
     DWORD lastError = GetLastError();
 
-    hInput = hInput != INVALID_HANDLE_VALUE
+    HANDLE hFile = hInput != INVALID_HANDLE_VALUE
         ? hInput
         : CreateFileW(
             path.c_str(),
@@ -283,7 +283,7 @@ static bool TryGetNextTarget(_In_ const wstring& path, _Inout_ HANDLE& hInput, _
             FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
             NULL);
 
-    if (hInput == INVALID_HANDLE_VALUE)
+    if (hFile == INVALID_HANDLE_VALUE)
     {
         SetLastError(lastError);
         return false;
@@ -299,7 +299,7 @@ static bool TryGetNextTarget(_In_ const wstring& path, _Inout_ HANDLE& hInput, _
         buffer.clear();
         buffer.resize(bufferSize);
         BOOL success = DeviceIoControl(
-            hInput,
+            hFile,
             FSCTL_GET_REPARSE_POINT,
             nullptr,
             0,
@@ -349,6 +349,7 @@ static bool TryGetNextTarget(_In_ const wstring& path, _Inout_ HANDLE& hInput, _
 
     GetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, target);
 
+		hInput = hFile;
     SetLastError(lastError);
 
     return true;
@@ -610,7 +611,7 @@ static bool TryGetNextPath(_In_ const wstring& path, _Inout_ HANDLE& hInput, _In
 /// <summary>
 /// Gets chains of the paths leading to and including the final path given the file name.
 /// </summary>
-static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput,  _Inout_ vector<wstring>& finalPaths, _Inout_ vector<HANDLE>& handles)
+static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE hInput, _Inout_ vector<wstring>& finalPaths, _Inout_ vector<HANDLE>& handles)
 {
     auto pathString = path.GetPathString();
     finalPaths.push_back(pathString);

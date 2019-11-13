@@ -106,7 +106,16 @@ namespace VBCSCompilerLogger
             RegisterOutput(args.DocumentationPath);
             RegisterOutput(args.ErrorLogPath);
             RegisterOutput(args.OutputRefFilePath);
+            var outputFileName = ComputeOutputFileName(args);
+            RegisterOutput(Path.Combine(args.OutputDirectory, outputFileName));
+            if (args.EmitPdb)
+            {
+                RegisterOutput(Path.Combine(args.OutputDirectory, args.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
+            }
+        }
 
+        private static string ComputeOutputFileName(CommandLineArguments args)
+        {
             string outputFileName = args.OutputFileName;
 
             // If the output filename is not specified, we follow the logic documented for csc.exe
@@ -143,12 +152,7 @@ namespace VBCSCompilerLogger
             }
 
             Contract.Assert(!string.IsNullOrEmpty(outputFileName));
-
-            RegisterOutput(Path.Combine(args.OutputDirectory, outputFileName));
-            if (args.EmitPdb)
-            {
-                RegisterOutput(Path.Combine(args.OutputDirectory, args.PdbPath ?? Path.ChangeExtension(outputFileName, ".pdb")));
-            }
+            return outputFileName;
         }
 
         private void RegisterOutput(string filePath)

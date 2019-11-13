@@ -137,9 +137,9 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         public static bool operator ==(BlobIdentifierWithBlocks left, BlobIdentifierWithBlocks right)
         {
-            if (ReferenceEquals(left, null))
+            if (left is null)
             {
-                return ReferenceEquals(right, null);
+                return right is null;
             }
 
             return left.Equals(right);

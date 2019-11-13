@@ -1,0 +1,126 @@
+﻿// this query is used to measure queue similarity. The requirement here is to have the queue name in the first column and
+// the rest of the columns should be doubles, which will be vectorized and turn into a datapoint
+
+let sDate = make_datetime({0}, {1}, 1, 0, 0, 0);
+let eDate = make_datetime({0}, {1}, {2}, 23, 59, 59);
+
+let domino_in_cb = database("Domino").dominocompletion 
+| where EventInfo_Time between(sDate .. eDate)
+| where ExitCode == 0
+| project SessionId, Environment, ProcessRunningTime
+| join (
+    database("Domino").dominoinvocation  
+    | where EventInfo_Time between(sDate .. eDate)
+    | project 
+        SessionId, RelatedSessionIdentifier, CommandLine, BuildInfo_CommitId,
+        BuildType = case(
+            Environment contains "EnlistmentBuild", "enlist",
+            Environment contains "MetaBuild", "meta",
+            Environment contains "ProductBuild", "product", 
+            "Other"),
+        Role = case(
+            CommandLine contains "distributedBuildRole:worker", "worker",
+            CommandLine contains "distributedBuildRole:master", "master",
+            "master"
+            )
+    | join kind=leftouter (
+        database("{3}").BuildInfo
+        | where TIMESTAMP between(sDate .. eDate)
+        | where ReturnCode == "Success"
+        | project 
+            BuildQueue, BuildId, Stamp = OwnerStampId, BuildControllerMachineName, 
+            BuildStartTime = StartTime, BuildArchitecture
+      ) on $left.RelatedSessionIdentifier == $right.BuildId
+  ) on SessionId
+;
+
+let dominoinvocation_with_stats = domino_in_cb
+| join (database("Domino").finalstatistics | where EventInfo_Time between(sDate .. eDate)) on SessionId
+| extend 
+    master_TimeToFirstPipMs = case(Role != "worker", tolong(TimeToFirstPipMs), 0), 
+    master_EndToEndSec = case(Role != "worker", tolong(ProcessRunningTime), 0)
+;
+
+//
+//
+let result = dominoinvocation_with_stats
+| summarize 
+    builders = coalesce(countif(tolong(PipExecution_ExecuteProcessDurationMs) > 0), 0),
+    process_pips = coalesce(sum(tolong(TotalProcessPips)), 0),
+    process_hit = coalesce(sum(tolong(ProcessPipCacheHits)), 0),
+    process_miss = coalesce(sum(tolong(ProcessPipCacheMisses)), 0),
+    E2E_s = coalesce(max(tolong(master_EndToEndSec)) / (1000), 0),
+    //
+    m_TTFP_s = coalesce(sumif(tolong(TimeToFirstPipSyntheticMs), Role == "master") / 1000, 0),
+    m_CacheInit_s = coalesce(sumif(tolong(CacheInitialization_TimeWaitedMs), Role == "master") / 1000, 0),
+    m_GraphCheck_s = coalesce(sumif(tolong(GraphCacheReuseCheck_DurationMs), Role == "master") / 1000, 0),
+    m_GraphReloadAndHistoric_s = coalesce(sumif(tolong(GraphCacheReload_DurationMs), Role == "master") / 1000, 0),
+    m_GraphCons_s = coalesce(sumif(tolong(GraphConstruction_DurationMs), Role == "master") / 1000, 0),
+    m_ApplyFilter_s = coalesce(sumif(tolong(ApplyingFilterToPips_DurationMs), Role == "master") / 1000, 0),
+    m_SchedAfterFilt_s = coalesce(sumif(tolong(ApplyFilterAndScheduleReadyNodes_DurationMs) - tolong(ApplyingFilterToPips_DurationMs), Role == "master") / 1000, 0),
+    //
+    w_TTFP_s = coalesce(sumif(tolong(TimeToFirstPipSyntheticMs), Role == "worker") / (1000 * countif(Role == "worker" and tolong(TimeToFirstPipSyntheticMs) > 0)), 0),
+    w_GraphCheck_s = coalesce(sumif(tolong(GraphCacheReuseCheck_DurationMs), Role == "worker") / (1000 * countif(Role == "worker" and tolong(GraphCacheReuseCheck_DurationMs) > 0)), 0),
+    w_GraphReloadAndHistoric_s = coalesce(sumif(tolong(GraphCacheReload_DurationMs), Role == "worker") / (1000 * countif(Role == "worker" and tolong(GraphCacheReload_DurationMs) > 0)), 0), 
+    //
+    critExe_s = coalesce(sumif(tolong(CriticalPath_ExeDurationMs), Role == "master") / 1000, 0),
+    critPip_s = coalesce(sumif(tolong(CriticalPath_PipDurationMs), Role == "master") / 1000, 0),
+    //
+    source_files_Unchanged = sum(tolong(coalesce(SourceFilesUnchanged, "0"))),
+    source_files_Absent = sum(tolong(coalesce(SourceFilesAbsent, "0"))),
+    source_files_FilesChanged = sum(tolong(coalesce(SourceFilesChanged, "0"))),
+    source_files_Untracked = sum(tolong(coalesce(SourceFilesUntracked, "0"))),
+    //
+    pip_cpt = sum(tolong(coalesce(PipStats_CopyFile_Total, "0"))),
+    pip_ipct = sum(tolong(coalesce(PipStats_Ipc_Total, "0"))),
+    pip_vt = sum(tolong(coalesce(PipStats_Value_Total, "0"))),
+    pip_wft = sum(tolong(coalesce(PipStats_WriteFile_Total, "0"))),
+    pip_hsft = sum(tolong(coalesce(PipStats_HashSourceFile_Total, "0"))),
+    pip_mt = sum(tolong(coalesce(PipStats_Module_Total, "0"))),
+    pip_sdt = sum(tolong(coalesce(PipStats_SealDirectory_Total, "0"))),
+    //
+    pip_ignored = sum(tolong(coalesce(PipsIgnored, "0"))),
+    pip_succeeded = sum(tolong(coalesce(PipsSucceeded, "0"))),
+    //
+    of_cache = sum(tolong(coalesce(OutputFilesCopiedFromCache, "0")))
+    //
+by Stamp, BuildQueue, BuildArchitecture, RelatedSessionIdentifier
+;
+//
+//
+result
+| where BuildQueue contains "Office"
+| summarize 
+    TotalRecords = todouble(count()),
+    AvgBuilders = avg(builders),
+    AvgProcessPips = avg(process_pips), 
+    AvgHitCount = avg(process_hit), 
+    AvgMissCount = avg(process_miss), 
+    AvgEndToEndSecs = avg(E2E_s), 
+    AvgTTFPSecs = avg(m_TTFP_s), 
+    AvgCacheInitSecs = avg(m_CacheInit_s), 
+    AvgGraphReuseCheckSecs = avg(m_GraphCheck_s), 
+    AvgGraphReloadSecs = avg(m_GraphReloadAndHistoric_s), 
+    AvgGraphConstructSecs = avg(m_GraphCons_s), 
+    AvgPipFilterApplySecs = avg(m_ApplyFilter_s), 
+    AvgSchedAfterFilterSecs = avg(m_SchedAfterFilt_s),
+    AvgTTFPWorkerSecs = avg(w_TTFP_s), 
+    AvgGraphReuseCheckWorkerSecs = avg(w_GraphCheck_s), 
+    AvgGraphReloadWorkerSecs = avg(w_GraphReloadAndHistoric_s), 
+    AvgCriticalExeSecs = avg(critExe_s), 
+    AvgCriticalPipSecs = avg(critPip_s),
+    AvgSourceFilesUnchanged = avg(source_files_Unchanged),
+    AvgSourceFilesAbsent = avg(source_files_Absent),
+    AvgSourceFilesChanged = avg(source_files_FilesChanged),
+    AvgSourceFilesUntracked = avg(source_files_Untracked),
+    AvgCopyFilePips = avg(pip_cpt),
+    AvgIPCPips = avg(pip_ipct),
+    AvgValuePips = avg(pip_vt),
+    AvgWriteFilePips = avg(pip_wft),
+    AvgHashSourceFilePips = avg(pip_hsft),
+    AvgModulePips = avg(pip_mt),
+    AvgSealDirectoryPips = avg(pip_sdt),
+    AvgIgnoredPips = avg(pip_ignored),
+    AvgSucceededPips = avg(pip_succeeded),
+    AvgOutputCopiedFromCache = avg(of_cache)
+ by Stamp, BuildArchitecture, BuildQueue

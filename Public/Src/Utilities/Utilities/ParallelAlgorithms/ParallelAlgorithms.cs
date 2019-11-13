@@ -153,7 +153,14 @@ namespace BuildXL.Utilities.ParallelAlgorithms
                     {
                         while (!cancellationToken.IsCancellationRequested)
                         {
-                            await semaphore.WaitAsync(cancellationToken);
+                            try
+                            {
+                                await semaphore.WaitAsync(cancellationToken);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                break;
+                            }
 
                             try
                             {

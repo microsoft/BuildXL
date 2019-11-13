@@ -20,6 +20,11 @@ namespace NugetPackages {
         ? r`${qualifier.configuration}/pkgs`
         : r`${qualifier.configuration}/public/pkgs`;
 
+    const reducedDeploymentOptions: Managed.Deployment.FlattenOptions = {
+        skipPdb: false,
+        skipXml: true,
+    };
+
     const net472 = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.net472`,
         deployment: BuildXL.withQualifier({
@@ -27,6 +32,7 @@ namespace NugetPackages {
             targetFramework: "net472",
             targetRuntime: "win-x64"
         }).deployment,
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const winX64 = !canBuildAllPackagesOnThisHost ? undefined : pack({
@@ -36,6 +42,7 @@ namespace NugetPackages {
             targetFramework: "netcoreapp3.0",
             targetRuntime: "win-x64"
         }).deployment,
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const osxX64 = pack({
@@ -45,6 +52,7 @@ namespace NugetPackages {
             targetFramework: "netcoreapp3.0",
             targetRuntime: "osx-x64"
         }).deployment,
+        deploymentOptions: reducedDeploymentOptions
     });
 
     const sdks = pack({
@@ -63,19 +71,19 @@ namespace NugetPackages {
         dependencies: [
             { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion},
 
-            importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net461"}).pkg,
-            importFrom("System.Interactive.Async").withQualifier({targetFramework: "net461"}).pkg,
-            importFrom("Grpc.Core").withQualifier({ targetFramework: "net461" }).pkg,
-            importFrom("Google.Protobuf").withQualifier({ targetFramework: "net461" }).pkg,
-            importFrom("StackExchange.Redis.StrongName").withQualifier({ targetFramework: "net461" }).pkg,
+            importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net472"}).pkg,
+            importFrom("System.Interactive.Async").withQualifier({targetFramework: "net472"}).pkg,
+            importFrom("Grpc.Core").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("Google.Protobuf").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("StackExchange.Redis.StrongName").withQualifier({ targetFramework: "net472" }).pkg,
 
             ...BuildXLSdk.withQualifier({
-                targetFramework: "net461",
+                targetFramework: "net472",
                 targetRuntime: "win-x64",
                 configuration: qualifier.configuration
             }).visualStudioServicesArtifactServicesSharedPkg,
 
-            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier({ targetFramework: "net461" }).pkg,
+            importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier({ targetFramework: "net472" }).pkg,
         ]
     });
 
@@ -83,8 +91,8 @@ namespace NugetPackages {
         id: `${packageNamePrefix}.Cache.Interfaces`,
         deployment: Cache.NugetPackages.interfaces,
         dependencies: [
-            importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net461"}).pkg,
-            importFrom("System.Interactive.Async").withQualifier({targetFramework: "net461"}).pkg,
+            importFrom("Microsoft.Tpl.Dataflow").withQualifier({targetFramework: "net472"}).pkg,
+            importFrom("System.Interactive.Async").withQualifier({targetFramework: "net472"}).pkg,
         ]
     });
 
@@ -114,6 +122,54 @@ namespace NugetPackages {
         }).deployment
     });
 
+    const xldbnetcorequalifier : BuildXLSdk.DefaultQualifier = {
+        targetFramework: "netcoreapp3.0",
+        configuration: qualifier.configuration,
+        targetRuntime: "win-x64"
+    };
+
+    const xldbnet472qualifier : BuildXLSdk.DefaultQualifier = {
+        targetFramework: "net472",
+        configuration: qualifier.configuration,
+        targetRuntime: "win-x64"
+    };
+
+    const xldblibrary = !canBuildAllPackagesOnThisHost ? undefined : pack({
+        id: `${packageNamePrefix}.Xldb`,
+        deployment: {
+            contents: [
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.withQualifier(xldbnetcorequalifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.Proto.withQualifier(xldbnetcorequalifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(xldbnetcorequalifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").KeyValueStore.withQualifier(xldbnetcorequalifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Collections.withQualifier(xldbnetcorequalifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Native.withQualifier(xldbnetcorequalifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Storage.withQualifier(xldbnetcorequalifier).dll),
+
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.withQualifier(xldbnet472qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Tools").Xldb.Proto.withQualifier(xldbnet472qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").withQualifier(xldbnet472qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").KeyValueStore.withQualifier(xldbnet472qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Collections.withQualifier(xldbnet472qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Native.withQualifier(xldbnet472qualifier).dll),
+                Nuget.createAssemblyLayout(importFrom("BuildXL.Utilities").Storage.withQualifier(xldbnet472qualifier).dll),
+
+                {
+                    subfolder: r`content`,
+                    contents: [
+                        importFrom("BuildXL.Sandbox.Windows").Deployment.withQualifier({ configuration: qualifier.configuration, targetRuntime: "win-x64" }).natives,
+                    ]
+                },
+            ]
+        },
+        dependencies: [
+            importFrom("RocksDbSharpSigned").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("RocksDbNative").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("Google.Protobuf").withQualifier({ targetFramework: "net472" }).pkg,
+            importFrom("RuntimeContracts").withQualifier({ targetFramework: "net472" }).pkg,
+        ],
+    });
+
     @@public
     export const deployment : Deployment.Definition = {
         contents: [
@@ -126,6 +182,7 @@ namespace NugetPackages {
                 cacheLibraries,
                 cacheInterfaces,
                 cacheHashing,
+                xldblibrary,
             ]),
             sdks,
             ...addIf(!BuildXLSdk.Flags.genVSSolution, osxX64, toolsOrchestrator),
@@ -139,7 +196,14 @@ namespace NugetPackages {
         targetLocation: packageTargetFolder,
     });
 
-    export function pack(args: {id: string, deployment: Deployment.Definition, copyContentFiles?: boolean, dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]}) : File {
+    export function pack(args: {
+        id: string,
+        deployment: Deployment.Definition,
+        deploymentOptions?: Managed.Deployment.FlattenOptions,
+        copyContentFiles?: boolean,
+        dependencies?: (Nuget.Dependency | Managed.ManagedNugetPackage)[]
+    }) : File {
+
         const dependencies : Nuget.Dependency[] = (args.dependencies || [])
             .map(dep => {
                 if (isManagedPackage(dep)) {
@@ -168,6 +232,7 @@ namespace NugetPackages {
                     : undefined,
             },
             deployment: args.deployment,
+            deploymentOptions: args.deploymentOptions,
             noPackageAnalysis: true,
             noDefaultExcludes: true,
         }).nuPkg;

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+
 namespace BuildXL.Utilities.Configuration.Mutable
 {
     /// <nodoc />
@@ -23,6 +25,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreNonCreateFileReparsePoints = false;
             IgnoreSetFileInformationByHandle = false;
             PreserveOutputs = PreserveOutputsMode.Disabled;
+            PreserveOutputsTrustLevel = (int)PreserveOutputsTrustValue.Lowest;
             IgnoreGetFinalPathNameByHandle = false;
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = false;
@@ -55,6 +58,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SandboxKind = template.SandboxKind;
             ExistingDirectoryProbesAsEnumerations = template.ExistingDirectoryProbesAsEnumerations;
             PreserveOutputs = template.PreserveOutputs;
+            PreserveOutputsTrustLevel = template.PreserveOutputsTrustLevel;
             IgnoreGetFinalPathNameByHandle = template.IgnoreGetFinalPathNameByHandle;
             IgnoreDynamicWritesOnAbsentProbes = template.IgnoreDynamicWritesOnAbsentProbes;
             DoubleWritePolicy = template.DoubleWritePolicy;
@@ -63,6 +67,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public PreserveOutputsMode PreserveOutputs { get; set; }
+
+        /// <inheritdoc />
+        public int PreserveOutputsTrustLevel { get; set; }
 
         /// <inheritdoc />
         public bool MonitorFileAccesses { get; set; }

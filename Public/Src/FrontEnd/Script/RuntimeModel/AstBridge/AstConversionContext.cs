@@ -22,6 +22,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         internal readonly SymbolAtom TemplateReference;
         internal readonly SymbolAtom RuntimeRootNamespaceSymbol;
 
+        internal readonly FullSymbol UnsafeNamespace;
+        internal readonly SymbolAtom UnsafeOutputFile;
+        internal readonly SymbolAtom UnsafeExOutputDirectory;
+
         public AstConversionContext(
             RuntimeModelContext runtimeModelContext,
             AbsolutePath currentSpecPath,
@@ -40,12 +44,15 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             ModuleKeyword = CreateSymbol(Constants.Names.ModuleConfigurationFunctionCall);
             TemplateReference = CreateSymbol(Constants.Names.TemplateReference);
             RuntimeRootNamespaceSymbol = CreateSymbol(Constants.Names.RuntimeRootNamespaceAlias);
+
+            UnsafeNamespace = CreateFullSymbol(Constants.Names.UnsafeNamespace);
+            UnsafeOutputFile = CreateSymbol(Constants.Names.UnsafeOutputFile);
+            UnsafeExOutputDirectory = CreateSymbol(Constants.Names.UnsafeExOutputDirectory);
         }
 
-        private SymbolAtom CreateSymbol(string name)
-        {
-            return SymbolAtom.Create(RuntimeModelContext.StringTable, name);
-        }
+        private SymbolAtom CreateSymbol(string name) => SymbolAtom.Create(RuntimeModelContext.StringTable, name);
+
+        private FullSymbol CreateFullSymbol(string name) => FullSymbol.Create(RuntimeModelContext.SymbolTable, name);
 
         public RuntimeModelContext RuntimeModelContext { get; }
 

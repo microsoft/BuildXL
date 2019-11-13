@@ -990,7 +990,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ScriptFilesReloadedWithNoWarningsOrErrors,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Parser,
             Message = "{reloadedSpecCount} spec(s) were reloaded during {ShortProductName} invocation but no error or warning was logged. This behavior could drasitcally compromise system's performance and should be fixed. Stack trace that triggered file reloading: \r\n{stackTrace}",
@@ -999,7 +999,7 @@ namespace BuildXL.FrontEnd.Core.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.ReportDestructionCone,
-            EventGenerators = EventGenerators.LocalAndTelemetry,
+            EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "Destruction cone (changed/affected/required/all specs): {numChanged}/{numAffected}/{numRequired}/{numAll}",

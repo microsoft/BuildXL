@@ -39,6 +39,7 @@ namespace Nuget {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
 
+            importFrom("Newtonsoft.Json").pkg,
             importFrom("NuGet.Versioning").pkg,
 
             ...BuildXLSdk.tplPackages,

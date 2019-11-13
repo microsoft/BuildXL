@@ -93,7 +93,7 @@ namespace BuildXL.Cache.MemoizationStore.VstsApp
                                 async fingerprints =>
                                 {
                                     var iterationStopwatch = Stopwatch.StartNew();
-                                    var iterationContext = new Context(context);
+                                    var iterationContext = context.CreateNested();
                                     CreateSessionResult<ICacheSession> createSessionResult = cache.CreateSession(
                                         iterationContext, sessionName, implicitPin);
                                     if (!createSessionResult.Succeeded)

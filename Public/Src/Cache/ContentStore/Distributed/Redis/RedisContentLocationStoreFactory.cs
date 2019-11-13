@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// <summary>
     /// Instantiates a new ContentLocationStore backed by a Redis instance.
     /// </summary>
-    public sealed class RedisContentLocationStoreFactory : IContentLocationStoreFactory
+    public class RedisContentLocationStoreFactory : IContentLocationStoreFactory
     {
         /// <summary>
         /// Default value for keyspace used for partitioning Redis data
@@ -37,17 +37,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         // https://github.com/StackExchange/StackExchange.Redis/blob/master/Docs/Basics.md
         // Maintain the same connection multiplexer to reuse across sessions
-        private RedisDatabaseFactory /*CanBeNull*/ _redisDatabaseFactoryForContent;
-        private RedisDatabaseFactory /*CanBeNull*/ _redisDatabaseFactoryForMachineLocations;
 
-        private readonly IClock _clock;
+        /// <nodoc />
+        protected RedisDatabaseFactory /*CanBeNull*/ RedisDatabaseFactoryForContent;
+
+        /// <nodoc />
+        protected RedisDatabaseFactory /*CanBeNull*/ RedisDatabaseFactoryForMachineLocations;
+
+        /// <nodoc />
+        protected readonly IClock Clock;
+
         private readonly TimeSpan _contentHashBumpTime;
-        private readonly string _keySpace;
-        private readonly byte[] _localMachineLocation;
-        private readonly RedisContentLocationStoreConfiguration _configuration;
 
-        private RedisDatabaseFactory _redisDatabaseFactoryForRedisGlobalStore;
-        private RedisDatabaseFactory _redisDatabaseFactoryForRedisGlobalStoreSecondary;
+        /// <nodoc />
+        protected readonly string KeySpace;
+
+        /// <nodoc />
+        protected readonly RedisContentLocationStoreConfiguration Configuration;
+
+        /// <nodoc />
+        protected RedisDatabaseFactory RedisDatabaseFactoryForRedisGlobalStore;
+
+        /// <nodoc />
+        protected RedisDatabaseFactory RedisDatabaseFactoryForRedisGlobalStoreSecondary;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisContentLocationStoreFactory"/> class.
@@ -58,7 +70,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             IClock clock,
             TimeSpan contentHashBumpTime,
             string keySpace,
-            byte[] localMachineLocation,
             IAbsFileSystem fileSystem = null,
             RedisContentLocationStoreConfiguration configuration = null)
         {
@@ -66,13 +77,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
             _contentConnectionStringProvider = contentConnectionStringProvider;
             _machineConnectionStringProvider = machineLocationConnectionStringProvider;
-            _clock = clock;
+            Clock = clock;
             _contentHashBumpTime = contentHashBumpTime;
-            _keySpace = keySpace + Salt;
-            _localMachineLocation = localMachineLocation;
-            _configuration = configuration ?? RedisContentLocationStoreConfiguration.Default;
+            KeySpace = keySpace + Salt;
+            Configuration = configuration ?? RedisContentLocationStoreConfiguration.Default;
 
-            if (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
+            if (Configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
             {
                 Contract.Assert(contentConnectionStringProvider != null, "When ReadFromRedis is on 'contentConnectionStringProvider' must not be null.");
                 Contract.Assert(machineLocationConnectionStringProvider != null, "When ReadFromRedis is on 'machineLocationConnectionStringProvider' must not be null.");
@@ -80,33 +90,33 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
-        public Task<IContentLocationStore> CreateAsync()
+        public Task<IContentLocationStore> CreateAsync(MachineLocation localMachineLocation)
         {
             IContentLocationStore contentLocationStore = null;
 
-            if (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
+            if (Configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
             {
-                var redisDatabaseAdapter = CreateDatabase(_redisDatabaseFactoryForContent);
-                var machineLocationRedisDatabaseAdapter = CreateDatabase(_redisDatabaseFactoryForMachineLocations);
+                var redisDatabaseAdapter = CreateDatabase(RedisDatabaseFactoryForContent);
+                var machineLocationRedisDatabaseAdapter = CreateDatabase(RedisDatabaseFactoryForMachineLocations);
 
                 contentLocationStore = new RedisContentLocationStore(
                     redisDatabaseAdapter,
                     machineLocationRedisDatabaseAdapter,
-                    _clock,
+                    Clock,
                     _contentHashBumpTime,
-                    _localMachineLocation,
-                    _configuration);
+                    localMachineLocation.Data,
+                    Configuration);
             }
 
-            if (_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore))
+            if (Configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore))
             {
-                Contract.Assert(_redisDatabaseFactoryForRedisGlobalStore != null);
-                var redisDatabaseForGlobalStore = CreateDatabase(_redisDatabaseFactoryForRedisGlobalStore);
-                var secondaryRedisDatabaseForGlobalStore = CreateDatabase(_redisDatabaseFactoryForRedisGlobalStoreSecondary, optional: true);
-                IGlobalLocationStore globalStore = new RedisGlobalStore(_clock, _configuration, new MachineLocation(_localMachineLocation), redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore);
-                var localLocationStore = new LocalLocationStore(_clock, globalStore, _configuration);
+                Contract.Assert(RedisDatabaseFactoryForRedisGlobalStore != null);
+                var redisDatabaseForGlobalStore = CreateDatabase(RedisDatabaseFactoryForRedisGlobalStore);
+                var secondaryRedisDatabaseForGlobalStore = CreateDatabase(RedisDatabaseFactoryForRedisGlobalStoreSecondary, optional: true);
+                IGlobalLocationStore globalStore = new RedisGlobalStore(Clock, Configuration, localMachineLocation, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore);
+                var localLocationStore = new LocalLocationStore(Clock, globalStore, Configuration);
 
-                contentLocationStore = new TransitioningContentLocationStore(_configuration, (RedisContentLocationStore)contentLocationStore, localLocationStore);
+                contentLocationStore = new TransitioningContentLocationStore(Configuration, (RedisContentLocationStore)contentLocationStore, localLocationStore);
             }
 
             return Task.FromResult(contentLocationStore);
@@ -116,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             if (factory != null)
             {
-                return new RedisDatabaseAdapter(factory, _keySpace);
+                return new RedisDatabaseAdapter(factory, KeySpace);
             }
             else
             {
@@ -145,34 +155,34 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                   context,
                   async () =>
                   {
-                      _tracer.TraceStartupConfiguration(context, _configuration);
+                      _tracer.TraceStartupConfiguration(context, Configuration);
 
-                      if (_configuration.RedisGlobalStoreConnectionString != null)
+                      if (Configuration.RedisGlobalStoreConnectionString != null)
                       {
-                          _redisDatabaseFactoryForRedisGlobalStore = await RedisDatabaseFactory.CreateAsync(
+                          RedisDatabaseFactoryForRedisGlobalStore = await RedisDatabaseFactory.CreateAsync(
                               context,
-                              new LiteralConnectionStringProvider(_configuration.RedisGlobalStoreConnectionString));
+                              new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreConnectionString));
 
-                          if (_configuration.RedisGlobalStoreSecondaryConnectionString != null)
+                          if (Configuration.RedisGlobalStoreSecondaryConnectionString != null)
                           {
-                              _redisDatabaseFactoryForRedisGlobalStoreSecondary = await RedisDatabaseFactory.CreateAsync(
+                              RedisDatabaseFactoryForRedisGlobalStoreSecondary = await RedisDatabaseFactory.CreateAsync(
                                   context,
-                                  new LiteralConnectionStringProvider(_configuration.RedisGlobalStoreSecondaryConnectionString));
+                                  new LiteralConnectionStringProvider(Configuration.RedisGlobalStoreSecondaryConnectionString));
                           }
                       }
                       else
                       {
                           // Local location store can only be used if connection string is provided for redis global store
-                          Contract.Assert(!_configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore));
+                          Contract.Assert(!Configuration.HasReadOrWriteMode(ContentLocationMode.LocalLocationStore));
                       }
 
                       // Instantiate factories for old redis only when we use old redis.
-                      if (_configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
+                      if (Configuration.HasReadOrWriteMode(ContentLocationMode.Redis))
                       {
                           Contract.Assert(_contentConnectionStringProvider != null);
                           Contract.Assert(_machineConnectionStringProvider != null);
-                          _redisDatabaseFactoryForContent = await RedisDatabaseFactory.CreateAsync(context, _contentConnectionStringProvider);
-                          _redisDatabaseFactoryForMachineLocations = await RedisDatabaseFactory.CreateAsync(context, _machineConnectionStringProvider);
+                          RedisDatabaseFactoryForContent = await RedisDatabaseFactory.CreateAsync(context, _contentConnectionStringProvider);
+                          RedisDatabaseFactoryForMachineLocations = await RedisDatabaseFactory.CreateAsync(context, _machineConnectionStringProvider);
                       }
 
                       StartupCompleted = true;

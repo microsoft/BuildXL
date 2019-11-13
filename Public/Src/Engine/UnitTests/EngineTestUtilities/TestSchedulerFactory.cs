@@ -4,18 +4,19 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Engine;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Graph;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Tracing;
 
 namespace Test.BuildXL.TestUtilities
 {
@@ -137,7 +138,8 @@ namespace Test.BuildXL.TestUtilities
                 configuration: configuration,
                 fileAccessWhitelist: fileAccessWhiteList,
                 testHooks: testHooks,
-                buildEngineFingerprint: null);
+                buildEngineFingerprint: null,
+                tempCleaner: new TestMoveDeleteCleaner(Path.Combine(Environment.GetEnvironmentVariable("TEMP"), "MoveDeletionTemp")));
         }
     }
 }

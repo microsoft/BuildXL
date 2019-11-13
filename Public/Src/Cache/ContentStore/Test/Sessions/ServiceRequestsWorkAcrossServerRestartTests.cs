@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
+using BuildXL.Cache.ContentStore.Utils;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Stores;
 using FluentAssertions;
@@ -23,6 +24,7 @@ using Xunit;
 using Xunit.Abstractions;
 
 #pragma warning disable SA1402 // File may only contain a single class
+#pragma warning disable IDE0040 // Accessibility modifiers required
 
 namespace ContentStoreTest.Sessions
 {
@@ -77,7 +79,7 @@ namespace ContentStoreTest.Sessions
             var sessionId = Guid.NewGuid().ToString();
 
             // Creating session with build id in it.
-            SessionName = $"{Context.BuildIdPrefix}{sessionId}";
+            SessionName = $"{Constants.BuildIdPrefix}{sessionId}";
 
             return RunSessionTestAsync(ImplicitPin.None, async (context, session) =>
             {

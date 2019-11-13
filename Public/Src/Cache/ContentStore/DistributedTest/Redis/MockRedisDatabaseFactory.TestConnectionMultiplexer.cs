@@ -11,7 +11,7 @@ namespace ContentStoreTest.Distributed.Redis
 {
     public class TestConnectionMultiplexer : IConnectionMultiplexer
     {
-        private IDatabase _testDatabaseAsync;
+        private readonly IDatabase _testDatabaseAsync;
 
         public TestConnectionMultiplexer(IDatabase testDatabaseAsync)
         {

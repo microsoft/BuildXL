@@ -32,15 +32,21 @@ namespace BuildXL.Utilities
         public readonly HierarchicalNameId Value;
 
         /// <summary>
+        /// The alternate separator character used when expanding the full symbol
+        /// </summary>
+        public readonly char AlternateSeparator;
+
+        /// <summary>
         /// Creates an absolute identifier for some underlying HierchicalNameId value.
         /// </summary>
         /// <remarks>
         /// Since the value must have some meaning to a identifier table, this constructor should primarily be called by SymbolTables.
         /// The only other reasonable usage would be for temporary serialization (e.g. to a child process).
         /// </remarks>
-        public FullSymbol(HierarchicalNameId value)
+        public FullSymbol(HierarchicalNameId value, char separator = default)
         {
             Value = value;
+            AlternateSeparator = separator;
         }
 
         /// <summary>
@@ -50,9 +56,10 @@ namespace BuildXL.Utilities
         /// Since the value must have some meaning to a identifier table, this constructor should primarily be called by SymbolTables.
         /// The only other reasonable usage would be for temporary serialization (e.g. to a child process).
         /// </remarks>
-        public FullSymbol(int value)
+        public FullSymbol(int value, char separator = default)
         {
             Value = new HierarchicalNameId(value);
+            AlternateSeparator = separator;
         }
 
         /// <summary>
@@ -158,8 +165,7 @@ namespace BuildXL.Utilities
             Contract.Ensures(Contract.Result<FullSymbol>().IsValid);
 
             FullSymbol result;
-            int characterWithError;
-            ParseResult parseResult = TryCreate(table, fullSymbol, out result, out characterWithError);
+            ParseResult parseResult = TryCreate(table, fullSymbol, out result, out _);
 
             if (parseResult != ParseResult.Success)
             {
@@ -182,10 +188,8 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(table != null, "table != null");
             Contract.Ensures(Contract.Result<FullSymbol>() != FullSymbol.Invalid);
-
-            int characterWithError;
             PartialSymbol relIdentifier;
-            PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, relativeId, out relIdentifier, out characterWithError);
+            PartialSymbol.ParseResult parseResult = PartialSymbol.TryCreate(table.StringTable, relativeId, out relIdentifier, out _);
             if (parseResult != PartialSymbol.ParseResult.Success)
             {
                 Contract.Assume(false, I($"Failed to create a full symbol from the segment '{relativeId.ToString()}'"));
@@ -586,7 +590,7 @@ namespace BuildXL.Utilities
                 return "{Invalid}";
             }
 
-            string result = symbolTable.ExpandName(Value);
+            string result = symbolTable.ExpandName(Value, separator: AlternateSeparator);
             return result;
         }
 

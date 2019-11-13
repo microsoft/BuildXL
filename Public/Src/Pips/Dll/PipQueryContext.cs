@@ -89,6 +89,7 @@ namespace BuildXL.Pips
         GetSealDirectoryFingerprint,
         Explorer,
         PreserveOutput,
+        CacheMaterializationError,
         End,
 #pragma warning restore 1591
     }

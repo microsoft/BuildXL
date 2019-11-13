@@ -28,6 +28,7 @@ namespace Generator {
                     f`CommonBuildFiles/CSharp.props`,
                     f`CommonBuildFiles/Common.targets`,
                     f`CommonBuildFiles/CSharp.targets`,
+                    f`CommonBuildFiles/Directory.Build.props`,
                     f`CommonBuildFiles/NuGet.config`,
                     f`CommonBuildFiles/packages.config`,
                 ],

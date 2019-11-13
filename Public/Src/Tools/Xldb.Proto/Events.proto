@@ -1,0 +1,425 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+import "tools/google/protobuf/timestamp.proto";
+import "tools/google/protobuf/duration.proto";
+import "HelperStructs.proto";
+
+// Import Enums
+import "Enums/DBStoredTypes.proto";
+import "Enums/ExecutionEventId.proto";
+import "Enums/ExecutionSampler_LimitingResource.proto";
+import "Enums/FileMonitoringViolationAnalyzer_DependencyViolationType.proto";
+import "Enums/FileMonitoringViolationAnalyzer_AccessLevel.proto";
+import "Enums/FingerprintComputationKind.proto";
+import "Enums/PipCacheMissType.proto";
+import "Enums/PipExecutionStep.proto";
+import "Enums/PipOutputOrigin.proto";
+import "Enums/WorkDispatcher_DispatcherKind.proto";
+
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+//
+//  Generic Event Info (key, count, etc)
+//
+
+// Key for the DBStorageStats
+message DBStorageStatsKey{
+    DBStoredTypes StorageType = 1;
+}
+
+// Value for the DB Storage Stats
+message DBStorageStatsValue{
+    // Count of the stored data
+    uint64 Count = 1;
+
+    // Payload size of the stored data
+    uint64 Size = 2;
+}
+
+// Event query should be of this format. It also serves as the key to the DB
+message EventKey{
+    // ID of the Event - required
+    ExecutionEventId EventTypeID = 1; 
+
+    // Worker ID, 0 (master) by default
+    uint32 WorkerID = 2;
+
+    // Used for PipExecPerf, ProcExecMonitoring, PipCacheMiss, PipExecStepPerf, ProcessFingerpintComp, DirMembHashed, PipExecDirOut
+    uint32 PipId = 3;
+
+    // PipExecutionStepPerformanceKey, PipExecutionStep
+    PipExecutionStep PipExecutionStepPerformanceKey = 4;
+
+    // ProcessFingerprintComputationKey, FingerprintComputationKind
+    FingerprintComputationKind ProcessFingerprintComputationKey = 5;
+
+    // DirectoryMembershipHashedKey, string representing Directory path
+    string DirectoryMembershipHashedKey = 6;
+
+    // PipExecutionDirectoryOutputKey, string representing Directory path
+    string PipExecutionDirectoryOutputKey = 7;
+
+    // FileArtifactContentDecidedKey, string representing file path
+    string FileArtifactContentDecidedKey = 8;
+
+    // File rewrite count for FileArtifactContentDecidedEvent key
+    int32 FileRewriteCount = 9;
+
+    // Used for DependencyViolatedEvent key
+    uint32 ViolatorPipID = 10; 
+
+    // Used for Events that don't have unique key like StatusReported or for events like PipExecutionStepPerformance that can have multiple keys for the same PipId
+    int32 EventSequenceNumber = 11;    
+}
+
+//
+//  Event Data
+//
+
+// The FileArtifactContentDecided Event message
+message FileArtifactContentDecidedEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The file itself
+    FileArtifact FileArtifact = 2;
+
+    // THe content information for the file
+    FileContentInfo FileContentInfo = 3;
+
+    // The origin information for file artifact
+    PipOutputOrigin OutputOrigin = 4;
+}
+
+// The WorkerList Event message
+message WorkerListEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The worker list
+    repeated string Workers = 2;
+}
+
+// The PipExecutionPerformance Event message
+message PipExecutionPerformanceEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The Pip ID
+    uint32 PipID = 2;
+
+    // The pip exeuction performance
+    PipExecutionPerformance PipExecutionPerformance = 3;
+
+    // The pip execution performance if it is a Process Pip
+    ProcessPipExecutionPerformance ProcessPipExecutionPerformance = 4;
+}
+
+// The DirectoryMembershipHashed Event message
+message DirectoryMembershipHashedEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The Pip ID
+    uint32 PipID = 2;
+
+    // The resulting fingerprint from hashing the directory
+    DirectoryFingerprint DirectoryFingerprint = 3;
+
+    // The directory whose membership is hashed
+    AbsolutePath Directory = 4;
+
+    // If true the membership is calculated from the static graph information
+    // otherwise the file system is used as a source.
+    bool IsStatic = 5;
+
+    // If true membership was calculated using search paths enumeration
+    // semantics whereby only accessed/explicit dependencies file names are included
+    bool IsSearchPath = 6;
+
+    // Files in the directory
+    repeated AbsolutePath Members = 7;
+
+    // The enumerate pattern in regex format if any used
+    string EnumeratePatternRegex = 8;
+}
+
+// The ProcessExecutionMonitoringReported Event message
+message ProcessExecutionMonitoringReportedEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The Pip ID
+    uint32 PipID = 2;
+
+    // The reported processes
+    repeated ReportedProcess ReportedProcesses = 3;
+
+    // The reported file accesses
+    repeated ReportedFileAccess ReportedFileAccesses = 4;
+    
+    // The reported file accesses
+    repeated ReportedFileAccess WhitelistedReportedFileAccesses = 5;
+
+    // The reported Process Detouring Status messages
+    repeated ProcessDetouringStatusData ProcessDetouringStatuses = 6;
+}
+
+// The BuildSessionConfiguration Event message
+message BuildSessionConfigurationEvent{
+    uint32 WorkerID = 1;
+
+    // Whether the /unsafe_DisableDetours flag is passed to BuildXL
+    bool DisableDetours = 2;
+
+    // Whether the /unsafe_IgnoreReparsePoints flag is passed to BuildXL
+    bool IgnoreReparsePoints = 3;
+
+    // Whether the /unsafe_IgnorePreloadedDlls flag is passed to BuildXL
+    bool IgnorePreloadedDlls = 4;
+
+    // Whether the /unsafe_ExistingDirectoryProbesAsEnumerations flag is passed to BuildXL
+    bool ExistingDirectoryProbesAsEnumerations = 5;
+
+    // Whether the NtCreateFile is being monitored
+    bool NtFileCreateMonitored = 6;
+
+    // Whether the ZwCreateOpneFile is being monitored
+    bool ZwFileCreateOpenMonitored = 7;
+
+    // Whether the ZwRenameFileInformation is being detoured
+    bool IgnoreZwRenameFileInformation = 8;
+
+    // Whether the ZwOtherFileInformation is being detoured
+    bool IgnoreZwOtherFileInformation = 9;
+
+    // Whether symlinks are followed for any other APIs, but CreateFile APIs
+    bool IgnoreNonCreateFileReparsePoints = 10;
+
+    // Whether the SetFileInformationByHandle is being detoured
+    bool IgnoreSetFileInformationByHandle = 11;
+
+    // Whether the GetFinalPathNameByHandle API is being detoured.
+    bool IgnoreGetFinalPathNameByHandle = 12;
+
+    // FingerprintVersion
+    int32 FingerprintVersion = 13;
+
+    // Extra optional fingerprint salt
+    string FingerprintSalt = 14;
+
+    // Gets the hash of the search path tools configured
+    ContentHash SearchPathToolsHash = 15;
+
+    // Whether /unsafe_unexpectedFileAccessesAreErrors was passed to BuildXL
+    bool UnexpectedFileAccessesAreErrors = 16;
+
+    // Whether BuildXL monitors file accesses
+    bool MonitorFileAccesses = 17;
+
+    // Whether /maskUntrackedAccesses was passed to BuildXL
+    bool MaskUntrackedAccesses = 18;
+
+    // Whether /normalizeReadTimestamps was enabled (enabled by default)
+    bool NormalizeReadTimestamps = 19;
+
+    // Whether /warnaserror is enabled
+    bool PipWarningsPromotedToErrors = 20;
+
+    // Whether /validateDistribution flag was enabled (disabled by default).
+    bool ValidateDistribution = 21;
+
+    // Extra optional fingerprint salt for MacOS
+    string RequiredKextVersionNumber = 22;
+}
+
+// The DependencyViolationReported Event message
+message DependencyViolationReportedEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The violator Pip ID
+    uint32 ViolatorPipID = 2;
+
+    // The related Pip ID
+    uint32 RelatedPipID = 3;
+
+    // Dependency-error classification
+    FileMonitoringViolationAnalyzer_DependencyViolationType ViolationType = 4;
+
+    // Access type observed at a path (read or write)
+    FileMonitoringViolationAnalyzer_AccessLevel AccessLevel = 5;
+
+    // The path causing the violation
+    AbsolutePath Path = 6;
+}
+
+// The PipExecutionStepPerformanceReported Event message
+message PipExecutionStepPerformanceReportedEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The Pip ID
+    uint32 PipID = 2;
+
+    // Start time of the step
+    google.protobuf.Timestamp StartTime = 3;
+
+    // Running time of the step in ms
+    google.protobuf.Duration Duration = 4;
+
+    // PipExecutionStep which was executed
+    PipExecutionStep Step = 5;
+
+    // Dispatcher kind which executed the PipExecutionStep
+    WorkDispatcher_DispatcherKind Dispatcher = 6;
+}
+
+// The StatusReported Event message
+message StatusReportedEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // Time of the usage snapshot
+    google.protobuf.Timestamp Time = 2;
+
+    // Cpu usage percent
+    int32 CpuPercent = 3;
+
+    // Disk usage percents
+    repeated int32 DiskPercents = 4;
+
+    // Disk queue depths
+    repeated int32 DiskQueueDepths = 5;
+
+    // Ram usage percent
+    int32 RamPercent = 6;
+
+    // Ram utilization in MB
+    int32 MachineRamUtilizationMB = 7;
+
+    // Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
+    // current size not necessarily the maximum size. So even if this hits 100%, the machine may still be able to
+    // commit more as the page file expands.
+    int32 CommitPercent = 8;
+
+    // The machine's total commit in MB
+    int32 CommitTotalMB = 9;
+
+    // CPU utilization of the current process
+    int32 ProcessCpuPercent = 10;
+
+    // Working set in MB of the current process
+    int32 ProcessWorkingSetMB = 11;
+
+    // Number of waiting items in the CPU dispatcher
+    int32 CpuWaiting = 12;
+
+    // Number of running items in the CPU dispatcher
+    int32 CpuRunning = 13;
+
+    // Concurrency limit in the IP dispatcher
+    int32 IoCurrentMax = 14;
+
+    // Number of waiting items in the IO dispatcher
+    int32 IoWaiting = 15;
+
+    // Number of running items in the IO dispatcher
+    int32 IoRunning = 16;
+
+    // Number of waiting items in the CacheLookup dispatcher
+    int32 LookupWaiting = 17;
+
+    // Number of running items in the CacheLookup dispatcher
+    int32 LookupRunning = 18;
+
+    // Number of externally running processes
+    int32 ExternalProcesses = 19;
+
+    // Number of pips succeeded for each type
+    repeated int64 PipsSucceededAllTypes = 20;
+
+    // LimitingResource heuristic during the sample
+    ExecutionSampler_LimitingResource LimitingResource = 21;
+
+    // Factor of how much less frequently the status update time gets compared to what is expected. A value of 1 means
+    // it is fired exactly at the expected rate. 2 means it is trigged twice as slowly as expected. Etc.
+    int32 UnresponsivenessFactor = 22;
+
+    // Number of process pips that have not completed yet
+    int64 ProcessPipsPending = 23;
+
+    // Number of process pips allocated a slot on workers (including localworker)
+    int64 ProcessPipsAllocatedSlots = 24;
+}
+
+// The ProcessFingerprintComputation Event message
+message ProcessFingerprintComputationEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+    
+    // The fingerprint computation kind
+    FingerprintComputationKind Kind = 2;
+
+    // The Pip ID
+    uint32 PipID = 3;
+    
+    // The weak fingerprint for the pip
+    WeakContentFingerprint WeakFingerprint = 4;
+
+    // The strong fingerprints computations
+    repeated ProcessStrongFingerprintComputationData StrongFingerprintComputations = 5;
+}
+
+// The PipCacheMiss Event message
+message PipCacheMissEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The Pip ID
+    uint32 PipID = 2;
+
+    // The cause of the cache miss
+    PipCacheMissType CacheMissType = 3;
+}
+
+// The PipExecutionDirectoryOutputs Event message
+message PipExecutionDirectoryOutputsEvent{
+    // Worker ID that generated this event
+    uint32 WorkerID = 1;
+
+    // The pip ID
+    uint32 PipID = 2;
+
+    // The directory artifact that was produced by this pip
+    DirectoryArtifact DirectoryArtifact = 3;
+
+    // The files in the directory that were produced by this pip
+    repeated FileArtifact FileArtifactArray = 4;
+}
+
+// The BXLInvocation Event message
+message BxlInvocationEvent{
+    uint32 WorkerID = 1;
+
+    // Original root that is being substituted
+    AbsolutePath SubstSource = 2;
+    
+    // Root that SubstSource has been substituted to.
+    AbsolutePath SubstTarget = 3;
+
+    // If the SubstSource is valid 
+    bool IsSubstSourceValid = 4;
+    
+    // If the SubstTarget is valid
+    bool IsSubstTargetValid = 5; 
+
+    // String array representing the command line arguments passed into BXL
+    repeated string CommandLineArguments = 6;
+}

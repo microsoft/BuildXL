@@ -24,7 +24,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 
             var memoConfig = new SQLiteMemoizationStoreConfiguration(rootPath) { MaxRowCount = MaxContentHashListItems };
             memoConfig.Database.JournalMode = ContentStore.SQLite.JournalMode.OFF;
-            return new LocalCache(Logger, rootPath, memoConfig, LocalCacheConfiguration.CreateServerDisabled(), clock: Clock);
+            return LocalCache.CreateUnknownContentStoreInProcMemoizationStoreCache(Logger, rootPath, memoConfig, LocalCacheConfiguration.CreateServerDisabled(), clock: Clock);
         }
 
         [Fact]

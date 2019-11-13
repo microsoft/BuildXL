@@ -268,16 +268,13 @@ namespace BuildXL.Utilities.Collections
             // 1. Do we have a queued up semaphore that fits now?
 
             // TODO: We are just looking at one top-priority pip that got previously postponed because of semaphore constraints. While that one doesn't fit, there might be some other one that fits now. However, finding that in the heap of postponed pips in an efficient is not trivial (we shouldn't traverse all postponed pips every time).
-            int priority;
-            (TItem item , ItemResources itemResources) t;
             if (m_semaphoreQueue != null &&
-                m_semaphoreQueue.TryPeek(out priority, out t) &&
+                m_semaphoreQueue.TryPeek(out int priority, out (TItem item, ItemResources itemResources) t) &&
                 m_semaphores.TryAcquireResources(t.itemResources))
             {
                 item = t.item;
                 itemResources = t.itemResources;
-                (TItem, ItemResources) u;
-                var success = m_semaphoreQueue.TryDequeue(out priority, out u);
+                var success = m_semaphoreQueue.TryDequeue(out priority, out (TItem, ItemResources) u);
                 Contract.Assert(success);
                 Contract.Assert(t.Equals(u));
                 m_semaphoreQueued--;

@@ -23,7 +23,6 @@ int CallAccessInvalidFile();
 int CallGetAttributeNonExistent();
 int CallGetAttributeNonExistentInDepDirectory();
 int CallDetouredCreateFileWWithGenericAllAccess();
-int CallDetouredCreateFileWForProbingOnly();
 int CallDetouredMoveFileExWForRenamingDirectory();
 int CallDetouredSetFileInformationByHandleForRenamingDirectory();
 int CallDetouredZwSetFileInformationByHandleForRenamingDirectory();

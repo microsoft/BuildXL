@@ -22,6 +22,10 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
         private readonly bool _trustedHash;
 
+        private readonly AbsolutePath _path;
+
+        private readonly FileRealizationMode _mode;
+
         /// <summary>
         ///     Run the call.
         /// </summary>
@@ -74,6 +78,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             _contentHash = new ContentHash(hashType);
             _trustedHash = trustedHash;
+            _path = path;
+            _mode = mode;
             Tracer.PutFileStart(Context, path, mode, hashType, trustedHash);
         }
 
@@ -93,6 +99,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
             _contentHash = contentHash;
             _trustedHash = trustedHash;
+            _path = path;
+            _mode = mode;
             Tracer.PutFileStart(Context, path, mode, contentHash, _trustedHash);
         }
 
@@ -105,7 +113,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <inheritdoc />
         public void Dispose()
         {
-            Tracer.PutFileStop(Context, Result, _trustedHash);
+            Tracer.PutFileStop(Context, Result, _trustedHash, _path, _mode);
         }
     }
 }

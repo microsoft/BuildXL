@@ -70,20 +70,12 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Modify untracked input file /dir/nestedFile
             File.WriteAllText(ArtifactToString(nestedFile), "nestedFile");
-            if (declareDependency)
-            {
-                // Changes in declared dependencies always cause cache misses
-                RunScheduler().AssertCacheMiss(pip.PipId);
-            }
+
             RunScheduler().AssertCacheHit(pip.PipId);
 
             // Delete untracked input file /dir/nestedFile
             File.Delete(ArtifactToString(nestedFile));
-            if (declareDependency)
-            {
-                // Changes in declared dependencies always cause cache misses
-                RunScheduler().AssertCacheMiss(pip.PipId);
-            }
+
             RunScheduler().AssertCacheHit(pip.PipId);
 
             ResetPipGraphBuilder();

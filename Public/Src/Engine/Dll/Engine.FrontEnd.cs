@@ -59,9 +59,7 @@ namespace BuildXL.Engine
                 return false;
             }
 
-            m_visualization?.MountsTable.MakeAvailable(mountsTable);
-
-            if ((Configuration.Engine.Phase & EnginePhases.Schedule) != 0)
+            if (Configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 pipGraphBuilder = CreatePipGraphBuilder(loggingContext, mountsTable, reuseResult);
             }

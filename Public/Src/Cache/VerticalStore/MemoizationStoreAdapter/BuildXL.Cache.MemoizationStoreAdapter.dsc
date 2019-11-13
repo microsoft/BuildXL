@@ -37,9 +37,6 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
         ],
-        runtimeContent: [
-            importFrom("Sdk.SelfHost.Sqlite").runtimeLibs,
-        ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStoreAdapter.Test",
         ],

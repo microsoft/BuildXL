@@ -27,7 +27,7 @@ namespace BuildXL.FrontEnd.Script
         /// True if the instance is came from the object's pool.
         /// </summary>
         private bool m_fromThePool;
-        
+
         /// <summary>
         /// Offset in the evaluation stack frame that separates captured variables from the arguments of the function.
         /// </summary>
@@ -300,6 +300,17 @@ namespace BuildXL.FrontEnd.Script
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Tears down the internal object pool to save memory
+        /// </summary>
+        public static void TearDownPool()
+        {
+            for (int i = 0; i < s_framePools.Length; i++)
+            {
+                s_framePools[i].Clear();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

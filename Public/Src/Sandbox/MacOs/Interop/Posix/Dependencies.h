@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#define GET_RUSAGE_ERROR 103
+#define GET_RUSAGE_ERROR    103
+#define RUNTIME_ERROR       -1
 
 #endif /* Dependencies_h */

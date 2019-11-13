@@ -260,7 +260,7 @@ namespace BuildXL.FrontEnd.Script.Tracing
         DivideByZero = 9352,
         StackOverflow = 9353,
         InvalidPathAtom = 9354,
-        // Deprecated 9355,
+        DisallowedUnsafeAmbientCall = 9355,
         InvalidTypeFormat = 9356,
         InputValidationError = 9357,
         UndefinedMapKey = 9358,
@@ -342,6 +342,9 @@ namespace BuildXL.FrontEnd.Script.Tracing
         ReportXmlUnsuportedTypeForSerialization = 9412,
         ReportUnsupportedTypeValueObjectException = 9413,
         DirectoryNotSupportedException = 9414,
+
+        CGManifestValidationException = 9415,
+        CGManifestGenerationException = 9416,
         // Obsolete syntax rules (starting from 9500)
 
         // Don't go beyond 9899

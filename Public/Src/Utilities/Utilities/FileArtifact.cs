@@ -193,13 +193,15 @@ namespace BuildXL.Utilities
 
 #pragma warning disable 809
 
-        /// <summary>
-        /// Not available for FileArtifact, throws an exception
-        /// </summary>
-        [Obsolete("Not suitable for FileArtifact")]
+        /// <inheritdoc />
         public override string ToString()
         {
-            throw new NotImplementedException();
+            if (this == Invalid)
+            {
+                return "{Invalid}";
+            }
+
+            return I($"{{File (id: {Path.Value.Value:x}) ({GetAnnotation()})}}");
         }
 
         /// <summary>
@@ -210,20 +212,6 @@ namespace BuildXL.Utilities
         [ExcludeFromCodeCoverage]
         private string ToDebuggerDisplay()
         {
-            string annotation;
-            switch (m_rewriteCount)
-            {
-                case 0:
-                    annotation = "source";
-                    break;
-                case 1:
-                    annotation = "output";
-                    break;
-                default:
-                    annotation = "rewrite:" + m_rewriteCount.ToString(CultureInfo.InvariantCulture);
-                    break;
-            }
-
             string path;
             if (!Path.IsValid)
             {
@@ -237,8 +225,22 @@ namespace BuildXL.Utilities
                     : Path.ToString(owner);
             }
 
-            return I($"{{{path} ({annotation})}}");
+            return I($"{{{path} ({GetAnnotation()})}}");
         }
+
+        private string GetAnnotation()
+        {
+            switch (m_rewriteCount)
+            {
+                case 0:
+                    return "source";
+                case 1:
+                    return "output";
+                default:
+                    return I($"rewrite:{m_rewriteCount}");
+            }
+        }
+
 #pragma warning restore 809
     }
 }

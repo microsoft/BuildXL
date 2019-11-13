@@ -12,7 +12,6 @@ nls.config({ locale: env.language });
 
 import { NotificationType } from 'vscode-jsonrpc';
 import { LanguageClient } from 'vscode-languageclient';
-import { LogLevel } from 'vscode-debugadapter/lib/logger';
 
 /**
  * Contains the functionality for writing crucial information to the output window.

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+
+    <!-- On Visual Studio 2017, the preview version is not supported, so fallback to using latest as language version  -->
+    <LangVersion Condition="'$(LangVersion)' == 'preview' AND '$(VisualStudioVersion)' == '15.0'">latest</LangVersion>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="Common.targets" />
+</Project>

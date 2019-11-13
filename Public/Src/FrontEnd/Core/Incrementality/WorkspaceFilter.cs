@@ -39,14 +39,14 @@ namespace BuildXL.FrontEnd.Core.Incrementality
         {
             // First, need to get all modules that satisfy a given filter.
             var modulesToInclude = new HashSet<ModuleDefinition>();
+
+            var modulesToResolve = new HashSet<string>(evaluationFilter.ModulesToResolve.Select(m => m.ToString(m_pathTable.StringTable)));
+
             foreach (var module in workspace.SpecModules)
             {
-                foreach (var moduleToResolve in evaluationFilter.ModulesToResolve)
+                if (modulesToResolve.Contains(module.Descriptor.Name))
                 {
-                    if (string.Equals(module.Descriptor.Name, moduleToResolve.ToString(m_pathTable.StringTable)))
-                    {
-                        modulesToInclude.Add(module.Definition);
-                    }
+                    modulesToInclude.Add(module.Definition);
                 }
             }
 

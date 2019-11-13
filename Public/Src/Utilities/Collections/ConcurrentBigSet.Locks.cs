@@ -43,8 +43,7 @@ namespace BuildXL.Utilities.Collections
             /// </summary>
             public WriteLock AcquireWriteLock(int lockNo, bool allowReads)
             {
-                int priorLockWriteCount;
-                return AcquireWriteLock(lockNo, out priorLockWriteCount, allowReads);
+                return AcquireWriteLock(lockNo, out int priorLockWriteCount, allowReads);
             }
 
             /// <summary>

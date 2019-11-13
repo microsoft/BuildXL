@@ -69,16 +69,40 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 if (state == ChannelState.Idle)
                 {
-                    // Try connecting with timeout (default 5min) 
-                    // If it does not succeed, disconnect the worker. 
-                    bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, nameof(MonitorConnectionAsync));
-                    if (!connectionSucceeded)
+                    bool isReconnected = await TryReconnectAsync();
+                    if (!isReconnected)
                     {
                         OnConnectionTimeOutAsync?.Invoke(this, EventArgs.Empty);
                         break;
                     }
                 }
             }
+        }
+
+        private async Task<bool> TryReconnectAsync()
+        {
+            int numRetries = 0;
+            bool connectionSucceeded = false;
+
+            while (numRetries < GrpcSettings.MaxRetry)
+            {
+                numRetries++;
+
+                // Try connecting with timeout
+                connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, nameof(TryReconnectAsync));
+                if (connectionSucceeded)
+                {
+                    return true;
+                }
+                else if (IsNonRecoverableState(Channel.State))
+                {
+                    // If the end state is a non-recovarable state, there is no hope for the reconnection.
+                    return false;
+                }
+            }
+
+            // If the connection is not established after retries, return false.
+            return false;
         }
 
         public async Task CloseAsync()
@@ -93,7 +117,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         public async Task<RpcCallResult<Unit>> CallAsync(
-            Func<CallOptions, AsyncUnaryCall<RpcResponse>> func, 
+            Func<CallOptions, Task<RpcResponse>> func, 
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false)
@@ -154,16 +178,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                     {
                         break;
                     }
-
-                    if (numTry == GrpcSettings.MaxRetry - 1)
-                    {
-                        // If this is the last retry, try to attempt reconnecting. If the connection fails, do not attempt to retry the call.
-                        bool connectionSucceeded = await TryConnectChannelAsync(GrpcSettings.CallTimeout, operation);
-                        if (!connectionSucceeded)
-                        {
-                            break;
-                        }
-                    }
                 }
                 catch (ObjectDisposedException e)
                 {
@@ -193,6 +207,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 lastFailure: failure);
         }
 
+
         private async Task<bool> TryConnectChannelAsync(TimeSpan timeout, string operation, Stopwatch watch = null)
         {
             watch = watch ?? Stopwatch.StartNew();
@@ -203,13 +218,28 @@ namespace BuildXL.Engine.Distribution.Grpc
                 await Channel.ConnectAsync(DateTime.UtcNow.Add(timeout));
                 Logger.Log.GrpcTrace(m_loggingContext, $"Connected to {Channel.Target}. ChannelState {Channel.State}. Duration {watch.ElapsedMilliseconds}ms");
             }
-            catch (OperationCanceledException e)
+            catch (Exception e)
             {
+#pragma warning disable EPC12 // Suspicious exception handling: only Message property is observed in exception block.
                 Logger.Log.GrpcTrace(m_loggingContext, $"Failed to connect to {Channel.Target}. Duration {watch.ElapsedMilliseconds}ms. ChannelState {Channel.State}. Failure {e.Message}");
+#pragma warning restore EPC12 // Suspicious exception handling: only Message property is observed in exception block.
+
                 return false;
             }
 
             return true;
+        }
+
+        private static bool IsNonRecoverableState(ChannelState state)
+        {
+            switch (state)
+            {
+                case ChannelState.Idle:
+                case ChannelState.Shutdown:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 }

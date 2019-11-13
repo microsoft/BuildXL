@@ -202,7 +202,10 @@ namespace BuildXL.FrontEnd.Ninja
                 bool outputsPresent = m_processOutputs.TryGetValue(dependency, out ProcessOutputs processOutputs);
 
                 string ListOutputs(NinjaNode n) => string.Join(" ", n.Outputs.Select(x => x.GetName(m_context.PathTable).ToString(m_context.StringTable)).ToList());
-                Contract.Assert(outputsPresent, $"Pips must have been presented in dependency order: [build { ListOutputs(dependency) }] missing, dependency of [build { ListOutputs(node)} ]");
+                if (!outputsPresent)
+                {
+                    Contract.Assert(false, $"Pips must have been presented in dependency order: [build { ListOutputs(dependency) }] missing, dependency of [build { ListOutputs(node)} ]");
+                }
 
                 foreach (FileArtifact output in processOutputs.GetOutputFiles())
                 {
@@ -383,9 +386,6 @@ namespace BuildXL.FrontEnd.Ninja
             {
                 processBuilder.SetPassthroughEnvironmentVariable(StringId.Create(m_context.StringTable, envVar));
             }
-
-            // GlobalUnsafePassthroughEnvironmentVariables
-            processBuilder.SetGlobalPassthroughEnvironmentVariable(m_frontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, m_context.StringTable);
 
             // We will specify a different MSPDBSRV endpoint for every pip.
             // This means every pip that needs to communicate to MSPDBSRV will

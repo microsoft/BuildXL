@@ -99,20 +99,20 @@ function updateKextVersionSourceFile() {
 function updateBuildXLConfigDscFile() {
     local _newVersion=$1
 
-    updateSingleLineInFile          \
-        ${buildxlDir}/config.microsoftInternal.dsc    \
-        "runtime.osx-x64.BuildXL"   \
-        'version: ".*"'             \
+    updateSingleLineInFile                         \
+        ${buildxlDir}/config.microsoftInternal.dsc \
+        "runtime.osx-x64.BuildXL"                  \
+        'version: ".*"'                            \
         'version: "'$_newVersion'"'
 }
 
 function updateRequiredKextVersion() {
     local _newVersion=$1
 
-    updateSingleLineInFile                                                   \
-        ${buildxlDir}/Public/Src/Engine/Processes/SandboxedKextConnection.cs \
-        "public const string RequiredKextVersionNumber = "                   \
-        ' = ".*"'                                                            \
+    updateSingleLineInFile                                                 \
+        ${buildxlDir}/Public/Src/Engine/Processes/SandboxConnectionKext.cs \
+        "public const string RequiredKextVersionNumber = "                 \
+        ' = ".*"'                                                          \
         ' = "'$_newVersion'"'
 }
 
@@ -390,6 +390,13 @@ rm -rf $nugetDestDir
 if [[ -n $(which mono) && -f "$nugetExe" ]]; then
     echo "Publishing ${nupkgFile} to ${nugetFeed}"
     mono "${nugetExe}" push "${nupkgFile}" -Source "${nugetFeed}" -ApiKey "AzureDevOps"
+    if [[ $? != 0 ]]; then
+        echo "publishing nuget failed"
+        exit 1
+    fi
+
+    echo "Building with /phase:Schedule to confirm that the new nuget can be downloaded and to regenerate cg/nuget/cgmanifest.json"
+    ${buildxlDir}/bxl.sh --internal --minimal /phase:Schedule
 else
     echo " !!! Must publish $nupkgFile manually to feed: '${nugetFeed}'"
 fi

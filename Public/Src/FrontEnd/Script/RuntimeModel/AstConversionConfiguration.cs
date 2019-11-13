@@ -16,10 +16,18 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// <nodoc/>
         public AstConversionConfiguration(
             [CanBeNull]IEnumerable<string> policyRules,
-            bool disableLanguagePolicies)
+            bool disableLanguagePolicies,
+            bool unsafeOptimized = false)
         {
             PolicyRules = policyRules ?? CollectionUtilities.EmptyArray<string>();
             UnsafeOptions = UnsafeConversionConfiguration.GetConfigurationFromEnvironmentVariables();
+
+            if (unsafeOptimized)
+            {
+                UnsafeOptions.DisableAnalysis = true;
+                UnsafeOptions.DisableDeclarationBeforeUseCheck = true;
+                UnsafeOptions.SkipTypeConversion = true;
+            }
 
             DegreeOfParalellism = 1;
             DisableLanguagePolicies = disableLanguagePolicies;
@@ -30,7 +38,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             return new AstConversionConfiguration(
                 policyRules: configuration.EnabledPolicyRules,
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
+                unsafeOptimized: configuration.UnsafeOptimizedAstConversion)
             {
                 PreserveFullNameSymbols = configuration.PreserveFullNames(),
             };
@@ -43,7 +52,8 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         {
             return new AstConversionConfiguration(
                 policyRules: configuration.EnabledPolicyRules,
-                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis())
+                disableLanguagePolicies: configuration.DisableLanguagePolicyAnalysis(),
+                unsafeOptimized: configuration.UnsafeOptimizedAstConversion)
             {
                 PreserveFullNameSymbols = configuration.PreserveFullNames(),
             };

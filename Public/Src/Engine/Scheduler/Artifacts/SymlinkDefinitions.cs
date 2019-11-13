@@ -77,7 +77,7 @@ namespace BuildXL.Scheduler.Artifacts
             PathTable pathTable,
             string filePath,
             string symlinksDebugPath,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {

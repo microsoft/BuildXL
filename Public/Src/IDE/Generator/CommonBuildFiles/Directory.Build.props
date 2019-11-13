@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ExcludeRestorePackageImports>true</ExcludeRestorePackageImports>
+    <EnableBaseIntermediateOutputPathMismatchWarning>false</EnableBaseIntermediateOutputPathMismatchWarning>
+    <IntermediatesRoot>$(MSBuildThisFileDirectory)\Out\VS</IntermediatesRoot>
+    <BaseIntermediateOutputPath>$(IntermediatesRoot)\object\$(Configuration)\$(Platform)\$(MSBuildProjectName)</BaseIntermediateOutputPath>
+    <OutDir>$(IntermediatesRoot)\bin\$(Configuration)\$(Platform)\$(TargetFramework)\$(MSBuildProjectName)</OutDir>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+  </PropertyGroup>
+</Project>

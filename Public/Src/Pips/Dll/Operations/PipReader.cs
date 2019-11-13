@@ -24,7 +24,7 @@ namespace BuildXL.Pips.Operations
 
         public StringTable StringTable { get; }
 
-        public Pip ReadPip()
+        public virtual Pip ReadPip()
         {
             Contract.Ensures(Contract.Result<Pip>() != null);
             Start<Pip>();
@@ -33,7 +33,7 @@ namespace BuildXL.Pips.Operations
             return value;
         }
 
-        public PipProvenance ReadPipProvenance()
+        public virtual PipProvenance ReadPipProvenance()
         {
             Contract.Ensures(Contract.Result<PipProvenance>() != null);
             Start<PipProvenance>();
@@ -42,7 +42,7 @@ namespace BuildXL.Pips.Operations
             return value;
         }
 
-        public virtual StringId ReadPipDataId()
+        public virtual StringId ReadPipDataEntriesPointer()
         {
             return ReadStringId();
         }
@@ -55,7 +55,7 @@ namespace BuildXL.Pips.Operations
             return value;
         }
 
-        public EnvironmentVariable ReadEnvironmentVariable()
+        public virtual EnvironmentVariable ReadEnvironmentVariable()
         {
             Start<EnvironmentVariable>();
             EnvironmentVariable value = EnvironmentVariable.Deserialize(this);
@@ -63,7 +63,7 @@ namespace BuildXL.Pips.Operations
             return value;
         }
 
-        public RegexDescriptor ReadRegexDescriptor()
+        public virtual RegexDescriptor ReadRegexDescriptor()
         {
             Start<RegexDescriptor>();
             RegexDescriptor value = RegexDescriptor.Deserialize(this);
@@ -74,17 +74,19 @@ namespace BuildXL.Pips.Operations
         public virtual PipId ReadPipId()
         {
             Start<PipId>();
-            var value = new PipId(base.ReadPipIdValue());
+            var value = new PipId(base.ReadUInt32());
             End();
             return value;
         }
 
-        public ProcessSemaphoreInfo ReadProcessSemaphoreInfo()
+        public virtual ProcessSemaphoreInfo ReadProcessSemaphoreInfo()
         {
             Start<ProcessSemaphoreInfo>();
             var value = ProcessSemaphoreInfo.Deserialize(this);
             End();
             return value;
         }
+
+        public virtual PipId RemapPipId(PipId pipId) => pipId;
     }
 }

@@ -53,12 +53,6 @@ namespace BuildXL.Utilities.Configuration
         SpecCachingOption CacheSpecs { get; }
 
         /// <summary>
-        /// How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks.
-        /// The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.
-        /// </summary>
-        MemoryUsageOption CacheMemoryUsage { get; }
-
-        /// <summary>
         /// The user defined cache session name to use for this build - optional and defaults to nothing
         /// </summary>
         string CacheSessionName { get; }
@@ -121,6 +115,23 @@ namespace BuildXL.Utilities.Configuration
         /// When enabled, the remote cache uses DedupStore instead of BlobStore.
         /// </summary>
         bool UseDedupStore { get; }
+
+        /// <summary>
+        /// Indicates whether minimal graph enumerations should elide absent path probes in the directory root
+        /// </summary>
+        bool ElideMinimalGraphEnumerationAbsentPathProbes { get; }
+
+        /// <summary>
+        /// The maximum number of visited path sets allowed before switching to an 'augmented' weak fingerprint
+        /// computed from common dynamically accessed paths.
+        /// </summary>
+        int AugmentWeakFingerprintPathSetThreshold { get; }
+
+        /// <summary>
+        /// Used to compute the number of times (i.e. <see cref="AugmentWeakFingerprintRequiredPathCommonalityFactor"/> * <see cref="AugmentWeakFingerprintPathSetThreshold"/>) an entry must
+        /// appear among paths in the observed path set in order to be included in the common path set. Value must be (0, 1]
+        /// </summary>
+        double AugmentWeakFingerprintRequiredPathCommonalityFactor { get; }
 
         /// <summary>
         /// When enabled, the cache will be responsible for replacing exisiting file during file materialization.

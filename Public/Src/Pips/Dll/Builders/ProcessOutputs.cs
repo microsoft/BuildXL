@@ -66,7 +66,7 @@ namespace BuildXL.Pips.Builders
         /// <nodoc />
         public IEnumerable<StaticDirectory> GetOutputDirectories()
         {
-            return this.m_outputDirectoryMap.Values;
+            return m_outputDirectoryMap.Values;
         }
     }
 }

@@ -85,7 +85,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly Dictionary<ModuleId, string> m_moduleIdToFriendlyName = new Dictionary<ModuleId, string>();
         private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
 
-        private DominoInvocationEventData m_invocationData;
+        private BxlInvocationEventData m_invocationData;
         private readonly bool m_useOriginalPaths;
 
         public DumpPipAnalyzer(AnalysisInput input, string outputFilePath, long semiStableHash, bool useOriginalPaths, bool logProgress = false)
@@ -217,7 +217,7 @@ namespace BuildXL.Execution.Analyzer
             return 0;
         }
 
-        public override void DominoInvocation(DominoInvocationEventData data)
+        public override void BxlInvocation(BxlInvocationEventData data)
         {
             m_invocationData = data;
         }
@@ -492,7 +492,8 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("HasUntrackedChildProcesses", pip.HasUntrackedChildProcesses),
                     m_html.CreateRow("ProducesPathIndependentOutputs", pip.ProducesPathIndependentOutputs),
                     m_html.CreateRow("OutputsMustRemainWritable", pip.OutputsMustRemainWritable),
-                    m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs)),
+                    m_html.CreateRow("AllowPreserveOutputs", pip.AllowPreserveOutputs),
+                    m_html.CreateRow("PreserveOutputTrustLevel", pip.PreserveOutputsTrustLevel)),
 
                 m_html.CreateBlock(
                     "Process inputs/outputs",
@@ -503,6 +504,13 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("Directory Outputs", GetDirectoryOutputsWithContent(pip), sortEntries: false),
                     m_html.CreateRow("Untracked Paths", pip.UntrackedPaths),
                     m_html.CreateRow("Untracked Scopes", pip.UntrackedScopes)),
+
+                m_html.CreateBlock(
+                    "Global Dependencies",
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables != null ? 
+                        m_html.CreateRow("Passthrough Environment Variables", m_invocationData.Configuration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables) : null),
+                    (pip.RequireGlobalDependencies && m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes != null ?
+                        m_html.CreateRow("Untracked Scopes", m_invocationData.Configuration.Sandbox.GlobalUntrackedScopes) : null)),
 
                 m_html.CreateBlock(
                     "Service details",

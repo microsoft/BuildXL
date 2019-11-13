@@ -12,6 +12,7 @@ using System.Text;
 using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Qualifier;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.Ide.Generator
@@ -21,6 +22,9 @@ namespace BuildXL.Ide.Generator
     /// </summary>
     internal abstract class MsbuildFile
     {
+        public const string QualifierConfigurationPropertyName = "configuration";
+        public const string QualifierTargetFrameworkPropertyName = "targetFramework";
+
         protected readonly Context Context;
 
         protected List<AbsolutePath> m_inputs;
@@ -63,7 +67,7 @@ namespace BuildXL.Ide.Generator
         /// For each qualifier, we have a separate process pip so we are creating projects for each of them.
         /// We will merge them later to find the unconditioned and conditoned properties and items.
         /// </remarks>
-        public Dictionary<string, Project> ProjectsByQualifier { get; private set; }
+        public Dictionary<QualifierId, Project> ProjectsByQualifier { get; private set; }
 
         /// <summary>
         /// Project dependencies
@@ -75,7 +79,7 @@ namespace BuildXL.Ide.Generator
             AbsolutePath specFilePath,
             string projectExtension)
         {
-            ProjectsByQualifier = new Dictionary<string, Project>();
+            ProjectsByQualifier = new Dictionary<QualifierId, Project>();
             ProjectReferences = new List<MsbuildFile>();
 
             Context = context;
@@ -86,7 +90,7 @@ namespace BuildXL.Ide.Generator
             // Add '.g' suffix only if the projects files will be in the spec root
             if (Context.CanWriteToSrc)
             {
-                projectExtension = ".g" + projectExtension;
+                projectExtension = ".2.g" + projectExtension;
             }
 
             // Relative to enlistment root
@@ -111,8 +115,7 @@ namespace BuildXL.Ide.Generator
 
         internal Project CreateProject(Process process)
         {
-            string qualifierString = Context.QualifierTable.GetCanonicalDisplayString(process.Provenance.QualifierId);
-            var project = new Project(qualifierString);
+            var project = new Project(process.Provenance.QualifierId);
 
             // All projects in a msbuild file must use the same BuildXL value.
             // TODO: Check whether this is the same BuildXL value as the other projects in this msbuild file
@@ -120,20 +123,6 @@ namespace BuildXL.Ide.Generator
             project.SetProperty("DominoValue", value);
             project.SetProperty("ProjectGuid", Guid);
             project.SetProperty("SpecRoot", SpecDirectory);
-
-            // Try to get the target framework: 
-            var qualifier = Context.QualifierTable.GetQualifier(process.Provenance.QualifierId);
-            if (qualifier.TryGetValue(Context.StringTable, "targetFramework", out var targetFramework))
-            {
-                // MsBuild has its own version number so do a custom
-                if (targetFramework.StartsWith("net") && targetFramework.Substring(3).ToCharArray().All(char.IsDigit))
-                {
-                    var msbuildStyleTf = "v" + string.Join(".", targetFramework.Substring(3).ToCharArray());
-
-                    project.SetProperty("TargetFrameworkVersion", msbuildStyleTf);
-                    project.SetProperty("TargetFrameworkProfile", string.Empty);
-                }
-            }
 
             var relativeSpecFile = Context.GetRelativePath(SpecFilePath).ToString(Context.StringTable);
             project.SetProperty("DominoSpecFile", relativeSpecFile);
@@ -156,12 +145,7 @@ namespace BuildXL.Ide.Generator
             return project;
         }
 
-        internal virtual string UnevaluatedQualifierComparisonProperty => "$(Configuration)";
-
-        internal virtual string GetQualifierComparisonValue(string friendlyQualifierName) => 
-            ProjectsByQualifier.Count <= 1 
-                ? null
-                : friendlyQualifierName.ToLowerInvariant().Contains("debug") ? "Debug" : "Release";
+        internal abstract string GenerateConditionalForProject(Project project);
 
         internal virtual void VisitDirectory(SealDirectory sealDirectory)
         {
@@ -255,15 +239,26 @@ namespace BuildXL.Ide.Generator
             if (outputDirectoryType == OutputDirectoryType.TestDeployment)
             {
                 var relativeOutputDir = Context.GetRelativePath(outputDirectory).ToString(Context.StringTable);
-                buildFilter = I($"output='Mount[SourceRoot]\\{System.IO.Path.Combine(relativeOutputDir, "*")}'");
+                buildFilter = $"output='Mount[SourceRoot]\\{System.IO.Path.Combine(relativeOutputDir, "*")}'";
             }
             else
             {
                 var relativeSpecFile = Context.GetRelativePath(SpecFilePath).ToString(Context.StringTable);
-                buildFilter = I($"spec='Mount[SourceRoot]\\{relativeSpecFile}'");
+                buildFilter = $"spec='Mount[SourceRoot]\\{relativeSpecFile}'";
             }
 
             project.SetOutputDirectory(outputDirectory, outputDirectoryType, buildFilter);
+        }
+
+        internal bool TryGetQualifierProperty(Project project, string propName, out string propValue)
+        {
+            return Context.QualifierTable.GetQualifier(project.QualifierId).TryGetValue(Context.StringTable, propName, out propValue);
+        }
+
+        internal bool QualifierPropertyEquals(Qualifier qualifier, string propertyName, string propertyValue)
+        {
+            return qualifier.TryGetValue(Context.StringTable, propertyName, out var value)
+                && value.Equals(propertyValue, StringComparison.InvariantCultureIgnoreCase);
         }
     }
 

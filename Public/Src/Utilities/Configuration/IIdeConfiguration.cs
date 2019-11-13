@@ -12,6 +12,11 @@ namespace BuildXL.Utilities.Configuration
         /// Whether the Ide generator is enabled or not.
         /// </summary>
         bool IsEnabled { get; }
+        
+        /// <summary>
+        /// Temporary option for enabling "new" vs solution generator
+        /// </summary>
+        bool IsNewEnabled { get; }
 
         /// <summary>
         /// Whether the Ide generator generates msbuild project files under the source tree

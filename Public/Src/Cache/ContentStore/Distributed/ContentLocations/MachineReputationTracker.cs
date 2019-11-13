@@ -26,6 +26,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Missing,
 
         /// <summary>
+        /// The machine is currently marked as inactive
+        /// </summary>
+        Inactive,
+
+        /// <summary>
         /// The timeout occurred when a content was copied from the machine.
         /// </summary>
         Timeout,
@@ -65,6 +70,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         private readonly Context _context;
         private readonly IClock _clock;
         private readonly MachineReputationTrackerConfiguration _configuration;
+        private readonly ClusterState _clusterState;
         private readonly Func<MachineId, MachineLocation> _machineLocationResolver;
         private readonly ConcurrentDictionary<MachineLocation, ReputationState> _reputations = new ConcurrentDictionary<MachineLocation, ReputationState>();
 
@@ -75,11 +81,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
             Context context,
             IClock clock,
             MachineReputationTrackerConfiguration configuration,
-            Func<MachineId, MachineLocation> machineLocationResolver)
+            Func<MachineId, MachineLocation> machineLocationResolver,
+            ClusterState clusterState = null)
         {
             _context = context;
             _clock = clock;
             _configuration = configuration;
+            _clusterState = clusterState;
             _machineLocationResolver = machineLocationResolver;
         }
 
@@ -91,6 +99,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
             if (!Enabled)
             {
                 return;
+            }
+
+            if (reputation == MachineReputation.Good
+                && _clusterState != null
+                && _clusterState.TryResolveMachineId(location, out var machineId)
+                && _clusterState.IsMachineMarkedInactive(machineId))
+            {
+                _context.Debug($"Marked machine {machineId}='{location}' active due to report of good reputation.");
+                _clusterState.MarkMachineActive(machineId);
             }
 
             var reputationState = _reputations.GetOrAdd(location, _ => new ReputationState());
@@ -112,6 +129,15 @@ namespace BuildXL.Cache.ContentStore.Distributed
             if (!Enabled)
             {
                 return MachineReputation.Good;
+            }
+
+            if (_clusterState != null 
+                && _clusterState.TryResolveMachineId(machine, out var machineId))
+            {
+                if (_clusterState.IsMachineMarkedInactive(machineId))
+                {
+                    return MachineReputation.Inactive;
+                }
             }
 
             if (!_reputations.TryGetValue(machine, out var state))

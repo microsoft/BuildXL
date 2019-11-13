@@ -26,7 +26,7 @@ namespace Test.BuildXL.Storage
             {
             }
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             using (var io = new IOCompletionManager())
 #else
             IIOCompletionManager io = null;
@@ -78,7 +78,7 @@ namespace Test.BuildXL.Storage
                 }
             }
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             using (var io = new IOCompletionManager())
 #else
             IIOCompletionManager io = null;

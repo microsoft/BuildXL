@@ -4,6 +4,7 @@
 using System;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips.Artifacts
 {
@@ -53,10 +54,10 @@ namespace BuildXL.Pips.Artifacts
         /// If the given output path represents a dynamic file output, 
         /// then we check whether the given path is within any whitelistedpath.
         /// </remarks>
-        public static bool IsPreservedOutputByPip(Pip pip, AbsolutePath outputPath, PathTable pathTable, bool isDynamicFileOutput = false)
+        public static bool IsPreservedOutputByPip(Pip pip, AbsolutePath outputPath, PathTable pathTable, int sandBoxPreserveOuputTrstLevel, bool isDynamicFileOutput = false)
         {
             var process = pip as Process;
-            if (process == null || !process.AllowPreserveOutputs)
+            if (process == null || !process.AllowPreserveOutputs || sandBoxPreserveOuputTrstLevel > process.PreserveOutputsTrustLevel)
             {
                 return false;
             }

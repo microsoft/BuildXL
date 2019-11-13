@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using BuildXL.Scheduler.WorkDispatcher;
 
 namespace BuildXL.Scheduler
@@ -43,7 +44,9 @@ namespace BuildXL.Scheduler
 
         private CacheLookupPerfInfo m_cacheLookupPerfInfo;
 
-        internal TimeSpan CacheMissDuration { get; private set; }
+        internal TimeSpan CacheMissAnalysisDuration { get; private set; }
+
+        internal bool IsExecuted { get; private set; }
 
         /// <remarks>
         /// MaterializeOutput is executed per each worker
@@ -61,7 +64,7 @@ namespace BuildXL.Scheduler
             QueueRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
             SendRequestDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
             QueueDurations = new Lazy<TimeSpan[]>(() => new TimeSpan[(int)DispatcherKind.Materialize + 1], isThreadSafe: false);
-            Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], isThreadSafe: false);
+            Workers = new Lazy<uint[]>(() => new uint[(int)PipExecutionStep.Done + 1], LazyThreadSafetyMode.PublicationOnly);
         }
 
         internal void Enqueued(DispatcherKind kind)
@@ -86,6 +89,11 @@ namespace BuildXL.Scheduler
             {
                 StepDurations[(int)step] += duration;
             }
+
+            if (step == PipExecutionStep.ExecuteProcess)
+            {
+                IsExecuted = true;
+            }
         }
 
         internal void Completed()
@@ -93,9 +101,9 @@ namespace BuildXL.Scheduler
             CompletedTime = DateTime.UtcNow;
         }
 
-        internal void PerformedCacheMiss(TimeSpan duration)
+        internal void PerformedCacheMissAnalysis(TimeSpan duration)
         {
-            CacheMissDuration = duration;
+            CacheMissAnalysisDuration = duration;
         }
 
         internal void RemoteExecuted(

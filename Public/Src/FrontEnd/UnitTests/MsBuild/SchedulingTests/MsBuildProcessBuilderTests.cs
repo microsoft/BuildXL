@@ -67,6 +67,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // Undeclared sources are allowed as long as they are true sources
             Assert.True(testProj.AllowUndeclaredSourceReads);
+            // Weak fingerprint augmentation should be enforced
+            Assert.True((testProj.ProcessOptions & Process.Options.EnforceWeakFingerprintAugmentation) != 0);
             // Double writes are allowed as long as the written content is the same
             Assert.True(testProj.DoubleWritePolicy == DoubleWritePolicy.AllowSameContentDoubleWrites);
             // Working directory is the project directory
@@ -145,6 +147,25 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // File outputs (which includes log files) should be the same, even though the qualifier was built with a different order
             Assert.True(key1Key2Project.FileOutputs.SequenceEqual(key2Key1Project.FileOutputs));
+        }
+
+        [Fact]
+        public void QualifierDoesNotAffectLogDirectory()
+        {
+            var project1 = CreateProjectWithPredictions("Test.proj", 
+                globalProperties: new GlobalProperties(new Dictionary<string, string> { ["TargetFramework"] = "net472" }));
+            var project2 = CreateProjectWithPredictions("Test.proj");
+
+            var targetFrameworkQualifier = FrontEndContext.QualifierTable.CreateQualifier(
+                new Tuple<StringId, StringId>(StringId.Create(StringTable, "TargetFramework"), StringId.Create(StringTable, "net472")));
+
+            // If the qualifier was affecting the log directory, the path to the log file for both projects would be the same, and therefore
+            // they should fail at scheduling.
+            Start(currentQualifier: targetFrameworkQualifier)
+                .Add(project1)
+                .Add(project2)
+                .ScheduleAll()
+                .AssertSuccess();
         }
 
         [Theory]

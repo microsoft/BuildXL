@@ -4,30 +4,36 @@
 extern alias Async;
 
 using System;
-using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Caches;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 
 namespace BuildXL.Cache.MemoizationStore.Service
 {
     /// <summary>
     /// An ICache fronting a cache in a separate process.
     /// </summary>
-    public class ServiceClientCache : ServiceClientContentStore, ICache
+    public class ServiceClientCache : ServiceClientContentStore, ICache, IMemoizationStore
     {
         /// <inheritdoc />
         public Guid Id { get; } = Guid.NewGuid();
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(ServiceClientCache));
+        protected override ContentStoreTracer ExecutionTracer { get; } = new ContentStoreTracer(nameof(ServiceClientCache));
+
+        /// <inheritdoc />
+        protected override ServiceClientContentSessionTracer SessionTracer { get; } = new ServiceClientContentSessionTracer(nameof(ServiceClientCacheSession));
 
         /// <nodoc />
         public ServiceClientCache(
@@ -68,6 +74,30 @@ namespace BuildXL.Cache.MemoizationStore.Service
         public Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> EnumerateStrongFingerprints(Context context)
         {
             return AsyncEnumerable.Empty<StructResult<StrongFingerprint>>();
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<IReadOnlyMemoizationSession> CreateReadOnlySession(Context context, string name)
+        {
+            return CreateReadOnlySession(context, name, ImplicitPin.None).Map(session => (IReadOnlyMemoizationSession)session);
+        }
+
+        /// <inheritdoc />
+        public CreateSessionResult<IMemoizationSession> CreateSession(Context context, string name)
+        {
+            return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
+        }
+
+        /// <inheritdoc />
+        CreateSessionResult<IMemoizationSession> IMemoizationStore.CreateSession(Context context, string name, IContentSession contentSession)
+        {
+            return CreateSession(context, name, ImplicitPin.None).Map(session => (IMemoizationSession)session);
+        }
+
+        /// <inheritdoc />
+        Async::System.Collections.Generic.IAsyncEnumerable<StructResult<StrongFingerprint>> IMemoizationStore.EnumerateStrongFingerprints(Context context)
+        {
+            return EnumerateStrongFingerprints(context);
         }
     }
 }

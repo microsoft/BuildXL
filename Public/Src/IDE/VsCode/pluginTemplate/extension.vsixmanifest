@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Language="en-US" Id="dscript" Version="0.0.0" Publisher="Microsoft"/>
-    <DisplayName>BuildXL DScript</DisplayName>
-    <Description xml:space="preserve">BuildXL DScript Visual Studio Code Extension</Description>
-    <Tags>theme,color-theme,snippet,dscript,DScript,dsc,__ext_.dsc,__ext_.bc,__ext_.bm,__ext_.bp,__ext_.bl,__ext_.bxt</Tags>
+    <Identity Language="en-US" Id="dscript" Version="0.0.0" Publisher="BuildXL"/>
+    <DisplayName>BuildXL</DisplayName>
+    <Description xml:space="preserve">BuildXL Visual Studio Code Extension</Description>
+    <Tags>build,buildxl,dscript,DScript,dsc,__ext_.dsc,__ext_.bc,__ext_.bm,__ext_.bp,__ext_.bl,__ext_.bxt</Tags>
     <Categories>Other</Categories>
     <GalleryFlags>Public</GalleryFlags>
     <Badges></Badges>

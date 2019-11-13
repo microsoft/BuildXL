@@ -21,7 +21,7 @@ namespace BuildXL.Scheduler
         /// Initialize runtime state, optionally apply a filter and schedule all ready pips.
         /// Do not start the actual execution.
         /// </summary>
-        bool InitForMaster([NotNull]LoggingContext loggingContext, RootFilter filter = null, SchedulerState state = null, IKextConnection kextConnection = null);
+        bool InitForMaster([NotNull]LoggingContext loggingContext, RootFilter filter = null, SchedulerState state = null, ISandboxConnection sandboxConnectionKext = null);
 
         /// <summary>
         /// Start running.

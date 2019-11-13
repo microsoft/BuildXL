@@ -45,6 +45,7 @@ using ISymbol = TypeScript.Net.Types.ISymbol;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using ModuleDeclaration = BuildXL.FrontEnd.Script.Declarations.ModuleDeclaration;
 using NamespaceImport = BuildXL.FrontEnd.Script.Declarations.NamespaceImport;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using ObjectType = BuildXL.FrontEnd.Script.Types.ObjectType;
 using PropertySignature = BuildXL.FrontEnd.Script.Types.PropertySignature;
 using ReturnStatement = BuildXL.FrontEnd.Script.Statements.ReturnStatement;
@@ -1364,7 +1365,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 var name = SymbolAtom.Create(StringTable, nameStr);
 
                 // It is ok if type is null here
-                var type = ConvertType(declaration.Type, currentQualifierSpaceId);
+                Type type = m_conversionConfiguration.UnsafeOptions.SkipTypeConversion ? null : ConvertType(declaration.Type, currentQualifierSpaceId);
 
                 Expression initializerExpression = null;
                 if (declaration.Initializer != null)
@@ -2241,7 +2242,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             // The check should be removed if the managed checker would be required for all builds.
             if (source.ArgumentExpression == null)
             {
-                RuntimeModelContext.Logger.ReportExpressionExpected(this.RuntimeModelContext.LoggingContext, source.LocationForLogging(CurrentSourceFile));
+                RuntimeModelContext.Logger.ReportExpressionExpected(RuntimeModelContext.LoggingContext, source.LocationForLogging(CurrentSourceFile));
                 return null;
             }
 
@@ -2252,9 +2253,15 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 : null;
         }
 
-        private CastExpression ConvertAsExpression(IAsExpression source, ConversionContext context)
+        private Expression ConvertAsExpression(IAsExpression source, ConversionContext context)
         {
             Expression expression = ConvertExpression(source.Expression, context);
+
+            if (m_conversionConfiguration.UnsafeOptions.SkipTypeConversion)
+            {
+                return expression;
+            }
+
             Type type = ConvertType(source.Type, context.CurrentQualifierSpaceId);
             CastExpression.TypeAssertionKind castKind = CastExpression.TypeAssertionKind.AsCast;
 
@@ -2455,9 +2462,13 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 if (importKind == DScriptImportFunctionKind.ImportFrom)
                 {
                     var firstArgument = argumentAsExpression.As<IStringLiteral>();
-                    Contract.Assume(
-                        firstArgument != null,
-                        I($"Inline import method '{Constants.Names.InlineImportFunction}' takes a string literal as its first argument. {source.GetFormattedText()}"));
+                    if (firstArgument == null)
+                    {
+                        Contract.Assume(
+                            false,
+                            I($"Inline import method '{Constants.Names.InlineImportFunction}' takes a string literal as its first argument. {source.GetFormattedText()}"));
+                    }
+
                     pathSpecifier = ConvertPathSpecifier(firstArgument.Text, Location(firstArgument));
                 }
                 else if (importKind == DScriptImportFunctionKind.ImportFile)
@@ -2466,9 +2477,12 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                     (var interpolationKind, ILiteralExpression literal, _, _) = argumentAsExpression.Cast<ITaggedTemplateExpression>();
 
                     Contract.Assume(interpolationKind == InterpolationKind.FileInterpolation);
-                    Contract.Assume(
-                        literal != null,
-                        I($"Inline import method '{Constants.Names.InlineImportFileFunction}' takes a file literal as its first argument. {source.GetFormattedText()}"));
+                    if (literal == null)
+                    {
+                        Contract.Assume(
+                            false,
+                            I($"Inline import method '{Constants.Names.InlineImportFileFunction}' takes a file literal as its first argument. {source.GetFormattedText()}"));
+                    }
 
                     string text = literal.Text;
                     if (ImportPathHelpers.IsPackageName(literal.Text))
@@ -2498,24 +2512,63 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             var selector = functor as SelectorExpressionBase;
-            if (selector?.Selector == m_conversionContext.WithQualifierKeyword)
+            if (selector != null)
             {
-                Contract.Assert(arguments.Length != 0, "withQualifier should have at least one argument.");
-                var qualifierExpression = arguments[0];
+                if (selector.Selector == m_conversionContext.WithQualifierKeyword)
+                {
+                    Contract.Assert(arguments.Length != 0, "withQualifier should have at least one argument.");
+                    var qualifierExpression = arguments[0];
 
-                var resolvedSymbol = ResolveSymbolAtPositionAndReportWarningIfObsolete(source.Expression);
-                Contract.Assert(resolvedSymbol != null);
-                var targetQualifierSpaceId = ExtractSourceQualifierSpace(resolvedSymbol);
+                    var resolvedSymbol = ResolveSymbolAtPositionAndReportWarningIfObsolete(source.Expression);
+                    Contract.Assert(resolvedSymbol != null);
+                    var targetQualifierSpaceId = ExtractSourceQualifierSpace(resolvedSymbol);
 
-                return new WithQualifierExpression(
-                    selector.ThisExpression,
-                    qualifierExpression,
-                    sourceQualifierSpaceId: context.CurrentQualifierSpaceId,
-                    targetQualifierSpaceId: targetQualifierSpaceId,
-                    location: Location(source));
+                    return new WithQualifierExpression(
+                        selector.ThisExpression,
+                        qualifierExpression,
+                        sourceQualifierSpaceId: context.CurrentQualifierSpaceId,
+                        targetQualifierSpaceId: targetQualifierSpaceId,
+                        location: Location(source));
+                }
+                
+                if (selector.ThisExpression is ModuleIdExpression moduleIdExpression
+                    && moduleIdExpression.Name == m_conversionContext.UnsafeNamespace)
+                {
+                    Expression inlineExpression = TryInlineUnsafeCall(source, selector, arguments);
+
+                    if (inlineExpression != null)
+                    {
+                        return inlineExpression;
+                    }
+                }
             }
 
             return ApplyExpression.Create(functor, typeArguments, arguments, Location(source));
+        }
+
+        private Expression TryInlineUnsafeCall(INode source, SelectorExpressionBase selector, Expression[] arguments)
+        {
+            if (arguments.Length == 0)
+            {
+                return null;
+            }
+
+            if (!(arguments[0] is PathLiteral path))
+            {
+                return null;
+            }
+
+            if (selector.Selector == m_conversionContext.UnsafeOutputFile)
+            {
+                int rewriteCount = arguments.Length > 1 && arguments[1] is NumberLiteral rc ? rc.UnboxedValue : 1;
+                return new FileLiteral(path.Value, rewriteCount, Location(source));
+            }
+            else if (selector.Selector == m_conversionContext.UnsafeExOutputDirectory)
+            {
+                return new DirectoryLiteralExpression(path, Location(source));
+            }
+
+            return null;
         }
 
         private bool IsObsolete(ISymbol symbol, out string message)
@@ -2591,7 +2644,10 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         private ImportAliasExpression CreateImportAliasExpression(Expression pathSpecifier, in UniversalLocation location)
         {
             var absolutePathSpecifier = pathSpecifier as PathLiteral;
-            Contract.Assert(absolutePathSpecifier != null, I($"pathSpecifier should be of PathLiteral type but was '{pathSpecifier.GetType()}'."));
+            if (absolutePathSpecifier == null)
+            {
+                Contract.Assert(false, I($"pathSpecifier should be of PathLiteral type but was '{pathSpecifier.GetType()}'."));
+            }
 
             if (!m_workspace.ContainsSpec(absolutePathSpecifier.Value))
             {
@@ -2933,17 +2989,16 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                 return new LocalReferenceExpression(nameAtom, variable.Index, location);
             }
 
-            var globals = context.Scope.GetGlobalScope();
-
-            if (globals != null)
+            if (ShouldCheckDeclarationBeforeUse())
             {
-                if (globals.TryResolveRecursively(nameAtom, out variable))
-                {
-                    var lineInfo = location.AsFilePosition();
+                var globals = context.Scope.GetGlobalScope();
 
-                    // TODO: Move the configuration to a lint rule
-                    if (ShouldCheckDeclarationBeforeUse())
+                if (globals != null)
+                {
+                    if (globals.TryResolveRecursively(nameAtom, out variable))
                     {
+                        var lineInfo = location.AsFilePosition();
+
                         // Enforce def-before-use.
                         if (variable.LocationDefinition.AsFilePosition().Position > lineInfo.Position)
                         {
@@ -2953,10 +3008,9 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
                                 nameAtom.ToString(StringTable));
                             return null;
                         }
-                    }
 
-                    Contract.Assert(!variable.IsLocal);
-                    return CreateNamespaceReferenceExpressionIfNeeded(nameAtom, identifierSymbol, location, context);
+                        Contract.Assert(!variable.IsLocal);
+                    }
                 }
             }
 
@@ -3161,7 +3215,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
             }
 
             string text = isNegative ? ($"-{literal.Text}") : literal.Text;
-            
+
             switch (literal.Kind)
             {
                 case TypeScript.Net.Types.SyntaxKind.NumericLiteral:

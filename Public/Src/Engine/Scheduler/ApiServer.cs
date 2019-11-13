@@ -27,9 +27,10 @@ namespace BuildXL.Scheduler
         private readonly IServer m_server;
         private readonly PipExecutionContext m_context;
 
-        private long m_numMaterializeFile = 0;
-        private long m_numReportStatistics = 0;
-        private long m_numGetSealedDirectoryContent = 0;
+        private long m_numMaterializeFile;
+        private long m_numReportStatistics;
+        private long m_numGetSealedDirectoryContent;
+        private long m_numLogMessage;
 
         private LoggingContext m_loggingContext;
 
@@ -88,10 +89,11 @@ namespace BuildXL.Scheduler
                 [Statistics.ApiTotalMaterializeFileCalls] = Volatile.Read(ref m_numMaterializeFile),
                 [Statistics.ApiTotalReportStatisticsCalls] = Volatile.Read(ref m_numReportStatistics),
                 [Statistics.ApiTotalGetSealedDirectoryContentCalls] = Volatile.Read(ref m_numGetSealedDirectoryContent),
+                [Statistics.ApiTotalLogMessageCalls] = Volatile.Read(ref m_numLogMessage),
             });
         }
 
-        async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(IIpcOperation op)
+        async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
         {
             Contract.Requires(op != null);
 
@@ -115,7 +117,7 @@ namespace BuildXL.Scheduler
             var materializeFileCmd = cmd as MaterializeFileCommand;
             if (materializeFileCmd != null)
             {
-                var result = await ExecuteCommandWithStats(ExecuteMaterializeFile, materializeFileCmd, ref m_numMaterializeFile);
+                var result = await ExecuteCommandWithStats(ExecuteMaterializeFileAsync, materializeFileCmd, ref m_numMaterializeFile);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -127,9 +129,16 @@ namespace BuildXL.Scheduler
             }
 
             var getSealedDirectoryFilesCmd = cmd as GetSealedDirectoryContentCommand;
-            if(getSealedDirectoryFilesCmd != null)
+            if (getSealedDirectoryFilesCmd != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteGetSealedDirectoryContent, getSealedDirectoryFilesCmd, ref m_numGetSealedDirectoryContent);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var logMessageCmd = cmd as LogMessageCommand;
+            if (logMessageCmd != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteLogMessage, logMessageCmd, ref m_numLogMessage);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -140,9 +149,9 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// Executes <see cref="MaterializeFileCommand"/>.  First check that <see cref="MaterializeFileCommand.File"/>
-        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFile"/>.
+        /// and <see cref="MaterializeFileCommand.FullFilePath"/> match, then delegates to <see cref="FileContentManager.TryMaterializeFileAsync"/>.
         /// </summary>
-        private async Task<IIpcResult> ExecuteMaterializeFile(MaterializeFileCommand cmd)
+        private async Task<IIpcResult> ExecuteMaterializeFileAsync(MaterializeFileCommand cmd)
         {
             Contract.Requires(cmd != null);
 
@@ -156,8 +165,21 @@ namespace BuildXL.Scheduler
                     "file path ids differ; file = " + cmd.File.Path.ToString(m_context.PathTable) + ", file path = " + cmd.FullFilePath);
             }
 
-            bool succeeded = await m_fileContentManager.TryMaterializeFile(cmd.File);
-            Tracing.Logger.Log.ApiServerMaterializeFileExecuted(m_loggingContext, cmd.File.Path.ToString(m_context.PathTable), succeeded);
+            var result = await m_fileContentManager.TryMaterializeFileAsync(cmd.File);
+            bool succeeded = result == ArtifactMaterializationResult.Succeeded;
+            string absoluteFilePath = cmd.File.Path.ToString(m_context.PathTable);
+
+            // if file materialization failed, log an error here immediately, so that this errors gets picked up as the root cause 
+            // (i.e., the "ErrorBucket") instead of whatever fallout ends up happening (e.g., IPC pip fails)
+            if (!succeeded)
+            {
+                Tracing.Logger.Log.ErrorApiServerMaterializeFileFailed(m_loggingContext, absoluteFilePath, result.ToString());
+            }
+            else
+            {
+                Tracing.Logger.Log.ApiServerMaterializeFileSucceeded(m_loggingContext, absoluteFilePath);
+            }
+
             return IpcResult.Success(cmd.RenderResult(succeeded));
         }
 
@@ -189,7 +211,7 @@ namespace BuildXL.Scheduler
 
             var files = m_fileContentManager.ListSealedDirectoryContents(cmd.Directory);
 
-            Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable));
+            Tracing.Logger.Log.ApiServerGetSealedDirectoryContentExecuted(m_loggingContext, cmd.Directory.Path.ToString(m_context.PathTable), files.Length);
 
             var inputContentsTasks = files
                 .Select(f => m_fileContentManager.TryQuerySealedOrUndeclaredInputContentAsync(f.Path, nameof(ApiServer), false))
@@ -217,12 +239,36 @@ namespace BuildXL.Scheduler
 
             if (failedResults.Count > 0)
             {
-                new IpcResult(
+                return new IpcResult(
                     IpcResultStatus.ExecutionError,
-                    "could not find content information for the files: " + string.Join("; ", failedResults));
+                    string.Format("Could not find content information for {0} out of {1} files inside of '{4}':{2}{3}",
+                        failedResults.Count,
+                        files.Length,
+                        Environment.NewLine,
+                        string.Join("; ", failedResults),
+                        cmd.Directory.Path.ToString(m_context.PathTable)));
             }
 
             return IpcResult.Success(cmd.RenderResult(results));
+        }
+
+        /// <summary>
+        /// Executes <see cref="LogMessageCommand"/>.
+        /// </summary>
+        private Task<IIpcResult> ExecuteLogMessage(LogMessageCommand cmd)
+        {
+            Contract.Requires(cmd != null);
+
+            if (cmd.IsWarning)
+            {
+                Tracing.Logger.Log.ApiServerReceivedWarningMessage(m_loggingContext, cmd.Message);
+            }
+            else
+            {
+                Tracing.Logger.Log.ApiServerReceivedMessage(m_loggingContext, cmd.Message);
+            }
+
+            return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
         private Possible<Command> TryDeserialize(string operation)

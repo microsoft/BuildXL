@@ -18,6 +18,7 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Cache;
@@ -29,12 +30,14 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Qualifier;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.VmCommandProxy;
+using BuildXL.ViewModel;
 using JetBrains.Annotations;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
@@ -210,14 +213,12 @@ namespace BuildXL.Engine
                 graphSemistableFingerprint: pipGraph.SemistableFingerprint,
                 environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
-            Task<PipRuntimeTimeTable> runtimeTableTask = TryLoadRunningTimeTable(
+            AsyncLazy<PipRuntimeTimeTable> runtimeTable = Lazy.CreateAsync(() => TryLoadRunningTimeTable(
                 loggingContext,
                 context,
                 configuration,
                 Task.FromResult<Possible<EngineCache>>(scheduleCache),
-                performanceDataFingerprint: performanceDataFingerprint);
-            // Make sure the result of the task is observed
-            runtimeTableTask.Forget();
+                performanceDataFingerprint: performanceDataFingerprint));
 
             PipTwoPhaseCache twoPhaseCache = InitTwoPhaseCache(
                 loggingContext,
@@ -225,10 +226,7 @@ namespace BuildXL.Engine
                 configuration,
                 scheduleCache,
                 performanceDataFingerprint: performanceDataFingerprint,
-                pathExpander: mountPathExpander,
-                // Need to wait for completion of loading because graph will be serialized and loading causes
-                // addition to graph data structures (path table and string table) which is not permitted during serialization
-                waitForLoadCompletion: true);
+                pathExpander: mountPathExpander);
 
             var whiteList = new FileAccessWhitelist(context);
             try
@@ -271,7 +269,7 @@ namespace BuildXL.Engine
                     configuration,
                     tempCleaner: tempCleaner,
                     loggingContext: loggingContext,
-                    runningTimeTableTask: runtimeTableTask,
+                    runningTimeTable: runtimeTable,
                     fileAccessWhitelist: whiteList,
                     directoryMembershipFingerprinterRules: directoryMembershipFingerprinterRules,
                     journalState: journalState,
@@ -284,6 +282,7 @@ namespace BuildXL.Engine
                     buildEngineFingerprint: buildEngineFingerprint,
                     vmInitializer: VmInitializer.CreateFromEngine(
                         configuration.Layout.BuildEngineDirectory.ToString(context.PathTable),
+                        vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                         message => Logger.Log.StartInitializingVm(loggingContext, message),
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -414,8 +413,7 @@ namespace BuildXL.Engine
             IConfiguration configuration,
             EngineCache cache,
             ContentFingerprint performanceDataFingerprint,
-            PathExpander pathExpander,
-            bool waitForLoadCompletion)
+            PathExpander pathExpander)
         {
             if (configuration.Cache.HistoricMetadataCache == true)
             {
@@ -433,8 +431,6 @@ namespace BuildXL.Engine
                             return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
                         },
                         logDirectoryLocation: configuration.Logging.HistoricMetadataCacheLogDirectory);
-
-                    historicMetadataCache.StartLoading(waitForCompletion: waitForLoadCompletion);
 
                     return historicMetadataCache;
                 }
@@ -745,7 +741,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
-            ITempDirectoryCleaner tempCleaner)
+            ITempCleaner tempCleaner)
         {
             var pathsToScrub = new List<string>();
             if (configuration.Engine.Scrub && mountPathExpander != null)
@@ -777,21 +773,43 @@ namespace BuildXL.Engine
                 outputDirectories = scheduler.PipGraph.AllDirectoriesContainingOutputs().Select(d => d.ToString(scheduler.Context.PathTable)).ToList();
             }
 
+            var scrubber = new DirectoryScrubber(
+                cancellationToken: scheduler.Context.CancellationToken,
+                loggingContext: loggingContext,
+                loggingConfiguration: configuration.Logging,
+                maxDegreeParallelism: Environment.ProcessorCount,
+                tempDirectoryCleaner: tempCleaner);
+
+            var sharedOpaqueSidebandDirectory = configuration.Layout.SharedOpaqueSidebandDirectory.ToString(scheduler.Context.PathTable);
+            var sharedOpaqueSidebandFiles = SidebandWriter.FindAllProcessPipSidebandFiles(sharedOpaqueSidebandDirectory);
+            var distinctRecordedWrites = sharedOpaqueSidebandFiles
+                .AsParallel()
+                .WithDegreeOfParallelism(Environment.ProcessorCount)
+                .WithCancellation(scheduler.Context.CancellationToken)
+                .SelectMany(fileName => ReadSidebandFile(loggingContext, fileName))
+                .ToArray();
+
+            if (distinctRecordedWrites.Any())
+            {
+                Logger.Log.DeletingOutputsFromSharedOpaqueSidebandFilesStarted(loggingContext);
+                scrubber.DeleteFiles(distinctRecordedWrites);
+            }
+
+            if (sharedOpaqueSidebandFiles.Any())
+            {
+                Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
+                scrubber.DeleteFiles(sharedOpaqueSidebandFiles);
+            }
+
             if (pathsToScrub.Count > 0)
             {
-                var scrubber = new DirectoryScrubber(
-                    loggingContext: loggingContext,
-                    loggingConfiguration: configuration.Logging,
+                Logger.Log.ScrubbingStarted(loggingContext);
+                scrubber.RemoveExtraneousFilesAndDirectories(
                     isPathInBuild: path => scheduler.PipGraph.IsPathInBuild(AbsolutePath.Create(scheduler.Context.PathTable, path)),
                     pathsToScrub: pathsToScrub,
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
-                    mountPathExpander: mountPathExpander,
-                    maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: tempCleaner);
-
-                Logger.Log.ScrubbingStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
+                    mountPathExpander: mountPathExpander);
             }
 
             // Shared opaque content is always deleted, regardless of what configuration.Engine.Scrub says
@@ -807,9 +825,8 @@ namespace BuildXL.Engine
             {
                 // The condition to delete a file under a shared opaque is more strict than for regular scrubbing: only files that have a specific
                 // timestamp (which marks files as being shared opaque outputs) are deleted.
-                var scrubber = new DirectoryScrubber(
-                    loggingContext: loggingContext,
-                    loggingConfiguration: configuration.Logging,
+                Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
+                scrubber.RemoveExtraneousFilesAndDirectories(
                     // Everything that is not an output under a shared opaque is considered part of the build.
                     isPathInBuild: path =>
                         !SharedOpaqueOutputHelper.IsSharedOpaqueOutput(path) ||
@@ -818,12 +835,25 @@ namespace BuildXL.Engine
                     blockedPaths: nonScrubbablePaths,
                     nonDeletableRootDirectories: outputDirectories,
                     // Mounts don't need to be scrubbable for this operation to take place.
-                    mountPathExpander: null,
-                    maxDegreeParallelism: Environment.ProcessorCount,
-                    tempDirectoryCleaner: tempCleaner);
+                    mountPathExpander: null);
+            }
+        }
 
-                Logger.Log.ScrubbingSharedOpaquesStarted(loggingContext);
-                scrubber.RemoveExtraneousFilesAndDirectories(scheduler.Context.CancellationToken);
+        private static string[] ReadSidebandFile(LoggingContext loggingContext, string sidebandFile)
+        {
+            using (var sidebandReader = new SidebandReader(sidebandFile))
+            {
+                try
+                {
+                    sidebandReader.ReadHeader(ignoreChecksum: true);
+                    sidebandReader.ReadMetadata();
+                    return sidebandReader.ReadRecordedPaths().ToArray();
+                }
+                catch (IOException e)
+                {
+                    Logger.Log.CannotReadSidebandFile(loggingContext, sidebandFile, e.Message);
+                    return CollectionUtilities.EmptyArray<string>();
+                }
             }
         }
 
@@ -837,7 +867,7 @@ namespace BuildXL.Engine
             PathTable pathTable,
             IConfiguration configuration,
             IEnumerable<string> extraNonScrubbablePaths,
-            [CanBeNull] ITempDirectoryCleaner tempCleaner)
+            [CanBeNull] ITempCleaner tempCleaner)
         {
             var nonScrubbablePaths = new List<string>(new[]
             {
@@ -923,7 +953,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
 
-            if ((configuration.Engine.Phase & EnginePhases.Schedule) == 0)
+            if (!configuration.Engine.Phase.HasFlag(EnginePhases.Schedule))
             {
                 return true;
             }
@@ -932,6 +962,15 @@ namespace BuildXL.Engine
             {
                 return false;
             }
+
+            // The filter may or may not have already been computed depending on whether there was a graph hit or not.
+            if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
+            {
+                return false;
+            }
+
+            LogPipFilter(loggingContext, filter);
+            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
 
             // Do scrub before init (Scheduler.Init() and Scheduler.InitForWorker()) because init captures and tracks
             // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
@@ -944,15 +983,6 @@ namespace BuildXL.Engine
             {
                 return Scheduler.InitForWorker(loggingContext);
             }
-
-            // The filter may or may not have already been computed depending on whether there was a graph hit or not.
-            if (filter == null && !TryGetPipFilter(loggingContext, Context, commandLineConfiguration, configuration, out filter))
-            {
-                return false;
-            }
-
-            LogPipFilter(loggingContext, filter);
-            Logger.Log.FilterDetails(loggingContext, filter.GetStatistics());
 
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
             bool initResult = Scheduler.InitForMaster(loggingContext, filter, schedulerState);
@@ -1027,6 +1057,7 @@ namespace BuildXL.Engine
             rootFilter = null;
             FilterParserError error;
 
+            var canonicalize = configuration.Schedule.CanonicalizeFilterOutputs;
             var filterUnParsed = commandLineConfiguration.Filter;
             var defaultFilter = configuration.Engine.DefaultFilter;
             var implicitFilters = commandLineConfiguration.Startup.ImplicitFilters;
@@ -1050,7 +1081,7 @@ namespace BuildXL.Engine
                 }
 
                 // Otherwise we parse the actual filter
-                FilterParser parser = new FilterParser(context, mountResolver, filterUnParsed);
+                FilterParser parser = new FilterParser(context, mountResolver, filterUnParsed, canonicalize: canonicalize);
                 if (!parser.TryParse(out rootFilter, out error))
                 {
                     Logger.Log.ConfigFailedParsingCommandLinePipFilter(
@@ -1086,7 +1117,7 @@ namespace BuildXL.Engine
                     }
                 }
 
-                FilterParser parser = new FilterParser(context, mountResolver, sb.ToString());
+                FilterParser parser = new FilterParser(context, mountResolver, sb.ToString(), canonicalize: canonicalize);
 
                 if (!parser.TryParse(out rootFilter, out error))
                 {
@@ -1102,7 +1133,7 @@ namespace BuildXL.Engine
             else if (!string.IsNullOrWhiteSpace(defaultFilter))
             {
                 // Then fall back to the default filter
-                FilterParser parser = new FilterParser(context, mountResolver, defaultFilter);
+                FilterParser parser = new FilterParser(context, mountResolver, defaultFilter, canonicalize: canonicalize);
                 RootFilter parsedFilter;
                 if (!parser.TryParse(out parsedFilter, out error))
                 {
@@ -1177,7 +1208,7 @@ namespace BuildXL.Engine
                     return null;
                 }
 
-                return ContentHashingUtilities.HashString(guid);
+                return ContentHashingUtilities.HashString(guid + config.Sandbox.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel);
             }
 
             return UnsafeOptions.PreserveOutputsNotUsed;
@@ -1420,7 +1451,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// At the end of the build this logs some important stats about the build
         /// </summary>
-        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext)
+        public SchedulerPerformanceInfo LogStats(LoggingContext loggingContext, [CanBeNull] BuildSummary buildSummary)
         {
 #pragma warning disable SA1114 // Parameter list must follow declaration
 
@@ -1445,7 +1476,7 @@ namespace BuildXL.Engine
 #pragma warning restore SA1114 // Parameter list must follow declaration
             }
 
-            var schedulerPerformance = Scheduler.LogStats(loggingContext);
+            var schedulerPerformance = Scheduler.LogStats(loggingContext, buildSummary);
 
             // Log whitelist file statistics
             if (m_configFileState.FileAccessWhitelist != null && m_configFileState.FileAccessWhitelist.MatchedEntryCounts.Count > 0)
@@ -1579,7 +1610,7 @@ namespace BuildXL.Engine
                 graphSemistableFingerprint: semistableFingerprintOfGraphToReload,
                 environmentFingerprint: configuration.Schedule.EnvironmentFingerprint);
 
-            Task<PipRuntimeTimeTable> runningTimeTableTask = Task.Run(
+            AsyncLazy<PipRuntimeTimeTable> runningTimeTable = Lazy.CreateAsync(
                 () =>
                     TryLoadRunningTimeTable(
                         loggingContext,
@@ -1587,8 +1618,6 @@ namespace BuildXL.Engine
                         newConfiguration,
                         GetCacheForContext(engineCacheInitializationTask),
                         performanceDataFingerprint: performanceDataFingerprint));
-            // Make sure the result of the task is observed
-            runningTimeTableTask.Forget();
 
             // We try to wait on the cache near to last (we happen to track the first wait attempt on the cache relative to when it is actually ready).
             Possible<CacheInitializer> possibleCacheInitializer = await engineCacheInitializationTask;
@@ -1614,8 +1643,7 @@ namespace BuildXL.Engine
                     newConfiguration,
                     scheduleCache,
                     performanceDataFingerprint: performanceDataFingerprint,
-                    pathExpander: pathExpander,
-                    waitForLoadCompletion: false);
+                    pathExpander: pathExpander);
 
             await serializer.WaitForPendingDeserializationsAsync();
 
@@ -1650,7 +1678,7 @@ namespace BuildXL.Engine
                         loggingContext: loggingContext,
                         fileAccessWhitelist: configFileState.FileAccessWhitelist,
                         directoryMembershipFingerprinterRules: configFileState.DirectoryMembershipFingerprinterRules,
-                        runningTimeTableTask: runningTimeTableTask,
+                        runningTimeTable: runningTimeTable,
                         tempCleaner: tempCleaner,
                         performanceCollector: performanceCollector,
                         previousInputsSalt: previousOutputsSalt.Value,
@@ -1661,6 +1689,7 @@ namespace BuildXL.Engine
                         buildEngineFingerprint: buildEngineFingerprint,
                         vmInitializer: VmInitializer.CreateFromEngine(
                             newConfiguration.Layout.BuildEngineDirectory.ToString(newContext.PathTable),
+                            vmCommandProxyAlternate: EngineEnvironmentSettings.VmCommandProxyPath,
                             message => Logger.Log.StartInitializingVm(loggingContext, message),
                             message => Logger.Log.EndInitializingVm(loggingContext, message),
                             message => Logger.Log.InitializingVm(loggingContext, message)));
@@ -1999,7 +2028,7 @@ namespace BuildXL.Engine
             PipGraphCacheDescriptor cacheDescriptor,
             EngineSerializer serializer,
             FileContentTable fileContentTable,
-            ITempDirectoryCleaner tempDirectoryCleaner)
+            ITempCleaner tempDirectoryCleaner)
         {
             if (cacheDescriptor != null)
             {

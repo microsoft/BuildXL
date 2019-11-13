@@ -33,6 +33,8 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
+using ContentStoreTest.Stores;
+using ContentStoreTest.Sessions;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -53,7 +55,7 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction,
             int? replicaCreditInMinutes,
             bool enableRepairHandling,
-            bool emptyFileHashShortcutEnabled);
+            object additionalArgs);
 
         protected class TestContext
         {
@@ -72,13 +74,24 @@ namespace ContentStoreTest.Distributed.Sessions
                 Sessions = sessions;
                 Stores = stores;
                 Iteration = iteration;
+
+                for (int i = 0; i < Stores.Count; i++)
+                {
+                    var distributedStore = (DistributedContentStore<AbsolutePath>)GetDistributedStore(i);
+                    fileCopier.CopyHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                    fileCopier.PushHandlersByLocation[distributedStore.LocalMachineLocation] = distributedStore;
+                }
             }
 
             public static implicit operator Context(TestContext context) => context.Context;
 
             public static implicit operator OperationContext(TestContext context) => new OperationContext(context);
 
-            public DistributedContentSession<AbsolutePath> GetDistributedSession(int idx) => (DistributedContentSession<AbsolutePath>)Sessions[idx];
+            public DistributedContentSession<AbsolutePath> GetDistributedSession(int idx)
+            {
+                var session = Sessions[idx];
+                return (DistributedContentSession<AbsolutePath>)session;
+            }
 
             public LocalLocationStore GetLocalLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore).LocalLocationStore;
@@ -88,6 +101,12 @@ namespace ContentStoreTest.Distributed.Sessions
 
             internal TransitioningContentLocationStore GetLocationStore(int idx) =>
                 ((TransitioningContentLocationStore)GetDistributedSession(idx).ContentLocationStore);
+
+            internal IContentStore GetDistributedStore(int idx)
+            {
+                var store = Stores[idx];
+                return store;
+            }
 
             internal int GetMasterIndex()
             {
@@ -828,7 +847,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             Token);
                         Assert.True(putResult1.Succeeded);
 
-                        session = (DistributedContentSession<AbsolutePath>)sessions[1];
+                        session = session = context.GetDistributedSession(1);
                         redisStore = context.GetRedisStore(session);
 
                         // Insert same file in session 1 and update expiry to 1 hour
@@ -871,8 +890,7 @@ namespace ContentStoreTest.Distributed.Sessions
                         Assert.Equal(0, openStreamResult.Stream.Length);
                         Assert.Equal(0, context.FileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         [Fact]
@@ -891,8 +909,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
                         Assert.Equal(0, context.FileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
 
         [Fact]
@@ -919,9 +936,10 @@ namespace ContentStoreTest.Distributed.Sessions
                         Assert.Equal(0, placeFileResult.FileSize);
                         Assert.Equal(0, context.FileCopier.FilesCopied.Count);
                     }
-                },
-                emptyFileHashShortcutEnabled: true);
+                });
         }
+
+        protected virtual object PrepareAdditionalCreateStoreArgs(int storeCount) => null;
 
         protected async Task RunTestAsync(
             Context context,
@@ -931,13 +949,16 @@ namespace ContentStoreTest.Distributed.Sessions
             bool enableDistributedEviction = false,
             int? replicaCreditInMinutes = null,
             bool enableRepairHandling = false,
-            bool emptyFileHashShortcutEnabled = false,
             int iterations = 1)
         {
+            var additionalArgs = PrepareAdditionalCreateStoreArgs(storeCount);
             var indexedDirectories = Enumerable.Range(0, storeCount)
                 .Select(i => new { Index = i, Directory = new DisposableDirectory(FileSystem, TestRootDirectoryPath / i.ToString()) })
                 .ToList();
-            var testFileCopier = new TestFileCopier();
+            var testFileCopier = new TestFileCopier()
+            {
+                WorkingDirectory = indexedDirectories[0].Directory.Path
+            };
             for (int iteration = 0; iteration < iterations; iteration++)
             {
                 var stores = indexedDirectories.Select(
@@ -950,7 +971,7 @@ namespace ContentStoreTest.Distributed.Sessions
                             enableDistributedEviction,
                             replicaCreditInMinutes,
                             enableRepairHandling,
-                            emptyFileHashShortcutEnabled)).ToList();
+                            additionalArgs)).ToList();
 
                 var startupResults = await TaskSafetyHelpers.WhenAll(stores.Select(async store => await store.StartupAsync(context)));
 

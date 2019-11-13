@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.FileSystem;
@@ -17,7 +16,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
-using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -34,14 +32,14 @@ namespace ContentStoreTest.Distributed.Stores
         private const int FileSize = 1000;
         private const HashType DefaultHashType = HashType.Vso0;
         private const string LocalHost = "localhost";
-        private Context _context;
+        private readonly Context _context;
         private GrpcCopyClientCache _clientCache;
 
         public GrpcCopyContentTests()
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger)
         {
             _context = new Context(Logger);
-            _clientCache = new GrpcCopyClientCache(_context, 65536);
+            _clientCache = new GrpcCopyClientCache(_context, maxClientCount: 65536);
         }
 
         [Fact]

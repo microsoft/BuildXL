@@ -22,7 +22,7 @@ namespace ContentStoreTest.Stores
 {
     public sealed class FileSystemContentStoreInternalSessionTests : FileSystemContentStoreInternalTestBase
     {
-        private static ContentHash _emptyFileVsoHash = ComputeEmptyVsoHash();
+        private static readonly ContentHash _emptyFileVsoHash = ComputeEmptyVsoHash();
         private readonly MemoryClock _clock;
 
         public FileSystemContentStoreInternalSessionTests()

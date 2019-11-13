@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -20,7 +21,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public ResultPropagationException(ResultBase result)
             : base(result.ErrorMessage, result.Exception)
         {
-            Contract.Requires(result != null);
+            Contract.RequiresNotNull(result);
             Contract.Requires(!result.Succeeded);
 
             Result = result;

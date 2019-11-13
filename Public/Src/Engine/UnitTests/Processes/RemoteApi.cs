@@ -68,12 +68,17 @@ namespace Test.BuildXL.Processes
             using (TextReader commandReader = GetCommandReader(commands))
             {
                 info.StandardInputReader = commandReader;
+                info.StandardInputEncoding = Encoding.ASCII;
 
                 // TODO: Maybe watch stdout and validate the command results.
                 using (SandboxedProcess process = await SandboxedProcess.StartAsync(info))
                 {
                     SandboxedProcessResult result = await process.GetResultAsync();
-                    XAssert.AreEqual(0, result.ExitCode, "RemoteApi.exe failed");
+                    if (result.ExitCode != 0)
+                    {
+                        var stdErr = await result.StandardError.ReadValueAsync();
+                        XAssert.AreEqual(0, result.ExitCode, "RemoteApi.exe failed: " + stdErr);
+                    }
 
                     return result;
                 }

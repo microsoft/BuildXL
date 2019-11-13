@@ -312,7 +312,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
 
             if (pip.EnvironmentVariables.Length > 0)
             {
-                properties.Add(new PropertyAssignment("environmentVariables", Generate(pip.EnvironmentVariables, Generate)));
+                properties.Add(new PropertyAssignment("environmentVariables", Generate(pip.EnvironmentVariables.OrderBy(kv => kv.Name, m_pathTable.StringTable.OrdinalComparer).ToArray(), Generate)));
             }
 
             if (pip.WarningRegex != null && pip.WarningRegex.Pattern.ToString(m_stringTable) != RegexDescriptor.DefaultWarningPattern)
@@ -341,7 +341,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 properties.Add(new PropertyAssignment("additionalTempDirectories", Generate(pip.AdditionalTempDirectories, tempDir => Generate(tempDir, "d"))));
             }
 
-            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses)
+            if (pip.UntrackedPaths.Length > 0 || pip.UntrackedScopes.Length > 0 || pip.AllowPreserveOutputs || pip.HasUntrackedChildProcesses || !pip.RequireGlobalDependencies)
             {
                 var unsafeProperties = new List<IObjectLiteralElement>();
                 if (pip.UntrackedPaths.Length > 0)
@@ -362,6 +362,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
                 if (pip.AllowPreserveOutputs)
                 {
                     unsafeProperties.Add(new PropertyAssignment("allowPreservedOutputs", Generate(pip.AllowPreserveOutputs)));
+                }
+
+                if (!pip.RequireGlobalDependencies)
+                {
+                    unsafeProperties.Add(new PropertyAssignment("requireGlobalDependencies", Generate(pip.RequireGlobalDependencies)));
                 }
 
                 properties.Add(new PropertyAssignment("unsafe", new ObjectLiteralExpression(unsafeProperties)));

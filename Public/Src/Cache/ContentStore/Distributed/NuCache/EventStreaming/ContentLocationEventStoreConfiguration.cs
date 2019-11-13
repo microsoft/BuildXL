@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// The number of events which forces an event batch to be sent
         /// </summary>
-        public int EventBatchSize { get; set; } = 200;
+        public int EventBatchSize { get; set; } = 1000;
 
         /// <summary>
         /// The number of events which forces an event batch to be sent
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <summary>
         /// The size of the queue used for concurrent event processing.
         /// </summary>
-        public int EventProcessingMaxQueueSize { get; set; } = 100;
+        public int EventProcessingMaxQueueSize { get; set; } = 10000;
     }
 
     /// <summary>

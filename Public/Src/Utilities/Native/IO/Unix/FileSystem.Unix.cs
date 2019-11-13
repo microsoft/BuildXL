@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-#if FEATURE_CORECLR
+#if NET_CORE
 using System.IO.Enumeration;
 #endif
 using System.Linq;
@@ -193,7 +193,7 @@ namespace BuildXL.Native.IO.Unix
             Action<string /*filePath*/, string /*fileName*/, FileAttributes /*attributes*/, long /*fileSize*/> handleEntry,
             bool isEnumerationForDirectoryDeletion)
         {
-#if FEATURE_CORECLR
+#if NET_CORE
             try
             {
                 GetFileFullPathsWithExtension(directoryPath).Any();
@@ -443,20 +443,20 @@ namespace BuildXL.Native.IO.Unix
         {
             switch (ex)
             {
-                case ArgumentOutOfRangeException aourEx:
-                case ArgumentNullException anEx:
-                case ArgumentException ae:
+                case ArgumentOutOfRangeException _:
+                case ArgumentNullException _:
+                case ArgumentException _:
                     return NativeIOConstants.ErrorInvalidParameter;
-                case UnauthorizedAccessException uaEx:
+                case UnauthorizedAccessException _:
                     return NativeIOConstants.ErrorAccessDenied;
-                case DirectoryNotFoundException dnfEx:
-                case FileNotFoundException fnfEx:
+                case DirectoryNotFoundException _:
+                case FileNotFoundException _:
                     return NativeIOConstants.ErrorFileNotFound;
-                case PathTooLongException patlEx:
+                case PathTooLongException _:
                     return NativeIOConstants.ErrorPathNotFound;
-                case IOException ioEx:
-                case SecurityException se:
-                case NotSupportedException nosEx:
+                case IOException _:
+                case SecurityException _:
+                case NotSupportedException _:
                 default:
                     return NativeIOConstants.ErrorNotSupported;
             }
@@ -555,7 +555,7 @@ namespace BuildXL.Native.IO.Unix
                 if (handle.IsInvalid)
                 {
                     handle = null;
-                    return CreateErrorResult(Marshal.GetLastWin32Error());
+                    return createErrorResult(Marshal.GetLastWin32Error());
                 }
 
                 int successCode =
@@ -570,10 +570,10 @@ namespace BuildXL.Native.IO.Unix
             catch (Exception e)
             {
                 handle = null;
-                return CreateErrorResult((int)NativeErrorCodeForException(e));
+                return createErrorResult((int)NativeErrorCodeForException(e));
             }
 
-            OpenFileResult CreateErrorResult(int errorCode)
+            OpenFileResult createErrorResult(int errorCode)
             {
                 Logger.Log.StorageTryOpenOrCreateFileFailure(Events.StaticContext, path, (int)fileMode, (int)errorCode);
                 return OpenFileResult.Create(path, (int)errorCode, fileMode, handleIsValid: false);
@@ -887,15 +887,15 @@ namespace BuildXL.Native.IO.Unix
                 }
                 else
                 {
-                    return CreateFailure("Encountered error: " + Marshal.GetLastWin32Error());
+                    return createFailure("Encountered error: " + Marshal.GetLastWin32Error());
                 }
             }
             catch (Exception e)
             {
-                return CreateFailure("Exception caught", e);
+                return createFailure("Exception caught", e);
             }
 
-            RecoverableExceptionFailure CreateFailure(string message, Exception e = null)
+            RecoverableExceptionFailure createFailure(string message, Exception e = null)
             {
                 return new RecoverableExceptionFailure(
                     new BuildXLException(nameof(TryGetReparsePointTarget) + " failed: " + message, e));
@@ -1243,5 +1243,9 @@ namespace BuildXL.Native.IO.Unix
         {
             return FileUtilities.TryResolveRelativeTarget(path, relativeTarget);
         }
+
+        /// <inheritdoc />
+        public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode) => throw new NotImplementedException();
+      
     }
 }

@@ -430,11 +430,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/cacheMemoryUsage[+|-]",
-                Strings.HelpText_DisplayHelp_CacheMemoryUsage,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/compressGraphFiles[+|-]",
                 Strings.HelpText_DisplayHelp_CompressGraphFiles,
                 HelpLevel.Verbose);
@@ -485,6 +480,17 @@ namespace BuildXL
             hw.WriteOption(
                 "/pinCachedOutputs[+|-]",
                 Strings.HelpText_DisplayHelp_PinCachedOutputs,
+                HelpLevel.Verbose);
+
+
+            hw.WriteOption(
+                "/pathSetThreshold",
+                Strings.HelpText_DisplayHelp_PathSetThreshold,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/augmentingPathSetCommonalityFactor:(0, 1]",
+                Strings.HelpText_DisplayHelp_AugmentingPathSetCommonalityFactor,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -905,6 +911,7 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
 #if PLATFORM_OSX
+
             hw.WriteOption(
                 "/kextNumberOfKextConnections:<number>",
                 Strings.HelpText_DisplayHelp_KextNumberOfKextConnections,
@@ -929,6 +936,12 @@ namespace BuildXL
                "/KextThrottleMinAvailableRamMB:<number>",
                Strings.HelpText_DisplayHelp_KextThrottleMinAvailableRamMB,
                HelpLevel.Verbose);
+
+            hw.WriteOption(
+               "/maxMemoryPressureLevel:<option>",
+               Strings.HelpText_DisplayHelp_MaxMemoryPressureLevel,
+               HelpLevel.Verbose);
+
 #endif
 
             hw.WriteOption(
@@ -949,6 +962,11 @@ namespace BuildXL
             hw.WriteOption(
                 "/unsafe_IgnoreZwCreateOpenQueryFamily[+|-]",
                 Strings.HelpText_DisplayHelp_IgnoreZwCreateOpenQueryFamily,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/unsafe_OptimizedAstConversion[+|-]",
+                Strings.HelpText_DisplayHelp_OptimizedAstConversion,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -1003,6 +1021,17 @@ namespace BuildXL
 
             #endregion
 
+            #region Component Governance Manifest
+            hw.WriteBanner(Strings.HelpText_DisplayHelp_CgManifestBanner);
+
+            hw.WriteOption("/generateCgManifestForNugets:<file>",
+                Strings.HelpText_DisplayHelp_GenerateCgManifest);
+
+            hw.WriteOption("/validateCgManifestForNugets:<file>",
+                Strings.HelpText_DisplayHelp_ValidateCgManifest);
+
+            #endregion
+
             hw.WriteBanner(Strings.HelpText_DisplayHelp_MsBuildBanner);
 
             #region MSBuild
@@ -1038,6 +1067,11 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_Help);
 
             hw.WriteOption(
+                "/interactive[+|-]",
+                Strings.HelpText_DisplayHelp_Interactive,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/noLogo",
                 Strings.HelpText_DisplayHelp_NoLogo);
 
@@ -1051,9 +1085,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_SnapshotMode,
                 HelpLevel.Verbose);
 
+            /* The viewer is currently broken. Leaving the code around so we can dust it off at some point. AB#1609082
             hw.WriteOption(
                 "/viewer:<mode>",
-                Strings.HelpText_DisplayHelp_ViewerOptions);
+                Strings.HelpText_DisplayHelp_ViewerOptions);*/
 
             hw.WriteOption(
                 "/relatedActivityId:<guid>",
@@ -1077,6 +1112,10 @@ namespace BuildXL
             hw.WriteOption(
                 "/symlinkDefinitionFile:<file>",
                 Strings.HelpText_DisplayHelp_SymlinkDefinitionFile);
+
+            hw.WriteOption(
+                "/inputChanges:<file>",
+                Strings.HelpText_DisplayHelp_InputChanges);
 
             hw.WriteOption(
                 "/telemetryTagPrefix:<string>",

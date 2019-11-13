@@ -6,11 +6,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
@@ -25,6 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
     public sealed class MemoryContentLocationDatabase : ContentLocationDatabase
     {
         private readonly ConcurrentDictionary<ShortHash, ContentLocationEntry> _map = new ConcurrentDictionary<ShortHash, ContentLocationEntry>();
+        private readonly ConcurrentDictionary<string, string> _globalEntryMap = new ConcurrentDictionary<string, string>();
 
         /// <inheritdoc />
         public MemoryContentLocationDatabase(IClock clock, MemoryContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
@@ -38,6 +36,25 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             // Intentionally doing nothing.
             Tracer.Info(context, "Initializing in-memory content location database.");
             return BoolResult.Success;
+        }
+
+        /// <inheritdoc />
+        public override void SetGlobalEntry(string key, string value)
+        {
+            if (value == null)
+            {
+                _globalEntryMap.TryRemove(key, out _);
+            }
+            else
+            {
+                _globalEntryMap[key] = value;
+            }
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetGlobalEntry(string key, out string value)
+        {
+            return _globalEntryMap.TryGetValue(key, out value);
         }
 
         /// <inheritdoc />
@@ -68,7 +85,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         }
         
         /// <inheritdoc />
-        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
             throw new NotImplementedException();
         }
@@ -90,13 +107,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
             CancellationToken token,
             EnumerationFilter filter = null)
         {
-            foreach (var kvp in _map)
-            {
-                if (filter == null || filter(SerializeContentLocationEntry(kvp.Value)))
-                {
-                    yield return (kvp.Key, kvp.Value);
-                }
-            }
+            return _map
+                .OrderBy(kvp => kvp.Key)
+                .SkipWhile(kvp => filter?.StartingPoint != null && filter.StartingPoint > kvp.Key)
+                .Where(kvp => filter?.ShouldEnumerate == null || filter.ShouldEnumerate?.Invoke(SerializeContentLocationEntry(kvp.Value)) == true)
+                .Select(kvp => (kvp.Key, kvp.Value));
         }
 
         /// <inheritdoc />
@@ -130,6 +145,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.InMemory
         /// <inheritdoc />
         protected override void UpdateClusterStateCore(OperationContext context, ClusterState clusterState, bool write)
         {
+        }
+
+        /// <inheritdoc />
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public override Result<long> GetContentDatabaseSizeBytes()
+        {
+            throw new NotImplementedException();
         }
     }
 }

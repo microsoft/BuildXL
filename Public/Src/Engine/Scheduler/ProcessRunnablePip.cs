@@ -43,9 +43,14 @@ namespace BuildXL.Scheduler
         public bool Executed { get; set; }
 
         /// <summary>
-        /// The expected RAM utilization of the pip
+        /// The expected memory usage for the pip
         /// </summary>
-        public int? ExpectedRamUsageMb;
+        public ProcessMemoryCounters? ExpectedMemoryCounters;
+
+        /// <summary>
+        /// The expected historical duration of the pip
+        /// </summary>
+        public ulong? ExpectedDurationMs;
 
         /// <summary>
         /// SemaphoreResources
@@ -57,7 +62,12 @@ namespace BuildXL.Scheduler
         /// </summary>
         public CacheableProcess CacheableProcess { get; private set; }
 
-        private readonly int m_weightBasedOnHistoricCpuUsage;
+        /// <summary>
+        /// Source change affected input of the pip
+        /// </summary>
+        public IReadOnlyCollection<AbsolutePath> ChangeAffectedInputs { get; set; }
+
+    private readonly int m_weightBasedOnHistoricCpuUsage;
 
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,

@@ -391,15 +391,15 @@ createExpression(" + spec + ");");
 
         private static ParsedModule CreateModuleFor(RuntimeModelContext context, ISourceFile sourceFile)
         {
-            const string moduleName = "ModuleWith1File";
+            const string ModuleName = "ModuleWith1File";
             var specPath = sourceFile.GetAbsolutePath(context.PathTable);
 
             var moduleRootDirectory = specPath.GetParent(context.PathTable);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 new ModuleDescriptor(
-                    id: new ModuleId(1),
-                    name: moduleName,
-                    displayName: moduleName,
+                    id: ModuleId.Create(context.StringTable, ModuleName),
+                    name: ModuleName,
+                    displayName: ModuleName,
                     version: "1.0.0", 
                     resolverKind: KnownResolverKind.SourceResolverKind, 
                     resolverName: "DScriptExpression"), 

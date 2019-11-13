@@ -34,7 +34,6 @@ namespace Test.BuildXL
                 "/server-",
                 "/serverdeploymentdir:" + m_serverDirPath,
                 "/nologo",
-                "/help:1234",
                 "/fancyConsole-",
                 "/color-",
                 "/substsource:" + m_srcPath,
@@ -68,7 +67,6 @@ namespace Test.BuildXL
             AssertPathCongruent(pathTable, lightConfig.Config, commandLineConfig.Startup.ConfigFile);
             XAssert.AreEqual(lightConfig.FancyConsole, commandLineConfig.Logging.FancyConsole);
             XAssert.AreEqual(lightConfig.Help, commandLineConfig.Help);
-            XAssert.AreEqual(lightConfig.HelpCode, commandLineConfig.HelpCode);
             XAssert.AreEqual(lightConfig.NoLogo, commandLineConfig.NoLogo);
             XAssert.AreEqual(lightConfig.Server, commandLineConfig.Server);
             XAssert.AreEqual(lightConfig.DisablePathTranslation, commandLineConfig.Logging.DisableLoggedPathTranslation);

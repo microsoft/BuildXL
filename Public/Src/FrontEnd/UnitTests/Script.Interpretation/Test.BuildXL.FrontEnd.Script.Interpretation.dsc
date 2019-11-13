@@ -23,8 +23,6 @@ namespace Script.Interpretation {
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
-        ],
-        //increase weight for frequent timeout pip
-        runTestArgs: { weight: 2 },
+        ]
     });
 }

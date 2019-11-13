@@ -26,19 +26,25 @@ module({
 });
 
 module({
-    name: "Drop.RemotableClient", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [f`Drop.RemotableClient.dsc`]
-});
-
-module({
-    name: "Drop.RemotableClient.Interfaces", 
-    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
-    projects: [f`Drop.RemotableClient.Interfaces.dsc`]
-});
-
-module({
     name: "ItemStore.Shared", 
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`ItemStore.Shared.dsc`]
+});
+
+module({
+    name: "Symbol.App.Core", 
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [f`Symbol.App.Core.dsc`]
+});
+
+module({
+    name: "Symbol.Client", 
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [f`Symbol.Client.dsc`]
+});
+
+module({
+    name: "Microsoft.Windows.Debuggers.SymstoreInterop", 
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [f`Microsoft.Windows.Debuggers.SymstoreInterop.dsc`]
 });

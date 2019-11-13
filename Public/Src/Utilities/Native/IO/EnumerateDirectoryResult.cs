@@ -59,7 +59,7 @@ namespace BuildXL.Native.IO
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj))
+            if (obj is null)
             {
 
                 return false;
@@ -123,22 +123,13 @@ namespace BuildXL.Native.IO
         /// <nodoc />
         public static EnumerateDirectoryResult CreateFromException(string directoryPath, Exception ex)
         {
-            EnumerateDirectoryStatus findHandleOpenStatus;
-            switch (ex)
+            var findHandleOpenStatus = ex switch
             {
-                case UnauthorizedAccessException accessEx:
-                    findHandleOpenStatus = EnumerateDirectoryStatus.AccessDenied;
-                    break;
-                case System.IO.DirectoryNotFoundException notFoundEx:
-                    findHandleOpenStatus = EnumerateDirectoryStatus.SearchDirectoryNotFound;
-                    break;
-                case System.IO.IOException ioEx:
-                    findHandleOpenStatus = EnumerateDirectoryStatus.CannotEnumerateFile;
-                    break;
-                default:
-                    findHandleOpenStatus = EnumerateDirectoryStatus.UnknownError;
-                    break;
-            }
+                UnauthorizedAccessException _ => EnumerateDirectoryStatus.AccessDenied,
+                System.IO.DirectoryNotFoundException _ => EnumerateDirectoryStatus.SearchDirectoryNotFound,
+                System.IO.IOException _ => EnumerateDirectoryStatus.CannotEnumerateFile,
+                _ => EnumerateDirectoryStatus.UnknownError,
+            };
 
             return new EnumerateDirectoryResult(directoryPath, findHandleOpenStatus, ex.HResult, ex);
         }

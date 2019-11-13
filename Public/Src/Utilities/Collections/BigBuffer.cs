@@ -82,17 +82,13 @@ namespace BuildXL.Utilities.Collections
         {
             get
             {
-                int bufferNumber;
-                int entryIndex;
-                GetBufferNumberAndEntryIndexFromId(index, out bufferNumber, out entryIndex);
+                GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out int entryIndex);
                 return m_entryBuffers[bufferNumber][entryIndex];
             }
 
             set
             {
-                int bufferNumber;
-                int entryIndex;
-                GetBufferNumberAndEntryIndexFromId(index, out bufferNumber, out entryIndex);
+                GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out int entryIndex);
                 m_entryBuffers[bufferNumber][entryIndex] = value;
             }
         }
@@ -171,10 +167,8 @@ namespace BuildXL.Utilities.Collections
         /// <param name="index">the index in the big buffer</param>
         public BufferPointer<TEntry> GetBufferPointer(int index)
         {
-            int bufferNumber;
-            int entryIndex;
 
-            GetBufferNumberAndEntryIndexFromId(index, out bufferNumber, out entryIndex);
+            GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out int entryIndex);
             TEntry[] entryBuffer = m_entryBuffers[bufferNumber];
             return new BufferPointer<TEntry>(entryBuffer, entryIndex);
         }
@@ -187,9 +181,8 @@ namespace BuildXL.Utilities.Collections
         /// <param name="entryBuffer">the index in the entry buffer which corresponds to the given index</param>
         public void GetEntryBuffer(int index, out int entryIndex, out TEntry[] entryBuffer)
         {
-            int bufferNumber;
 
-            GetBufferNumberAndEntryIndexFromId(index, out bufferNumber, out entryIndex);
+            GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out entryIndex);
             entryBuffer = m_entryBuffers[bufferNumber];
         }
 
@@ -250,18 +243,14 @@ namespace BuildXL.Utilities.Collections
             {
                 get
                 {
-                    int entryIndex;
-                    TEntry[] entryBuffer;
-                    GetEntryBuffer(index, out entryIndex, out entryBuffer);
+                    GetEntryBuffer(index, out int entryIndex, out TEntry[] entryBuffer);
 
                     return entryBuffer[entryIndex];
                 }
 
                 set
                 {
-                    int entryIndex;
-                    TEntry[] entryBuffer;
-                    GetEntryBuffer(index, out entryIndex, out entryBuffer);
+                    GetEntryBuffer(index, out int entryIndex, out TEntry[] entryBuffer);
 
                     entryBuffer[entryIndex] = value;
                 }
@@ -275,9 +264,8 @@ namespace BuildXL.Utilities.Collections
             /// <param name="entryBuffer">the index in the entry buffer which corresponds to the given index</param>
             public void GetEntryBuffer(int index, out int entryIndex, out TEntry[] entryBuffer)
             {
-                int bufferNumber;
 
-                Buffer.GetBufferNumberAndEntryIndexFromId(index, out bufferNumber, out entryIndex);
+                Buffer.GetBufferNumberAndEntryIndexFromId(index, out int bufferNumber, out entryIndex);
                 entryBuffer = m_lastBuffer;
                 if (bufferNumber != m_lastBufferNumber)
                 {

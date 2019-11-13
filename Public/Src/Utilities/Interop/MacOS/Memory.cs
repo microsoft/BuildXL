@@ -58,11 +58,34 @@ namespace BuildXL.Interop.MacOS
             => GetRamUsageInfo(ref buffer, Marshal.SizeOf(buffer));
 
         /// <summary>
-        /// Returns a process peak working set size to the caller
+        /// Returns a process peak working set size in bytes
         /// </summary>
         /// <param name="pid">The process id to check</param>
         /// <param name="buffer">A long pointer to hold the process peak memory usage</param>
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
         public static extern int GetPeakWorkingSetSize(int pid, ref ulong buffer);
+
+        /// <summary>
+        /// PressureLevel models the possible VM memory pressure levels on macOS
+        /// See: https://developer.apple.com/documentation/dispatch/dispatch_source_memorypressure_flags_t
+        /// </summary>
+        public enum PressureLevel : int
+        {
+            /// <nodoc />
+            Normal = 1,
+
+            /// <nodoc />
+            Warning = 2,
+
+            /// <nodoc />
+            Critical = 4
+        }
+
+        /// <summary>
+        /// Returns the current memory pressure level of the VM
+        /// </summary>
+        /// <param name="level">A PressureLevel pointer to hold the current VM memory pressure level</param>
+        [DllImport(Libraries.BuildXLInteropLibMacOS)]
+        public static extern int GetMemoryPressureLevel(ref PressureLevel level);
     }
 }

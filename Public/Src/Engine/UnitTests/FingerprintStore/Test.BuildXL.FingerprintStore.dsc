@@ -35,6 +35,6 @@ namespace Test.BuildXL.FingerprintStore {
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition
-        ],
+        ]
     });
 }

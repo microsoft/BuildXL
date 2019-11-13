@@ -10,11 +10,11 @@ using System.Threading.Tasks;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
-
-    // This class is required for decompressing data streamed via grpc
-    // because the compression api insists on reading from a stream and
-    // the grpc api exposes a read-one-chunk method instead of a stream.
-
+    /// <summary>
+    /// This class is required for decompressing data streamed via grpc
+    /// because the compression api insists on reading from a stream and
+    /// the grpc api exposes a read-one-chunk method instead of a stream.
+    /// </summary>
     internal class BufferedReadStream : Stream
     {
         private readonly Func<Task<byte[]>> _reader;
@@ -47,8 +47,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             // ask reader for more. Keep track of how many bytes were
             // already returned from storage so we start at the right place.
 
-            int writePointer = offset;
-            int totalCount = 0;
+            var writePointer = offset;
+            var totalCount = 0;
             while (totalCount < count)
             {
                 Debug.Assert(_readPointer >= 0);
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 Debug.Assert(!(_storage is null));
 
                 // Copy as many bytes as we can to the caller's buffer
-                int copyCount = Math.Min(count - totalCount, _storage.Length - _readPointer);
+                var copyCount = Math.Min(count - totalCount, _storage.Length - _readPointer);
                 Array.Copy(_storage, _readPointer, buffer, writePointer, copyCount);
                 _readPointer += copyCount;
                 writePointer += copyCount;
@@ -98,10 +98,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             return totalCount;
         }
 
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            return ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
-        }
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
 
         public override bool CanWrite => false;
 
@@ -114,7 +111,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         public override void SetLength(long value) => throw new NotSupportedException();
 
         // I want to use Task.CompletedTask here, but we still compile against 4.5.2 and it didn't appear until 4.6
-        public override Task FlushAsync(CancellationToken cancellationToken) => Task.FromResult<int>(0);
+        public override Task FlushAsync(CancellationToken cancellationToken) => Task.FromResult(0);
 
         public override void Flush() { }
 

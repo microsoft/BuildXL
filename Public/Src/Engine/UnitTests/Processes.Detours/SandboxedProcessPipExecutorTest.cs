@@ -1995,6 +1995,71 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task UpdatePipProperties()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, workingDirectory);
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                arguments.Add("echo PipProperty_Foo_EndProperty");
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    arguments.Add("exit");
+                    arguments.Add("1");
+                }
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.FromWithoutCopy(1),
+                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    provenance: PipProvenance.CreateDummy(context),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
+
+                SandboxedProcessPipExecutionResult result = await RunProcess(
+                    context,
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true }, 
+                    pip, 
+                    null, 
+                    new Dictionary<string, string>(), 
+                    SemanticPathExpander.Default, 
+                    null);
+
+                XAssert.AreEqual(1, result.PipProperties["Foo"]);
+                VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
+                SetExpectedFailures(1, 0, "DX0064");
+            }
+        }
+
         private class TestSemanticPathExpander : SemanticPathExpander
         {
             private readonly IEnumerable<AbsolutePath> m_writableRoots;
@@ -2020,36 +2085,36 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        private static Task AssertProcessFailsExecution(
+        private Task AssertProcessFailsExecution(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessWhitelist, resultWrapper);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.ExecutionFailed, context, config, process, fileAccessWhitelist, resultWrapper);
         }
 
-        private static Task AssertProcessFailsPreparation(
+        private Task AssertProcessFailsPreparation(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.PreparationFailed, context, config, process, fileAccessWhitelist);
         }
 
-        private static Task AssertProcessSucceedsAsync(
+        private Task AssertProcessSucceedsAsync(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null,
             IDirectoryArtifactContext directoryArtifactContext = null)
         {
-            return AssertProcessCompletesWithStatus(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
+            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
         }
 
-        private static async Task AssertProcessCompletesWithStatus(
+        private async Task AssertProcessCompletesWithStatusAsync(
             SandboxedProcessPipExecutionStatus status,
             BuildXLContext context,
             ISandboxConfiguration config,
@@ -2087,7 +2152,7 @@ namespace Test.BuildXL.Processes.Detours
             return File.ReadAllText(path, maybeOutput.Item2);
         }
 
-        private static Task<SandboxedProcessPipExecutionResult> RunProcess(
+        private Task<SandboxedProcessPipExecutionResult> RunProcess(
             BuildXLContext context,
             ISandboxConfiguration config,
             Process process,
@@ -2115,7 +2180,8 @@ namespace Test.BuildXL.Processes.Detours
                 false,
                 new PipEnvironment(),
                 validateDistribution: false,
-                directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty).RunAsync(sandboxedKextConnection: GetSandboxedKextConnection());
+                directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
+                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

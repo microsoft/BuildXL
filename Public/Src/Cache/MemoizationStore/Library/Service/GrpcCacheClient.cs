@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using ContentStore.Grpc;
-using static global::ContentStore.Grpc.CacheServer;
+using static global::ContentStore.Grpc.ContentServer;
 using static BuildXL.Cache.MemoizationStore.Service.GrpcDataConverter;
 
 namespace BuildXL.Cache.MemoizationStore.Service
@@ -25,8 +25,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
     /// </summary>
     public class GrpcCacheClient : GrpcContentClient
     {
-        private readonly CacheServerClient _client;
-
         /// <nodoc />
         public GrpcCacheClient(
             ServiceClientContentSessionTracer tracer,
@@ -36,7 +34,6 @@ namespace BuildXL.Cache.MemoizationStore.Service
             TimeSpan? heartbeatInterval = null)
             : base(tracer, fileSystem, grpcPort, scenario, heartbeatInterval, Capabilities.All)
         {
-            _client = new CacheServerClient(Channel);
         }
 
         /// <summary>
@@ -57,7 +54,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
                 AddOrGetContentHashListResponse response = await SendGrpcRequestAndThrowIfFailedAsync(
                     sessionContext,
-                    async () => await _client.AddOrGetContentHashListAsync(request),
+                    async () => await Client.AddOrGetContentHashListAsync(request),
                     throwFailures: false);
 
                 return response.FromGrpc();
@@ -81,7 +78,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
                 GetContentHashListResponse response = await SendGrpcRequestAndThrowIfFailedAsync(
                     sessionContext,
-                    async () => await _client.GetContentHashListAsync(request));
+                    async () => await Client.GetContentHashListAsync(request));
 
                 return response.FromGrpc();
             });
@@ -105,7 +102,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
                 GetSelectorsResponse response = await SendGrpcRequestAndThrowIfFailedAsync(
                     sessionContext,
-                    async () => await _client.GetSelectorsAsync(request));
+                    async () => await Client.GetSelectorsAsync(request));
 
                 return response.FromGrpc();
             });
@@ -134,7 +131,7 @@ namespace BuildXL.Cache.MemoizationStore.Service
 
                         var response = await SendGrpcRequestAndThrowIfFailedAsync(
                             sessionContext,
-                            async () => await _client.IncorporateStrongFingerprintsAsync(request));
+                            async () => await Client.IncorporateStrongFingerprintsAsync(request));
 
                         return BoolResult.Success;
                     });

@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Native.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -40,6 +41,11 @@ namespace BuildXL.Pips.Operations
         /// Process options.
         /// </summary>
         public readonly Options ProcessOptions;
+
+        /// <summary>
+        /// PreserveOutput Trust level which is used to override the allowPreserveOutput option
+        /// </summary>
+        public int PreserveOutputsTrustLevel;
 
         /// <summary>
         /// Mode for absent path probes under opaque directories.
@@ -110,6 +116,12 @@ namespace BuildXL.Pips.Operations
         public AbsolutePath UniqueRedirectedDirectoryRoot { get; }
 
         /// <summary>
+        /// File path of which the source shange affected inputs are written into.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public FileArtifact ChangeAffectedInputListWrittenFile { get; }
+
+        /// <summary>
         /// If valid, points to the response (that is also referenced by <see cref="Arguments" />).
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.None)]
@@ -124,7 +136,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// The tool to execute.
         /// </summary>
-        [PipCaching(FingerprintingRole = FingerprintingRole.Content)]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
         public FileArtifact Executable { get; }
 
         /// <summary>
@@ -247,6 +259,29 @@ namespace BuildXL.Pips.Operations
         public RegexDescriptor ErrorRegex { get; }
 
         /// <summary>
+        /// When false (or not set): process output is scanned for error messages line by line;
+        /// 'errorRegex' is applied to each line and if ANY match is found the ENTIRE line is reported.
+        /// 
+        /// When true: process output is scanned in chunks of up to 10000 lines; 'errorRegex' is applied to
+        /// each chunk and only the matches are reported. Furthermore, if 'errorRegex' contains a capture
+        /// group named "ErrorMessage", the value of that group is reported; otherwise, the value of the
+        /// entire match is reported.
+        /// 
+        ///   NOTE: because this scanning is done against chunks of text (instead of the entire process output),
+        ///         false negatives are possible if an error message spans across multiple chunks.  The scanning
+        ///         is done in chunks because attempting to construct a single string from the entire process
+        ///         output can easily lead to an "out of memory" exception.
+        /// </summary>
+        /// <remarks>
+        /// Regarding fingerprinting: <see cref="ErrorRegex"/> is currently a part of the process fingerprint, 
+        /// even though it cannot affect the outcome (success vs failure) of the process.  This is kind of
+        /// strange and should probably be changed in the future.  In that vain, <see cref="EnableMultiLineErrorScanning"/>
+        /// is decided to not be included in the process fingerprint.
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool EnableMultiLineErrorScanning { get; }
+
+        /// <summary>
         /// File outputs. Each member of the array is distinct.
         /// </summary>
         /// <remarks>
@@ -362,6 +397,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath> additionalTempDirectories,
             RegexDescriptor warningRegex = default,
             RegexDescriptor errorRegex = default,
+            bool enableMultiLineErrorScanning = false,
             AbsolutePath uniqueOutputDirectory = default,
             AbsolutePath uniqueRedirectedDirectoryRoot = default,
             AbsolutePath tempDirectory = default,
@@ -376,7 +412,10 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            FileArtifact changeAffectedInputListWrittenFile = default,
+            int? preserveOutputsTrustLevel = null,
+            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -431,6 +470,8 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(additionalTempDirectories.Length == additionalTempDirectories.Distinct().Count());
             Contract.RequiresForAll(semaphores, s => s.IsValid);
             Contract.Requires(semaphores.Length == semaphores.Distinct().Count());
+            Contract.Requires(!(childProcessesToBreakawayFromSandbox?.Length > 0) || ProcessUtilities.SandboxSupportsProcessBreakaway(), 
+                "A process is only allowed to specify child processes to breakaway if the underlying sandbox allows for it");
 #endif
 
             Provenance = provenance;
@@ -462,6 +503,7 @@ namespace BuildXL.Pips.Operations
             RetryExitCodes = retryExitCodes ?? ReadOnlyArray<int>.Empty;
             WarningRegex = warningRegex;
             ErrorRegex = errorRegex;
+            EnableMultiLineErrorScanning = enableMultiLineErrorScanning;
             UniqueOutputDirectory = uniqueOutputDirectory;
             UniqueRedirectedDirectoryRoot = uniqueRedirectedDirectoryRoot;
             Semaphores = semaphores;
@@ -477,12 +519,16 @@ namespace BuildXL.Pips.Operations
             Weight = weight.HasValue && weight.Value >= MinWeight ? weight.Value : MinWeight;
             Priority = priority.HasValue && priority.Value >= MinPriority ? (priority <= MaxPriority ? priority.Value : MaxPriority) : MinPriority;
             PreserveOutputWhitelist = preserveOutputWhitelist ?? ReadOnlyArray<AbsolutePath>.Empty;
+            ChangeAffectedInputListWrittenFile = changeAffectedInputListWrittenFile;
+
             if (PreserveOutputWhitelist.Length != 0)
             {
                 options |= Options.HasPreserveOutputWhitelist;
             }
 
             ProcessOptions = options;
+            PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty; 
         }
 
         /// <summary>
@@ -516,6 +562,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath>? additionalTempDirectories = null,
             RegexDescriptor? warningRegex = null,
             RegexDescriptor? errorRegex = null,
+            bool? enableMultiLineErrorScanning = null,
             AbsolutePath? uniqueOutputDirectory = null,
             AbsolutePath? redirectedDirectoryRoot = null,
             AbsolutePath? tempDirectory = null,
@@ -530,7 +577,9 @@ namespace BuildXL.Pips.Operations
             ContainerIsolationLevel containerIsolationLevel = ContainerIsolationLevel.None,
             int? weight = null,
             int? priority = null,
-            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null)
+            ReadOnlyArray<AbsolutePath>? preserveOutputWhitelist = null,
+            FileArtifact? changeAffectedInputListWrittenFilePath = default,
+            int? preserveOutputsTrustLevel = null)
         {
             return new Process(
                 executable ?? Executable,
@@ -560,6 +609,7 @@ namespace BuildXL.Pips.Operations
                 additionalTempDirectories ?? AdditionalTempDirectories,
                 warningRegex ?? WarningRegex,
                 errorRegex ?? ErrorRegex,
+                enableMultiLineErrorScanning ?? EnableMultiLineErrorScanning,
                 uniqueOutputDirectory ?? UniqueOutputDirectory,
                 redirectedDirectoryRoot ?? UniqueRedirectedDirectoryRoot,
                 tempDirectory ?? TempDirectory,
@@ -574,7 +624,10 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel,
                 weight,
                 priority,
-                preserveOutputWhitelist ?? PreserveOutputWhitelist);
+                preserveOutputWhitelist ?? PreserveOutputWhitelist,
+                changeAffectedInputListWrittenFilePath ?? ChangeAffectedInputListWrittenFile,
+                preserveOutputsTrustLevel ?? PreserveOutputsTrustLevel);
+
         }
 
         /// <inheritdoc />
@@ -615,6 +668,17 @@ namespace BuildXL.Pips.Operations
         /// Indicates the process may run without deleting prior outputs from a previous run.
         /// </summary>
         public bool AllowPreserveOutputs => (ProcessOptions & Options.AllowPreserveOutputs) != 0;
+
+        /// <summary>
+        /// Indicates the process run for tool that has incremental build capability.
+        /// </summary>
+        public bool IncrementalTool => (ProcessOptions & Options.IncrementalTool) == Options.IncrementalTool;
+
+        /// <summary>
+        /// Whether this process consumes /unsafe_GlobalPassthroughEnvVars and /unsafe_GlobalUntrackedScopes passed from the command line
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool RequireGlobalDependencies => (ProcessOptions & Options.RequireGlobalDependencies) == Options.RequireGlobalDependencies;
 
         /// <summary>
         /// Indicates whether this is a light process.
@@ -659,6 +723,16 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; }
 
+
+        /// <summary>
+        /// Process names that will break away from the sandbox when spawned by the main process
+        /// </summary>
+        /// <remarks>
+        /// The accesses of processes that break away from them sandbox won't be observed.
+        /// Processes that breakaway can survive the lifespan of the sandbox
+        /// </remarks>
+        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
+
         /// <summary>
         /// Wall clock time limit to wait for nested processes to exit after main process has terminated.
         /// Default value is 30 seconds (SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout).
@@ -668,7 +742,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Indicates whether this pip is configured to always miss
         /// </summary>
-        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;
+        public bool DisableCacheLookup => (ProcessOptions & Options.DisableCacheLookup) != 0;    
 
         /// <summary>
         /// What policy to apply when merging redirected outputs back
@@ -759,7 +833,7 @@ namespace BuildXL.Pips.Operations
             m_cachedUniqueOutputHash = pipUniqueOutputHash;
             return true;
         }
-
+       
         #endregion PipUniqueOutputHash
 
         #region Serialization
@@ -793,11 +867,12 @@ namespace BuildXL.Pips.Operations
                 additionalTempDirectories: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 warningRegex: reader.ReadRegexDescriptor(),
                 errorRegex: reader.ReadRegexDescriptor(),
+                enableMultiLineErrorScanning: reader.ReadBoolean(),
                 uniqueOutputDirectory: reader.ReadAbsolutePath(),
                 uniqueRedirectedDirectoryRoot: reader.ReadAbsolutePath(),
                 tempDirectory: reader.ReadAbsolutePath(),
                 options: (Options)reader.ReadInt32(),
-                serviceInfo: reader.ReadNullable(reader1 => Operations.ServiceInfo.InternalDeserialize(reader1)),
+                serviceInfo: reader.ReadNullable(reader1 => ServiceInfo.InternalDeserialize(reader1)),
                 retryExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
                 allowedSurvivingChildProcessNames: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 nestedProcessTerminationTimeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),
@@ -806,7 +881,10 @@ namespace BuildXL.Pips.Operations
                 containerIsolationLevel: (ContainerIsolationLevel)reader.ReadByte(),
                 weight: reader.ReadInt32Compact(),
                 priority: reader.ReadInt32Compact(),
-                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath())
+                preserveOutputWhitelist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
+                changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
+                preserveOutputsTrustLevel: reader.ReadInt32(),
+                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom())
                 );
         }
 
@@ -840,6 +918,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(AdditionalTempDirectories, (w, v) => w.Write(v));
             writer.Write(WarningRegex);
             writer.Write(ErrorRegex);
+            writer.Write(EnableMultiLineErrorScanning);
             writer.Write(UniqueOutputDirectory);
             writer.Write(UniqueRedirectedDirectoryRoot);
             writer.Write(TempDirectory);
@@ -854,6 +933,9 @@ namespace BuildXL.Pips.Operations
             writer.WriteCompact(Weight);
             writer.WriteCompact(Priority);
             writer.Write(PreserveOutputWhitelist, (w, v) => w.Write(v));
+            writer.Write(ChangeAffectedInputListWrittenFile);
+            writer.Write(PreserveOutputsTrustLevel);
+            writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
         }
         #endregion
     }

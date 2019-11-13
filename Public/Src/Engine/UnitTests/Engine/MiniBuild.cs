@@ -73,6 +73,7 @@ namespace Test.BuildXL.EngineTests
         {
             // Relatively simple test to ensure the /VS generation feature doesn't crash
             Configuration.Ide.IsEnabled = true;
+            Configuration.Ide.IsNewEnabled = true;
             SetupHelloWorld();
             RunEngine();
 
@@ -875,7 +876,7 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsNotNull(engineAbstraction.GetChangedFiles());
             XAssert.IsNotNull(engineAbstraction.GetUnchangedFiles());
             XAssert.SetEqual(changedFiles, engineAbstraction.GetChangedFiles());
-            Assert.All(
+            XAssert.All(
                 containsUnchangedFiles,
                 unchangedFile => { XAssert.IsTrue(engineAbstraction.GetUnchangedFiles().Contains(unchangedFile)); });
         }

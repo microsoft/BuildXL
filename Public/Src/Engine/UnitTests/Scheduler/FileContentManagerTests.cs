@@ -45,7 +45,6 @@ namespace Test.BuildXL.Scheduler
         public async Task RestoreContentInCacheCopySourceAndWriteFile()
         {
             var harness = CreateDefaultHarness();
-
             harness.Seal();
 
             FileArtifact copyChainFinalOutput = CreateOutputFile(fileName: "copyFileOutput.txt");
@@ -458,7 +457,7 @@ namespace Test.BuildXL.Scheduler
                     return;
                 }
 
-                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, sandboxedKextConnection: GetSandboxedKextConnection());
+                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, sandboxConnection: GetSandboxConnection());
                 FileContentManager = new FileContentManager(Environment, new NullOperationTracker());
                 UntrackedOpContext = OperationContext.CreateUntracked(Environment.LoggingContext);
 

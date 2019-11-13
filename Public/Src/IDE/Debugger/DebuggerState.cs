@@ -8,6 +8,7 @@ using BuildXL.FrontEnd.Script.Debugger.Tracing;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
+using JetBrains.Annotations;
 
 namespace BuildXL.FrontEnd.Script.Debugger
 {
@@ -25,10 +26,18 @@ namespace BuildXL.FrontEnd.Script.Debugger
     /// </summary>
     public sealed class DebuggerState
     {
+        private readonly object m_lock = new object();
+
         /// <summary>Maps a thread ID to an <code cref="ThreadState"/>.</summary>
         private readonly IDictionary<int, ThreadState> m_stoppedThreads;
 
         private volatile bool m_debuggerStopped;
+
+        /// <nodoc />
+        public Renderer.CustomRenderer CustomRenderer { get; }
+
+        /// <nodoc />
+        public IExpressionEvaluator ExpressionEvaluator { get; }
 
         /// <summary>Whether the debugger has disconnected.</summary>
         public bool DebuggerStopped => m_debuggerStopped;
@@ -46,13 +55,20 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public LoggingContext LoggingContext { get; }
 
         /// <nodoc/>
-        public DebuggerState(PathTable pathTable, LoggingContext loggingContext, Logger logger = null)
+        public DebuggerState(
+            PathTable pathTable, 
+            LoggingContext loggingContext,
+            Renderer.CustomRenderer customRenderer,
+            IExpressionEvaluator expressionEvaluator,
+            Logger logger = null)
         {
             PathTable = pathTable;
+            LoggingContext = loggingContext;
+            CustomRenderer = customRenderer;
+            ExpressionEvaluator = expressionEvaluator;
             MasterBreakpoints = BreakpointStoreFactory.CreateMaster();
             m_stoppedThreads = new Dictionary<int, ThreadState>();
             m_debuggerStopped = false;
-            LoggingContext = loggingContext;
             Logger = logger ?? Logger.CreateLogger();
         }
 
@@ -66,7 +82,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <returns>List of removed ThreadId -> ThreadState key value pairs.</returns>
         public IReadOnlyDictionary<int, ThreadState> ClearStoppedThreads()
         {
-            lock (this)
+            lock (m_lock)
             {
                 var clone = GetStoppedThreadsClone();
                 m_stoppedThreads.Clear();
@@ -79,7 +95,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// </summary>
         public IReadOnlyDictionary<int, ThreadState> GetStoppedThreadsClone()
         {
-            lock (this)
+            lock (m_lock)
             {
                 return m_stoppedThreads.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
             }
@@ -90,7 +106,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// </summary>
         public ThreadState GetThreadStateOrDefault(int threadId, ThreadState @default = null)
         {
-            lock (this)
+            lock (m_lock)
             {
                 ThreadState evalState;
                 return m_stoppedThreads.TryGetValue(threadId, out evalState)
@@ -120,7 +136,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// </summary>
         public ThreadState RemoveStoppedThread(int threadId)
         {
-            lock (this)
+            lock (m_lock)
             {
                 var evalState = GetThreadState(threadId);
                 if (!m_stoppedThreads.Remove(threadId))
@@ -137,7 +153,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// </summary>
         public void SetThreadState(ThreadState threadState)
         {
-            lock (this)
+            lock (m_lock)
             {
                 m_stoppedThreads[threadState.ThreadId] = threadState;
             }
@@ -151,7 +167,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// </summary>
         public void StopDebugging()
         {
-            lock (this)
+            lock (m_lock)
             {
                 m_debuggerStopped = true;
                 MasterBreakpoints.Clear();

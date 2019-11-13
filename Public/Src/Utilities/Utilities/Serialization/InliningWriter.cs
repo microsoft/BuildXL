@@ -14,8 +14,6 @@ namespace BuildXL.Utilities.Serialization
     /// </summary>
     public class InliningWriter : BuildXLWriter
     {
-        private readonly PathTable m_pathTable;
-
         /// <summary>
         /// Maps paths to parent index
         /// </summary>
@@ -24,7 +22,7 @@ namespace BuildXL.Utilities.Serialization
         /// <summary>
         /// Maps strings to parent index
         /// </summary>
-        private readonly ConcurrentBigSet<(StringId id, InlinedStringKind kind)> m_stringSet = new ConcurrentBigSet<(StringId, InlinedStringKind)>();
+        private readonly ConcurrentBigSet<StringId> m_stringSet = new ConcurrentBigSet<StringId>();
 
         /// <summary>
         /// Serialized path count
@@ -41,7 +39,7 @@ namespace BuildXL.Utilities.Serialization
         /// <summary>
         /// The underlying path table
         /// </summary>
-        public PathTable PathTable => m_pathTable;
+        public PathTable PathTable { get; private set; }
 
         /// <summary>
         /// Creates a writer
@@ -49,11 +47,11 @@ namespace BuildXL.Utilities.Serialization
         public InliningWriter(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true, bool logStats = false)
              : base(debug, stream, leaveOpen, logStats)
         {
-            m_pathTable = pathTable;
+            PathTable = pathTable;
 
             // Reserve invalid as 0-th index
             m_pathToParentIndexMap.Add(AbsolutePath.Invalid, 0);
-            m_stringSet.Add((new StringId(int.MaxValue), InlinedStringKind.Default));
+            m_stringSet.Add(new StringId(int.MaxValue));
         }
 
         /// <inheritdoc />
@@ -84,7 +82,7 @@ namespace BuildXL.Utilities.Serialization
                     var entryPathAndParentIndex = m_pathToParentIndexMap.BackingSet[i];
                     int entryParentIndex = entryPathAndParentIndex.Value;
                     AbsolutePath entryPath = entryPathAndParentIndex.Key;
-                    PathAtom entryPathName = entryPath.GetName(m_pathTable);
+                    PathAtom entryPathName = entryPath.GetName(PathTable);
 
                     WriteCompact(entryParentIndex);
                     Write(entryPathName);
@@ -107,7 +105,7 @@ namespace BuildXL.Utilities.Serialization
                 return getResult.Index;
             }
 
-            var parentIndex = EnsurePath(path.GetParent(m_pathTable));
+            var parentIndex = EnsurePath(path.GetParent(PathTable));
             var addResult = m_pathToParentIndexMap.GetOrAdd(path, parentIndex);
             Contract.Assert(!addResult.IsFound);
 
@@ -129,7 +127,7 @@ namespace BuildXL.Utilities.Serialization
         /// <summary>
         /// Adds the strings and gets the index of the string in list (this index is valid both during serialization and deser
         /// </summary>
-        public int WriteAndGetIndex(StringId stringId, InlinedStringKind kind = default)
+        private int WriteAndGetIndex(StringId stringId)
         {
             if (!stringId.IsValid)
             {
@@ -137,7 +135,7 @@ namespace BuildXL.Utilities.Serialization
                 return 0;
             }
 
-            var getResult = m_stringSet.GetOrAdd((stringId, kind));
+            var getResult = m_stringSet.GetOrAdd(stringId);
 
             // Write the index
             WriteCompact(getResult.Index);
@@ -145,16 +143,16 @@ namespace BuildXL.Utilities.Serialization
             // Check if string is already written
             if (!getResult.IsFound)
             {
-                WriteStringIdValue(stringId, kind);
+                WriteBinaryStringSegment(stringId);
             }
 
             return getResult.Index;
         }
 
         /// <todoc />
-        public virtual void WriteStringIdValue(in StringId stringId, InlinedStringKind kind)
+        protected virtual void WriteBinaryStringSegment(in StringId stringId)
         {
-            var binaryString = m_pathTable.StringTable.GetBinaryString(stringId);
+            var binaryString = PathTable.StringTable.GetBinaryString(stringId);
             var stringByteLength = binaryString.UnderlyingBytes.Length;
 
             CollectionUtilities.GrowArrayIfNecessary(ref m_buffer, stringByteLength);

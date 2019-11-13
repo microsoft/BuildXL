@@ -4,6 +4,7 @@
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -30,30 +31,19 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             string content = string.Empty;
 
-#if !PLATFORM_OSX
             try
             {
-                using (var file = GetMemoryMappedFile(_fileName))
-                using (var stream = file.CreateViewStream(0, 0, MemoryMappedFileAccess.Read))
+                if (OperatingSystemHelper.IsWindowsOS)
                 {
-                    using (var reader = new StreamReader(stream))
-                    {
-                        content = reader.ReadLine();
-                    }
+                    using var file = GetMemoryMappedFile(_fileName);
+                    using var stream = file.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
+                    using var reader = new StreamReader(stream);
+                    content = reader.ReadLine();
                 }
-            }
-            catch (FileNotFoundException)
-            {
-                throw new PortReaderException(
-                    $"The memory-mapped file '{_fileName}' was not found during GRPC port recognition." +
-                    "Possible cause: Server is not available, or file was created without administrator permissions under a different user.");
-            }
-#else
-            try
-            {
-                using (FileStream fileStream = File.OpenRead(_fileName))
-                using (StreamReader reader = new StreamReader(fileStream))
+                else
                 {
+                    using FileStream fileStream = File.OpenRead(_fileName);
+                    using StreamReader reader = new StreamReader(fileStream);
                     content = reader.ReadLine();
                 }
             }
@@ -63,7 +53,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     $"The memory-mapped file '{_fileName}' was not found during GRPC port recognition." +
                     "Possible cause: Server is not available, or file was created without administrator permissions under a different user.");
             }
-#endif
 
             if (ushort.TryParse(content, out ushort result))
             {

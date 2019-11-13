@@ -12,6 +12,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Utilities
     public readonly struct UnixTime : IEquatable<UnixTime>, IComparer<UnixTime>
     {
         /// <nodoc />
+        public static readonly UnixTime Zero = new UnixTime(0);
+
+        /// <nodoc />
         public UnixTime(long value) => Value = value;
 
         /// <nodoc />

@@ -16,6 +16,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Binding;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {

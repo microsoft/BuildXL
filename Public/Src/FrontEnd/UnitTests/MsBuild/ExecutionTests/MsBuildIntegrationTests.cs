@@ -114,6 +114,50 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
         }
 
+        [Fact]
+        public void ConfigSpecifiedEnvironmentVarIsIsolatedFromProcessEnvironment()
+        {
+            var testCache = new TestCache();
+
+            const string TestProj1 = "test1.csproj";
+            var pathToTestProj1 = R("public", "dir1", TestProj1);
+
+            const string TestProj2 = "test2.csproj";
+            var pathToTestProj2 = R("public", "dir2", TestProj2);
+
+            // Set env var 'Test' to an arbitrary value, but override that value in the main config, so
+            // we actually don't depend on it
+            Environment.SetEnvironmentVariable("Test", "2");
+
+            const string Dirs = "dirs.proj";
+            var config = (CommandLineConfiguration)Build($"fileNameEntryPoints: [ r`{Dirs}` ]", "Map.empty<string, string>().add('Test', '1')")
+                    .AddSpec(Dirs, CreateDirsProject(pathToTestProj1, pathToTestProj2))
+                    .AddSpec(pathToTestProj1, CreateWriteFileTestProject("MyFile1.txt"))
+                    .AddSpec(pathToTestProj2, CreateWriteFileTestProject("MyFile2.txt", projectReference: pathToTestProj1))
+                    .PersistSpecsAndGetConfiguration();
+
+            config.Cache.CacheGraph = true;
+            config.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            config.Cache.Incremental = true;
+
+            // First time the graph should be computed
+            var engineResult = RunEngineWithConfig(config, testCache);
+            Assert.True(engineResult.IsSuccess);
+
+            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+            AssertLogContains(false, "Storing pip graph descriptor to cache: Status: Success");
+
+            // Change the environment variable. Since we overrode the value, the second
+            // build should fetch and reuse the graph from the cache
+            Environment.SetEnvironmentVariable("Test", "3");
+            engineResult = RunEngineWithConfig(config, testCache);
+            Assert.True(engineResult.IsSuccess);
+
+            AssertInformationalEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndStartEvaluateValues, count: 0);
+            AssertInformationalEventLogged(LogEventId.EndDeserializingEngineState);
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -126,19 +170,9 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             Environment.SetEnvironmentVariable("Test", "originalValue");
 
-            var environment = new Dictionary<string, DiscriminatingUnion<string, UnitValue>> {
-                ["Test"] = isPassThrough ? 
-                    new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit) :
-                    new DiscriminatingUnion<string, UnitValue>(Environment.GetEnvironmentVariable("Test"))
-            };
+            string environment = $"Map.empty<string, (PassthroughEnvironmentVariable | string)>().add('Test', {(isPassThrough ? "Unit.unit()" : "Environment.getStringValue('Test')")})";
 
-            var config = (CommandLineConfiguration)Build(
-                            runInContainer: false, 
-                            environment: environment, 
-                            globalProperties: null,
-                            filenameEntryPoint: pathToTestProj1,
-                            msBuildRuntime: null,
-                            dotnetSearchLocations: null)
+            var config = (CommandLineConfiguration)Build($"fileNameEntryPoints: [ r`{pathToTestProj1}` ]", environment)
                     .AddSpec(pathToTestProj1, CreateWriteFileTestProject("MyFile"))
                     .PersistSpecsAndGetConfiguration();
 

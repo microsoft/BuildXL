@@ -74,7 +74,7 @@ namespace BuildXL.Native.IO
             string path, 
             bool deleteRootDirectory, 
             Func<string, bool> shouldDelete, 
-            ITempDirectoryCleaner tempDirectoryCleaner = null, 
+            ITempCleaner tempDirectoryCleaner = null, 
             CancellationToken? cancellationToken = default);
 
         /// <summary>
@@ -129,7 +129,6 @@ namespace BuildXL.Native.IO
         /// <remarks>
         /// Does not support paths longer than MAX_PATH
         /// </remarks>
-        /// <returns>If true is returned, the move proceeded and completed. </returns>
         /// <exception cref="BuildXLException">
         /// Thrown if the file move fails in a recoverable manner, including if the destination
         /// already exists and <paramref name="replaceExisting" /> is set to false or if the source doesn't exist
@@ -137,7 +136,7 @@ namespace BuildXL.Native.IO
         /// <param name="source">Full path of the source</param>
         /// <param name="destination">Full path of the destination</param>
         /// <param name="replaceExisting">whether to replace an existing file at the destination</param>
-        Task<bool> MoveFileAsync(string source, string destination, bool replaceExisting);
+        Task MoveFileAsync(string source, string destination, bool replaceExisting);
 
         /// <summary>
         /// Creates a copy on write clone of files if supported by the underlying OS.
@@ -184,7 +183,7 @@ namespace BuildXL.Native.IO
         /// <exception cref="BuildXLException">
         /// Thrown if the file deletion fails in a recoverable manner (e.g. access denied).
         /// </exception>
-        void DeleteFile(string path, bool waitUntilDeletionFinished, ITempDirectoryCleaner tempDirectoryCleaner = null);
+        void DeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
 
         /// <summary>
         /// Controls the applicability of POSIX delete.
@@ -194,7 +193,7 @@ namespace BuildXL.Native.IO
         /// <summary>
         /// Variant of <see cref="DeleteFile"/> returning a <see cref="Possible{TResult,TOtherwise}"/> rather than throwing.
         /// </summary>
-        Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempDirectoryCleaner tempDirectoryCleaner = null);
+        Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished, ITempCleaner tempDirectoryCleaner = null);
 
         /// <summary>
         /// Attempts to move file to a temporary directory that will be garbage collected in the future.
@@ -287,6 +286,12 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <param name="path">The path to the file.</param>
         bool HasWritableAccessControl(string path);
+
+        /// <summary>
+        /// Checks the ACL for writable attribute access control.
+        /// </summary>
+        /// <param name="path">The path to the file.</param>
+        bool HasWritableAttributeAccessControl(string path);
 
         /// <summary>
         /// Returns a new <see cref="FileStream" /> with the given creation mode, access level, and sharing.

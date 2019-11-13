@@ -266,7 +266,9 @@ namespace Test.BuildXL.Processes
                         "Expected a non-zero user+kernel time.");
                 }
 
-                XAssert.AreNotEqual<ulong>(0, accounting.PeakMemoryUsage, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakVirtualMemoryUsageMb, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakWorkingSetMb, "Expecting non-zero memory usage");
+                XAssert.AreNotEqual(0, accounting.MemoryCounters.PeakCommitUsageMb, "Expecting non-zero pagefile usage");
 
                 // Prior to Win10, cmd.exe launched within a job but its associated conhost.exe was exempt from the job.
                 // That changed with Bug #633552
@@ -1047,11 +1049,10 @@ namespace Test.BuildXL.Processes
         public async Task StartFileDoesNotExist()
         {
             var pt = new PathTable();
-            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false)
+            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
-                SandboxedKextConnection = GetSandboxedKextConnection()
             };
 
             try
@@ -1122,7 +1123,7 @@ namespace Test.BuildXL.Processes
                 var pt = new PathTable();
                 var info =
                     // 'time' uses vfork on macOS
-                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false)
+                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection())
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -1131,7 +1132,6 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.PipId = GetNextPipId();
                 info.FileAccessManifest.ReportFileAccesses = true;
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
-                info.SandboxedKextConnection = GetSandboxedKextConnection();
 
                 var result = await RunProcess(info);
                 XAssert.AreEqual(0, result.ExitCode);

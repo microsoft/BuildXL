@@ -121,8 +121,8 @@ namespace BuildXL.SandboxedProcessExecutor
                {
                    using (FileStream stream = File.OpenRead(Path.GetFullPath(m_configuration.SandboxedProcessInfoInputFile)))
                    {
-                        // TODO: Custom DetoursEventListener?
-                        return SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
+                       // TODO: Custom DetoursEventListener?
+                       return SandboxedProcessInfo.Deserialize(stream, m_loggingContext, detoursEventListener: null);
                    }
                },
                ex =>

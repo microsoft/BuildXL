@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Collections.Generic;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using ContentStoreTest.Test;
 using Xunit;
@@ -59,37 +58,6 @@ namespace ContentStoreTest.Utils
             Assert.Equal(0, _comparer.Compare(b, b));
             Assert.True(ByteArrayComparer.ArraysEqual(b, b));
             Assert.True(_comparer.Equals(b, b));
-        }
-
-        [Fact]
-        public void ListEqualsTrue()
-        {
-            var x = new List<byte> {1, 2, 3};
-            var y = new List<byte> {1, 2, 3};
-            Assert.True(_comparer.Equals(x, y));
-        }
-
-        [Fact]
-        public void ListEqualsTrueSelf()
-        {
-            var x = new List<byte> {1, 2, 3};
-            Assert.True(_comparer.Equals(x, x));
-        }
-
-        [Fact]
-        public void ListEqualsFalseDifferentLengths()
-        {
-            var x = new List<byte> {1, 2, 3};
-            var y = new List<byte> {1, 2};
-            Assert.False(_comparer.Equals(x, y));
-        }
-
-        [Fact]
-        public void ListEqualsFalseDifferentValues()
-        {
-            var x = new List<byte> {1, 2, 3};
-            var y = new List<byte> {1, 2, 2};
-            Assert.False(_comparer.Equals(x, y));
         }
 
         [Fact]

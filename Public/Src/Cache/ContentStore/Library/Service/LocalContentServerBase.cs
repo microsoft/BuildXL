@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -35,10 +36,19 @@ namespace BuildXL.Cache.ContentStore.Service
     /// <summary>
     /// Base implementation of IPC to a file system content cache.
     /// </summary>
+    /// <typeparam name="TStore">
+    ///     Type of underlying store. This is kept to inherit from <see cref="IStartupShutdown"/> instead of, for
+    ///     example, <see cref="IContentStore"/>, because if that were the case it couldn't be used with ICache
+    /// </typeparam>
+    /// <typeparam name="TSession">
+    ///     Type of sessions that will be created. Must match the store.
+    /// </typeparam>
     public abstract class LocalContentServerBase<TStore, TSession> : StartupShutdownBase, ISessionHandler<TSession>
         where TSession : IContentSession
         where TStore : IStartupShutdown
     {
+        private const int DefaultGrpcThreadPoolSize = 70;
+
         private const string Name = nameof(LocalContentServerBase<TStore, TSession>);
         private const string CheckForExpiredSessionsName = "CheckUnusedSessions";
         private const int CheckForExpiredSessionsPeriodMinutes = 1;
@@ -52,6 +62,8 @@ namespace BuildXL.Cache.ContentStore.Service
         private IntervalTimer _sessionExpirationCheckTimer;
         private IntervalTimer _logIncrementalStatsTimer;
         private Dictionary<string, long> _previousStatistics;
+
+        private readonly MachinePerformanceCollector _performanceCollector = new MachinePerformanceCollector();
 
         private readonly Dictionary<string, AbsolutePath> _tempFolderForStreamsByCacheName = new Dictionary<string, AbsolutePath>();
         private readonly ConcurrentDictionary<int, DisposableDirectory> _tempDirectoryForStreamsBySessionId = new ConcurrentDictionary<int, DisposableDirectory>();
@@ -74,7 +86,10 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Collection of stores by name.
         /// </summary>
-        protected readonly Dictionary<string, TStore> StoresByName = new Dictionary<string, TStore>();
+        /// <remarks>
+        /// This is only supposed to be used by this class and inheritors, do not make internal or public.
+        /// </remarks>
+        protected readonly IReadOnlyDictionary<string, TStore> StoresByName;
 
         /// <nodoc />
         protected LocalContentServerBase(
@@ -99,12 +114,14 @@ namespace BuildXL.Cache.ContentStore.Service
             _serviceReadinessChecker = new ServiceReadinessChecker(Tracer, logger, scenario);
             _sessionHandles = new ConcurrentDictionary<int, SessionHandle<TSession>>();
 
+            var storesByName = new Dictionary<string, TStore>();
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
                 fileSystem.CreateDirectory(kvp.Value);
                 var store = contentStoreFactory(kvp.Value);
-                StoresByName.Add(kvp.Key, store);
+                storesByName.Add(kvp.Key, store);
             }
+            StoresByName = new ReadOnlyDictionary<string, TStore>(storesByName);
 
             foreach (var kvp in localContentServerConfiguration.NamedCacheRoots)
             {
@@ -157,10 +174,13 @@ namespace BuildXL.Cache.ContentStore.Service
         }
 
         /// <inheritdoc />
-        async Task<Result<CounterSet>> ISessionHandler<TSession>.GetStatsAsync(OperationContext context)
+        public async Task<Result<CounterSet>> GetStatsAsync(OperationContext context)
         {
             var counterSet = new CounterSet();
-            foreach (var store in StoresByName.Values)
+
+            counterSet.Merge(_performanceCollector.GetPerformanceStats(), "MachinePerf.");
+
+            foreach (var (name, store) in StoresByName)
             {
                 var stats = await GetStatsAsync(store, context);
                 if (!stats)
@@ -168,7 +188,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     return Result.FromError<CounterSet>(stats);
                 }
 
-                counterSet.Merge(stats.CounterSet);
+                counterSet.Merge(stats.CounterSet, $"{name}.");
             }
 
             return counterSet;
@@ -250,7 +270,7 @@ namespace BuildXL.Cache.ContentStore.Service
 
                     await LoadHibernatedSessionsAsync(context);
 
-                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue);
+                    InitializeAndStartGrpcServer(Config.GrpcPort, BindServices(), Config.RequestCallTokensPerCompletionQueue, Config.GrpcThreadPoolSize ?? DefaultGrpcThreadPoolSize);
 
                     _serviceReadinessChecker.Ready(context);
 
@@ -272,17 +292,17 @@ namespace BuildXL.Cache.ContentStore.Service
             }
         }
 
-        private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue)
+        private void InitializeAndStartGrpcServer(int grpcPort, ServerServiceDefinition[] definitions, int requestCallTokensPerCompletionQueue, int grpcThreadPoolSize)
         {
             Contract.Requires(definitions.Length != 0);
-            GrpcEnvironment.InitializeIfNeeded();
+            GrpcEnvironment.InitializeIfNeeded(numThreads: grpcThreadPoolSize);
             _grpcServer = new Server(GrpcEnvironment.DefaultConfiguration)
-                          {
-                              Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
+            {
+                Ports = { new ServerPort(IPAddress.Any.ToString(), grpcPort, ServerCredentials.Insecure) },
 
-                              // need a higher number here to avoid throttling: 7000 worked for initial experiments.
-                              RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue,
-                          };
+                // need a higher number here to avoid throttling: 7000 worked for initial experiments.
+                RequestCallTokensPerCompletionQueue = requestCallTokensPerCompletionQueue,
+            };
 
             foreach (var definition in definitions)
             {
@@ -305,26 +325,26 @@ namespace BuildXL.Cache.ContentStore.Service
             {
                 var statistics = new Dictionary<string, long>();
                 var previousStatistics = _previousStatistics;
-                foreach (var (name, store) in StoresByName)
+
+                var stats = await GetStatsAsync(context);
+                if (stats.Succeeded)
                 {
-                    var stats = await GetStatsAsync(store, context);
-                    if (stats.Succeeded)
+                    var counters = stats.Value.ToDictionaryIntegral();
+                    FillTrackingStreamStatistics(counters);
+                    foreach (var counter in counters)
                     {
-                        var counters = stats.CounterSet.ToDictionaryIntegral();
-                        FillTrackingStreamStatistics(counters);
-                        foreach (var counter in counters)
+                        var key = counter.Key;
+                        var value = counter.Value;
+                        var incrementalValue = value;
+                        statistics[key] = value;
+
+                        if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
                         {
-                            var key = $"{name}.{counter.Key}";
-                            var value = counter.Value;
-                            statistics[key] = value;
-
-                            if (previousStatistics != null && previousStatistics.TryGetValue(key, out var oldValue))
-                            {
-                                value -= oldValue;
-                            }
-
-                            Tracer.Info(context, $"IncrementalStatistic: {key}=[{value}]");
+                            incrementalValue -= oldValue;
                         }
+
+                        Tracer.Info(context, $"IncrementalStatistic: {key}=[{incrementalValue}]");
+                        Tracer.Info(context, $"PeriodicStatistic: {key}=[{value}]");
                     }
                 }
 
@@ -665,31 +685,16 @@ namespace BuildXL.Cache.ContentStore.Service
         private void TrySetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out var buildId))
+            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out var buildId))
             {
                 operationLogger.RegisterBuildId(buildId);
             }
         }
 
-        private static bool TryExtractBuildId(string sessionName, out string buildId)
-        {
-            if (sessionName?.Contains(Context.BuildIdPrefix) == true)
-            {
-                var index = sessionName.IndexOf(Context.BuildIdPrefix) + Context.BuildIdPrefix.Length;
-                buildId = sessionName.Substring(index);
-
-                // Return true only if buildId is actually a guid.
-                return Guid.TryParse(buildId, out _);
-            }
-
-            buildId = null;
-            return false;
-        }
-
         private void TryUnsetBuildId(string sessionName)
         {
             // Domino provides build ID through session name for CB builds.
-            if (Logger is IOperationLogger operationLogger && TryExtractBuildId(sessionName, out _))
+            if (Logger is IOperationLogger operationLogger && Constants.TryExtractBuildId(sessionName, out _))
             {
                 operationLogger.UnregisterBuildId();
             }
@@ -754,6 +759,11 @@ namespace BuildXL.Cache.ContentStore.Service
             ImplicitPin implicitPin,
             Capabilities capabilities)
         {
+            if (cacheName == null)
+            {
+                cacheName = _tempFolderForStreamsByCacheName.Keys.First();
+            }
+
             var result = await CreateTempDirectoryAndSessionAsync(
                 context,
                 sessionIdHint: null, // SessionId must be recreated for new sessions.

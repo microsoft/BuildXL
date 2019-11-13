@@ -36,10 +36,6 @@ namespace Main {
                 ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [
                     importFrom("BuildXL.Cache.VerticalStore").BuildCacheAdapter.dll
                 ]),
-
-                // net461 of SQLite is compatible .netstandard 2.0
-                // we use net461 because there is no .netstandard 2.0 nuget distribution
-                importFrom("System.Data.SQLite.Core").withQualifier({targetFramework: "net461"}).pkg,
             ] : [
                 NetFx.System.IO.Compression.dll,
                 NetFx.System.IO.Compression.FileSystem.dll,
@@ -57,7 +53,7 @@ namespace Main {
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
-            importFrom("BuildXL.Engine").VisualizationModel.dll,
+            importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Ide").Script.Debugger.dll,
             importFrom("BuildXL.Ide").Generator.dll,
             importFrom("BuildXL.Ide").VSCode.DebugProtocol.dll,
@@ -66,6 +62,7 @@ namespace Main {
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Interop.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,

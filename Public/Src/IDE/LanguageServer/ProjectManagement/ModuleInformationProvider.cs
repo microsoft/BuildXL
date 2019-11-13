@@ -60,7 +60,7 @@ namespace BuildXL.Ide.LanguageServer
                 workspaceModules.Add(new  BuildXL.Ide.JsonRpc.ModuleDescriptor
                                      {
                                          Name = mod.Descriptor.Name,
-                                         Id = mod.Descriptor.Id.Value,
+                                         Id = mod.Descriptor.Id.Value.Value,
                                          ConfigFilename = mod.Definition.ModuleConfigFile.ToString(appState.PathTable),
                                          ResolverKind = mod.Descriptor.ResolverKind,
                                          ResolverName = mod.Descriptor.ResolverName
@@ -93,14 +93,14 @@ namespace BuildXL.Ide.LanguageServer
 
             var workspace = appState.IncrementalWorkspaceProvider.WaitForRecomputationToFinish();
 
-            var moduleDescriptor = 
+            var moduleDescriptor =
 
             workspace.TryGetModuleByModuleDescriptor(
                 new BuildXLModuleDescriptor(
-                    id: new ModuleId(getSpecsForModuleParams.ModuleDescriptor.Id),
+                    id: ModuleId.UnsafeCreate(getSpecsForModuleParams.ModuleDescriptor.Id),
                     name: getSpecsForModuleParams.ModuleDescriptor.Name,
                     displayName: getSpecsForModuleParams.ModuleDescriptor.Name,
-                    version: getSpecsForModuleParams.ModuleDescriptor.Version, 
+                    version: getSpecsForModuleParams.ModuleDescriptor.Version,
                     resolverKind: getSpecsForModuleParams.ModuleDescriptor.ResolverKind,
                     resolverName: getSpecsForModuleParams.ModuleDescriptor.ResolverName),
                 out var specificModule);

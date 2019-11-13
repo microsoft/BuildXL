@@ -273,7 +273,7 @@ namespace BuildXL.Execution.Analyzer
                             provenance != null ? provenance.OutputValueSymbol.ToString(SymbolTable) : string.Empty);
 
                         var pipPerformance = m_pipPerformance[pip.PipId.Value];
-                        WritePropertyAndValue(writer, "PeakMemoryUsageMb", pipPerformance.PeakMemoryUsageMb.ToString());
+                        WritePropertyAndValue(writer, "PeakMemoryUsageMb", pipPerformance.MemoryCounters.PeakWorkingSetMb.ToString());
                         WritePropertyAndValue(writer, "NumberOfProcesses", pipPerformance.NumberOfProcesses.ToString());
                         WritePropertyAndValue(
                             writer,
@@ -651,7 +651,7 @@ namespace BuildXL.Execution.Analyzer
                     return true;
                 case ExecutionEventId.ResourceUsageReported:
                 case ExecutionEventId.PipExecutionPerformance:
-                case ExecutionEventId.ExtraEventDataReported:
+                case ExecutionEventId.BuildSessionConfiguration:
                 case ExecutionEventId.DirectoryMembershipHashed:
                 case ExecutionEventId.ObservedInputs:
                 case ExecutionEventId.WorkerList:
@@ -1002,7 +1002,7 @@ namespace BuildXL.Execution.Analyzer
                     case ExecutionEventId.PipExecutionPerformance:
 
                     case ExecutionEventId.ResourceUsageReported:
-                    case ExecutionEventId.ExtraEventDataReported:
+                    case ExecutionEventId.BuildSessionConfiguration:
                     case ExecutionEventId.DirectoryMembershipHashed:
                     case ExecutionEventId.ObservedInputs:
                     case ExecutionEventId.WorkerList:

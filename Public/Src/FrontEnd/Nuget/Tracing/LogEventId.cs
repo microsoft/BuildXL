@@ -47,5 +47,6 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         NugetFailedDownloadPackagesAndGenerateSpecs,
         NugetFailedDownloadPackage,
         NugetFailedGenerationResultFromDownloadedPackage,
+        NugetFailedToWriteGeneratedSpecStateFile,
     }
 }

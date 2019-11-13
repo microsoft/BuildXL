@@ -52,6 +52,18 @@ function createSdkDeploymentDefinition(serverDeployment: boolean) : Deployment.D
                             ])
                         ],
                     },
+                    {
+                        subfolder: "Sdk.Symbols",
+                        contents: [
+                            ...addIfLazy(!serverDeployment && !BuildXLSdk.isTargetRuntimeOsx, () => [
+                                importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                                    configuration: qualifier.configuration,
+                                    targetFramework: "net472",
+                                    targetRuntime: "win-x64"
+                                }).deployment
+                            ])
+                        ],
+                    },
                 ]
             }
         ]

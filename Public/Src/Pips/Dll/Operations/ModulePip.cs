@@ -77,9 +77,10 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public static ModulePip CreateForTesting(StringTable stringTable, AbsolutePath specPath, ModuleId? moduleId = null)
         {
+            var moduleName = StringId.Create(stringTable, "TestModule");
             return new ModulePip(
-                module: moduleId ?? new ModuleId(0),
-                identity: StringId.Create(stringTable, "TestModule"),
+                module: moduleId ?? ModuleId.Create(moduleName),
+                identity: moduleName,
                 version: StringId.Invalid,
                 location: new LocationData(specPath, 0, 0),
                 resolverKind: StringId.Create(stringTable, "TestResolver"),

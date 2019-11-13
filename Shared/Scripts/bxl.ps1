@@ -83,7 +83,10 @@ param(
 
     [Parameter(Mandatory=$false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Consume",
+    [string]$SharedCacheMode = "Disable",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$DevCache = $false,
 
     [Parameter(Mandatory=$false)]
     [string]$DefaultConfig,
@@ -108,11 +111,11 @@ param(
 
     [switch]$PatchDev = $false,
 
+    [switch]$DisableInteractive = $false,
+
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
-    [switch]$UseL3Cache = $true,
-	
-	[Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$false)]
 	[switch]$UseDedupStore = $false,
 	
     [string]$VsoAccount = "mseng",
@@ -120,7 +123,10 @@ param(
     [string]$CacheNamespace = "BuildXLSelfhost",
 
     [Parameter(Mandatory=$false)]
-	[switch]$Vs = $false,
+    [switch]$Vs = $false,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$VsNew = $false,
 
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$DominoArguments
@@ -180,7 +186,14 @@ if ($DominoArguments -eq $null) {
 # Use Env var to check for microsoftInternal
 $isMicrosoftInternal = [Environment]::GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal") -eq "1"
 
-$disableSharedCache = ($SharedCacheMode -eq "Disable" -or (-not $isMicrosoftInternal));
+if ($DevCache) {
+    if ($SharedCacheMode -eq "Disable") {
+        $SharedCacheMode = "Consume";
+    }
+}
+
+$useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
+$useL3Cache = $useSharedCache;
 $publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
@@ -240,6 +253,10 @@ if ($DeployStandaloneTest) {
 
 if ($Vs) {
     $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs";
+}
+
+if ($VsNew) {
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /q:DebugNet472 /vs /vsnew /solutionName:BuildXLNew";
 }
 
 # WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
@@ -447,12 +464,17 @@ Log -NoNewline "Building using the ";
 Log-Emphasis -NoNewline $($useDeployment.description)
 Log " version of BuildXL.";
 
-$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment)";
+$Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH");
+
+$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:$Nuget_CredentialProviders_Path /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH";
+
+$GenerateCgManifestFilePath = "$NormalizationDrive\cg\nuget\cgmanifest.json";
+$AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";
 
 if (! $DoNotUseDefaultCacheConfigFilePath) {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache (!$disableSharedCache) -PublishToSharedCache $publishToSharedCache -UseL3Cache $UseL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -UseL3Cache $useL3Cache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }
@@ -512,6 +534,10 @@ if ($shouldDeploy -and $shouldClean) {
     }
 }
 
+if (-not $DisableInteractive) {
+    $AdditionalBuildXLArguments += "/Interactive+"
+}
+
 # let any freeform filter arguments take precedence over the default filter
 $skipFilter = $false;
 for($i = 0; $i -lt $DominoArguments.Count; $i++){
@@ -530,15 +556,16 @@ if (!$skipFilter){
     $IdeFilter = "spec='Public\src\Deployment\ide.dsc'";
     $TestDeploymentFilter = "spec='Public\src\Deployment\tests.dsc'";
     $PrivateWdgFilter = "dpt(spec='private\Guests\WDG\*')";
+    $BxlLongRunningFilter = "spec='*\Test.BuildXL.FrontEnd.Script.Interpretation.dsc'";
 
     if ($Minimal) {
         # filtering by core deployment.
-        $AdditionalBuildXLArguments +=  "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)"
+        $AdditionalBuildXLArguments +=  "/f:(output='$($useDeployment.buildDir)\*'or(output='out\bin\$DeployConfig\Sdk\*')or($CacheOutputFilter))and~($CacheLongRunningFilter)ortag='protobufgenerator'"
     }
 
     if ($Cache) {
         # Only build Cache code.
-        if ($LongRunningTest) {
+        if ($LongRunningTest -or $Vs) {
             $AdditionalBuildXLArguments += "/f:$AllCacheProjectsFilter"
         }
         elseif ($CacheNuget) {
@@ -562,7 +589,7 @@ if (!$skipFilter){
         #Request the same output files from minimal above to make sure that deployment is fully specificed
         #Then request excludes guests\wdg and all downstream projects.
         #The filter does't have spaces because the dominow wrapper doesn't play well with them
-        $AdditionalBuildXLArguments += "/f:~($PrivateWdgFilter)and~($AllCacheProjectsFilter)and~($CacheLongRunningFilter)and~($CacheNugetFilter)and~($PrivateNugetFilter)and~($IdeFilter)and~($TestDeploymentFilter)"
+        $AdditionalBuildXLArguments += "/f:~($PrivateWdgFilter)and~($AllCacheProjectsFilter)and~($CacheLongRunningFilter)and~($BxlLongRunningFilter)and~($CacheNugetFilter)and~($PrivateNugetFilter)and~($IdeFilter)and~($TestDeploymentFilter)"
     }
 
     if ($SkipTests) {

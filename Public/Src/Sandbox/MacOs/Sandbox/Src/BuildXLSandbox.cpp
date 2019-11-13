@@ -3,6 +3,7 @@
 
 #include <kern/clock.h>
 
+#include "Alloc.hpp"
 #include "BuildXLSandbox.hpp"
 #include "CacheRecord.hpp"
 #include "Listeners.hpp"
@@ -127,7 +128,14 @@ void BuildXLSandbox::InitializePolicyStructures()
 
         .mpo_vnode_check_create           = Listeners::mpo_vnode_check_create,
 
+        // reason: some obscure cases like
+        //   /bin/csh <(source <(ls > lsout.txt))
+        // (but when using physical files instead of process substitution)
+        .mpo_vnode_check_write            = Listeners::mpo_vnode_check_write,
+
         .mpo_vnode_check_readlink         = Listeners::mpo_vnode_check_readlink,
+
+        .mpo_vnode_check_clone            = Listeners::mpo_vnode_check_clone,
     };
 
     policyConfiguration_ =
@@ -219,6 +227,8 @@ kern_return_t BuildXLSandbox::InitializeListeners()
         return status;
     }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
     buildxlVnodeListener_ = kauth_listen_scope(KAUTH_SCOPE_VNODE, Listeners::buildxl_vnode_listener, reinterpret_cast<void *>(this));
     if (buildxlVnodeListener_ == nullptr)
     {
@@ -232,6 +242,7 @@ kern_return_t BuildXLSandbox::InitializeListeners()
         log_error("%s", "Registering callback for KAUTH_SCOPE_FILEOP scope failed!");
         return KERN_FAILURE;
     }
+#pragma clang diagnostic pop
 
     LogVerbose("%s", "Successfully registered listeners");
     return KERN_SUCCESS;
@@ -241,6 +252,8 @@ void BuildXLSandbox::UninitializeListeners()
 {
     counters_ = {0};
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
     if (buildxlVnodeListener_ != nullptr)
     {
         kauth_unlisten_scope(buildxlVnodeListener_);
@@ -254,7 +267,8 @@ void BuildXLSandbox::UninitializeListeners()
         LogVerbose("%s", "Deregistered callback for KAUTH_SCOPE_FILEOP scope");
         buildxlFileOpListener_ = nullptr;
     }
-
+#pragma clang diagnostic pop
+    
     if (policyHandle_ != 0)
     {
         mac_policy_unregister(policyHandle_);
@@ -405,8 +419,8 @@ bool const BuildXLSandbox::SendAccessReport(AccessReport &report, SandboxedPip *
     pid_t clientPid = pip->getClientPid();
     ClientInfo *client = GetClientInfo(clientPid);
 
-    Timespan getClientInfoDuration      = stopwatch.lap();
-    Counters()->getClientInfo          += getClientInfoDuration;
+    Timespan getClientInfoDuration  = stopwatch.lap();
+    Counters()->getClientInfo      += getClientInfoDuration;
     pip->Counters()->getClientInfo += getClientInfoDuration;
 
     if (client == nullptr)
@@ -591,6 +605,13 @@ typedef struct {
 
 static int BytesInAMegabyte = 1024 * 1024;
 
+#define SET_COUNT_AND_SIZE(cnt, cls) do { \
+  (cnt).count = cls::metaClass->getInstanceCount(); \
+  (cnt).size = (double)sizeof(cls); \
+} while(0)
+
+#define COUNT_AND_SIZE(cls) { .count = cls::metaClass->getInstanceCount(), .size = (double)sizeof(cls) }
+
 IntrospectResponse BuildXLSandbox::Introspect() const
 {
     EnterMonitor
@@ -599,13 +620,17 @@ IntrospectResponse BuildXLSandbox::Introspect() const
     {
         .numAttachedClients  = connectedClients_->getCount(),
         .counters            = counters_,
+        .memory              =
+        {
+            .totalAllocatedBytes = Alloc::numCurrentlyAllocatedBytes(),
+            .fastNodes           = COUNT_AND_SIZE(NodeFast),
+            .lightNodes          = COUNT_AND_SIZE(NodeLight),
+            .cacheRecords        = COUNT_AND_SIZE(CacheRecord)
+        },
         .kextConfig          = config_,
         .numReportedPips     = 0,
         .pips                = {0}
     };
-
-    Trie::getUintNodeCounts(&result.counters.numUintTrieNodes, &result.counters.uintTrieSizeMB);
-    Trie::getPathNodeCounts(&result.counters.numPathTrieNodes, &result.counters.pathTrieSizeMB);
 
     ReportCounters *reportCounters = &result.counters.reportCounters;
     reportCounters->freeListSizeMB =

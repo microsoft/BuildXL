@@ -541,7 +541,10 @@ namespace BuildXL.Cache.ContentStore.SQLite
         private async Task<T> RunInBlockAsync<T>(Func<Task<T>> func, bool useTransaction)
         {
             T result;
+
+#pragma warning disable AsyncFixer02 // BeginTransactionAsync should be used instead of Connection.BeginTransaction
             SQLiteTransaction transaction = useTransaction ? Connection.BeginTransaction(IsolationLevel.Serializable) : null;
+#pragma warning restore AsyncFixer02
 
             using (transaction)
             {
@@ -549,9 +552,13 @@ namespace BuildXL.Cache.ContentStore.SQLite
 
                 if (useTransaction)
                 {
+#pragma warning disable AsyncFixer02 // CommitAsync should be used instead of transaction.Commit
                     transaction.Commit();
+#pragma warning restore AsyncFixer02
                 }
             }
+
+#pragma warning restore AsyncFixer02
 
             return result;
         }
@@ -819,7 +826,7 @@ namespace BuildXL.Cache.ContentStore.SQLite
             await RunExclusiveAsyncNoTransactionAsync(async () =>
             {
                 await ExecuteNonQueryAsync(string.Empty, $"PRAGMA journal_mode={_config.JournalMode};PRAGMA synchronous={_config.SyncMode};PRAGMA foreign_keys=ON;PRAGMA locking_mode=EXCLUSIVE;");
-                
+
                 if (_config.VerifyIntegrityOnStartup)
                 {
                     await RunIntegrityCheckAsync(context);

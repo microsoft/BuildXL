@@ -54,7 +54,7 @@ namespace Test.DScript.Debugger
 
         public MockDebugger(PathTable pathTable, LoggingContext loggingContext)
         {
-            State = new DebuggerState(pathTable, loggingContext);
+            State = new DebuggerState(pathTable, loggingContext, DScriptDebugerRenderer.Render, new DScriptExprEvaluator(loggingContext));
             Session = new DebugSession(State, null, this);
             Decorator = new EvaluationDecorator(this, State, false);
         }

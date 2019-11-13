@@ -28,22 +28,26 @@ namespace BuildXL.FrontEnd.Script.Debugger
             m_barrier = new Barrier();
         }
 
-        /// <summary>Returns some user-friendly name of the thread.  Subclassed may provide a more meaningful name.</summary>
+        /// <summary>Returns some user-friendly name of the thread.  Subclasses may provide a more meaningful name.</summary>
         public virtual string ThreadName()
         {
             return ThreadId.ToString(CultureInfo.InvariantCulture);
         }
 
-        internal abstract IReadOnlyList<DisplayStackTraceEntry> StackTrace { get; }
+        /// <summary>Returns the stack trace for this thread</summary>
+        public abstract IReadOnlyList<DisplayStackTraceEntry> StackTrace { get; }
 
-        internal abstract IEnumerable<ObjectContext> GetSupportedScopes(int frameIndex);
+        /// <summary>Returns all variable scopes in the specified stack frame in this thread</summary>
+        public abstract IEnumerable<ObjectContext> GetSupportedScopes(int frameIndex);
 
-        internal virtual void Resume(DebugAction.ActionKind kind = DebugAction.ActionKind.Continue)
+        /// <summary>Calls <see cref="Barrier.Signal"/> on the barier associated with this thread.</summary>
+        public virtual void Resume(DebugAction.ActionKind kind = DebugAction.ActionKind.Continue)
         {
             m_barrier.Signal();
         }
 
-        internal void PauseEvaluation()
+        /// <summary>Calls <see cref="Barrier.Wait"/> on the barier associated with this thread.</summary>
+        public void PauseEvaluation()
         {
             m_barrier.Wait();
         }
@@ -110,7 +114,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
             return string.Format(CultureInfo.InvariantCulture, "{0} ({1})", lastUsedName, specPathStr);
         }
 
-        internal override void Resume(DebugAction.ActionKind kind = DebugAction.ActionKind.Continue)
+        /// <inheritdoc />
+        public override void Resume(DebugAction.ActionKind kind = DebugAction.ActionKind.Continue)
         {
             Context.DebugState.Action = new DebugAction(kind, Node, StackTrace);
             base.Resume(kind);
@@ -122,7 +127,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         ///     location of the current <paramref name="node"/>
         ///     (<seealso cref="DisplayStringHelper.GetStackTrace(in BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.UniversalLocation)"/>).
         /// </summary>
-        internal static DisplayStackTraceEntry[] GetStackTrace(Context context, ModuleLiteral env, Node node)
+        public static DisplayStackTraceEntry[] GetStackTrace(Context context, ModuleLiteral env, Node node)
         {
             return new DisplayStringHelper(context).GetStackTrace(env, node);
         }
@@ -130,9 +135,10 @@ namespace BuildXL.FrontEnd.Script.Debugger
         /// <summary>
         ///     A lazily initialized property for getting the stack trace. See also <see cref="GetStackTrace"/>.
         /// </summary>
-        internal override IReadOnlyList<DisplayStackTraceEntry> StackTrace => m_stackTrace ?? (m_stackTrace = GetStackTrace(Context, Env, Node));
+        public override IReadOnlyList<DisplayStackTraceEntry> StackTrace => m_stackTrace ?? (m_stackTrace = GetStackTrace(Context, Env, Node));
 
-        internal override IEnumerable<ObjectContext> GetSupportedScopes(int frameIndex)
+        /// <inheritdoc />
+        public override IEnumerable<ObjectContext> GetSupportedScopes(int frameIndex)
         {
             return new List<ObjectContext>
             {
@@ -215,8 +221,9 @@ namespace BuildXL.FrontEnd.Script.Debugger
         }
 
         /// <inheritdoc />
-        internal override IReadOnlyList<DisplayStackTraceEntry> StackTrace => new[] { new DisplayStackTraceEntry("[ambient call]", -1, -1, null, null) };
+        public override IReadOnlyList<DisplayStackTraceEntry> StackTrace => new[] { new DisplayStackTraceEntry("[ambient call]", -1, -1, null, null) };
 
-        internal override IEnumerable<ObjectContext> GetSupportedScopes(int frameIndex) => m_scopes;
+        /// <inheritdoc />
+        public override IEnumerable<ObjectContext> GetSupportedScopes(int frameIndex) => m_scopes;
     }
 }

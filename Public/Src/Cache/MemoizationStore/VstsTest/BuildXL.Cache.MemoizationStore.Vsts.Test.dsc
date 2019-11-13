@@ -7,7 +7,7 @@ namespace VstsTest {
         assemblyName: "BuildXL.Cache.MemoizationStore.Vsts.Test",
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.Config`,
-        skipTestRun: BuildXLSdk.restrictTestRunToDebugNet461OnWindows,
+        skipTestRun: BuildXLSdk.restrictTestRunToSomeQualifiers,
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [
                 NetFx.System.Xml.dll,

@@ -31,6 +31,11 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Like <see cref="MacOsKext"/> except that it gnores all reported file accesses.
         /// </summary>
-        MacOsKextIgnoreFileAccesses
+        MacOsKextIgnoreFileAccesses,
+
+        /// <summary>
+        /// macOs-specifc: Using the EndpointSecurity subsystem for sandboxing (available from 10.15+)
+        /// </summary>
+        MacOsEndpointSecurity
     }
 }

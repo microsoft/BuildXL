@@ -59,6 +59,14 @@ namespace BuildXL.Cache.ContentStore.FileSystem
         }
 
         /// <summary>
+        /// Enables POSIX delete semantics as first-level deletion for delete operations
+        /// </summary>
+        public static void EnablePosixDelete()
+        {
+            FileUtilities.PosixDeleteMode = PosixDeleteMode.RunFirst;
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="PassThroughFileSystem"/> class.
         /// </summary>
         public PassThroughFileSystem()
@@ -230,7 +238,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             {
                 if ((deleteOptions & DeleteOptions.ReadOnly) != 0 &&
                     accessException.HResult > 0 &&
-                    (uint)accessException.HResult == Hresult.AccessDenied)
+                    accessException.HResult == Hresult.AccessDenied)
                 {
                     bool foundReadonly = false;
 
@@ -708,7 +716,6 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             path.ThrowIfPathTooLong();
 
             var dirInfo = new DirectoryInfo(path.Path);
-            bool recursive = (options & EnumerateOptions.Recurse) != 0;
 
             foreach (System.IO.FileInfo fi in dirInfo.EnumerateFiles(
                 "*",
@@ -894,7 +901,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
                 return CreateHardLinkResult.Success;
             }
 
-            NativeMethods.NtStatus setLink(SafeFileHandle handle, NativeMethods.FileLinkInformation linkInfo)
+            static NativeMethods.NtStatus setLink(SafeFileHandle handle, NativeMethods.FileLinkInformation linkInfo)
             {
                 return NativeMethods.NtSetInformationFile(
                     handle,

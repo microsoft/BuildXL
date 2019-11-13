@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Reflection;
 using BuildXL.Utilities;
 using JetBrains.Annotations;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Script.Util
 {

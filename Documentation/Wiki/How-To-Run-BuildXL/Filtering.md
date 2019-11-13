@@ -13,7 +13,7 @@ Expressions are evaluated left to right. You can include parenthesis to control 
 ## Selecting dependencies
 After the entire filter operation has been evaluated to a set of files, the corresponding producing pips are found. All consumed dependencies of those pips are implicitly scheduled as well, since it isn't possible to run a pip without having its dependencies' outputs. However, those files are not explicitly requested. That means they may not be updated on disk, as a performance optimization. This depends on the <code>/enableLazyOutputs</code> option. By default, the option is enabled.
 
-##Negation
+## Negation
 Negation works by taking all files in the graph that are not matched by the negated filter. So for example, if a graph has: [Pip1, Pip2, Pip3] and a filter expression matches [Pip2], that negated expression will match [Pip1, Pip3].
 
 The result of a subset of a filter expression can be negated by prepending it with: <code>~</code>. To avoid ambiguity, the expression set must be surrounded by parenthesis in order to use negation. For example, this will include all pips that do not have the test tag: <code>~(tag='test')</code>. It is important to note though that if there is some pipA without the test tag that depends on pipB with the test tag, both pipA & pipB will end up being run, even though pipB has the test tag. That is because pipB must be run in order to satisfy the dependencies of pipA.
@@ -28,12 +28,14 @@ Filter functions can be used to have more granular control over what gets includ
 
 ## Filter types
 1. id - Finds a pip based on its stable ID and matches all produced files.
-1. input - Path filter. Finds all pips consuming an input file and then matches all output files produced by those pips.
 1. output - Path filter. This matches one or more output files.
-1. spec - Path Filter. This matches pips based on the specification file the pip is defined in. Once a matching pip is found, all produced output files are matched.
+1. input - Path filter. Finds all pips consuming an input file and then matches all output files produced by those pips.
 1. tag - Finds pips annotated with the tag and matches all produced files. Tags are case sensitive
 1. value - Finds the pips with a corresponding output value name and matches all produced files. This filter does not traverse though value to value edges. So for example: if it matched a value that was a list of other values, the values in that list would not also be matched.
-1. valueTransitive - The same as the value filter, but it will traverse through value to value dependencies. This is sometimes desired, like if the value requested isn't an output value but is a list of other value references. But generally using this filter to request an output is an over specification.
+1. valueTransitive - The same as the value filter, but it will traverse through value to value 
+dependencies. This is sometimes desired, like if the value requested isn't an output value but is a list of other value references. But generally using this filter to request an output is an over specification.
+1. spec - Path Filter. This matches pips based on the specification file the pip is defined in. Once a matching pip is found, all produced output files are matched.
+1. spec_valuetransitive - Similar to the basic spec filter, but transitively follows all value (and sealeddirectory) dependencies.
 1. specref - Similar to the basic spec filter, but transitively includes specs of pips referenced by pips in target spec(s) of the filter. For example, if SpecB refers to a specific output in SpecA, performing a specref filter for SpecB will cause all pips in SpecA to be included, not the minimal set of pips needed to fulfill the dependencies of SpecB.
 
 ## Path based filters

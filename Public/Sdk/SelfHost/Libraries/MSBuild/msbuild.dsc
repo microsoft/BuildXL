@@ -17,11 +17,13 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
 /** Runtime content for tests */
 @@public
 export const msbuildRuntimeContent = [
-    BuildXLSdk.isDotNetCoreBuild ? importFrom("System.Threading.Tasks.Dataflow").pkg : importFrom("DataflowForMSBuild").pkg,
-    importFrom("System.Numerics.Vectors").pkg,
     importFrom("Microsoft.Build.Runtime").pkg,
+    importFrom("SystemMemoryForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    importFrom("SystemNumericsVectorsForMSBuild").pkg,
+    importFrom("SystemRuntimeCompilerServicesUnsafeForMSBuild").withQualifier({targetFramework: "netstandard2.0"}).pkg,
+    importFrom("System.Threading.Tasks.Dataflow").pkg,
+    
     ...BuildXLSdk.isDotNetCoreBuild ? [
-        importFrom("Microsoft.NETCore.App.210").pkg,
         importFrom("System.Text.Encoding.CodePages").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         importFrom("Microsoft.Build.Tasks.Core").withQualifier({targetFramework: "netstandard2.0"}).pkg,
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/netcoreapp2.1/MSBuild.dll`),

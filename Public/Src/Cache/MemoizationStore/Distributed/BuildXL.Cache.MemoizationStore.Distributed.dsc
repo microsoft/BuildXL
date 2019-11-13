@@ -14,6 +14,9 @@ namespace Distributed {
             ContentStore.Library.dll,
             Interfaces.dll,
             Library.dll,
+            
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("StackExchange.Redis.StrongName").pkg,
             importFrom("System.Interactive.Async").pkg,
         ],

@@ -64,12 +64,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
     {
         private readonly Func<T> _factory;
         private readonly Action<T> _reset;
+
+        // Number of idle reserve instances to hold in the queue. -1 means unbounded
+        private readonly int _maxReserveInstances;
         private readonly ConcurrentQueue<T> _queue = new ConcurrentQueue<T>();
 
-        public Pool(Func<T> factory, Action<T> reset = null)
+        /// <summary>
+        /// Initializes an object pool
+        /// </summary>
+        /// <param name="factory">Func to create a new object for the pool</param>
+        /// <param name="reset">Action to reset the state of the object for future reuse</param>
+        /// <param name="maxReserveInstances">Number of idle reserve instances to keep. No bound when unset</param>
+        public Pool(Func<T> factory, Action<T> reset = null, int maxReserveInstances = -1)
         {
             _factory = factory;
             _reset = reset;
+            _maxReserveInstances = maxReserveInstances;
         }
 
         public int Size => _queue.Count;
@@ -86,8 +96,16 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
         private void Return(T item)
         {
-            _reset?.Invoke(item);
-            _queue.Enqueue(item);
+            if ((_maxReserveInstances < 0) || (Size < _maxReserveInstances))
+            {
+                _reset?.Invoke(item);
+                _queue.Enqueue(item);
+            }
+            else
+            {
+                // Still reset the item incase the reset logic has side effects other than cleanup for future reuse
+                _reset?.Invoke(item);
+            }
         }
 
         public void Dispose()
@@ -124,7 +142,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
             {
                 if (_disposed)
                 {
-                    throw new ObjectDisposedException(this.GetType().FullName);
+                    throw new ObjectDisposedException(GetType().FullName);
                 }
             }
 

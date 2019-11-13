@@ -39,7 +39,7 @@ export function deployManagedTool(args: DeployWithToolDefinitionArguments) : Tra
     }
     const onDiskDeployment = deployAssemblyToDisk(args.tool, args.targetDirectory, primaryFile);
 
-    let deploymentDefinition : Transformer.ToolDefinition = {
+    let toolDefinition : Transformer.ToolDefinition = {
         exe: onDiskDeployment.primaryFile,
         description: args.description,
         dependsOnCurrentHostOSDirectories: true,
@@ -51,10 +51,10 @@ export function deployManagedTool(args: DeployWithToolDefinitionArguments) : Tra
 
     if (args.options)
     {
-        deploymentDefinition = args.options.merge<Transformer.ToolDefinition>(deploymentDefinition);
+        toolDefinition = args.options.merge<Transformer.ToolDefinition>(toolDefinition);
     }
 
-    return Shared.Factory.createTool(deploymentDefinition);
+    return Shared.Factory.createTool(toolDefinition);
 }
 
 @@public

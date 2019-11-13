@@ -427,6 +427,15 @@ namespace BuildXL.Engine.Tracing
         #region Distribution
 
         [GeneratedEvent(
+            (ushort)LogEventId.WorkerTotalRamMb,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "{worker} could not send available ram to master. Master used the default limit in MB: {defaultRamMb}. Available Commit in MB: {commitMb}")]
+        public abstract void WorkerTotalRamMb(LoggingContext context, string worker, int defaultRamMb, int commitMb);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionHostLog,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -466,7 +475,7 @@ namespace BuildXL.Engine.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Distribution,
             Message = "Worker {ipAddress}:{port} will get disconnected by {caller}")]
-                public abstract void DistributionWorkerFinish(
+        public abstract void DistributionWorkerFinish(
             LoggingContext context,
             string ipAddress,
             int port,
@@ -727,6 +736,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerExitFailure(LoggingContext context, string failure);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerTimeoutFailure,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Timed out waiting for attach request from master")]
+        public abstract void DistributionWorkerTimeoutFailure(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionTryMaterializeInputsFailedRetry,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "[{pipDescription}] Failed to materialize inputs for pip. Number of remaining retries: {remainingRetryCount}.",
@@ -851,7 +869,7 @@ namespace BuildXL.Engine.Tracing
             Message = "[{pipDescription}] Pip output '{filePath}' with hash '{hash}' reported to master.",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
-            Keywords = (int)Keywords.UserMessage)]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionWorkerPipOutputContent(LoggingContext context, long pipSemiStableHash, string pipDescription, string filePath, string hash);
 
         [GeneratedEvent(
@@ -1111,6 +1129,15 @@ namespace BuildXL.Engine.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques enabled: Undeclared accesses under shared opaques will not be reported. This is an unsafe configuration since it removes all guarantees of build correctness.")]
         public abstract void ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)EventId.ConfigUnsafeOptimizedAstConversion,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_OptimizedAstConversion enabled: Some analyses during AST conversions are disabled and some AST constructs, like types, are not converted.")]
+        public abstract void ConfigUnsafeOptimizedAstConversion(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)EventId.ConfigUnsafeLazySymlinkCreation,
@@ -1851,6 +1878,35 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigUnsafeDisableSharedOpaqueEmptyDirectoryScrubbing(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)EventId.CannotReadSidebandFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Cannot read sideband file '{fileName}': {error}")]
+        public abstract void CannotReadSidebandFile(LoggingContext context, string fileName, string error);
+
+        [GeneratedEvent(
+            (int)EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque outputs explicitly recorded in the shared opaque sideband files.")]
+        public abstract void DeletingOutputsFromSharedOpaqueSidebandFilesStarted(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)EventId.DeletingSharedOpaqueSidebandFilesStarted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Start,
+            Message = EventConstants.PhasePrefix + "Deleting shared opaque sideband files.")]
+        public abstract void DeletingSharedOpaqueSidebandFilesStarted(LoggingContext context);
+
+        [GeneratedEvent(
             (int)EventId.ScrubbingStarted,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
@@ -1889,6 +1945,16 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventOpcode = (byte)EventOpcode.Stop,
             Message = EventConstants.PhasePrefix + ScrubbingStatusPrefix + " Files processed: {0} ")]
         public abstract void ScrubbingStatus(LoggingContext context, int filesCompleteCount);
+
+        [GeneratedEvent(
+            (int)EventId.ScrubbingProgress,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Stop,
+            Message = EventConstants.PhasePrefix + "{prefix} Files deleted: {numDeleted}/{numTotal} ")]
+        public abstract void ScrubbingProgress(LoggingContext context, string prefix, int numDeleted, int numTotal);
 
         [GeneratedEvent(
             (int)EventId.ScrubbableMountsMayOnlyContainScrubbableMounts,
@@ -2357,8 +2423,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Engine,
-            Message = "The volume, '{drive}' does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
-        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string command);
+            Message = "The volume, '{drive}' (checked path: '{checkedPath}', final path: '{finalPath}') does not have an enabled change journal. Change journaling is required for volumes containing sources, build outputs, and the build cache. Please open an elevated command prompt and run:\n {command}")]
+        public abstract void JournalRequiredOnVolumeError(LoggingContext context, string drive, string checkedPath, string finalPath, string command);
 
         [GeneratedEvent(
             (int)EventId.StartEngineRun,
@@ -2664,16 +2730,6 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void FailedToRedirectUserProfile(LoggingContext context, string detailedErrorMessage);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Scheduler has been configured to cancel/re-run pips due to resource exhaustion. There is at least one pip that produces a shared opaque directory ('{sharedOpaquePath}'). "
-                      + "Resource based cancellation and shared opaque directories are not compatible. Please use /disableProcessRetryOnResourceExhaustion+ argument to disable resource based cancellation.")]
-        internal abstract void ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent(LoggingContext loggingContext, string sharedOpaquePath);
-
-        [GeneratedEvent(
             (ushort)LogEventId.GrpcSettings,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -2681,6 +2737,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (ushort)Tasks.Distribution,
             Message = "Grpc settings: ThreadPoolSize {threadPoolSize}, HandlerInlining {handlerInlining}, CallTimeoutMin {callTimeoutMin}, InactiveTimeoutMin {inactiveTimeoutMin}")]
         internal abstract void GrpcSettings(LoggingContext context, int threadPoolSize, bool handlerInlining, int callTimeoutMin, int inactiveTimeoutMin);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ChosenABTesting,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Engine,
+            Message = "Chosen AB testing arguments: {key} = {args}")]
+        internal abstract void ChosenABTesting(LoggingContext context, string key, string args);
 
         [GeneratedEvent(
             (ushort)LogEventId.FailedToGetJournalAccessor,

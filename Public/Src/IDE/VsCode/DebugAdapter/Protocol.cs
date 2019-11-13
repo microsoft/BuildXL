@@ -146,7 +146,6 @@ namespace VSCode.DebugAdapter
         private static byte[] ConvertToBytes(IProtocolMessage request)
         {
             var asJson = JsonConvert.SerializeObject(request, s_jsonSettings);
-            Console.WriteLine("sending message: " + asJson);
             byte[] jsonBytes = Encoding.GetBytes(asJson);
 
             string header = string.Format(CultureInfo.InvariantCulture, "Content-Length: {0}{1}", jsonBytes.Length, TwoCRLF);

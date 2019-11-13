@@ -16,9 +16,9 @@ namespace BuildXL.Scheduler
     /// Leaving the directory itself not deleted may save work in the subsequent build.
     /// This is used for cleaning <see cref="BuildXL.Pips.Operations.Process.TempDirectory"/>,
     /// <see cref="BuildXL.Pips.Operations.Process.AdditionalTempDirectories"/>.
-    /// It is also used as a <see cref="ITempDirectoryCleaner"/> implementation and cleans <see cref="TempCleaner.TempDirectory"/>.
+    /// It is also used as a <see cref="ITempCleaner"/> implementation and cleans <see cref="TempCleaner.TempDirectory"/>.
     /// </summary>
-    public sealed class TempCleaner : ITempDirectoryCleaner
+    public sealed class TempCleaner : ITempCleaner
     {
         /// <summary>
         /// Simple holder that stores path information.

@@ -3,9 +3,7 @@ This project welcomes contributions and suggestions. Most contributions require 
 
 When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+The Code of Conduct this project has adopted is described in: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Submitting Pull Requests
 
@@ -15,11 +13,10 @@ For more information see the [Code of Conduct FAQ](https://opensource.microsoft.
 - **DO** submit issues for features. This facilitates discussion of a feature separately from its implementation, and increases the acceptance rates for pull requests.
 - **DO NOT** submit large code formatting changes without discussing with the team first.
 
-When you are ready to proceed with making a change, get set up to build the code (see [README](README.md)) and familiarize yourself with our developer workflow. 
-
-If you want to run the validation that runs in the PR locally, we have an integration suite that can be run with: `RunCheckinTests.cmd`
-
 These two blogs posts on contributing code to open source projects are good too: [Open Source Contribution Etiquette](http://tirania.org/blog/archive/2010/Dec-31.html) by Miguel de Icaza and [Don’t “Push” Your Pull Requests](https://www.igvita.com/2011/12/19/dont-push-your-pull-requests/) by Ilya Grigorik.
+
+## Developer Guide
+When you are ready to proceed with making a change, get set up to build the code (see the [Developer Guide](Documentation/Wiki/DeveloperGuide.md)) and familiarize yourself with our developer workflow. 
 
 ## Creating Issues
 

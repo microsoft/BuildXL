@@ -27,6 +27,12 @@ namespace BuildXL.Pips.Operations
         private readonly PipDataFragmentEscaping m_escaping;
         private readonly int m_data;
 
+        /// <nodoc />
+        public PipDataEntry(PipDataFragmentEscaping escaping, PipDataEntryType entryType, uint data)
+            : this(escaping, entryType, unchecked((int)data))
+        {
+        }
+
         /// <summary>
         /// Class constructor
         /// </summary>
@@ -68,6 +74,10 @@ namespace BuildXL.Pips.Operations
                         return PipFragmentType.StringLiteral;
                     case PipDataEntryType.VsoHashEntry1Path:
                         return PipFragmentType.VsoHash;
+                    case PipDataEntryType.FileId1Path:
+                        return PipFragmentType.FileId;
+                    case PipDataEntryType.DirectoryIdHeaderSealId:
+                        return PipFragmentType.DirectoryId;
                     case PipDataEntryType.IpcMoniker:
                         return PipFragmentType.IpcMoniker;
                     case PipDataEntryType.NestedDataHeader:
@@ -83,12 +93,12 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         /// <remarks>
         /// You can only call this function for instances where <see cref="EntryType" /> is equal to
-        /// <see cref="PipDataEntryType.AbsolutePath" /> or <see cref="PipDataEntryType.VsoHashEntry1Path"/>.
+        /// <see cref="PipDataEntryType.AbsolutePath" />, <see cref="PipDataEntryType.VsoHashEntry1Path"/>, or <see cref="PipDataEntryType.FileId1Path"/>
         /// </remarks>
         /// <returns>Value as a <see cref="AbsolutePath" /></returns>
         public AbsolutePath GetPathValue()
         {
-            Contract.Requires(EntryType == PipDataEntryType.AbsolutePath || EntryType == PipDataEntryType.VsoHashEntry1Path);
+            Contract.Requires(EntryType == PipDataEntryType.AbsolutePath || EntryType == PipDataEntryType.VsoHashEntry1Path || EntryType == PipDataEntryType.FileId1Path);
             return new AbsolutePath(m_data);
         }
 
@@ -97,7 +107,7 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         /// <remarks>
         /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.NestedDataStart" />,
-        /// <see cref="PipDataEntryType.NestedDataEnd" />, or <see cref="PipDataEntryType.VsoHashEntry2RewriteCount"/>.
+        /// <see cref="PipDataEntryType.NestedDataEnd" />, <see cref="PipDataEntryType.VsoHashEntry2RewriteCount"/>, or <see cref="PipDataEntryType.FileId2RewriteCount"/>.
         /// </remarks>
         /// <returns>Value as integer.</returns>
         public int GetIntegralValue()
@@ -105,16 +115,31 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(
                 EntryType == PipDataEntryType.NestedDataStart ||
                 EntryType == PipDataEntryType.NestedDataEnd ||
-                EntryType == PipDataEntryType.VsoHashEntry2RewriteCount);
+                EntryType == PipDataEntryType.VsoHashEntry2RewriteCount ||
+                EntryType == PipDataEntryType.FileId2RewriteCount);
             return m_data;
+        }
+
+        /// <summary>
+        /// Returns the current value as an unsigned integer.
+        /// </summary>
+        /// <remarks>
+        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.DirectoryIdHeaderSealId" />.
+        /// </remarks>
+        /// <returns>Value as an unsigned integer.</returns>
+        public uint GetUInt32Value()
+        {
+            Contract.Requires(
+                EntryType == PipDataEntryType.DirectoryIdHeaderSealId);
+            return unchecked((uint)m_data);
         }
 
         /// <summary>
         /// Returns the current value as a string id.
         /// </summary>
         /// <remarks>
-        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.StringLiteral" /> or
-        /// <see cref="PipDataEntryType.NestedDataHeader" />.
+        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.StringLiteral" />,
+        /// <see cref="PipDataEntryType.NestedDataHeader" /> or <see cref="PipDataEntryType.IpcMoniker" />.
         /// </remarks>
         /// <returns>Value as string id</returns>
         [Pure]
@@ -137,6 +162,26 @@ namespace BuildXL.Pips.Operations
             Contract.Requires(file.IsValid);
             entry1Path = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.VsoHashEntry1Path, file.Path.RawValue);
             entry2RewriteCount = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.VsoHashEntry2RewriteCount, file.RewriteCount);
+        }
+
+        /// <summary>
+        /// Creates entries that constitute a file id pip data fragment.
+        /// </summary>
+        public static void CreateFileIdEntry(FileArtifact file, out PipDataEntry entry1Path, out PipDataEntry entry2RewriteCount)
+        {
+            Contract.Requires(file.IsValid);
+            entry1Path = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.FileId1Path, file.Path.RawValue);
+            entry2RewriteCount = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.FileId2RewriteCount, file.RewriteCount);
+        }
+
+        /// <summary>
+        /// Creates entries that constitute a directory id pip data fragment.
+        /// </summary>
+        public static void CreateDirectoryIdEntries(DirectoryArtifact directory, out PipDataEntry entry1SealId, out PipDataEntry entry2Path)
+        {
+            Contract.Requires(directory.IsValid);
+            entry1SealId = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.DirectoryIdHeaderSealId, unchecked((int)(directory.IsSharedOpaquePlusPartialSealId)));
+            entry2Path = directory.Path;
         }
 
         /// <summary>
@@ -231,14 +276,17 @@ namespace BuildXL.Pips.Operations
                 case PipDataEntryType.NestedDataStart:
                 case PipDataEntryType.NestedDataEnd:
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
+                case PipDataEntryType.FileId2RewriteCount:
+                case PipDataEntryType.DirectoryIdHeaderSealId:
                     writer.WriteCompact(m_data);
                     break;
                 case PipDataEntryType.AbsolutePath:
                 case PipDataEntryType.VsoHashEntry1Path:
+                case PipDataEntryType.FileId1Path:
                     writer.Write(new AbsolutePath(m_data));
                     break;
                 case PipDataEntryType.IpcMoniker:
-                    writer.WriteCompact(m_data);
+                    writer.Write(new StringId(m_data));
                     break;
                 default:
                     Contract.Assert(false, "EntryType not handled: " + EntryType);
@@ -262,16 +310,19 @@ namespace BuildXL.Pips.Operations
                 case PipDataEntryType.NestedDataStart:
                 case PipDataEntryType.NestedDataEnd:
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
+                case PipDataEntryType.FileId2RewriteCount:
+                case PipDataEntryType.DirectoryIdHeaderSealId:
                     data = reader.ReadInt32Compact();
                     break;
                 case PipDataEntryType.AbsolutePath:
                 case PipDataEntryType.VsoHashEntry1Path:
+                case PipDataEntryType.FileId1Path:
                     data = reader.ReadAbsolutePath().Value.Value;
                     break;
                 case PipDataEntryType.Invalid:
                     return default(PipDataEntry);
                 case PipDataEntryType.IpcMoniker:
-                    data = reader.ReadInt32Compact();
+                    data = reader.ReadStringId().Value;
                     break;
                 default:
                     Contract.Assert(false, "EntryType not handled: " + entryType);

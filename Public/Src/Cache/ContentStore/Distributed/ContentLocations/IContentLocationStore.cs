@@ -44,8 +44,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Task<GetBulkLocationsResult> GetBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, GetBulkOrigin origin);
 
         /// <summary>
+        /// Removes local content location (i.e. the current machine) for a set of content hashes.
+        /// </summary>
+        Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
+
+        /// <summary>
         /// Removes bad content locations from a particular set of content hashes.
         /// </summary>
+        /// <remarks>
+        /// This operation is impelmented for non-LLS case only!
+        /// </remarks>
         Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHashAndLocations> contentHashToLocationMap, CancellationToken cts, UrgencyHint urgencyHint);
 
         /// <summary>
@@ -57,11 +65,6 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Runs garbage collection on the content location store
         /// </summary>
         Task<BoolResult> GarbageCollectAsync(OperationContext context);
-
-        /// <summary>
-        /// Removes local content location for a set of content hashes.
-        /// </summary>
-        Task<BoolResult> TrimBulkAsync(Context context, IReadOnlyList<ContentHash> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
 
         /// <summary>
         /// Unregisters the local location from the content tracker for each hash if provided last-access time and remote last-access time are in sync.
@@ -88,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Registers the current machine has the content for the given hash
         /// </summary>
-        Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint);
+        Task<BoolResult> RegisterLocalLocationAsync(Context context, IReadOnlyList<ContentHashWithSize> contentHashes, CancellationToken cts, UrgencyHint urgencyHint, bool touch = true);
 
         /// <summary>
         /// Puts a blob into the content location store.
@@ -114,6 +117,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// Reports about new reputation for a given location.
         /// </summary>
         void ReportReputation(MachineLocation location, MachineReputation reputation);
+
+        /// <summary>
+        /// Returns a random machine location, excluding the specified location. Returns default if operation is not possible.
+        /// </summary>
+        Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except);
+
+        /// <summary>
+        /// Determines whether a machine is active or not.
+        /// </summary>
+        bool IsMachineActive(MachineLocation m);
     }
 
     /// <summary>

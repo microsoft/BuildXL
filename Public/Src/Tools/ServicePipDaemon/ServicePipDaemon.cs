@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
@@ -17,6 +19,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
+using Newtonsoft.Json.Linq;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace Tool.ServicePipDaemon
@@ -26,13 +29,16 @@ namespace Tool.ServicePipDaemon
     /// </summary>
     public abstract class ServicePipDaemon : IDisposable, IIpcOperationExecutor
     {
-        internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
-        internal static readonly List<Option> DaemonConfigOptions = new List<Option>();
+        /// <nodoc/>
+        protected internal static readonly IIpcProvider IpcProvider = IpcFactory.GetProvider();
+
+        private static readonly List<Option> s_daemonConfigOptions = new List<Option>();
 
         /// <summary>Initialized commands</summary>
         protected static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>();
 
         private const string LogFileName = "ServiceDaemon";
+        private const char ResponseFilePrefix = '@';
 
         /// <nodoc/>
         public const string LogPrefix = "(SPD) ";
@@ -81,6 +87,19 @@ namespace Tool.ServicePipDaemon
         public ILogger Logger => m_logger;
 
         #region Options and commands 
+
+        internal static readonly StrOption ConfigFile = RegisterDaemonConfigOption(new StrOption("configFile")
+        {
+            ShortName = "cf",
+            HelpText = "Configuration file",
+            DefaultValue = null,
+            Expander = (fileName) =>
+            {
+                var json = System.IO.File.ReadAllText(fileName);
+                var jObject = JObject.Parse(json);
+                return jObject.Properties().Select(prop => new ParsedOption(PrefixKind.Long, prop.Name, prop.Value.ToString()));
+            },
+        });
 
         /// <nodoc />
         public static readonly StrOption Moniker = RegisterDaemonConfigOption(new StrOption("moniker")
@@ -158,6 +177,24 @@ namespace Tool.ServicePipDaemon
             IsMultiValue = true,
         };
 
+        /// <nodoc/>
+        public static readonly StrOption HashOptional = new StrOption("hash")
+        {
+            ShortName = "h",
+            HelpText = "VSO file hash",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc/>
+        public static readonly StrOption FileId = new StrOption("fileId")
+        {
+            ShortName = "fid",
+            HelpText = "BuildXL file identifier",
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
         /// <nodoc />
         public static readonly StrOption IpcServerMonikerRequired = new StrOption("ipcServerMoniker")
         {
@@ -188,10 +225,10 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <nodoc />
-        protected static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(DaemonConfigOptions, option);
+        protected static T RegisterDaemonConfigOption<T>(T option) where T : Option => RegisterOption(s_daemonConfigOptions, option);
 
         /// <remarks>
-        /// The <see cref="DaemonConfigOptions"/> options are added to every command.
+        /// The <see cref="s_daemonConfigOptions"/> options are added to every command.
         /// A non-mandatory string option "name" is added as well, which operation
         /// commands may want to use to explicitly specify a particular end point name
         /// (e.g., the target drop name).
@@ -208,7 +245,7 @@ namespace Tool.ServicePipDaemon
             var opts = (options ?? new Option[0]).ToList();
             if (addDaemonConfigOptions)
             {
-                opts.AddRange(DaemonConfigOptions);
+                opts.AddRange(s_daemonConfigOptions);
             }
 
             if (!opts.Exists(opt => opt.LongName == "name"))
@@ -261,7 +298,7 @@ namespace Tool.ServicePipDaemon
             clientAction: AsyncRPCSend,
             serverAction: (conf, daemon) =>
             {
-                conf.Logger.Info("[STOP] requested");
+                daemon.Logger.Info("[STOP] requested");
                 daemon.RequestStop();
                 return Task.FromResult(IpcResult.Success());
             });
@@ -305,7 +342,6 @@ namespace Tool.ServicePipDaemon
 
         #endregion
 
-
         /// <nodoc />
         public ServicePipDaemon(IParser parser, DaemonConfig daemonConfig, ILogger logger, IIpcProvider rpcProvider = null, Client client = null)
         {
@@ -325,7 +361,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Starts to listen for client connections.  As soon as a connection is received,
         /// it is placed in an action block from which it is picked up and handled asynchronously
-        /// (in the <see cref="ParseAndExecuteCommand"/> method).
+        /// (in the <see cref="ParseAndExecuteCommandAsync"/> method).
         /// </summary>
         public void Start()
         {
@@ -358,10 +394,10 @@ namespace Tool.ServicePipDaemon
             m_logger.Dispose();
         }
 
-        private async Task<IIpcResult> ParseAndExecuteCommand(IIpcOperation operation)
+        private async Task<IIpcResult> ParseAndExecuteCommandAsync(int id, IIpcOperation operation)
         {
             string cmdLine = operation.Payload;
-            m_logger.Verbose("Command received: {0}", cmdLine);
+            m_logger.Verbose($"Command received. Request #{id}, CommandLine: {cmdLine}");
             ConfiguredCommand conf;
             using (m_counters.StartStopwatch(DaemonCounter.ParseArgsDuration))
             {
@@ -371,9 +407,9 @@ namespace Tool.ServicePipDaemon
             IIpcResult result;
             using (var duration = m_counters.StartStopwatch(DaemonCounter.ServerActionDuration))
             {
-                result = await conf.Command.ServerAction(conf, this); 
+                result = await conf.Command.ServerAction(conf, this);
                 result.ActionDuration = duration.Elapsed;
-            }            
+            }
 
             TimeSpan queueDuration = operation.Timestamp.Daemon_BeforeExecuteTime - operation.Timestamp.Daemon_AfterReceivedTime;
             m_counters.AddToCounter(DaemonCounter.QueueDurationMs, (long)queueDuration.TotalMilliseconds);
@@ -381,11 +417,11 @@ namespace Tool.ServicePipDaemon
             return result;
         }
 
-        Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(IIpcOperation operation)
+        Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation operation)
         {
             Contract.Requires(operation != null);
 
-            return ParseAndExecuteCommand(operation);
+            return ParseAndExecuteCommandAsync(id, operation);
         }
 
         /// <summary>
@@ -408,7 +444,22 @@ namespace Tool.ServicePipDaemon
                 throw new ArgumentException(I($"Command is required. {usageMessage.Value}"));
             }
 
-            var argsQueue = new Queue<string>(args);
+            var argsQueue = new Queue<string>(args.Length);
+            foreach (var arg in args)
+            {
+                if (arg[0] == ResponseFilePrefix)
+                {
+                    foreach (var argFromFile in ProcessResponseFile(arg, parser))
+                    {
+                        argsQueue.Enqueue(argFromFile);
+                    }
+                }
+                else
+                {
+                    argsQueue.Enqueue(arg);
+                }
+            }
+
             string cmdName = argsQueue.Dequeue();
             if (!Commands.TryGetValue(cmdName, out Command cmd))
             {
@@ -424,6 +475,27 @@ namespace Tool.ServicePipDaemon
             return new ConfiguredCommand(cmd, conf, logger);
         }
 
+        private static IEnumerable<string> ProcessResponseFile(string responseFileArgument, IParser parser)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(responseFileArgument));
+            Contract.Requires(responseFileArgument[0] == ResponseFilePrefix);
+
+            string path = responseFileArgument.Substring(1);
+            string content;
+            try
+            {
+                content = System.IO.File.ReadAllText(path, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException(I($"Error while reading the response file '{path}': {ex.Message}."), ex);
+            }
+
+            // The arguments inside of the response file might be escaped.
+            // We need to pass them through the parser to properly handle such cases.
+            return parser.SplitArgs(content.Replace(Environment.NewLine, " "));
+        }
+
         /// <summary>
         /// Creates DaemonConfig using the values specified on the ConfiguredCommand
         /// </summary>        
@@ -436,15 +508,6 @@ namespace Tool.ServicePipDaemon
                 connectRetryDelay: TimeSpan.FromMilliseconds(conf.Get(ConnectRetryDelayMillis)),
                 stopOnFirstFailure: conf.Get(StopOnFirstFailure),
                 enableCloudBuildIntegration: conf.Get(EnableCloudBuildIntegration));
-        }
-
-        /// <summary>
-        /// Creates anIPC client using the config from a ConfiguredCommand
-        /// </summary>        
-        public static IClient CreateClient(ConfiguredCommand conf)
-        {
-            var daemonConfig = CreateDaemonConfig(conf);
-            return IpcProvider.GetClient(daemonConfig.Moniker, daemonConfig);
         }
 
         private static string Usage()
@@ -495,8 +558,21 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <summary>
-        ///     Reconstructs a full command line corresponding to a <see cref="ConfiguredCommand"/>.
+        /// Reconstructs a full command line corresponding to a <see cref="ConfiguredCommand"/>.
         /// </summary>
         private static string ToPayload(ConfiguredCommand cmd) => ToPayload(cmd.Command.Name, cmd.Config);
+
+        /// <nodoc/>
+        protected static void SetupThreadPoolAndServicePoint(int minWorkerThreads, int minIoThreads, int minServicePointParallelism)
+        {
+            int workerThreads, ioThreads;
+            ThreadPool.GetMinThreads(out workerThreads, out ioThreads);
+
+            workerThreads = Math.Max(workerThreads, minWorkerThreads);
+            ioThreads = Math.Max(ioThreads, minIoThreads);
+            ThreadPool.SetMinThreads(workerThreads, ioThreads);
+
+            ServicePointManager.DefaultConnectionLimit = Math.Max(minServicePointParallelism, ServicePointManager.DefaultConnectionLimit);
+        }
     }
 }

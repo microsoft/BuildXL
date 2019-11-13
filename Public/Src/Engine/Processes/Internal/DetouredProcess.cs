@@ -30,7 +30,7 @@ using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 namespace BuildXL.Processes.Internal
 {
     /// <summary>
-    /// This class implements an managed abstraction of a detoured process creation
+    /// This class implements a managed abstraction of a detoured process creation
     /// </summary>
     /// <remarks>
     /// All public methods of this class are thread safe.
@@ -73,7 +73,7 @@ namespace BuildXL.Processes.Internal
         [SuppressMessage("Microsoft.Reliability", "CA2006:UseSafeHandleToEncapsulateNativeResources")]
         private static readonly IntPtr s_consoleWindow = Native.Processes.Windows.ProcessUtilitiesWin.GetConsoleWindow();
         private readonly ContainerConfiguration m_containerConfiguration;
-
+        private readonly bool m_setJobBreakawayOk;
         private readonly LoggingContext m_loggingContext;
 
 #region public getters
@@ -222,7 +222,7 @@ namespace BuildXL.Processes.Internal
                 }
 
                 int exitCode;
-                if (!Native.Processes.ProcessUtilities.GetExitCodeProcess(this.m_processHandle, out exitCode))
+                if (!Native.Processes.ProcessUtilities.GetExitCodeProcess(m_processHandle, out exitCode))
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get exit code.");
                 }
@@ -249,7 +249,7 @@ namespace BuildXL.Processes.Internal
                 Contract.Assume(m_processHandle != null, "Process not yet started.");
 
                 long creation, exit, kernel, user;
-                if (!Native.Processes.ProcessUtilities.GetProcessTimes(this.m_processHandle.DangerousGetHandle(), out creation, out exit, out kernel, out user))
+                if (!Native.Processes.ProcessUtilities.GetProcessTimes(m_processHandle.DangerousGetHandle(), out creation, out exit, out kernel, out user))
                 {
                     throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "Unable to get times.");
                 }
@@ -309,7 +309,8 @@ namespace BuildXL.Processes.Internal
             bool disableConHostSharing,
             LoggingContext loggingContext,
             string timeoutDumpDirectory,
-            ContainerConfiguration containerConfiguration)
+            ContainerConfiguration containerConfiguration,
+            bool setJobBreakawayOk)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -332,7 +333,7 @@ namespace BuildXL.Processes.Internal
             m_timeout = timeout;
             m_disableConHostSharing = disableConHostSharing;
             m_containerConfiguration = containerConfiguration;
-
+            m_setJobBreakawayOk = setJobBreakawayOk;
             if (m_workingDirectory != null && m_workingDirectory.Length == 0)
             {
                 m_workingDirectory = Directory.GetCurrentDirectory();
@@ -377,7 +378,7 @@ namespace BuildXL.Processes.Internal
                 // the console window. If BuildXL itself is started without a console window the flag is not set to prevent creating
                 // extra conhost.exe processes.
                 int creationFlags =
-                    ((s_consoleWindow == IntPtr.Zero && !this.m_disableConHostSharing) ?
+                    ((s_consoleWindow == IntPtr.Zero && !m_disableConHostSharing) ?
                         0 : Native.Processes.ProcessUtilities.CREATE_NO_WINDOW) | Native.Processes.ProcessUtilities.CREATE_DEFAULT_ERROR_MODE;
 
                 SafeFileHandle standardInputWritePipeHandle = null;
@@ -445,7 +446,7 @@ namespace BuildXL.Processes.Internal
 
                         // We want the effects of SEM_NOGPFAULTERRORBOX on all children (but can't set that with CreateProcess).
                         // That's not set otherwise (even if set in this process) due to CREATE_DEFAULT_ERROR_MODE above.
-                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false);
+                        m_job.SetLimitInformation(terminateOnClose: true, failCriticalErrors: false, allowProcessesToBreakAway: m_setJobBreakawayOk);
 
                         m_processInjector.Listen();
 

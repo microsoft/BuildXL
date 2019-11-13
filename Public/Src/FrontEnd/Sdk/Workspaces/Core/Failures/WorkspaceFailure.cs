@@ -13,6 +13,7 @@ using JetBrains.Annotations;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.FormattableStringEx;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 // TODO: this file is becoming too big, consider splitting into multiple files based on logical grouping.
 namespace BuildXL.FrontEnd.Workspaces.Core
@@ -259,7 +260,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
 
             /// <nodoc/>
             IoException,
-            
+
             /// <nodoc/>
             ContentUnavailable,
         }

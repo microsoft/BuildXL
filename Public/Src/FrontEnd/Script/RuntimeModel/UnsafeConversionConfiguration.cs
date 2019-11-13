@@ -29,6 +29,11 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
         /// </summary>
         public bool DisableLineInfoConversion { get; set; } = false;
 
+        /// <summary>
+        /// If true, skip converting types for variable declarations.
+        /// </summary>
+        public bool SkipTypeConversion { get; set; } = false;
+
         /// <nodoc />
         public static UnsafeConversionConfiguration GetConfigurationFromEnvironmentVariables()
         {

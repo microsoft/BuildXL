@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.Tracing;
 
@@ -22,6 +23,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// </summary>
     public class ServiceClientContentSession : ReadOnlyServiceClientContentSession, IContentSession
     {
+        /// <inheritdoc />
+        protected override Tracer Tracer { get; } = new Tracer(nameof(ServiceClientContentSession));
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="ServiceClientContentSession"/> class.
         /// </summary>

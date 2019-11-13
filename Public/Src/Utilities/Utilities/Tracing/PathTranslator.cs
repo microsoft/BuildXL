@@ -35,7 +35,7 @@ namespace BuildXL.Utilities.Tracing
 
         // Set of characters to allow as prefixes to denote a path. A sequence matching fromPath must be preceded
         // by one of these characters or be at the beginning of the string in order to be translated.
-        private static readonly char[] s_prefixCharacters = { ':', '\'', '"', '[' };
+        private static readonly char[] s_prefixCharacters = { ':', '\'', '"', '[', ']' };
         private static readonly string[] s_prefixPatterns = { @"\\?\", @"\??\" };
 
         public static bool CreateIfEnabled(AbsolutePath target, AbsolutePath source, PathTable pathTable, out PathTranslator translator)

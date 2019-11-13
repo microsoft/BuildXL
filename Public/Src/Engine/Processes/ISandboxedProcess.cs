@@ -24,11 +24,11 @@ namespace BuildXL.Processes
         /// </summary>
         /// <param name="reportedFileAccess">The file access object on which to get the path location.</param>
         string GetAccessedFileName(ReportedFileAccess reportedFileAccess);
-        
+
         /// <summary>
-        /// Gets the peak memory usage while the process is active. If the process exits, the peak memory usage is considered null.
+        /// Gets the peak working set while the process is active. If the process exits, the peak working set is considered null.
         /// </summary>
-        ulong? GetActivePeakMemoryUsage();
+        ulong? GetActivePeakWorkingSet();
 
         /// <summary>
         /// Gets the maximum heap size of the sandboxed process.

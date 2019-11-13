@@ -171,11 +171,11 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         {
             Contract.Requires(failures.Length != 0);
             var workspace = new Workspace(
-                provider: null, 
-                workspaceConfiguration: workspaceConfiguration, 
-                modules: CollectionUtilities.EmptyArray<ParsedModule>(), 
-                failures: failures, 
-                preludeModule: null, 
+                provider: null,
+                workspaceConfiguration: workspaceConfiguration,
+                modules: CollectionUtilities.EmptyArray<ParsedModule>(),
+                failures: failures,
+                preludeModule: null,
                 configurationModule: null);
 
             return workspace;

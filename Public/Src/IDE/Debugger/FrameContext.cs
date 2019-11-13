@@ -11,7 +11,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     ///
     ///     Deeply immutable.
     /// </summary>
-    internal sealed class FrameContext
+    public sealed class FrameContext
     {
         /// <summary>Id of the corresponding thread (globally unique).</summary>
         public int ThreadId { get; }

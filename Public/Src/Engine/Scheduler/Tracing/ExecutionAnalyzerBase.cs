@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -102,6 +103,21 @@ namespace BuildXL.Scheduler.Tracing
         public string GetDescription(Pip pip)
         {
             return pip.GetDescription(PipGraph.Context);
+        }
+
+        /// <summary>
+        /// Renders process' command line to string.
+        /// </summary>
+        public string RenderProcessArguments(Process process) => RenderPipData(GetArgumentsDataFromProcess(process));
+
+        /// <summary>
+        /// Renders <see cref="PipData"/> to string.
+        /// </summary>
+        public string RenderPipData(PipData pipData)
+        {
+            var rootExpander = new RootExpander(PathTable);
+            Func<AbsolutePath, string> expandRoot = absPath => PathTable.ExpandName(absPath.Value, rootExpander);
+            return pipData.ToString(expandRoot, PathTable.StringTable, PipData.MaxMonikerRenderer);
         }
 
         /// <summary>

@@ -86,6 +86,8 @@ namespace BuildXL.Pips
 
         private readonly PipTableSerializationScheduler m_serializationScheduler;
 
+        private readonly Pip m_dummyHashSourceFilePip;
+
         /// <summary>
         /// Creates a new pip table
         /// </summary>
@@ -100,6 +102,9 @@ namespace BuildXL.Pips
             m_store = new PageablePipStore(pathTable, symbolTable, initialBufferSize, debug);
             m_mutables = new ConcurrentDenseIndex<MutablePipState>(debug);
             m_serializationScheduler = new PipTableSerializationScheduler(maxDegreeOfParallelism, debug, ProcessQueueItem);
+
+            AbsolutePath dummyFilePath = AbsolutePath.Create(pathTable, PathGeneratorUtilities.GetAbsolutePath("B", "DUMMY_HASH_SOURCE_FILE"));
+            m_dummyHashSourceFilePip = new HashSourceFile(FileArtifact.CreateSourceFile(dummyFilePath));
         }
 
         /// <summary>
@@ -582,6 +587,11 @@ namespace BuildXL.Pips
             Contract.Requires(IsValid(pipId));
             Contract.Ensures(Contract.Result<Pip>() != null);
 
+            if (pipId == PipId.DummyHashSourceFilePipId)
+            {
+                return m_dummyHashSourceFilePip;
+            }
+
             return GetMutable(pipId)
                 .InternalGetOrSetPip(
                     this,
@@ -597,8 +607,8 @@ namespace BuildXL.Pips
                             {
                                 var table1 = tuple.Item1;
                                 var @this = tuple.Item2;
-                                var storeId1 = tuple.Item3;
-                                var pipId3 = tuple.Item4;
+                                var storeId1 = tuple.storeId;
+                                var pipId3 = tuple.pipId2;
 
                                 var start = Stopwatch.GetTimestamp();
                                 var pip = table1.m_store.Read<Pip>(storeId1, reader => ((PipReader)reader).ReadPip());

@@ -25,6 +25,8 @@ namespace ContentStoreTest.Distributed.Redis
 
         private readonly ConcurrentDictionary<RedisKey, DateTime> _dbExpiry = new ConcurrentDictionary<RedisKey, DateTime>();
 
+        private readonly ConcurrentDictionary<RedisKey, ConcurrentDictionary<RedisValue, RedisValue>> _dbHash = new ConcurrentDictionary<RedisKey, ConcurrentDictionary<RedisValue, RedisValue>>();
+
         public IDictionary<RedisKey, MockRedisValueWithExpiry> GetDbWithExpiry()
         {
             return _dbMaster.ToDictionary(
@@ -164,14 +166,9 @@ namespace ContentStoreTest.Distributed.Redis
 
         public Task<bool> KeyDeleteAsync(RedisKey key)
         {
-            DateTime expiry;
-            _dbExpiry.TryRemove(key, out expiry);
-
-            RedisValue value;
-            bool success = _dbMaster.TryRemove(key, out value);
-
-            RedisValue[] values;
-            success = success || DbSet.TryRemove(key, out values);
+            _dbExpiry.TryRemove(key, out _);
+            bool success = _dbMaster.TryRemove(key, out _);
+            success = success || DbSet.TryRemove(key, out _);
 
             return Task.FromResult(success);
         }
@@ -338,7 +335,11 @@ namespace ContentStoreTest.Distributed.Redis
 
         public Task<HashEntry[]> HashGetAllAsync(RedisKey key, CommandFlags command = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            if (_dbHash.TryGetValue(key, out var entries))
+            {
+                return Task.FromResult(entries.Select(kvp => new HashEntry(kvp.Key, kvp.Value)).ToArray());
+            }
+            return Task.FromResult<HashEntry[]>(null);
         }
 
         public Task<bool> HashSetAsync(
@@ -348,13 +349,22 @@ namespace ContentStoreTest.Distributed.Redis
             When when = When.Always,
             CommandFlags flags = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            var fields = _dbHash.GetOrAdd(key, _ => new ConcurrentDictionary<RedisValue, RedisValue>());
+            fields.AddOrUpdate(hashField, value, (field, prev) => value);
+            return Task.FromResult(true);
         }
 
         /// <inheritdoc />
         public Task<RedisValue> HashGetAsync(RedisKey key, RedisValue hashField, CommandFlags flags)
         {
-            throw new NotImplementedException();
+            if (_dbHash.TryGetValue(key, out var fields))
+            {
+                if (fields.TryGetValue(hashField, out var value))
+                {
+                    return Task.FromResult(value);
+                }
+            }
+            return Task.FromResult<RedisValue>(default);
         }
     }
 }

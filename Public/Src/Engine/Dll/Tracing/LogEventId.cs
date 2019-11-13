@@ -175,11 +175,12 @@ namespace BuildXL.Engine.Tracing
         DistributionWorkerStatus = 7038,
 
         DistributionExecutePipFailedNetworkFailureWarning = 7039,
-        // UNUSED 7040
+        DistributionWorkerTimeoutFailure = 7040,
 
         DistributionBondCall = 7041,
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
+        WorkerTotalRamMb = 7044,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,
@@ -216,7 +217,7 @@ namespace BuildXL.Engine.Tracing
         FailedToAcquireDirectoryLock = 7116,
         UsingRedirectedUserProfile = 7117,
         FailedToRedirectUserProfile = 7118,
-        ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
+        // was: ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent = 7119,
         BusyOrUnavailableOutputDirectoriesException = 7120,
         GrpcSettings = 7121,
 
@@ -224,7 +225,9 @@ namespace BuildXL.Engine.Tracing
 
         StartInitializingVm = 7123,
         EndInitializingVm = 7124,
-        InitializingVm = 7125
+        InitializingVm = 7125,
+
+        ChosenABTesting = 7126,
 
         // max 7200
     }

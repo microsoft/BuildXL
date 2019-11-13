@@ -13,6 +13,7 @@ using System.Threading.Tasks.Dataflow;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.Tasks;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
@@ -104,7 +105,7 @@ namespace Tool.DropDaemon
 
         private VssCredentials GetCredentials() =>
             new VsoCredentialHelper(m => m_logger.Verbose(m))
-                .GetCredentials(m_config.Service, true, null);
+                .GetCredentials(m_config.Service, true, null, null, PromptBehavior.Never);
 
         private ArtifactHttpClientFactory GetFactory() =>
             new ArtifactHttpClientFactory(
@@ -309,7 +310,7 @@ namespace Tool.DropDaemon
 
                 // run 'Associate' on all items from the batch; the result will indicate which files were associated and which need to be uploaded
                 AssociationsStatus associateStatus = await AssociateAsync(blobsForAssociate);
-                IReadOnlyList<AddFileItem> itemsLeftToUpload = await SetResultForAssociatedNonMissingItems(batch, associateStatus, m_config.EnableChunkDedup, Token);
+                IReadOnlyList<AddFileItem> itemsLeftToUpload = await SetResultForAssociatedNonMissingItemsAsync(batch, associateStatus, m_config.EnableChunkDedup, Token);
 
                 // compute blobs for upload
                 startTime = DateTime.UtcNow;
@@ -341,15 +342,43 @@ namespace Tool.DropDaemon
 
             var startTime = DateTime.UtcNow;
 
+            // m_dropClient.AssociateAsync does some internal batching. For each batch, it will create AssociationsStatus.
+            // The very first created AssociationsStatus is stored and later returned as Item2 in the tuple.
+            // Elements from all AssociationsStatus.Missing are added to the same IEnumerable<BlobIdentifier> and returned
+            // as Item2 in the tuple.
+            // If the method creates more than one batch (i.e., more than one AssociationsStatus is created), the returned
+            // associateResult.Item1 will not match associateResult.Item2.Missing.
             Tuple<IEnumerable<BlobIdentifier>, AssociationsStatus> associateResult = await m_dropClient.AssociateAsync(
                 DropName,
                 blobsForAssociate.ToList(),
                 abortIfAlreadyExists: false,
                 cancellationToken: Token).ConfigureAwait(false);
 
+            var result = associateResult.Item2;
+
             Interlocked.Add(ref Stats.TotalAssociateTimeMs, ElapsedMillis(startTime));
-            Interlocked.Add(ref Stats.NumFilesAssociated, blobsForAssociate.Length - associateResult.Item2.Missing.Count());
-            return associateResult.Item2;
+
+            var missingBlobIdsCount = associateResult.Item1.Count();
+            var associationsStatusMissingBlobsCount = associateResult.Item2.Missing.Count();
+            Interlocked.Add(ref Stats.NumFilesAssociated, blobsForAssociate.Length - missingBlobIdsCount);
+
+            if (missingBlobIdsCount != associationsStatusMissingBlobsCount)
+            {
+                m_logger.Verbose("Mismatch in the number of missing files during Associate call -- missingBlobIdsCount={0}, associationsStatusMissingBlobsCount={1}",
+                    missingBlobIdsCount,
+                    associationsStatusMissingBlobsCount);
+
+                if (missingBlobIdsCount < associationsStatusMissingBlobsCount)
+                {
+                    // This is an unexpected scenario. If there is a mismatch, count(associateResult.Item1) must be > count(associateResult.Item2.Missing).
+                    Contract.Assert(false, "Unexpected mismatch in the number of missing files.");
+                }
+
+                // fix AssociationsStatus so it contains all the missing files. 
+                result.Missing = associateResult.Item1;
+            }
+
+            return result;
         }
 
         private async Task UploadAndAssociateAsync(AssociationsStatus associateStatus, FileBlobDescriptor[] blobsForUpload)
@@ -398,10 +427,10 @@ namespace Tool.DropDaemon
         ///     (as indicated by <paramref name="associateStatus"/>), and returns <see cref="AddFileItem"/>s
         ///     for those that are missing (<see cref="AssociationsStatus.Missing"/>).
         /// </summary>
-        private static async Task<IReadOnlyList<AddFileItem>> SetResultForAssociatedNonMissingItems(AddFileItem[] batch, AssociationsStatus associateStatus, bool chunkDedup, CancellationToken cancellationToken)
+        private static async Task<IReadOnlyList<AddFileItem>> SetResultForAssociatedNonMissingItemsAsync(AddFileItem[] batch, AssociationsStatus associateStatus, bool chunkDedup, CancellationToken cancellationToken)
         {
             var missingItems = new List<AddFileItem>();
-            var missingBlobIds = associateStatus.Missing;
+            var missingBlobIds = new HashSet<BlobIdentifier>(associateStatus.Missing);
             foreach (AddFileItem item in batch)
             {
                 var itemFileBlobDescriptor = await item.FileBlobDescriptorForAssociateAsync(chunkDedup, cancellationToken);

@@ -18,7 +18,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // Need to initialize explicitly to avoid contract violation.
             EnabledPolicyRules = new List<string>();
             LogStatistics = true;
-            GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
+            ReleaseWorkspaceBeforeEvaluation = true;
         }
 
         /// <nodoc />
@@ -32,6 +32,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             FileToFileReportDestination = template.FileToFileReportDestination.HasValue ? (AbsolutePath?)pathRemapper.Remap(template.FileToFileReportDestination.Value) : null;
 
             EnableIncrementalFrontEnd = template.EnableIncrementalFrontEnd;
+            EnableEvaluationThrottling = template.EnableEvaluationThrottling; 
             DebugScript = template.DebugScript;
             DebuggerBreakOnExit = template.DebuggerBreakOnExit;
             DebuggerPort = template.DebuggerPort;
@@ -65,7 +66,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogStatistics = template.LogStatistics;
             ShowSlowestElementsStatistics = template.ShowSlowestElementsStatistics;
             ShowLargestFilesStatistics = template.ShowLargestFilesStatistics;
-            GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
+            ReleaseWorkspaceBeforeEvaluation = template.ReleaseWorkspaceBeforeEvaluation;
+            UnsafeOptimizedAstConversion = template.UnsafeOptimizedAstConversion;
+            AllowUnsafeAmbient = template.AllowUnsafeAmbient;
+            GenerateCgManifestForNugets = template.GenerateCgManifestForNugets;
+            ValidateCgManifestForNugets = template.ValidateCgManifestForNugets;
         }
 
         /// <inheritdoc />
@@ -91,6 +96,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int? MaxFrontEndConcurrency { get; set; }
+
+        /// <inheritdoc />
+        public bool? EnableEvaluationThrottling { get; set; }
 
         /// <inheritdoc />
         public int? MaxRestoreNugetConcurrency { get; set; }
@@ -188,11 +196,19 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc/>
         public bool ShowLargestFilesStatistics { get; set; }
 
-        /// <nodoc /> 
-        public List<string> GlobalUnsafePassthroughEnvironmentVariables { get; set; }
+        /// <inheritdoc /> 
+        public bool ReleaseWorkspaceBeforeEvaluation { get; set; }
 
         /// <inheritdoc /> 
-        IReadOnlyList<string> IFrontEndConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
+        public bool UnsafeOptimizedAstConversion { get; set; }
 
+        /// <inheritdoc /> 
+        public bool AllowUnsafeAmbient { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath GenerateCgManifestForNugets { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath ValidateCgManifestForNugets { get; set; }
     }
 }

@@ -17,6 +17,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
     public sealed class PlaceFileCall<TTracer> : TracedCallWithInput<TTracer, ContentHash, PlaceFileResult>, IDisposable
         where TTracer : ContentSessionTracer
     {
+        private readonly AbsolutePath _path;
+        private readonly FileAccessMode _accessMode;
+        private readonly FileReplacementMode _replacementMode;
+        private readonly FileRealizationMode _realizationMode;
+
         /// <summary>
         ///     Run the call.
         /// </summary>
@@ -49,6 +54,11 @@ namespace BuildXL.Cache.ContentStore.Tracing
             FileRealizationMode realizationMode)
             : base(tracer, context, contentHash)
         {
+            _path = path;
+            _accessMode = accessMode;
+            _replacementMode = replacementMode;
+            _realizationMode = realizationMode;
+
             Tracer.PlaceFileStart(Context, contentHash, path, accessMode, replacementMode, realizationMode);
         }
 
@@ -61,7 +71,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <inheritdoc />
         public void Dispose()
         {
-            Tracer.PlaceFileStop(Context, Input, Result);
+            Tracer.PlaceFileStop(Context, Input, Result, _path, _accessMode, _replacementMode, _realizationMode);
         }
     }
 }

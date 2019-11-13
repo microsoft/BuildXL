@@ -3,18 +3,4 @@
 
 'use strict';
 
-import {
-    DebugSession,
-    InitializedEvent, TerminatedEvent, StoppedEvent, BreakpointEvent, OutputEvent, Event,
-    Thread, StackFrame, Scope, Source, Handles, Breakpoint
-} from 'vscode-debugadapter';
-import {DebugProtocol} from 'vscode-debugprotocol';
-
-interface AttachRequest extends DebugProtocol.AttachRequest {
-    port: number;
-}
-
-class DominoDebugSession extends DebugSession {
-    protected attachRequest(response: DebugProtocol.Response, args: AttachRequest) {
-    }
-}
+// nothing needed here

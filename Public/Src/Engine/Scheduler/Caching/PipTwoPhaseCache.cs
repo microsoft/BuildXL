@@ -17,6 +17,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
@@ -79,6 +80,13 @@ namespace BuildXL.Scheduler.Cache
         }
 
         /// <summary>
+        /// Attempts to load state need for use of the cache.
+        /// </summary>
+        public virtual void StartLoading(bool waitForCompletion)
+        {
+        }
+
+        /// <summary>
         /// Stores cache descriptor metadata for pip
         /// </summary>
         public virtual async Task<Possible<ContentHash>> TryStoreMetadataAsync(PipCacheDescriptorV2Metadata metadata)
@@ -100,7 +108,7 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         public virtual Task<Possible<ContentHash>> TryStorePathSetAsync(ObservedPathSet pathSet)
         {
-            return this.TrySerializedAndStorePathSetAsync(pathSet, (pathSetHash, pathSetBuffer) =>
+            return TrySerializedAndStorePathSetAsync(pathSet, (pathSetHash, pathSetBuffer) =>
             {
                 return TryStorePathSetContentAsync(pathSetHash, pathSetBuffer);
             });
@@ -114,34 +122,35 @@ namespace BuildXL.Scheduler.Cache
             Counters.IncrementCounter(PipCachingCounter.StoredPathSetCount);
             Counters.AddToCounter(PipCachingCounter.StoredPathSetSize, pathSetBuffer.Length);
 
-            // First check to see if the content is already available in the cache since that's a faster noop path
-            // than storing an already existing PathSet
-            var result = await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { pathSetHash });
-            if (result.Succeeded && result.Result.AllContentAvailable)
+            if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
-                return Unit.Void;
+                // First check to see if the content is already available in the cache since that's a faster noop path
+                // than storing an already existing PathSet
+                var result = await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { pathSetHash });
+                if (result.Succeeded && result.Result.AllContentAvailable)
+                {
+                    return Unit.Void;
+                }
             }
-            else
-            {
-                return (await ArtifactContentCache.TryStoreAsync(pathSetBuffer, pathSetHash)).WithGenericFailure();
-            }
+
+            return (await ArtifactContentCache.TryStoreAsync(pathSetBuffer, pathSetHash)).WithGenericFailure();
         }
 
         /// <summary>
         /// Serializes a path set.
         /// </summary>
-        public async Task<ContentHash> SerializePathSet(ObservedPathSet pathSet)
+        public async Task<ContentHash> SerializePathSetAsync(ObservedPathSet pathSet)
         {
             using (var pathSetBuffer = new MemoryStream())
             {
-                return await SerializePathSet(pathSet, pathSetBuffer);
+                return await SerializePathSetAsync(pathSet, pathSetBuffer);
             }
         }
 
         /// <summary>
         /// Serializes a path set to the given buffer.
         /// </summary>
-        protected async Task<ContentHash> SerializePathSet(ObservedPathSet pathSet, MemoryStream pathSetBuffer, ContentHash? pathSetHash = null)
+        protected async Task<ContentHash> SerializePathSetAsync(ObservedPathSet pathSet, MemoryStream pathSetBuffer, ContentHash? pathSetHash = null)
         {
             using (var writer = new BuildXLWriter(stream: pathSetBuffer, debug: false, leaveOpen: true, logStats: false))
             {
@@ -169,7 +178,7 @@ namespace BuildXL.Scheduler.Cache
         {
             using (var pathSetBuffer = new MemoryStream())
             {
-                var hash = await SerializePathSet(pathSet, pathSetBuffer, pathSetHash);
+                var hash = await SerializePathSetAsync(pathSet, pathSetBuffer, pathSetHash);
                 var maybeStored = await storeAsync(hash, pathSetBuffer);
                 if (!maybeStored.Succeeded)
                 {
@@ -298,17 +307,20 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         protected virtual async Task<Possible<Stream>> TryLoadContentAndOpenStreamAsync(ContentHash contentHash)
         {
-            Possible<ContentAvailabilityBatchResult> maybeAvailable =
-                await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash });
-            if (!maybeAvailable.Succeeded)
+            if (!EngineEnvironmentSettings.SkipExtraneousPins)
             {
-                return maybeAvailable.Failure;
-            }
+                Possible<ContentAvailabilityBatchResult> maybeAvailable =
+                    await ArtifactContentCache.TryLoadAvailableContentAsync(new[] { contentHash });
+                if (!maybeAvailable.Succeeded)
+                {
+                    return maybeAvailable.Failure;
+                }
 
-            bool contentIsAvailable = maybeAvailable.Result.AllContentAvailable;
-            if (!contentIsAvailable)
-            {
-                return new Failure<string>("Required content is not available in the cache");
+                bool contentIsAvailable = maybeAvailable.Result.AllContentAvailable;
+                if (!contentIsAvailable)
+                {
+                    return new Failure<string>("Required content is not available in the cache");
+                }
             }
 
             return await ArtifactContentCache.TryOpenContentStreamAsync(contentHash);
@@ -432,18 +444,12 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Contains the hash for the pathset or metadata
         /// </summary>
-        public virtual bool IsNewlyAdded(ContentHash hash)
-        {
-            return true;
-        }
+        public virtual bool IsNewlyAdded(ContentHash hash) => true;
 
         /// <summary>
         /// Gets whether the associated content for the entry has a strong availability guarantee
         /// </summary>
-        public virtual bool HasStrongOutputContentAvailabilityGuarantee(ContentHash metadataHash)
-        {
-            return false;
-        }
+        public virtual bool HasStrongOutputContentAvailabilityGuarantee(ContentHash metadataHash) => false;
 
         /// <summary>
         /// Registers the result of materializing the output content for the given cache metadata

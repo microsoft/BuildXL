@@ -118,14 +118,6 @@ namespace BuildXL.Utilities
             return value;
         }
 
-        /// <summary>
-        /// Reads the value of a pipId
-        /// </summary>
-        public virtual uint ReadPipIdValue()
-        {
-            return ReadUInt32();
-        }
-
         private long Read7BitEncodedLong()
         {
             // Read out an Int64 7 bits at a time.  The high bit
@@ -293,7 +285,7 @@ namespace BuildXL.Utilities
         public virtual ModuleId ReadModuleId()
         {
             Start<ModuleId>();
-            var value = new ModuleId(ReadInt32Compact());
+            var value = ModuleId.Deserialize(this);
             End();
             return value;
         }

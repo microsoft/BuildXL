@@ -4,7 +4,6 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -38,14 +37,16 @@ namespace BuildXL.Cache.ContentStore.Vsts
         /// If true, gets blobs through BlobStore. If false, gets blobs from the Azure
         /// Uri.
         /// </param>
+        /// <param name="counterTracker">Parent counters to track the session.</param>
         public BlobContentSession(
             IAbsFileSystem fileSystem,
             string name,
             ImplicitPin implicitPin,
             IBlobStoreHttpClient blobStoreHttpClient,
             TimeSpan timeToKeepContent,
-            bool downloadBlobsThroughBlobStore)
-            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore)
+            bool downloadBlobsThroughBlobStore,
+            CounterTracker counterTracker)
+            : base(fileSystem, name, implicitPin, blobStoreHttpClient, timeToKeepContent, downloadBlobsThroughBlobStore, counterTracker)
         {
         }
 

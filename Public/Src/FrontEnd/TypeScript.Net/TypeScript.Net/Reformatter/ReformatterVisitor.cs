@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace TypeScript.Net.Reformatter
 {
@@ -263,7 +264,7 @@ namespace TypeScript.Net.Reformatter
             Writer.Whitespace();
             AppendNode(node.WhenFalse);
         }
-        
+
         /// <nodoc />
         public virtual void VisitSwitchExpression(SwitchExpression node)
         {

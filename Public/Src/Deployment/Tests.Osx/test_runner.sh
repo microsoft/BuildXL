@@ -15,8 +15,6 @@ find "$MY_DIR/TestProj/tests" -name "*.TestProcess" -exec chmod +x {} \;
 find "$MY_DIR/TestProj/tests" -name "*CoreDump*" -exec chmod +x {} \;
 
 # run the build
-# Temporarily disable this until we have the new macOS based CI
-# /kextMeasureProcessCpuTimes
 
 "$bxlSh"                                 \
   --config "$projRootDir/config.dsc"     \

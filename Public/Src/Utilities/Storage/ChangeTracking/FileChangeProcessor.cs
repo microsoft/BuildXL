@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Storage.InputChange;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Storage.ChangeTracking
@@ -14,14 +15,18 @@ namespace BuildXL.Storage.ChangeTracking
     public class FileChangeProcessor
     {
         private readonly FileChangeTracker m_fileChangeTracker;
-        private ScanningJournalResult m_scanningJournalResult;
-        private readonly List<FileChangeTrackerUnsubscriber> m_unsubscribers = new List<FileChangeTrackerUnsubscriber>(2);
+        private readonly InputChangeList m_inputChangeList;
+        private readonly List<FileChangeTrackerUnsubscriber> m_fileChangeTrackerUnsubscribers = new List<FileChangeTrackerUnsubscriber>(2);
+        private readonly List<InputChangeListUnsubscriber> m_inputChangeListUnsubscribers = new List<InputChangeListUnsubscriber>(2);
         private readonly LoggingContext m_loggingContext;
 
         /// <summary>
         /// Creates an instance of <see cref="FileChangeProcessor"/>.
         /// </summary>
-        public FileChangeProcessor(LoggingContext loggingContext, FileChangeTracker fileChangeTracker)
+        public FileChangeProcessor(
+            LoggingContext loggingContext, 
+            FileChangeTracker fileChangeTracker, 
+            InputChangeList inputChangeList = null)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(fileChangeTracker != null);
@@ -29,6 +34,7 @@ namespace BuildXL.Storage.ChangeTracking
 
             m_loggingContext = loggingContext;
             m_fileChangeTracker = fileChangeTracker;
+            m_inputChangeList = inputChangeList;
         }
 
         /// <summary>
@@ -38,10 +44,18 @@ namespace BuildXL.Storage.ChangeTracking
         {
             Contract.Requires(observer != null);
 
-            var unsubscriber = m_fileChangeTracker.Subscribe(observer) as FileChangeTrackerUnsubscriber;
-            Contract.Assert(unsubscriber != null);
+            var fileChangeTrackerUnsubscriber = m_fileChangeTracker.Subscribe(observer) as FileChangeTrackerUnsubscriber;
+            Contract.Assert(fileChangeTrackerUnsubscriber != null);
 
-            m_unsubscribers.Add(unsubscriber);
+            m_fileChangeTrackerUnsubscribers.Add(fileChangeTrackerUnsubscriber);
+
+            if (m_inputChangeList != null)
+            {
+                var inputChangeListUnsubscriber = m_inputChangeList.Subscribe(observer) as InputChangeListUnsubscriber;
+                Contract.Assert(inputChangeListUnsubscriber != null);
+
+                m_inputChangeListUnsubscribers.Add(inputChangeListUnsubscriber);
+            }
         }
 
         /// <summary>
@@ -52,29 +66,42 @@ namespace BuildXL.Storage.ChangeTracking
             JournalProcessingStatistics.LogMessage logMessage = null,
             JournalProcessingStatistics.LogStats logStats = null)
         {
-            if (m_scanningJournalResult != null)
-            {
-                return m_scanningJournalResult;
-            }
+            InitObservers();
 
-            // Initialize observers.
-            foreach (var unsubscriber in m_unsubscribers)
+            // Input change list needs to be processed first because file change tracker
+            // makes a completion for the observers currently.
+            // TODO: Make a better design for many-to-many observable-observer relations.
+            m_inputChangeList?.ProcessChanges();
+            var scanningJournalResult = m_fileChangeTracker.TryProcessChanges(timeLimit);
+
+            UnsubscribeObservers();
+
+            var journalStatistics = new JournalProcessingStatistics(scanningJournalResult);
+            journalStatistics.Log(m_loggingContext, logMessage, logStats);
+
+            return scanningJournalResult;
+        }
+
+        private void InitObservers()
+        {
+            // Only file change tracker's observers need to be initialized.
+            foreach (var unsubscriber in m_fileChangeTrackerUnsubscribers)
             {
                 unsubscriber.Observer.OnInit();
             }
+        }
 
-            m_scanningJournalResult = m_fileChangeTracker.TryProcessChanges(timeLimit);
-
-            // Unsubscribe observers.
-            foreach (var unsubscriber in m_unsubscribers)
+        private void UnsubscribeObservers()
+        {
+            foreach (var unsubscriber in m_fileChangeTrackerUnsubscribers)
             {
                 unsubscriber.Dispose();
             }
 
-            var journalStatistics = new JournalProcessingStatistics(m_scanningJournalResult);
-            journalStatistics.Log(m_loggingContext, logMessage, logStats);
-
-            return m_scanningJournalResult;
+            foreach (var unsubscriber in m_inputChangeListUnsubscribers)
+            {
+                unsubscriber.Dispose();
+            }
         }
     }
 }

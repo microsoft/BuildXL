@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
@@ -290,6 +291,121 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputUnpreserved)));
         }
 
+        [Fact]
+        public void PreserveOutputsTestWithTrustLevel()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 2;
+            var input = CreateSourceFile();
+            var outputPreservedA = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedA"));
+            var outputPreservedB = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedB"));
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedA, CONTENT),
+            });
+
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedB, CONTENT),
+            });
+
+            // processA will not perserve outputs because its trust level is lower than global setting of preserve output trust level
+            // but processB will preserve output
+            builderA.Options |= Process.Options.AllowPreserveOutputs;
+            builderA.PreserveOutputsTrustLevel = 1; 
+            var processAndOutputsA = SchedulePipBuilder(builderA);
+
+            builderB.Options |= Process.Options.AllowPreserveOutputs;
+            builderB.PreserveOutputsTrustLevel = 2;
+            var processAndOutputsB = SchedulePipBuilder(builderB);
+
+            RunScheduler().AssertCacheMiss(processAndOutputsA.Process.PipId, processAndOutputsB.Process.PipId);
+
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedB)));
+
+            ModifyFile(input);
+
+            RunScheduler().AssertCacheMiss(processAndOutputsA.Process.PipId, processAndOutputsB.Process.PipId);
+
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+            XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedB)));
+
+            RunScheduler().AssertCacheHit(processAndOutputsA.Process.PipId, processAndOutputsB.Process.PipId);
+
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+            XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedB)));
+        }
+
+        [Fact]
+        public void PreserveOutputsTestWithTrustLevelUpgrade()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
+            var input = CreateSourceFile();
+            var outputPreservedA = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedA"));
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedA, CONTENT),
+            });
+
+            // processA will perserve outputs
+            builderA.Options |= Process.Options.AllowPreserveOutputs;
+            builderA.PreserveOutputsTrustLevel = 1;
+            var processAndOutputsA = SchedulePipBuilder(builderA);
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+            ModifyFile(input);
+
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+            //increase preserve output trust level to 2 and process A will not preserve outputs anymore
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 2;
+
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+        }
+
+        [Fact]
+        public void PreserveOutputsTestWithTrustLevelDowngrade()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 3;
+            var input = CreateSourceFile();
+            var outputPreservedA = CreateOutputFileArtifact(Path.Combine(ObjectRoot, @"nested\out\filePreservedA"));
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(input),
+                Operation.WriteFile(outputPreservedA, CONTENT),
+            });
+
+            // processA won't perserve outputs
+            builderA.Options |= Process.Options.AllowPreserveOutputs;
+            builderA.PreserveOutputsTrustLevel = 2;
+            var processAndOutputsA = SchedulePipBuilder(builderA);
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+            ModifyFile(input);
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+            ModifyFile(input);
+            //increase preserve output trust level to 2 and process A will not preserve outputs anymore
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
+            RunSchedulerAndGetOutputContents(outputPreservedA, false, processAndOutputsA.Process.PipId);
+            XAssert.AreEqual(CONTENT_TWICE, File.ReadAllText(ArtifactToString(outputPreservedA)));
+
+        }
+
         /// <summary>
         /// Testing preserve outputs in an opaque dir
         /// </summary>
@@ -373,7 +489,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             outputContents = RunSchedulerAndGetOutputContents(outputUnderPreservedOpaque, cacheHitAssert: true, id: processAndOutputs.Process.PipId);
             XAssert.IsTrue(Directory.Exists(createdDirectoryUnderPreservedOpaque.Path.ToString(Context.PathTable)), "Empty directory under preserved opaque should have existed.");
             // Incremental scheduling doesn't replay the pip from cache and just leaves the filesystem as-is
-            if (!Configuration.Schedule.GraphAgnosticIncrementalScheduling && !Configuration.Schedule.GraphAgnosticIncrementalScheduling)
+            if (!Configuration.Schedule.IncrementalScheduling)
             {
                 XAssert.IsFalse(Directory.Exists(createdDirectoryUnderUnpreservedOpaque.Path.ToString(Context.PathTable)), "Empty directory under non-preserved opaque should not exist.");
             }
@@ -567,6 +683,47 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             XAssert.AreEqual(CONTENT_TWICE, preservedOutputContent);
             XAssert.AreEqual(CONTENT_TWICE, copiedOutputContent);
+        }
+
+        /// <summary>
+        /// IncrementalTool. 
+        /// </summary>
+        [Fact]
+        public void IncrementalPreserveOutputTool()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
+            Configuration.IncrementalTools = new List<RelativePath>
+            {
+                RelativePath.Create(Context.StringTable, TestProcessToolName)
+            };
+
+            AbsolutePath readonlyRootPath;
+            AbsolutePath.TryCreate(Context.PathTable, ReadonlyRoot, out readonlyRootPath);
+
+            // Create /readonly/a.txt
+            FileArtifact aTxtFile = CreateFileArtifactWithName("a.txt", ReadonlyRoot);
+            WriteSourceFile(aTxtFile);
+
+            DirectoryArtifact readonlyRootDir = SealDirectory(readonlyRootPath, SealDirectoryKind.SourceAllDirectories);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.Probe(aTxtFile, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            builder.AddInputDirectory(readonlyRootDir);
+
+            builder.Options |= Process.Options.AllowPreserveOutputs;
+            builder.Options |= Process.Options.IncrementalTool;
+
+            var pip = SchedulePipBuilder(builder).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+            RunScheduler().AssertCacheHit(pip.PipId);
+
+            WriteSourceFile(aTxtFile);
+            RunScheduler().AssertCacheMiss(pip.PipId);
         }
 
         /// <summary>

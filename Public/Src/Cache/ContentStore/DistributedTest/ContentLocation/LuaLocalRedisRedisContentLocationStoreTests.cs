@@ -15,6 +15,7 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
+using FluentAssertions;
 
 [assembly: CollectionBehavior(MaxParallelThreads = 4, DisableTestParallelization = true)]
 
@@ -29,6 +30,51 @@ namespace ContentStoreTest.Distributed.ContentLocation
         public LuaLocalRedisRedisContentLocationStoreTests(LocalRedisFixture redis, ITestOutputHelper output)
             : base(redis, output)
         { }
+
+        [Fact]
+        public Task TestCompareExchange()
+        {
+            // Setup
+            var context = new Context(TestGlobal.Logger);
+            var mockRedisDatabase = GetRedisDatabase(_clock);
+
+            const string weakFingerprintKey = "wfkey";
+            const string selectorFieldName = "selector";
+            const string tokenFieldName = "token";
+            const string expectedToken = "expectedToken";
+            const string newToken = "newToken";
+            const string contentHashList = "contentHashList";
+
+            // Round time so that comparison below will succeed
+            var initialTime = _clock.UtcNow.ToUnixTime().ToDateTime();
+
+            return TestAsync(
+                context,
+                mockRedisDatabase,
+                mockRedisDatabase,
+                async (store, storeFactory) =>
+                {
+                    var adapter = storeFactory.RedisDatabaseAdapter;
+                    var database = storeFactory.RedisDatabase;
+
+                    var checkpoints = Enumerable.Range(0, 20).Select(sequenceNumber => CreateRandomCheckpoint(sequenceNumber)).ToArray();
+
+                    var operationContext = new OperationContext(context);
+                    var exchanged = await adapter.ExecuteBatchAsync(operationContext, batch =>
+                    {
+                        return batch.CompareExchangeAsync(weakFingerprintKey, selectorFieldName, tokenFieldName, string.Empty, contentHashList, expectedToken);
+                    }, RedisOperation.All);
+
+                    exchanged.Should().BeTrue();
+
+                    exchanged = await adapter.ExecuteBatchAsync(operationContext, batch =>
+                    {
+                        return batch.CompareExchangeAsync(weakFingerprintKey, selectorFieldName, tokenFieldName, expectedToken, contentHashList, newToken);
+                    }, RedisOperation.All);
+
+                    exchanged.Should().BeTrue();
+                });
+        }
 
         [Fact]
         public Task TestAddCheckpoint()

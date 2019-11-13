@@ -4,22 +4,23 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
-using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using static BuildXL.Utilities.FormattableStringEx;
-using BuildXL.Storage;
-using BuildXL.Utilities.Collections;
-using BuildXL.Cache.ContentStore.Hashing;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -636,7 +637,98 @@ namespace Test.BuildXL.Scheduler
             expectedLog.AppendLine(ReportedFileAccess.WriteDescriptionPrefix + undeclaredWrite.ToString(context.PathTable));
 
             var eventLog = OperatingSystemHelper.IsUnixOS ? EventListener.GetLog().Replace("\r", "") : EventListener.GetLog();
-            XAssert.IsTrue(eventLog.EndsWith(expectedLog.ToString()));
+            XAssert.AreEqual(1, CountInstancesOfWord(expectedLog.ToString(), eventLog), eventLog);
+        }
+
+        [Fact]
+        public void AllViolationTypesHandledByReporting()
+        {
+            var testContext = BuildXLContext.CreateInstanceForTesting();
+            var tool = AbsolutePath.Create(testContext.PathTable, X("/X/out/tool.exe"));
+            var path = AbsolutePath.Create(testContext.PathTable, X("/X/out/path.h"));
+
+            foreach (DependencyViolationType violationType in Enum.GetValues(typeof(DependencyViolationType)))
+            {
+                ReportedViolation violation = new ReportedViolation(isError: false, type: violationType, path: path, violatorPipId: new PipId(1), PipId.Invalid, tool);
+
+                // Should not throw
+                Analysis.IgnoreResult(violation.ReportingType);
+                Analysis.IgnoreResult(violation.RenderForDFASummary(testContext.PathTable));
+                Analysis.IgnoreResult(violation.LegendText);
+            }
+        }
+
+        [Fact]
+        public void ReportedViolationEqualityTest()
+        {
+            ReportedViolation violation = new ReportedViolation(isError: false, type: DependencyViolationType.DoubleWrite, path: AbsolutePath.Invalid, violatorPipId: PipId.Invalid, relatedPipId: PipId.Invalid, processPath: AbsolutePath.Invalid);
+            ReportedViolation violation2 = new ReportedViolation(isError: false, type: DependencyViolationType.DoubleWrite, path: AbsolutePath.Invalid, violatorPipId: PipId.Invalid, relatedPipId: null, processPath: AbsolutePath.Invalid);
+            Assert.NotEqual(violation, violation2);
+        }
+
+        /// <summary>
+        /// Makes sure that when multiple file operations happen on the same path the appropriate precidence is chosen.
+        /// </summary>
+        [Theory]
+        [InlineData("DW", new DependencyViolationType[] { DependencyViolationType.DoubleWrite, DependencyViolationType.ReadRace })]
+        [InlineData("DW", new DependencyViolationType[] { DependencyViolationType.ReadRace, DependencyViolationType.DoubleWrite })]
+        [InlineData("DW", new DependencyViolationType[] { DependencyViolationType.DoubleWrite })]
+        [InlineData("R", new DependencyViolationType[] { DependencyViolationType.ReadRace, DependencyViolationType.UndeclaredOrderedRead })]
+        [InlineData("R", new DependencyViolationType[] { DependencyViolationType.ReadRace, DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque })]
+        [InlineData("W", new DependencyViolationType[] { DependencyViolationType.ReadRace, DependencyViolationType.WriteInExistingFile })]
+        public void AnalyzerMessageRenderingOperationPrecedence(string expectedPrefix, DependencyViolationType[] violationTypes)
+        {
+            var testContext = BuildXLContext.CreateInstanceForTesting();
+            var tool = AbsolutePath.Create(testContext.PathTable, X("/X/out/tool.exe"));
+            var path = AbsolutePath.Create(testContext.PathTable, X("/X/out/path.h"));
+
+            HashSet<ReportedViolation> violations = new HashSet<ReportedViolation>();
+            foreach (DependencyViolationType violationType in violationTypes)
+            {
+                violations.Add(new ReportedViolation(isError: false, type: violationType, path: path, violatorPipId: new PipId(1), PipId.Invalid, tool));
+            }
+
+            string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(violations, testContext.PathTable, (pipId) => "dummy");
+            string accessLine = result.Split(new string [] { Environment.NewLine}, StringSplitOptions.None)[1].TrimStart(' ');
+
+            XAssert.IsTrue(accessLine.StartsWith(expectedPrefix), "Unexpected result: " + result);
+        }
+
+        [Fact]
+        public void AnalyzerMessageRenderingLegendInformation()
+        {
+            var testContext = BuildXLContext.CreateInstanceForTesting();
+            var tool1 = AbsolutePath.Create(testContext.PathTable, X("/X/out/tool1.exe"));
+            var tool2 = AbsolutePath.Create(testContext.PathTable, X("/X/out/tool2.exe"));
+            var pathA = AbsolutePath.Create(testContext.PathTable, X("/X/out/pathA.h"));
+            var pathB = AbsolutePath.Create(testContext.PathTable, X("/X/out/pathB.h"));
+
+            HashSet<ReportedViolation> violations = new HashSet<ReportedViolation>();
+            violations.Add(new ReportedViolation(isError: false, type: DependencyViolationType.DoubleWrite, path: pathA,
+                violatorPipId: new PipId(1), relatedPipId: PipId.Invalid, tool1));
+            violations.Add(new ReportedViolation(isError: false, type: DependencyViolationType.AbsentPathProbeUnderUndeclaredOpaque, path: pathB,
+                violatorPipId: new PipId(1), relatedPipId: new PipId(2), tool1));
+            violations.Add(new ReportedViolation(isError: false, type: DependencyViolationType.WriteInExistingFile, path: pathB,
+                violatorPipId: new PipId(1), relatedPipId: PipId.Invalid, tool2));
+            violations.Add(new ReportedViolation(isError: false, type: DependencyViolationType.WriteInExistingFile, path: pathB,
+                violatorPipId: new PipId(1), relatedPipId: PipId.Invalid, tool2));
+
+            string result = FileMonitoringViolationAnalyzer.AggregateAccessViolationPaths(violations, testContext.PathTable, (pipId) => "PLACEHOLDER PIP DESCRIPTION");
+
+            // Should see a single instance of " W " for the write files legend even though there are 2 write violations
+            string legendMarker = " = ";
+            XAssert.AreEqual(1, CountInstancesOfWord(SimplifiedViolationType.Write.ToAbbreviation() + legendMarker, result), result);
+
+            XAssert.AreEqual(1, CountInstancesOfWord(SimplifiedViolationType.DoubleWrite.ToAbbreviation() + legendMarker, result), result);
+            XAssert.AreEqual(1, CountInstancesOfWord(SimplifiedViolationType.Probe.ToAbbreviation() + legendMarker, result), result);
+        }
+
+        private int CountInstancesOfWord(string word, string stringToSearch)
+        {
+            int originalLength = stringToSearch.Length;
+            int newLength = stringToSearch.Replace(word, "").Length;
+
+            return (originalLength - newLength) / word.Length;
         }
 
         [Theory]

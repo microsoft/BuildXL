@@ -75,6 +75,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CommandLineEnabledUnsafeOptions = new List<string>(template.CommandLineEnabledUnsafeOptions);
             Ide = new IdeConfiguration(template.Ide, pathRemapper);
             InCloudBuild = template.InCloudBuild;
+            Interactive = template.Interactive;
             ResolverDefaults = new ResolverDefaults(template.ResolverDefaults);
         }
 
@@ -485,6 +486,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? InCloudBuild { get; set; }
+
+        /// <inheritdoc />
+        public bool Interactive { get; set; }
 
         /// <nodoc />
         public ResolverDefaults ResolverDefaults

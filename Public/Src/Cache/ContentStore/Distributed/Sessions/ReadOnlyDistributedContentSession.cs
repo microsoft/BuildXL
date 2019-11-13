@@ -35,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
     /// A read only content location based content session with an inner session for storage.
     /// </summary>
     /// <typeparam name="T">The content locations being stored.</typeparam>
-    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession
+    public class ReadOnlyDistributedContentSession<T> : ContentSessionBase, IHibernateContentSession, IConfigurablePin
         where T : PathBase
     {
         /// <summary>
@@ -62,7 +62,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // The method used for remote pins depends on which pin configuraiton is enabled.
         private readonly RemotePinAsync _remotePinner;
 
-        private readonly byte[] _localCacheRootMachineData;
         private readonly ContentAvailabilityGuarantee _contentAvailabilityGuarantee;
         private BackgroundTaskTracker _backgroundTaskTracker;
 
@@ -71,6 +70,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// </summary>
         internal readonly IContentLocationStore ContentLocationStore;
 
+        /// <summary>
+        /// The machine location for the current cache.
+        /// </summary>
+        protected readonly MachineLocation LocalCacheRootMachineLocation;
 
         /// <summary>
         /// The content session that actually stores content.
@@ -80,13 +83,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         /// <inheritdoc />
         protected override Tracer Tracer { get; } = new Tracer(nameof(DistributedContentSession<T>));
 
+        /// <nodoc />
+        protected readonly DistributedContentCopier<T> DistributedCopier;
+
         /// <summary>
         /// Updates content tracker lazily or eagerly based on local age.
         /// </summary>
         private readonly ContentTrackerUpdater _contentTrackerUpdater;
 
-        private readonly DistributedContentCopier<T> _distributedCopier;
-        private readonly DistributedContentStoreSettings _settings;
+        /// <summary>
+        /// Settings for the session.
+        /// </summary>
+        protected readonly DistributedContentStoreSettings Settings;
+
+        /// <summary>
+        /// This type is an entry point for all the operations. So it make sense to trace starts and stops.
+        /// </summary>
+        protected override bool TraceOperationStarted => true;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlyDistributedContentSession{T}"/> class.
@@ -97,7 +110,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             IContentLocationStore contentLocationStore,
             ContentAvailabilityGuarantee contentAvailabilityGuarantee,
             DistributedContentCopier<T> contentCopier,
-            byte[] localMachineLocation,
+            MachineLocation localMachineLocation,
             PinCache pinCache = null,
             ContentTrackerUpdater contentTrackerUpdater = null,
             DistributedContentStoreSettings settings = default)
@@ -106,13 +119,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Contract.Requires(name != null);
             Contract.Requires(inner != null);
             Contract.Requires(contentLocationStore != null);
-            Contract.Requires(localMachineLocation != null);
+            Contract.Requires(localMachineLocation.IsValid);
 
             Inner = inner;
             ContentLocationStore = contentLocationStore;
-            _localCacheRootMachineData = localMachineLocation;
+            LocalCacheRootMachineLocation = localMachineLocation;
             _contentAvailabilityGuarantee = contentAvailabilityGuarantee;
-            _settings = settings;
+            Settings = settings;
 
             _pinCache = pinCache;
 
@@ -127,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             }
 
             _contentTrackerUpdater = contentTrackerUpdater;
-            _distributedCopier = contentCopier;
+            DistributedCopier = contentCopier;
         }
 
         /// <inheritdoc />
@@ -179,7 +192,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // we can avoid the overhead of the paging and action-block logic there.
 
             // If pin better is off, continue the old behavior of re-directing to the bulk method.
-            if (_settings.PinConfiguration == null)
+            if (Settings.PinConfiguration == null)
             {
                 var bulkResults = await PinAsync(operationContext, new[] { contentHash }, operationContext.Token, urgencyHint);
                 return await bulkResults.SingleAwaitIndexed();
@@ -228,7 +241,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {contentHash.ToShortString()}: directory query failed with error {lookup.ErrorMessage}");
+                    Tracer.Warning(operationContext, $"Pin failed for hash {contentHash.ToShortString()}: directory query failed with error {lookup.ErrorMessage}");
                     return new PinResult(lookup);
                 }
             }
@@ -268,7 +281,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
 
                 // Local function: Use content locations for GetBulk to copy file locally
-                async Task<BoolResult> TryCopyContentLocalAsync()
+                async Task<BoolResult> tryCopyContentLocalAsync()
                 {
                     if (!getBulkResult || !getBulkResult.ContentHashesInfo.Any())
                     {
@@ -286,7 +299,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         return new BoolResult(checkBulkResult);
                     }
 
-                    var copyResult = await TryCopyAndPutAsync(operationContext, hashInfo, operationContext.Token, urgencyHint);
+                    var copyResult = await TryCopyAndPutAsync(operationContext, hashInfo, operationContext.Token, urgencyHint, trace: false);
                     if (!copyResult)
                     {
                         return new BoolResult(copyResult);
@@ -296,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     return BoolResult.Success;
                 }
 
-                var copyLocalResult = await TryCopyContentLocalAsync();
+                var copyLocalResult = await tryCopyContentLocalAsync();
 
                 // Throw operation canceled to avoid operations below which are not value for canceled case.
                 operationContext.Token.ThrowIfCancellationRequested();
@@ -347,17 +360,61 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         /// <inheritdoc />
-        protected override async Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
+        public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration pinOperationConfiguration)
+        {
+            return PinHelperAsync(operationContext, contentHashes, pinOperationConfiguration.UrgencyHint, pinOperationConfiguration);
+        }
+
+        /// <inheritdoc />
+        protected override Task<IEnumerable<Task<Indexed<PinResult>>>> PinCoreAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, Counter retryCounter, Counter fileCounter)
+        {
+            return PinHelperAsync(operationContext, contentHashes, urgencyHint, PinOperationConfiguration.Default());
+        }
+
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinHelperAsync(OperationContext operationContext, IReadOnlyList<ContentHash> contentHashes, UrgencyHint urgencyHint, PinOperationConfiguration pinOperationConfiguration)
         {
             Contract.Requires(contentHashes != null);
 
-            return await Workflows.RunWithFallback(
-                contentHashes,
-                hashes => Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint),
-                hashes => _remotePinner(operationContext, hashes, operationContext.Token, urgencyHint),
-                result => result.Succeeded,
-                // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
-                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !(_settings.EmptyFileHashShortcutEnabled && contentHashes[x.Index].IsEmptyHash())).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+            IEnumerable<Task<Indexed<PinResult>>> pinResults = null;
+
+            IEnumerable<Task<Indexed<PinResult>>> intermediateResult = null;
+            if (pinOperationConfiguration.ReturnGlobalExistenceFast)
+            {
+                // Check globally for existence, but do not copy locally and do not update content tracker.
+                pinResults = await Workflows.RunWithFallback(
+                    contentHashes,
+                    async hashes => {
+                        intermediateResult = await Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint);
+                        return intermediateResult;
+                        },
+                    hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: true, urgencyHint),
+                    result => result.Succeeded);
+
+                // Replace operation context with a new cancellation token so it can outlast this call
+                operationContext = new OperationContext(operationContext.TracingContext, default);
+            }
+
+            // Default pin action
+            var pinTask = Workflows.RunWithFallback(
+                    contentHashes,
+                    hashes => intermediateResult == null ? Inner.PinAsync(operationContext, hashes, operationContext.Token, urgencyHint) : Task.FromResult(intermediateResult),
+                    hashes => _remotePinner(operationContext, hashes, operationContext.Token, succeedWithOneLocation: false, urgencyHint),
+                    result => result.Succeeded,
+                    // Exclude the empty hash because it is a special case which is hard coded for place/openstream/pin.
+                    async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Where(x => !contentHashes[x.Index].IsEmptyHash()).Select(x => new ContentHashWithSizeAndLastAccessTime(contentHashes[x.Index], x.Item.ContentSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+
+            if (pinOperationConfiguration.ReturnGlobalExistenceFast)
+            {
+                // Fire off the default pin action, but do not await the result.
+                pinTask.FireAndForget(operationContext);
+            }
+            else
+            {
+                pinResults = await pinTask;
+            }
+
+            Contract.Assert(pinResults != null);
+            return pinResults;
         }
 
         /// <inheritdoc />
@@ -373,7 +430,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             // The fallback is invoked for cache misses only. This preserves existing behavior of
             // bubbling up errors with Inner store instead of trying remote.
 
-            Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> FetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(IReadOnlyList<ContentHashWithPath> fetchedContentInfo)
+            return Workflows.RunWithFallback(
+                hashesWithPaths,
+                args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
+                args => fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(args),
+                result => IsPlaceFileSuccess(result),
+                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Select(x => new ContentHashWithSizeAndLastAccessTime(hashesWithPaths[x.Index].Hash, x.Item.FileSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
+
+            Task<IEnumerable<Task<Indexed<PlaceFileResult>>>> fetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(IReadOnlyList<ContentHashWithPath> fetchedContentInfo)
             {
                 return MultiLevelUtilities.RunMultiLevelAsync(
                     fetchedContentInfo,
@@ -383,13 +447,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                     // content will not have been put into the local CAS
                     useFirstLevelResult: result => !IsPlaceFileSuccess(result));
             }
-
-            return Workflows.RunWithFallback(
-                hashesWithPaths,
-                args => Inner.PlaceFileAsync(operationContext, args, accessMode, replacementMode, realizationMode, operationContext.Token, urgencyHint),
-                args => FetchFromMultiLevelContentLocationStoreThenPlaceFileAsync(args),
-                result => IsPlaceFileSuccess(result),
-                async hits => await UpdateContentTrackerWithLocalHitsAsync(operationContext, hits.Select(x => new ContentHashWithSizeAndLastAccessTime(hashesWithPaths[x.Index].Hash, x.Item.FileSize, x.Item.LastAccessTime)).ToList(), operationContext.Token, urgencyHint));
         }
 
         private static bool IsPlaceFileSuccess(PlaceFileResult result)
@@ -466,8 +523,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         .AsIndexedTasks();
                 }
 
-                Tracer.Debug(context, $"Copying {getBulkResult.ContentHashesInfo.Count} files locally.");
-
                 // TransformBlock is supposed to return items in FIFO order, so we don't need to index the input
                 var copyFilesLocallyBlock =
                     new TransformBlock<Indexed<ContentHashWithSizeAndLocations>, Indexed<PlaceFileResult>>(
@@ -477,14 +532,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                             PlaceFileResult result;
                             if (contentHashWithSizeAndLocations.Locations == null)
                             {
-                                Tracer.Debug(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
+                                Tracer.Warning(context, $"No replicas found in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
                                 result = new PlaceFileResult(
                                     PlaceFileResult.ResultCode.NotPlacedContentNotFound,
                                     $"No replicas ever registered for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
                             }
                             else if (contentHashWithSizeAndLocations.Locations.Count == 0)
                             {
-                                Tracer.Debug(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
+                                Tracer.Warning(context, $"No replicas exist currently in content tracker for hash {contentHashWithSizeAndLocations.ContentHash.ToShortString()}");
                                 result = new PlaceFileResult(
                                     PlaceFileResult.ResultCode.NotPlacedContentNotFound,
                                     $"No remaining replicas for hash {hashesWithPaths[indexed.Index].Hash.ToShortString()}.");
@@ -511,7 +566,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                             return result.WithIndex(indexed.Index);
                         },
-                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _settings.ParallelCopyFilesLimit, });
+                        new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Settings.ParallelCopyFilesLimit, });
 
                 // TODO: Better way ? (bug 1365340)
                 copyFilesLocallyBlock.PostAll(getBulkResult.ContentHashesInfo.AsIndexed());
@@ -546,7 +601,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (log)
                 {
-                    Tracer.Debug(context, $"No replicas found in content tracker for hash {result.ContentHash.ToShortString()}");
+                    Tracer.Warning(context, $"No replicas found in content tracker for hash {result.ContentHash.ToShortString()}");
                 }
 
                 return new BoolResult($"No replicas registered for hash");
@@ -556,7 +611,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (log)
                 {
-                    Tracer.Debug(context, $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}");
+                    Tracer.Warning(context, $"No replicas currently exist in content tracker for hash {result.ContentHash.ToShortString()}");
                 }
 
                 return new BoolResult($"Content for hash is missing from all replicas");
@@ -590,7 +645,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 byte[] bytes = null;
 
-                var putResult = await _distributedCopier.TryCopyAndPutAsync(
+                var putResult = await DistributedCopier.TryCopyAndPutAsync(
                     operationContext,
                     hashInfo,
                     handleCopyAsync: async args =>
@@ -599,7 +654,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         PutResult innerPutResult;
                         long actualSize = copyFileResult.Size ?? hashInfo.Size;
-                        if (_settings.UseTrustedHash && actualSize >= _settings.TrustedHashFileSizeBoundary && Inner is ITrustedContentSession trustedInner)
+                        if (Settings.UseTrustedHash(actualSize) && Inner is ITrustedContentSession trustedInner)
                         {
                             // The file has already been hashed, so we can trust the hash of the file.
                             innerPutResult = await trustedInner.PutTrustedFileAsync(context, new ContentHashWithSize(hashInfo.ContentHash, actualSize), tempLocation, FileRealizationMode.Move, cts, urgencyHint);
@@ -628,7 +683,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                     urgencyHint,
                                     stream =>
                                     {
-                                        recorder = new RecordingStream(inner: stream, size: actualSize);
+                                        recorder = RecordingStream.ReadRecordingStream(inner: stream, size: actualSize);
                                         return recorder;
                                     });
 
@@ -685,26 +740,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             Context context,
             IReadOnlyList<ContentHash> contentHashes,
             CancellationToken cts,
+            bool succeedWithOneLocation,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
             var operationContext = new OperationContext(context, cts);
 
             return Workflows.RunWithFallback(
                 contentHashes,
-                hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Local, urgencyHint),
-                hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Global, urgencyHint),
+                hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Local, succeedWithOneLocation: succeedWithOneLocation, urgencyHint),
+                hashes => PinFromContentLocationStoreOriginAsync(operationContext, hashes, cts, GetBulkOrigin.Global, succeedWithOneLocation: succeedWithOneLocation, urgencyHint),
                 result => result.Succeeded);
         }
 
         // This method creates pages of hashes, makes one bulk call to the content location store to get content location record sets for all the hashes on the page,
         // and fires off processing of the returned content location record sets while proceeding to the next page of hashes in parallel.
-        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinFromContentLocationStoreOriginAsync(OperationContext operationContext, IReadOnlyList<ContentHash> hashes, CancellationToken cancel, GetBulkOrigin origin, UrgencyHint urgency = UrgencyHint.Nominal)
+        private async Task<IEnumerable<Task<Indexed<PinResult>>>> PinFromContentLocationStoreOriginAsync(OperationContext operationContext, IReadOnlyList<ContentHash> hashes, CancellationToken cancel, GetBulkOrigin origin, bool succeedWithOneLocation, UrgencyHint urgency = UrgencyHint.Nominal)
         {
             // Create an action block to process all the requested remote pins while limiting the number of simultaneously executed.
             var pinnings = new List<RemotePinning>(hashes.Count);
-            var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = _settings.PinConfiguration?.MaxIOOperations ?? 1 };
-            var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local), pinningOptions);
-
+            var pinningOptions = new ExecutionDataflowBlockOptions() { CancellationToken = cancel, MaxDegreeOfParallelism = Settings.PinConfiguration?.MaxIOOperations ?? 1 };
+            var pinningAction = new ActionBlock<RemotePinning>(async pinning => await PinRemoteAsync(operationContext, pinning, cancel, isLocal: origin == GetBulkOrigin.Local, updateContentTracker: false, succeedWithOneLocation: succeedWithOneLocation), pinningOptions);
+            
             // Process the requests in pages so we can make bulk calls, but not too big bulk calls, to the content location store.
             foreach (IReadOnlyList<ContentHash> pageHashes in hashes.GetPages(ContentLocationStore.PageSize))
             {
@@ -727,7 +783,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     foreach (ContentHash hash in pageHashes)
                     {
-                        Tracer.Info(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
+                        Tracer.Warning(operationContext, $"Pin failed for hash {hash.ToShortString()}: directory query failed with error {pageLookup.ErrorMessage}");
                         RemotePinning pinning = new RemotePinning() { Record = new ContentHashWithSizeAndLocations(hash, -1L), Result = new PinResult(pageLookup) };
                         pinnings.Add(pinning);
                     }
@@ -749,10 +805,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // Ignoring the exception in this case.
             }
 
+            // Inform the content directory that we copied the files.
+            // Looking for distributed pin results that were successful by copying the content locally.
+            var localCopies = pinnings.Select((rp, index) => (result: rp, index)).Where(x => x.result.Result is DistributedPinResult dpr && dpr.CopyLocally).ToList();
+
+            BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, localCopies.Select(lc => new ContentHashWithSize(lc.result.Record.ContentHash, lc.result.Record.Size)).ToList(), cancel, UrgencyHint.Nominal);
+            if (!updated.Succeeded)
+            {
+                // We failed to update the tracker. Need to update the results.
+                string hashesAsString = string.Join(", ", localCopies.Select(lc => lc.result.Record.ContentHash.ToShortString()));
+                Tracer.Warning(operationContext, $"Pin failed for hashes {hashesAsString}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
+                foreach (var (_, index) in localCopies)
+                {
+                    pinnings[index].Result = new PinResult(updated);
+                }
+            }
+
             // The return type should probably be just Task<IList<PinResult>>, but higher callers require the Indexed wrapper and that the PinResults be encased in Tasks.
             return pinnings.Select(x => x.Result ?? createCanceledPutResult()).AsIndexed().AsTasks();
 
-            PinResult createCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PinResult>();
+            static PinResult createCanceledPutResult() => new ErrorResult("The operation was canceled").AsResult<PinResult>();
         }
 
         // The dataflow framework can process only a single object, and returns no output from that processing. By combining the input and output of each remote pinning into a single object,
@@ -765,14 +837,26 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         }
 
         // This method processes each remote pinning, setting the output when the operation is completed.
-        private async Task PinRemoteAsync(OperationContext context, RemotePinning pinning, CancellationToken cancel, bool isLocal)
+        private async Task PinRemoteAsync(
+            OperationContext context,
+            RemotePinning pinning,
+            CancellationToken cancel,
+            bool isLocal,
+            bool updateContentTracker = true,
+            bool succeedWithOneLocation = false)
         {
-            PinResult result = await PinRemoteAsync(context, pinning.Record, cancel, isLocal);
+            PinResult result = await PinRemoteAsync(context, pinning.Record, cancel, isLocal, updateContentTracker, succeedWithOneLocation: succeedWithOneLocation);
             pinning.Result = result;
         }
 
         // This method processes a single content location record set for pinning.
-        private async Task<PinResult> PinRemoteAsync(OperationContext operationContext, ContentHashWithSizeAndLocations remote, CancellationToken cancel, bool isLocal)
+        private async Task<PinResult> PinRemoteAsync(
+            OperationContext operationContext,
+            ContentHashWithSizeAndLocations remote,
+            CancellationToken cancel,
+            bool isLocal,
+            bool updateContentTracker = true,
+            bool succeedWithOneLocation = false)
         {
             Contract.Requires(remote != null);
 
@@ -783,13 +867,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             {
                 if (!isLocal)
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
+                    // Trace only when pin failed based on the data from the global store.
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: no remote records.");
                 }
 
                 return PinResult.ContentNotFound;
             }
 
-            if (_settings.PinConfiguration == null)
+            if (Settings.PinConfiguration == null)
             {
                 if (_contentAvailabilityGuarantee == ContentAvailabilityGuarantee.FileRecordsExist)
                 {
@@ -797,7 +882,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else if (_contentAvailabilityGuarantee == ContentAvailabilityGuarantee.RedundantFileRecordsOrCheckFileExistence)
                 {
-                    if (locations.Count >= _settings.AssumeAvailableReplicaCount)
+                    if (locations.Count >= Settings.AssumeAvailableReplicaCount)
                     {
                         return PinResult.Success;
                     }
@@ -811,36 +896,41 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
             }
 
+            // When we only require the content to exist at least once anywhere, we can ignore pin thresholds
+            // and return success after finding a single location.
+            if (succeedWithOneLocation && locations.Count >= 1)
+            {
+                // Do not update pin cache because this does not represent complete knowledge about this context.
+                return DistributedPinResult.Success($"{locations.Count} replicas (global succeeds)");
+            }
+
             // Calculate the minimum number of remote verified and unverified copies for us to
             // return a successful pin at the given risk level.
-            ComputePinThresholds(remote, _settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
+            ComputePinThresholds(remote, Settings.PinConfiguration.PinRisk, out var minVerifiedCount, out var minUnverifiedCount, out var pinCacheTimeToLive);
             Contract.Assert(minVerifiedCount > 0);
             Contract.Assert(minUnverifiedCount >= minVerifiedCount);
 
-            // If we enough records, we are satisfied without further action.
+            // If we have enough records globally, we are satisfied without further action.
             if (locations.Count >= minUnverifiedCount)
             {
                 _pinCache?.SetPinInfo(remote.ContentHash, pinCacheTimeToLive);
-                Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: {locations.Count} remote records >= {minUnverifiedCount} required. PinCacheTTL={pinCacheTimeToLive}");
-                return PinResult.Success;
+                return DistributedPinResult.Success($"{locations.Count} replicas");
             }
 
             // If we have enough records that we would be satisfied if they were verified, verify them.
             // Skip this step if no IO slots are available; if we would have to spend time waiting on them, we might as well just move on to copying.
-            if (locations.Count >= minVerifiedCount && _distributedCopier.CurrentIoGateCount > 0)
+            if (locations.Count >= minVerifiedCount && DistributedCopier.CurrentIoGateCount > 0)
             {
                 var verify = await VerifyAsync(operationContext, remote, cancel);
-                Tracer.Info(operationContext, $"For hash {remote.ContentHash.ToShortString()}, of {locations.Count} remote records, verified {verify.Present.Count} remote copies present and {verify.Absent.Count} remote copies absent.");
 
                 if (verify.Present.Count >= minVerifiedCount)
                 {
-                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: {verify.Present.Count} verified remote copies >= {minVerifiedCount} required.");
-                    return PinResult.Success;
+                    return DistributedPinResult.Success($"{verify.Present.Count} verified remote copies >= {minVerifiedCount} required");
                 }
 
                 if (verify.Present.Count == 0 && verify.Unknown.Count == 0)
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: all remote copies absent.");
                     return PinResult.ContentNotFound;
                 }
 
@@ -855,33 +945,38 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             if (isLocal)
             {
                 // Don't copy content locally based on locally cached result. So stop here and return content not found.
-                // This method will be called again with global locations at which time we will attempt to copy the files locally
+                // This method will be called again with global locations at which time we will attempt to copy the files locally.
+                // When allowing global locations to succeed a put, report success.
                 return PinResult.ContentNotFound;
             }
 
             // Previous checks were not sufficient, so copy the file locally.
-            PutResult copy = await TryCopyAndPutAsync(operationContext, remote, cancel, UrgencyHint.Nominal);
+            PutResult copy = await TryCopyAndPutAsync(operationContext, remote, cancel, UrgencyHint.Nominal, trace: false);
             if (copy)
             {
+                if (!updateContentTracker)
+                {
+                    return DistributedPinResult.SuccessByLocalCopy();
+                }
+
                 // Inform the content directory that we have the file.
                 // We wait for this to complete, rather than doing it fire-and-forget, because another machine in the ring may need the pinned content immediately.
-                // It would be better to do this in bulk; that would require moving the list of remote pins which completed via this path up to the bulk-pcocessing
-                // methods. Eventually, we should do this.
                 BoolResult updated = await UpdateContentTrackerWithNewReplicaAsync(operationContext, new[] { new ContentHashWithSize(remote.ContentHash, copy.ContentSize) }, cancel, UrgencyHint.Nominal);
                 if (updated.Succeeded)
                 {
-                    Tracer.Info(operationContext, $"Pin succeeded for hash {remote.ContentHash.ToShortString()}: local copy succeeded.");
-                    return PinResult.Success;
+                    return DistributedPinResult.SuccessByLocalCopy();
                 }
                 else
                 {
-                    Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
+                    // Tracing the error separately.
+                    Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy succeeded, but could not inform content directory due to {updated.ErrorMessage}.");
                     return new PinResult(updated);
                 }
             }
             else
             {
-                Tracer.Info(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
+                // Tracing the error separately.
+                Tracer.Warning(operationContext, $"Pin failed for hash {remote.ContentHash.ToShortString()}: local copy failed with {copy}.");
                 return PinResult.ContentNotFound;
             }
         }
@@ -896,12 +991,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // Future refinements of this method could use machine reputation and file lifetime knowledge to improve this model.
         private void ComputePinThresholds(ContentHashWithSizeAndLocations remote, double risk, out int minVerifiedCount, out int minUnverifiedCount, out TimeSpan pinCacheTimeToLive)
         {
-            Contract.Assert(_settings.PinConfiguration != null);
+            Contract.Assert(Settings.PinConfiguration != null);
             Contract.Assert(remote != null);
             Contract.Assert((risk > 0.0) && (risk < 1.0));
 
-            double verifiedRisk = _settings.PinConfiguration.MachineRisk;
-            double unverifiedRisk = _settings.PinConfiguration.MachineRisk + (_settings.PinConfiguration.FileRisk * (1.0 - _settings.PinConfiguration.MachineRisk));
+            double verifiedRisk = Settings.PinConfiguration.MachineRisk;
+            double unverifiedRisk = Settings.PinConfiguration.MachineRisk + (Settings.PinConfiguration.FileRisk * (1.0 - Settings.PinConfiguration.MachineRisk));
 
             Contract.Assert((verifiedRisk > 0.0) && (verifiedRisk < 1.0));
             Contract.Assert((unverifiedRisk > 0.0) && (unverifiedRisk < 1.0));
@@ -914,7 +1009,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             minVerifiedCount = (int)Math.Ceiling(lnRisk / lnVerifiedRisk);
             minUnverifiedCount = (int)Math.Ceiling(lnRisk / lnUnverifiedRisk);
 
-            if (_pinCache == null || _settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes <= 0)
+            if (_pinCache == null || Settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes <= 0)
             {
                 pinCacheTimeToLive = TimeSpan.Zero;
             }
@@ -926,8 +1021,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 // r = PinCacheReplicaCreditRetentionMinutes
                 // d = PinCacheReplicaCreditRetentionDecay
                 // n = replica count
-                var decay = _settings.PinConfiguration.PinCacheReplicaCreditRetentionDecay;
-                var pinCacheTimeToLiveMinutes = _settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
+                var decay = Settings.PinConfiguration.PinCacheReplicaCreditRetentionDecay;
+                var pinCacheTimeToLiveMinutes = Settings.PinConfiguration.PinCacheReplicaCreditRetentionMinutes * (1 - Math.Pow(decay, remote.Locations.Count)) / (1 - decay);
                 pinCacheTimeToLive = TimeSpan.FromMinutes(pinCacheTimeToLiveMinutes);
             }
         }
@@ -938,7 +1033,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         // throttling, its own timeout) than we want or expect; we should dig into this.
         private async Task<DistributedContentCopier<T>.VerifyResult> VerifyAsync(Context context, ContentHashWithSizeAndLocations remote, CancellationToken cancel)
         {
-            var verifyResult = await _distributedCopier.VerifyAsync(context, remote, cancel);
+            var verifyResult = await DistributedCopier.VerifyAsync(context, remote, cancel);
 
             var absent = verifyResult.Absent;
             if (absent.Count > 0)
@@ -991,7 +1086,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         protected override CounterSet GetCounters()
         {
             var set = base.GetCounters();
-            set.Merge(_distributedCopier.GetCounters());
+            set.Merge(DistributedCopier.GetCounters());
             return set;
         }
     }

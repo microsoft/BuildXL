@@ -36,9 +36,21 @@ namespace Test.BuildXL.FingerprintStore
             : base(output)
         {
             Configuration.Logging.StoreFingerprints = true;
+            // Most tests only require the Execution fingerprints. Let tests enable execution & cache lookup
+            // fingerprints on an as-needed basis to reduce overall I/O needed by tests
+            Configuration.Logging.FingerprintStoreMode = FingerprintStoreMode.ExecutionFingerprintsOnly;
+
             // Forces unique, time-stamped logs directory between different scheduler runs within the same test
             Configuration.Logging.LogsToRetain = int.MaxValue;
         }
+
+        private SchedulerTestHooks m_testHooks = new SchedulerTestHooks()
+        {
+            FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
+            {
+                MinimalIO = true,
+            }
+        };
 
         [Fact]
         public void VerifyFingerprintStoreEntryComplete()
@@ -112,12 +124,6 @@ namespace Test.BuildXL.FingerprintStore
         [Fact]
         public void DontOverwriteExistingContentAddressableEntries()
         {
-            // Use a test hook to capture fingerprint store counters
-            var testHooks = new SchedulerTestHooks
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-            };
-
             var dir = CreateOutputDirectoryArtifact(ReadonlyRoot);
             Directory.CreateDirectory(ArtifactToString(dir));
 
@@ -145,9 +151,9 @@ namespace Test.BuildXL.FingerprintStore
 
             var pipB = SchedulePipBuilder(builderB).Process;
 
-            RunScheduler(testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pipA.PipId, pipB.PipId);
+            RunScheduler(m_testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pipA.PipId, pipB.PipId);
 
-            var counters = testHooks.FingerprintStoreTestHooks.Counters;
+            var counters = m_testHooks.FingerprintStoreTestHooks.Counters;
             XAssert.AreEqual(1, counters.GetCounterValue(FingerprintStoreCounters.NumPathSetEntriesPut));
             XAssert.IsTrue(counters.GetCounterValue(FingerprintStoreCounters.NumDirectoryMembershipEntriesPut) >= 1);
         }
@@ -204,12 +210,6 @@ namespace Test.BuildXL.FingerprintStore
         [Fact]
         public void TruncatedHashesDontCollidePathSetsAndDirectoryMemberships()
         {
-            // Use a test hook to capture fingerprint store counters
-            var testHooks = new SchedulerTestHooks
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-            };
-
             var dir = CreateOutputDirectoryArtifact(ReadonlyRoot);
             Directory.CreateDirectory(ArtifactToString(dir));
 
@@ -238,9 +238,9 @@ namespace Test.BuildXL.FingerprintStore
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
-            RunScheduler(testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pipA.PipId, pipB.PipId);
+            RunScheduler(m_testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pipA.PipId, pipB.PipId);
 
-            var counters = testHooks.FingerprintStoreTestHooks.Counters;
+            var counters = m_testHooks.FingerprintStoreTestHooks.Counters;
             // Make sure there are unique puts for each path set and directory membership
             // The FingerprintStore will not double-put the same content hash
             XAssert.AreEqual(2, counters.GetCounterValue(FingerprintStoreCounters.NumPathSetEntriesPut));
@@ -259,13 +259,7 @@ namespace Test.BuildXL.FingerprintStore
         [Fact]
         public void VerifyGarbageCollectWorks()
         {
-            var testHooks = new SchedulerTestHooks()
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-                {
-                    MaxEntryAge = TimeSpan.FromMilliseconds(10)
-                }
-            };
+            m_testHooks.FingerprintStoreTestHooks.MaxEntryAge = TimeSpan.FromMilliseconds(10);
 
             var dir = CreateOutputDirectoryArtifact(ReadonlyRoot);
             Directory.CreateDirectory(ArtifactToString(dir));
@@ -295,14 +289,14 @@ namespace Test.BuildXL.FingerprintStore
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
-            var build1 = RunScheduler(testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, cacheMissPip.PipId);
+            var build1 = RunScheduler(m_testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, cacheMissPip.PipId);
 
-            XAssert.AreEqual(3, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));
+            XAssert.AreEqual(3, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));
             // No keys are iterated through for garbage collection on first instance of a FingerprintStore
-            XAssert.AreEqual(0, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesRemaining));
-            XAssert.AreEqual(0, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
-            XAssert.AreEqual(0, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesRemaining));
-            XAssert.AreEqual(0, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesGarbageCollected));
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesRemaining));
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesRemaining));
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesGarbageCollected));
 
 
             // Wait out max entry age
@@ -318,7 +312,7 @@ namespace Test.BuildXL.FingerprintStore
             cacheMissPip = CreateAndSchedulePipBuilder(cacheMissPipOps).Process;
             cacheHitPip = CreateAndSchedulePipBuilder(cacheHitPipOps).Process;
 
-            var build2 = RunScheduler(testHooks)
+            var build2 = RunScheduler(m_testHooks)
                 .AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, cacheMissPip.PipId)
                 .AssertCacheHit(cacheHitPip.PipId);
 
@@ -326,11 +320,11 @@ namespace Test.BuildXL.FingerprintStore
 
             // Any pip that goes through cache lookup will have its fingerprint store entry's age refreshed
             // Only gcPip which was not part of this build will be garbage collected
-            XAssert.AreEqual(1, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
             // Pip unique output hash entry
-            XAssert.AreEqual(1, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesGarbageCollected));
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipUniqueOutputHashEntriesGarbageCollected));
             // 1 pathset entry, 1 directory membership fingerprint entry
-            XAssert.IsTrue(testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesGarbageCollected) >= 2);
+            XAssert.IsTrue(m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumContentHashEntriesGarbageCollected) >= 2);
 
             FingerprintStoreSession(ResultToStoreDirectory(build2), store =>
             {
@@ -345,13 +339,7 @@ namespace Test.BuildXL.FingerprintStore
         public void CancelGarbageCollectOnCacheHitBuild()
         {
             // Start with default settings
-            var testHooks = new SchedulerTestHooks()
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-                {
-                    MaxEntryAge = TimeSpan.FromMilliseconds(10)
-                }
-            };
+            m_testHooks.FingerprintStoreTestHooks.MaxEntryAge = TimeSpan.FromMilliseconds(10);
 
             var srcFile = CreateSourceFile();
             var cacheMissPipOps = new Operation[]
@@ -367,11 +355,11 @@ namespace Test.BuildXL.FingerprintStore
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
 
-            var build1 = RunScheduler(testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, reusedPip.PipId);
+            var build1 = RunScheduler(m_testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, reusedPip.PipId);
 
-            XAssert.AreEqual(2, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));
+            XAssert.AreEqual(2, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));
             // Nothing is garbage collected on first instance of a FingerprintStore
-            XAssert.AreEqual(0, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
 
             // Wait out max entry age
             System.Threading.Thread.Sleep(10);
@@ -383,12 +371,12 @@ namespace Test.BuildXL.FingerprintStore
             Configuration.Layout.FingerprintStoreDirectory = build1.Config.Layout.FingerprintStoreDirectory;
 
             reusedPip = CreateAndSchedulePipBuilder(cacheMissPipOps).Process;
-            var build2 = RunScheduler(testHooks).AssertCacheHit(reusedPip.PipId);
+            var build2 = RunScheduler(m_testHooks).AssertCacheHit(reusedPip.PipId);
 
             XAssert.AreEqual(build1.Config.Layout.FingerprintStoreDirectory, build2.Config.Layout.FingerprintStoreDirectory);
 
             // For performance reasons, garbage collect is force-cancelled on builds with 100% cache hits
-            XAssert.AreEqual(0, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
+            XAssert.AreEqual(0, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
 
             FingerprintStoreSession(ResultToStoreDirectory(build2), store =>
             {
@@ -398,10 +386,10 @@ namespace Test.BuildXL.FingerprintStore
 
             // Cache miss build
             File.WriteAllText(ArtifactToString(srcFile), "asdf");
-            var build3 = RunScheduler(testHooks).AssertCacheMiss(reusedPip.PipId);
+            var build3 = RunScheduler(m_testHooks).AssertCacheMiss(reusedPip.PipId);
 
             // As long as there is at least one miss, garbage collect will run
-            XAssert.AreEqual(1, testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
+            XAssert.AreEqual(1, m_testHooks.FingerprintStoreTestHooks.Counters.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesGarbageCollected));
 
             FingerprintStoreSession(ResultToStoreDirectory(build3), store =>
             {
@@ -417,40 +405,34 @@ namespace Test.BuildXL.FingerprintStore
             Configuration.Schedule.SkipHashSourceFile = false;
 
             // Start with default settings
-            var testHooks = new SchedulerTestHooks()
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-                {
-                    MaxEntryAge = TimeSpan.FromMilliseconds(10)
-                }
-            };
+            m_testHooks.FingerprintStoreTestHooks.MaxEntryAge = TimeSpan.FromMilliseconds(10);
 
             var pip = CreateAndSchedulePipBuilder(new Operation[]
                 {
                     Operation.WriteFile(CreateOutputFileArtifact())
                 }).Process;
 
-            RunScheduler(testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pip.PipId);
+            RunScheduler(m_testHooks).AssertCacheMissWithFingerprintStore(Context.PathTable, Expander, pip.PipId);
 
             // No-op build, pip should be incrementally skip without going through cache lookup
-            RunScheduler(testHooks).AssertCacheHit(pip.PipId);
+            RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
 
             var zeroTime = TimeSpan.Zero;
 
             // In a no-op build, the fingerprint store is skipped completely, so no entries have their ages for garbage collect refreshed
             // No garbage collect, no overhead of managing LRU maps
-            XAssert.AreEqual(zeroTime, testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.GarbageCollectionTime));
-            XAssert.AreEqual(zeroTime, testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.SerializeLruEntriesMapsTime));
-            XAssert.AreEqual(zeroTime, testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.DeserializeLruEntriesMapTime));
+            XAssert.AreEqual(zeroTime, m_testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.GarbageCollectionTime));
+            XAssert.AreEqual(zeroTime, m_testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.SerializeLruEntriesMapsTime));
+            XAssert.AreEqual(zeroTime, m_testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.DeserializeLruEntriesMapTime));
 
             // Turn off incremental scheduling so the fingerprint entry will get its age refreshed
             Configuration.Schedule.IncrementalScheduling = false;
 
-            RunScheduler(testHooks).AssertCacheHit(pip.PipId);
-            XAssert.AreEqual(zeroTime, testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.GarbageCollectionTime));
+            RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
+            XAssert.AreEqual(zeroTime, m_testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.GarbageCollectionTime));
             // Mandatory overhead for managing LRU entries when an entry's age changes
-            XAssert.AreNotEqual(zeroTime, testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.SerializeLruEntriesMapsTime));
-            XAssert.AreNotEqual(zeroTime, testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.DeserializeLruEntriesMapTime));
+            XAssert.AreNotEqual(zeroTime, m_testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.SerializeLruEntriesMapsTime));
+            XAssert.AreNotEqual(zeroTime, m_testHooks.FingerprintStoreTestHooks.Counters.GetElapsedTime(FingerprintStoreCounters.DeserializeLruEntriesMapTime));
         }
 
         [Fact]
@@ -916,11 +898,7 @@ namespace Test.BuildXL.FingerprintStore
         public void OnlyWriteToCacheLookupStoreOnStrongFingerprintMiss(FingerprintStoreMode fingerprintStoreMode)
         {
             Configuration.Logging.FingerprintStoreMode = fingerprintStoreMode;
-            var testHooks = new SchedulerTestHooks()
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-            };
-
+            
             var srcFile = CreateSourceFile();
             var dir = CreateUniqueDirectoryArtifact(ReadonlyRoot);
             var pip = CreateAndSchedulePipBuilder(new Operation[]
@@ -930,16 +908,16 @@ namespace Test.BuildXL.FingerprintStore
                 Operation.WriteFile(CreateOutputFileArtifact()),
             }).Process;
 
-            var build1 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
-            var counters1 = testHooks.FingerprintStoreTestHooks.Counters;
+            var build1 = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
+            var counters1 = m_testHooks.FingerprintStoreTestHooks.Counters;
             // One put in execution fingerprint store
             XAssert.AreEqual(counters1.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
             VerifyNoCacheLookupStore(fingerprintStoreMode, counters1, build1, pip);
 
-            var build2 = RunScheduler(testHooks).AssertCacheHit(pip.PipId);
+            var build2 = RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
 
             // Fully cache hit is no puts in either execution or cache lookup fingerprint store
-            var counters2 = testHooks.FingerprintStoreTestHooks.Counters;
+            var counters2 = m_testHooks.FingerprintStoreTestHooks.Counters;
             XAssert.AreEqual(counters2.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 0);
             VerifyNoCacheLookupStore(fingerprintStoreMode, counters2, build2, pip);
 
@@ -947,18 +925,18 @@ namespace Test.BuildXL.FingerprintStore
             // Cause a weak fingerprint miss
             File.WriteAllText(ArtifactToString(srcFile), "asdf");
 
-            var build3 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
+            var build3 = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
 
             // One put in execution fingerprint store (overwrite)
-            var counters3 = testHooks.FingerprintStoreTestHooks.Counters;
+            var counters3 = m_testHooks.FingerprintStoreTestHooks.Counters;
             XAssert.AreEqual(counters3.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
             VerifyNoCacheLookupStore(fingerprintStoreMode, counters3, build1, pip);
 
             // Cause a strong fingerprint miss
             CreateSourceFile(ArtifactToString(dir));
-            var build4 = RunScheduler(testHooks).AssertCacheMiss(pip.PipId);
+            var build4 = RunScheduler(m_testHooks).AssertCacheMiss(pip.PipId);
             // One put in execution fingerprint store (overwrite), one put in cache lookup fingerprint store
-            var counters4 = testHooks.FingerprintStoreTestHooks.Counters;
+            var counters4 = m_testHooks.FingerprintStoreTestHooks.Counters;
             if (fingerprintStoreMode == FingerprintStoreMode.ExecutionFingerprintsOnly)
             {
                 XAssert.AreEqual(counters4.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut), 1);
@@ -977,8 +955,8 @@ namespace Test.BuildXL.FingerprintStore
             }
 
             // No persistence build-over-build
-            var build5 = RunScheduler(testHooks).AssertCacheHit(pip.PipId);
-            var counters5 = testHooks.FingerprintStoreTestHooks.Counters;
+            var build5 = RunScheduler(m_testHooks).AssertCacheHit(pip.PipId);
+            var counters5 = m_testHooks.FingerprintStoreTestHooks.Counters;
             VerifyNoCacheLookupStore(fingerprintStoreMode, counters5, build5, pip);
         }
 
@@ -1075,11 +1053,6 @@ namespace Test.BuildXL.FingerprintStore
         [Fact]
         public void FingerprintEntriesAreOverwritten()
         {
-            var testHooks = new SchedulerTestHooks()
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-            };
-
             var src = CreateSourceFile();
             var pipA = CreateAndSchedulePipBuilder(new Operation[]
             {
@@ -1087,7 +1060,7 @@ namespace Test.BuildXL.FingerprintStore
                 Operation.WriteFile(CreateOutputFileArtifact()),
             }).Process;
 
-            var build1 = RunScheduler(testHooks: testHooks).AssertCacheMiss(pipA.PipId);
+            var build1 = RunScheduler(testHooks: m_testHooks).AssertCacheMiss(pipA.PipId);
 
             PipFingerprintKeys keys1 = default;
             string wf1 = null, sf1 = null;
@@ -1128,6 +1101,9 @@ namespace Test.BuildXL.FingerprintStore
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void FingerprintStoreUnableToOpenDoesntFailBuild()
         {
+            // This test requires both cache lookup and execute time fingerprints
+            Configuration.Logging.FingerprintStoreMode = FingerprintStoreMode.Default;
+
             var pip = CreateAndSchedulePipBuilder(new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact())
@@ -1271,18 +1247,13 @@ namespace Test.BuildXL.FingerprintStore
             }).Process;
 
             // Use a test hook to capture fingerprint store counters
-            var testHooks = new SchedulerTestHooks
-            {
-                FingerprintStoreTestHooks = new FingerprintStoreTestHooks()
-            };
-
-            var build1 = RunScheduler(testHooks);
-            var counters1 = testHooks.FingerprintStoreTestHooks.Counters;
+            var build1 = RunScheduler(m_testHooks);
+            var counters1 = m_testHooks.FingerprintStoreTestHooks.Counters;
 
             Configuration.Logging.FingerprintStoreMode = BuildXLConfiguration.FingerprintStoreMode.IgnoreExistingEntries;
 
-            var build2 = RunScheduler(testHooks);
-            var counters2 = testHooks.FingerprintStoreTestHooks.Counters;
+            var build2 = RunScheduler(m_testHooks);
+            var counters2 = m_testHooks.FingerprintStoreTestHooks.Counters;
 
             // Sanity checks
             XAssert.AreEqual(1, counters1.GetCounterValue(FingerprintStoreCounters.NumPipFingerprintEntriesPut));

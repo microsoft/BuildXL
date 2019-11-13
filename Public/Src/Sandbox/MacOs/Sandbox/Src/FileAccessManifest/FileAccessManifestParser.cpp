@@ -100,6 +100,16 @@ bool FileAccessManifestParseResult::init(const BYTE *payload, size_t payloadSize
         injectionTimeoutFlag_ = ParseAndAdvancePointer<PCManifestInjectionTimeout>(payloadCursor);
         if (HasErrors()) continue;
 
+        // For now we just skip the list of processes to breakaway. TODO: a future implementation may consider these
+        // to determine whether to skip reporting accesses for them
+        manifestChildProcessesToBreakAwayFromJob_ = ParseAndAdvancePointer<PManifestChildProcessesToBreakAwayFromJob>(payloadCursor);
+        if (HasErrors()) continue;
+        uint32_t manifestChildProcessesToBreakAwayFromJobSize = ParseUint32(payloadCursor);
+        for (uint32_t i = 0; i < manifestChildProcessesToBreakAwayFromJobSize; i++)
+        {
+            SkipOverCharArray(payloadCursor); // process name
+        }
+        
         manifestTranslatePathsStrings_ = ParseAndAdvancePointer<PManifestTranslatePathsStrings>(payloadCursor);
         if (HasErrors()) continue;
         uint32_t manifestTranslatePathsSize = ParseUint32(payloadCursor);

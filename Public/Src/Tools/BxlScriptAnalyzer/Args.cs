@@ -5,6 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.ToolSupport;
+using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using static BuildXL.Utilities.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
@@ -12,16 +15,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
     internal sealed partial class Args : CommandLineUtilities
     {
         private static readonly string[] s_helpStrings = new[] { "?", "help" };
-
-        /// <summary>
-        /// The Filter expression
-        /// </summary>
-        public readonly string Config;
-
-        /// <summary>
-        /// The Filter expression
-        /// </summary>
-        public readonly string Filter;
 
         /// <summary>
         /// Whether the tool should fix the specs or only report issues
@@ -38,23 +31,27 @@ namespace BuildXL.FrontEnd.Script.Analyzer
         /// </summary>
         public readonly List<Analyzer> Analyzers;
 
-        /// <summary>
-        /// Constructs a new args from
-        /// </summary>
-        public Args(string config, string filter, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
+        public readonly CommandLineConfiguration CommandLineConfig;
+
+        private readonly PathTable m_pathTable;
+
+        /// <nodoc />
+        public Args(CommandLineConfiguration commandLineConfig, PathTable pathTable, bool fix, bool help, List<Analyzer> analyzers, params string[] args)
             : base(args)
         {
-            Config = config;
-            Filter = filter;
+            CommandLineConfig = commandLineConfig;
             Fix = fix;
             Help = help;
             Analyzers = analyzers;
+            m_pathTable = pathTable;
         }
 
         /// <nodoc />
-        public Args(string[] args, Func<AnalyzerKind, Analyzer> analyzerFactory)
+        public Args(string[] args, Func<AnalyzerKind, Analyzer> analyzerFactory, PathTable pathTable)
             : base(args)
         {
+            m_pathTable = pathTable;
+            CommandLineConfig = new CommandLineConfiguration();
             Analyzers = new List<Analyzer>();
             Analyzer currentAnalyzer = null;
 
@@ -63,12 +60,36 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 if (opt.Name.Equals("filter", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.Equals("f", StringComparison.OrdinalIgnoreCase))
                 {
-                    Filter = opt.Value;
+                    CommandLineConfig.Filter = opt.Value;
                 }
                 else if (opt.Name.Equals("config", StringComparison.OrdinalIgnoreCase) ||
                     opt.Name.Equals("c", StringComparison.OrdinalIgnoreCase))
                 {
-                    Config = opt.Value;
+                    CommandLineConfig.Startup.ConfigFile = AbsolutePath.Create(m_pathTable, opt.Value);
+                }
+                else if (opt.Name.Equals("property", StringComparison.OrdinalIgnoreCase) || opt.Name.Equals("p", StringComparison.OrdinalIgnoreCase))
+                {
+                    ParsePropertyOption(opt, CommandLineConfig.Startup.Properties);
+                }
+                else if (opt.Name.Equals("InCloudBuild", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineConfig.InCloudBuild = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("ComputeStaticFingerprints", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineConfig.Schedule.ComputePipStaticFingerprints = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("objectDirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineConfig.Layout.ObjectDirectory = AbsolutePath.Create(m_pathTable, GetFullPath(opt.Value, opt));
+                }
+                else if (opt.Name.Equals("outputDirectory", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineConfig.Layout.OutputDirectory = AbsolutePath.Create(m_pathTable, GetFullPath(opt.Value, opt));
+                }
+                else if (opt.Name.Equals("RedirectedUserProfileJunctionRoot", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandLineConfig.Layout.RedirectedUserProfileJunctionRoot = AbsolutePath.Create(m_pathTable, GetFullPath(opt.Value, opt));
                 }
                 else if (opt.Name.Equals("fix", StringComparison.OrdinalIgnoreCase))
                 {
@@ -108,7 +129,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                 }
             }
 
-            if (string.IsNullOrEmpty(Filter) && string.IsNullOrEmpty(Config))
+            if (string.IsNullOrEmpty(CommandLineConfig.Filter) && !CommandLineConfig.Startup.ConfigFile.IsValid)
             {
                 throw Error("Must specify at least /Config -or- /Filter argument.");
             }
@@ -127,7 +148,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer
             writer.WriteOption("Config", "Optional main config file to be used.", shortName: "c");
             writer.WriteOption("Filter", "The filter representing the scope of script specs that should be analyzed.", shortName: "f");
             writer.WriteOption("Analyzer", "One or more analyzers to run. Subsequent arguments are analyzer specific.", shortName: "a");
-            writer.WriteOption("Fix[+|-]", "Whether the analyzer should fix the specs.");
+            writer.WriteOption($"{nameof(Fix)}[+|-]", "Whether the analyzer should fix the specs.");
 
             writer.WriteLine(string.Empty);
             writer.WriteLine("Analyzers:");

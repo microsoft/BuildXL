@@ -30,6 +30,7 @@ namespace BuildXL.Scheduler.Filter
         private readonly PipExecutionContext m_context;
         private readonly TryGetPathByMountName m_pathResolver;
         private readonly string m_expression;
+        private readonly bool m_canonicalize;
         private int m_position;
 
         #region Control characters and strings for parsing filters
@@ -70,7 +71,7 @@ namespace BuildXL.Scheduler.Filter
         /// <summary>
         /// Constructor for a FilterParser
         /// </summary>
-        public FilterParser(PipExecutionContext context, TryGetPathByMountName pathResolver, string filterText)
+        public FilterParser(PipExecutionContext context, TryGetPathByMountName pathResolver, string filterText, bool canonicalize = false)
         {
             Contract.Requires(context != null);
             Contract.Requires(pathResolver != null);
@@ -78,6 +79,7 @@ namespace BuildXL.Scheduler.Filter
             m_pathResolver = pathResolver;
             m_expression = filterText;
             m_position = 0;
+            m_canonicalize = canonicalize;
         }
 
         /// <summary>
@@ -154,6 +156,7 @@ namespace BuildXL.Scheduler.Filter
                 filter = new DependentsFilter(filter);
             }
 
+            filter = m_canonicalize ? filter.Canonicalize(new FilterCanonicalizer()) : filter;
             return new RootFilter(filter, m_expression);
         }
 

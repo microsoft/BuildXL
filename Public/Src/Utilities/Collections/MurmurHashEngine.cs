@@ -17,8 +17,8 @@ namespace BuildXL.Utilities
         private const int HashLengthInBits = HashLengthInBytes * 8;
         private const int ReadSizeInBytes = 16;
 
-        private static ulong s_c1 = 0x87c37b91114253d5L;
-        private static ulong s_c2 = 0x4cf5ad432745937fL;
+        private static readonly ulong s_c1 = 0x87c37b91114253d5L;
+        private static readonly ulong s_c2 = 0x4cf5ad432745937fL;
 
         private ulong m_length;
         private ulong m_high;

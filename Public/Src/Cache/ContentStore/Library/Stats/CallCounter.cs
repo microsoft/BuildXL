@@ -29,36 +29,6 @@ namespace BuildXL.Cache.ContentStore.Stats
             _ticks = new Counter($"{callName}CallTicks");
         }
 
-        private static void GetCountTotalPerfCounterInfo(string callName, out string counterName, out string counterHelp)
-        {
-            counterName = $"{callName}Call.CountTotal";
-            counterHelp = $"Total count of {callName} calls";
-        }
-
-        private static void GetCountActivePerfCounterInfo(string callName, out string counterName, out string counterHelp)
-        {
-            counterName = $"{callName}Call.CountActive";
-            counterHelp = $"Count of active {callName} calls";
-        }
-
-        private static void GetCountDeltaPerfCounterInfo(string callName, out string counterName, out string counterHelp)
-        {
-            counterName = $"{callName}Call.CountDelta";
-            counterHelp = $"Count difference of {callName} calls";
-        }
-
-        private static void GetAverageDurationPerfCounterInfo(string callName, out string counterName, out string counterHelp)
-        {
-            counterName = $"{callName}Call.AvgDuration";
-            counterHelp = $"Average duration of {callName} calls in seconds";
-        }
-
-        private static void GetRatePerfCounterInfo(string callName, out string counterName, out string counterHelp)
-        {
-            counterName = $"{callName}Call.Rate";
-            counterHelp = $"Rate of {callName} calls per second";
-        }
-
         /// <summary>
         ///     Append counter data to caller's set.
         /// </summary>

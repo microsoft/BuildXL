@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using Microsoft.Win32.SafeHandles;
 using Xunit.Abstractions;
 
@@ -70,6 +71,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         {
             try
             {
+                EngineEnvironmentSettings.SkipExtraneousPins.Value = true;
                 string testClassName = LimitPathLength(GetType().Name);
 
                 // In Xunit we can't really get the test method name. So we just pick an increasing integer.

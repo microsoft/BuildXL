@@ -15,6 +15,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Filter;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -396,6 +397,12 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc />
+        bool IQueryablePipDependencyGraph.IsReachableFrom(PipId from, PipId to)
+        {
+            return IsReachableFrom(from.ToNodeId(), to.ToNodeId());
+        }
+
+        /// <inheritdoc />
         public Pip TryFindProducer(AbsolutePath producedPath, VersionDisposition versionDisposition, DependencyOrderingFilter? maybeOrderingFilter)
         {
             PipId? matchedPipId = TryFindProducerPipId(producedPath, versionDisposition, maybeOrderingFilter);
@@ -586,6 +593,22 @@ namespace BuildXL.Scheduler.Graph
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Returns pips consuming given directory artifact.
+        /// </summary>
+        public IEnumerable<Pip> GetConsumingPips(DirectoryArtifact dir)
+        {
+            var producer = GetProducer(dir);
+            var potentialConsumers = HydratePips(
+                DataflowGraph.GetOutgoingEdges(producer.ToNodeId()).Cast<Edge>().Select(edge => edge.OtherNode), 
+                PipQueryContext.PipGraphGetConsumingPips);
+
+            return potentialConsumers
+                .Where(pip =>
+                    (pip is Process proc && proc.DirectoryDependencies.Contains(dir)) ||
+                    (pip is SealDirectory sd && sd.Directory == dir));
         }
 
         /// <summary>
@@ -800,6 +823,12 @@ namespace BuildXL.Scheduler.Graph
             => PipProducers.Select(kvp => new KeyValuePair<FileArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
 
         /// <summary>
+        /// Gets all seal directories and their producers
+        /// </summary>
+        public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllSealDirectoriesAndProducers
+            => m_sealedDirectoryNodes.Select(kvp => new KeyValuePair<DirectoryArtifact, PipId>(kvp.Key, kvp.Value.ToPipId()));
+
+        /// <summary>
         /// Gets all output directories and their corresponding producers.
         /// </summary>
         public IEnumerable<KeyValuePair<DirectoryArtifact, PipId>> AllOutputDirectoriesAndProducers
@@ -942,7 +971,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Checks if artifact is an output that should be preserved.
         /// </summary>
-        public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact artifact)
+        public bool IsPreservedOutputArtifact(in FileOrDirectoryArtifact artifact, int sandBoxPreserveOutputTrustLevel)
         {
             Contract.Requires(artifact.IsValid);
 
@@ -955,13 +984,19 @@ namespace BuildXL.Scheduler.Graph
             PipId pipId = TryGetProducer(artifact);
             Contract.Assert(pipId.IsValid);
 
-            if (!PipTable.GetMutable(pipId).IsPreservedOutputsPip())
+
+            MutablePipState mutablePipState = PipTable.GetMutable(pipId);
+            if (!mutablePipState.IsPreservedOutputsPip())
             {
-                // If AllowPreserveOutputs is disabled for the pip, return false before hydrating pip. 
                 return false;
             }
 
-            if (!PipTable.GetMutable(pipId).HasPreserveOutputWhitelist())
+            if (mutablePipState.GetProcessPreserveOutputsTrustLevel() < sandBoxPreserveOutputTrustLevel)
+            {
+                return false;
+            }
+
+            if (!mutablePipState.HasPreserveOutputWhitelist())
             {
                 // If whitelist is not given, we preserve all outputs of the given pip.
                 // This is shortcut to avoid hydrating pip in order to get the whitelist.
@@ -969,7 +1004,8 @@ namespace BuildXL.Scheduler.Graph
             }
 
             Process process = PipTable.HydratePip(pipId, PipQueryContext.PreserveOutput) as Process;
-            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable);
+
+            return PipArtifacts.IsPreservedOutputByPip(process, artifact.Path, Context.PathTable, sandBoxPreserveOutputTrustLevel);
         }
 
         #endregion Queries
@@ -992,7 +1028,7 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Applies the filter to each node in the build graph.
         /// </summary>
-        internal bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn, bool canonicalizeFilter)
+        internal bool FilterNodesToBuild(LoggingContext loggingContext, RootFilter filter, out RangedNodeSet filteredIn)
         {
             Contract.Ensures(Contract.ValueAtReturn(out filteredIn) != null);
 
@@ -1013,7 +1049,7 @@ namespace BuildXL.Scheduler.Graph
                     "Builds with an empty filter should not actually perform filtering. Instead their pips should be added to the schedule with an initial state of Waiting. "
                     + "Or in the case of a cached graph, all pips should be scheduled without going through the overhead of filtering.");
 
-                var outputs = FilterOutputs(filter, canonicalizeFilter);
+                var outputs = FilterOutputs(filter);
 
                 int addAttempts = 0;
 
@@ -1213,9 +1249,9 @@ namespace BuildXL.Scheduler.Graph
         /// <summary>
         /// Gets filtered outputs appropriate for a clean operation
         /// </summary>
-        internal IReadOnlyList<FileOrDirectoryArtifact> FilterOutputsForClean(RootFilter filter, bool canonicalizeFilter = true)
+        internal IReadOnlyList<FileOrDirectoryArtifact> FilterOutputsForClean(RootFilter filter)
         {
-            var outputs = FilterOutputs(filter, canonicalizeFilter);
+            var outputs = FilterOutputs(filter);
 
             List<FileOrDirectoryArtifact> outputsForDeletion = new List<FileOrDirectoryArtifact>(outputs.Count);
             foreach (var output in outputs)
@@ -1261,7 +1297,7 @@ namespace BuildXL.Scheduler.Graph
             }
 
             var context = new PipFilterContext(this);
-            var pipFilter = canonicalizeFilter ? filter.PipFilter.Canonicalize(new FilterCanonicalizer()) : filter.PipFilter;
+            var pipFilter = filter.PipFilter;
             return pipFilter.FilterOutputs(context);
         }
 

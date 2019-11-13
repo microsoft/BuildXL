@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Interop.MacOS;
 
 namespace BuildXL.Utilities.Configuration.Mutable
 {
@@ -21,6 +22,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatDirectoryAsAbsentFileOnHashingInputContent = true;
             MaximumRamUtilizationPercentage = 85;
             MinimumTotalAvailableRamMb = 500;
+            MaximumAllowedMemoryPressureLevel = Memory.PressureLevel.Normal;
+
             AllowCopySymlink = true;
             ForceSkipDependencies = ForceSkipDependenciesMode.Disabled;
             UseHistoricalRamUsageInfo = true;
@@ -59,7 +62,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OutputMaterializationExclusionRoots = new List<AbsolutePath>();
 
             IncrementalScheduling = false;
-            GraphAgnosticIncrementalScheduling = true;
             ComputePipStaticFingerprints = false;
             LogPipStaticFingerprintTexts = false;
 
@@ -71,6 +73,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = false;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = false;
+            InputChanges = AbsolutePath.Invalid;
         }
 
         /// <nodoc />
@@ -98,6 +101,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TreatDirectoryAsAbsentFileOnHashingInputContent = template.TreatDirectoryAsAbsentFileOnHashingInputContent;
             MaximumRamUtilizationPercentage = template.MaximumRamUtilizationPercentage;
             MinimumTotalAvailableRamMb = template.MinimumTotalAvailableRamMb;
+            MaximumAllowedMemoryPressureLevel = template.MaximumAllowedMemoryPressureLevel;
             AllowCopySymlink = template.AllowCopySymlink;
             AdaptiveIO = template.AdaptiveIO;
             ReuseOutputsOnDisk = template.ReuseOutputsOnDisk;
@@ -119,12 +123,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
             OutputMaterializationExclusionRoots = pathRemapper.Remap(template.OutputMaterializationExclusionRoots);
 
             IncrementalScheduling = template.IncrementalScheduling;
-            GraphAgnosticIncrementalScheduling = template.GraphAgnosticIncrementalScheduling;
             ComputePipStaticFingerprints = template.ComputePipStaticFingerprints;
             LogPipStaticFingerprintTexts = template.LogPipStaticFingerprintTexts;
 
             CreateHandleWithSequentialScanOnHashingOutputFiles = template.CreateHandleWithSequentialScanOnHashingOutputFiles;
-            OutputFileExtensionsForSequentialScanHandleOnHashing = 
+            OutputFileExtensionsForSequentialScanHandleOnHashing =
                 new List<PathAtom>(template.OutputFileExtensionsForSequentialScanHandleOnHashing.Select(pathRemapper.Remap));
 
             TelemetryTagPrefix = template.TelemetryTagPrefix;
@@ -134,6 +137,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipHashSourceFile = template.SkipHashSourceFile;
 
             UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing = template.UnsafeDisableSharedOpaqueEmptyDirectoryScrubbing;
+            UseFixedApiServerMoniker = template.UseFixedApiServerMoniker;
+            InputChanges = pathRemapper.Remap(template.InputChanges);
         }
 
         /// <inheritdoc />
@@ -231,6 +236,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
         /// <inheritdoc />
         public int MinimumTotalAvailableRamMb { get; set; }
 
+        /// <inheritdoc />
+        public Memory.PressureLevel MaximumAllowedMemoryPressureLevel { get; set; }
+
         /// <nodoc />
         public int MinimumWorkers { get; set; }
 
@@ -279,9 +287,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool IncrementalScheduling { get; set; }
 
         /// <inheritdoc />
-        public bool GraphAgnosticIncrementalScheduling { get; set; }
-
-        /// <inheritdoc />
         public bool ComputePipStaticFingerprints { get; set; }
 
         /// <inheritdoc />
@@ -314,5 +319,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool UseHistoricalCpuUsageInfo { get; set; }
+
+        /// <inheritdoc />
+        public bool UseFixedApiServerMoniker { get; set; }
+
+        /// <inheritdoc />
+        public AbsolutePath InputChanges { get; set; }
     }
 }

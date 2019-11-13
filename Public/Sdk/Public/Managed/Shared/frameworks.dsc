@@ -29,6 +29,9 @@ export interface Framework {
     /** The style of runtime configuration files */
     runtimeConfigStyle: RuntimeConfigStyle;
 
+    /** Optional set of defines to be passed to compilers to indicate the current target framework */
+    conditionalCompileDefines: string[];
+
     /** When the runtimeConfigStyle is runtimeJson, a runtime framework name is required */
     runtimeFrameworkName?: string;
 

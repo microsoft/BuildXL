@@ -1,0 +1,21 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum SemanticPathFlags{
+    SemanticPathFlags_UNSPECIFIED = 0;
+    
+    SemanticPathFlags_None = 1;
+    AllowHashing = 2;
+    Readable = 4;
+    System = 16;
+    Scrubbable = 32;
+    HasPotentialBuildOutputs = 64;
+    Writable = 72;
+    AllowCreateDirectory = 128;
+}

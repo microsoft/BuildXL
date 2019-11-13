@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips.Operations;
@@ -49,19 +50,31 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         public delegate PipData PipDataLookup(FileArtifact artifact);
 
+        /// <summary>
+        /// Refers to a function which maps a process to its source-change-affected inputs. 
+        /// </summary>
+        public delegate IReadOnlyList<AbsolutePath> SourceChangeAffectedInputsLookup(Process process);
+
         private readonly PathTable m_pathTable;
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
+        private readonly SourceChangeAffectedInputsLookup m_sourceChangeAffectedInputsLookup;
         private ExtraFingerprintSalts m_extraFingerprintSalts;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
-        private readonly Comparer<DirectoryArtifact> m_directoryComparer;
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
+        private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
+        private readonly PipFragmentRenderer m_pipFragmentRenderer;
+
+        /// <summary>
+        /// Directory comparer.
+        /// </summary>
+        protected readonly Comparer<DirectoryArtifact> DirectoryComparer;
 
         /// <summary>
         /// The tokenizer used to handle path roots
         /// </summary>
         public readonly PathExpander PathExpander;
-        
+
         /// <summary>
         /// Gets or sets whether fingerprint text is returned when computing fingerprints.
         /// </summary>
@@ -92,7 +105,8 @@ namespace BuildXL.Scheduler.Fingerprints
             PipFragmentRenderer.ContentHashLookup contentHashLookup = null,
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
-            PipDataLookup pipDataLookup = null)
+            PipDataLookup pipDataLookup = null,
+            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null)
         {
             Contract.Requires(pathTable != null);
 
@@ -102,8 +116,18 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pipDataLookup = pipDataLookup ?? new PipDataLookup(file => PipData.Invalid);
             PathExpander = pathExpander ?? PathExpander.Default;
             m_expandedPathFileArtifactComparer = new ExpandedPathFileArtifactComparer(m_pathTable.ExpandedPathComparer, pathOnly: false);
-            m_directoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
+            DirectoryComparer = Comparer<DirectoryArtifact>.Create((d1, d2) => m_pathTable.ExpandedPathComparer.Compare(d1.Path, d2.Path));
+            m_environmentVariableComparer = Comparer<EnvironmentVariable>.Create((ev1, ev2) => { return ev1.Name.ToString(pathTable.StringTable).CompareTo(ev2.Name.ToString(pathTable.StringTable)); });
             m_expandedPathFileArtifactWithAttributesComparer = Comparer<FileArtifactWithAttributes>.Create((f1, f2) => m_pathTable.ExpandedPathComparer.Compare(f1.Path, f2.Path));
+            m_sourceChangeAffectedInputsLookup = sourceChangeAffectedInputsLookup ?? new SourceChangeAffectedInputsLookup(process => ReadOnlyArray<AbsolutePath>.Empty);
+            m_pipFragmentRenderer = new PipFragmentRenderer(
+                pathExpander: path => PathExpander.ExpandPath(pathTable, path).ToUpperInvariant(),
+                pathTable.StringTable,
+                // Do not resolve monikers because their values will be different every build.
+                monikerRenderer: m => m,
+                // Use the hash lookup delegate that was passed as an argument.
+                // PipFragmentRenderer can accept a null value here, and it has special logic for such cases.
+                m_contentHashLookup);
         }
 
         /// <summary>
@@ -121,7 +145,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Computes the weak fingerprint of a pip. This accounts for all statically declared inputs including
         /// unsafe config option. This does not account for dynamically discovered input assertions.
         /// </summary>
-        public ContentFingerprint ComputeWeakFingerprint(Pip pip, out string fingerprintInputText)
+        public virtual ContentFingerprint ComputeWeakFingerprint(Pip pip, out string fingerprintInputText)
         {
             Contract.Requires(pip != null);
 
@@ -134,8 +158,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
                 // Bug #681083 include somehow information about process.ShutdownProcessPipId and process.ServicePipDependencies
                 //               but make sure it doesn't depend on PipIds (because they are not stable between builds)
-                fingerprintInputText = FingerprintTextEnabled 
-                    ? (m_extraFingerprintSalts.CalculatedSaltsFingerprintText + Environment.NewLine + hashingHelper.FingerprintInputText) 
+                fingerprintInputText = FingerprintTextEnabled
+                    ? (m_extraFingerprintSalts.CalculatedSaltsFingerprintText + Environment.NewLine + hashingHelper.FingerprintInputText)
                     : string.Empty;
 
                 return new ContentFingerprint(hashingHelper.GenerateHash());
@@ -242,7 +266,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// </summary>
         protected virtual void AddWeakFingerprint(IFingerprinter fingerprinter, Process process)
         {
-            AddFileDependency(fingerprinter, "Executable", process.Executable);
+            fingerprinter.Add("Executable", process.Executable);
             fingerprinter.Add("WorkingDirectory", process.WorkingDirectory);
 
             if (process.StandardInput.IsData)
@@ -254,12 +278,15 @@ namespace BuildXL.Scheduler.Fingerprints
             AddFileOutput(fingerprinter, "StandardError", process.StandardError);
             AddFileOutput(fingerprinter, "StandardOutput", process.StandardOutput);
 
-            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);            
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), m_directoryComparer);
+            // Files within untrackedPaths and untrackedScopes are irrelevent to the weak fingerprint and are removed from the fingerprint
+            ReadOnlyArray<FileArtifact> relevantDependencies = process.Dependencies.Where(d => !IsUntracked(process, d.Path)).ToReadOnlyArray<FileArtifact>();
+
+            fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>("Dependencies", relevantDependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryDependencies", process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>("Outputs", process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
-            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path), m_directoryComparer);
-                         
+            fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>("DirectoryOutputs", process.DirectoryOutputs, (h, p) => h.Add(p.Path), DirectoryComparer);
+
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedPaths", process.UntrackedPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("UntrackedScopes", process.UntrackedScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
 
@@ -283,9 +310,9 @@ namespace BuildXL.Scheduler.Fingerprints
             {
                 fingerprinter.Add("RequiresAdmin", 1);
             }
-            
+
             fingerprinter.Add("NeedsToRunInContainer", process.NeedsToRunInContainer ? 1 : 0);
-            fingerprinter.Add("ContainerIsolationLevel", (byte) process.ContainerIsolationLevel);
+            fingerprinter.Add("ContainerIsolationLevel", (byte)process.ContainerIsolationLevel);
 
             AddPipData(fingerprinter, "Arguments", process.Arguments);
             if (process.ResponseFileData.IsValid)
@@ -293,7 +320,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 AddPipData(fingerprinter, "ResponseFileData", process.ResponseFileData);
             }
 
-            fingerprinter.AddCollection<EnvironmentVariable, ReadOnlyArray<EnvironmentVariable>>(
+            fingerprinter.AddOrderIndependentCollection<EnvironmentVariable, ReadOnlyArray<EnvironmentVariable>>(
                 "EnvironmentVariables",
                 process.EnvironmentVariables,
                 (fCollection, env) =>
@@ -306,7 +333,9 @@ namespace BuildXL.Scheduler.Fingerprints
                     {
                         AddPipData(fCollection, env.Name.ToString(m_pathTable.StringTable), env.Value);
                     }
-                });
+                },
+                m_environmentVariableComparer
+                );
 
             fingerprinter.Add("WarningTimeout", process.WarningTimeout.HasValue ? process.WarningTimeout.Value.Ticks : -1);
             fingerprinter.Add("Timeout", process.Timeout.HasValue ? process.Timeout.Value.Ticks : -1);
@@ -324,7 +353,29 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             fingerprinter.AddCollection<int, ReadOnlyArray<int>>("SuccessExitCodes", process.SuccessExitCodes, (h, i) => h.Add(i));
+
+            if (process.ChangeAffectedInputListWrittenFile.IsValid)
+            {
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>("SourceChangeAffectedInputList", m_sourceChangeAffectedInputsLookup(process).ToReadOnlyArray(), (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+                fingerprinter.Add("ChangeAffectedInputListWrittenFile", process.ChangeAffectedInputListWrittenFile);
+            }
+
+            if (process.ChildProcessesToBreakawayFromSandbox != null)
+            {
+                fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
+                    "ChildProcessesToBreakawayFromSandbox", 
+                    process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(), 
+                    (h, p) => h.Add(p),
+                    m_pathTable.StringTable.OrdinalComparer);
+            }
         }
+
+        /// <summary>
+        /// Checks if path exists in untrackedPath or exists within an untrackedScope
+        /// </summary>
+        private bool IsUntracked(Process process, AbsolutePath path) =>
+            process.UntrackedPaths.Contains(path) ||
+            process.UntrackedScopes.Any(scope => path.IsWithin(m_pathTable, scope));
 
         /// <summary>
         /// Adds pip data (such as a command line or the contents of a response file) to a fingerprint stream.
@@ -335,7 +386,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(name != null);
             Contract.Requires(fingerprinter != null);
 
-            fingerprinter.Add(name, data.ToString(path => PathExpander.ExpandPath(m_pathTable, path).ToUpperInvariant(), m_pathTable.StringTable));
+            fingerprinter.Add(name, data.ToString(m_pipFragmentRenderer));
         }
 
         /// <summary>
@@ -424,7 +475,10 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(name, fileArtifact.Path);
         }
 
-        private HashingHelper CreateHashingHelper(bool useSemanticPaths, HashAlgorithmType hashAlgorithmType = HashAlgorithmType.SHA1Managed)
+        /// <summary>
+        /// Creates a hashing helper.
+        /// </summary>
+        protected HashingHelper CreateHashingHelper(bool useSemanticPaths, HashAlgorithmType hashAlgorithmType = HashAlgorithmType.SHA1Managed)
         {
             return new HashingHelper(
                 m_pathTable,

@@ -22,5 +22,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
 
         /// <nodoc />
         Codex,
+
+        /// <nodoc />
+        GraphFragment,
     }
 }

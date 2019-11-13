@@ -4,17 +4,18 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
 {
     /// <summary>
-    ///     Disposable token for guarenteed release via a using() statement
+    ///     Disposable token for guaranteed release via a using() statement
     /// </summary>
     public struct SemaphoreSlimToken : IDisposable
     {
-        private SemaphoreSlim _semaphore;
+        private SemaphoreSlim? _semaphore;
 
-        private SemaphoreSlimToken(SemaphoreSlim semaphore)
+        private SemaphoreSlimToken(SemaphoreSlim? semaphore)
             : this()
         {
             _semaphore = semaphore;
@@ -40,6 +41,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
         {
             semaphore.Wait();
             return new SemaphoreSlimToken(semaphore);
+        }
+
+        /// <summary>
+        ///     Wait on a SemaphoreSlim and return a token that, when disposed, calls Release() on the SemaphoreSlim.
+        ///     If the deadline is reached, the token is not acquired and a fake disposable is returned.
+        /// </summary>
+        /// <param name="semaphore">The semaphore to wait on</param>
+        /// <param name="millisecondsTimeout">Maximum time to wait for the semaphore, in milliseconds</param>
+        /// <param name="acquired">Whether the semaphore was obtained or not</param>
+        /// <returns>A token that, when disposed, calls Release() on the SemaphoreSlim</returns>
+        public static SemaphoreSlimToken TryWait(SemaphoreSlim semaphore, int millisecondsTimeout, out bool acquired)
+        {
+            acquired = semaphore.Wait(millisecondsTimeout);
+            return new SemaphoreSlimToken(acquired ? semaphore : null);
         }
 
         /// <inheritdoc />
@@ -73,7 +88,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal
         // ReSharper restore UnusedParameter.Global
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             throw new InvalidOperationException();
         }

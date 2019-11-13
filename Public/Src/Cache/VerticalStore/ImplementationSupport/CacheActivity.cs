@@ -521,7 +521,7 @@ namespace BuildXL.Cache.ImplementationSupport
             if (m_enabled)
             {
                 var finalData = new CacheETWData<T>() { CacheId = m_cacheId, Data = data };
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
                 // Fails on .Net Standard build: System.ArgumentException: The API supports only anonymous types or types decorated with the EventDataAttribute. Non-compliant type: Failure dataType.
                 // finalData seems to be the problematic argument
                 m_eventSource.Write(activityName, ref options, ref m_id, ref m_relatedId, ref finalData);

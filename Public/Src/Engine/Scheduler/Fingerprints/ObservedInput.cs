@@ -108,7 +108,7 @@ namespace BuildXL.Scheduler.Fingerprints
     /// The supported types of dependencies are enumerated as <see cref="ObservedInputType" /> (such as <see cref="ObservedInputType.AbsentPathProbe" />).
     /// Versus an <see cref="BuildXL.Processes.ObservedFileAccess" />, this dependency identifies the particular content accessed (e.g. file hash) rather than
     /// the particular low-level filesystem operations used to access it.
-    /// One may dervice <see cref="ObservedInput" />s from a list of accessed paths using an <see cref="ObservedInputProcessor" />, which
+    /// One may service <see cref="ObservedInput" />s from a list of accessed paths using an <see cref="ObservedInputProcessor" />, which
     /// applies access rules such that (if successful) the returned dependencies are actually valid for the traced process.
     /// </summary>
     public readonly struct ObservedInput : IEquatable<ObservedInput>

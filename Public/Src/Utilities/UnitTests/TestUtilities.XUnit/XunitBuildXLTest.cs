@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
+using BuildXL.Processes.Sideband;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
@@ -27,34 +28,47 @@ namespace Test.BuildXL.TestUtilities.Xunit
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class XunitBuildXLTest : BuildXLTestBase, IDisposable
     {
-        private static readonly Lazy<IKextConnection> s_sandboxedKextConnection =  new Lazy<IKextConnection>(() =>
-            OperatingSystemHelper.IsUnixOS
-                ? new KextConnection(
-                    skipDisposingForTests: true, 
-                    config: new KextConnection.Config
-                    {
-                        MeasureCpuTimes = true,
-                        FailureCallback = (status, description) =>
-                        {
-                            XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
-                        },
-#if PLATFORM_OSX                        
-                        KextConfig = new KextConfig
-                        {
-                            EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
-                        }   
+        private static readonly Lazy<ISandboxConnection> s_sandboxConnection =  new Lazy<ISandboxConnection>(() =>
+        {
+#if PLATFORM_OSX
+            var useEndpointSecuritySandboxEnv = Environment.GetEnvironmentVariable("BUILDXL_MACOS_ES_SANDBOX");
+            var useEndpointSecuritySandbox = !string.IsNullOrWhiteSpace(useEndpointSecuritySandboxEnv);
 #endif
-                    })
-                : null);
+            return OperatingSystemHelper.IsUnixOS
+#if PLATFORM_OSX
+                ? useEndpointSecuritySandbox
+                    ? (ISandboxConnection) new SandboxConnectionES(isInTestMode: true, measureCpuTimes: true)
+                    : (ISandboxConnection) new SandboxConnectionKext(
+#else
+                    ? (ISandboxConnection) new SandboxConnectionKext(
+#endif
+                        skipDisposingForTests: true,
+                        config: new SandboxConnectionKext.Config
+                        {
+                            MeasureCpuTimes = true,
+                            FailureCallback = (status, description) =>
+                            {
+                                XAssert.Fail($"Kernel extension failed.  Status: {status}.  Description: {description}");
+                            },
+    #if PLATFORM_OSX
+                            KextConfig = new KextConfig
+                            {
+                                EnableCatalinaDataPartitionFiltering = OperatingSystemHelper.IsMacOSCatalinaOrHigher
+                            }
+    #endif
+                        }
+                    )
+                    : null;
+        });
 
         /// <summary>
         /// Returns a static kernel connection object. Unit tests would spam the kernel extension if they need sandboxing, so we
         /// tunnel all requests through the same object to keep kernel memory and CPU utilization low. On Windows machines this
         /// always returns null and causes no overhead for testing.
         /// </summary>
-        public static IKextConnection GetSandboxedKextConnection()
+        public static ISandboxConnection GetSandboxConnection()
         {
-            return s_sandboxedKextConnection.Value;
+            return s_sandboxConnection.Value;
         }
 
         /// <summary>
@@ -99,7 +113,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
-        /// Value returned by <see cref="DiscoverCurrentlyExecutingXunitTestMethodFQN"/> when it cannot discover 
+        /// Value returned by <see cref="DiscoverCurrentlyExecutingXunitTestMethodFQN"/> when it cannot discover
         /// the currently executing XUnit method.
         /// </summary>
         protected const string UnknownXunitMethod = "<unknown>";
@@ -152,7 +166,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     // Omit Windows type driver letter format e.g. /c
                     return unixPath.Substring(2);
                 }
-                
+
                 return unixPath;
             }
 
@@ -228,6 +242,12 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 server.Dispose();
             }
         }
+
+        /// <summary>
+        /// No particular meaning, just an arbitrary instance of <see cref="SidebandMetadata"/>.
+        /// </summary>
+        protected static SidebandMetadata DefaultSidebandMetadata { get; }
+            = new SidebandMetadata(pipId: 1, staticPipFingerprint: new byte[] { 1, 2, 3 });
 
         /// <inheritdoc/>
         public void Dispose()

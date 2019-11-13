@@ -4,10 +4,11 @@
 #ifndef memory_h
 #define memory_h
 
+#include <sys/sysctl.h>
 #include "Dependencies.h"
 
-#define GET_PAGE_SIZE_ERROR 101
-#define GET_VM_STATS_ERROR 102
+#define GET_PAGE_SIZE_ERROR     101
+#define GET_VM_STATS_ERROR      102
 
 // Memory usage information in bytes
 typedef struct {
@@ -24,5 +25,6 @@ typedef struct {
 
 int GetRamUsageInfo(RamUsageInfo *buffer, long bufferSize);
 int GetPeakWorkingSetSize(pid_t pid, uint64_t *buffer);
+int GetMemoryPressureLevel(int *level);
 
 #endif /* memory_h */

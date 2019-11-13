@@ -510,7 +510,7 @@ namespace BuildXL.FrontEnd.Script
         // Still, that moduleId is latter overridden at evaluation time. Clean this up.
         private ModuleDescriptor ConvertPackageToModuleDescriptor(Package package)
         {
-            return new ModuleDescriptor(package.ModuleId, package.Descriptor.Name, package.Descriptor.DisplayName, package.Descriptor.Version, this.Kind, Name);
+            return new ModuleDescriptor(package.ModuleId, package.Descriptor.Name, package.Descriptor.DisplayName, package.Descriptor.Version, Kind, Name);
         }
 
         private Possible<ModuleDefinition> ConvertPackageToModuleDefinition(Package package)
@@ -1165,13 +1165,7 @@ namespace BuildXL.FrontEnd.Script
             Contract.Requires(mainFile.IsValid);
             Contract.Requires(descriptor != null);
 
-            var package = Package.Create(id, mainFile, descriptor);
-
-            // We populate the package moduleId, so the workspace will use it when projecting packages into module descriptors
-            // TODO: The moduleId is later overridden at evaluation time! Consider removing the dependency on the env
-            package.ModuleId = ModuleIdProvider.GetNextId();
-
-            UpdatePackageMap(package);
+            UpdatePackageMap(Package.Create(id, mainFile, descriptor));
         }
 
         /// <summary>

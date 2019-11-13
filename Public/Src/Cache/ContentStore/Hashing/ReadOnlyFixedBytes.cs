@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
@@ -13,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Hashing
     /// <summary>
     ///     Readonly storage for up to 32 bytes with common behavior.
     /// </summary>
-    public unsafe readonly struct ReadOnlyFixedBytes : IEquatable<ReadOnlyFixedBytes>, IComparable<ReadOnlyFixedBytes>
+    public readonly unsafe struct ReadOnlyFixedBytes : IEquatable<ReadOnlyFixedBytes>, IComparable<ReadOnlyFixedBytes>
     {
         // This struct relies on a hole in the C# type system.
         // The C# compiler does not allow to define readonly 'fixed size buffers':
@@ -260,6 +261,13 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(length + offset <= MaxLength);
 
             char* buffer = stackalloc char[(2 * length) + 1];
+            FillBuffer(buffer, offset, length);
+
+            return new string(buffer);
+        }
+
+        private void FillBuffer(char* buffer, int offset, int length)
+        {
             var j = 0;
 
             fixed (byte* p = &_bytes.FixedElementField)
@@ -273,8 +281,22 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             Contract.Assert(j == (2 * (length - offset)));
             buffer[j] = '\0';
+        }
 
-            return new string(buffer);
+        /// <summary>
+        ///     Appends the bytes as a hex into a given <paramref name="builder"/>.
+        /// </summary>
+        public void ToHex(StringBuilder builder, int offset, int length)
+        {
+            Contract.Requires(length >= 0);
+            Contract.Requires(length + offset <= MaxLength);
+
+            int bufferLength = (2 * (length - offset)) + 1;
+            char* buffer = stackalloc char[bufferLength];
+            FillBuffer(buffer, offset, length);
+
+            // FillBuffer writes a trailing '\0'. But for this case the last character is not needed.
+            builder.AppendCharStar(bufferLength - 1, buffer);
         }
 
         /// <summary>

@@ -167,7 +167,7 @@ namespace BuildXL.FrontEnd.Core
             Engine = engine;
             FrontEndArtifactManager = CreateFrontEndArtifactManager();
             PipGraph = pipGraph;
-            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph);
+            PipGraphFragmentManager = new PipGraphFragmentManager(LoggingContext, FrontEndContext, pipGraph, configuration.FrontEnd.MaxFrontEndConcurrency);
 
             // TODO: The EngineBasedFileSystem should be replaced with a tracking file system that wraps the passed in filesystem
             // so that the speccache, engine caching/tracking all work for the real and for the fake filesystem.s
@@ -263,7 +263,8 @@ namespace BuildXL.FrontEnd.Core
             }
 
             var frontEndConcurrency = resultingConfiguration.FrontEnd.MaxFrontEndConcurrency();
-            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, FrontEndContext.CancellationToken);
+            var enableEvaluationThrottling = resultingConfiguration.FrontEnd.EnableEvaluationThrottling();
+            m_evaluationScheduler = new EvaluationScheduler(frontEndConcurrency, enableEvaluationThrottling, FrontEndContext.CancellationToken);
 
             HostState = State.ConfigInterpreted;
 
@@ -372,7 +373,7 @@ namespace BuildXL.FrontEnd.Core
                 delegate(LoggingContext nestedLoggingContext, ref InitializeResolversStatistics statistics)
                 {
                     // TODO: Use nestedLoggingContext for resolver errors
-                    var success = TryInitializeFrontEndsAndResolvers(configuration, qualifiersToEvaluate);
+                    var success = TryInitializeFrontEndsAndResolvers(configuration, qualifiersToEvaluate).GetAwaiter().GetResult();
 
                     statistics.ResolverCount = success ? m_resolvers.Length : 0;
 
@@ -980,42 +981,49 @@ namespace BuildXL.FrontEnd.Core
             PhaseLogicHandler<TStatistics> phaseLogicHandler)
             where TStatistics : IHasEndTime
         {
-            var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());
-            if (configuration.Engine.Phase.HasFlag(phase))
+            try
             {
-                var statistics = default(TStatistics);
-
-                using (var aggregator = m_collector?.CreateAggregator())
+                var loggingContext = new LoggingContext(FrontEndContext.LoggingContext, phase.ToString());
+                if (configuration.Engine.Phase.HasFlag(phase))
                 {
-                    var stopwatch = Stopwatch.StartNew();
-                    startPhaseLogMessage(loggingContext);
+                    var statistics = default(TStatistics);
 
-                    m_frontEndFactory.GetPhaseStartHook(phase)();
-                    var success = phaseLogicHandler(loggingContext, ref statistics);
-                    m_frontEndFactory.GetPhaseEndHook(phase)();
-
-                    LaunchDebuggerIfConfigured(phase);
-
-                    statistics.ElapsedMilliseconds = (int)stopwatch.ElapsedMilliseconds;
-
-                    // Call the endPhase handler for both: error and successful cases,
-                    // but not if the unhandled exception will occur.
-                    endPhaseLogMessage(loggingContext, statistics);
-
-                    if (aggregator != null)
+                    using (var aggregator = m_collector?.CreateAggregator())
                     {
-                        LoggingHelpers.LogPerformanceCollector(aggregator, loggingContext, loggingContext.LoggerComponentInfo, statistics.ElapsedMilliseconds);
-                    }
+                        var stopwatch = Stopwatch.StartNew();
+                        startPhaseLogMessage(loggingContext);
 
-                    if (!success)
-                    {
-                        Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after frontend phase: " + phase.ToString());
-                        return false;
+                        m_frontEndFactory.GetPhaseStartHook(phase)();
+                        var success = phaseLogicHandler(loggingContext, ref statistics);
+                        m_frontEndFactory.GetPhaseEndHook(phase)();
+
+                        LaunchDebuggerIfConfigured(phase);
+
+                        statistics.ElapsedMilliseconds = (int)stopwatch.ElapsedMilliseconds;
+
+                        // Call the endPhase handler for both: error and successful cases,
+                        // but not if the unhandled exception will occur.
+                        endPhaseLogMessage(loggingContext, statistics);
+
+                        if (aggregator != null)
+                        {
+                            LoggingHelpers.LogPerformanceCollector(aggregator, loggingContext, loggingContext.LoggerComponentInfo, statistics.ElapsedMilliseconds);
+                        }
+
+                        if (!success)
+                        {
+                            Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged after frontend phase: " + phase.ToString());
+                            return false;
+                        }
                     }
                 }
-            }
 
-            return true;
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
         }
 
         private static void LaunchDebuggerIfConfigured(EnginePhases phase)
@@ -1070,7 +1078,7 @@ namespace BuildXL.FrontEnd.Core
             var frontEndHost = new FrontEndHostController(
                 frontEndFactory,
                 new DScriptWorkspaceResolverFactory(),
-                new EvaluationScheduler(degreeOfParallelism: 1, cancellationToken: frontEndContext.CancellationToken),
+                new EvaluationScheduler(degreeOfParallelism: 1, false, cancellationToken: frontEndContext.CancellationToken),
                 moduleRegistry,
                 new FrontEndStatistics(),
                 logger ?? Logger.CreateLogger(),
@@ -1100,7 +1108,7 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Initializes front-ends.
         /// </summary>
-        public bool TryInitializeFrontEndsAndResolvers(IConfiguration configuration, QualifierId[] requestedQualifiers)
+        public async Task<bool> TryInitializeFrontEndsAndResolvers(IConfiguration configuration, QualifierId[] requestedQualifiers)
         {
             Contract.Requires(configuration != null);
             Contract.Requires(HostState == State.ConfigInterpreted);
@@ -1125,12 +1133,13 @@ namespace BuildXL.FrontEnd.Core
             }
 
             // For each resolver settings, tries to find a front end for it.
-            var resolvers = new List<IResolver>();
-            foreach (var resolverConfiguration in resolverConfigurations)
+            var resolvers = new List<IResolver>(resolverConfigurations.Count);
+            var initResolverTasks = new Task<bool>[resolverConfigurations.Count];
+            for (int i = 0; i < resolverConfigurations.Count; i++)
             {
-                IFrontEnd frontEndInstance;
+                var resolverConfiguration = resolverConfigurations[i];
 
-                if (!m_frontEndFactory.TryGetFrontEnd(resolverConfiguration.Kind, out frontEndInstance))
+                if (!m_frontEndFactory.TryGetFrontEnd(resolverConfiguration.Kind, out var frontEndInstance))
                 {
                     m_logger.UnregisteredResolverKind(FrontEndContext.LoggingContext, resolverConfiguration.Kind, string.Join(", ", m_frontEndFactory.RegisteredFrontEndKinds));
                     return false;
@@ -1146,14 +1155,15 @@ namespace BuildXL.FrontEnd.Core
                     return false;
                 }
 
-                // TODO: Make initialization async.
-                if (!resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result).GetAwaiter().GetResult())
-                {
-                    // Error has been reported by the corresponding front-end.
-                    return false;
-                }
-
                 resolvers.Add(resolver);
+                initResolverTasks[i] = resolver.InitResolverAsync(resolverConfiguration, maybeWorkspaceResolver.Result);
+            }
+
+            var results = await TaskUtilities.SafeWhenAll(initResolverTasks);
+            if (results.Any(r => !r))
+            {
+                // Error should have been reported.
+                return false;
             }
 
             m_resolvers = resolvers.ToArray();
@@ -1351,8 +1361,11 @@ namespace BuildXL.FrontEnd.Core
             // Register the meta pips for the modules and the specs with the graph
             RegisterModuleAndSpecPips(Workspace);
 
-            // Workspace has been converted and is not needed anymore
-            CleanWorkspaceMemory();
+            if (FrontEndConfiguration.ReleaseWorkspaceBeforeEvaluation)
+            {
+                // Workspace has been converted and is not needed anymore
+                CleanWorkspaceMemory();
+            }
 
             // Evaluate with progress reporting
             List<ModuleEvaluationProgress> items = qualifierIds
@@ -1416,25 +1429,39 @@ namespace BuildXL.FrontEnd.Core
                     }
 
                     var moduleLocation = new LocationData(module.Definition.ModuleConfigFile, 0, 0);
-                    PipGraph.AddModule(
-                        new ModulePip(
+
+                    var modulePip = new ModulePip(
                             module: module.Descriptor.Id,
                             identity: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Name),
                             version: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Version),
                             location: moduleLocation,
                             resolverKind: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverKind),
-                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName)
-                        )
-                    );
+                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName));
+
+                    if (PipGraphFragmentManager != null)
+                    {
+                        PipGraphFragmentManager.AddModulePip(modulePip);
+                    }
+                    else
+                    {
+                        PipGraph.AddModule(modulePip);
+                    }
 
                     foreach (var spec in module.Specs.Keys)
                     {
-                        PipGraph.AddSpecFile(
-                            new SpecFilePip(
+                        var specFilePip = new SpecFilePip(
                                 FileArtifact.CreateSourceFile(spec),
                                 moduleLocation,
-                                module.Descriptor.Id)
-                        );
+                                module.Descriptor.Id);
+
+                        if (PipGraphFragmentManager != null)
+                        {
+                            PipGraphFragmentManager.AddSpecFilePip(specFilePip);
+                        }
+                        else
+                        {
+                            PipGraph.AddSpecFile(specFilePip);
+                        }
                     }
                 }
             }
@@ -1471,11 +1498,12 @@ namespace BuildXL.FrontEnd.Core
                 remaining: remainingMessage);
         }
 
-        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
+        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
         {
             var progressMessages = remainingItems
+                .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, item.Module.Descriptor.DisplayName))
+                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPipsToDeserialize})"))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 
@@ -1484,12 +1512,16 @@ namespace BuildXL.FrontEnd.Core
                 : "0";
         }
 
-        private static string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> remainingItems)
+        private string ConstructProgressRemainingMessage(TimeSpan elapsed, IReadOnlyCollection<ModuleEvaluationProgress> remainingItems)
         {
+            if (Configuration.Logging.OptimizeConsoleOutputForAzureDevOps || Configuration.Logging.OptimizeProgressUpdatingForAzureDevOps)
+            {
+                return remainingItems.Count.ToString(CultureInfo.InvariantCulture);
+            }
+
             var progressMessages = remainingItems
-                .Where(item => item.Item1.PipsDeserialized > 0)
                 .Take(10)
-                .Select(item => FormatProgressMessage(elapsed, $"{item.Item1.FragmentDescription} ({item.Item1.PipsDeserialized}/{item.Item1.TotalPips})"))
+                .Select(item => FormatProgressMessage(elapsed, item.Module.Descriptor.DisplayName))
                 .OrderBy(s => s, StringComparer.Ordinal)
                 .ToList();
 

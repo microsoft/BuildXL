@@ -1,9 +1,9 @@
 By default, BuildXL does not log the reasons why it decided to run a pip instead of bringing it from cache. While some cache misses are expected or easily explained, e.g. changes to the code base, some other cache misses might tricky to classify. To help customers understand why they experience cache misses in their builds, BuildXL ships with tooling for doing cache miss analysis. Such analysis can potentially identify problems in a build that cause extra cache misses. Customers can elect to do the analysis at runtime, which will add some overhead to the overall build time, or after a build has finished.
 
-Because of the cost associated with cache miss analysis, both machine and developer time, we do not recommend doing it every build. Instead, we suggest setting up some monitoring that could alert developers to cache hit rate in a build queue. Since there are many moving pieces that can affect the cache hit rate, and since every build queue is unique, you would need to find some threshold value that works for you. For many queues it might be 100%, yet for some queues it might be reasonable to set it to a lower value. If you see values that are below the set threshold, you probably want to start doing cache miss analysis to ensure that there are no errors in your build spec.
-
 ## Runtime Cache Miss Analysis
-Doing cache miss analysis at runtime is more convenient than doing it postmortem - there are no logs to download or tools to run - one just needs to check the `BuildXL.CacheMiss.log` file (note: the file might have a different name if `/logPrefix` argument was used to modify the default prefix). 
+Doing cache miss analysis at runtime is more convenient than doing it postmortem - there are no logs to download or tools to run - one just needs to check the `BuildXL.CacheMiss.log` file (note: the file might have a different name if `/logPrefix` argument was used to modify the default prefix). Runtime cache miss analysis can be enabled with the `/cachemiss` command line flag. This will perform cache miss analysis comparing processes that are misses in the current build session with the last time they ran on the same machine.
+
+Enabling cache miss analysis on distributed builds requires or on build sessions where the machine performing the build may not have been the machine that previously added the pip into the cache requires additional configuration.
 
 ## Postmortem Cache Miss Analysis
 Currently there are two [analyzers](./Execution-Analyzer.md) that can generate a report describing the reasons for cache misses between two builds. The main difference between the analyzers is the fingerprints they compare --- the legacy analyzer compares cache lookup time fingerprints while the new analyzer compares execution time fingerprints. Because of this, in some scenarios, the analyzers might report different hashes for the same pair of builds; this does not affect the classification of cache misses.
@@ -25,6 +25,15 @@ To use this analyzer, set the mode to **/m:CacheMissLegacy**, set the **/xl:** p
 `bxlAnalayzer.exe /m:CacheMissLegacy /xl:F:\src\buildxl\Out\Logs\20171023-125957\BuildXL.xlg /xl:F:\src\buildxl\Out\Logs\20171023-130308\BuildXL.xlg /o:f:\src\buildxl\cachemiss`
 
 The "analysis.txt" file in the output directory shows the first pip in each dependency chain that was a cache miss as well as the reasons for the miss. Full fingerprint computation inputs for each analyzed pip are kept in the "old" and "new" subdirectories. There will be a file for each Pip's `SemiStableHash`.
+
+### Diff Format
+
+Both cache miss analyzers use *JsonDiffPatch* to diff *WeakFingerprint* and *StrongFingerprint* json files. If you are not familiar with json diff syntax, you can find the reference in the following links: 
+
+[General diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/deltas.md)
+
+[Array diff syntax reference](https://github.com/benjamine/jsondiffpatch/blob/master/docs/arrays.md)
+
 
 #### Known Limitations
 The cache miss analyzer works correctly under the assumption that the two builds being compared shared the same graph scope and processed all of the same pips through the full scheduling algorithm. When this assumption is false, the analyzer may produce the following messages:

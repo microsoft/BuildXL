@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.FileSystem
             {
                 throw new IOException($"Failed to finalize FileStream with path '{Path}'.", e);
             }
-            
+
         }
     }
 }

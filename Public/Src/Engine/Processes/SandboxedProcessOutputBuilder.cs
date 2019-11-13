@@ -166,7 +166,7 @@ namespace BuildXL.Processes
             IsFrozen = true;
             return new SandboxedProcessOutput(
                 m_length,
-                m_stringBuilder == null ? null : m_stringBuilder.ToString(),
+                m_stringBuilder?.ToString(),
                 m_fileName,
                 Encoding,
                 m_fileStorage,

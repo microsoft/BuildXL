@@ -55,6 +55,14 @@ namespace BuildXL.Ipc.ExternalApi
         }
 
         /// <summary>
+        /// Log a verbose or warning message on BuildXL side
+        /// </summary>
+        public Task<Possible<bool>> LogMessage(string message, bool isWarning = false)
+        {
+            return ExecuteCommand(new LogMessageCommand(message, isWarning));
+        }
+
+        /// <summary>
         /// Arbitrary statistics that BuildXL should report (in its .stats file).
         /// </summary>
         public Task<Possible<bool>> ReportStatistics(IDictionary<string, long> stats)

@@ -2,16 +2,19 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler.Graph
 {
@@ -20,105 +23,134 @@ namespace BuildXL.Scheduler.Graph
     /// </summary>
     public class PipGraphFragmentManager : IPipGraphFragmentManager
     {
-        private ConcurrentDictionary<int, (PipGraphFragmentSerializer, Task<bool>)> m_readFragmentTasks = new ConcurrentDictionary<int, (PipGraphFragmentSerializer, Task<bool>)>();
+        private readonly IPipGraph m_pipGraph;
 
-        private IPipGraph m_pipGraph;
+        private readonly PipExecutionContext m_context;
 
-        private PipExecutionContext m_context;
+        private readonly LoggingContext m_loggingContext;
 
-        private PipGraphFragmentContext m_fragmentContext;
+        private readonly ConcurrentBigMap<ModuleId, Lazy<bool>> m_modulePipUnify = new ConcurrentBigMap<ModuleId, Lazy<bool>>();
 
-        private LoggingContext m_loggingContext;
+        private readonly ConcurrentBigMap<FileArtifact, Lazy<bool>> m_specFilePipUnify = new ConcurrentBigMap<FileArtifact, Lazy<bool>>();
+
+        private readonly ConcurrentBigMap<(FullSymbol symbol, QualifierId qualifier, AbsolutePath path), Lazy<bool>> m_valuePipUnify = new ConcurrentBigMap<(FullSymbol, QualifierId, AbsolutePath), Lazy<bool>>();
+
+        private readonly ConcurrentBigMap<long, Lazy<bool>> m_pipUnify = new ConcurrentBigMap<long, Lazy<bool>>();
+
+        private readonly ConcurrentBigMap<long, PipId> m_semiStableHashToPipId = new ConcurrentBigMap<long, PipId>();
+        private readonly ConcurrentBigMap<long, DirectoryArtifact> m_semiStableHashToDirectory = new ConcurrentBigMap<long, DirectoryArtifact>();
+
+        private readonly Lazy<TaskFactory> m_taskFactory;
+
+        private readonly ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)> m_taskMap = new ConcurrentBigMap<AbsolutePath, (PipGraphFragmentSerializer, Task<bool>)>();
 
         /// <summary>
         /// PipGraphFragmentManager
         /// </summary>
-        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IPipGraph pipGraph)
+        public PipGraphFragmentManager(LoggingContext loggingContext, PipExecutionContext context, IPipGraph pipGraph, int? maxParallelism)
         {
             m_loggingContext = loggingContext;
             m_context = context;
             m_pipGraph = pipGraph;
-            m_fragmentContext = new PipGraphFragmentContext();
+            maxParallelism = maxParallelism ?? Environment.ProcessorCount;
+            m_taskFactory = new Lazy<TaskFactory>(() => new TaskFactory(new LimitedConcurrencyLevelTaskScheduler(maxParallelism.Value)));
         }
 
         /// <summary>
-        /// Add a single pip graph fragment to the graph.
+        /// Adds a single pip graph fragment to the graph.
         /// </summary>
-        public Task<bool> AddFragmentFileToGraph(int id, AbsolutePath filePath, int[] dependencyIds, string description)
+        public bool AddFragmentFileToGraph(AbsolutePath filePath, string description, IEnumerable<AbsolutePath> dependencies)
         {
-            var deserializer = new PipGraphFragmentSerializer();
-            Task<bool> readFragmentTask = Task.Run(() =>
-            {
-                Task.WaitAll(dependencyIds.Select(dependencyId => m_readFragmentTasks[dependencyId].Item2).ToArray());
-                return deserializer.Deserialize(description, m_context, m_fragmentContext, filePath, (Pip p) => AddPipToGraph(description, p));
-            });
+            var deserializer = new PipGraphFragmentSerializer(m_context, new PipGraphFragmentContext());
 
-            m_readFragmentTasks[id] = (deserializer, readFragmentTask);
-            return readFragmentTask;
+            m_taskMap.GetOrAdd(filePath, deserializer, (path, d) => (d, m_taskFactory.Value.StartNew(async () =>
+            {
+                IEnumerable<Task<bool>> dependencyTasks = dependencies.Select(dependency =>
+                {
+                    var result = m_taskMap.TryGetValue(dependency, out var dependencyTask);
+                    if (!result)
+                    {
+                        Contract.Assert(result, $"Can't find task for {dependency.ToString(m_context.PathTable)} which {filePath.ToString(m_context.PathTable)} needs.");
+                    }
+
+                    return dependencyTask.Item2;
+                });
+
+
+                var results = await Task.WhenAll(dependencyTasks);
+                if (results.Any(success => !success))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    var result = await deserializer.DeserializeAsync(
+                        filePath,
+                        (fragmentContext, provenance, pipId, pip) =>
+                        {
+                            return m_taskFactory.Value.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip));
+                        },
+                        description);
+
+                    if (!ETWLogger.Log.IsEnabled(EventLevel.Verbose, Keywords.Diagnostics))
+                    {
+                        Logger.Log.DeserializationStatsPipGraphFragment(m_loggingContext, deserializer.FragmentDescription, deserializer.Stats.ToString());
+                    }
+
+                    return result;
+                }
+                catch (Exception e) when (e is BuildXLException || e is IOException)
+                {
+                    Logger.Log.ExceptionOnDeserializingPipGraphFragment(m_loggingContext, filePath.ToString(m_context.PathTable), e.ToString());
+                    return false;
+                }
+            }).Unwrap()));
+
+            return true;
         }
 
         /// <summary>
-        /// GetAllFragmentTasks
+        /// Gets all fragment tasks.
         /// </summary>
         public IReadOnlyCollection<(PipGraphFragmentSerializer, Task<bool>)> GetAllFragmentTasks()
         {
-            return m_readFragmentTasks.Select(x => x.Value).ToList();
+            return m_taskMap.Select(x => x.Value).ToList();
         }
 
-        private bool AddPipToGraph(string description, Pip pip)
+        private bool AddPipToGraph(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, PipId pipId, Pip pip)
         {
             try
             {
                 PipId originalPipId = pip.PipId;
                 pip.ResetPipId();
                 bool added = false;
+
                 switch (pip.PipType)
                 {
                     case PipType.Module:
-                        var modulePip = pip as ModulePip;
-                        added = m_pipGraph.AddModule(modulePip);
+                        added = AddModulePip(pip as ModulePip);
                         break;
                     case PipType.SpecFile:
-                        var specFilePip = pip as SpecFilePip;
-                        added = m_pipGraph.AddSpecFile(specFilePip);
+                        added = AddSpecFilePip(pip as SpecFilePip);
                         break;
                     case PipType.Value:
-                        var valuePIp = pip as ValuePip;
-                        added = m_pipGraph.AddOutputValue(valuePIp);
+                        added = AddValuePip(pip as ValuePip);
                         break;
                     case PipType.Process:
-                        var p = pip as Process;
-                        added = m_pipGraph.AddProcess(p, default);
-                        if (p.IsService)
-                        {
-                            m_fragmentContext.AddPipIdValueMapping(originalPipId.Value, p.PipId.Value);
-                        }
-
+                        (added, _) = AddProcessPip(fragmentContext, provenance, pipId, pip as Process);
                         break;
                     case PipType.CopyFile:
-                        var copyFile = pip as CopyFile;
-                        added = m_pipGraph.AddCopyFile(copyFile, default);
+                        (added, _) = AddPip(pip as CopyFile, c => m_pipGraph.AddCopyFile(c, default));
                         break;
                     case PipType.WriteFile:
-                        var writeFile = pip as WriteFile;
-                        added = m_pipGraph.AddWriteFile(writeFile, default);
+                        (added, _) = AddPip(pip as WriteFile, w => m_pipGraph.AddWriteFile(w, default));
                         break;
                     case PipType.SealDirectory:
-                        var sealDirectory = pip as SealDirectory;
-                        if (sealDirectory.Kind == SealDirectoryKind.Opaque || sealDirectory.Kind == SealDirectoryKind.SharedOpaque)
-                        {
-                            return true;
-                        }
-
-                        added = true;
-                        var oldDirectory = sealDirectory.Directory;
-                        sealDirectory.ResetDirectoryArtifact();
-                        var mappedDirectory = m_pipGraph.AddSealDirectory(sealDirectory, default);
-                        m_fragmentContext.AddDirectoryMapping(oldDirectory, mappedDirectory);
+                        (added, _) = AddSealDirectory(fragmentContext, pip as SealDirectory);
                         break;
                     case PipType.Ipc:
-                        var ipcPip = pip as IpcPip;
-                        m_pipGraph.AddIpcPip(ipcPip, default);
+                        (added, _) = AddIpcPip(fragmentContext, provenance, pipId, pip as IpcPip);
                         break;
                     default:
                         Contract.Assert(false, "Pip graph fragment tried to add an unknown pip type to the graph: " + pip.PipType);
@@ -127,17 +159,143 @@ namespace BuildXL.Scheduler.Graph
 
                 if (!added)
                 {
-                    Logger.Log.FailedToAddFragmentPipToGraph(m_loggingContext, description, pip.GetDescription(m_context));
+                    Logger.Log.FailedToAddFragmentPipToGraph(m_loggingContext, provenance.Description, pip.GetDescription(m_context));
                     return false;
                 }
 
                 return true;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                Logger.Log.FailedToAddFragmentPipToGraph(m_loggingContext, description, pip.GetDescription(m_context));
-                throw;
+                Logger.Log.ExceptionOnAddingFragmentPipToGraph(m_loggingContext, provenance.Description, pip.GetDescription(m_context), e.ToString());
+                return false;
             }
+        }
+
+        private (bool added, PipId newPipId) AddSealDirectory(PipGraphFragmentContext fragmentContext, SealDirectory sealDirectory)
+        {
+            Contract.Requires(fragmentContext != null);
+            Contract.Requires(sealDirectory != null);
+            Contract.Requires(sealDirectory.Kind != SealDirectoryKind.SharedOpaque, "Shared opaque is currently not supported");
+
+            if (sealDirectory.Kind == SealDirectoryKind.Opaque)
+            {
+                // Output directories were added when the producing pips were added.
+                return (true, PipId.Invalid);
+            }
+
+            var oldDirectory = sealDirectory.Directory;
+            sealDirectory.ResetDirectoryArtifact();
+
+            var (added, newPipId, newDirectoryArtifact) = AddSealDirectory(sealDirectory, d => m_pipGraph.AddSealDirectory(d, default));
+
+            fragmentContext.AddDirectoryMapping(oldDirectory, newDirectoryArtifact);
+
+            return (added, newPipId);
+        }
+
+        private (bool added, PipId newPipId) AddProcessPip(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, PipId oldPipId, Process process)
+        {
+            Contract.Requires(fragmentContext != null);
+            Contract.Requires(process != null);
+            Analysis.IgnoreArgument(provenance, "Debugging purpose");
+
+            var result = AddPip(process, p => m_pipGraph.AddProcess(p, default));
+
+            if (process.ServiceInfo != null)
+            {
+                if (process.ServiceInfo.IsStartOrShutdownKind)
+                {
+                    // Debug purpose.
+                    // Logger.Log.DebugFragment(m_loggingContext, $"{provenance.Description}: Service pip {process.ServiceInfo.Kind} [{process.GetDescription(m_context)}] map {oldPipId.ToString()} => {process.PipId.ToString()}");
+
+                    fragmentContext.AddPipIdMapping(oldPipId, result.newPipId);
+                }
+            }
+
+            return result;
+        }
+
+        private (bool added, PipId newPipId) AddIpcPip(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, PipId oldPipId, IpcPip ipcPip)
+        {
+            Contract.Requires(fragmentContext != null);
+            Contract.Requires(ipcPip != null);
+            Analysis.IgnoreArgument(provenance, "Debugging purpose");
+
+            var result = AddPip(ipcPip, i => m_pipGraph.AddIpcPip(i, default));
+
+            if (ipcPip.IsServiceFinalization)
+            {
+                // Debug purpose.
+                // Logger.Log.DebugFragment(m_loggingContext, $"{provenance.Description}: Finalization pip [{ipcPip.GetDescription(m_context)}] map {oldPipId.ToString()} => {ipcPip.PipId.ToString()}");
+
+                // Service pip needs the mapping upon deserialization. 
+                fragmentContext.AddPipIdMapping(oldPipId, result.newPipId);
+            }
+
+            return result;
+        }
+
+        /// <inheritdoc />
+        public bool AddModulePip(ModulePip modulePip) =>
+            m_modulePipUnify.GetOrAdd(
+                modulePip.Module,
+                false,
+                (mid, data) => new Lazy<bool>(() => m_pipGraph.AddModule(modulePip))).Item.Value.Value;
+
+        /// <inheritdoc />
+        public bool AddSpecFilePip(SpecFilePip specFilePip) =>
+            m_specFilePipUnify.GetOrAdd(
+                specFilePip.SpecFile,
+                false,
+                (file, data) => new Lazy<bool>(() => m_pipGraph.AddSpecFile(specFilePip))).Item.Value.Value;
+
+        private bool AddValuePip(ValuePip valuePip) =>
+            m_valuePipUnify.GetOrAdd(
+                valuePip.Key,
+                false,
+                (file, data) => new Lazy<bool>(() => m_pipGraph.AddOutputValue(valuePip))).Item.Value.Value;
+
+        private (bool added, PipId newPipId) AddPip<T>(T pip, Func<T, bool> addPip) where T : Pip
+        {
+            if (pip.SemiStableHash == 0)
+            {
+                return (addPip(pip), pip.PipId);
+            }
+
+            bool added = m_pipUnify.GetOrAdd(
+                pip.SemiStableHash,
+                0,
+                (ssh, data) => new Lazy<bool>(() =>
+                {
+                    bool addInner = addPip(pip);
+                    m_semiStableHashToPipId[pip.SemiStableHash] = pip.PipId; // PipId is set by addPip.
+                    return addInner;
+                })).Item.Value.Value;
+
+            return (added, m_semiStableHashToPipId[pip.SemiStableHash]);
+        }
+
+        private (bool added, PipId newPipId, DirectoryArtifact newDirectoryArtifact) AddSealDirectory(SealDirectory sealDirectory, Func<SealDirectory, DirectoryArtifact> addSealDirectory)
+        {
+            if (sealDirectory.SemiStableHash == 0)
+            {
+                DirectoryArtifact d = addSealDirectory(sealDirectory);
+                return (d.IsValid, sealDirectory.PipId, d);
+            }
+
+            bool added = m_pipUnify.GetOrAdd(
+                sealDirectory.SemiStableHash,
+                0,
+                (ssh, data) => new Lazy<bool>(() =>
+                {
+                    DirectoryArtifact directory = addSealDirectory(sealDirectory);
+                    m_semiStableHashToPipId[sealDirectory.SemiStableHash] = sealDirectory.PipId;
+                    m_semiStableHashToDirectory[sealDirectory.SemiStableHash] = sealDirectory.Directory; // New directory artifact is set when adding seal directory.
+                    return directory.IsValid;
+                })).Item.Value.Value;
+
+            return (added, m_semiStableHashToPipId[sealDirectory.SemiStableHash], m_semiStableHashToDirectory[sealDirectory.SemiStableHash]);
         }
     }
 }

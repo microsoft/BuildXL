@@ -196,7 +196,7 @@ namespace BuildXL.Execution.Analyzer
 
                                     writer.WriteStartElement("Process");
                                     writer.WriteAttributeString("Name", pip.Executable.Path.ToString(PathTable, rootExpander));
-                                    writer.WriteAttributeString("CMD", GetArgumentsDataFromProcess(pip).ToString(expandRoot, PathTable.StringTable, PipData.MaxMonikerRenderer));
+                                    writer.WriteAttributeString("CMD", RenderProcessArguments(pip));
                                     writer.WriteElementString("Description", pip.GetDescription(PipGraph.Context));
 
                                     writer.WriteStartElement("EnvironmentVariables");

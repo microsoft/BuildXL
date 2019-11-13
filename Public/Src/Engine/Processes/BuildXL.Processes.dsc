@@ -6,7 +6,7 @@ import * as Shared from "Sdk.Managed.Shared";
 import * as SysMng from "System.Management";
 
 namespace Processes {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet461;
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.library({
@@ -34,8 +34,10 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Collections.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("Newtonsoft.Json").pkg
         ],
         internalsVisibleTo: [
+            "Test.BuildXL.Engine",
             "Test.BuildXL.Processes",
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",

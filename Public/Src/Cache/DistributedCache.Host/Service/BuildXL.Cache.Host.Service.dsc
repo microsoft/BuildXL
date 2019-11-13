@@ -15,7 +15,14 @@ namespace Service {
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
+
+            importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
+            importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
+            importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+
             BuildXLSdk.Factory.createBinary(importFrom("TransientFaultHandling.Core").Contents.all, r`lib/NET4/Microsoft.Practices.TransientFaultHandling.Core.dll`),
+
+            importFrom("WindowsAzure.Storage").pkg,
         ],
         allowUnsafeBlocks: false
     });

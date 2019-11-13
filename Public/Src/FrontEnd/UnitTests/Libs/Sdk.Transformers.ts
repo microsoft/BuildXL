@@ -221,7 +221,7 @@ namespace Transformer {
             untrackedPaths?: (File | Directory)[];
             untrackedScopes?: Directory[];
             hasUntrackedChildProcesses?: boolean;
-            allowPreservedOutputs?: boolean;
+            allowPreservedOutputs?: boolean | number;
             passThroughEnvironmentVariables?: string[];
             preserveOutputWhitelist?: (File | Directory)[];
         }

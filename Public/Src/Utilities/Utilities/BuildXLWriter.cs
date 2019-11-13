@@ -93,7 +93,7 @@ namespace BuildXL.Utilities
                 if (m_debug)
                 {
                     Write(ItemStartMarker);
-                    this.Write(typeId);
+                    Write(typeId);
                 }
 
                 Flush();
@@ -114,7 +114,7 @@ namespace BuildXL.Utilities
                 if (m_debug)
                 {
                     Write(ItemEndMarker);
-                    this.Write(entry.TypeId);
+                    Write(entry.TypeId);
                 }
 
                 Flush();
@@ -170,14 +170,6 @@ namespace BuildXL.Utilities
             Start<Int32Compact>();
             Write7BitEncodedInt(unchecked((int)value));
             End();
-        }
-
-        /// <summary>
-        /// Write pip id value to disk.
-        /// </summary>
-        public virtual void WritePipIdValue(uint value)
-        {
-            Write(value);
         }
 
         private void Write7BitEncodedLong(long value)
@@ -488,10 +480,10 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Writes a ModuleId
         /// </summary>
-        public void Write(ModuleId value)
+        public virtual void Write(ModuleId value)
         {
             Start<ModuleId>();
-            WriteCompact(value.Value);
+            value.Serialize(this);
             End();
         }
 

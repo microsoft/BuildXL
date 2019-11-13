@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private const string HeartbeatName = "Heartbeat";
         private const int DefaultHeartbeatIntervalMinutes = 1;
 
-        private readonly int _grpcPort;
+        private readonly ServiceClientRpcConfiguration _configuration;
         private readonly TimeSpan _heartbeatInterval;
         private Capabilities _clientCapabilities;
         private Capabilities _serviceCapabilities;
@@ -58,20 +58,20 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         protected GrpcClientBase(
             IAbsFileSystem fileSystem,
             ServiceClientContentSessionTracer tracer,
-            int grpcPort,
+            ServiceClientRpcConfiguration configuration,
             string scenario,
             Capabilities clientCapabilities,
             TimeSpan? heartbeatInterval = null)
         {
             FileSystem = fileSystem;
             ServiceClientTracer = tracer;
-            _grpcPort = grpcPort;
+            _configuration = configuration;
             Scenario = scenario;
 
             GrpcEnvironment.InitializeIfNeeded();
-            Channel = new Channel(GrpcEnvironment.Localhost, (int)grpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
+            Channel = new Channel(configuration.GrpcHost ?? GrpcEnvironment.Localhost, configuration.GrpcPort, ChannelCredentials.Insecure, GrpcEnvironment.DefaultConfiguration);
             _clientCapabilities = clientCapabilities;
-            _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromMinutes(DefaultHeartbeatIntervalMinutes);
+            _heartbeatInterval = _configuration.HeartbeatInterval ?? TimeSpan.FromMinutes(DefaultHeartbeatIntervalMinutes);
         }
 
         /// <nodoc />
@@ -220,7 +220,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             try
             {
-                context.Always($"Starting up GRPC client against service on port {_grpcPort} with timeout {waitMs}.");
+                var targetMachine = _configuration.GrpcHost ?? GrpcEnvironment.Localhost;
+                context.Always($"Starting up GRPC client against service on '{targetMachine}' on port {_configuration.GrpcPort} with timeout {waitMs}.");
 
                 if (!LocalContentServer.EnsureRunning(context, Scenario, waitMs))
                 {

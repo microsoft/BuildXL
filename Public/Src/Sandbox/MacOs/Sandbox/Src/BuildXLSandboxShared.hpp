@@ -10,6 +10,10 @@
 #if MAC_OS_SANDBOX
 #include <IOKit/IOLib.h>
 #include "SysCtl.hpp"
+#elif MAC_OS_LIBRARY
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IODataQueueClient.h>
+#include <mach/mach_time.h>
 #endif
 
 #include "stdafx.h"
@@ -81,11 +85,13 @@ public:
         return count_;
     }
 
+    uint32_t operator+ (Counter other) { return count_ + other.count_; }
+    double operator* (double other)    { return count_ * other; }
+
     void operator++ (int)
     {
 #if MAC_OS_SANDBOX
-        if (g_bxl_enable_counters)
-            OSIncrementAtomic(&count_);
+       if (g_bxl_enable_counters) OSIncrementAtomic(&count_);
 #else
         ++count_;
 #endif
@@ -94,8 +100,7 @@ public:
     void operator-- (int)
     {
 #if MAC_OS_SANDBOX
-        if (g_bxl_enable_counters)
-            OSDecrementAtomic(&count_);
+       if (g_bxl_enable_counters) OSDecrementAtomic(&count_);
 #else
         --count_;
 #endif
@@ -119,11 +124,11 @@ private:
     void AddMicroseconds(uint64_t durationUs)
     {
 #if MAC_OS_SANDBOX
-        if (g_bxl_enable_counters)
-        {
-            OSIncrementAtomic(&count_);
-            OSAddAtomic64(durationUs, &durationUs_);
-        }
+       if (g_bxl_enable_counters)
+       {
+           OSIncrementAtomic(&count_);
+           OSAddAtomic64(durationUs, &durationUs_);
+       }
 #else
         ++count_;
         durationUs_ += durationUs;
@@ -156,6 +161,18 @@ typedef struct {
 } ReportCounters;
 
 typedef struct {
+    uint count;
+    double size;
+} CountAndSize;
+
+typedef struct {
+    int64_t totalAllocatedBytes;
+    CountAndSize fastNodes;
+    CountAndSize lightNodes;
+    CountAndSize cacheRecords;
+} MemoryCountsAndSizes;
+
+typedef struct {
     DurationCounter findTrackedProcess;
     DurationCounter setLastLookedUpPath;
     DurationCounter checkPolicy;
@@ -169,10 +186,6 @@ typedef struct {
     Counter numForks;
     Counter numCacheHits;
     Counter numCacheMisses;
-    uint numUintTrieNodes;
-    uint numPathTrieNodes;
-    double uintTrieSizeMB;
-    double pathTrieSizeMB;
 } AllCounters;
 
 typedef struct {
@@ -219,6 +232,7 @@ typedef struct {
 typedef struct {
     uint numAttachedClients;
     AllCounters counters;
+    MemoryCountsAndSizes memory;
     KextConfig kextConfig;
     uint numReportedPips;
     PipInfo pips[kMaxReportedPips];
@@ -235,6 +249,20 @@ typedef struct {
 } AccessReportStatistics;
 
 typedef struct {
+    uint32_t lastPathLookupElemCount;
+    uint32_t lastPathLookupNodeCount;
+    uint32_t lastPathLookupNodeSize;
+    uint32_t numCacheHits;
+    uint32_t numCacheMisses;
+    uint32_t cacheRecordCount;
+    uint32_t cacheRecordSize;
+    uint32_t cacheNodeCount;
+    uint32_t cacheNodeSize;
+    uint32_t numForks;
+    uint32_t numHardLinkRetries;
+} PipCompletionStats; // sizeof(PipCompletionStats) must be less than MAXPATHLEN, i.e., 1024
+
+typedef struct {
     FileOperation operation;
     pid_t pid;
     pid_t rootPid;
@@ -243,7 +271,11 @@ typedef struct {
     uint reportExplicitly;
     DWORD error;
     pipid_t pipId;
-    char path[MAXPATHLEN];
+    union
+    {
+        char path[MAXPATHLEN];
+        PipCompletionStats pipStats;
+    };
     AccessReportStatistics stats;
 } AccessReport;
 
@@ -261,11 +293,11 @@ inline bool HasAllFlags(const T source, const T bitMask)
 #pragma mark Macros and defines
 
 #ifndef BUILDXL_BUNDLE_IDENTIFIER
-static_assert(false, "BUILDXL_BUNDLE_IDENTIFIER not defined (shold be something like: com.microsoft.buildxl.sandbox)");
+static_assert(false, "BUILDXL_BUNDLE_IDENTIFIER not defined (should be something like: com.microsoft.buildxl.sandbox)");
 #endif
 
 #ifndef BUILDXL_CLASS_PREFIX
-static_assert(false, "BUILDXL_CLASS_PREFIX not defined (shold be something like: com_microsoft_buildxl_)");
+static_assert(false, "BUILDXL_CLASS_PREFIX not defined (should be something like: com_microsoft_buildxl_)");
 #endif
 
 #define CONCAT(prefix, name) prefix ## name

@@ -8,7 +8,6 @@ using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
 using Xunit;
 using Xunit.Abstractions;
-using PathGeneratorUtilities = Test.BuildXL.TestUtilities.Xunit.PathGeneratorUtilities;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {

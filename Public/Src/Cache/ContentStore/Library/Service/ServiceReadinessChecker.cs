@@ -18,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Service
     /// </summary>
     public sealed class ServiceReadinessChecker
     {
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
         private readonly EventWaitHandle _readyEvent;
         private readonly EventWaitHandle _shutdownEvent;
 #endif
@@ -30,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             _tracer = tracer;
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             _readyEvent = CreateReadyEvent(logger, scenario);
             _shutdownEvent = CreateShutdownEvent(logger, scenario);
 #endif
@@ -44,7 +44,7 @@ namespace BuildXL.Cache.ContentStore.Service
         {
             var currentUser = UserUtilities.CurrentUserName();
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             context.TraceMessage(Severity.Debug, $"Opening ready event name=[{scenario}] for user=[{currentUser}] waitMs={waitMs}.");
             var stopwatch = Stopwatch.StartNew();
 
@@ -154,7 +154,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public void Ready(Context context)
         {
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             _tracer.Debug(context, "Setting ready event");
             _readyEvent.Set();
 #endif
@@ -165,7 +165,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// </summary>
         public void Reset()
         {
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             // Make sure to not signal new clients that service is ready for requests.
             _readyEvent.Reset();
 
@@ -177,7 +177,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <inheritdoc />
         public void Dispose()
         {
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
             _shutdownEvent.Reset();
             _shutdownEvent.Dispose();
             _readyEvent.Dispose();

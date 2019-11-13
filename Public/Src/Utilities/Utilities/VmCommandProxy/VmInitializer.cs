@@ -46,17 +46,33 @@ namespace BuildXL.Utilities.VmCommandProxy
         /// </summary>
         public static VmInitializer CreateFromEngine(
             string buildEngineDirectory,
+            string vmCommandProxyAlternate = null,
             Action<string> logStartInit = null,
             Action<string> logEndInit = null,
-            Action<string> logInitExecution = null) => new VmInitializer(Path.Combine(buildEngineDirectory, VmExecutable.DefaultRelativePath), logStartInit, logEndInit, logInitExecution);
+            Action<string> logInitExecution = null)
+        {
+            // VM command proxy will no longer be released along with BuildXL's release. In CB, BuildXL will use
+            // VM command proxy that can be found through BUILDXL_VMCOMMANDPROXY_PATH environment variable.
+            //
+            // Here, prefer VM command proxy that comes with the build engine for two reasons:
+            // - Unit tests use a mock version that comes with the deployment.
+            // - As an escape hatch when we want to test a new VM command proxy without having to wait for CB deployment.
+            string vmCommandProxy = Path.Combine(buildEngineDirectory, VmExecutable.DefaultRelativePath);
+
+            if (!File.Exists(vmCommandProxy) && !string.IsNullOrWhiteSpace(vmCommandProxyAlternate))
+            {
+                // If engine does not have VM command proxy, then use the alternate one if properly specified.
+                vmCommandProxy = vmCommandProxyAlternate;
+            }
+
+            return new VmInitializer(vmCommandProxy, logStartInit, logEndInit, logInitExecution);
+        }
 
         /// <summary>
         /// Creates an instance of <see cref="VmInitializer"/>.
         /// </summary>
-        public VmInitializer(string vmCommandProxy, Action<string> logStartInit = null, Action<string> logEndInit = null, Action<string> logInitExecution = null)
+        private VmInitializer(string vmCommandProxy, Action<string> logStartInit = null, Action<string> logEndInit = null, Action<string> logInitExecution = null)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(vmCommandProxy));
-
             VmCommandProxy = vmCommandProxy;
             LazyInitVmAsync = new Lazy<Task>(() => InitVmAsync(), true);
             m_logStartInit = logStartInit;

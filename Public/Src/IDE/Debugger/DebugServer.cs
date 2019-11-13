@@ -35,9 +35,8 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
         private readonly Tracing.Logger m_logger;
         private readonly LoggingContext m_loggingContext;
-        private readonly PathTranslator m_buildXLToUserPathTranslator;
-        private readonly DebuggerState m_state;
         private readonly TcpListener m_serverSocket;
+        private readonly Func<IDebugger, ISession> m_sessionFactory;
 
         private int m_serverStarted;
         private int m_serverShutDown;
@@ -52,12 +51,12 @@ namespace BuildXL.FrontEnd.Script.Debugger
         }
 
         /// <nodoc/>
-        public DebugServer(LoggingContext loggingContext, PathTable pathTable, PathTranslator buildXLToUserPathTranslator, int port)
+        public DebugServer(LoggingContext loggingContext, int port, Func<IDebugger, ISession> sessionFactory)
         {
             m_logger = Tracing.Logger.CreateLogger();
             m_loggingContext = loggingContext;
-            m_buildXLToUserPathTranslator = buildXLToUserPathTranslator;
-            m_state = new DebuggerState(pathTable, m_loggingContext, m_logger);
+            m_sessionFactory = sessionFactory;
+
             Port = port;
             m_serverSocket = new TcpListener(IPAddress.Parse("127.0.0.1"), port);
 
@@ -88,7 +87,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
                 m_logger.ReportDebuggerServerStarted(m_loggingContext, Port);
                 var clientSocket = await m_serverSocket.AcceptSocketAsync();
                 m_logger.ReportDebuggerClientConnected(m_loggingContext);
-                var remoteDebugger = new RemoteDebugger(m_state, m_buildXLToUserPathTranslator, clientSocket);
+                var remoteDebugger = new RemoteDebugger(m_loggingContext, clientSocket, m_sessionFactory);
                 remoteDebugger.StartAsync();
                 ShutDown();
                 return remoteDebugger;

@@ -23,5 +23,11 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         [CanBeNull]
         IReadOnlyList<RelativePath> SearchPathEnumerationTools { get; }
+
+        /// <summary>
+        /// List of path fragments of tools using its own incrementality
+        /// </summary>
+        [CanBeNull]
+        IReadOnlyList<RelativePath> IncrementalTools { get; }
     }
 }

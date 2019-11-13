@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.FrontEnd.Script.Analyzer;
 using BuildXL.FrontEnd.Script.Analyzer.Tracing;
 using BuildXL.FrontEnd.Script.Analyzer.Utilities;
+using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.Sdk;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -17,6 +18,7 @@ using Test.DScript.Workspaces;
 using TypeScript.Net.Types;
 using Xunit;
 using ScriptAnalyzer = BuildXL.FrontEnd.Script.Analyzer.Analyzer;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace Test.Tool.DScript.Analyzer
 {
@@ -120,10 +122,10 @@ namespace Test.Tool.DScript.Analyzer
             bool preserveTrivia = false)
         {
             var analyzer = new TAnalyzer();
-
+            var pathTable = new PathTable();
             var args = new Args(
-                config: @"b:\Fake.config.dsc",
-                filter: string.Empty,
+                commandLineConfig: new CommandLineConfiguration() { Startup = { ConfigFile = AbsolutePath.Create(pathTable, X("/b/Fake.config.dsc")) } },
+                pathTable: pathTable,
                 fix: fix,
                 help: false,
                 analyzers: new List<ScriptAnalyzer> { analyzer },
@@ -140,7 +142,7 @@ namespace Test.Tool.DScript.Analyzer
             Workspace workspace;
             var testModuleFile = LoadAndTypecheckFile(context, testSource, extraSources, modules, out workspace, preserveTrivia);
 
-            analyzer.SetSharedState(args, context, logger, workspace);
+            analyzer.SetSharedState(args, context, logger, workspace, null);
 
             var result = analyzer.AnalyzeSourceFile(workspace, testModuleFile.Key, testModuleFile.Value);
 

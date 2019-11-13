@@ -4,7 +4,7 @@
 using System;
 using BuildXL.Interop.Windows;
 
-#if FEATURE_CORECLR
+#if NET_CORE
 using System.Runtime.InteropServices;
 #endif
 
@@ -31,7 +31,7 @@ namespace BuildXL.Interop
         /// </summary>
         public static OperatingSystem CurrentOS()
         {
-#if FEATURE_CORECLR
+#if NET_CORE
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 return OperatingSystem.Unix;
@@ -70,8 +70,8 @@ namespace BuildXL.Interop
             {
                 case OperatingSystem.MacOS:
                 {
-                    var buffer = new MacOS.Process.ProcessTimesInfo();
-                    MacOS.Process.GetProcessTimes(proc.Id, ref buffer, includeChildProcesses: false);
+                    var buffer = new MacOS.Process.ProcessResourceUsage();
+                    MacOS.Process.GetProcessResourceUsage(proc.Id, ref buffer, includeChildProcesses: false);
                     long ticks = (long)(buffer.SystemTimeNs + buffer.UserTimeNs) / 100;
                     return new TimeSpan(ticks);
                 }
@@ -84,11 +84,11 @@ namespace BuildXL.Interop
         }
 
         /// <summary>
-        /// Returns the peak memory usage of a specific process
+        /// Returns the peak memory usage (in bytes) of a specific process
         /// </summary>
         /// <param name="handle">When calling from Windows the SafeProcessHandle is required</param>
         /// <param name="pid">On non-windows systems a process id has to be provided</param>
-        public static ulong? GetActivePeakMemoryUsage(IntPtr handle, int pid)
+        public static ulong? GetActivePeakWorkingSet(IntPtr handle, int pid)
         {
             switch (s_currentOS)
             {
@@ -104,15 +104,33 @@ namespace BuildXL.Interop
                     }
                 default:
                     {
-                        Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
-
-                        if (Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb))
-                        {
-                            return processMemoryCounters.PeakWorkingSetSize;
-                        }
-
-                        return null;
+                        return GetMemoryUsageCounters(handle)?.PeakWorkingSetSize;
                     }
+            }
+        }
+
+        /// <summary>
+        /// Get memory usage with all counters for Windows
+        /// </summary>
+        public static Process.PROCESSMEMORYCOUNTERSEX GetMemoryUsageCounters(IntPtr handle)
+        {
+            switch (s_currentOS)
+            {
+                case OperatingSystem.MacOS:
+                {
+                    return null;
+                }
+                default:
+                {
+                    Process.PROCESSMEMORYCOUNTERSEX processMemoryCounters = new Windows.Process.PROCESSMEMORYCOUNTERSEX();
+
+                    if (Process.GetProcessMemoryInfo(handle, processMemoryCounters, processMemoryCounters.cb))
+                    {
+                        return processMemoryCounters;
+                    }
+
+                    return null;
+                }
             }
         }
     }

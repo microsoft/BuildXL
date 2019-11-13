@@ -26,6 +26,9 @@ export interface Arguments extends Transformer.RunnerArguments {
     /** Deployed files. */
     deployment?: Deployment.Definition;
 
+    /** Options to use during the deployment. i.e. to not deploy the pdb or xml docs */
+    deploymentOptions?: Managed.Deployment.FlattenOptions,
+
     /** The metadata for the package we generate */
     metadata: PackageMetadata;
 
@@ -123,7 +126,7 @@ export function pack(args: Arguments): PackResult {
     const nupkgPath = p`${outDir}/${packName + ".nupkg"}`;
 
     // Due to nuspec file not supporting renaming files, we have to compute the dependencies on the fly since we need to copy renames to a temp location with the same name.
-    const nuspecData = createNuSpecFile(args.metadata, args.deployment, nuspecPath);
+    const nuspecData = createNuSpecFile(args.metadata, args.deployment, nuspecPath, args.deploymentOptions);
 
     const arguments: Argument[] = [
         Cmd.argument("pack"),
@@ -160,7 +163,12 @@ export function pack(args: Arguments): PackResult {
     };
 }
 
-function createNuSpecFile(metaData: PackageMetadata, deployment: Deployment.Definition, nuSpecOutput: Path) : { nuspec: File, dependencies: (File|OpaqueDirectory)[] } {
+function createNuSpecFile(
+    metaData: PackageMetadata, 
+    deployment: Deployment.Definition, 
+    nuSpecOutput: Path,
+    deploymentOptions: Managed.Deployment.FlattenOptions) : { nuspec: File, dependencies: (File|OpaqueDirectory)[] } {
+
     let optionalElement = (element:string, value: string) => String.isUndefinedOrEmpty(value)
         ? undefined
         : Xml.elem(element, value);
@@ -168,7 +176,7 @@ function createNuSpecFile(metaData: PackageMetadata, deployment: Deployment.Defi
     let dependencies : (File|OpaqueDirectory)[] = [];
     let fileElements : Xml.Element[] = [];
 
-    let flattened = Deployment.flatten(deployment);
+    let flattened = Deployment.flatten(deployment, undefined, deploymentOptions);
 
     // Process the flattened files with one quirck where we have to handle nuspec not supporting renamed files
     for (let flattenedFile of flattened.flattenedFiles.toArray())
@@ -196,10 +204,10 @@ function createNuSpecFile(metaData: PackageMetadata, deployment: Deployment.Defi
     // Process the flattened opaque directories
     for (let opaque of flattened.flattenedOpaques.toArray())
     {
-        dependencies = dependencies.push(opaque[1]);
+        dependencies = dependencies.push(opaque[1].opaque);
         fileElements = fileElements.push(
             Xml.elem("file",
-                Xml.attr("src", [opaque[1].path, "\\**"]),
+                Xml.attr("src", [opaque[1].opaque.path, "\\**"]),
                 Xml.attr("target", opaque[0])
             )
         );
@@ -293,6 +301,35 @@ export function createAssemblyLayout(assembly: Managed.Assembly) : Deployment.De
                     assembly.compile || emptyFile,
                 ]
             }
+        ]
+    };
+}
+
+@@public
+export function createAssemblyLayoutWithSpecificRuntime(assembly: Managed.Assembly, runtime: string, includeInRef: boolean) : Deployment.Definition {
+    // When the assembly is undefined, return empty deployment.
+    if (assembly === undefined) {
+        return {
+            contents: []
+        };
+    }
+
+    return {
+        contents: [
+            {
+                subfolder: r`runtimes/${runtime}/lib/${assembly.targetFramework}`,
+                contents: [
+                    assembly.runtime || emptyFile,
+                ]
+            },
+            ... includeInRef ? [
+                {
+                    subfolder: r`ref/${assembly.targetFramework}`,
+                    contents: [
+                        assembly.compile || emptyFile,
+                    ]
+                }
+            ] : []
         ]
     };
 }

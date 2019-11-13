@@ -23,7 +23,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     public interface IIncrementalSchedulingState : IFileChangeTrackingObserver
     {
         /// <summary>
-        /// Dirty node tracker.
+        /// The current dirty node tracker.
         /// </summary>
         DirtyNodeTracker DirtyNodeTracker { get; }
 
@@ -49,12 +49,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// Records dynamic observations during execution phase.
         /// </summary>
         /// <param name="nodeId">Node id that correponds to a pip.</param>
-        /// <param name="dynamicallyObservedFilePaths">Dynamically observed files.</param>
+        /// <param name="dynamicallyObservedFilePaths">Dynamically observed read files.</param>
+        /// <param name="dynamicallyProbedFilePaths">Dynamically observed probed files.</param>
         /// <param name="dynamicallyObservedEnumerationPaths">Dynamically observed enumerations.</param>
         /// <param name="dynamicDirectoryContents">Dynamic directory contents.</param>
         void RecordDynamicObservations(
             NodeId nodeId,
             IEnumerable<string> dynamicallyObservedFilePaths,
+            IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
             IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> dynamicDirectoryContents);
 
@@ -65,18 +67,27 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         void WriteText(TextWriter writer);
 
         /// <summary>
-        /// Checks if this instance of <see cref="IIncrementalSchedulingState"/> is reusable with respect to the given pip graph, configuration, and preserved outputs salt. If it is reusable, returns a reusable close of it, otherwise returns null.
+        /// Checks if this instance of <see cref="IIncrementalSchedulingState"/> is reusable from the current engine state.
         /// </summary>
         /// <param name="loggingContext">New logging context.</param>
         /// <param name="pipGraph">New pip graph.</param>
         /// <param name="configuration">New configuration.</param>
         /// <param name="preserveOutputSalt">New preserved outputs salt.</param>
+        /// <param name="incrementalSchedulingStatePath">Path to the current incremental scheduling state.</param>
         /// <param name="tempDirectoryCleaner">Temporary directory cleaner.</param>
         /// <returns>A new reusable instance of <see cref="IIncrementalSchedulingState"/> if this instance is reusable; otherwise null.</returns>
         /// <remarks>
+        /// The reusability check inspects the given pip graph, configuration, and preserved outputs salt. If it is reusable, returns a reusable (shallow) copy of it, otherwise returns null.
+        /// 
         /// A logging context needs to be given because the logging context maintained by this instance of <see cref="IIncrementalSchedulingState"/> can be
         /// associated with some previous build.
         /// </remarks>
-        IIncrementalSchedulingState Reuse(LoggingContext loggingContext, PipGraph pipGraph, IConfiguration configuration, ContentHash preserveOutputSalt, ITempDirectoryCleaner tempDirectoryCleaner);
+        IIncrementalSchedulingState ReuseFromEngineState(
+            LoggingContext loggingContext,
+            PipGraph pipGraph,
+            IConfiguration configuration,
+            ContentHash preserveOutputSalt,
+            string incrementalSchedulingStatePath,
+            ITempCleaner tempDirectoryCleaner);
     }
 }

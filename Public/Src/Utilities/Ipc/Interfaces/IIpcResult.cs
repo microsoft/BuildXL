@@ -17,7 +17,7 @@ namespace BuildXL.Ipc.Interfaces
         /// </summary>
         Success = 0,
 
-        // ---------------------------------- errors codes ----------------------------------
+        // ---------------------------------- error codes ----------------------------------
 
         /// <summary>
         /// Indicates a generic (unexplained) error.
@@ -40,9 +40,9 @@ namespace BuildXL.Ipc.Interfaces
         ExecutionError = 4,
 
         /// <summary>
-        /// Indicates that the pip input is invalid.
+        /// Indicates that the user input is invalid.
         /// </summary>
-        InvalidInput = 5,
+        InvalidInput = 5
     }
 
     /// <summary>

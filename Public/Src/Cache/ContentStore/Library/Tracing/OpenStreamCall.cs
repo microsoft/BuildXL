@@ -15,6 +15,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
     public sealed class OpenStreamCall<TTracer> : TracedCall<TTracer, OpenStreamResult>, IDisposable
         where TTracer : ContentSessionTracer
     {
+        private readonly ContentHash _contentHash;
+
         /// <summary>
         ///     Run the call.
         /// </summary>
@@ -33,6 +35,8 @@ namespace BuildXL.Cache.ContentStore.Tracing
         private OpenStreamCall(TTracer tracer, OperationContext context, ContentHash contentHash)
             : base(tracer, context)
         {
+            _contentHash = contentHash;
+
             Tracer.OpenStreamStart(Context, contentHash);
         }
 
@@ -45,7 +49,7 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <inheritdoc />
         public void Dispose()
         {
-            Tracer.OpenStreamStop(Context, Result);
+            Tracer.OpenStreamStop(Context, _contentHash, Result);
         }
     }
 }

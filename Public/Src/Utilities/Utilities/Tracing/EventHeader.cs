@@ -8,27 +8,27 @@ namespace BuildXL.Utilities.Tracing
     /// <summary>
     /// Represents the information contained in the header of an execution event
     /// </summary>
-    class EventHeader
+    internal class EventHeader
     {
         /// <summary>
         /// The event id
         /// </summary>
-        public UInt32 EventId;
+        public uint EventId;
 
         /// <summary>
         /// The id of the worker the event originated on
         /// </summary>
-        public UInt32 WorkerId;
+        public uint WorkerId;
 
         /// <summary>
         /// The event timestamp
         /// </summary>
-        public Int64 Timestamp;
+        public long Timestamp;
 
         /// <summary>
         /// The event pay load size
         /// </summary>
-        public Int32 EventPayloadSize;
+        public int EventPayloadSize;
 
         /// <summary>
         /// Reads and returns an <see cref="EventHeader"/> given a <see cref="BuildXLReader"/>. 

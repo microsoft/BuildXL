@@ -463,12 +463,6 @@ namespace BuildXL.Cache.BasicFilesystem
                 {
                     eventing.Start(hash, filename, fileState, urgencyHint);
 
-                    if (!m_pinnedToCas.ContainsKey(hash))
-                    {
-                        counter.Miss();
-                        return eventing.StopFailure(new UnpinnedCasEntryFailure(CacheId, hash));
-                    }
-
                     try
                     {
                         FileUtilities.CreateDirectory(Path.GetDirectoryName(filename));
@@ -495,12 +489,6 @@ namespace BuildXL.Cache.BasicFilesystem
                 using (var eventing = new GetStreamActivity(BasicFilesystemCache.EventSource, activityId, this))
                 {
                     eventing.Start(hash, urgencyHint);
-
-                    if (!m_pinnedToCas.ContainsKey(hash))
-                    {
-                        counter.Miss();
-                        return eventing.StopFailure(new UnpinnedCasEntryFailure(CacheId, hash));
-                    }
 
                     try
                     {

@@ -19,7 +19,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
         private const string RemoteCopyFileSuccessCountName = "RemoteCopyFileSuccessCount";
         private const string RemoteCopyFileFailCountName = "RemoteCopyFileFailedCount";
 
-        private readonly CallCounter _remoteCopyCallCounter;
         private readonly Counter _remoteBytesCounter;
         private readonly Counter _remoteFilesCopiedCounter;
         private readonly Counter _remoteFilesFailedCopyCounter;
@@ -31,7 +30,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Tracing
             Counters.Add(_remoteFilesCopiedCounter = new Counter(RemoteCopyFileSuccessCountName));
             Counters.Add(_remoteFilesFailedCopyCounter = new Counter(RemoteCopyFileFailCountName));
 
-            CallCounters.Add(_remoteCopyCallCounter = new CallCounter(RemoteCopyFileCallName));
+            CallCounters.Add(new CallCounter(RemoteCopyFileCallName));
         }
 
         public void UpdateBytesCopiedRemotely(long size)

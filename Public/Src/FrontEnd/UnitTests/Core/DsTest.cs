@@ -45,6 +45,7 @@ using InitializationLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger;
 using LogEventId = BuildXL.FrontEnd.Script.Tracing.LogEventId;
 using Logger = BuildXL.FrontEnd.Script.Tracing.Logger;
 using Test.DScript.Workspaces.Utilities;
+using BuildXL.ViewModel;
 
 namespace Test.BuildXL.FrontEnd.Core
 {
@@ -718,7 +719,13 @@ namespace Test.BuildXL.FrontEnd.Core
                              Schedule =
                              {
                                  MaxProcesses = DegreeOfParallelism,
-                                 DisableProcessRetryOnResourceExhaustion = true
+                                 DisableProcessRetryOnResourceExhaustion = true,
+                             },
+                             // DS tests don't need the extra I/O this adds
+                             Logging =
+                             {
+                                LogExecution = false,
+                                StoreFingerprints = false,
                              },
                              Layout =
                              {
@@ -796,6 +803,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 UseSpecPublicFacadeAndAstWhenAvailable = false,
                 CycleDetectorStartupDelay = 1,
                 EnableIncrementalFrontEnd = false,
+                AllowUnsafeAmbient = true
             };
         }
 
@@ -1008,7 +1016,7 @@ namespace Test.BuildXL.FrontEnd.Core
                 InitializationLogger, 
                 collector: null,
                 collectMemoryAsSoonAsPossible: false);
-            var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller));
+            var engine = BuildXLEngine.Create(LoggingContext, engineContext, config, new LambdaBasedFrontEndControllerFactory((_, __) => controller), new BuildViewModel());
 
             if (engine == null)
             {
@@ -1024,7 +1032,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
             workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiersOrDefault);
 
-            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault);
+            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault).GetAwaiter().GetResult();
             if (!initFrontEnds)
             {
                 return null;

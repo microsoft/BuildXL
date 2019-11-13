@@ -5,8 +5,6 @@
 | Directory symlinks | Partially supported; treated like junctions. See details below | Fully supported |
 | Directory junctions | Partially supported. See details below| N/A|
 
-[[_TOC_]]
-
 # File Symlinks
 BuildXL supports file symlinks. A process pip can safely (a) consume file symlinks, including the files the symlinks point to, and (b) produce file symlinks. A copy-file pip has a limited support for copying symlinks, in the sense that the symlink to be copied should only point to a "read-only" target, i.e., the target should not be produced during the build.
 

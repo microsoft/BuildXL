@@ -415,6 +415,9 @@ interface Configuration {
 
     searchPathEnumerationTools?: RelativePath[];
     
+    /** List of incremental tools for special observed file access handling */
+    incrementalTools?: RelativePath[];
+    
     /** Configuration for VsDomino */
     ide?: IdeConfiguration;
     vsDomino?: IdeConfiguration;

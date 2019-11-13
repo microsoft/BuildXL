@@ -227,7 +227,8 @@ namespace BuildXL.Scheduler.Tracing
                 return false;
             }
 
-            if (m_changedPips.WasVisited(pipId.ToNodeId()))
+            if (!EngineEnvironmentSettings.RuntimeCacheMissAllPips
+                && m_changedPips.WasVisited(pipId.ToNodeId()))
             {
                 return false;
             }
@@ -273,7 +274,7 @@ namespace BuildXL.Scheduler.Tracing
                 RunnablePipPerformanceInfo performance = null;
                 if (m_analyzer.m_runnablePipPerformance?.TryGetValue(m_pipId, out performance) == true)
                 {
-                    performance.PerformedCacheMiss(m_watch.Elapsed);
+                    performance.PerformedCacheMissAnalysis(m_watch.Elapsed);
                 }
 
                 m_watch.Dispose();

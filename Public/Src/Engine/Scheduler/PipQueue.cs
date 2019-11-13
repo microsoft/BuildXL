@@ -51,7 +51,7 @@ namespace BuildXL.Scheduler
         /// In distributed builds, new work items can come from external requests after draining is started (i.e., workers get requests from the master)
         /// In single machine builds, after draining is started, new work items are only scheduled from the items that are being executed, not external requests.
         /// </remarks>
-        private bool m_isFinalized;
+        private volatile bool m_isFinalized;
 
         /// <summary>
         /// Whether the queue is cancelled via Ctrl-C

@@ -20,11 +20,12 @@ namespace BxlScriptAnalyzer {
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities").Collections.dll,
+            importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
-
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Download.dll,
             importFrom("BuildXL.FrontEnd").Nuget.dll,

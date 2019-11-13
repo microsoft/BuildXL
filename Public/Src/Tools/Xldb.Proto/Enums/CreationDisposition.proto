@@ -1,0 +1,18 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum CreationDisposition{
+    CreationDisposition_UNSPECIFIED = 0;
+
+    CREATE_NEW = 1;
+    CREATE_ALWAYS = 2;
+    OPEN_EXISTING = 3;
+    OPEN_ALWAYS = 4;
+    TRUNCATE_EXISTING = 5;
+}

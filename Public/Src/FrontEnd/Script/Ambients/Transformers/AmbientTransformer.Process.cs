@@ -100,6 +100,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_executeWarningRegex;
         private SymbolAtom m_executeErrorRegex;
+        private SymbolAtom m_executeEnableMultiLineErrorScanning;
         private SymbolAtom m_executeTags;
         private SymbolAtom m_executeServiceShutdownCmd;
         private SymbolAtom m_executeServiceFinalizationCmds;
@@ -135,7 +136,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_toolPrepareTempDirectory;
         private SymbolAtom m_toolDescription;
         private SymbolAtom m_weight;
-        
+        private SymbolAtom m_changeAffectedInputListWrittenFile;
+
+
         private SymbolAtom m_runtimeEnvironmentMinimumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMaximumOSVersion;
         private SymbolAtom m_runtimeEnvironmentMinimumClrVersion;
@@ -163,6 +166,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_unsafeAllowPreservedOutputs;
         private SymbolAtom m_unsafePassThroughEnvironmentVariables;
         private SymbolAtom m_unsafePreserveOutputWhitelist;
+        private SymbolAtom m_unsafeIncrementalTool;
+        private SymbolAtom m_unsafeRequireGlobalDependencies;
 
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
@@ -241,11 +246,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeAdditionalTempDirectories = Symbol("additionalTempDirectories");
             m_executeWarningRegex = Symbol("warningRegex");
             m_executeErrorRegex = Symbol("errorRegex");
+            m_executeEnableMultiLineErrorScanning = Symbol("enableMultiLineErrorScanning");
             m_executeAllowedSurvivingChildProcessNames = Symbol("allowedSurvivingChildProcessNames");
             m_executeNestedProcessTerminationTimeoutMs = Symbol("nestedProcessTerminationTimeoutMs");
             m_executeDependsOnCurrentHostOSDirectories = Symbol("dependsOnCurrentHostOSDirectories");
             m_weight = Symbol("weight");
             m_priority = Symbol("priority");
+            m_changeAffectedInputListWrittenFile = Symbol("changeAffectedInputListWrittenFile");
 
             m_argN = Symbol("n");
             m_argV = Symbol("v");
@@ -302,7 +309,6 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_versionMinor = Symbol("minor");
             m_versionRevision = Symbol("revision");
 
-
             // Unsafe.
             m_unsafeUntrackedPaths = Symbol("untrackedPaths");
             m_unsafeUntrackedScopes = Symbol("untrackedScopes");
@@ -310,14 +316,14 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_unsafeAllowPreservedOutputs = Symbol("allowPreservedOutputs");
             m_unsafePassThroughEnvironmentVariables = Symbol("passThroughEnvironmentVariables");
             m_unsafePreserveOutputWhitelist = Symbol("preserveOutputWhitelist");
+            m_unsafeIncrementalTool = Symbol("incrementalTool");
+            m_unsafeRequireGlobalDependencies = Symbol("requireGlobalDependencies");
 
             // Semaphore info.
             m_semaphoreInfoLimit = Symbol("limit");
             m_semaphoreInfoName = Symbol("name");
             m_semaphoreInfoIncrementBy = Symbol("incrementBy");
-
         }
-
 
         private bool TryScheduleProcessPip(Context context, ObjectLiteral obj, ServicePipKind serviceKind, out ProcessOutputs processOutputs, out Process pip)
         {
@@ -434,6 +440,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 processBuilder.SetStandardErrorFile(consoleErrorOutput);
             }
 
+            var changeAffectedInputListWrittenFile = Converter.ExtractPath(obj, m_changeAffectedInputListWrittenFile, allowUndefined: true);
+            if (changeAffectedInputListWrittenFile.IsValid)
+            {
+                processBuilder.SetChangeAffectedInputListWrittenFile(changeAffectedInputListWrittenFile);
+            }
+
             // Environment variables.
             var environmentVariables = Converter.ExtractArrayLiteral(obj, m_executeEnvironmentVariables, allowUndefined: true);
             if (environmentVariables != null)
@@ -495,15 +507,15 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
             processBuilder.AdditionalTempDirectories = ProcessOptionalPathArray(obj, m_executeAdditionalTempDirectories, strict: false, skipUndefined: true);
 
+
+            // Set the default value before processing unsafeOption in case unsafeOption doesn't exist.
+            processBuilder.Options |= Process.Options.RequireGlobalDependencies;
             // Unsafe options.
             var unsafeOptions = Converter.ExtractObjectLiteral(obj, m_executeUnsafe, allowUndefined: true);
             if (unsafeOptions != null)
             {
                 ProcessUnsafeOptions(context, processBuilder, unsafeOptions);
             }
-
-            // GlobalUnsafePassthroughEnvironmentVariables
-            processBuilder.SetGlobalPassthroughEnvironmentVariable(context.FrontEndHost.Configuration.FrontEnd.GlobalUnsafePassthroughEnvironmentVariables, context.StringTable);
 
             // Set outputs to remain writable.
             var keepOutputsWritable = Converter.ExtractOptionalBoolean(obj, m_executeKeepOutputsWritable);
@@ -536,6 +548,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (errorRegex != null)
             {
                 processBuilder.ErrorRegex = new RegexDescriptor(StringId.Create(context.StringTable, errorRegex), RegexOptions.None);
+            }
+
+            var enableMultiLineErrorScanning = Converter.ExtractOptionalBoolean(obj, m_executeEnableMultiLineErrorScanning);
+            if (enableMultiLineErrorScanning != null)
+            {
+                processBuilder.EnableMultiLineErrorScanning = enableMultiLineErrorScanning.Value;
             }
 
             // Tags.
@@ -612,8 +630,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // Container isolation level
             // The value is set based on the default but overridden if the field is explicitly defined for the pip
             var containerIsolationLevel = Converter.ExtractEnumValue<ContainerIsolationLevel>(obj, m_executeContainerIsolationLevel, allowUndefined: true);
-            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue? 
-                    containerIsolationLevel.Value : 
+            processBuilder.ContainerIsolationLevel = containerIsolationLevel.HasValue?
+                    containerIsolationLevel.Value :
                     context.FrontEndHost.Configuration.Sandbox.ContainerConfiguration.ContainerIsolationLevel();
 
             // Container double write policy
@@ -622,7 +640,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             processBuilder.DoubleWritePolicy = doubleWritePolicy != null?
                     s_doubleWritePolicyMap[doubleWritePolicy] :
                     context.FrontEndHost.Configuration.Sandbox.UnsafeSandboxConfiguration.DoubleWritePolicy();
-    
+
             // Allow undeclared source reads flag
             if (Converter.ExtractOptionalBoolean(obj, m_executeAllowUndeclaredSourceReads) == true)
             {
@@ -1176,9 +1194,38 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.allowPreservedOutputs
-            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs) == true)
+            var unsafePreserveOutput = Converter.ExtractOptionalBooleanOrInt(unsafeOptionsObjLit, m_unsafeAllowPreservedOutputs);
+            if (unsafePreserveOutput.HasValue)
             {
-                processBuilder.Options |= Process.Options.AllowPreserveOutputs;
+                bool? enabled = unsafePreserveOutput.Value.Item1;
+                int?  trustLevel = unsafePreserveOutput.Value.Item2;
+
+                if(trustLevel.HasValue && trustLevel.Value < 0)
+                {
+                    throw new InputValidationException(I($"Expected '{m_unsafeAllowPreservedOutputs.ToString(StringTable)}' to be boolean or >= 0"), new ErrorContext(name: m_unsafeAllowPreservedOutputs,  objectCtx: unsafeOptionsObjLit));
+                }
+                if ((enabled.HasValue && enabled.Value) || (trustLevel.HasValue && trustLevel.Value > 0))
+                {
+                    processBuilder.Options |= Process.Options.AllowPreserveOutputs;
+                    processBuilder.PreserveOutputsTrustLevel = enabled.HasValue ? (int)PreserveOutputsTrustValue.Lowest : trustLevel.Value;
+
+                    if (context.FrontEndHost.Configuration.Sandbox.PreserveOutputsForIncrementalTool)
+                    {
+                        processBuilder.Options |= Process.Options.IncrementalTool;
+                    }
+                }
+            }
+
+            // UnsafeExecuteArguments.incrementalTool
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeIncrementalTool) == true)
+            {
+                processBuilder.Options |= Process.Options.IncrementalTool;
+            }
+
+            // UnsafeExecuteArguments.requireGlobalDependencies
+            if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeRequireGlobalDependencies) == false)
+            {
+                processBuilder.Options &= ~Process.Options.RequireGlobalDependencies;
             }
 
             // UnsafeExecuteArguments.passThroughEnvironmentVariables

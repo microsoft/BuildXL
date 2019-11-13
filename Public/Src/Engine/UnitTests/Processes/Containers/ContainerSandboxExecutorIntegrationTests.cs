@@ -187,7 +187,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        private static Task<SandboxedProcessPipExecutionResult> RunProcess(BuildXLContext context, Process pip, bool failUnexpectedFileAccesses = true)
+        private Task<SandboxedProcessPipExecutionResult> RunProcess(BuildXLContext context, Process pip, bool failUnexpectedFileAccesses = true)
         {
             var loggingContext = CreateLoggingContextForTest();
 
@@ -207,6 +207,7 @@ namespace Test.BuildXL.Processes
                             disableConHostSharing: false,
                             pipEnvironment: new PipEnvironment(),
                             validateDistribution: false,
+                            tempDirectoryCleaner: new TestMoveDeleteCleaner(TestOutputDirectory),
                             directoryArtifactContext: TestDirectoryArtifactContext.Empty).RunAsync();
         }
 

@@ -17,8 +17,8 @@ namespace BuildXL.Ide.Generator
     /// </summary>
     internal sealed class VcxprojFile : MsbuildFile
     {
-        public MultiValueDictionary<string, object> ConstantsByQualifier;
-        public MultiValueDictionary<string, object> IncludeDirsByQualifier;
+        public MultiValueDictionary<Project, object> ConstantsByProject;
+        public MultiValueDictionary<Project, object> IncludeDirsByProject;
 
         internal VcxprojFile(
             Context context,
@@ -26,17 +26,16 @@ namespace BuildXL.Ide.Generator
             : base(context, specFilePath, ".vcxproj")
         {
             m_inputs = new List<AbsolutePath>();
-            ConstantsByQualifier = new MultiValueDictionary<string, object>();
-            IncludeDirsByQualifier = new MultiValueDictionary<string, object>();
+            ConstantsByProject = new MultiValueDictionary<Project, object>();
+            IncludeDirsByProject = new MultiValueDictionary<Project, object>();
         }
 
-        internal override string UnevaluatedQualifierComparisonProperty => "$(Configuration)|$(Platform)";
-
-        internal override string GetQualifierComparisonValue(string friendlyQualifierName)
+        internal override string GenerateConditionalForProject(Project project)
         {
             string configuration = "Debug";
             string platform = "X64";
 
+            var friendlyQualifierName = Context.QualifierTable.GetCanonicalDisplayString(project.QualifierId);
             var normalizedFriendlyQualifier = friendlyQualifierName.ToLowerInvariant();
             if (normalizedFriendlyQualifier.Contains("release"))
             {
@@ -48,27 +47,27 @@ namespace BuildXL.Ide.Generator
                 platform = "Win32";
             }
 
-            return I($"{configuration}|{platform}");
+            return $"'$(Configuration)|$(Platform)' == '{configuration}|{platform}'";
         }
 
         internal override void VisitProcess(Process process, ProcessType pipCategory)
         {
-            string friendlyQualifier = Context.QualifierTable.GetCanonicalDisplayString(process.Provenance.QualifierId);
+            var qualifier = process.Provenance.QualifierId;
 
             // TODO: After fixing the qualifier in the DS, I will start using the qualifier id instead of friendly qualifier name
                 // Context.QualifierTable.GetQualifiedOutputDirectoryPart(Context.StringTable, qualifierId).ToString(Context.StringTable);
             var arguments = Context.GetArgumentsDataFromProcess(process);
 
             Project project;
-            if (!ProjectsByQualifier.TryGetValue(friendlyQualifier, out project))
+            if (!ProjectsByQualifier.TryGetValue(qualifier, out project))
             {
                 project = CreateProject(process);
-                project.SetProperty("PlatformToolset", "v140");
+                project.SetProperty("PlatformToolset", "v142");
 
                 FillProjectConfigurations(project);
                 AddHeaderFiles(project);
 
-                ProjectsByQualifier.Add(friendlyQualifier, project);
+                ProjectsByQualifier.Add(qualifier, project);
             }
 
             switch (pipCategory)
@@ -99,7 +98,7 @@ namespace BuildXL.Ide.Generator
                 {
                     // Sources
                     var path = GetPathValue(arg);
-                    project.RawReferences.Add(path);
+                    project.AddRawReference(path);
                 }
             }
         }
@@ -163,7 +162,7 @@ namespace BuildXL.Ide.Generator
                         {
                             if ((AbsolutePath)obj != SpecDirectory)
                             {
-                                IncludeDirsByQualifier.Add(project.FriendlyQualifier, (AbsolutePath)obj);
+                                IncludeDirsByProject.Add(project, (AbsolutePath)obj);
                             }
                         };
                     }
@@ -180,7 +179,7 @@ namespace BuildXL.Ide.Generator
                                 Contract.Assert(false, "Expecting string or PipData as a preprocessor definition argument");
                             }
 
-                            ConstantsByQualifier.Add(project.FriendlyQualifier, (string)obj);
+                            ConstantsByProject.Add(project, (string)obj);
                         };
                     }
                 }

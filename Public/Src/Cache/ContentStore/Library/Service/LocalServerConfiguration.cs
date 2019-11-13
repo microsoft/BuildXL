@@ -14,13 +14,14 @@ namespace BuildXL.Cache.ContentStore.Service
     public sealed class LocalServerConfiguration
     {
         /// <nodoc />
-        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, int? bufferSizeForGrpcCopies = null, int? gzipBarrierSizeForGrpcCopies = null)
+        public LocalServerConfiguration(AbsolutePath dataRootPath, IReadOnlyDictionary<string, AbsolutePath> namedCacheRoots, int grpcPort, IAbsFileSystem fileSystem, int? bufferSizeForGrpcCopies = null, int? gzipBarrierSizeForGrpcCopies = null)
         {
             DataRootPath = dataRootPath;
             NamedCacheRoots = namedCacheRoots;
             GrpcPort = grpcPort;
             BufferSizeForGrpcCopies = bufferSizeForGrpcCopies;
             GzipBarrierSizeForGrpcCopies = gzipBarrierSizeForGrpcCopies;
+            FileSystem = fileSystem;
         }
 
         /// <nodoc />
@@ -60,7 +61,7 @@ namespace BuildXL.Cache.ContentStore.Service
         /// <summary>
         /// Gets or sets the time period between logging incremental stats
         /// </summary>
-        public TimeSpan LogIncrementalStatsInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public TimeSpan LogIncrementalStatsInterval { get; set; } = TimeSpan.FromDays(15); // Effectively disabling incremental statistics.
 
         /// <summary>
         /// Gets or sets the duration of inactivity after which a session will be timed out.
@@ -106,6 +107,12 @@ namespace BuildXL.Cache.ContentStore.Service
 
         /// <nodoc />
         public string GrpcPortFileName { get; set; } = DefaultFileName;
+
+        /// <nodoc />
+        public int? GrpcThreadPoolSize { get; set; }
+
+        /// <nodoc />
+        public IAbsFileSystem FileSystem { get; set; }
 
         /// <inheritdoc />
         public override string ToString()

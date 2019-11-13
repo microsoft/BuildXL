@@ -1,0 +1,21 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+enum HashType{
+    HashType_UNSPECIFIED = 0;
+    HashType_Unknown = 1;
+    SHA1 = 2;
+    SHA256 = 3;
+    MD5 = 4;
+    Vso0 = 5;
+    DedupChunk = 6;
+    DedupNode = 7;
+    DedupNodeOrChunk = 8;
+    DeprecatedVso0 = 810505046;
+}

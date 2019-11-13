@@ -455,7 +455,10 @@ namespace BuildXL.FrontEnd.Script
         private SymbolAtom GetConfigKeyword(ISourceFile sourceFile)
         {
             string configKeywordString = sourceFile.Statements[0].TryGetFunctionNameInCallExpression();
-            Contract.Assert(configKeywordString != null, I($"Configuration validation for '{Kind}' should have caught that the first statement is not a call expression"));
+            if (configKeywordString == null)
+            {
+                Contract.Assert(false, I($"Configuration validation for '{Kind}' should have caught that the first statement is not a call expression"));
+            }
 
             switch (Kind)
             {

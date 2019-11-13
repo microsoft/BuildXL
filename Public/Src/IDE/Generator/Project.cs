@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Ide.Generator
 {
@@ -17,15 +18,15 @@ namespace BuildXL.Ide.Generator
     internal sealed class Project
     {
         /// <summary>
-        /// The name of the qualifier used by the project
+        /// The qualifier used by the project
         /// </summary>
-        public string FriendlyQualifier { get; private set; }
+        public QualifierId QualifierId { get; }
 
         private readonly ConcurrentDictionary<string, object> m_properties;
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<object, Item>> m_items;
 
-        // temporary
-        public List<AbsolutePath> RawReferences { get; private set; }
+        // temporary (path -> alias[])
+        public MultiValueDictionary<AbsolutePath, string> RawReferences { get; private set; }
 
         /// <summary>
         /// The output directory type
@@ -35,10 +36,10 @@ namespace BuildXL.Ide.Generator
         /// <summary>
         /// Constructs a new project
         /// </summary>
-        public Project(string friendlyQualifier)
+        public Project(QualifierId friendlyQualifier)
         {
-            FriendlyQualifier = friendlyQualifier;
-            RawReferences = new List<AbsolutePath>();
+            QualifierId = friendlyQualifier;
+            RawReferences = new MultiValueDictionary<AbsolutePath, string>();
             m_properties = new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             m_items = new ConcurrentDictionary<string, ConcurrentDictionary<object, Item>>(StringComparer.OrdinalIgnoreCase);
         }
@@ -51,9 +52,13 @@ namespace BuildXL.Ide.Generator
             if (outputDirectoryType > m_outputDirectoryType)
             {
                 m_outputDirectoryType = outputDirectoryType;
-                SetProperty("OutputPath", outputDirectory);
-                SetProperty("OutDir", outputDirectory);
                 SetProperty("DominoBuildFilter", buildFilter);
+                
+                // Intentionally not setting either "OutputPath" or "OutDir" because 'outputDirectory' 
+                // is a BuildXL folder and so if VS tries to write to it access will be denied.
+                //
+                // Instead, output folders are set in Directory.Build.props, which is automatically
+                // generated and placed in the root of the enlistment.
             }
         }
 
@@ -208,6 +213,13 @@ namespace BuildXL.Ide.Generator
         public ILookup<string, Item> Items
         {
             get { return m_items.SelectMany(kv => kv.Value.Values.Select(value => new { kv.Key, Value = value })).ToLookup(kv => kv.Key, kv => kv.Value); }
+        }
+
+        internal const string GlobalAliasName = "global";
+
+        internal void AddRawReference(AbsolutePath path, string alias = null)
+        {
+            RawReferences.Add(path, alias ?? GlobalAliasName);
         }
     }
 }

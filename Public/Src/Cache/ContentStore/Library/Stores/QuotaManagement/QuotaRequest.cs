@@ -8,7 +8,7 @@ using BuildXL.Utilities.Tasks;
 namespace BuildXL.Cache.ContentStore.Stores
 {
     /// <summary>
-    /// Base class that represents a request that is processed asynchronously by <see cref="QuotaKeeperV2"/>.
+    /// Base class that represents a request that is processed asynchronously by <see cref="QuotaKeeper"/>.
     /// </summary>
     internal abstract class QuotaRequest
     {
@@ -37,12 +37,12 @@ namespace BuildXL.Cache.ContentStore.Stores
     }
 
     /// <summary>
-    /// Request to <see cref="QuotaKeeperV2"/> for reserving the disk space.
+    /// Request to <see cref="QuotaKeeper"/> for reserving the disk space.
     /// </summary>
     internal sealed class ReserveSpaceRequest : QuotaRequest
     {
         /// <summary>
-        /// Returns true if the request was completed because <see cref="QuotaKeeperV2"/> evicted enough content.
+        /// Returns true if the request was completed because <see cref="QuotaKeeper"/> evicted enough content.
         /// </summary>
         public bool IsReservedFromEviction { get; set; }
 
@@ -59,7 +59,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     }
 
     /// <summary>
-    /// Request to <see cref="QuotaKeeperV2"/> for processing all pending requests.
+    /// Request to <see cref="QuotaKeeper"/> for processing all pending requests.
     /// </summary>
     internal sealed class SynchronizationRequest : QuotaRequest
     {
@@ -68,7 +68,7 @@ namespace BuildXL.Cache.ContentStore.Stores
     }
 
     /// <summary>
-    /// Request to <see cref="QuotaKeeperV2"/> to calibrate all the rules.
+    /// Request to <see cref="QuotaKeeper"/> to calibrate all the rules.
     /// </summary>
     internal sealed class CalibrateQuotaRequest : QuotaRequest
     {

@@ -81,7 +81,7 @@ namespace BuildXL.Scheduler.Distribution
                     environment.State.GetScope(process),
                     process,
                     fingerprint,
-                    expectedRamUsageMb: GetExpectedRamUsageMb(processRunnable));
+                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable));
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;
@@ -99,7 +99,7 @@ namespace BuildXL.Scheduler.Distribution
                 var pipScope = runnablePip.Environment.State.GetScope(runnablePip.Process);
                 var cacheableProcess = runnablePip.CacheableProcess ?? pipScope.GetCacheableProcess(runnablePip.Process, runnablePip.Environment);
 
-                return await PipExecutor.PostProcessExecution(
+                return await PipExecutor.PostProcessExecutionAsync(
                     operationContext: runnablePip.OperationContext,
                     environment: runnablePip.Environment,
                     state: pipScope,

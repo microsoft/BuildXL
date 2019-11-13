@@ -52,6 +52,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> DebugGraphFingerprintSalt = CreateSetting("BUILDXL_GRAPH_FINGERPRINT_SALT", value => ProcessFingerprintSalt(value));
 
         /// <summary>
+        /// Path pointing to VM command proxy needed for build in VM feature.
+        /// </summary>
+        public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
+
+        /// <summary>
         /// Bypass NuGet up to date checks
         /// </summary>
         public static readonly Setting<bool> BypassNugetDownload = CreateSetting("BuildXLBypassNugetDownload", value => value == "1");
@@ -105,13 +110,19 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int?> HistoricMetadataCacheDefaultTimeToLive = CreateSetting("HistoricMetadataCacheDefaultTimeToLive", value => ParseInt32(value));
 
         /// <summary>
+        /// Specifies whether extraneous pins should be skipped such as pins before OpenStream/PutStream calls. Current pin is required before OpenStream/PlaceFile
+        /// for certain cache implementations (i.e. BasicFileSystemCache). This setting is used to disable this behavior in most cases where not applicable
+        /// until all cache implementations remove the need to pin before content retrieval operations.
+        /// </summary>
+        public static readonly Setting<bool> SkipExtraneousPins = CreateSetting("BuildXLSkipExtraneousPins", value => value == "1");
+
+        /// <summary>
         /// Allows to overwrite the current system username with a custom value. If present, Aria telemetry and BuildXL.Native.UserUtilities 
         /// will return this value. Often lab build machines are setup / provisioned with the same system username (e.g. in Apex builds) so we allow
         /// for this to be settable from the outside, thus partners can provide more fine grained telemetry data.
         /// </summary>
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
         public static readonly Setting<string> BuildXLUserName = CreateSetting("BUILDXL_USERNAME", value => value);
-
 
         #region Distribution-related timeouts
 
@@ -134,6 +145,11 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static readonly Setting<TimeSpan> DistributionInactiveTimeout = CreateSetting("BuildXLDistribInactiveTimeoutMin", value => ParseTimeSpan(value, ts => TimeSpan.FromMinutes(ts)) ??
             TimeSpan.FromMinutes(30));
+
+        /// <summary>
+        /// The maximum number of workers allowed to attach concurrently
+        /// </summary>
+        public static readonly Setting<int> MaxConcurrentWorkersAttachLimit = CreateSetting("BuildXLMaxConcurrentWorkersAttachLimit", value => ParseInt32(value) ?? 10);
 
         /// <summary>
         /// The number of threads in the grpc thread pool.
@@ -172,6 +188,11 @@ namespace BuildXL.Utilities.Configuration
             value => ParseInt32(value) ?? Environment.ProcessorCount * 2);
 
         #endregion
+
+        /// <summary>
+        /// Enables runtime cache miss analyzer perform for all pips.
+        /// </summary>
+        public static readonly Setting<bool> RuntimeCacheMissAllPips = CreateSetting("BuildXLRuntimeCacheMissAllPips", value => value == "1");
 
         /// <summary>
         /// Sets the variable for consumption by settings
@@ -413,6 +434,23 @@ namespace BuildXL.Utilities.Configuration
                         m_value = Optional<T>.Invalid;
                         m_stringValue = Optional<string>.Invalid;
                     }
+                }
+            }
+
+            /// <summary>
+            /// Attempts to set the setting if not value is currently specified
+            /// </summary>
+            public bool TrySet(T value)
+            {
+                if (!string.IsNullOrEmpty(StringValue) || isExplicitlySet)
+                {
+                    // Can't set it already has an explicitly set value
+                    return false;
+                }
+                else
+                {
+                    Value = value;
+                    return true;
                 }
             }
 

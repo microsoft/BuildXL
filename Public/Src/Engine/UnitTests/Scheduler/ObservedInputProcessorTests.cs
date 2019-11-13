@@ -640,6 +640,10 @@ namespace Test.BuildXL.Scheduler
             {
                 private readonly Harness m_harness;
 
+                public CacheConfiguration Configuration { get; } = new CacheConfiguration();
+
+                ICacheConfiguration IObservedInputProcessingEnvironment.Configuration => Configuration;
+
                 public Environment(Harness harness)
                 {
                     m_harness = harness;
@@ -1129,7 +1133,7 @@ namespace Test.BuildXL.Scheduler
                 context.PathTable,
                 AbsolutePath.Create(context.PathTable, Path.Combine(TestOutputDirectory, "config.dc")));
 
-            DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(LoggingContext, context, config, sandboxedKextConnection: GetSandboxedKextConnection());
+            DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(LoggingContext, context, config, sandboxConnection: GetSandboxConnection());
             DirectoryMembershipFingerprinter fingerprinter = new DirectoryMembershipFingerprinter(LoggingContext, context);
 
             DirectoryMembershipFingerprinterRule excludeFiles =
@@ -1139,7 +1143,7 @@ namespace Test.BuildXL.Scheduler
                     disableFilesystemEnumeration: true,
                     fileIgnoreWildcards: new string[] { });
 
-            ModuleId testModule = new ModuleId(2, "test");
+            ModuleId testModule = ModuleId.UnsafeCreate(2, "test");
             ModuleConfiguration moduleConfig = new ModuleConfiguration { ModuleId = testModule };
 
             DirectoryMembershipFingerprinterRuleSet parentRuleSet = new DirectoryMembershipFingerprinterRuleSet(
@@ -1198,7 +1202,7 @@ namespace Test.BuildXL.Scheduler
                 preserveOutputsSalt: ContentHashingUtilities.CreateRandom(),
                 fileContentManager: new FileContentManager(dummy, new NullOperationTracker()),
                 directoryMembershipFinterprinterRuleSet: parentRuleSet);
-            PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, allowPreserveOutputs: false);
+            PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);
             DirectoryMembershipFingerprinterRule rule;

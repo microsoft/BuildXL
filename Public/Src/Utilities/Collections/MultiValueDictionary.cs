@@ -60,8 +60,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(TKey key, TValue value)
         {
-            List<TValue> multiValues;
-            if (!m_backingDictionary.TryGetValue(key, out multiValues))
+            if (!m_backingDictionary.TryGetValue(key, out List<TValue> multiValues))
             {
                 multiValues = new List<TValue>();
                 m_backingDictionary.Add(key, multiValues);
@@ -75,8 +74,7 @@ namespace BuildXL.Utilities.Collections
         /// </summary>
         public void Add(TKey key, params TValue[] values)
         {
-            List<TValue> multiValues;
-            if (!m_backingDictionary.TryGetValue(key, out multiValues))
+            if (!m_backingDictionary.TryGetValue(key, out List<TValue> multiValues))
             {
                 multiValues = new List<TValue>();
                 m_backingDictionary.Add(key, multiValues);
@@ -130,8 +128,7 @@ namespace BuildXL.Utilities.Collections
         /// <inheritdoc />
         public bool TryGetValue(TKey key, out IReadOnlyList<TValue> multiValues)
         {
-            List<TValue> mutableMultiValues;
-            if (m_backingDictionary.TryGetValue(key, out mutableMultiValues))
+            if (m_backingDictionary.TryGetValue(key, out List<TValue> mutableMultiValues))
             {
                 multiValues = mutableMultiValues;
                 return true;

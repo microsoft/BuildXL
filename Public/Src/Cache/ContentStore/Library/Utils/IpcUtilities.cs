@@ -140,7 +140,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         [DllImport("kernel32", EntryPoint = "OpenEventW", SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
 
-        private static ConstructorInfo EventWaitHandleConstructor = typeof(EventWaitHandle).GetConstructor(
+        private static readonly ConstructorInfo EventWaitHandleConstructor = typeof(EventWaitHandle).GetConstructor(
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
             new[] { typeof(SafeWaitHandle) },
@@ -154,21 +154,24 @@ namespace BuildXL.Cache.ContentStore.Utils
             //
             // When we create this handle, we grant only Synchronize, which is why here we have
             // to work around this issue by directly p-invoking OpenEvent from kernel32.dll.
-#if FEATURE_CORECLR
+#if NET_FRAMEWORK
+            return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
+#else
             handle = null;
             SafeWaitHandle myHandle = OpenEvent((uint)EventWaitHandleRights.Synchronize, false, name);
             if (myHandle.IsInvalid)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 if (errorCode == ERROR_FILE_NOT_FOUND || errorCode == ERROR_PATH_NOT_FOUND)
+                {
                     return false;
+                }
+
                 throw Marshal.GetExceptionForHR(Marshal.GetHRForLastWin32Error());
             }
 
             handle = (EventWaitHandle) EventWaitHandleConstructor.Invoke(new[] { myHandle });
             return true;
-#else
-            return EventWaitHandle.TryOpenExisting(name, EventWaitHandleRights.Synchronize, out handle);
 #endif
         }
 

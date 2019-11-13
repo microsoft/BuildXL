@@ -4,10 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips;
 using BuildXL.Utilities;
+using JetBrains.Annotations;
 using VSCode.DebugProtocol;
 
 #pragma warning disable SA1649 // File name must match first type name
@@ -41,17 +43,31 @@ namespace BuildXL.FrontEnd.Script.Debugger
 
         /// <nodoc />
         public Property(string name, object value, CompletionItemType kind = CompletionItemType.property)
+            : this(name, Preload(Lazy.Create(() => value)), kind) { }
+
+        /// <nodoc />
+        public Property(string name, Func<object> factory, CompletionItemType kind = CompletionItemType.property)
+            : this(name, Lazy.Create(factory), kind) { }
+
+        /// <nodoc />
+        public Property(string name, Lazy<object> lazyValue, CompletionItemType kind = CompletionItemType.property)
         {
             Name = name;
-            m_valueAsLazy = value as Lazy<object> ?? Lazy.Create(() => value);
+            m_valueAsLazy = lazyValue;
             Kind = kind;
+        }
+
+        private static Lazy<T> Preload<T>(Lazy<T> lazy)
+        {
+            Analysis.IgnoreResult(lazy.Value, "intentionally precomputing lazy value");
+            return lazy;
         }
     }
 
     /// <summary>
     ///     Contains some basic object meta-information suitable for lazy rendering in a tree viewer.
     /// </summary>
-    internal sealed class ObjectInfo
+    public sealed class ObjectInfo
     {
         private readonly Lazy<IReadOnlyList<Property>> m_lazyProperties;
 
@@ -62,24 +78,50 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public object Original { get; }
 
         /// <summary>List of properties (as name-value pairs, <see cref="Property"/>)</summary>
-        public IReadOnlyList<Property> Properties => m_lazyProperties.Value;
+        public IEnumerable<Property> Properties => m_lazyProperties.Value;
+
+        /// <summary>Whether this object has any properties</summary>
+        public bool HasAnyProperties { get; }
 
         /// <nodoc />
         public ObjectInfo(string preview, object original)
-            : this(preview, original, Lazy.Create<IReadOnlyList<Property>>(() => Property.Empty)) { }
+            : this(preview, original, null) { }
 
         /// <nodoc />
-        public ObjectInfo(string preview = "", IReadOnlyList<Property> properties = null)
-            : this(preview, null, Lazy.Create(() => properties ?? Property.Empty)) { }
+        public ObjectInfo(string preview)
+            : this(preview, null, null) { }
 
         /// <nodoc />
-        public ObjectInfo(string preview, object original, Lazy<IReadOnlyList<Property>> properties)
+        public ObjectInfo([CanBeNull] IEnumerable<Property> properties)
+            : this("", properties) { }
+
+        /// <nodoc />
+        public ObjectInfo(string preview, [CanBeNull] IEnumerable<Property> properties)
+            : this(preview, null, properties == null ? null : new Lazy<IReadOnlyList<Property>>(() => properties.ToList())) { }
+
+        /// <nodoc />
+        public ObjectInfo(string preview, [CanBeNull] Lazy<Property[]> properties)
+            : this(preview, null, properties == null ? null : new Lazy<IReadOnlyList<Property>>(() => properties.Value)) { }
+
+        /// <nodoc />
+        public ObjectInfo(Lazy<Property[]> properties)
+            : this("", properties) { }
+
+        /// <nodoc />
+        public ObjectInfo([CanBeNull] Lazy<IEnumerable<Property>> properties)
+            : this("", properties) { }
+
+        /// <nodoc />
+        public ObjectInfo(string preview, [CanBeNull] Lazy<IEnumerable<Property>> properties)
+            : this(preview, null, properties == null ? null : new Lazy<IReadOnlyList<Property>>(() => properties.Value.ToList())) { }
+
+        /// <nodoc />
+        public ObjectInfo(string preview, object original, [CanBeNull] Lazy<IReadOnlyList<Property>> properties)
         {
-            Contract.Requires(properties != null);
-
-            Preview = preview;
+            Preview = string.IsNullOrWhiteSpace(preview) ? "{object}" : preview;
             Original = original;
-            m_lazyProperties = properties;
+            HasAnyProperties = properties != null;
+            m_lazyProperties = properties ?? Lazy.Create<IReadOnlyList<Property>>(() => Property.Empty);
         }
 
         /// <nodoc />
@@ -101,15 +143,16 @@ namespace BuildXL.FrontEnd.Script.Debugger
     /// An ObjectContext represents a compound object. Compound objects are scopes on their own,
     /// because their properties are rendered as variables too, but are not associated with stack frame.
     /// </summary>
-    internal sealed class ObjectContext
+    public sealed class ObjectContext
     {
         /// <summary>The context is needed only for "to string" conversion.</summary>
-        public Context Context { get; }
+        public object Context { get; }
 
         /// <summary>Parent object whose properties are to be rendered.</summary>
         public object Object { get; }
 
-        public ObjectContext(Context context, object obj)
+        /// <nodoc />
+        public ObjectContext(object context, object obj)
         {
             Contract.Requires(context != null);
 
@@ -121,6 +164,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
     // ===============================================================================
     // == Some special scope objects used as "object" in ObjectContext
     // ===============================================================================
+
     internal sealed class ScopeLocals
     {
         internal EvaluationState EvalState { get; }
@@ -144,11 +188,14 @@ namespace BuildXL.FrontEnd.Script.Debugger
         }
     }
 
-    internal sealed class ScopePipGraph
+    /// <nodoc />
+    public sealed class ScopePipGraph
     {
-        internal IPipGraph Graph { get; }
+        /// <nodoc />
+        public IPipGraph Graph { get; }
 
-        internal ScopePipGraph(IPipGraph graph)
+        /// <nodoc />
+        public ScopePipGraph(IPipGraph graph)
         {
             Graph = graph;
         }

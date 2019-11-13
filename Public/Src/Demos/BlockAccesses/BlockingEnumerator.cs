@@ -62,7 +62,7 @@ namespace BuildXL.Demo
                 WorkingDirectory = directoryToEnumerateAsString,
                 PipSemiStableHash = 0,
                 PipDescription = "EnumerateWithBlockedDirectories",
-                SandboxedKextConnection = OperatingSystemHelper.IsUnixOS ? new KextConnection() : null
+                SandboxConnection = OperatingSystemHelper.IsUnixOS ? new SandboxConnectionKext() : null
             };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

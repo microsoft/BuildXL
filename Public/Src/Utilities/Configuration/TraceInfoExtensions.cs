@@ -17,5 +17,10 @@ namespace BuildXL.Utilities.Configuration
         /// The argument to specify the queue name in CB.
         /// </summary>
         public const string CloudBuildQueue = "CloudBuildQueue";
+
+        /// <summary>
+        /// The argument to specify the AB Testing.
+        /// </summary>
+        public const string ABTesting = "ABTesting";
     }
 }

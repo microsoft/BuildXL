@@ -30,6 +30,7 @@ namespace Cache {
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,

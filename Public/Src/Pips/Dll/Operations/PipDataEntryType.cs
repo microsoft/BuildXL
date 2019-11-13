@@ -34,6 +34,11 @@ namespace BuildXL.Pips.Operations
         AbsolutePath,
 
         /// <summary>
+        /// The partial seal id portion of a directory artifact
+        /// </summary>
+        DirectoryIdHeaderSealId,
+
+        /// <summary>
         /// First entry of a <see cref="PipFragmentType.VsoHash"/> fragment which holds the
         /// <see cref="BuildXL.Utilities.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
         /// be followed by an entry of type <see cref="PipDataEntryType.VsoHashEntry2RewriteCount"/>.
@@ -51,6 +56,25 @@ namespace BuildXL.Pips.Operations
         /// Data is <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/>.
         /// </remarks>
         VsoHashEntry2RewriteCount,
+
+        /// <summary>
+        /// First entry of a <see cref="PipFragmentType.FileId"/> fragment which holds the
+        /// <see cref="BuildXL.Utilities.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
+        /// be followed by an entry of type <see cref="PipDataEntryType.FileId2RewriteCount"/>.
+        /// </summary>
+        /// <remarks>
+        /// Data is <see cref="BuildXL.Utilities.AbsolutePath.RawValue"/>.
+        /// </remarks>
+        FileId1Path,
+
+        /// <summary>
+        /// Second entry of a <see cref="PipFragmentType.FileId"/> fragment which holds the
+        /// <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/> value of the corresponding FileArtifact.
+        /// </summary>
+        /// <remarks>
+        /// Data is <see cref="BuildXL.Utilities.FileArtifact.RewriteCount"/>.
+        /// </remarks>
+        FileId2RewriteCount,
 
         /// <summary>
         /// IPC moniker.

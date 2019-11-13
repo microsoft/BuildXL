@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Text;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 
 namespace BuildXL.Pips.Operations
@@ -29,34 +30,36 @@ namespace BuildXL.Pips.Operations
         // to a length equal to max path with quotes.This works around the issue where two builds from different roots may
         // vary in their usage of response files because one may go over the max command line length and the other may not.
         private const int MaxPathStringLength = 260;
-        private static readonly string MaxPathString = @"c:\max ".PadRight(MaxPathStringLength, 'p');
-        private static readonly Func<AbsolutePath, string> MaxPathExpander = _ => MaxPathString;
+        private static readonly string s_maxPathString = @"c:\max ".PadRight(MaxPathStringLength, 'p');
+        private static readonly Func<AbsolutePath, string> s_maxPathExpander = _ => s_maxPathString;
 
         // Assumed max length of a rendered IPC moniker.
-        private static readonly string LongestIpcMoniker = "0".PadRight(PipFragmentRenderer.MaxIpcMonikerLength);
+        private static readonly string s_longestIpcMoniker = "0".PadRight(PipFragmentRenderer.MaxIpcMonikerLength);
 
         /// <nodoc/>
-        public static readonly Func<string, string> MaxMonikerRenderer = _ => LongestIpcMoniker;
+        public static readonly Func<string, string> MaxMonikerRenderer = _ => s_longestIpcMoniker;
+
+        // Assumed max length of a rendered VSO hash.
+        private static readonly FileContentInfo s_longestContentHash = new FileContentInfo(ContentHashingUtilities.ZeroHash, FileContentInfo.LengthAndExistence.MaxSupportedLength);
 
         /// <summary>
         /// Gets the default invalid pip data
         /// </summary>
-        public static readonly PipData Invalid = default(PipData);
+        public static readonly PipData Invalid = default;
 
         /// <summary>
-        /// The associated pointer into StringTable for <see cref="Entries"/>. For use during (de)serailization.
+        /// Pointer to binary representation (underlying bytes) of <see cref="Entries"/> that is stored in the <see cref="StringTable"/>.
         /// </summary>
         /// <remarks>
-        /// This is serialized in place of Entries (if specified) because the underlying serialized bytes for the entries
-        /// exist in the string table.
-        /// This MAY be Invalid when PipData is created in a context without a StringTable.
+        /// Instead of serializing <see cref="Entries"/>, this pointer can be serialized. Thus, we essentially dedupe <see cref="Entries"/>.
+        /// This can be Invalid when PipData is created in a context without a StringTable.
         /// </remarks>
-        private readonly StringId m_entriesStringId;
+        private readonly StringId m_entriesBinarySegmentPointer;
 
         internal readonly PipDataEntry HeaderEntry;
         internal readonly PipDataEntryList Entries;
 
-        private PipData(PipDataEntry entry, PipDataEntryList entries, StringId entriesStringId)
+        private PipData(PipDataEntry entry, PipDataEntryList entries, StringId entriesBinarySegmentPointer)
         {
             Contract.Requires(entry.EntryType == PipDataEntryType.NestedDataHeader);
             Contract.Requires(entry.Escaping != PipDataFragmentEscaping.Invalid);
@@ -64,7 +67,7 @@ namespace BuildXL.Pips.Operations
 
             HeaderEntry = entry;
             Entries = entries;
-            m_entriesStringId = entriesStringId;
+            m_entriesBinarySegmentPointer = entriesBinarySegmentPointer;
         }
 
         #region Serialization
@@ -72,8 +75,8 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(writer != null);
 
-            writer.WritePipDataId(m_entriesStringId);
-            if (m_entriesStringId.IsValid)
+            writer.WritePipDataEntriesPointer(m_entriesBinarySegmentPointer);
+            if (m_entriesBinarySegmentPointer.IsValid)
             {
                 HeaderEntry.Serialize(writer);
             }
@@ -94,15 +97,15 @@ namespace BuildXL.Pips.Operations
         internal static PipData Deserialize(PipReader reader)
         {
             Contract.Requires(reader != null);
-            var entriesStringId = reader.ReadPipDataId();
+            var entriesBinarySegmentPointer = reader.ReadPipDataEntriesPointer();
             PipDataEntry headerEntry;
             PipDataEntryList entries;
-            if (entriesStringId.IsValid)
+            if (entriesBinarySegmentPointer.IsValid)
             {
                 headerEntry = PipDataEntry.Deserialize(reader);
 
                 // Use the string table to get the raw bytes to back the entries
-                entries = new PipDataEntryList(reader.StringTable.GetBytes(entriesStringId));
+                entries = new PipDataEntryList(reader.StringTable.GetBytes(entriesBinarySegmentPointer));
             }
             else
             {
@@ -124,7 +127,7 @@ namespace BuildXL.Pips.Operations
 
             Contract.Assume(headerEntry.EntryType == PipDataEntryType.NestedDataHeader);
             Contract.Assume(headerEntry.Escaping != PipDataFragmentEscaping.Invalid);
-            return new PipData(headerEntry, entries, entriesStringId);
+            return new PipData(headerEntry, entries, entriesBinarySegmentPointer);
         }
         #endregion
 
@@ -159,12 +162,12 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Creates a PipData instance.
         /// </summary>
-        internal static PipData CreateInternal(PipDataEntry entry, PipDataEntryList entries, StringId entriesStringId)
+        internal static PipData CreateInternal(PipDataEntry entry, PipDataEntryList entries, StringId entriesBinarySegmentPointer)
         {
             Contract.Requires(entry.EntryType == PipDataEntryType.NestedDataHeader);
             Contract.Requires(entry.GetStringValue().IsValid);
 
-            return new PipData(entry, entries, entriesStringId);
+            return new PipData(entry, entries, entriesBinarySegmentPointer);
         }
 
         /// <summary>
@@ -178,7 +181,7 @@ namespace BuildXL.Pips.Operations
             return CreateInternal(
                 new PipDataEntry(fragmentEscaping, PipDataEntryType.NestedDataHeader, fragmentSeparator.Value),
                 Entries,
-                m_entriesStringId);
+                m_entriesBinarySegmentPointer);
         }
 
         /// <summary>
@@ -225,12 +228,16 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(stringTable != null);
 
-            var renderer = new PipFragmentRenderer(MaxPathExpander, stringTable, MaxMonikerRenderer);
+            var renderer = new PipFragmentRenderer(
+                s_maxPathExpander,
+                stringTable,
+                MaxMonikerRenderer,
+                hashLookup: _ => s_longestContentHash);
             int computedLength = GetMaxLength(this, renderer);
 
 #if DEBUG
             // Expensive check on in DEBUG builds: costs 6% percent of entire runtime
-            string actualValue = ToString(MaxPathExpander, stringTable, MaxMonikerRenderer);
+            string actualValue = ToString(renderer);
             Contract.Assert(computedLength == actualValue.Length);
 #endif
 
@@ -435,13 +442,22 @@ namespace BuildXL.Pips.Operations
                                 canContinue = true;
                                 break;
                             case PipDataEntryType.VsoHashEntry1Path:
+                            case PipDataEntryType.FileId1Path:
                                 Contract.Assert(m_currentIndex + 1 < m_pipData.Entries.Count);
-                                Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.VsoHashEntry2RewriteCount);
+                                Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.VsoHashEntry2RewriteCount
+                                    || m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.FileId2RewriteCount);
+                                m_currentIndex += 2;
+                                canContinue = true;
+                                break;
+                            case PipDataEntryType.DirectoryIdHeaderSealId:
+                                Contract.Assert(m_currentIndex + 1 < m_pipData.Entries.Count);
+                                Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.AbsolutePath);
                                 m_currentIndex += 2;
                                 canContinue = true;
                                 break;
                             case PipDataEntryType.VsoHashEntry2RewriteCount:
-                                Contract.Assume(false, "should never encounter part 2 of VsoHash fragment");
+                            case PipDataEntryType.FileId2RewriteCount:
+                                Contract.Assume(false, "should never encounter part 2 of VsoHash or FileId fragment");
                                 break;
                             case PipDataEntryType.IpcMoniker:
                                 m_currentIndex++;

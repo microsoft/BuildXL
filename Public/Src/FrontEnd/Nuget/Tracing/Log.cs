@@ -289,7 +289,7 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.NugetDependencyVersionDoesNotMatch,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
             Message = "NuGet package 'nuget://{packageRequestorId}/{packageRequestorVersion}' requested dependency 'nuget://{packageDependencyId}/{requestedVersion}', but found version '{pickedVersion}' specified in the configuration file. The found version was selected anyway.",
             Keywords = (int)Keywords.UserMessage)]
@@ -348,6 +348,15 @@ namespace BuildXL.FrontEnd.Nuget.Tracing
             EventTask = (ushort)Tasks.Parser,
             Message = "Nuget failed to to generate result from downloaded package '{package}': {message}")]
         public abstract void NugetFailedGenerationResultFromDownloadedPackage(LoggingContext context, string package, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.NugetFailedToWriteGeneratedSpecStateFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Parser,
+            Message = "Nuget resolver failed to write generated spec state file. Spec will be regenerated on future invocations: {message}")]
+        public abstract void NugetFailedToWriteGeneratedSpecStateFile(LoggingContext context, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.NugetConcurrencyLevel,

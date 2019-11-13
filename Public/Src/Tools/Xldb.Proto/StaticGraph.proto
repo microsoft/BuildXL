@@ -1,0 +1,201 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+syntax = "proto3";
+
+import "HelperStructs.proto";
+
+// Import Enums
+import "Enums/GraphMetaData.proto";
+import "Enums/PipType.proto";
+import "Enums/ProducerConsumerType.proto";
+import "Enums/SemanticPathFlags.proto";
+
+package BuildXL.Xldb.Proto;
+
+option csharp_namespace = "BuildXL.Xldb.Proto";
+
+//
+//  Generic Static Graph Info (key, etc)
+//
+
+// GraphMetadataKey is the key for the top level data structures stored in the cached graph such as the CachedGraph, or the MountPathExpander
+message GraphMetadataKey{
+    // GraphMetaData type
+    GraphMetaData Type = 1;  
+}
+
+// Pip Query is 2 levels deep. SemistableHash -> PipId -> PipValues
+// For the pips with SemiStableHash = 0, we will only have PipId -> Values
+message PipSemistableHashKey{
+    // Primary key, unique except for the pips that have a SemiStableHash = 0
+    int64 SemiStableHash = 1;
+}
+
+message PipIdKey{
+    // Always unique within a build (makes the key unique), and same as the node id in graph
+    uint32 PipId = 1;
+
+    // We include the PipType in the key to know which type of pip is stored in the value
+    // and how to appropriately parse it (since Protobuf has no inheritance)
+    PipType PipType = 2;
+}
+
+// Generic Key to get either a producer or a consumer of a file
+message FileProducerConsumerKey{
+    // The type, Producer OR Consumer
+    ProducerConsumerType Type = 1;
+
+    // The fully rooted file path
+    string FilePath = 2;
+
+    // The rewrite count of this path (if known)
+    int32 RewriteCount = 3;
+}
+
+// Value for the producer of a file
+message FileProducerValue{
+    // The id of the pip that produced this file
+    uint32 PipId = 1;
+}
+
+// Value for consumers of a file
+message FileConsumerValue{
+    // List of Pip IDs that consumed this file
+    repeated uint32 PipIds = 1;
+}
+
+// Generic Key to get either a producer or a consumer of a directory 
+message DirectoryProducerConsumerKey{
+    // The type, Producer OR Consumer
+    ProducerConsumerType Type = 1;
+
+    // The fully rooted directory path
+    string DirectoryPath = 2;
+}
+
+// Value for the producer of a directory
+message DirectoryProducerValue{
+     // The id of the pip that produced this directory
+    uint32 PipId = 1;
+}
+
+// Value for the consumers of a directory
+message DirectoryConsumerValue{
+     // List of Pip IDs that consumed this directory
+    repeated uint32 PipIds = 1;
+}
+
+//
+//  Map Messages -> Protobuf does not allow for float, double, bytes, or message types to be 
+//  used as keys for maps, so the alternative is to make a "primitive" map type message as follows:
+//  
+//  message primitiveMap{ key; value; }
+//  message wraper { repeated primitiveMap; }
+//
+
+// Primitive map that contains the DirectoryArtifact as the key, and the PipId as the value
+message DirectoryArtifactMap{
+    DirectoryArtifact Artifact = 1;
+
+    uint32 PipId = 2;
+}
+
+//
+//  Graph Data
+//
+
+// Pip Graph metadata message
+message PipGraph{
+    // Unique identifier for a graph, established at creation time. This ID is durable under serialization and deserialization.
+    string GraphId = 1;
+
+    // Gets the fingerprint used for looking up performance data.
+    // This is calculated by taking the first N process semistable hashes after sorting.
+    // This provides a stable fingerprint because it is unlikely that modifications to this pip graph
+    // will change those semistable hashes. Further, it is unlikely that pip graphs of different codebases
+    // will share these values.
+    ContentFingerprint SemistableFingerprint = 2;
+
+    // Gets the range of node IDs valid in the current graph.
+    int32 NodeCount = 3;
+
+    // The maximum index of serialized absolute paths.
+    int32 MaxAbsolutePathIndex = 4;
+
+    // Gets all seal directories and their producers
+    repeated DirectoryArtifactMap AllSealDirectoriesAndProducers = 5;
+
+    // Gets the number of known files for the build
+    int32 FileCount = 6;
+
+    // Gets the number of declared content (file or sealed directories or service pips) for the build
+    int32 ContentCount = 7;
+
+    // Gets the number of declared content (file or sealed directories) for the build
+    int32 ArtifactContentCount = 8;
+
+    // Mapping from module id to module nodes.
+    map<string, uint32> Modules = 9;
+
+    // String id corresponding to the BuildXL.Ipc.Interfaces.IIpcMoniker.Id property of the moniker used by the
+    // BuildXL API server. Empty string indicates that no BuildXL API operation has been requested.
+    string ApiServerMoniker = 10;
+
+    // All PipId values issued so far.
+    repeated uint32 StableKeys = 11;
+}
+
+// MountPathExpander data message
+message MountPathExpander{
+    // List of all writeable roots
+    repeated AbsolutePath WriteableRoots = 1;
+
+    // List of all paths where directories were allowed to be created
+    repeated AbsolutePath PathsWithAllowedCreateDirectory = 2;
+
+    // List of roots that are scrubbable
+    repeated AbsolutePath ScrubbableRoots = 3;
+
+    // List of all rots 
+    repeated AbsolutePath AllRoots = 4;
+
+    // Map of all mount names to their SemanticPathInfo object
+    map<string, SemanticPathInfo> MountsByName = 5;
+}
+
+// SemanticPathInfo message
+message SemanticPathInfo{
+    // The semantic root path
+    AbsolutePath Root = 1;
+
+    // The semantic root name
+    string RootName = 2;
+
+    // Gets whether the semantic path info is valid.
+    bool IsValid = 3;
+
+    // Gets whether the path is hashable
+    bool AllowHashing = 4;
+
+    // Gets whether the path is readable
+    bool IsReadable = 5;
+
+    // Gets whether the path is writable
+    bool IsWriteable = 6;
+
+    // Gets whether CreateDirectory is allowed at the path
+    bool AllowCreateDirectory = 7;
+
+    // Gets whether the path is a system location
+    bool IsSystem = 8;
+
+    // Gets whether the path is a location that can be scrubbed
+    bool IsScrubbable = 9;
+
+    // Gets whether the path has potential build outputs
+    bool HasPotentialBuildOutputs = 10;
+
+    // The semantic flags describing behavior for the path
+    SemanticPathFlags Flags = 11;
+}

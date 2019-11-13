@@ -3,3 +3,4 @@ The code under Src/IDE/VsCode/DebugAdapter was adapted from https://github.com/M
 The code under third_party/darwin/ was adapted from https://github.com/apple/darwin-xnu/tree/master/security
 The code under third_party/liblfds711@da3494fef10df4681e267d8b2b8cce2c90d5a9fa was adapted from https://github.com/liblfds/liblfds7.1.1
 The code under third_party/mono@abad3612068e7333956106e7be02d9ce9e346f92 was adapted from https://github.com/mono/mono
+Some of the JPath*.cs files in Public/Src/Tools/Execution.Analyzer/Analyzers.Core/XlgDebugger/JPath/JPathVisitor.cs were generated using Antlr 4.7.2 (https://www.antlr.org/download/antlr-4.7.2-complete.jar)

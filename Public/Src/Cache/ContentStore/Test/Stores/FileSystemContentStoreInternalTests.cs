@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +11,6 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
@@ -146,14 +144,14 @@ namespace ContentStoreTest.Stores
             {
                 var context = new Context(Logger);
 
-                var settings = new ContentStoreSettings()
+                var settings = new SelfCheckSettings()
                                {
-                                   SelfCheckInvalidFilesLimit = 1,
+                                   InvalidFilesLimit = 1,
                                    // If SelfCheckEnabled is false then self check is not run within startup.
                                    StartSelfCheckInStartup = false,
                                };
 
-                var store = CreateStore(testDirectory, settings);
+                var store = CreateStore(testDirectory, ContentStoreSettings(settings));
 
                 await store.StartupAsync(context).ShouldBeSuccess();
 
@@ -199,12 +197,12 @@ namespace ContentStoreTest.Stores
             {
                 var context = new Context(Logger);
 
-                var settings = new ContentStoreSettings() { SelfCheckEpoch = "E1", StartSelfCheckInStartup = false};
+                var settings = new SelfCheckSettings() { Epoch = "E1", StartSelfCheckInStartup = false};
 
                 //
                 // Using store with original settings
                 //
-                var store = CreateStore(testDirectory, settings);
+                var store = CreateStore(testDirectory, ContentStoreSettings(settings));
 
                 await store.StartupAsync(context).ShouldBeSuccess();
                 var result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
@@ -220,8 +218,8 @@ namespace ContentStoreTest.Stores
                 //
 
                 // Disable self check won't run within startup
-                settings = new ContentStoreSettings() { SelfCheckEpoch = "E2", StartSelfCheckInStartup = false };
-                store = CreateStore(testDirectory, settings);
+                settings = new SelfCheckSettings() { Epoch = "E2", StartSelfCheckInStartup = false };
+                store = CreateStore(testDirectory, ContentStoreSettings(settings));
 
                 await store.StartupAsync(context).ShouldBeSuccess();
                 result = await store.SelfCheckContentDirectoryAsync(context, CancellationToken.None).ShouldBeSuccess();
@@ -251,7 +249,9 @@ namespace ContentStoreTest.Stores
             reparsedState2.Value.Should().Be(state2);
         }
 
-        private static ContentStoreSettings Settings => new ContentStoreSettings() {StartSelfCheckInStartup = false};
+        private static ContentStoreSettings ContentStoreSettings(SelfCheckSettings settings) => new ContentStoreSettings { SelfCheckSettings = settings };
+        private static ContentStoreSettings Settings =>
+            new ContentStoreSettings() {SelfCheckSettings = new SelfCheckSettings() {StartSelfCheckInStartup = false}};
         
         private static DistributedEvictionSettings WithMockDistributedLocationStore(MockDistributedLocationStore mock)
         {

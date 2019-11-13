@@ -263,6 +263,20 @@ namespace BuildXL.Processes.Tracing
             string path);
 
         [GeneratedEvent(
+            (int)LogEventId.MoreBytesWrittenThanBufferSize,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "More bytes written than the buffer size: {bytesWritten} > {bufferSizeInBytes}. NumAssignedProcess: {numAssignedProcesses}, NumProcessIdsInList: {numProcessIdsInList}.")]
+        public abstract void MoreBytesWrittenThanBufferSize(
+            LoggingContext context,
+            long bytesWritten,
+            long bufferSizeInBytes,
+            long numAssignedProcesses,
+            long numProcessIdsInList);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessIgnoringPathWithWildcardsFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -487,7 +501,7 @@ namespace BuildXL.Processes.Tracing
             (int)LogEventId.PipProcessCommandLineTooLong,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process command line is longer than {3} characters: {2}")]
         public abstract void PipProcessCommandLineTooLong(
@@ -522,7 +536,7 @@ namespace BuildXL.Processes.Tracing
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Unexpected child processes survived: {2} process(es){3}")]
-        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count,  string paths);
+        public abstract void PipProcessChildrenSurvivedError(LoggingContext context, long pipSemiStableHash, string pipDescription, int count, string paths);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessChildrenSurvivedTooMany,
@@ -830,6 +844,35 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "Failed to preserve output directory '{directory}' because '{file}' cannot be made private, contents of the directory will be deleted")]
+        public abstract void PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string directory,
+            string file);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessChangeAffectedInputsWrittenFileCreationFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipSpecPrefix + "File containing change affected inputs could not be prepared, path '{2}', error code {3:X8}: {4}")]
+        public abstract void PipProcessChangeAffectedInputsWrittenFileCreationFailed(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path,
+            int errorCode,
+            string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FailedToMergeOutputsToOriginalLocation,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -971,18 +1014,5 @@ namespace BuildXL.Processes.Tracing
             bool isWinOS,
             bool isContainerEnabled,
             bool existsListener);
-
-        [GeneratedEvent(
-            (int)LogEventId.TranslatePathInGlobalUnsafeUntrackedScopes,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "{path} in GlobalUnsafeUntrackedScopes get translated")]
-        public abstract void TranslatePathInGlobalUnsafeUntrackedScopes(
-            LoggingContext context,
-            long pipSemiStableHash,
-            string pipDescription,
-            string path);
     }
 }

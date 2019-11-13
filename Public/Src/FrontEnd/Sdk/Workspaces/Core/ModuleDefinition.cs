@@ -169,9 +169,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             Contract.Requires(allSpecs != null);
 
             var descriptorName = Names.ConfigModuleName;
-            var id = StringId.Create(pathTable.StringTable, descriptorName);
             var mdsc = new ModuleDescriptor(
-                id: new ModuleId(id.Value, friendlyNameForDebugging: descriptorName),
+                id: ModuleId.Create(pathTable.StringTable, descriptorName),
                 name: descriptorName,
                 displayName: descriptorName,
                 version: "0.0",

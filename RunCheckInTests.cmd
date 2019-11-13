@@ -17,7 +17,7 @@ set MINIMAL_LAB=0
 REM These are provided to bxl.cmd only when /lab is specified (automated builds).
 REM For lab builds, log full outputs.
 REM For lab builds, retry unit tests automatically.
-set LAB_SPECIFIC_ARGS=/logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3
+set LAB_SPECIFIC_ARGS=-DisableInteractive /logOutput:FullOutputOnError /p:RetryXunitTests=1 /processRetries:3 /ado
 set INTERNAL_BUILD_ARGS=/p:[Sdk.BuildXL]microsoftInternal=1
 
 if not defined [BuildXL.Branding]SemanticVersion (
@@ -72,7 +72,7 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
 set start=%time%
 set stepName=Building 'debug\net472' and 'debug\win-x64' using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole-
+    call :RunBxl -Use LKG -Deploy RunCheckinTests /q:DebugNet472 /q:DebugDotNetCore /f:output='%ENLISTMENTROOT%\Out\Bin\debug\net472\*'oroutput='%ENLISTMENTROOT%\Out\Bin\debug\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\tests\debug\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 
@@ -142,7 +142,7 @@ endlocal && exit /b 0
     call :StatusMessage !stepName!
         echo Running BuildXL on the CoreCLR, preparing a few things...
         robocopy %ENLISTMENTROOT%\Out\Bin\debug\win-x64 %NETCOREROOT% /E /MT:8 /NS /NC /NFL /NDL /NP
-        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph-
+        call :RunBxlCoreClr /p:[Sdk.BuildXL]microsoftInternal=1 /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Collections\*' /c:%ENLISTMENTROOT%\config.dsc /server- /cacheGraph- /logsToRetain:20
         set CORECLR_ERRORLEVEL=%ERRORLEVEL%
         rmdir /s /q %NETCOREROOT%
         if !CORECLR_ERRORLEVEL! NEQ 0 (exit /b 1)
@@ -160,7 +160,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Performing a /cleanonly build
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests /q:DebugNet472 %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /viewer:disable /TraceInfo:RunCheckinTests=CleanOnly
+        call :RunBxl -Use RunCheckinTests /q:DebugNet472 %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
@@ -235,7 +235,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Running SymLink Tests
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /unsafe_IgnoreProducingSymlinks+ /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /viewer:disable /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /unsafe_IgnoreProducingSymlinks+ /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\
         rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
@@ -364,6 +364,8 @@ endlocal && exit /b 0
     REM BUG: 1199393: Temporary have to hack the generated nuspecs since the coreclr run doesn't run under b:
     rmdir /s/q %ENLISTMENTROOT%\Out\frontend\Nuget\specs
     set cmd=%NETCOREROOT%\bxl.exe %*
+    set OLD_NUGET_CREDENTIALPROVIDERS_PATH=%NUGET_CREDENTIALPROVIDERS_PATH%
+    set NUGET_CREDENTIALPROVIDERS_PATH=%ENLISTMENTROOT%\Shared\Tools
     echo %cmd%
     call %cmd%
     if %ERRORLEVEL% NEQ 0 (
@@ -378,6 +380,8 @@ endlocal && exit /b 0
     )
     REM BUG: 1199393: Temporary have to hack the generated nuspecs since the coreclr run doesn't run under b:
     rmdir /s/q %ENLISTMENTROOT%\Out\frontend\Nuget\specs
+    REM Restore credential provider path.
+    set NUGET_CREDENTIALPROVIDERS_PATH=%OLD_NUGET_CREDENTIALPROVIDERS_PATH%
 
     exit /b 0
 

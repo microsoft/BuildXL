@@ -6,25 +6,26 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
-using BuildXL.Engine;
-using BuildXL.Utilities;
+using BuildXL.FrontEnd.Core;
+using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Evaluator;
+using BuildXL.FrontEnd.Script.Tracing;
+using BuildXL.FrontEnd.Sdk;
+using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Core;
-using BuildXL.FrontEnd.Script;
-using BuildXL.FrontEnd.Script.Tracing;
-using BuildXL.FrontEnd.Script.Evaluator;
-using BuildXL.FrontEnd.Sdk;
-using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.ViewModel;
 using Test.BuildXL.EngineTestUtilities;
+using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
-using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.FormattableStringEx;
@@ -144,6 +145,22 @@ namespace Test.BuildXL.Engine
                     }
             };
 
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                // Directory translation is needed here particularly when the test temporary directory
+                // is inside a directory that is actually a junction to another place. 
+                // For example, the temporary directory is D:\src\BuildXL\Out\Object\abc\t_1, but
+                // the path D:\src\BuildXL\Out or D:\src\BuildXL\Out\Object is a junction to K:\Out.
+                // Some tool, like cmd, can access the path in K:\Out, and thus the test will have a DFA
+                // if there's no directory translation.
+                // This problem does not occur when only substs are involved, but no junctions. The method
+                // TryGetSubstSourceAndTarget works to get translations due to substs or junctions.
+                AbsolutePath substSourcePath = AbsolutePath.Create(Context.PathTable, substSource);
+                AbsolutePath substTargetPath = AbsolutePath.Create(Context.PathTable, substTarget);
+                Configuration.Engine.DirectoriesToTranslate.Add(
+                    new TranslateDirectoryData(I($"{substSource}<{substTarget}"), substSourcePath, substTargetPath));
+            }
+
             AbsolutePath Combine(AbsolutePath parent, string name)
             {
                 return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));
@@ -257,7 +274,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
             var successfulValdiation = BuildXLEngine.PopulateAndValidateConfiguration(Configuration, Configuration, Context.PathTable, LoggingContext);
             Assert.True(successfulValdiation);
 
-            var engine = BuildXLEngine.Create(LoggingContext, Context, Configuration, new LambdaBasedFrontEndControllerFactory(Create), rememberAllChangedTrackedInputs: rememberAllChangedTrackedInputs);
+            var engine = BuildXLEngine.Create(LoggingContext, Context, Configuration, new LambdaBasedFrontEndControllerFactory(Create), new BuildViewModel(), rememberAllChangedTrackedInputs: rememberAllChangedTrackedInputs);
 
             engine.TestHooks = TestHooks;
 

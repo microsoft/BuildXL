@@ -226,7 +226,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Starting the loading task for the historic metadata cache
         /// </summary>
-        public void StartLoading(bool waitForCompletion)
+        public override void StartLoading(bool waitForCompletion)
         {
             var loadingTask = EnsureLoadedAsync();
             if (waitForCompletion)
@@ -1021,7 +1021,7 @@ namespace BuildXL.Scheduler.Cache
                 StoreLocation,
                 FormatVersion,
                 additionalKeyTrackedColumns: keyTrackedColumns,
-                failureHandler: (f) => HandleStoreFailure(f),
+                failureHandler: (f) => HandleStoreFailure(f.Failure),
                 onFailureDeleteExistingStoreAndRetry: true);
 
             if (possibleAccessor.Succeeded)

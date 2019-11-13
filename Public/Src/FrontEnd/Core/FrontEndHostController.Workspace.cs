@@ -25,6 +25,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using CancellationToken = System.Threading.CancellationToken;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.FrontEnd.Core
 {
@@ -274,11 +275,11 @@ namespace BuildXL.FrontEnd.Core
                 var filter = new WorkspaceFilter(FrontEndContext.PathTable);
                 WorkspaceDefinition filteredDefinition = filter.ApplyModuleFilter(workspace, modules);
 
-                Logger.WorkspaceDefinitionFilteredBasedOnModuleFilter(LoggingContext, 
-                    workspace.ModuleCount - filteredDefinition.ModuleCount, 
-                    workspace.SpecCount - filteredDefinition.SpecCount, 
-                    workspace.ModuleCount, 
-                    filteredDefinition.ModuleCount, 
+                Logger.WorkspaceDefinitionFilteredBasedOnModuleFilter(LoggingContext,
+                    workspace.ModuleCount - filteredDefinition.ModuleCount,
+                    workspace.SpecCount - filteredDefinition.SpecCount,
+                    workspace.ModuleCount,
+                    filteredDefinition.ModuleCount,
                     sw.ElapsedMilliseconds);
                 return filteredDefinition;
             }
@@ -794,7 +795,7 @@ namespace BuildXL.FrontEnd.Core
             {
                 ReportSyntaxError(error);
             }
-            
+
             // TODO: current design is not good.
             // Consider following: we're getting 10 errors during workspace construction.
             // Next line will print just one error and all other will just sit in memory.
@@ -892,7 +893,7 @@ namespace BuildXL.FrontEnd.Core
         {
             if (
                 // Module filter can be applied without /enableIncrementalFrontEnd+
-                evaluationFilter.ModulesToResolve.Count != 0 || 
+                evaluationFilter.ModulesToResolve.Count != 0 ||
                 (evaluationFilter.CanPerformPartialEvaluationScript(PrimaryConfigFile) && FrontEndConfiguration.EnableIncrementalFrontEnd()))
             {
                 var workspaceFilter = new WorkspaceFilter(FrontEndContext.PathTable);

@@ -20,6 +20,7 @@ import { LogFileLocationNotification } from './notifications/logFileNotification
 import { WorkspaceLoadingNotification } from './notifications/workspaceLoadingNotification';
 import { FindReferenceNotification } from './notifications/findReferenceNotification';
 import { createDominoProjectBrowser } from './ProjectManagement/projectBrowser';
+import * as xlgstatus from './xlg-status';
 
 var languageClient : LanguageClient = undefined;
 var extensionContext : ExtensionContext = undefined;
@@ -33,6 +34,8 @@ const enum ClientType
 }
 
 export function activate(context: ExtensionContext) {
+    xlgstatus.activate(context);
+
     extensionContext = context;
 
     // Check to see if we have extension updates available.
@@ -52,7 +55,7 @@ export function activate(context: ExtensionContext) {
         debug: {
             module: "DScript Language Server",
             transport: TransportKind.pipe,
-            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/net472/win-x64/VsCodeVsix/extension/bin/${exeName}`),
+            runtime: context.asAbsolutePath(`../../../../../Out/objects/tempdeployment/debug/netcoreapp3.0/win-x64/VsCodeVsix/extension/bin/${exeName}`),
         },
     }
     

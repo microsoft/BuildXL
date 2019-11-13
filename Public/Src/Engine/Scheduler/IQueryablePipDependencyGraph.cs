@@ -111,5 +111,12 @@ namespace BuildXL.Scheduler
         /// Returns the seal directory pip that corresponds to the given directory artifact
         /// </summary>
         Pip GetSealedDirectoryPip(DirectoryArtifact directoryArtifact, PipQueryContext queryContext);
+
+        /// <summary>
+        /// Returns whether pip <paramref name="to"/> is reachable from pip <paramref name="from"/> 
+        /// following the data dependency graph.  In other words, if 'PipTo' is reachable from 'PipFrom',
+        /// that ensures that 'PipTo' is always executed after 'PipFrom'.
+        /// </summary>
+        bool IsReachableFrom(PipId from, PipId to);
     }
 }

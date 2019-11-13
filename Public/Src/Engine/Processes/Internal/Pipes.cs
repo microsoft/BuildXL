@@ -108,17 +108,48 @@ namespace BuildXL.Processes.Internal
                 readSideFlags |= FileFlagsAndAttributes.FileFlagOverlapped;
             }
 
-            OpenFileResult openReadSideResult = FileUtilities.TryCreateOrOpenFile(
-                pipeName,
-                FileDesiredAccess.GenericRead,
-                FileShare.None,
-                FileMode.Open,
-                readSideFlags,
-                out readHandle);
+            int maxRetry = 3;
 
-            if (!openReadSideResult.Succeeded)
+            while (true)
             {
-                throw openReadSideResult.CreateExceptionForError();
+                OpenFileResult openReadSideResult = FileUtilities.TryCreateOrOpenFile(
+                    pipeName,
+                    FileDesiredAccess.GenericRead,
+                    FileShare.None,
+                    FileMode.Open,
+                    readSideFlags,
+                    out readHandle);
+
+                if (openReadSideResult.Succeeded)
+                {
+                    break;
+                }
+
+                if (openReadSideResult.NativeErrorCode != NativeIOConstants.ErrorPipeBusy
+                    || maxRetry == 0)
+                {
+                    throw openReadSideResult.CreateExceptionForError();
+                }
+
+                bool success = false;
+
+                // Wait for at most 5s.
+                for (int i = 0; i < 10; ++i)
+                {
+                    success = ProcessUtilities.WaitNamedPipe(pipeName, 500);
+                    if (success)
+                    {
+                        break;
+                    }
+                }
+
+                if (!success)
+                {
+                    // After waiting for 5s, pipe is still not ready.
+                    throw new NativeWin32Exception(Marshal.GetLastWin32Error(), "WaitNamedPipe");
+                }
+
+                --maxRetry;
             }
 
             if ((inheritance & PipeInheritance.InheritRead) != 0)

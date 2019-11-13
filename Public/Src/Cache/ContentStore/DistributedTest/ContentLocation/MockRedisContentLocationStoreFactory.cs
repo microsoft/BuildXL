@@ -18,9 +18,9 @@ namespace ContentStoreTest.Distributed.ContentLocation
 {
     public sealed class MockRedisContentLocationStoreFactory : IContentLocationStoreFactory
     {
-        internal readonly byte[] LocalMachineData;
         private readonly RedisContentLocationStoreConfiguration _configuration;
         private readonly IClock _mockClock;
+        private readonly MachineLocation _localMachineLocation;
 
         public MockRedisContentLocationStoreFactory(
             ITestRedisDatabase redisDatabase,
@@ -29,10 +29,10 @@ namespace ContentStoreTest.Distributed.ContentLocation
             IClock mockClock = null,
             RedisContentLocationStoreConfiguration configuration = null)
         {
-            LocalMachineData = PathTransformer.GetLocalMachineLocation(localCacheRoot);
             _mockClock = mockClock ?? SystemClock.Instance;
             RedisDatabase = redisDatabase;
             MachineLocationRedisDatabase = machineLocationRedisDatabase;
+            _localMachineLocation = new MachineLocation(localCacheRoot.Path);
             _configuration = configuration ?? RedisContentLocationStoreConfiguration.Default;
         }
 
@@ -56,7 +56,12 @@ namespace ContentStoreTest.Distributed.ContentLocation
 
         public bool ShutdownStarted { get; private set; }
 
-        public async Task<IContentLocationStore> CreateAsync()
+        public Task<IContentLocationStore> CreateAsync()
+        {
+            return CreateAsync(_localMachineLocation);
+        }
+
+        public async Task<IContentLocationStore> CreateAsync(MachineLocation machineLocation)
         {
             var connection = MockRedisDatabaseFactory.CreateConnection(RedisDatabase);
             RedisDatabaseAdapter = RedisDatabaseAdapter ?? new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), connection), RedisContentLocationStoreFactory.DefaultKeySpace);
@@ -67,7 +72,7 @@ namespace ContentStoreTest.Distributed.ContentLocation
                 MachineRedisDatabaseAdapter,
                 _mockClock,
                 BumpTime,
-                LocalMachineData,
+                machineLocation.Data,
                 _configuration);
 
             var redisStore = (RedisContentLocationStore) store;

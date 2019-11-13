@@ -28,7 +28,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
     /// </summary>
     public class GrpcContentClient : GrpcClientBase, IRpcClient
     {
-        private readonly ContentServer.ContentServerClient _client;
+        /// <nodoc />
+        protected readonly ContentServer.ContentServerClient Client;
 
         /// <summary>
         /// Size of the batch used in bulk operations.
@@ -43,10 +44,23 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             string scenario,
             TimeSpan? heartbeatInterval = null,
             Capabilities capabilities = Capabilities.ContentOnly)
-            : base(fileSystem, tracer, grpcPort, scenario, capabilities, heartbeatInterval)
+            : this(tracer, fileSystem, new ServiceClientRpcConfiguration(grpcPort, heartbeatInterval), scenario, capabilities)
         {
             GrpcEnvironment.InitializeIfNeeded();
-            _client = new ContentServer.ContentServerClient(Channel);
+            Client = new ContentServer.ContentServerClient(Channel);
+        }
+
+        /// <nodoc />
+        public GrpcContentClient(
+            ServiceClientContentSessionTracer tracer,
+            IAbsFileSystem fileSystem,
+            ServiceClientRpcConfiguration configuration,
+            string scenario,
+            Capabilities capabilities = Capabilities.ContentOnly)
+            : base(fileSystem, tracer, configuration, scenario, capabilities)
+        {
+            GrpcEnvironment.InitializeIfNeeded();
+            Client = new ContentServer.ContentServerClient(Channel);
         }
 
         /// <inheritdoc />
@@ -112,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             return PerformOperationAsync(
                 new OperationContext(context),
-                sessionContext => _client.PinAsync(
+                sessionContext => Client.PinAsync(
                     new PinRequest
                     {
                         HashType = (int)contentHash.HashType,
@@ -170,7 +184,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
             PinBulkResponse underlyingBulkPinResponse = await SendGrpcRequestAndThrowIfFailedAsync(
                 sessionContext.Value,
-                async () => await _client.PinBulkAsync(bulkPinRequest),
+                async () => await Client.PinBulkAsync(bulkPinRequest),
                 throwFailures: false);
 
             foreach (var response in underlyingBulkPinResponse.Header)
@@ -222,7 +236,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             return PerformOperationAsync(
                 context,
-                _ => _client.PlaceFileAsync(
+                _ => Client.PlaceFileAsync(
                     new PlaceFileRequest
                     {
                         Header = context.CreateHeader(),
@@ -278,7 +292,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             return PerformOperationAsync(
                 context,
-                sessionContext => _client.PutFileAsync(
+                sessionContext => Client.PutFileAsync(
                     new PutFileRequest
                     {
                         Header = sessionContext.CreateHeader(),
@@ -324,7 +338,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             return PerformOperationAsync(
                 context,
-                sessionContext => _client.PutFileAsync(
+                sessionContext => Client.PutFileAsync(
                     new PutFileRequest
                     {
                         Header = sessionContext.CreateHeader(),
@@ -378,7 +392,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     ContentHash = hash.ToByteString()
                 };
 
-                DeleteContentResponse response = await _client.DeleteAsync(request);
+                DeleteContentResponse response = await Client.DeleteAsync(request);
                 if (response.Header.Succeeded)
                 {
                     return new DeleteResult((DeleteResult.ResultCode)response.Result, hash, response.EvictedSize, response.PinnedSize);
@@ -457,31 +471,31 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         /// <inheritdoc />
         protected override AsyncUnaryCall<ShutdownResponse> ShutdownSessionAsync(ShutdownRequest shutdownRequest)
         {
-            return _client.ShutdownSessionAsync(shutdownRequest);
+            return Client.ShutdownSessionAsync(shutdownRequest);
         }
 
         /// <inheritdoc />
         protected override AsyncUnaryCall<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest heartbeatRequest)
         {
-            return _client.HeartbeatAsync(heartbeatRequest);
+            return Client.HeartbeatAsync(heartbeatRequest);
         }
 
         /// <inheritdoc />
         protected override AsyncUnaryCall<HelloResponse> HelloAsync(HelloRequest helloRequest, CancellationToken token)
         {
-            return _client.HelloAsync(helloRequest, cancellationToken: token);
+            return Client.HelloAsync(helloRequest, cancellationToken: token);
         }
 
         /// <inheritdoc />
         protected override AsyncUnaryCall<CreateSessionResponse> CreateSessionAsync(CreateSessionRequest createSessionRequest)
         {
-            return _client.CreateSessionAsync(createSessionRequest);
+            return Client.CreateSessionAsync(createSessionRequest);
         }
 
         /// <inheritdoc />
         protected override AsyncUnaryCall<GetStatsResponse> GetStatsAsync(GetStatsRequest getStatsRequest)
         {
-            return _client.GetStatsAsync(getStatsRequest);
+            return Client.GetStatsAsync(getStatsRequest);
         }
     }
 }

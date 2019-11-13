@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Collections.Generic.Enumerable;
 using System.Reflection;
+using BuildXL.Utilities;
 
 namespace System.Diagnostics
 {
@@ -54,8 +55,7 @@ namespace System.Diagnostics
         {
             try
             {
-                var originalToString = exception.ToString();
-                // Need to trigger string computation first to materialized the stack trace
+                Analysis.IgnoreResult(exception.ToString(), "Need to trigger string computation first to materialized the stack trace");
                 var originalStacks = new Dictionary<Exception, string>();
                 exception.Demystify(originalStacks);
 

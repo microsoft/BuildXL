@@ -39,9 +39,14 @@ namespace Test.BuildXL.Scheduler
         private const string WarningRegexDescription = "WARNING";
 
         /// <summary>
-        /// Test process tool base name name
+        /// Test process tool base name
         /// </summary>
         protected const string TestProcessToolNameWithoutExtension = "Test.BuildXL.Executables.TestProcess";
+
+        /// <summary>
+        /// Infinite waiter base name
+        /// </summary>
+        protected const string InfiniteWaiterWithoutExtension = "Test.BuildXL.Executables.InfiniteWaiter";
 
         /// <summary>
         /// Value if for created pip.
@@ -71,7 +76,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// FileArtifact for generic TestProcess.exe
         /// </summary>
-        protected readonly FileArtifact TestProcessExecutable;
+        protected FileArtifact TestProcessExecutable { get; set; }
 
         protected readonly AbsolutePath[] TestProcessDependencies;
 
@@ -81,6 +86,13 @@ namespace Test.BuildXL.Scheduler
         protected string TestProcessToolName => OperatingSystemHelper.IsUnixOS
             ? TestProcessToolNameWithoutExtension
             : TestProcessToolNameWithoutExtension + ".exe";
+
+        /// <summary>
+        /// Infinite waiter process tool name
+        /// </summary>
+        protected string InfiniteWaiterToolName => OperatingSystemHelper.IsUnixOS
+            ? InfiniteWaiterWithoutExtension
+            : InfiniteWaiterWithoutExtension + ".exe";
 
         /// <summary>
         /// Context
@@ -158,18 +170,19 @@ namespace Test.BuildXL.Scheduler
                     var objectRoot = AbsolutePath.Create(Context.PathTable, ObjectRoot);
                     var redirectedRoot = AbsolutePath.Create(Context.PathTable, RedirectedRoot);
 
-                    ModuleId moduleId = new ModuleId(1);
                     var specPath = objectRoot.Combine(Context.PathTable, "spec.dsc");
 
-                    PipGraphBuilder.AddModule(ModulePip.CreateForTesting(Context.StringTable, specPath, moduleId));
-                    PipGraphBuilder.AddSpecFile(new SpecFilePip(new FileArtifact(specPath), new LocationData(specPath, 0, 0), moduleId));
+                    var modulePip = ModulePip.CreateForTesting(Context.StringTable, specPath);
+                    PipGraphBuilder.AddModule(modulePip);
+                    PipGraphBuilder.AddSpecFile(new SpecFilePip(new FileArtifact(specPath), new LocationData(specPath, 0, 0), modulePip.Module));
 
                     m_pipConstructionHelper = PipConstructionHelper.CreateForTesting(
                         Context,
                         objectRoot: objectRoot,
                         redirectedRoot: redirectedRoot,
                         pipGraph: PipGraphBuilder,
-                        specPath: specPath);
+                        specPath: specPath,
+                        moduleName: modulePip.Identity.ToString(Context.StringTable));
                 }
 
                 return m_pipConstructionHelper;
@@ -177,7 +190,7 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <nodoc />
-        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null)
+        public ProcessBuilder CreatePipBuilder(IEnumerable<Operation> processOperations, IEnumerable<string> tags = null, string description = null, IDictionary<string, string> environmentVariables = null)
         {
             var builder = ProcessBuilder.CreateForTesting(Context.PathTable);
             builder.Executable = TestProcessExecutable;
@@ -211,6 +224,16 @@ namespace Test.BuildXL.Scheduler
             if (description != null)
             {
                 builder.ToolDescription = StringId.Create(Context.StringTable, description);
+            }
+
+            if (environmentVariables != null)
+            {
+                foreach (var envVar in environmentVariables)
+                {
+                    builder.SetEnvironmentVariable(
+                        StringId.Create(Context.StringTable, envVar.Key),
+                        StringId.Create(Context.StringTable, envVar.Value));
+                }
             }
 
             if (OperatingSystemHelper.IsUnixOS)
@@ -268,6 +291,31 @@ namespace Test.BuildXL.Scheduler
             CacheRoot = Path.Combine(TemporaryDirectory, CacheRootPrefix);
 
             BaseSetup();
+        }
+
+        public class PipTestBaseSetupData
+        {
+            private readonly PipTable m_pipTable;
+            private readonly QualifierTable m_qualifierTable;
+            private readonly MountPathExpander m_mountPathExpander;
+            private readonly PipTestBase m_pipTestBase;
+
+            protected PipTestBaseSetupData(PipTestBase pipTestBase)
+            {
+                m_pipTable = pipTestBase.PipTable;
+                m_qualifierTable = pipTestBase.QualifierTable;
+                m_mountPathExpander = pipTestBase.Expander;
+                m_pipTestBase = pipTestBase;
+            }
+
+            public static PipTestBaseSetupData Save(PipTestBase pipTestBase) => new PipTestBaseSetupData(pipTestBase);
+
+            public virtual void Restore()
+            {
+                m_pipTestBase.PipTable = m_pipTable;
+                m_pipTestBase.QualifierTable = m_qualifierTable;
+                m_pipTestBase.Expander = m_mountPathExpander;
+            }
         }
 
         protected void BaseSetup(IConfiguration configuration = null, bool disablePipSerialization = false)
@@ -685,11 +733,11 @@ namespace Test.BuildXL.Scheduler
 
         public static void AddMetaPips(PipExecutionContext context, PipProvenance provenance, IPipGraph pipGraph)
         {
-            var moduleId = new ModuleId(1, "TestModuleId");
+            var modulePip = ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path);
             var locationData = new LocationData(provenance.Token.Path, 0, 0);
 
-            pipGraph.AddModule(ModulePip.CreateForTesting(context.StringTable, provenance.Token.Path, moduleId));
-            pipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(provenance.Token.Path), locationData, moduleId));
+            pipGraph.AddModule(modulePip);
+            pipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(provenance.Token.Path), locationData, modulePip.Module));
             pipGraph.AddOutputValue(new ValuePip(provenance.OutputValueSymbol, QualifierId.Unqualified, locationData));
         }
 
@@ -1087,6 +1135,8 @@ namespace Test.BuildXL.Scheduler
                                 break;
 
                             case Operation.Type.ReadFile:
+                            case Operation.Type.ReadFileFromOtherFile:
+                            case Operation.Type.WaitUntilFileExists:
                                 dao.Dependencies.Add(op.Path.FileArtifact);
                                 break;
 
@@ -1182,6 +1232,12 @@ namespace Test.BuildXL.Scheduler
 
             PipGraphBuilder.ApplyCurrentOsDefaults(processBuilder);
 
+        }
+
+        protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(moduleName));
+            return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName, useTopSort);
         }
 
         #region IO Helpers

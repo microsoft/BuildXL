@@ -26,14 +26,5 @@ namespace ContentStoreTest.Distributed.Redis
 
             return mockDb;
         }
-
-        private static TDatabase CreateInternal<TDatabase, TMock>(TMock testDb)
-            where TDatabase : class, IDatabaseAsync
-            where TMock : ITestRedisDatabase
-        {
-            IDatabaseAsync mockDb = new TestDatabase(testDb);
-
-            return (TDatabase)mockDb;
-        }
     }
 }

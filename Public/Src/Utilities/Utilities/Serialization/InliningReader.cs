@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.IO;
 using BuildXL.Utilities.Collections;
 
@@ -14,8 +13,6 @@ namespace BuildXL.Utilities.Serialization
     /// </summary>
     public class InliningReader : BuildXLReader
     {
-        private readonly PathTable m_pathTable;
-
         /// <summary>
         /// Maps paths to parent index
         /// </summary>
@@ -41,7 +38,7 @@ namespace BuildXL.Utilities.Serialization
         /// <summary>
         /// The underlying path table
         /// </summary>
-        public PathTable PathTable => m_pathTable;
+        public PathTable PathTable { get; private set; }
 
         /// <summary>
         /// Serialized path count
@@ -61,7 +58,7 @@ namespace BuildXL.Utilities.Serialization
         public InliningReader(Stream stream, PathTable pathTable, bool debug = false, bool leaveOpen = true)
              : base(debug, stream, leaveOpen)
         {
-            m_pathTable = pathTable;
+            PathTable = pathTable;
         }
 
         /// <inheritdoc />
@@ -80,8 +77,8 @@ namespace BuildXL.Utilities.Serialization
                     PathAtom entryPathName = ReadPathAtom();
                     AbsolutePath parentPath = m_readPaths[(uint)entryParentIndex];
                     entryPath = parentPath.IsValid ?
-                        parentPath.Combine(m_pathTable, entryPathName) :
-                        AbsolutePath.Create(m_pathTable, entryPathName.ToString(m_pathTable.StringTable) + Path.DirectorySeparatorChar);
+                        parentPath.Combine(PathTable, entryPathName) :
+                        AbsolutePath.Create(PathTable, entryPathName.ToString(PathTable.StringTable) + Path.DirectorySeparatorChar);
                     m_readPaths[(uint)i] = entryPath;
                 }
 
@@ -102,20 +99,14 @@ namespace BuildXL.Utilities.Serialization
         /// <inheritdoc />
         public override StringId ReadStringId()
         {
-            return ReadStringId(kind: InlinedStringKind.Default);
-        }
-
-        /// <todoc />
-        public StringId ReadStringId(InlinedStringKind kind)
-        {
             // Read the index
             var index = ReadInt32Compact();
 
             // Check if string already encountered
             if (index > m_maxReadStringIndex)
             {
-                var binaryString = ReadStringIdValue(kind, ref m_buffer);
-                var stringId = m_pathTable.StringTable.AddString(binaryString);
+                var binaryString = ReadBinaryStringSegment(ref m_buffer);
+                var stringId = PathTable.StringTable.AddString(binaryString);
                 m_readStrings[(uint)index] = stringId;
                 m_maxReadStringIndex = index;
             }
@@ -124,7 +115,7 @@ namespace BuildXL.Utilities.Serialization
         }
 
         /// <todoc />
-        public virtual BinaryStringSegment ReadStringIdValue(InlinedStringKind kind, ref byte[] buffer)
+        protected virtual BinaryStringSegment ReadBinaryStringSegment(ref byte[] buffer)
         {
             // This is a new string
             // Read if string is ascii or UTF-16

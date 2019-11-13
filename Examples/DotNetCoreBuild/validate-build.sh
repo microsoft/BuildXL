@@ -21,7 +21,8 @@ readonly FULLY_CACHED=0
 readonly NOT_FULLY_CACHED=1
 
 # this is the magic timestamp ("2003-03-03 3:03:03") translated to UTC Epoch seconds
-readonly magicTimestamp=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "2003-03-03 3:03:03" +%s)
+# readonly magicTimestamp=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "2003-03-03 3:03:03" +%s)
+readonly magicXattrName="com.microsoft.buildxl:shared_opaque_output"
 
 function run_build_and_check_stuff {
     local expectGraphReloadedStatus=$1
@@ -58,16 +59,15 @@ function run_build_and_check_stuff {
         print_info $(if [[ $expectFullyCachedStatus == $FULLY_CACHED ]]; then echo "Verified build fully cached"; else echo "Verified build NOT fully cached"; fi)
     fi
 
-    # check that all files in all shared opaque directories (whose name is 'sod*') have the magic timestamp for 'Btime'
+    # check that all files in all shared opaque directories (whose name is 'sod*') have the magic xattr
     local sodFilesFile="$MY_DIR/sod-files.txt"
     find "$MY_DIR/out/objects" -type d -name 'sod*' -exec find {} -type f -o -type l \; > "$sodFilesFile"
-    local sodFilesTimestamps=$(cat "$sodFilesFile" | xargs stat -t "%s" -f "%SB" | sort | uniq)
-    if [[ $sodFilesTimestamps != $magicTimestamp ]]; then
-        print_error "Some files in the some shared output directories don't have the magic timestamp ('2003-03-03 3:03:03', i.e., $magicTimestamp) for Btime"
-        cat "$sodFilesFile" | xargs stat -t "%s" -f "Btime: %SB, path: %N"
-        rm -f "$sodFilesFile"
-        return 4
-    fi
+    for f in `cat $sodFilesFile`; do
+        xattr -s "$f" | grep -q $magicXattrName || {
+            print_error "File '$f' does not have the magic xattr '$magicXattrName'"
+            return 4
+        }
+    done
     rm -f "$sodFilesFile"
 }
 

@@ -178,7 +178,7 @@ namespace Test.BuildXL.Processes.Detours
                 }
                 else
                 {
-                    await AssertProcessCompletesWithStatus(
+                    await AssertProcessCompletesWithStatusAsync(
                         SandboxedProcessPipExecutionStatus.ExecutionFailed,
                         context,
                         config,

@@ -25,19 +25,19 @@ namespace Test.BuildXL
             using (var listener = new TrackingEventListener(Events.Log))
             {
                 Events.Log.UserErrorEvent("1");
-                var userErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
+                var userErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
                 XAssert.AreEqual(ExitKind.UserError, userErrorClassification.ExitKind);
                 XAssert.AreEqual("UserErrorEvent", userErrorClassification.ErrorBucket);
 
                 // Now add an infrasctructure error. This should take prescedence
                 Events.Log.InfrastructureErrorEvent("1");
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
+                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
                 XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
                 XAssert.AreEqual("InfrastructureErrorEvent", infrastructureErrorClassification.ErrorBucket);
 
                 // Finally add an internal error. Again, this takes highest prescedence
                 Events.Log.ErrorEvent("1");
-                var internalErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
+                var internalErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
                 XAssert.AreEqual(ExitKind.InternalError, internalErrorClassification.ExitKind);
                 XAssert.AreEqual("ErrorEvent", internalErrorClassification.ErrorBucket);
             }
@@ -56,7 +56,7 @@ namespace Test.BuildXL
                 global::BuildXL.Engine.Tracing.Logger.Log.DistributionExecutePipFailedNetworkFailure(loggingContext, "ArbitraryPip", "ArbitraryWorker", "ArbitraryMessage", "ArbitraryStep", "ArbitraryCaller");
                 global::BuildXL.Scheduler.Tracing.Logger.Log.PipMaterializeDependenciesFromCacheFailure(loggingContext, "ArbitraryPip", "ArbitraryMessage");
 
-                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(listener);
+                var infrastructureErrorClassification = BuildXLApp.ClassifyFailureFromLoggedEvents(Events.StaticContext, listener);
                 XAssert.AreEqual(ExitKind.InfrastructureError, infrastructureErrorClassification.ExitKind);
                 XAssert.AreEqual(global::BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), infrastructureErrorClassification.ErrorBucket);
             }

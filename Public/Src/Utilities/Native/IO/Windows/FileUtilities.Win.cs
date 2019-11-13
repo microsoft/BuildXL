@@ -115,7 +115,7 @@ namespace BuildXL.Native.IO.Windows
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default)
         {
             var maybeExistence = s_fileSystem.TryProbePathExistence(path, followSymlink: true);
@@ -156,7 +156,7 @@ namespace BuildXL.Native.IO.Windows
             string directoryPath,
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default)
         {
             var defaultDeleteCheck = new Func<string, bool>(p => true);
@@ -279,7 +279,7 @@ namespace BuildXL.Native.IO.Windows
                             // Deletion is successful when the child directories/files count matches the expected count
                             return actualRemainingChildCount == remainingChildCount;
                         },
-                        rethrowExceptions: true /* exceptions thrown in work() will occur again on retry, so just rethrow them */);
+                        rethrowException: true /* exceptions thrown in work() will occur again on retry, so just rethrow them */);
                 }
 
                 if (!success)
@@ -306,7 +306,7 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         /// <param name="directoryPath">The empty directory to delete</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deletes</param>
-        private void DeleteEmptyDirectoryHelper(string directoryPath, ITempDirectoryCleaner tempDirectoryCleaner)
+        private void DeleteEmptyDirectoryHelper(string directoryPath, ITempCleaner tempDirectoryCleaner)
         {
             // Attempt 1: POSIX delete
             if (PosixDeleteMode == PosixDeleteMode.RunFirst && RunPosixDelete(directoryPath, out _))
@@ -346,7 +346,7 @@ namespace BuildXL.Native.IO.Windows
         /// <param name="directoryPath">The empty directory to delete</param>
         /// <param name="tempDirectoryCleaner">provides and cleans a temp directory for move-deletes</param>
         /// <param name="logFailures">Whether information about failures should be logged</param>
-        private void DeleteEmptyDirectory(string directoryPath, ITempDirectoryCleaner tempDirectoryCleaner, bool logFailures = true)
+        private void DeleteEmptyDirectory(string directoryPath, ITempCleaner tempDirectoryCleaner, bool logFailures = true)
         {
             try
             {
@@ -435,7 +435,7 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempDirectoryCleaner tempDirectoryCleaner = null)
+        public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
@@ -457,7 +457,7 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public void DeleteFile(string path, bool waitUntilDeletionFinished = true, ITempDirectoryCleaner tempDirectoryCleaner = null)
+        public void DeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
 
@@ -531,7 +531,7 @@ namespace BuildXL.Native.IO.Windows
         /// if retried again in the future.</returns>
         /// <exception cref="BuildXLException">Thrown when setting file attributes fails for an unknown cause and retries
         /// won't help.</exception>
-        private bool DeleteFileInternal(string path, ITempDirectoryCleaner tempDirectoryCleaner, out OpenFileResult deleteResult)
+        private bool DeleteFileInternal(string path, ITempCleaner tempDirectoryCleaner, out OpenFileResult deleteResult)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             LoggingContext context = Events.StaticContext;
@@ -1142,11 +1142,11 @@ namespace BuildXL.Native.IO.Windows
 
                     return true;
                 },
-                ex => { throw new BuildXLException("File copy failed", ex); });
+                ex => { throw new BuildXLException(I($"File copy from '{source}' to '{destination}' failed"), ex); });
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveFileAsync(
+        public Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false)
@@ -1154,13 +1154,16 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run<bool>(
-                () => ExceptionUtilities.HandleRecoverableIOException(
-                    () =>
-                    {
-                        return s_fileSystem.MoveFile(source, destination, replaceExisting);
-                    },
-                    ex => { throw new BuildXLException("File move failed", ex); }));
+            return Task.Run(() => {
+                try
+                {
+                    s_fileSystem.MoveFile(source, destination, replaceExisting);
+                }
+                catch (NativeWin32Exception ex)
+                {
+                    throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex);
+                }
+            });
         }
 
         /// <inheritdoc />
@@ -1410,7 +1413,7 @@ namespace BuildXL.Native.IO.Windows
         {
             Contract.Requires(!string.IsNullOrEmpty(appName));
 
-#if FEATURE_CORECLR
+#if NET_CORE
             var homeFolder = Environment.GetEnvironmentVariable("LOCALAPPDATA");
             if (string.IsNullOrEmpty(homeFolder))
             {
@@ -1509,13 +1512,31 @@ namespace BuildXL.Native.IO.Windows
             Contract.Requires(!string.IsNullOrWhiteSpace(path));
             path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
 
-#if !FEATURE_CORECLR
             FileSystemRights fileSystemRights =
                 FileSystemRights.WriteData |
                 FileSystemRights.AppendData |
                 FileSystemRights.WriteAttributes |
                 FileSystemRights.WriteExtendedAttributes;
 
+            return CheckFileSystemRightsForPath(path, fileSystemRights);
+        }
+
+
+        /// <inheritdoc />
+        public bool HasWritableAttributeAccessControl(string path)
+        {
+            Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            path = FileSystemWin.ToLongPathIfExceedMaxPath(path);
+
+            FileSystemRights fileSystemRights =
+                FileSystemRights.WriteAttributes |
+                FileSystemRights.WriteExtendedAttributes;
+
+            return CheckFileSystemRightsForPath(path, fileSystemRights);
+        }
+
+        private bool CheckFileSystemRightsForPath(string path, FileSystemRights fileSystemRights)
+        {
             FileInfo fileInfo = new FileInfo(path);
             FileSecurity fileSecurity = fileInfo.GetAccessControl();
             foreach (AuthorizationRule rule in fileSecurity.GetAccessRules(true, true, typeof(SecurityIdentifier)))
@@ -1535,9 +1556,6 @@ namespace BuildXL.Native.IO.Windows
             }
 
             return true;
-#else
-            return true;
-#endif
         }
 
         /// <inheritdoc />

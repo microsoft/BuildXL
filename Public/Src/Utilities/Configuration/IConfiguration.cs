@@ -177,6 +177,13 @@ namespace BuildXL.Utilities.Configuration
         bool? InCloudBuild { get; }
 
         /// <summary>
+        /// Whether BuildXL is allowed to interact with the user either via console or popups.
+        /// A common use case is to allow front ends like nuget to display authentication prompts in case the user is not authenticated.
+        /// This defaults to false, and should never be set to true when running in an unattended lab or cloud environment as it can potentially hang the build.
+        /// </summary>
+        bool Interactive { get; }
+
+        /// <summary>
         /// Default configuration parameters for front-end resolvers.
         /// </summary>
         IResolverDefaults ResolverDefaults { get; }

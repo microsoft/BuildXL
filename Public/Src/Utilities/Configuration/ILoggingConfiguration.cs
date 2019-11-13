@@ -71,7 +71,7 @@ namespace BuildXL.Utilities.Configuration
         /// This contains any EngineCache files that were deemed to be corrupt or incorrect during the build.
         /// </summary>
         AbsolutePath EngineCacheCorruptFilesLogDirectory { get; }
-        
+
         /// <summary>
         /// Specifies whether fingerprint computation inputs are stored on disk in the fingerprint store.
         /// The fingerprint store is stored under the <see cref="ILayoutConfiguration.EngineCacheDirectory"/>
@@ -308,5 +308,25 @@ namespace BuildXL.Utilities.Configuration
         /// On-the-fly cache miss analysis option
         /// </summary>
         CacheMissAnalysisOption CacheMissAnalysisOption { get; }
+
+        /// <summary>
+        /// Whether console output should be optimized for Azure DevOps output.
+        /// </summary>
+        bool OptimizeConsoleOutputForAzureDevOps { get; }
+
+        /// <summary>
+        /// The expanded command line arguments for the invocation for logging
+        /// </summary>
+        IReadOnlyList<string> InvocationExpandedCommandLineArguments { get; }
+
+        /// <summary>
+        /// Whether progress updating should be optimized for Azure DevOps output.
+        /// </summary>
+        bool OptimizeProgressUpdatingForAzureDevOps { get; }
+
+        /// <summary>
+        /// Whether Vso annotations should be optimized for Azure DevOps output.
+        /// </summary>
+        bool OptimizeVsoAnnotationsForAzureDevOps { get; }
     }
 }

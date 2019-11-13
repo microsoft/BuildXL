@@ -80,8 +80,8 @@ namespace BuildXL.Cache.ContentStore.Service
 
                 context.Debug($"Running cmd=[{appExePath} {_args}]");
 
-                const bool createNoWindow = true;
-                _process = new ProcessUtility(appExePath.Path, _args, createNoWindow);
+                const bool CreateNoWindow = true;
+                _process = new ProcessUtility(appExePath.Path, _args, CreateNoWindow);
 
                 _process.Start();
 
@@ -91,7 +91,7 @@ namespace BuildXL.Cache.ContentStore.Service
                     processOutput = "[Process could not start]";
                     result = new BoolResult(processOutput);
                 }
-                else if (createNoWindow)
+                else if (CreateNoWindow)
                 {
                     if (_process.HasExited)
                     {

@@ -124,7 +124,9 @@ namespace BuildXL.Ide.LanguageServer
 
         private static void ConnectWithUnixSocket(string sockName, Action<Stream> act)
         {
-#if PLATFORM_OSX
+#if PLATFORM_WIN
+            throw new NotImplementedException("Unix socket files can only be used on unix operating systems");
+#else
             using (var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.IP))
             {
                 socket.Connect(new System.Net.UnixEndPoint(sockName));
@@ -133,8 +135,6 @@ namespace BuildXL.Ide.LanguageServer
                     act(stream);
                 }
             }
-#else
-            throw new NotImplementedException("Unix socket files can only be used on unix operating systems");
 #endif
         }
 

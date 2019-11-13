@@ -18,6 +18,7 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Cache.ContentStore.Distributed;
 
 namespace ContentStoreTest.Distributed.Sessions
 {
@@ -53,10 +54,11 @@ namespace ContentStoreTest.Distributed.Sessions
             var localDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
             var localMachineDatabase = LocalRedisProcessDatabase.CreateAndStartEmpty(_redis, TestGlobal.Logger, SystemClock.Instance);
 
+            var localMachineLocation = new MachineLocation(rootPath.Path);
             var storeFactory = new MockRedisContentLocationStoreFactory(localDatabase, localMachineDatabase, rootPath);
 
             return new DistributedContentStore<AbsolutePath>(
-                storeFactory.LocalMachineData,
+                localMachineLocation.Data,
                 (nagleBlock, distributedEvictionSettings, contentStoreSettings, trimBulkAsync) =>
                     new FileSystemContentStore(
                         FileSystem,
@@ -71,11 +73,16 @@ namespace ContentStoreTest.Distributed.Sessions
                 fileCopier,
                 fileCopier,
                 storeFactory.PathTransformer,
+                copyRequester: null,
                 ReadOnlyDistributedContentSession<AbsolutePath>.ContentAvailabilityGuarantee.FileRecordsExist,
                 tempPath,
                 FileSystem,
                 RedisContentLocationStoreConstants.DefaultBatchSize,
-                retryIntervalForCopies: DefaultRetryIntervalsForTest);
+                settings: new DistributedContentStoreSettings
+                {
+                    RetryIntervalForCopies = DefaultRetryIntervalsForTest
+                },
+                setPostInitializationCompletionAfterStartup: true);
         }
     }
 }

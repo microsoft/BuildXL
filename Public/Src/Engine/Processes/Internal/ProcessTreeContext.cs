@@ -266,7 +266,7 @@ namespace BuildXL.Processes
 
             HasDetoursInjectionFailures = true;
 
-            BuildXL.Processes.Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext != null ? m_loggingContext : Events.StaticContext, processId, error);
+            BuildXL.Processes.Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext ?? Events.StaticContext, processId, error);
         }
     }
 }

@@ -8,17 +8,13 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 // Or they contain code which is internal and can't be open sourced due to tying into Microsoft internal systems.
 // The dependent code is still open sourced, but not compiled in the public repo.
 export const pkgs = isMicrosoftInternal ? [
-    { id: "Bond.NET", version: "3.2.0", forceFullFrameworkQualifiersOnly: true },
-    { id: "Bond.Core.NET", version: "3.2.0" },
-    { id: "Bond.Rpc.NET", version: "3.2.0" },
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
     // Runtime dependencies used for macOS deployments
-    { id: "runtime.osx-x64.BuildXL", version: "1.97.99" },
+    { id: "runtime.osx-x64.BuildXL", version: "2.9.99" },
     { id: "Aria.Cpp.SDK", version: "8.5.6" },
 
-    { id: "CB.QTest", version: "19.7.18.221046" },
-    { id: "CloudBuild.VmCommandProxy", version: "19.7.10.150722" },
+    { id: "CB.QTest", version: "19.11.5.170405" },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 
@@ -26,30 +22,31 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "WindowsSdk.Corext", version: "10.0.16299.1", alias: "Windows.Sdk" },
 
     // Artifact packages and dependencies
-    { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
-    { id: "Microsoft.VisualStudio.Services.Client", version: "17.150.20190501.2-release", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
-    { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: "17.150.20190501.2-release", dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
+    { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces"] },
+    { id: "Microsoft.VisualStudio.Services.Client", version: "16.159.0-internal201910211", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
+    { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: "16.159.0-internal201910211", dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
 
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.
     // This is further enforced by not including Cache bits in DropDaemon, other than BuildXL.Cache.Hashing.
-    { id: "ArtifactServices.App.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "ArtifactServices.App.Shared.Cache", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Drop.App.Core", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Drop.Client", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
-    { id: "Drop.RemotableClient", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
-    { id: "Drop.RemotableClient.Interfaces", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"] },
-    { id: "ItemStore.Shared", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: "17.150.28901-buildid9382555", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
-    { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "0.61" },
+    { id: "ArtifactServices.App.Shared", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "ArtifactServices.App.Shared.Cache", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
+    { id: "Drop.App.Core", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
+    { id: "Drop.Client", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "ItemStore.Shared", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
+    { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
+    { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "1.0.1" },
+    { id: "Symbol.App.Core", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing", "BuildXL.Cache.Interfaces", "BuildXL.Cache.Libraries", "BuildXL.library.forAzDev"] },
+    { id: "Symbol.Client", version: "18.159.29421-buildid10707121", dependentPackageIdsToSkip: ["*"] },
+
 
     // Internal pacakged version to avoid downloading from the web but the trusted stable internal feed:
     { id: "NodeJs", version: "8.12.0-noTest" },
     { id: "PowerShell.Core", version: "6.1.0" },
 
     // Combined runtimes
-    { id: "Dotnet-Runtime", version: "5.0.0" },
+    { id: "Dotnet-Runtime", version: "5.0.2" },
 
 ] : [
 
@@ -62,8 +59,6 @@ export const pkgs = isMicrosoftInternal ? [
 export const resolver = {
     kind: "SourceResolver",
     modules: [
-        f`private/InternalSdk/Bond/module.config.dsc`,
-        f`private/InternalSdk/Bond.NET/module.config.dsc`,
         f`private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
         f`private/InternalSdk/CB.QTest/module.config.dsc`,
         ...addIf(isMicrosoftInternal,

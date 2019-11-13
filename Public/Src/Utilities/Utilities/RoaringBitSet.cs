@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
 using JetBrains.Annotations;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 namespace BuildXL.Utilities
 {

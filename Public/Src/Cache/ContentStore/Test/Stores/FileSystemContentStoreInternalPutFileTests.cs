@@ -23,6 +23,8 @@ using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
+using BuildXL.Utilities.ParallelAlgorithms;
+using System.Threading;
 
 namespace ContentStoreTest.Stores
 {
@@ -110,6 +112,71 @@ namespace ContentStoreTest.Stores
             });
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public Task PutSameContentManyTimesTest(bool useRedundantPutFileShortcut)
+        {
+            var context = new Context(Logger);
+            ContentStoreSettings = new ContentStoreSettings()
+            {
+                UseRedundantPutFileShortcut = useRedundantPutFileShortcut
+            };
+
+            return TestStore(context, Clock, async store =>
+            {
+                byte[] bytes = ThreadSafeRandom.GetBytes(ValueSize);
+                ContentHash contentHash = bytes.CalculateHash(ContentHashType);
+
+                // Verify content doesn't exist yet in store
+                Assert.False(await store.ContainsAsync(context, contentHash, null));
+
+                using (var tempDirectory = new DisposableDirectory(FileSystem))
+                {
+                    
+                    ContentHash hashFromPut;
+                    using (var pinContext = store.CreatePinContext())
+                    {
+                        var concurrency = 24;
+                        var iterations = 100;
+
+                        var items = Enumerable.Range(0, concurrency).Select(i =>
+                        {
+                            AbsolutePath pathToContent = tempDirectory.Path / $"tempContent{i}.txt";
+                            FileSystem.WriteAllBytes(pathToContent, bytes);
+                            return (pathToContent, iterations);
+                        }).ToArray();
+
+                        int nonDuplicatedPuts = 0;
+
+                        await ParallelAlgorithms.WhenDoneAsync(24, CancellationToken.None, async (scheduleItem, item) =>
+                        {
+                            // Put the content into the store w/ hard link
+                            var r = await store.PutFileAsync(
+                                    context, item.pathToContent, FileRealizationMode.Any, ContentHashType, new PinRequest(pinContext));
+                            hashFromPut = r.ContentHash;
+
+                            if (!r.ContentAlreadyExistsInCache)
+                            {
+                                Interlocked.Increment(ref nonDuplicatedPuts);
+                            }
+
+                            Clock.Increment();
+                            Assert.True(pinContext.Contains(hashFromPut));
+
+                            if (item.iterations != 0)
+                            {
+                                scheduleItem((item.pathToContent, item.iterations - 1));
+                            }
+                        },
+                        items);
+
+                        Assert.Equal(1, nonDuplicatedPuts);
+                    }
+                }
+            });
+        }
+
         [Fact]
         public Task PutFileTrustsHash()
         {
@@ -166,6 +233,7 @@ namespace ContentStoreTest.Stores
 
                     // Put the content into the store w/ hard link
                     var r = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, null);
+                    Assert.False(r.ContentAlreadyExistsInCache);
                     ContentHash hashFromPut = r.ContentHash;
 
                     byte[] newBytes = ThreadSafeRandom.GetBytes(10);

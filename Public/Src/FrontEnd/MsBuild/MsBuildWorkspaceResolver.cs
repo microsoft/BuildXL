@@ -56,6 +56,8 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private IDictionary<string, string> m_userDefinedEnvironment;
 
+        private bool m_processEnvironmentUsed;
+
         /// <summary>
         /// Set of well known locations that are used to identify a candidate entry point to parse, if a specific one is not provided
         /// </summary>
@@ -171,7 +173,7 @@ namespace BuildXL.FrontEnd.MsBuild
             m_configuration = configuration;
 
             m_resolverSettings = resolverSettings as IMsBuildResolverSettings;
-            m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables);
+            m_resolverSettings.ComputeEnvironment(out m_userDefinedEnvironment, out m_passthroughVariables, out m_processEnvironmentUsed);
 
             Contract.Assert(m_resolverSettings != null);
 
@@ -415,7 +417,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 projectFiles.Add(node.FullPath);
             }
 
-            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_resolverSettings.ModuleName, this);
+            var moduleDescriptor = ModuleDescriptor.CreateWithUniqueId(m_context.StringTable, m_resolverSettings.ModuleName, this);
             var moduleDefinition = ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
                 moduleDescriptor,
                 m_resolverSettings.RootTraversal,
@@ -504,7 +506,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 if (!TryFindDotNetExe(dotnetSearchLocations, out dotnetExeLocation, out string failure))
                 {
                     return ProjectGraphWithPredictionsResult<AbsolutePath>.CreateFailure(
-                        GraphConstructionError.CreateFailureWithoutLocation(failure), 
+                        GraphConstructionError.CreateFailureWithoutLocation(failure),
                         CollectionUtilities.EmptyDictionary<string, AbsolutePath>(), AbsolutePath.Invalid);
                 }
             }
@@ -539,10 +541,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             TrackFilesAndEnvironment(result.AllUnexpectedFileAccesses, outputFile.GetParent(m_context.PathTable));
-
-            var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
-            serializer.Converters.Add(new AbsolutePathJsonConverter(m_context.PathTable));
-            serializer.Converters.Add(new ValidAbsolutePathEnumerationJsonConverter());
+            JsonSerializer serializer = ConstructProjectGraphSerializer();
 
             using (var sr = new StreamReader(outputFile.ToString(m_context.PathTable)))
             using (var reader = new JsonTextReader(sr))
@@ -564,6 +563,41 @@ namespace BuildXL.FrontEnd.MsBuild
 
                 return m_resolverSettings.ShouldRunDotNetCoreMSBuild() ? projectGraphWithPredictionsResult.WithPathToDotNetExe(dotnetExeLocation) : projectGraphWithPredictionsResult;
             }
+        }
+
+        private JsonSerializer ConstructProjectGraphSerializer()
+        {
+            var serializer = JsonSerializer.Create(ProjectGraphSerializationSettings.Settings);
+
+            // If the user profile has been redirected, we need to catch any path reported by MSBuild that falls under it
+            // and relocate it to the redirected user profile.
+            // This allows for cache hits across machines where the user profile is not uniformly located, and MSBuild
+            // happens to read a spec under it (the typical case is a props/target file under the nuget cache)
+            // Observe that the env variable UserProfile is already redirected in this case, and the engine abstraction exposes it.
+            // However, MSBuild very often manages to find the user profile by some other means
+            AbsolutePathJsonConverter absolutePathConverter;
+            if (m_configuration.Layout.RedirectedUserProfileJunctionRoot.IsValid)
+            {
+                // Let's get the redirected and original user profile folder
+                string redirectedUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string originalUserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+                absolutePathConverter = new AbsolutePathJsonConverter(
+                    m_context.PathTable,
+                    AbsolutePath.Create(m_context.PathTable, originalUserProfile),
+                    AbsolutePath.Create(m_context.PathTable, redirectedUserProfile)
+                    );
+            }
+            else
+            {
+                absolutePathConverter = new AbsolutePathJsonConverter(m_context.PathTable);
+            }
+
+            serializer.Converters.Add(absolutePathConverter);
+            // Let's not add invalid absolute paths to any collection
+            serializer.Converters.Add(ValidAbsolutePathEnumerationJsonConverter.Instance);
+
+            return serializer;
         }
 
         private bool TryFindDotNetExe(IEnumerable<AbsolutePath> dotnetSearchLocations, out AbsolutePath dotnetExeLocation, out string failure)
@@ -588,13 +622,17 @@ namespace BuildXL.FrontEnd.MsBuild
 
         private void TrackFilesAndEnvironment(ISet<ReportedFileAccess> fileAccesses, AbsolutePath frontEndFolder)
         {
-            // Register all build parameters passed to the graph construction process
-            // Observe passthrough variables are explicitly skipped: we don't want the engine to track them
+            // Register all build parameters passed to the graph construction process if they were retrieved from the process environment
+            // Otherwise, if build parameters were defined by the main config file, then there is nothing to register: if the definition
+            // in the config file actually accessed the environment, that was already registered during config evaluation.
             // TODO: we actually need the build parameters *used* by the graph construction process, but for now this is a compromise to keep
             // graph caching sound. We need to modify this when MsBuild static graph API starts providing used env vars.
-            foreach (string key in m_userDefinedEnvironment.Keys)
+            if (m_processEnvironmentUsed)
             {
-                m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
+                foreach (string key in m_userDefinedEnvironment.Keys)
+                {
+                    m_host.Engine.TryGetBuildParameter(key, MsBuildFrontEnd.Name, out _);
+                }
             }
 
             FrontEndUtilities.TrackToolFileAccesses(m_host.Engine, m_context, MsBuildFrontEnd.Name, fileAccesses, frontEndFolder);

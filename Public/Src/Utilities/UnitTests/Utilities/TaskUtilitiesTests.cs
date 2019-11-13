@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities;
+using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -155,6 +156,28 @@ namespace Test.BuildXL.Utilities
                 XAssert.IsNotNull(aggregateException.InnerExceptions.OfType<NullReferenceException>().FirstOrDefault());
                 XAssert.IsNotNull(aggregateException.InnerExceptions.OfType<DivideByZeroException>().FirstOrDefault());
             }
+        }
+
+        [Fact]
+        public async Task TestParallelAlgorithmsCancellationTokenAsync()
+        {
+            // cancel after 2 seconds
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromSeconds(2));
+
+            // run something that never ends in parallel 
+            await ParallelAlgorithms.WhenDoneAsync(
+                degreeOfParallelism: 20,
+                cts.Token,
+                action: (scheduleItem, item) =>
+                {
+                    // keep rescheduling the same item forever
+                    scheduleItem(item);
+                    return Task.Delay(TimeSpan.FromMilliseconds(10));
+                },
+                items: Enumerable.Range(0, 1000));
+
+            XAssert.IsTrue(cts.IsCancellationRequested);
         }
     }
 }

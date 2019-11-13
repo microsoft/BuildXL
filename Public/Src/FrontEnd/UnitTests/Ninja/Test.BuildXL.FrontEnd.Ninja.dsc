@@ -45,10 +45,10 @@ namespace Test.Ninja {
                 subfolder: a`tools`,
                 contents: [
                     {
-                        subfolder: a`NinjaGraphBuilder`,
+                        subfolder: a`CMakeNinja`,
                         contents: [
-                        importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
-                        importFrom("BuildXL.Tools.Ninjson").pkg.contents 
+                            importFrom("BuildXL.Tools").NinjaGraphBuilder.exe,
+                            importFrom("BuildXL.Tools.Ninjson").pkg.contents 
                         ]
                     }
                 ]

@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Exceptions;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -601,6 +602,7 @@ namespace BuildXL.Cache.ContentStore.App
         internal DistributedCacheServiceArguments CreateDistributedCacheServiceArguments(
             IAbsolutePathFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
+            IProactiveCopier copyRequester,
             DistributedContentSettings dcs,
             HostInfo host,
             string cacheName,
@@ -609,8 +611,8 @@ namespace BuildXL.Cache.ContentStore.App
             int maxSizeQuotaMB,
             string dataRootPath,
             CancellationToken ct,
-            int? bufferSizeForGrpcCopies = null,
-            int? gzipBarrierSizeForGrpcCopies = null)
+            int? bufferSizeForGrpcCopies,
+            int? gzipBarrierSizeForGrpcCopies)
         {
             var distributedCacheServiceHost = new EnvironmentVariableHost();
 
@@ -621,11 +623,12 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort: grpcPort,
                 grpcPortFileName: _scenario);
             localCasSettings.PreferredCacheDrive = Path.GetPathRoot(cacheRootPath);
-            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies);
+            localCasSettings.ServiceSettings = new LocalCasServiceSettings(60, scenarioName: _scenario, grpcPort: grpcPort, grpcPortFileName: _scenario, bufferSizeForGrpcCopies: bufferSizeForGrpcCopies, gzipBarrierSizeForGrpcCopies: gzipBarrierSizeForGrpcCopies,
+                grpcThreadPoolSize: null);
 
             var config = new DistributedCacheServiceConfiguration(localCasSettings, dcs);
 
-            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
+            return new DistributedCacheServiceArguments(_logger, copier, pathTransformer, copyRequester, distributedCacheServiceHost, host, ct, dataRootPath, config, null);
         }
     }
 }

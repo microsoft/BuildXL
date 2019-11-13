@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Threading;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -19,6 +20,8 @@ namespace BuildXL.Cache.Host.Service
 
         /// <nodoc />
         public IAbsolutePathFileCopier Copier { get; }
+
+        public IProactiveCopier CopyRequester { get; }
 
         /// <nodoc />
         public IAbsolutePathTransformer PathTransformer { get; }
@@ -46,6 +49,7 @@ namespace BuildXL.Cache.Host.Service
             ILogger logger,
             IAbsolutePathFileCopier copier,
             IAbsolutePathTransformer pathTransformer,
+            IProactiveCopier copyRequester,
             IDistributedCacheServiceHost host,
             HostInfo hostInfo,
             CancellationToken cancellation,
@@ -55,6 +59,7 @@ namespace BuildXL.Cache.Host.Service
         {
             Logger = logger;
             Copier = copier;
+            CopyRequester = copyRequester;
             PathTransformer = pathTransformer;
             Host = host;
             HostInfo = hostInfo;

@@ -110,6 +110,20 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             AddOption(prefix, value, valueIsEmpty: value == FileArtifact.Invalid, writeValue: (b, v) => b.AddVsoHash(v));
         }
 
+        private void AddDirectoryIdOption(string prefix, DirectoryArtifact value)
+        {
+            AddOption(prefix, value, valueIsEmpty: value == DirectoryArtifact.Invalid, writeValue: (b, v) => b.AddDirectoryId(v));
+        }
+
+        private void AddFileId(string prefix, FileArtifact value)
+        {
+            AddOption(
+                prefix,
+                value,
+                valueIsEmpty: value == FileArtifact.Invalid,
+                writeValue: (b, v) => b.AddFileId(v));
+        }
+
         private void AddOption<TValue>(string prefix, TValue value, bool valueIsEmpty, Action<PipDataBuilder, TValue> writeValue)
         {
             // prefix and value are null -> skip
@@ -364,7 +378,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                 switch (artifact.Type)
                 {
                     case ArtifactValueType.File:
-                        AddOption(argumentName, FileId.ToString(artifact.File));
+                        // AddOption(argumentName, FileId.ToString(artifact.File));
+                        AddFileId(argumentName, artifact.File);
                         m_processBuilder.AddInputFile(artifact.File);
                         break;
                     case ArtifactValueType.Directory:
@@ -399,7 +414,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         Contract.Assert(false); // should never happen because of preconditions in CommandLineArgumentsConverter
                         break;
                     case ArtifactValueType.Directory:
-                        AddOption(argumentName, DirectoryId.ToString(artifact.Directory));
+                        AddDirectoryIdOption(argumentName, artifact.Directory);
                         m_processBuilder.AddInputDirectory(artifact.Directory);
                         break;
                     case ArtifactValueType.AbsolutePath:

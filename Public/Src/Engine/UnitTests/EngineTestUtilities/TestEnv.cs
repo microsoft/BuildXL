@@ -196,15 +196,16 @@ namespace Test.BuildXL.TestUtilities
             PipGraph = graph;
 
             var locationData = new LocationData(specFile, 0, 0);
-            PipGraph.AddModule(ModulePip.CreateForTesting(Context.StringTable, specFile));
-            PipGraph.AddSpecFile(new SpecFilePip(FileArtifact.CreateSourceFile(specFile), locationData, new ModuleId(0)));
+            var modulePip = ModulePip.CreateForTesting(Context.StringTable, specFile);
+            PipGraph.AddModule(modulePip);
+            PipGraph.AddSpecFile(new SpecFilePip(FileArtifact.CreateSourceFile(specFile), locationData, modulePip.Module));
 
             PipConstructionHelper = PipConstructionHelper.CreateForTesting(
                 Context,
                 ObjectRoot,
                 redirectedRoot: Configuration.Layout.RedirectedDirectory,
                 pipGraph: PipGraph,
-                moduleName: "TestModule",
+                moduleName: modulePip.Identity.ToString(Context.StringTable),
                 symbol: name,
                 specPath: specFile);
 
@@ -400,19 +401,19 @@ namespace Test.BuildXL.TestUtilities
         public PipProvenance CreatePipProvenance(StringId usage, string valueName = "TestValue")
         {
             AbsolutePath specFile = SourceRoot.CreateRelative(Context.PathTable, "TestSpecFile.dsc");
-            var moduleId = new ModuleId(0);
 
             var valueId = FullSymbol.Create(Context.SymbolTable, valueName);
             var locationData = new LocationData(specFile, 0, 0);
 
+            var modulePip = ModulePip.CreateForTesting(Context.StringTable, specFile);
             PipGraph.AddModule(ModulePip.CreateForTesting(Context.StringTable, specFile));
-            PipGraph.AddSpecFile(new SpecFilePip(FileArtifact.CreateSourceFile(specFile), locationData, moduleId));
+            PipGraph.AddSpecFile(new SpecFilePip(FileArtifact.CreateSourceFile(specFile), locationData, modulePip.Module));
             PipGraph.AddOutputValue(new ValuePip(valueId, QualifierId.Unqualified, locationData));
 
             return new PipProvenance(
                 0,
-                moduleId,
-                StringId.Create(PathTable.StringTable, "testmodule"),
+                modulePip.Module,
+                modulePip.Identity,
                 valueId,
                 LocationData.Invalid,
                 QualifierId.Unqualified,

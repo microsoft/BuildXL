@@ -17,6 +17,10 @@ namespace Configuration {
         ],
         skipDocumentationGeneration: true,
 
-        allowUnsafeBlocks: false
+        allowUnsafeBlocks: false,
+        
+        internalsVisibleTo: [
+            "BuildXL.Cache.Host.Test"
+        ]
     });
 }

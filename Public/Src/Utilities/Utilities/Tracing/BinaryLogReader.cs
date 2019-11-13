@@ -224,7 +224,12 @@ namespace BuildXL.Utilities.Tracing
                         Contract.Assert(LogStream.Position <= (position + header.EventPayloadSize), "Event handler read beyond the event payload");
                     }
 
-                    m_logStreamReader.ReadBytes((int)(m_nextReadPosition.Value - LogStream.Position));
+                    // Seek to the start of the next event as we may not have read the entire payload (i.e. EventStatsAnalyzer)
+                    if (LogStream.Position != m_nextReadPosition.Value)
+                    {
+                        LogStream.Seek(m_nextReadPosition.Value, SeekOrigin.Begin);
+                    }
+
                     return EventReadResult.Success;
                 }
             }
@@ -363,9 +368,10 @@ namespace BuildXL.Utilities.Tracing
                         return AbsolutePath.Invalid;
                     case BinaryLogger.AbsolutePathType.Static:
                         return base.ReadAbsolutePath();
-                    default:
-                        Contract.Assert(absolutePathType == BinaryLogger.AbsolutePathType.Dynamic);
+                    case BinaryLogger.AbsolutePathType.Dynamic:
                         return LogReader.m_capturedPaths[(uint)ReadInt32Compact()];
+                    default:
+                        throw Contract.AssertFailure($"Unrecognized path type: {absolutePathType}. The XLG file format has potentially changed.");
                 }
             }
 

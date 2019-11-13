@@ -40,7 +40,7 @@ config({
             // but when it fails to download (e.g. from a share) the build is aborted. Consider making the failure non-blocking.
             configuration: {
                 toolUrl: "https://dist.nuget.org/win-x86-commandline/v4.9.4/NuGet.exe",
-                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
+                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200"
             },
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
@@ -50,7 +50,7 @@ config({
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
-                    "buildxl-selfhost" : "https://dotnet.myget.org/F/buildxl-selfhost/api/v3/index.json",
+                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
                     "nuget.org" : "http://api.nuget.org/v3/index.json",
                     "roslyn-tools" : "https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json",
                     "msbuild" : "https://dotnet.myget.org/F/msbuild/api/v3/index.json",
@@ -59,13 +59,16 @@ config({
                   },
 
             packages: [
+
+                { id: "NLog", version: "4.6.6" },
+
                 { id: "Bond.Core.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp", version: "8.0.0" },
                 { id: "Bond.CSharp.osx-x64", version: "8.0.0" },
                 { id: "Bond.Runtime.CSharp", version: "8.0.0" },
                 { id: "CLAP", version: "4.6" },
 
-                { id: "RuntimeContracts", version: "0.1.7.1" },
+                { id: "RuntimeContracts", version: "0.1.9.1" },
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net451", version: "1.0.0-alpha-5"},
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net461", version: "1.0.0-alpha-5"},
@@ -77,8 +80,8 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "3.0.0" },
-                { id: "Microsoft.NETCore.Compilers", version: "3.1.0-beta3-final" },
+                { id: "Microsoft.Net.Compilers", version: "3.3.1" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
+                { id: "Microsoft.NETCore.Compilers", version: "3.3.1" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0" },
@@ -95,9 +98,10 @@ config({
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
+                
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
-                { id: "RuntimeContracts.Analyzer", version: "0.1.7.1" },
+                { id: "RuntimeContracts.Analyzer", version: "0.1.9.4" },
                 { id: "StyleCop.Analyzers", version: "1.1.0-beta004" },
                 { id: "Text.Analyzers", version: "2.3.0-beta1" },
 
@@ -121,10 +125,7 @@ config({
                 { id: "Newtonsoft.Json", version: "11.0.2" },
                 { id: "Newtonsoft.Json", version: "10.0.3", alias: "Newtonsoft.Json.v10" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Data.SQLite", version: "1.0.109.2" },
                 { id: "System.Data.SQLite.Core", version: "1.0.109.2" },
-                { id: "System.Data.SQLite.EF6", version: "1.0.102.0" },
-                { id: "System.Data.SQLite.Linq", version: "1.0.102.0" },
                 { id: "System.Reflection.Metadata", version: "1.6.0" },
                 { id: "System.Threading.Tasks.Dataflow", version: "4.9.0" },
 
@@ -162,7 +163,7 @@ config({
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
                 { id: "WindowsAzure.Storage", version: "9.3.3", alias: "WindowsAzure.Storage" },
-                { id: "Microsoft.Data.OData", version: "5.8.2" },
+                { id: "Microsoft.Data.OData", version: "5.8.4" },
                 { id: "Microsoft.Data.Services.Client", version: "5.8.2" },
                 { id: "System.Spatial", version: "5.8.2" },
                 { id: "Microsoft.Data.Edm", version: "5.8.2" },
@@ -193,6 +194,7 @@ config({
                 { id: "Grpc.Core", version: "1.18.0" },
                 { id: "Grpc.Tools", version: "1.18.0" },
                 { id: "Google.Protobuf", version: "3.7.0" },
+                { id: "Google.Protobuf.Tools", version: "3.7.0" },
                 { id: "Redis-64", version: "3.0.503" },
 
                 // Testing
@@ -228,45 +230,39 @@ config({
                 { id: "Validation", version: "2.3.7"},
 
                 // .NET Core Dependencies
-                { id: "Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
-                { id: "Microsoft.NETCore.App", version: "2.1.1", alias: "Microsoft.NETCore.App.211" },
+                { id: "Microsoft.NETCore.App.Ref", version: "3.0.0" },
 
                 { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
-                { id: "Microsoft.NETCore.Platforms", version: "3.0.0-preview5.19224.8" },
-                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15"},
+                { id: "Microsoft.NETCore.Platforms", version: "3.0.0" },
                 { id: "System.Security.Claims", version: "4.3.0" },
 
                 // .NET Core Self-Contained Deployment
-                { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
                 { id: "Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "Microsoft.NETCore.DotNetHostResolver.220" },
 
-                { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
+
+                { id: "Microsoft.NETCore.DotNetAppHost", version: "3.0.0" },
                 { id: "Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "Microsoft.NETCore.DotNetAppHost.220" },
 
                 // .NET Core win-x64 runtime deps
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.App.Host.win-x64", version: "3.0.0" },
+                { id: "Microsoft.NETCore.App.Runtime.win-x64", version: "3.0.0" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
+                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
+
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetAppHost.220" },
-
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
-                { id: "runtime.win-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.App.220" },
-
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.220" },
-
-                { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
                 { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
                 // .NET Core osx-x64 runtime deps
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "3.0.0-preview5-27626-15" },
+                { id: "Microsoft.NETCore.App.Host.osx-x64", version: "3.0.0" },
+                { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: "3.0.0" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0" },
+                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0" },
+
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetAppHost.220" },
-
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "3.0.0-preview5-27626-15" },
-                { id: "runtime.osx-x64.Microsoft.NETCore.App", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.App.220" },
-
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "3.0.0-preview5-27626-15" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.220" },
-
-                { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "3.0.0-preview5-27626-15" },
                 { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: "2.2.0", alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.220" },
 
                 // DotNetCore related deps
@@ -422,28 +418,29 @@ config({
                 { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.137.0-preview"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build.Runtime", version: "16.1.0-preview.42",
+                { id: "Microsoft.Build", version: "16.4.0-preview-19516-02",
+                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow", "System.Memory"], // These are overwritten in the deployment by DataflowForMSBuild and SystemMemoryForMSBuild since it doesn't work with the versions we use in larger buildxl.
+                    dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow", "System.Memory"],
+                },
+                { id: "Microsoft.Build.Runtime", version: "16.4.0-preview-19516-02",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
                     dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow"],
                 },
-                { id: "Microsoft.Build.Tasks.Core", version: "16.1.0-preview.42",
+                { id: "Microsoft.Build.Tasks.Core", version: "16.4.0-preview-19516-02",
                     dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
                     dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow"],
                 },
-                { id: "Microsoft.Build.Utilities.Core", version: "16.1.0-preview.42"},
-                { id: "Microsoft.Build", version: "16.1.0-preview.42",
-                    dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"],
-                    dependentPackageIdsToIgnore: ["System.Threading.Tasks.Dataflow"],
-                },
-
-                { id: "Microsoft.Build.Framework", version: "16.1.0-preview.42"},
+                { id: "Microsoft.Build.Utilities.Core", version: "16.4.0-preview-19516-02"},
+                { id: "Microsoft.Build.Framework", version: "16.4.0-preview-19516-02"},
+                { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4", dependentPackageIdsToIgnore: ["System.Memory"], dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "1.16.30"},
                 { id: "System.CodeDom", version: "4.4.0"},
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1", dependentPackageIdsToSkip: ["System.Runtime.CompilerServices.Unsafe"]},
-                { id: "System.Threading.Tasks.Dataflow", version: "4.5.24", alias: "DataflowForMSBuild" },
-                { id: "Microsoft.NETCore.App", version: "2.1.0", alias: "Microsoft.NETCore.App.210" },
+                { id: "System.Memory", version: "4.5.3", alias: "SystemMemoryForMSBuild", dependentPackageIdsToIgnore: ["*"], dependentPackageIdsToSkip: ["*"]},
+                { id: "System.Numerics.Vectors", version: "4.4.0", alias: "SystemNumericsVectorsForMSBuild"},
+                { id: "System.Runtime.CompilerServices.Unsafe", version: "4.5.2", alias: "SystemRuntimeCompilerServicesUnsafeForMSBuild"},
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "0.3.0" },
@@ -475,6 +472,9 @@ config({
                 { id: "Microsoft.Azure.Kusto.Ingest", version: "6.1.8" },
                 { id: "Microsoft.Azure.Kusto.Tools", version: "2.2.2" },
                 { id: "Microsoft.Azure.Management.Kusto", version: "1.0.0" },
+
+                // ANTLR
+                { id: "Antlr4.Runtime.Standard", version: "4.7.2" }
             ],
 
             doNotEnforceDependencyVersions: true,
@@ -511,21 +511,21 @@ config({
 
                 // DotNet Core Runtime
                 {
-                    moduleName: "DotNet-Runtime.win-x64.3.0.0-preview5",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/9459ede1-e223-40c7-a4c5-2409e789121a/46d4eb6067bda9f412a472f7286ffd94/dotnet-runtime-3.0.0-preview5-27626-15-win-x64.zip",
-                    hash: "VSO0:6DBFE7BC9FA24D33A46A3A0732164BD5A4F5984E8FCE091D305FA635CD876AA700",
+                    moduleName: "DotNet-Runtime.win-x64.3.0.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/f15b7c04-2900-4a14-9c01-ccd66a4323cc/17a6bbd44f0d0a85d219dd9e166a89ca/dotnet-runtime-3.0.0-win-x64.zip",
+                    hash: "VSO0:FDECDEE5841EC76EFCAF739A33C14CA3E56DFED17E6C40D5841CD8FAE476736300",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64.3.0.0-preview5",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/85024962-5dee-4f64-ab29-a903f3749f85/6178bfacc58f4d9a596b5e3facc767ab/dotnet-runtime-3.0.0-preview5-27626-15-osx-x64.tar.gz",
-                    hash: "VSO0:C6AB5808D30BFF857263BC467FE8D818F35486763F673F79CA5A758727CEF3A900",
+                    moduleName: "DotNet-Runtime.osx-x64.3.0.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/68123d89-73c0-40b0-ba9b-93667c25663b/001f66f8ec4666421acc16f74209aa99/dotnet-runtime-3.0.0-osx-x64.tar.gz",
+                    hash: "VSO0:C26993E7020F4CA1398EB813C02B2F276AD74BADE7AA71D9B842462C1BAB7F7E00",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64.3.0.0-preview5",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/f15ad9ab-7bd2-4ff5-87b6-b1a08f062ea2/6fdd314c16c17ba22934cd0ac6b4d343/dotnet-runtime-3.0.0-preview5-27626-15-linux-x64.tar.gz",
-                    hash: "VSO0:00F83B929904F647BD8FB22361052BB347A1E5FA9A3A32A67EE1569DE443D92700",
+                    moduleName: "DotNet-Runtime.linux-x64.3.0.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/a5ff9cbb-d558-49d1-9fd2-410cb1c8b095/a940644f4133b81446cb3733a620983a/dotnet-runtime-3.0.0-linux-x64.tar.gz",
+                    hash: "VSO0:4E5F8CF2BC5B1AE739D7E860B07C52050ACCB14A240C47CFD9E4F79EB21305EF00",
                     archiveType: "tgz",
                 },
                 // The following are needed for dotnet core MSBuild test deployments
@@ -639,6 +639,13 @@ config({
             trackSourceFileChanges: true,
             isWritable: true,
             isReadable: true,
+        },
+        {
+            name: a`CgNpmRoot`,
+            path: p`cg/npm`,
+            trackSourceFileChanges: true,
+            isWritable: false,
+            isReadable: true
         },
         {
             // Special scrubbable mount with the content that can be cleaned up by running bxl.exe /scrub

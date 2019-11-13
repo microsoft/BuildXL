@@ -6,12 +6,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-#if FEATURE_CORECLR
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
-#endif
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
 using Microsoft.VisualStudio.Services.Content.Common.Authentication;
 #else
 using BuildXL.Cache.ContentStore.Exceptions;
@@ -26,7 +24,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
     {
         private readonly VssCredentials _credentials;
 
-#if !PLATFORM_OSX
+#if PLATFORM_WIN
         private readonly string _userName;
         private readonly SecureString _pat;
         private readonly byte[] _credentialBytes;
@@ -93,8 +91,8 @@ namespace BuildXL.Cache.ContentStore.Vsts
             _credentials = creds;
         }
 
-#if !PLATFORM_OSX
-#if FEATURE_CORECLR
+#if PLATFORM_WIN
+#if NET_CORE
         private const string VsoAadSettings_ProdAadAddress = "https://login.windows.net/";
         private const string VsoAadSettings_TestAadAddress = "https://login.windows-ppe.net/";
         private const string VsoAadSettings_DefaultTenant = "microsoft.com";
@@ -114,7 +112,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
             token.AcquireToken(); 
             return new VssAadCredential(token);
         }
-#endif //FEATURE_CORECLR
+#endif //NET_CORE
 
         /// <summary>
         /// Creates a VssCredentials object and returns it.
@@ -131,15 +129,15 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return _helper.GetPATCredentials(_pat);
             }
 
-#if FEATURE_CORECLR
+#if NET_CORE
             // If the user name is explicitly provided call a different auth method that's
             // not going to query the OS for the AAD user name (which is, btw, disallowed on CoreCLR).
             if (_userName != null)
             {
                 return CreateVssCredentialsForUserName(baseUri);
             }
-#endif // FEATURE_CORECLR
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
+#endif // NET_CORE
+            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null)
                 .ConfigureAwait(false);
         }
 #else

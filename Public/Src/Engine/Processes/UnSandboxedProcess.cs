@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration.Mutable;
-using static BuildXL.Utilities.FormattableStringEx;
+using BuildXL.Utilities.Instrumentation.Common;
 using JetBrains.Annotations;
 #if FEATURE_SAFE_PROCESS_HANDLE
 using Microsoft.Win32.SafeHandles;
@@ -22,22 +22,23 @@ using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
 using static BuildXL.Interop.MacOS.IO;
 #endif
 
+using static BuildXL.Utilities.FormattableStringEx;
+
 namespace BuildXL.Processes
 {
     /// <summary>
     /// An implementation of <see cref="ISandboxedProcess"/> that doesn't perform any sandboxing.
     /// </summary>
-    public class UnSandboxedProcess : ISandboxedProcess
+    public class UnsandboxedProcess : ISandboxedProcess
     {
         private static readonly ISet<ReportedFileAccess> s_emptyFileAccessesSet = new HashSet<ReportedFileAccess>();
         private static readonly TimeSpan DefaultProcessTimeout = TimeSpan.FromMinutes(SandboxConfiguration.DefaultProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
+        private readonly AsyncProcessExecutor m_processExecutor;
 
         private DateTime m_reportsReceivedTime;
-
-        private AsyncProcessExecutor m_processExecutor;
         private Exception m_dumpCreationException;
 
         internal class CpuTimes
@@ -57,7 +58,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Delegate type for <see cref="ProcessStarted"/> event.
         /// </summary>
-        protected delegate void ProcessStartedHandler();
+        protected delegate void ProcessStartedHandler(int processId);
 
         /// <summary>
         /// Raised right after the process is started.
@@ -71,19 +72,34 @@ namespace BuildXL.Processes
         protected virtual bool Killed => m_processExecutor?.Killed ?? false;
 
         /// <summary>
-        /// Process information associated with this process.
-        /// </summary>
-        protected SandboxedProcessInfo ProcessInfo { get; }
-
-        /// <summary>
         /// Underlying managed <see cref="Process"/> object.
         /// </summary>
         protected Process Process => m_processExecutor?.Process;
 
         /// <summary>
+        /// Logging context from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// </summary>
+        protected LoggingContext LoggingContext { get; }
+
+        /// <summary>
+        /// Pip description from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// </summary>
+        protected string PipDescription { get; }
+
+        /// <summary>
+        /// Pip's semi-stable hash from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
+        /// </summary>
+        protected long PipSemiStableHash { get; }
+
+        /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
         /// </summary>
-        protected PathTable PathTable => ProcessInfo.PathTable;
+        protected PathTable PathTable { get; }
+
+        /// <summary>
+        /// Whether /logObservedFileAccesses has been requested
+        /// </summary>
+        protected bool ShouldReportFileAccesses { get; }
 
         /// <summary>
         /// Whether there were any failures regarding sandboxing (e.g., sandbox
@@ -91,33 +107,59 @@ namespace BuildXL.Processes
         /// </summary>
         protected virtual bool HasSandboxFailures => false;
 
-        /// <nodoc />
-        public UnSandboxedProcess(SandboxedProcessInfo info)
+        private string TimeoutDumpDirectory { get; }
+
+        /// <remarks>
+        /// IMPORTANT: For memory efficiency reasons don't keep a reference to <paramref name="info"/>
+        ///            or its  <see cref="SandboxedProcessInfo.FileAccessManifest"/> property
+        ///            (at least not after the process has been started)
+        /// </remarks>
+        public UnsandboxedProcess(SandboxedProcessInfo info)
         {
             Contract.Requires(info != null);
 
+            Started = false;
+            PathTable = info.PathTable;
+            LoggingContext = info.LoggingContext;
+            PipDescription = info.PipDescription;
+            PipSemiStableHash = info.PipSemiStableHash;
+            TimeoutDumpDirectory = info.TimeoutDumpDirectory;
+            ShouldReportFileAccesses = info.FileAccessManifest?.ReportFileAccesses == true;
+
             info.Timeout = info.Timeout ?? DefaultProcessTimeout;
-            ProcessInfo = info;
 
             m_output = new SandboxedProcessOutputBuilder(
-                ProcessInfo.StandardOutputEncoding ?? Console.OutputEncoding,
-                ProcessInfo.MaxLengthInMemory,
-                ProcessInfo.FileStorage,
+                info.StandardOutputEncoding ?? Console.OutputEncoding,
+                info.MaxLengthInMemory,
+                info.FileStorage,
                 SandboxedProcessFile.StandardOutput,
-                ProcessInfo.StandardOutputObserver);
+                info.StandardOutputObserver);
 
             m_error = new SandboxedProcessOutputBuilder(
-                ProcessInfo.StandardErrorEncoding ?? Console.OutputEncoding,
-                ProcessInfo.MaxLengthInMemory,
-                ProcessInfo.FileStorage,
+                info.StandardErrorEncoding ?? Console.OutputEncoding,
+                info.MaxLengthInMemory,
+                info.FileStorage,
                 SandboxedProcessFile.StandardError,
-                ProcessInfo.StandardErrorObserver);
+                info.StandardErrorObserver);
+
+            m_processExecutor = new AsyncProcessExecutor(
+                CreateProcess(info),
+                info.Timeout ?? DefaultProcessTimeout,
+                line => FeedStdOut(m_output, line),
+                line => FeedStdErr(m_error, line),
+                info.Provenance,
+                msg => LogProcessState(msg));
+
+            if (info.ProcessIdListener != null)
+            {
+                ProcessStarted += (pid) => info.ProcessIdListener(pid);
+            }
         }
 
         /// <summary>
         /// Whether this process has been started (i.e., the <see cref="Start"/> method has been called on it).
         /// </summary>
-        public bool Started => Process != null;
+        public bool Started { get; private set; }
 
         /// <summary>
         /// Difference between now and when the process was started.
@@ -133,19 +175,9 @@ namespace BuildXL.Processes
         {
             Contract.Requires(!Started, "Process was already started.  Cannot start process more than once.");
 
-            m_processExecutor = new AsyncProcessExecutor(
-                CreateProcess(),
-                ProcessInfo.Timeout ?? DefaultProcessTimeout,
-                line => FeedStdOut(m_output, line),
-                line => FeedStdErr(m_error, line),
-                ProcessInfo.Provenance,
-                msg => LogProcessState(msg));
-
+            Started = true;
             m_processExecutor.Start();
-
-            ProcessStarted?.Invoke();
-
-            ProcessInfo.ProcessIdListener?.Invoke(ProcessId);
+            ProcessStarted?.Invoke(ProcessId);
         }
 
         /// <inheritdoc />
@@ -162,15 +194,15 @@ namespace BuildXL.Processes
             LogProcessState(
                 $"Process Times: " +
                 $"started = {startTime}, " +
-                $"exited = {exitTime} (since start = {ToSeconds(exitTime - startTime)}s), " +
-                $"received reports = {m_reportsReceivedTime} (since start = {ToSeconds(m_reportsReceivedTime - startTime)}s), " +
-                $"life time = {ToSeconds(lifetime)}s, " +
-                $"user time = {ToSeconds(cpuTimes.User)}s, " +
-                $"system time = {ToSeconds(cpuTimes.System)}s");
+                $"exited = {exitTime} (since start = {toSeconds(exitTime - startTime)}s), " +
+                $"received reports = {m_reportsReceivedTime} (since start = {toSeconds(m_reportsReceivedTime - startTime)}s), " +
+                $"life time = {toSeconds(lifetime)}s, " +
+                $"user time = {toSeconds(cpuTimes.User)}s, " +
+                $"system time = {toSeconds(cpuTimes.System)}s");
             SandboxedProcessFactory.Counters.AddToCounter(SandboxedProcessFactory.SandboxedProcessCounters.SandboxedProcessLifeTimeMs, (long)lifetime.TotalMilliseconds);
             m_processExecutor?.Dispose();
 
-            string ToSeconds(TimeSpan ts)
+            static string toSeconds(TimeSpan ts)
             {
                 return (ts.TotalMilliseconds / 1000.0).ToString("0.00");
             }
@@ -180,7 +212,7 @@ namespace BuildXL.Processes
         public string GetAccessedFileName(ReportedFileAccess reportedFileAccess) => null;
 
         /// <inheritdoc />
-        public ulong? GetActivePeakMemoryUsage()
+        public ulong? GetActivePeakWorkingSet()
         {
             try
             {
@@ -189,7 +221,7 @@ namespace BuildXL.Processes
                     return null;
                 }
 
-                return Dispatch.GetActivePeakMemoryUsage(Process.Handle, ProcessId);
+                return Dispatch.GetActivePeakWorkingSet(Process.Handle, ProcessId);
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
             catch
@@ -206,7 +238,7 @@ namespace BuildXL.Processes
         public int GetLastMessageCount() => 0;
 
         /// <inheritdoc />
-        public virtual async Task<SandboxedProcessResult> GetResultAsync()
+        public async Task<SandboxedProcessResult> GetResultAsync()
         {
             Contract.Requires(Started);
 
@@ -227,8 +259,7 @@ namespace BuildXL.Processes
 
             await m_processExecutor.WaitForStdOutAndStdErrAsync();
 
-            var reportFileAccesses = ProcessInfo.FileAccessManifest?.ReportFileAccesses == true;
-            var fileAccesses = reportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
+            var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? s_emptyFileAccessesSet) : null;
 
             return new SandboxedProcessResult
             {
@@ -236,6 +267,7 @@ namespace BuildXL.Processes
                 Killed                              = Killed,
                 TimedOut                            = m_processExecutor.TimedOut,
                 HasDetoursInjectionFailures         = HasSandboxFailures,
+                JobAccountingInformation            = GetJobAccountingInfo(),
                 StandardOutput                      = m_output.Freeze(),
                 StandardError                       = m_error.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
@@ -246,7 +278,7 @@ namespace BuildXL.Processes
                 Processes                           = CoalesceProcesses(reports?.Processes),
                 MessageProcessingFailure            = reports?.MessageProcessingFailure,
                 DumpCreationException               = m_dumpCreationException,
-                DumpFileDirectory                   = ProcessInfo.TimeoutDumpDirectory,
+                DumpFileDirectory                   = TimeoutDumpDirectory,
                 PrimaryProcessTimes                 = GetProcessTimes(),
                 SurvivingChildProcesses             = CoalesceProcesses(GetSurvivingChildProcesses())
             };
@@ -268,31 +300,31 @@ namespace BuildXL.Processes
         {
             Contract.Requires(Started);
 
-            ProcessDumper.TryDumpProcessAndChildren(ProcessId, ProcessInfo.TimeoutDumpDirectory, out m_dumpCreationException);
+            ProcessDumper.TryDumpProcessAndChildren(ProcessId, TimeoutDumpDirectory, out m_dumpCreationException);
 
-            LogProcessState($"UnSandboxedProcess::KillAsync()");
+            LogProcessState($"UnsandboxedProcess::KillAsync()");
             return m_processExecutor.KillAsync();
         }
 
         /// <summary>
         /// Creates a <see cref="Process"/>.
         /// </summary>
-        protected virtual Process CreateProcess()
+        protected virtual Process CreateProcess(SandboxedProcessInfo info)
         {
-            Contract.Requires(Process == null);
+            Contract.Requires(!Started);
 
-#if PLATFORM_OSX
-            var mode = GetFilePermissionsForFilePath(ProcessInfo.FileName, followSymlink: false);
+#if !PLATFORM_WIN
+            var mode = GetFilePermissionsForFilePath(info.FileName, followSymlink: false);
             if (mode < 0)
             {
-                ThrowBuildXLException($"Process creation failed: File '{ProcessInfo.FileName}' not found", new Win32Exception(0x2));
+                ThrowBuildXLException($"Process creation failed: File '{info.FileName}' not found", new Win32Exception(0x2));
             }
 
             var filePermissions = checked((FilePermissions)mode);
             FilePermissions exePermission = FilePermissions.S_IXUSR;
             if (!filePermissions.HasFlag(exePermission))
             {
-                SetFilePermissionsForFilePath(ProcessInfo.FileName, exePermission);
+                SetFilePermissionsForFilePath(info.FileName, exePermission);
             }
 #endif
 
@@ -300,9 +332,9 @@ namespace BuildXL.Processes
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = ProcessInfo.FileName,
-                    Arguments = ProcessInfo.Arguments,
-                    WorkingDirectory = ProcessInfo.WorkingDirectory,
+                    FileName = info.FileName,
+                    Arguments = info.Arguments,
+                    WorkingDirectory = info.WorkingDirectory,
                     StandardErrorEncoding = m_output.Encoding,
                     StandardOutputEncoding = m_error.Encoding,
                     RedirectStandardError = true,
@@ -314,9 +346,9 @@ namespace BuildXL.Processes
             };
 
             process.StartInfo.EnvironmentVariables.Clear();
-            if (ProcessInfo.EnvironmentVariables != null)
+            if (info.EnvironmentVariables != null)
             {
-                foreach (var envKvp in ProcessInfo.EnvironmentVariables.ToDictionary())
+                foreach (var envKvp in info.EnvironmentVariables.ToDictionary())
                 {
                     process.StartInfo.EnvironmentVariables[envKvp.Key] = envKvp.Value;
                 }
@@ -349,7 +381,7 @@ namespace BuildXL.Processes
         protected void ThrowBuildXLException(string message, Exception inner = null)
         {
             Process?.StandardInput?.Close();
-            throw new BuildXLException($"[Pip{ProcessInfo.PipSemiStableHash} -- {ProcessInfo.PipDescription}] {message}", inner);
+            throw new BuildXLException($"[Pip{PipSemiStableHash:X} -- {PipDescription}] {message}", inner);
         }
 
         /// <nodoc />
@@ -358,17 +390,17 @@ namespace BuildXL.Processes
         /// <nodoc />
         protected void LogProcessState(string message)
         {
-            if (ProcessInfo.LoggingContext != null)
+            if (LoggingContext != null)
             {
                 string fullMessage = I($"Exited: {m_processExecutor?.ExitCompleted ?? false}, StdOut: {m_processExecutor?.StdOutCompleted ?? false}, StdErr: {m_processExecutor?.StdErrCompleted ?? false}, Reports: {ReportsCompleted()} :: {message}");
-                Tracing.Logger.Log.LogDetoursDebugMessage(ProcessInfo.LoggingContext, ProcessInfo.PipSemiStableHash, ProcessInfo.PipDescription, fullMessage);
+                Tracing.Logger.Log.LogDetoursDebugMessage(LoggingContext, PipSemiStableHash, PipDescription, fullMessage);
             }
         }
 
         /// <summary>
-        /// Returns surviving child processes in the case when the pip had to be terminated because its child
-        /// processes didn't exit within allotted time (<see cref="SandboxedProcessInfo.NestedProcessTerminationTimeout"/>)
-        /// after the main pip process has already exited.
+        /// Returns surviving child processes in the case when the pip finished and potential child
+        /// processes didn't exit within an allotted time (<see cref="SandboxedProcessInfo.NestedProcessTerminationTimeout"/>)
+        /// after the main pip parent process has already exited.
         /// </summary>
         protected virtual IEnumerable<ReportedProcess> GetSurvivingChildProcesses() => null;
 
@@ -389,8 +421,14 @@ namespace BuildXL.Processes
         [NotNull]
         internal virtual CpuTimes GetCpuTimes()
         {
-            // 'Dispatch.GetProcessTimes()' doesn't work because the process has already exited
+            // 'Dispatch.GetProcessResourceUsage()' doesn't work because the process has already exited
             return CpuTimes.Zeros;
+        }
+
+        /// <nodoc/>
+        internal virtual JobObject.AccountingInformation GetJobAccountingInfo()
+        {
+            return default;
         }
 
         private ProcessTimes GetProcessTimes()

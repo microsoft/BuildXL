@@ -224,7 +224,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 var backingContentSessionResult = await backingContentSessionTask.ConfigureAwait(false);
                 if (backingContentSessionResult.Succeeded && writeThroughContentSessionResult.Succeeded)
                 {
-                    _taskTracker = new BackgroundTaskTracker(Component, new Context(context));
+                    _taskTracker = new BackgroundTaskTracker(Component, context.CreateNested());
                     result = BoolResult.Success;
                 }
                 else
@@ -479,7 +479,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return GetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, context, strongFingerprint, async () =>
+            return GetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, context, strongFingerprint, traceStart: false, asyncFunc: async () =>
             {
                 // Check for pre-fetched data
                 ContentHashListWithDeterminism contentHashListWithDeterminism;

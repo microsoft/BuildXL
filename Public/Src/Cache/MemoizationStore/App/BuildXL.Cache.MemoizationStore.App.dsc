@@ -8,21 +8,14 @@ namespace App {
         sources: globR(d`.`,"*.cs"),
         appConfig: f`App.Config`,
         references: [
-            ...(BuildXLSdk.isDotNetCoreBuild
-                // TODO: This is to get a .Net Core build, but it may not pass tests
-                ? [importFrom("System.Data.SQLite.Core").withQualifier({targetFramework:"net461"}).pkg]
-                : [importFrom("System.Data.SQLite.Core").pkg]
-            ),
-            ...(BuildXLSdk.isDotNetCoreBuild
-                // TODO: This is to get a .Net Core build, but it may not pass tests
-                ? [importFrom("CLAP").withQualifier({targetFramework:"net451"}).pkg]
-                : [importFrom("CLAP").pkg]
-            ),
             ContentStore.UtilitiesCore.dll,
             ContentStore.Interfaces.dll,
             ContentStore.Library.dll,
             Interfaces.dll,
             Library.dll,
+
+            // CLAP only exists for full framework net35. Ignoring the fact that this doesn't work on netcoreapp
+            importFrom("CLAP").withQualifier({targetFramework:"net472"}).pkg, 
 
             importFrom("System.Interactive.Async").pkg,
         ],

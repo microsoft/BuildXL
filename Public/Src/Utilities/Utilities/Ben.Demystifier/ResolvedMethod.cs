@@ -57,8 +57,7 @@ namespace System.Diagnostics
 
             if (IsAsync)
             {
-                builder
-                    .Append("async ");
+                builder.Append("async ");
             }
 
             if (ReturnParameter != null)
@@ -69,11 +68,12 @@ namespace System.Diagnostics
 
             if (!string.IsNullOrEmpty(DeclaringTypeName))
             {
-
                 if (Name == ".ctor")
                 {
                     if (string.IsNullOrEmpty(SubMethod) && !IsLambda)
+                    {
                         builder.Append("new ");
+                    }
 
                     builder.Append(DeclaringTypeName);
                 }

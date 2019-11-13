@@ -1,0 +1,29 @@
+﻿// retrieves the relevant attrs of a build from our DB. It retrieves a
+// single day of builds and gets X of them from different queues 
+
+
+let sDate = make_datetime({0}, {1}, {2}, 0, 0, 0);
+let eDate = make_datetime({0}, {1}, {2}, 23, 59, 59);
+
+let productBuilds = (start:datetime, end:datetime){
+    database('Domino').dominoinvocation 
+       | where EventInfo_Time >= start and EventInfo_Time < end
+       | where Environment contains "ProductBuild"
+       | distinct RelatedSessionId
+};
+
+let ProductBuilds = productBuilds(sDate, eDate);
+
+let buildsWithQueues = (start:datetime, end:datetime){
+    database('{4}').BuildInfo
+    | where StartTime >= start and EndTime < end
+	| where ReturnCode == "Success" and ReturnType == "Success"
+    | where BuildQueue contains "Office"
+    | distinct BuildId, LogDirectory, StartTime, BuildDurationMs, BuildControllerMachineName, BuildQueue;
+};
+
+buildsWithQueues(sDate, eDate) 
+| where BuildId in ((ProductBuilds))
+| summarize any(*) by BuildQueue
+| project any_BuildId, any_LogDirectory, any_StartTime, any_BuildDurationMs, any_BuildControllerMachineName, BuildQueue
+| take {3}

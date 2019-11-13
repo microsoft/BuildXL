@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Service.Grpc
 {
@@ -36,25 +37,29 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             Contract.Requires(port > 0 && port <= 65535); // Limit on computers' ports.
 
-#if !PLATFORM_OSX
-            var fileName = $@"Global\{_baseFileName}";
-            try
+            string fileName = _baseFileName;
+
+            // OSX can't use global memory mapped files, so don't use the "Global" prefix
+            if (OperatingSystemHelper.IsWindowsOS)
             {
-                _file = CreateMemoryMappedFile(port, fileName);
+                fileName = $@"Global\{_baseFileName}";
+                try
+                {
+                    _file = CreateMemoryMappedFile(port, fileName);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    _logger.Warning(
+                        $"Failed to create global memory mapped file {fileName}. MMF will only be available to the current user. If global access is required, try running as administrator.");
+                }
             }
-            catch (UnauthorizedAccessException)
+
+            // Could not create global MMF
+            if (_file == null)
             {
                 fileName = _baseFileName;
-                _logger.Warning(
-                    $"Failed to create global memory mapped file {fileName}. MMF will only be available to the current user. If global access is required, try running as administrator.");
-                _file = CreateMemoryMappedFile(port, fileName);
+                _file = CreateMemoryMappedFile(port, _baseFileName);
             }
-#else
-            // OSX can't use global memory mapped files, so don't use the "Global" prefix
-            var fileName = _baseFileName;
-            _file = CreateMemoryMappedFile(port, _baseFileName);
-            System.Console.WriteLine("Created memory mapped file at " + _baseFileName);
-#endif
 
             return new MemoryMappedFileDisposer(_logger, _file, fileName);
         }
@@ -63,29 +68,15 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         {
             _logger.Always($"Trying to expose GRPC port {port} at memory mapped file '{fileName}'");
 
-#if !PLATFORM_OSX
-            var file = MemoryMappedFile.CreateNew(
-                fileName,
-                FileSize,
-                MemoryMappedFileAccess.ReadWrite);
-#else
-            var file = MemoryMappedFile.CreateFromFile(
-                fileName,
-                FileMode.Create,
-                null,
-                FileSize,
-                MemoryMappedFileAccess.ReadWrite);
-#endif
+            var file = OperatingSystemHelper.IsWindowsOS
+                ? MemoryMappedFile.CreateNew(fileName, FileSize, MemoryMappedFileAccess.ReadWrite)
+                : MemoryMappedFile.CreateFromFile(fileName, FileMode.Create, null, FileSize, MemoryMappedFileAccess.ReadWrite);
 
             try
             {
-                using (var stream = file.CreateViewStream())
-                {
-                    using (var writer = new StreamWriter(stream))
-                    {
-                        writer.Write(port);
-                    }
-                }
+                using var stream = file.CreateViewStream();
+                using var writer = new StreamWriter(stream);
+                writer.Write(port);
             }
             catch
             {

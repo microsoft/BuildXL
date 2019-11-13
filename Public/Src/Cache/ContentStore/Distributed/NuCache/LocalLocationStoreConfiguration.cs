@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
@@ -117,13 +116,13 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Estimated decay time for content re-use.
         /// </summary>
-        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        /// <remarks><para>This is used in the optimal distributed eviction algorithm.</para></remarks>
         public TimeSpan ContentLifetime { get; set; } = TimeSpan.FromDays(0.5);
 
         /// <summary>
         /// Estimated chance of a content not being available on a machine in the distributed pool.
         /// </summary>
-        /// <remarks><para>This is used in the opitmal distributed eviction algorithm.</para></remarks>
+        /// <remarks><para>This is used in the optimal distributed eviction algorithm.</para></remarks>
         public double MachineRisk { get; set; } = 0.1;
 
         /// <summary>
@@ -145,6 +144,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// <summary>
         /// Indicates whether content is reconciled between local machine and local db once a checkpoint is restored.
         /// </summary>
+        /// <remarks>
+        /// Reconciliation is a very critical feature and disabling it can cause build failures because machine's state can be out of sync with LLS's data.
+        /// </remarks>
         public bool EnableReconciliation { get; set; } = true;
 
         /// <summary>
@@ -154,6 +156,16 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// True only for tests.
         /// </remarks>
         public bool InlinePostInitialization { get; set; }
+
+        /// <summary>
+        /// The frequency by which reconciliation cycles should be done.
+        /// </summary>
+        public TimeSpan ReconciliationCycleFrequency { get; set; } = TimeSpan.FromMinutes(30);
+
+        /// <summary>
+        /// The amount of events that should be sent per reconciliation cycle.
+        /// </summary>
+        public int ReconciliationMaxCycleSize { get; set; } = 100000;
 
         /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
@@ -209,7 +221,7 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int MaxRetentionGb { get; set; } = 20;
 
         /// <summary>
-        /// Defines the target maximum number of simulataneous copies
+        /// Defines the target maximum number of simultaneous copies
         /// </summary>
         public int MaxSimultaneousCopies { get; set; } = 10;
     }
@@ -359,6 +371,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// </summary>
         public bool UseIncrementalCheckpointing { get; set; }
 
+        /// <nodoc />
+        public int IncrementalCheckpointDegreeOfParallelism { get; set; } = 1;
+
         /// <summary>
         /// The working directory used by checkpoint manager for staging checkpoints before upload and restore.
         /// </summary>
@@ -386,6 +401,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         /// The interval by which the checkpoint manager applies checkpoints to the local database.
         /// </summary>
         public TimeSpan RestoreCheckpointInterval { get; set; } = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Age threshold after which we should eagerly restore checkpoint blocking the caller.
+        /// </summary>
+        public TimeSpan RestoreCheckpointAgeThreshold { get; set; }
 
         /// <inheritdoc />
         public CheckpointConfiguration(AbsolutePath workingDirectory) => WorkingDirectory = workingDirectory;

@@ -80,9 +80,11 @@ namespace BuildXL.FrontEnd.Download
         public Task<bool> InitResolverAsync([NotNull] IResolverSettings resolverSettings, object workspaceResolver)
         {
             m_workspaceResolver = workspaceResolver as DownloadWorkspaceResolver;
-            Contract.Assert(
-                m_workspaceResolver != null,
-                I($"Wrong type for resolver, expected {nameof(DownloadWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
+
+            if (m_workspaceResolver == null)
+            {
+                Contract.Assert(false, I($"Wrong type for resolver, expected {nameof(DownloadWorkspaceResolver)} but got {nameof(workspaceResolver.GetType)}"));
+            }
 
             Name = resolverSettings.Name;
 
@@ -244,8 +246,8 @@ namespace BuildXL.FrontEnd.Download
                 // Check if the file already exists and matches the exected hash.
                 if (File.Exists(downloadFilePath))
                 {
-                    var expectedHashType = downloadData.ContentHash.HasValue 
-                        ? downloadData.ContentHash.Value.HashType 
+                    var expectedHashType = downloadData.ContentHash.HasValue
+                        ? downloadData.ContentHash.Value.HashType
                         : HashType.Unknown;
 
                     // Compare actual hash to compare if we need to download again.
@@ -736,7 +738,7 @@ namespace BuildXL.FrontEnd.Download
                 Projects = new List<AbsolutePath>(moduleDefinition.Specs),
             };
 
-            return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor);
+            return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor, moduleId: moduleDescriptor.Id);
         }
 
         /// <inheritdoc />

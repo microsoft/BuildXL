@@ -23,6 +23,8 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 
+#pragma warning disable IDE0040 // Accessibility modifiers required
+
 namespace ContentStoreTest.Sessions
 {
     public abstract class LargeStreamServiceClientTests : TestBase

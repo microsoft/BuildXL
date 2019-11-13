@@ -19,9 +19,11 @@ using BuildXL.Storage;
 using BuildXL.Tracing.CloudBuild;
 using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tasks;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Tool.ServicePipDaemon;
@@ -156,23 +158,7 @@ namespace Tool.DropDaemon
             HelpText = "Relative drop path",
             IsRequired = false,
             IsMultiValue = true,
-        };
-
-        internal static readonly StrOption HashOptional = new StrOption("hash")
-        {
-            ShortName = "h",
-            HelpText = "VSO file hash",
-            IsRequired = false,
-            IsMultiValue = true,
-        };
-
-        internal static readonly StrOption FileId = new StrOption("fileId")
-        {
-            ShortName = "fid",
-            HelpText = "BuildXL file identifier",
-            IsRequired = false,
-            IsMultiValue = true,
-        };
+        };       
 
         internal static readonly StrOption Directory = new StrOption("directory")
         {
@@ -232,7 +218,7 @@ namespace Tool.DropDaemon
            needsIpcClient: false,
            clientAction: (conf, _) =>
            {
-               SetupThreadPoolAndServicePoint();
+               SetupThreadPoolAndServicePoint(s_minWorkerThreadsForDrop, s_minIoThreadsForDrop, ServicePointParallelismForDrop);
                var dropConfig = CreateDropConfig(conf);
                var daemonConf = CreateDaemonConfig(conf);
 
@@ -254,19 +240,7 @@ namespace Tool.DropDaemon
                    daemon.Completion.GetAwaiter().GetResult();
                    return 0;
                }
-           });
-
-        private static void SetupThreadPoolAndServicePoint()
-        {
-            int workerThreads, ioThreads;
-            ThreadPool.GetMinThreads(out workerThreads, out ioThreads);
-
-            workerThreads = Math.Max(workerThreads, s_minWorkerThreadsForDrop);
-            ioThreads = Math.Max(ioThreads, s_minIoThreadsForDrop);
-            ThreadPool.SetMinThreads(workerThreads, ioThreads);
-
-            ServicePointManager.DefaultConnectionLimit = Math.Max(ServicePointParallelismForDrop, ServicePointManager.DefaultConnectionLimit);
-        }
+           });        
 
         internal static readonly Command StartDaemonCmd = RegisterCommand(
            name: "start-daemon",
@@ -407,9 +381,9 @@ namespace Tool.DropDaemon
         }
 
         /// <summary>
-        ///     Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
-        ///     In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
-        ///     result of this operation.
+        /// Creates the drop.  Handles drop-related exceptions by omitting their stack traces.
+        /// In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
+        /// result of this operation.
         /// </summary>
         public async Task<IIpcResult> CreateAsync()
         {
@@ -419,7 +393,7 @@ namespace Tool.DropDaemon
 
             return dropCreationEvent.Succeeded
                 ? IpcResult.Success(I($"Drop {DropName} created."))
-                : new IpcResult(IpcResultStatus.ExecutionError, dropCreationEvent.ErrorMessage);
+                : new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
         }
 
         /// <summary>
@@ -470,7 +444,7 @@ namespace Tool.DropDaemon
 
             return dropFinalizationEvent.Succeeded
                 ? IpcResult.Success(I($"Drop {DropName} finalized"))
-                : new IpcResult(IpcResultStatus.ExecutionError, dropFinalizationEvent.ErrorMessage);
+                : new IpcResult(ParseIpcStatus(dropFinalizationEvent.AdditionalInformation), dropFinalizationEvent.ErrorMessage);
         }
 
         /// <inheritdoc />
@@ -567,27 +541,48 @@ namespace Tool.DropDaemon
             }
         }
 
+        private delegate TResult ErrorFactory<TResult>(string message, IpcResultStatus status);
+
         private static Task<IIpcResult> WrapDropErrorsIntoIpcResult(Func<Task<IIpcResult>> factory)
         {
-            return HandleKnownErrors(
+            return HandleKnownErrorsAsync(
                 factory,
-                (errorMessage) => new IpcResult(IpcResultStatus.ExecutionError, errorMessage));
+                (errorMessage, status) => new IpcResult(status, errorMessage));
         }
 
         private static Task<TDropEvent> WrapDropErrorsIntoDropEtwEvent<TDropEvent>(Func<Task<TDropEvent>> factory) where TDropEvent : DropOperationBaseEvent
         {
-            return HandleKnownErrors(
+            return HandleKnownErrorsAsync(
                 factory,
-                (errorMessage) =>
+                (errorMessage, errorKind) =>
                 {
                     var dropEvent = Activator.CreateInstance<TDropEvent>();
                     dropEvent.Succeeded = false;
                     dropEvent.ErrorMessage = errorMessage;
+                    dropEvent.AdditionalInformation = RenderIpcStatus(errorKind);
                     return dropEvent;
                 });
         }
 
-        private static async Task<TResult> HandleKnownErrors<TResult>(Func<Task<TResult>> factory, Func<string, TResult> errorValueFactory)
+        private static string RenderIpcStatus(IpcResultStatus status)
+        {
+            return status.ToString();
+        }
+
+        private static IpcResultStatus ParseIpcStatus(string statusString, IpcResultStatus defaultValue = IpcResultStatus.ExecutionError)
+        {
+            return Enum.TryParse<IpcResultStatus>(statusString, out var value)
+                ? value
+                : defaultValue;
+        }
+
+        /// <summary>
+        /// BuildXL's classification of different <see cref="IpcResultStatus"/> values:
+        ///   - <see cref="IpcResultStatus.InvalidInput"/>      --> <see cref="Keywords.UserError"/>
+        ///   - <see cref="IpcResultStatus.TransmissionError"/> --> <see cref="Keywords.InfrastructureError"/>
+        ///   - all other errors                                --> InternalError
+        /// </summary>
+        private static async Task<TResult> HandleKnownErrorsAsync<TResult>(Func<Task<TResult>> factory, ErrorFactory<TResult> errorValueFactory)
         {
             try
             {
@@ -595,15 +590,22 @@ namespace Tool.DropDaemon
             }
             catch (VssUnauthorizedException e)
             {
-                return errorValueFactory("[DROP AUTH ERROR] " + e.Message);
+                return errorValueFactory("[DROP AUTH ERROR] " + e.Message, IpcResultStatus.InvalidInput);
+            }
+            catch (VssResourceNotFoundException e)
+            {
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, IpcResultStatus.TransmissionError);
             }
             catch (DropServiceException e)
             {
-                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message);
+                var status = e.Message.Contains("already exists") 
+                    ? IpcResultStatus.InvalidInput
+                    : IpcResultStatus.TransmissionError;
+                return errorValueFactory("[DROP SERVICE ERROR] " + e.Message, status);
             }
             catch (DaemonException e)
             {
-                return errorValueFactory("[DAEMON ERROR] " + e.Message);
+                return errorValueFactory("[DAEMON ERROR] " + e.Message, IpcResultStatus.ExecutionError);
             }
         }
 
@@ -909,6 +911,15 @@ namespace Tool.DropDaemon
             var ipcResults = await TaskUtilities.SafeWhenAll(ipcResultTasks);
 
             return IpcResult.Merge(ipcResults);
+        }
+
+        /// <summary>
+        /// Creates an IPC client using the config from a ConfiguredCommand
+        /// </summary>
+        public static IClient CreateClient(ConfiguredCommand conf)
+        {
+            var daemonConfig = CreateDaemonConfig(conf);
+            return IpcProvider.GetClient(daemonConfig.Moniker, daemonConfig);
         }
     }
 }

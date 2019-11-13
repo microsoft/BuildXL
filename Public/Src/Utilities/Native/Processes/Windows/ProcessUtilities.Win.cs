@@ -241,6 +241,9 @@ namespace BuildXL.Native.Processes.Windows
             => ExternCreateNamedPipe(lpName, dwOpenMode, dwPipeMode, nMaxInstances, nOutBufferSize, nInBufferSize, nDefaultTimeout, lpSecurityAttributes);
 
         /// <inheritdoc />
+        public bool WaitNamedPipe(string pipeName, uint timeout) => ExternWaitNamedPipe(pipeName, timeout);
+
+        /// <inheritdoc />
         public bool ApplyDriveMappings(PathMapping[] mappings)
         {
             Assert64Process();
@@ -266,6 +269,9 @@ namespace BuildXL.Native.Processes.Windows
         /// <inheritdoc />
         public bool OSSupportsNestedJobs()
             => IO.Windows.FileSystemWin.StaticIsOSVersionGreaterOrEqual(IO.Windows.FileSystemWin.MinWindowsVersionThatSupportsNestedJobs);
+
+        /// <inheritdoc/>
+        public bool SandboxSupportsProcessBreakaway() => true;
 
         internal static void Assert64Process()
         {
@@ -391,6 +397,10 @@ namespace BuildXL.Native.Processes.Windows
             int nInBufferSize,
             int nDefaultTimeout,
             IntPtr lpSecurityAttributes);
+
+        [DllImport(ExternDll.Kernel32, EntryPoint = "WaitNamedPipe", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ExternWaitNamedPipe(string pipeName, uint timeout);
 
         [DllImport(ExternDll.BuildXLNatives64, EntryPoint = "RemapDevices", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

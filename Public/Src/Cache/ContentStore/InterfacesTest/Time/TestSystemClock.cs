@@ -12,7 +12,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Time
         ///     Singleton instance for all to use
         /// </summary>
         // ReSharper disable once ArrangeModifiersOrder
-        public static readonly new TestSystemClock Instance = new TestSystemClock();
+        public static new readonly TestSystemClock Instance = new TestSystemClock();
 
         public void Increment()
         {

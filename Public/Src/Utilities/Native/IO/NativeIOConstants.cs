@@ -180,21 +180,26 @@ namespace BuildXL.Native.IO
         /// </summary>
         public const int ErrorTimeout = 0x5B4;
 
+        /// <summary> 
+        /// ERROR_PIPE_BUSY. 
+        /// </summary> 
+        public const int ErrorPipeBusy = 0xE7;
+
         /// <summary>
         /// Infinite timeout.
         /// </summary>
         public const int Infinite = -1;
 
-#if PLATFORM_OSX
-        /// <summary>
-        /// Maximum path length.
-        /// </summary>
-        public const int MaxPath = 1024;
-#else
+#if PLATFORM_WIN
         /// <summary>
         /// Maximum path length.
         /// </summary>
         public const int MaxPath = 260;
+#else
+        /// <summary>
+        /// Maximum path length.
+        /// </summary>
+        public const int MaxPath = 1024;
 #endif
 
         /// <summary>

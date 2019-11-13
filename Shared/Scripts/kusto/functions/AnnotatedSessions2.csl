@@ -1,0 +1,166 @@
+.create-or-alter function with (folder = "common", docstring = "AnnotatedSessions2", skipvalidation = "true") AnnotatedSessions2(startDate:datetime, endDate:datetime, infra:string="", mSRReportable:string="", customer:string="", buildQueue:string="", buildInfo_Build:string="", stamp:string="", bucketGroup:string="") {
+//let startDate = ago(3d);
+//let endDate = ago(0d);
+//let infra = "Dev";
+//let mSRReportable = "";
+//let customer = "";
+//let buildQueue = "";
+//let buildInfo_Build = "";
+//let stamp = "";
+//let bucketGroup = "";
+// ************** Exception regexes **************
+// The goal of the following regexes is parse enough information out of the crash exception and stack trace that a single line can be created that uniquely identifies the crash, this can be used as a "SuggestedBugName".
+// The SuggestedBugName should be unique enough to differentiate conceptually different crashes, but generic enough that slight variations in the exception or crash stack still results in the same SuggestedBugName.
+// The logic is to combine the innermost exception in the first line of the crash, which should be the most relevant exception if there are aggregated exceptions,
+// and the innermost BuildXL function name of the stack trace, which should be the most specific but still relevant source of the crash.
+//
+// A regex to find the innermost exception on the first line
+let exceptionRegex = @"(?:.*\s?)\.(\S*Exception:[^\n\r]*)";
+// A regex to find the innermost BuildXL function name in the crash stack to uniquely identify
+// The "[^NU]" segement excludes any function name that starts with BuildXL.N or BuildXL.U, the intention is to exclude the very common classes BuildXL.Native and BuildXL.Utilities
+let buildXlFuncNameRegex = @"at\s[^\\/].*?((Domino|BuildXL)\.[^NU][\w.]*[\w<]+>?)";
+// A fall back regex to match generic function name patterns if a BuildXL one could not be found
+let anyFuncNameRegex = @"at\s.*?([A-Z][\w]*\.[\w.]*[\w<]+>?)";
+// A regex to match file paths, so they can be replaced with a generic
+let matchPathsRegex = @"[\S\\/]*\S[\\/][\S\\/]*";
+let pathsReplacement = "[path]";
+// A regex to match numbers, so they can be replaced with a generic
+let matchNumsRegex = @"\d+";
+let numsReplacement = "[#]";
+// ******************************************************
+//
+// 1. Query the dominoinvocation table to collect all of the builds of domino to look at.
+//      Apply time filter
+//      Extract some details out of the Environemtn to categorize the build
+//      This will result in a row for every domino.exe invocation. Note that they may be
+//      many domino.exe invocations in a single build session. SessionId is a GUID for
+//      every domino.exe invocation.
+//
+let annotatedSessions =
+cluster('cbuild').database('Domino').dominoinvocation
+| where EventInfo_Time between (startDate .. endDate)
+| project-away CommandLine 
+| where BuildInfo_IsDeveloperBuild != "True"
+| extend OfficeBuildType = case(
+            Environment startswith "OfficeEnlistmentBuild", "enlist",
+            Environment startswith "OfficeMetaBuild", "meta",
+            Environment startswith "OfficeProductBuild", "product", 
+            ""),
+    Codebase = extract("(Tenant=|Branch=)([^;]*)", 2, Environment),
+    EnvironmentShort = extract("([^;]*)", 1 , Environment),
+    CBQueue = extract("(cloudBuildQueue=)([^;]*)", 2 , Environment),
+    Infra = case(
+        UserName == "_qcloud1" or UserName == "_qcloud2" or UserName startswith "CBA" , "CB",
+        (Environment contains "Dev" or Environment contains "WrapItUp") and UserName != "tpctext" and UserName != "y-arnold", "Dev",
+        Environment contains "Self" and UserName != "tsebuild", "Dev",
+        "Lab")
+    | extend Customer = 
+        case(
+            EnvironmentShort contains "APEX", "APEX",
+            EnvironmentShort contains "Office", "Office",
+            EnvironmentShort contains "OSGTools", "OsgTools",
+            EnvironmentShort contains "OSG", "WDG",
+            EnvironmentShort contains "Self", "TSE",
+            "Unknown") 
+// Normalize CloudBuild per-session usernames
+| extend UserName = iff(UserName startswith "CBA-", "CBA-", UserName)
+| project SessionId, RelatedSessionIdentifier , BuildInfo_IsDeveloperBuild, Environment, EventInfo_Time, OfficeBuildType, Codebase, Customer, CBQueue, Infra, BuildInfo_Build , BuildInfo_CommitId, UserName, MachineInfo_OsVersion, MachineName
+| join kind= leftouter(
+//
+// 2. Join against the dominocompletion table.
+//      For all non-crash builds we expect to have a corresponding dominocompletion event.
+//      This event has categorized ExitKind (success, usererror, infrastructureerror, internalerror)
+//      as well as the ErrorBucket for errors that are categorized
+//
+cluster('cbuild').database('Domino').dominocompletion
+| where EventInfo_Time between (startDate .. endDate)
+| project SessionId, ErrorBucket, ExitKind, BucketMessage 
+) on SessionId 
+| join kind= leftouter (
+//
+// 3. Join against dominocatastrophicfailure to see if the invocation crashed
+// 
+cluster('cbuild').database('Domino').dominocatastrophicfailure
+| where EventInfo_Time between (startDate .. endDate)
+| project SessionId, Exception, RootCause, FirstInsfrastructureError, FirstInternalError , FirstUserError , LastInfrastructureError , LastInternalError , LastUserError 
+) on SessionId 
+// This determines whether we classify the invocation as an internal error or not.
+// Crashes are always internal errors. InfrastructureErrors are treated as internal errors
+// if TSE owns the infrastructure the build was run on (CloudBuild based builds)
+| extend InternalError = case(
+    isnotempty(Exception), 1,
+    ExitKind == "InternalError" or (Infra == "CB" and ExitKind == "InfrastructureError"), 1,
+    0)
+    // Correlates all domino.exe invocations in the wider build session. Don't confuse this with "SessionId" which
+    // is per domino.exe invocation.
+| extend UniqueSession = case(
+    isnotempty(RelatedSessionIdentifier), RelatedSessionIdentifier,
+    //isnotempty(RelatedSessionId), RelatedSessionId,
+    SessionId)
+    // Assigns the internal error bucket for the domino.exe invocation.
+| extend ErrorBucket_InternalErrorOnly = case(InternalError == 1, ErrorBucket, "")
+| extend ErrorMessage_InternalErrorOnly = case(InternalError == 1, BucketMessage, "")
+| extend Bucket = case(
+    isnotempty(Exception), "Crash",
+    isnotempty(ErrorBucket_InternalErrorOnly), ErrorBucket_InternalErrorOnly,
+    isnotempty(ExitKind), "",
+    // When there are multiple internal error buckets for the same build we arbitrary take the min one. Make sure MissingDominoCompletionEvent is the last choice
+    // TODO - There should be some limit on when a build is bucketed with this since it may still be running
+    "zz_MissingDominoCompletionEvent") 
+        // Parse the exception for relevant pieces to generate a suggested bug name
+| extend ExceptionDescription = replace(matchNumsRegex, numsReplacement, (replace(matchPathsRegex, pathsReplacement, extract(exceptionRegex, 1, Exception))))
+| extend BuildXlFunctionName = extract(buildXlFuncNameRegex, 1, Exception)
+| extend FunctionName = iff(isnull(BuildXlFunctionName) or isempty(BuildXlFunctionName), extract(anyFuncNameRegex, 1, Exception), BuildXlFunctionName)
+| extend SuggestedBugName = substring(strcat(FunctionName, ": ", ExceptionDescription), 0, 255)
+//
+// 4. Join against the CB data
+//
+| join kind = leftouter (
+    cluster('cbuild').database("CloudBuildProd").BuildInfo
+    | where EndTime between (startDate .. endDate)
+    | project InProbation , BuildQueue, InternalRetryCount, BuildId, ReturnType, Stamp = OwnerStampId
+) on $left.UniqueSession == $right.BuildId
+//
+// 5. Merge all domino.exe invocations into a single overall session
+//
+| summarize SessionId = any(SessionId), 
+    EventInfo_Time = min(EventInfo_Time), 
+    BuildInfo_Build = any(BuildInfo_Build),
+    BucketGroup = min(Bucket),
+    BucketMessage = min(ErrorMessage_InternalErrorOnly),
+    RootCause = max(RootCause), 
+    Exception = max(Exception), 
+    InternalError = iff(sum(InternalError) > 0, 1, 0),
+    BuildQueue = any(BuildQueue), 
+    CBCanRetry = max(InternalRetryCount), 
+    CBReturnType = any(ReturnType), 
+    BuildInfo_CommitId = any(BuildInfo_CommitId),
+    SuggestedBugName = max(SuggestedBugName),
+    MachineName = max(iff(InternalError > 0, MachineName, ""))
+    by UniqueSession, Customer, Codebase, Infra, InProbation, UserName, Stamp
+//
+// 6. Annotate which sessions should be reported in the MSR
+| extend MSRReportable = case(
+    // Don't look at self-host builds
+    Customer == "TSE", 0,
+    // If running in CB, don't look at queues that are in probation or where the InProbation field is blank. Blank means there was no correspond record in the CloudBuildProd datbase which means it was CloudBuildCBTest or another environment
+    (Infra == "CB" and (isempty(InProbation) or InProbation == 1)), 0,
+    // Ignore Crashes with known root cause buckets (failed deployment, server mode build where client is killed, out of disk space, etc)
+    (RootCause != "" and RootCause != "Unknown"), 0,
+    // Otherwise this is an MSR reportable session
+    1)
+// 
+// 7. Collapse together non-internal error sessions to limit the number of records returned by the query
+| extend TimeBucket = iff(InternalError == 1, EventInfo_Time, startofday(EventInfo_Time))
+| summarize SessionCount = count(), UniqueSession = max(UniqueSession), SessionId = max(SessionId) by TimeBucket, BuildInfo_Build, BucketGroup, RootCause, Exception, InternalError, BuildQueue, CBCanRetry, CBReturnType, BuildInfo_CommitId, Customer, Codebase, Infra, InProbation, UserName, MSRReportable, Stamp, SuggestedBugName, MachineName, BucketMessage
+| extend week = startofweek(TimeBucket)
+| extend BuildUrl = iff(Stamp != "",  strcat("http://b/build/", UniqueSession), "");
+annotatedSessions
+| where infra == "" or Infra == infra
+| where mSRReportable == "" or MSRReportable == mSRReportable
+| where customer == "" or Customer == customer
+| where buildQueue == "" or BuildQueue == buildQueue
+| where buildInfo_Build == "" or BuildInfo_Build == buildInfo_Build
+| where stamp == "" or Stamp == stamp
+| where bucketGroup == "" or BucketGroup == bucketGroup;
+} 

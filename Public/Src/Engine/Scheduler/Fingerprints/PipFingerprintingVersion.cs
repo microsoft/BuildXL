@@ -35,7 +35,13 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 59: Report all accesses under shared opaque fix
         /// 60: Save AbsolutePath in the StaticOutputHashes
         /// 62: FileContentInfo - change how length/existence is stored.
+        /// 63: IncrementalTool - change reparsepoint probes and enumeration probes to read.
+        /// 65: 64 is already used since 20190903; change in UnsafeOption serialization (partial preserve outputs)
+        /// 66: Changed rendering of VSO hashes
+        /// 67: Added SourceChangeAffectedContents
+        /// 68: Added ChildProcessesToBreakawayFromSandbox
+        /// 69: Added dynamic existing probe.
         /// </remarks>
-        TwoPhaseV2 = 62,
+        TwoPhaseV2 = 69,
     }
 }

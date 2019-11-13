@@ -11,7 +11,7 @@ There are a few ways the timeouts are set:
 
   * `/pipDefaultWarningTimeout:<ms>` - After how much time to issue a warning that an individual process is running too long, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process; see command line help text for more details.
 
-* Per-process timeouts are configurable at graph construction time. These override the global timeout.
+* Per-process timeouts are configurable at graph construction time. These override the global timeout. These are the fields on the Transformer.Execute API:
    ```ts
    /**
      * Provides a hard timeout after which the Process will be marked as failure due to timeout and terminated.
@@ -34,7 +34,7 @@ There are a few ways the timeouts are set:
 The following happens when the timeout is reached:
 * The job object for the process is enumerated and a heap dump is taken for all currently running processes in the tree.
 * The job object is killed, terminating all processes
-* The process pip is marked as a failure, preventing all downstream pips from being run.
+* The process pip is marked as a failure, preventing all downstream pips from being run. The location of these dump files will appear in the error message regarding the timeout.
 
 To aid in discovering when pips are at the brink of the failure threshold, there is a second warning threshold that can be configured at a global and per-pip level similar to what is described above.
 

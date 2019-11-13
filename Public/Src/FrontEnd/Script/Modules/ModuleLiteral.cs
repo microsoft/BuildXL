@@ -21,6 +21,7 @@ using TypeScript.Net.Utilities;
 using static BuildXL.Utilities.FormattableStringEx;
 using BindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.SymbolAtom, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 using NsBindingDictionary = System.Collections.Generic.Dictionary<BuildXL.Utilities.FullSymbol, BuildXL.FrontEnd.Script.Values.ModuleBinding>;
 
 // Enable below code for testing specialized dictionaries.
@@ -658,7 +659,7 @@ namespace BuildXL.FrontEnd.Script.Values
         }
 
         /// <summary>
-        /// Evaluates given <paramref name="binding"/> that corresponds to field <paramref name="name"/> 
+        /// Evaluates given <paramref name="binding"/> that corresponds to field <paramref name="name"/>
         /// (<seealso cref="GetOrEvalField(Context, SymbolAtom, bool, ModuleLiteral, LineInfo)"/>)
         /// </summary>
         public EvaluationResult GetOrEvalFieldBinding(Context context, SymbolAtom name, ModuleBinding binding, LineInfo callingLocation)
@@ -690,7 +691,7 @@ namespace BuildXL.FrontEnd.Script.Values
 
             return thunk.LegacyEvaluateWithNewNamedContext(context, this, contextName, binding.Location);
         }
-        
+
         /// <summary>
         /// Creates an encoding consisting of 0s and 1s, one for each character in <paramref name="name"/>,
         /// where '0' means that the corresponding character in <paramref name="name"/> is lower case,
@@ -838,7 +839,7 @@ namespace BuildXL.FrontEnd.Script.Values
             return GetBindings(m_bindings, key => key.ToString(context.StringTable)).Concat(
                 GetBindings(m_nsBindings, key => key.ToString(context.FrontEndContext.SymbolTable)));
         }
-        
+
         /// <nodoc />
         public virtual IEnumerable<KeyValuePair<string, ModuleBinding>> GetAllBindings(SymbolTable symbolTable)
         {

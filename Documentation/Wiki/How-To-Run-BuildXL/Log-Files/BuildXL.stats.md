@@ -1,17 +1,17 @@
-The `BuildXL.stats` file contains (string, ulong) pairs for various stats that happen throughout the build. It is a simple format that is machine parsable. The data contained within the log may change but the schema of the file is locked.
+The `BuildXL.stats` file contains (string, ulong) pairs for various stats that happen throughout the build. It is a simple format that is machine parsable. The data contained within the log may change, but the schema of the file is locked.
 
 ## Units and Conventions
 Convention | Description
 --- | ---
-*Ms | Suffix noting that the stat is how long something took in milliseconds
-TimeTo* | Prefix indicating the wall clock time from the beginning of the build starting until some event happens.
-*Count | A count of how many times something happened within the build session.
+*Ms* | Suffix noting that the stat is how long something took in milliseconds
+*TimeTo* | Prefix indicating the wall clock time from the beginning of the build starting until some event happens.
+*Count* | A count of how many times something happened within the build session.
 
 ## Phase stats
-Some stats are logged in a standard way at the end of each engine phase. They are prefixed with the phase name, but the remaining items are consistent
+Some stats are logged in a standard way at the end of each engine phase. They are prefixed with the phase name, but the remaining items are consistent.
 
 Statistic Name | Description
---- | --- | ---
+--- | ---
 DurationMs | Duration the phase lasted
 ProcessAverageThreadCount | Average total thread count of the bxl.exe process during that phase
 ProcessMaximumPrivateMB| Maximum private MB of memory held by the bxl.exe process during the phase
@@ -19,6 +19,7 @@ MachineAverageCPUTime| Average CPU time on the machine during the phase. This is
 MachineAverageDiskActiveTime.[DriveLetter]|The percent active time for each logical disk during the phase. 0 is an idle disk, 100 is a disk with no idle time during the period
 
 # Stats
+There are many more stats emitted during a build invocation than just the set described below. Search the source code to see how a statistic is being set if you don't see it listed here.
 Statistic Name | Description
 --- | ---
 TelemetryInitialization.DurationMs| Time it took to initialize the connection to telemetry
@@ -50,17 +51,3 @@ CriticalPath.PipDurationMs|Lengh of the build's critical path in milliseconds th
 GraphCacheReuseCheck.DurationMs|Time spent checking if there is a pip graph that can be reused.
 TimeToFirstPip|Time from build invocation until the first pip starts processing.
 TimeToFirstPipSynthetic|Similar to TimeToFirstPip, except it is calculated at the end of graph construction. This means it may be slightly smaller than TimeToFirstPip, but it will always be nonzero even if the execute phase is not run
-
-## Telemetry (MS Internal)
-All data in the BuildXL.stats file gets sent to telemetry, though some data may be part of a specific telemetry event instead of in the more general statistic event. You can differentiate based on the name of the statistic name. Stats with an underscore in their name, will have a telemetry event corresponding to what's left of the underscore. What's right of the underscore is the column to find that data.
-
-For example, this data would be in the "OriginalNodeCount" column of the "BuildSetCalculator" table:
-`BuildSetCalculator_OriginalNodeCount=8233`
-
-Stats without an underscore get sent to the `finalstatistics` event. There are a few other events related to stats, but the `finalstatics` event is sent exactly once per build and much more easily consumable when writing queries. It is recommended to only query this table.
-
-For example, this would be in the "GraphCacheSave.DurationMs" column:
-`GraphCacheSave.DurationMs=105`
-
-### Overflow (Payload column)
-Kusto supports a bounded number of columns in a table. Because of this, some newer stats may not have their own columns. Check the Payload column if you don't see what you are looking for.

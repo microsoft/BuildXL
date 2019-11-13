@@ -139,6 +139,9 @@ namespace BuildXL.Native.Processes.Unix
             => throw new NotImplementedException();
 
         /// <inheritdoc />
+        public bool WaitNamedPipe(string pipeName, uint timeout) => throw new NotImplementedException();
+
+        /// <inheritdoc />
         public bool ApplyDriveMappings(PathMapping[] mappings)
             => throw new NotImplementedException();
 
@@ -160,6 +163,10 @@ namespace BuildXL.Native.Processes.Unix
 
         /// <inheritdoc />
         public bool OSSupportsNestedJobs() => true;
+
+        /// <inheritdoc/>
+        public bool SandboxSupportsProcessBreakaway() => false;
+
 
         /// <inheritdoc />
         public void AttachContainerToJobObject(

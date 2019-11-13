@@ -45,7 +45,7 @@ namespace BuildXL.Native.IO.Unix
             string path,
             bool deleteRootDirectory = false,
             Func<string, bool> shouldDelete = null,
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default)
         {
             DeleteDirectoryContentsInternal(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
@@ -55,7 +55,7 @@ namespace BuildXL.Native.IO.Unix
             string path,
             bool deleteRootDirectory,
             Func<string, bool> shouldDelete,
-            ITempDirectoryCleaner tempDirectoryCleaner,
+            ITempCleaner tempDirectoryCleaner,
             CancellationToken? cancellationToken)
         {
             int remainingChildCount = 0;
@@ -135,7 +135,7 @@ namespace BuildXL.Native.IO.Unix
         public Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(
             string path,
             bool waitUntilDeletionFinished = true,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             try
             {
@@ -159,7 +159,7 @@ namespace BuildXL.Native.IO.Unix
         public void DeleteFile(
             string path,
             bool waitUntilDeletionFinished = true,
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
             bool successfullyDeletedFile = false;
@@ -421,17 +421,26 @@ namespace BuildXL.Native.IO.Unix
                         using (FileStream destinationStream = CreateReplacementFile(destination, FileShare.Delete, openAsync: true))
                         {
                             await sourceStream.CopyToAsync(destinationStream);
+
+                            var mode = GetFilePermissionsForFilePath(source, followSymlink: false);
+                            var result = SetFilePermissionsForFilePath(destination, checked((FilePermissions)mode), followSymlink: false);
+
+                            if (result < 0)
+                            {
+                                throw new BuildXLException($"Failed to set permissions for file copy at '{destination}' - error: {Marshal.GetLastWin32Error()}");
+                            }
+
                             onCompletion?.Invoke(sourceStream.SafeFileHandle, destinationStream.SafeFileHandle);
                         }
                     }
 
                     return true;
                 },
-                ex => { throw new BuildXLException("File copy failed", ex); });
+                ex => { throw new BuildXLException(I($"File copy from '{source}' to '{destination}' failed"), ex); });
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveFileAsync(
+        public Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false)
@@ -439,7 +448,7 @@ namespace BuildXL.Native.IO.Unix
             Contract.Requires(!string.IsNullOrEmpty(source));
             Contract.Requires(!string.IsNullOrEmpty(destination));
 
-            return Task.Run<bool>(
+            return Task.Run(
                 () => ExceptionUtilities.HandleRecoverableIOException(
                     () =>
                     {
@@ -449,9 +458,8 @@ namespace BuildXL.Native.IO.Unix
                         }
 
                         File.Move(source, destination);
-                        return true;
                     },
-                    ex => { throw new BuildXLException("File move failed", ex); }));
+                    ex => { throw new BuildXLException(I($"File move from '{source}' to '{destination}' failed"), ex); }));
         }
 
         /// <inheritdoc />
@@ -627,6 +635,13 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
+        public bool HasWritableAttributeAccessControl(string path)
+        {
+            // There is no write attribute specific permissions for unix
+            return HasWritableAccessControl(path);
+        }
+
+        /// <inheritdoc />
         public void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
         {
             FilePermissions permissions = 0;
@@ -661,7 +676,8 @@ namespace BuildXL.Native.IO.Unix
                 currentPermissions &= ~permissions;
             }
 
-            result = SetFilePermissionsForFilePath(path, currentPermissions);
+            // don't follow symlinks because if we do that we may end up modifying source files via symlink outputs
+            result = SetFilePermissionsForFilePath(path, currentPermissions, followSymlink: false);
 
             if (result < 0)
             {

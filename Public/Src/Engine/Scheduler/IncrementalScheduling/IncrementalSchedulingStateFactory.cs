@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
     {
         private readonly LoggingContext m_loggingContext;
 
-        private readonly ITempDirectoryCleaner m_tempDirectoryCleaner;
+        private readonly ITempCleaner m_tempDirectoryCleaner;
 
         private readonly bool m_analysisMode;
 
@@ -28,7 +28,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public IncrementalSchedulingStateFactory(
             LoggingContext loggingContext,
             bool analysisMode = false,            
-            ITempDirectoryCleaner tempDirectoryCleaner = null)
+            ITempCleaner tempDirectoryCleaner = null)
         {
             Contract.Requires(loggingContext != null);
 
@@ -91,7 +91,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             return LoadOrReuseInternal(FileEnvelopeId.Invalid, pipGraph, configuration, preserveOutputSalt, incrementalSchedulingStatePath, schedulerState);
         }
 
-
         private IIncrementalSchedulingState LoadOrReuseInternal(
             FileEnvelopeId atomicSaveToken,
             PipGraph pipGraph,
@@ -106,7 +105,13 @@ namespace BuildXL.Scheduler.IncrementalScheduling
 
             if (!m_analysisMode && schedulerState != null && schedulerState.IncrementalSchedulingState != null)
             {
-                IIncrementalSchedulingState reusedState = schedulerState.IncrementalSchedulingState.Reuse(m_loggingContext, pipGraph, configuration, preserveOutputSalt, m_tempDirectoryCleaner);
+                IIncrementalSchedulingState reusedState = schedulerState.IncrementalSchedulingState.ReuseFromEngineState(
+                    m_loggingContext,
+                    pipGraph,
+                    configuration,
+                    preserveOutputSalt,
+                    incrementalSchedulingStatePath,
+                    m_tempDirectoryCleaner);
 
                 if (reusedState != null)
                 {

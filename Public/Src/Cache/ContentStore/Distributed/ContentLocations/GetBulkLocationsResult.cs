@@ -156,6 +156,22 @@ namespace BuildXL.Cache.ContentStore.Distributed
             return new ContentHashWithSizeAndLocations(left.ContentHash, Math.Max(left.Size, right.Size), finalList.ToList());
         }
 
+        /// <summary>
+        /// Merges two results together.
+        /// </summary>
+        public static GetBulkLocationsResult operator +(GetBulkLocationsResult left, GetBulkLocationsResult right)
+        {
+            return left.Merge(right);
+        }
+
+        /// <summary>
+        /// Subtracts the given result
+        /// </summary>
+        public static GetBulkLocationsResult operator -(GetBulkLocationsResult left, GetBulkLocationsResult right)
+        {
+            return left.Subtract(right);
+        }
+
         /// <inheritdoc />
         public bool Equals(GetBulkLocationsResult other)
         {

@@ -1,17 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!-- 
-    Microsoft ResX Schema 
-    
+  <!--
+    Microsoft ResX Schema
+
     Version 2.0
-    
-    The primary goals of this format is to allow a simple XML format 
-    that is mostly human readable. The generation and parsing of the 
-    various data types are done through the TypeConverter classes 
+
+    The primary goals of this format is to allow a simple XML format
+    that is mostly human readable. The generation and parsing of the
+    various data types are done through the TypeConverter classes
     associated with the data types.
-    
+
     Example:
-    
+
     ... ado.net/XML headers & schema ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
@@ -26,36 +26,36 @@
         <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
         <comment>This is a comment</comment>
     </data>
-                
-    There are any number of "resheader" rows that contain simple 
+
+    There are any number of "resheader" rows that contain simple
     name/value pairs.
-    
-    Each data row contains a name, and value. The row also contains a 
-    type or mimetype. Type corresponds to a .NET class that support 
-    text/value conversion through the TypeConverter architecture. 
-    Classes that don't support this are serialized and stored with the 
+
+    Each data row contains a name, and value. The row also contains a
+    type or mimetype. Type corresponds to a .NET class that support
+    text/value conversion through the TypeConverter architecture.
+    Classes that don't support this are serialized and stored with the
     mimetype set.
-    
-    The mimetype is used for serialized objects, and tells the 
-    ResXResourceReader how to depersist the object. This is currently not 
+
+    The mimetype is used for serialized objects, and tells the
+    ResXResourceReader how to depersist the object. This is currently not
     extensible. For a given mimetype the value must be set accordingly:
-    
-    Note - application/x-microsoft.net.object.binary.base64 is the format 
-    that the ResXResourceWriter will generate, however the reader can 
+
+    Note - application/x-microsoft.net.object.binary.base64 is the format
+    that the ResXResourceWriter will generate, however the reader can
     read any of the formats listed below.
-    
+
     mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with 
+    value   : The object must be serialized with
             : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
             : and then encoded with base64 encoding.
-    
+
     mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with 
+    value   : The object must be serialized with
             : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
             : and then encoded with base64 encoding.
 
     mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array 
+    value   : The object must be serialized into a byte array
             : using a System.ComponentModel.TypeConverter
             : and then encoded with base64 encoding.
     -->
@@ -239,6 +239,9 @@
   </data>
   <data name="App_Main_Logs" xml:space="preserve">
     <value>Logs</value>
+  </data>
+  <data name="App_Main_FailedToWriteSummary" xml:space="preserve">
+    <value>Error writing AzureDevOps summary file: {0}</value>
   </data>
   <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
     <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
@@ -552,9 +555,6 @@
   <data name="HelpText_DisplayHelp_CacheSpecs" xml:space="preserve">
     <value>Caches build specification files to a single large file to improve read performance on spinning disks. When unset the behavior is dynamic based on whether root configuration file is on a drive that is detected to have a seek penalty. May be forced on or off using the flag.</value>
   </data>
-  <data name="HelpText_DisplayHelp_CacheMemoryUsage" xml:space="preserve">
-    <value>How to balance memory usage vs. fetching values on demand from disk, which carries a seek penalty on spinning disks. Allowed values are 'Auto', 'Minimize', 'Liberal'. The default automatic mode checks if the relevant drive has a seek penalty. A particular behavior may be forced using the flag.</value>
-  </data>
   <data name="HelpText_DisplayHelp_DeterminismProbeUsage" xml:space="preserve">
     <value>When enabled, cache hits are ignored, but all pips are built and attempted to be added to the cache, with cache collisions reported to identify non-deterministic tools. Defaults to off.</value>
   </data>
@@ -778,9 +778,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_MaxMaterialize" xml:space="preserve">
     <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine.</value>
   </data>
-  <data name="DX_Help_Link" xml:space="preserve">
-    <value>http://aka.ms/dhelp</value>
-  </data>
   <data name="HelpText_DisplayHelp_MaskUntrackedAccesses" xml:space="preserve">
     <value>When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on.</value>
   </data>
@@ -849,6 +846,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_KextThrottleMinAvailableRamMB" xml:space="preserve">
     <value>[macOS] Causes throttling to be triggered whenever available RAM drops below this value. (takes precedence over CPU usage thresholds)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MaxMemoryPressureLevel" xml:space="preserve">
+    <value>[macOS] Causes scheduling to pause / cancel pips to free up system resources if specified maximum pressure level is overstepped. Allowed values are 'Normal' (Default), 'Warning' and 'Critical'. NOTE: Using 'Critical' can lead to system instablities and eventual kernel panics due to resource starvation!</value>
   </data>
   <data name="HelpText_DisplayHelp_LogMemory" xml:space="preserve">
     <value>Collects actual memory usage when collection performance counters. This has a negaitve performance impact and should only be used when analyzing memory consumption. Defaults to off.</value>
@@ -947,7 +947,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Include outputs of filter along with all downstream copies of the outputs via copy pips.</value>
   </data>
   <data name="HelpText_DisplayHelp_Filter_RequiredInputsFunction" xml:space="preserve">
-    <value>Include the immediate inputs (outputs of direct dependencies) for the pips specified filter.</value>
+    <value>Include the immediate inputs (outputs of direct dependencies) for the pips specified filter. If pip is a matching neighbor of one of the matching pips for the inner filter, it will be excluded.</value>
   </data>
   <data name="App_Errors_LogsDirectory" xml:space="preserve">
     <value>    {0} ERROR(S). Log Directory: {1}</value>
@@ -1008,5 +1008,29 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="Args_AdminRequiredProcessExecutionMode_NotSupportedOnNonWindows" xml:space="preserve">
     <value>Admin-required process execution mode '{0}' is not supported on non-Windows OS</value>
+  </data>
+  <data name="HelpText_DisplayHelp_OptimizedAstConversion" xml:space="preserve">
+    <value>When enabled, optimized AST conversion by disabling some analyses and skipping some AST constructs. By disabling analyses linter policies are not enforced. The types in the resulting AST are stripped away as they are not needed for evaluation. Defauts to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Interactive" xml:space="preserve">
+    <value>When enabled indicates that {ShortProductName} is allowed to interact with the user either via console or popups. A common use case is to allow front ends like nuget to display authentication prompts in case the user is not authenticated.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_InputChanges" xml:space="preserve">
+    <value>Path to file containing a list of input changes, separated by new lines. The formats of an input change is '&lt;path&gt;|&lt;change kind&gt;' or '&lt;path&gt;', where change kinds are 'DataOrMetadataChanged', 'Removed', 'MembershipChanged', 'NewlyPresentAsFile', 'NewlyPresentAsDirectory'.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PathSetThreshold" xml:space="preserve">
+    <value>The maximum number of visited path sets allowed before switching to an 'augmented' weak fingerprint computed from common dynamically accessed paths.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_AugmentingPathSetCommonalityFactor" xml:space="preserve">
+    <value>Used to compute the number of times (i.e. {augmentingPathSetCommonalityFactor} * {pathSetThreshold}) an entry must appear among paths in the observed path set in order to be included in the common path set. Value must be (0, 1]</value>
+  </data>
+  <data name="HelpText_DisplayHelp_CgManifestBanner" xml:space="preserve">
+    <value>Component Governance</value>
+  </data>
+  <data name="HelpText_DisplayHelp_GenerateCgManifest" xml:space="preserve">
+    <value>Generates a cgmanifest.json file at the specified path. This file contains the names and versions for all Nuget packages used within BuildXL, and is used for Component Governance during CloudBuild.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ValidateCgManifest" xml:space="preserve">
+    <value>Validates the cgmanifest.json file at the specified path. This file should contain up-to-date names and versions of all Nuget packages used within BuildXL for Component Governance. Any mismatch will cause the Build to fail. Updated file can be created using the /generateCgManifestForNugets:&lt;path&gt;</value>
   </data>
 </root>

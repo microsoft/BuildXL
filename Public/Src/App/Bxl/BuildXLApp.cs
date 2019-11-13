@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,7 +16,6 @@ using System.Threading.Tasks;
 using BuildXL.App.Tracing;
 using BuildXL.Engine;
 using BuildXL.Engine.Distribution;
-using BuildXL.Engine.Visualization;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
@@ -32,14 +32,12 @@ using ProcessNativeMethods = BuildXL.Native.Processes.ProcessUtilities;
 using Strings = bxl.Strings;
 using BuildXL.Engine.Recovery;
 using BuildXL.FrontEnd.Sdk.FileSystem;
+using BuildXL.ViewModel;
 #pragma warning disable SA1649 // File name must match first type name
-using BuildXL.Visualization;
-using BuildXL.Visualization.Models;
 using BuildXL.Utilities.CrashReporting;
 using System.Diagnostics.Tracing;
 
 using static BuildXL.Utilities.FormattableStringEx;
-
 
 namespace BuildXL
 {
@@ -120,7 +118,9 @@ namespace BuildXL
     /// </summary>
     internal sealed class BuildXLApp : IDisposable
     {
-        private const int FailureCompletionTimeoutMs = 30 * 1000;
+        // We give the failure completion logic a generous 300 seconds to complete since in some cases taking a crash dump
+        // can take quite a while
+        private const int FailureCompletionTimeoutMs = 300 * 1000;
 
         // 24K buffer size means that internally, the StreamWriter will use 48KB for a char[] array, and 73731 bytes for an encoding byte array buffer --- all buffers <85000 bytes, and therefore are not in large object heap
         private const int LogFileBufferSize = 24 * 1024;
@@ -149,6 +149,7 @@ namespace BuildXL
         private int m_cancellationAlreadyAttempted = 0;
         private LoggingContext m_appLoggingContext;
 
+        private BuildViewModel m_buildViewModel;
         private readonly CrashCollectorMacOS m_crashCollector;
 
         // Allow a longer Aria telemetry flush time in CloudBuild since we're more willing to wait at the tail of builds there
@@ -235,6 +236,8 @@ namespace BuildXL
             m_crashCollector = OperatingSystemHelper.IsUnixOS
                 ? new CrashCollectorMacOS(new[] { CrashType.BuildXL, CrashType.Kernel })
                 : null;
+
+            m_buildViewModel = new BuildViewModel();
         }
 
         private static void ConfigureCacheMissLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
@@ -288,7 +291,8 @@ namespace BuildXL
                         (int)EventId.DominoCompletion,
                         (int)EventId.DominoPerformanceSummary,
                         (int)EventId.DominoCatastrophicFailure,
-                        (int)EventId.UnexpectedCondition,
+                        (int)EventId.UnexpectedConditionLocal,
+                        (int)EventId.UnexpectedConditionTelemetry,
                         (int)SchedulerEventId.CriticalPathPipRecord,
                         (int)SchedulerEventId.CriticalPathChain,
                         (int)EventId.HistoricMetadataCacheLoaded,
@@ -336,7 +340,11 @@ namespace BuildXL
                         (int)EventId.EndAssigningPriorities,
                         (int)Engine.Tracing.LogEventId.DeserializedFile,
                         (int)EventId.PipQueueConcurrency,
-                        (int)Engine.Tracing.LogEventId.GrpcSettings
+                        (int)Engine.Tracing.LogEventId.GrpcSettings,
+                        (int)Engine.Tracing.LogEventId.ChosenABTesting,
+                        (int)EventId.SynchronouslyWaitedForCache,
+                        (int)Scheduler.Tracing.LogEventId.PipFingerprintData,
+                        (int)Engine.Tracing.LogEventId.DistributionWorkerChangedState,
                     },
                     // all errors should be included in a dev log
                     EventLevel.Error));
@@ -382,7 +390,7 @@ namespace BuildXL
 
             using (var appLoggers = new AppLoggers(m_startTimeUtc, m_console, m_configuration.Logging, m_pathTable,
                    notWorker: m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker,
-
+                   buildViewModel: m_buildViewModel,
                    // TODO: Remove this once we can add timestamps for all logs by default
                    displayWarningErrorTime: m_configuration.InCloudBuild()))
             {
@@ -528,7 +536,6 @@ namespace BuildXL
         private AppResult RunInternal(PerformanceMeasurement pm, CancellationToken cancellationToken, AppLoggers appLoggers, EngineState engineState)
         {
             EngineState newEngineState = null;
-            EngineLiveVisualizationInformation visualizationInformation = null;
             UnhandledExceptionEventHandler unhandledExceptionHandler = null;
             Action<Exception> unexpectedExceptionHandler = null;
             EventHandler<UnobservedTaskExceptionEventArgs> unobservedTaskHandler = null;
@@ -623,7 +630,7 @@ namespace BuildXL
                     {
                         Contract.Assume(m_initialConfiguration == m_configuration, "Expect the initial configuration to still match the updatable configuration object.");
 
-                        newEngineState = RunEngineWithDecorators(pm.LoggingContext, cancellationToken, appLoggers, engineState, collector, out visualizationInformation);
+                        newEngineState = RunEngineWithDecorators(pm.LoggingContext, cancellationToken, appLoggers, engineState, collector);
 
                         Contract.Assert(EngineState.CorrectEngineStateTransition(engineState, newEngineState, out var incorrectMessage), incorrectMessage);
 
@@ -634,17 +641,39 @@ namespace BuildXL
 
                         appLoggers.LogEventSummary(pm.LoggingContext);
 
+
+                        // Log Ado Summary
+                        var buildSummary = m_buildViewModel.BuildSummary;
+                        if (buildSummary != null)
+                        {
+                            try
+                            {
+                                string filePath = buildSummary.RenderMarkdown();
+                                WriteToConsole("##vso[task.uploadsummary]" + filePath);
+                            }
+                            catch (IOException e)
+                            {
+                                WriteErrorToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
+                                // No need to change exit code, only behavior is lack of log in the extensions page.
+                            }
+                            catch (UnauthorizedAccessException e)
+                            {
+                                WriteErrorToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
+                                // No need to change exit code, only behavior is lack of log in the extensions page.
+                            }
+                        }
+
                         if (appLoggers.TrackingEventListener.HasFailures)
                         {
                             WriteErrorToConsoleWithDefaultColor(Strings.App_Main_BuildFailed);
 
                             LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
-                            var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
+                            var classification = ClassifyFailureFromLoggedEvents(pm.LoggingContext, appLoggers.TrackingEventListener);
                             var cbClassification = GetExitKindForCloudBuild(appLoggers.TrackingEventListener);
                             return AppResult.Create(classification.ExitKind, cbClassification, newEngineState, classification.ErrorBucket, bucketMessage: classification.BucketMessage);
                         }
-
+                        
                         WriteToConsole(Strings.App_Main_BuildSucceeded);
 
                         LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
@@ -685,16 +714,8 @@ namespace BuildXL
             }
             finally
             {
-                if (newEngineState != null)
-                {
-                    var isTransferred = visualizationInformation?.TransferPipTableOwnership(newEngineState.PipTable);
-                    Contract.Assume(!isTransferred.HasValue || isTransferred.Value);
-                }
-
-                if (visualizationInformation != null)
-                {
-                    visualizationInformation.Dispose();
-                }
+                // Release the build view model so that we can garbage collect any state it maintained.
+                m_buildViewModel = null;
 
                 // Due to some nasty patterns, we hold onto a static collection of hashers. Make sure these are no longer
                 // referenced.
@@ -738,8 +759,7 @@ namespace BuildXL
             CancellationToken cancellationToken,
             AppLoggers appLoggers,
             EngineState engineState,
-            PerformanceCollector collector,
-            out EngineLiveVisualizationInformation visualizationInformation)
+            PerformanceCollector collector)
         {
             var fileSystem = new PassThroughFileSystem(m_pathTable);
             var engineContext = EngineContext.CreateNew(cancellationToken, m_pathTable, fileSystem);
@@ -752,17 +772,26 @@ namespace BuildXL
                         m_initialConfiguration,
                         collector),
                     appLoggers.TrackingEventListener,
-                    engineState,
-                    out visualizationInformation);
+                    engineState);
         }
 
-        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(TrackingEventListener listener)
+        internal static (ExitKind ExitKind, string ErrorBucket, string BucketMessage) ClassifyFailureFromLoggedEvents(LoggingContext loggingContext, TrackingEventListener listener)
         {
             // The loss of connectivity to other machines during a distributed build is generally the true cause of the
             // failure even though it may manifest itself as a different failure first (like failure to materialize)
             if (listener.CountsPerEventId((EventId)BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure) >= 1)
             {
                 return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: BuildXL.Engine.Tracing.LogEventId.DistributionExecutePipFailedNetworkFailure.ToString(), BucketMessage: string.Empty);
+            }
+            else if (listener.CountsPerEventId((EventId)SchedulerEventId.ProblematicWorkerExit) >= 1 &&
+                (listener.InternalErrorDetails.Count > 0 || listener.InfrastructureErrorDetails.Count > 0))
+            {
+                string errorMessage = listener.InternalErrorDetails.Count > 0 ?
+                    listener.InternalErrorDetails.FirstErrorMessage :
+                    listener.InfrastructureErrorDetails.FirstErrorMessage;
+
+                Logger.Log.ProblematicWorkerExitError(loggingContext, errorMessage);
+                return (ExitKind: ExitKind.InfrastructureError, ErrorBucket: EventId.ProblematicWorkerExitError.ToString(), BucketMessage: string.Empty);
             }
             else if (listener.InternalErrorDetails.Count > 0)
             {
@@ -859,11 +888,6 @@ namespace BuildXL
 
                 logFunction(Strings.App_Main_Snapshot, m_configuration.Export.SnapshotFile);
             }
-
-            if (trackingListener.HasFailuresOrWarnings)
-            {
-                Logger.Log.DisplayHelpLink(loggingContext, Strings.DX_Help_Link_Prefix, Strings.DX_Help_Link);
-            }
         }
 
         private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext> configureLogging = null)
@@ -880,10 +904,12 @@ namespace BuildXL
                 relatedActivityId = Guid.NewGuid();
             }
 
+            var sessionId = ComputeSessionId(relatedActivityId);
+
             LoggingContext topLevelContext = new LoggingContext(
                 relatedActivityId,
                 Branding.ProductExecutableName,
-                new LoggingContext.SessionInfo(Guid.NewGuid().ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
+                new LoggingContext.SessionInfo(sessionId.ToString(), ComputeEnvironment(m_configuration), relatedActivityId));
 
             // As the most of filesystem operations are defined as static, we need to reset counters not to add values between server-mode builds.
             FileUtilities.CreateCounters();
@@ -977,6 +1003,47 @@ namespace BuildXL
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Computes session identifier which allows easier searching in Kusto for 
+        /// builds based traits: Cloudbuild BuildId (i.e. RelatedActivityId), ExecutionEnvironment, Distributed build role
+        /// 
+        /// Search for masters: '| where sessionId has "0001-FFFF"'
+        /// Search for workers: '| where sessionId has "0002-FFFF"'
+        /// Search for office metabuild: '| where sessionId has "FFFF-0F"'
+        /// </summary>
+        private Guid ComputeSessionId(Guid relatedActivityId)
+        {
+            var bytes = relatedActivityId.ToByteArray();
+            var executionEnvironment = m_configuration.Logging.Environment;
+            var distributedBuildRole = m_configuration.Distribution.BuildRole;
+            var inCloudBuild = m_configuration.InCloudBuild();
+
+            // SessionId:
+            // 00-03: 00-03 from random guid
+            var randomBytes = Guid.NewGuid().ToByteArray();
+            for (int i = 0; i <= 3; i++)
+            {
+                bytes[i] = randomBytes[i];
+            }
+
+            // 04-05: BuildRole
+            bytes[4] = 0;
+            bytes[5] = (byte)distributedBuildRole;
+
+            // 06-07: InCloudBuild = FFFF, !InCloudBuild = 0000
+            var inCloudBuildSpecifier = inCloudBuild ? byte.MaxValue : (byte)0;
+            bytes[6] = inCloudBuildSpecifier;
+            bytes[7] = inCloudBuildSpecifier;
+
+            // 08-09: executionEnvironment
+            bytes[8] = (byte)(((int)executionEnvironment >> 8) & 0xFF);
+            bytes[9] = (byte)((int)executionEnvironment & 0xFF);
+
+            // 10-15: 10-15 from relatedActivityId
+            // Do nothing byte array is initially seeded from related activity id
+            return new Guid(bytes);
         }
 
         private static void LogTelemetryShutdownInfo(LoggingContext loggingContext, long elapsedMilliseconds)
@@ -1169,12 +1236,18 @@ namespace BuildXL
             /// </summary>
             public readonly string LogPath;
 
+            /// <summary>
+            /// The path to the log directory
+            /// </summary>
+            public readonly string RootLogDirectory;
+
             public AppLoggers(
                 DateTime startTime,
                 IConsole console,
                 ILoggingConfiguration configuration,
                 PathTable pathTable,
                 bool notWorker,
+                BuildViewModel buildViewModel,
                 bool displayWarningErrorTime)
             {
                 Contract.Requires(console != null);
@@ -1187,6 +1260,7 @@ namespace BuildXL
                 m_displayWarningErrorTime = displayWarningErrorTime;
 
                 LogPath = configuration.Log.ToString(pathTable);
+                RootLogDirectory = Path.GetDirectoryName(LogPath);
 
                 m_noLogMask = new EventMask(enabledEvents: null, disabledEvents: configuration.NoLog, nonMaskableLevel: EventLevel.Error);
                 m_warningManager = CreateWarningManager(configuration);
@@ -1199,7 +1273,15 @@ namespace BuildXL
                 // Inialize the console logging early
                 if (m_configuration.ConsoleVerbosity != VerbosityLevel.Off)
                 {
-                    ConfigureConsoleLogging(notWorker);
+                    ConfigureConsoleLogging(notWorker, buildViewModel);
+                }
+
+                if (notWorker 
+                    && (m_configuration.OptimizeConsoleOutputForAzureDevOps 
+                    || m_configuration.OptimizeVsoAnnotationsForAzureDevOps 
+                    || m_configuration.OptimizeProgressUpdatingForAzureDevOps))
+                {
+                    ConfigureAzureDevOpsLogging(buildViewModel);
                 }
             }
 
@@ -1228,15 +1310,12 @@ namespace BuildXL
 
             public TrackingEventListener TrackingEventListener { get; private set; }
 
-            private string rootLogDirectory = null;
-
             public void ConfigureLogging(LoggingContext loggingContext)
             {
                 lock (m_lock)
                 {
                     Contract.Assume(!m_disposed);
 
-                    rootLogDirectory = m_configuration.LogsDirectory.IsValid ? m_configuration.LogsDirectory.ToString(m_pathTable) : null;
                     ConfigureTrackingListener();
 
                     if (m_configuration.FileVerbosity != VerbosityLevel.Off && m_configuration.LogsDirectory.IsValid)
@@ -1333,7 +1412,7 @@ namespace BuildXL
             }
 
             [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-            private void ConfigureConsoleLogging(bool notWorker)
+            private void ConfigureConsoleLogging(bool notWorker, BuildViewModel buildViewModel)
             {
                 var listener = new ConsoleEventListener(
                     Events.Log,
@@ -1346,7 +1425,23 @@ namespace BuildXL
                     m_configuration.ConsoleVerbosity.ToEventLevel(),
                     m_noLogMask,
                     onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
-                    maxStatusPips: m_configuration.FancyConsoleMaxStatusPips);
+                    maxStatusPips: m_configuration.FancyConsoleMaxStatusPips,
+                    optimizeForAzureDevOps: m_configuration.OptimizeConsoleOutputForAzureDevOps || m_configuration.OptimizeVsoAnnotationsForAzureDevOps);
+
+                listener.SetBuildViewModel(buildViewModel);
+
+                AddListener(listener);
+            }
+
+            private void ConfigureAzureDevOpsLogging(BuildViewModel buildViewModel)
+            {
+                var listener = new AzureDevOpsListener(
+                    Events.Log,
+                    m_console,
+                    m_baseTime,
+                    buildViewModel,
+                    m_configuration.UseCustomPipDescriptionOnConsole
+                );
 
                 AddListener(listener);
             }
@@ -1671,6 +1766,7 @@ namespace BuildXL
             if (Interlocked.CompareExchange(ref m_unhandledFailureInProgress, 1, comparand: 0) != 0)
             {
                 Thread.Sleep(FailureCompletionTimeoutMs);
+
                 ExceptionUtilities.FailFast("Second-chance exception handler has not completed in the allowed time.", new InvalidOperationException());
                 return;
             }
@@ -1735,14 +1831,13 @@ namespace BuildXL
                         break;
                     default:
                         Logger.Log.CatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo?.CommitId ?? string.Empty, s_buildInfo?.Build ?? string.Empty);
+                        WriteToConsole(Strings.App_LogsDirectory, loggers.RootLogDirectory);
+                        WriteToConsole("Collecting some information about this crash...");
                         break;
                 }
 
-                // Mark failure for future recovery.
-                var recovery = FailureRecoveryFactory.Create(pm.LoggingContext, m_pathTable, m_configuration);
-                Analysis.IgnoreResult(recovery.TryMarkFailure(exception, rootCause));
-
-                // Send a catastrophic failure telemetry event
+                // Send a catastrophic failure telemetry event. This should be earlier in the handling process to ensure
+                // we have the best shot of getting telemetry out before more complicated tasks like taking a process dump happen.
                 AppServer hostServer = m_appHost as AppServer;
                 Logger.Log.DominoCatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo, rootCause,
                     wasServer: hostServer != null,
@@ -1755,28 +1850,28 @@ namespace BuildXL
 
                 loggers.LogEventSummary(pm.LoggingContext);
 
+                // Mark failure for future recovery.
+                // TODO - FailureRecovery relies on the configuration object and path table. It really shouldn't since these mutate over
+                // the corse of the build. This currently makes them pretty ineffective since m_PathTable.IsValue will most likely
+                // false here due to graph cache reloading.
+                if (m_pathTable != null && m_pathTable.IsValid)
+                {
+                    var recovery = FailureRecoveryFactory.Create(pm.LoggingContext, m_pathTable, m_configuration);
+                    Analysis.IgnoreResult(recovery.TryMarkFailure(exception, rootCause));
+                }
+
                 loggers.Dispose();
 
                 pm.Dispose();
 
                 if (rootCause == ExceptionRootCause.Unknown)
                 {
-                    string[] filesToAttach = m_configuration != null
-                        ? new[]
-                          {
-                              m_configuration.Logging.Log.ToString(m_pathTable),
-                              m_configuration.Logging.WarningLog.ToString(m_pathTable),
-                              m_configuration.Logging.ErrorLog.ToString(m_pathTable),
-                          }
-                        : new string[0];
-
                     // Sometimes the crash dumps don't actually get attached to the WER report. Stick a full heap dump
                     // next to the log file for good measure.
                     try
                     {
-                        string logDir = Path.GetDirectoryName(loggers.LogPath);
                         string logPrefix = Path.GetFileNameWithoutExtension(loggers.LogPath);
-                        string dumpDir = Path.Combine(logDir, logPrefix, "dumps");
+                        string dumpDir = Path.Combine(loggers.RootLogDirectory, logPrefix, "dumps");
                         Directory.CreateDirectory(dumpDir);
                         Exception dumpException;
                         Analysis.IgnoreResult(BuildXL.Processes.ProcessDumper.TryDumpProcess(Process.GetCurrentProcess(), Path.Combine(dumpDir, "UnhandledFailure.zip"), out dumpException, compress: true));
@@ -1789,6 +1884,8 @@ namespace BuildXL
 
                     if (!OperatingSystemHelper.IsUnixOS)
                     {
+                        string[] filesToAttach = new[] { loggers.LogPath };
+
                         WindowsErrorReporting.CreateDump(exception, s_buildInfo, filesToAttach, Events.StaticContext?.Session?.Id);
                     }
                 }
@@ -1814,9 +1911,11 @@ namespace BuildXL
                 Environment.Exit(ExitCode.FromExitKind(effectiveExitKind));
             }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Oh my, this isn't going very well.
+                WriteErrorToConsole("Unhandled exception in exception handler");
+                WriteErrorToConsole(ex.DemystifyToString());
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
             finally
@@ -1834,11 +1933,8 @@ namespace BuildXL
             EngineContext engineContext,
             FrontEndControllerFactory factory,
             TrackingEventListener trackingEventListener,
-            EngineState engineState,
-            out EngineLiveVisualizationInformation visualizationInformation)
+            EngineState engineState)
         {
-            visualizationInformation = null;
-
             var configuration = factory.Configuration;
             var loggingContext = factory.LoggingContext;
 
@@ -1857,6 +1953,7 @@ namespace BuildXL
                 engineContext,
                 configuration,
                 factory,
+                m_buildViewModel,
                 factory.Collector,
                 m_startTimeUtc,
                 trackingEventListener,
@@ -1867,14 +1964,6 @@ namespace BuildXL
             if (engine == null)
             {
                 return engineState;
-            }
-
-            if (configuration.Viewer != ViewerMode.Disable)
-            {
-                // Create the live visualization information object, hook it to the engine and make it available on the EngineModel
-                visualizationInformation = new EngineLiveVisualizationInformation();
-                engine.SetVisualizationInformation(visualizationInformation);
-                EngineModel.VisualizationInformation = visualizationInformation;
             }
 
             if (configuration.Export.SnapshotFile.IsValid && configuration.Export.SnapshotMode != SnapshotMode.None)
@@ -1927,6 +2016,8 @@ namespace BuildXL
                 EngineRunDurationMs = engineRunDuration,
             };
 
+            ReportStatsForBuildSummary(appPerfInfo);
+
             if (m_configuration.Engine.LogStatistics)
             {
                 BuildXL.Tracing.Logger.Log.Statistic(
@@ -1957,6 +2048,46 @@ namespace BuildXL
             return result.EngineState;
         }
 
+        private void ReportStatsForBuildSummary(AppPerformanceInfo appInfo)
+        {
+            var summary = m_buildViewModel.BuildSummary;
+            if (summary == null)
+            {
+                return;
+            }
+
+            // Overall Duration information
+            var tree = new PerfTree("Build Duration", appInfo.EngineRunDurationMs)
+                       {
+                           new PerfTree("Application Initialization", appInfo.AppInitializationDurationMs)
+                       };
+
+            var engineInfo = appInfo.EnginePerformanceInfo;
+            
+            if (engineInfo != null)
+            {
+                tree.Add(new PerfTree("Graph Construction", engineInfo.GraphCacheCheckDurationMs + engineInfo.GraphReloadDurationMs + engineInfo.GraphConstructionDurationMs)
+                           {
+                               new PerfTree("Checking for pip graph reuse", engineInfo.GraphCacheCheckDurationMs),
+                               new PerfTree("Reloading pip graph", engineInfo.GraphReloadDurationMs),
+                               new PerfTree("Create graph", engineInfo.GraphConstructionDurationMs)
+                           });
+                tree.Add(new PerfTree("Scrubbing", engineInfo.ScrubbingDurationMs));
+                tree.Add(new PerfTree("Scheduler Initialization", engineInfo.SchedulerInitDurationMs));
+                tree.Add(new PerfTree("Execution Phase", engineInfo.ExecutePhaseDurationMs));
+
+                // Cache stats
+                var schedulerInfo = engineInfo.SchedulerPerformanceInfo;
+                if (schedulerInfo != null)
+                {
+                    summary.CacheSummary.ProcessPipCacheHit = schedulerInfo.ProcessPipCacheHits;
+                    summary.CacheSummary.TotalProcessPips = schedulerInfo.TotalProcessPips;
+                }
+            }
+            
+            summary.DurationTree = tree;
+        }
+
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope", Justification = "Caller is responsible for disposing these objects.")]
         internal static IConsole CreateStandardConsole(LightConfig lightConfig)
         {
@@ -1973,6 +2104,14 @@ namespace BuildXL
             if (!loggingConfiguration.DisableLoggedPathTranslation)
             {
                 PathTranslator.CreateIfEnabled(loggingConfiguration.SubstTarget, loggingConfiguration.SubstSource, pathTable, out translator);
+            }
+
+            if (loggingConfiguration.OptimizeConsoleOutputForAzureDevOps
+                || loggingConfiguration.OptimizeProgressUpdatingForAzureDevOps
+                || loggingConfiguration.OptimizeVsoAnnotationsForAzureDevOps)
+            {
+                // Use a very simple logger for azure devops
+                return new StandardConsole(colorize: false, animateTaskbar: false, supportsOverwriting: false, pathTranslator: translator);
             }
 
             return new StandardConsole(loggingConfiguration.Color, loggingConfiguration.AnimateTaskbar, loggingConfiguration.FancyConsole, translator);

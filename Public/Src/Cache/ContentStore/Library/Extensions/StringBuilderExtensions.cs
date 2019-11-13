@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 
 namespace BuildXL.Cache.ContentStore.Extensions
@@ -26,6 +29,26 @@ namespace BuildXL.Cache.ContentStore.Extensions
         {
             builder.Append(builder.Length > 0 ? separator : string.Empty);
             builder.Append(text);
+        }
+
+        /// <nodoc />
+        public static void AppendSequence<T>(this StringBuilder builder, IEnumerable<T> data, Action<StringBuilder, T> appendToBuilder, string separator = ", ")
+        {
+            bool first = true;
+            foreach (var e in data)
+            {
+                if (!first)
+                {
+                    builder.Append(separator);
+                }
+
+                if (first)
+                {
+                    first = false;
+                }
+
+                appendToBuilder(builder, e);
+            }
         }
     }
 }

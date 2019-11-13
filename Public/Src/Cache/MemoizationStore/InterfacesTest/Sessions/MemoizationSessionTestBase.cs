@@ -66,7 +66,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             _disposed = true;
         }
 
-        private void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -333,7 +333,6 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [InlineData(DeterminismCache1, DeterminismCache1)]
         [InlineData(DeterminismTool, DeterminismTool)]
         [InlineData(DeterminismSinglePhaseNon, DeterminismSinglePhaseNon)]
-        [InlineData(DeterminismTool, DeterminismTool)]
         public Task AlwaysReplaceWhenPreviousContentMissing(int fromDeterminism, int toDeterminism)
         {
             var context = new Context(Logger);
@@ -343,18 +342,18 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             return RunTestAsync(context, async session =>
             {
                 var addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token);
+                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token).ShouldBeSuccess();
                 Assert.Equal(Determinism[fromDeterminism].EffectiveGuid, addResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
 
                 // What we will do here is AddOrGet() a record that we already know is
                 // there but with the determinism bit changed.
                 addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[toDeterminism]), Token)
-;
+                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[toDeterminism]), Token).ShouldBeSuccess();
+
                 Assert.Null(addResult.ContentHashListWithDeterminism.ContentHashList);
                 Assert.Equal(Determinism[toDeterminism].EffectiveGuid, addResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
 
-                var getResult = await session.GetContentHashListAsync(context, strongFingerprint, Token);
+                var getResult = await session.GetContentHashListAsync(context, strongFingerprint, Token).ShouldBeSuccess();
                 Assert.Equal(Determinism[toDeterminism].EffectiveGuid, getResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
             });
         }
@@ -375,7 +374,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             return RunTestAsync(context, async session =>
             {
                 var addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token);
+                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token).ShouldBeSuccess();
                 Assert.Equal(Determinism[fromDeterminism].EffectiveGuid, addResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
 
                 // What we will do here is AddOrGet() a record that we already know is
@@ -387,7 +386,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         }
 
         [Fact]
-        public Task EnumerateStrongFingerprintsEmpty()
+        public virtual Task EnumerateStrongFingerprintsEmpty()
         {
             var context = new Context(Logger);
             return RunTestAsync(context, async store =>
@@ -405,7 +404,7 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [InlineData(100)]
         [InlineData(500)]
         [InlineData(1337)]
-        public Task EnumerateStrongFingerprints(int strongFingerprintCount)
+        public virtual Task EnumerateStrongFingerprints(int strongFingerprintCount)
         {
             var context = new Context(Logger);
             return RunTestAsync(context, async (cache, session) =>
@@ -474,12 +473,12 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             });
         }
 
-        protected async Task RunTestAsync(Context context, Func<IMemoizationStore, IMemoizationSession, Task> funcAsync)
+        protected async Task RunTestAsync(Context context, Func<IMemoizationStore, IMemoizationSession, Task> funcAsync, Func<DisposableDirectory, IMemoizationStore> createStoreFunc = null)
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 // ReSharper disable once ConvertClosureToMethodGroup
-                await RunTestAsync(context, testDirectory, (store, session) => funcAsync(store, session));
+                await RunTestAsync(context, testDirectory, (store, session) => funcAsync(store, session), createStoreFunc);
             }
         }
 

@@ -11,10 +11,10 @@ namespace BuildXL.Utilities.Instrumentation.Common
     /// </summary>
     public static class AriaNative
     {
-#if PLATFORM_OSX
-        private const string AriaLibName = "libBuildXLAria";
-#else
+#if PLATFORM_WIN
         private const string AriaLibName = "x64\\BuildXLAria";
+#else
+        private const string AriaLibName = "libBuildXLAria";
 #endif
 
         /// <nodoc />
@@ -46,7 +46,7 @@ namespace BuildXL.Utilities.Instrumentation.Common
 
         /// <nodoc />
         [DllImport(AriaLibName)]
-        static public extern void DisposeAriaLogger(IntPtr logger);
+        public static extern void DisposeAriaLogger(IntPtr logger);
 
         /// <nodoc />
         public static void LogEvent(IntPtr logger, string eventName, EventProperty[] eventProperties)

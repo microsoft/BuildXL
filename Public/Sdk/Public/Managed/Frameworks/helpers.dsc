@@ -37,6 +37,15 @@ namespace Helpers
             },
             dependencies: [
                 pkgContents,
+            ],
+            environmentVariables: [
+                // Make sure DotNet core runs isolated from the framework your build selected and doesn't go off reading registry and dependd on globally installed tools to make the build unreliable
+                // https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet?tabs=netcore21
+                { name: "DOTNET_MULTILEVEL_LOOKUP", value: "0" }, 
+
+                // Speed up dotnet core by preventing it from doing all kinds of startup logic like pulling packages.
+                // https://docs.microsoft.com/en-us/dotnet/core/tools/global-tools
+                { name: "DOTNET_SKIP_FIRST_TIME_EXPERIENCE", value: "1" } 
             ]
         };
     }

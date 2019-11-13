@@ -68,6 +68,8 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                         return ReportStatisticsCommand.InternalDeserialize(reader);
                     case nameof(GetSealedDirectoryContentCommand):
                         return GetSealedDirectoryContentCommand.InternalDeserialize(reader);
+                    case nameof(LogMessageCommand):
+                        return LogMessageCommand.InternalDeserialize(reader);
                     default:
                         Contract.Assert(false, "unrecognized command type name: " + typeName);
                         return null;

@@ -137,7 +137,7 @@ namespace Test.BuildXL.Utilities
 
             if (type == typeof(ModuleId))
             {
-                return new ModuleId(123);
+                return ModuleId.UnsafeCreate(123);
             }
 
             if (type == typeof(LocationData))

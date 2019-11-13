@@ -16,7 +16,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Relative path to the default tool.
         /// </summary>
-        public const string DefaultToolRelativePath = @"tools\SandboxedProcessExecutor\SandboxedProcessExecutor.exe";
+        public const string DefaultToolRelativePath = @"SandboxedProcessExecutor.exe";
 
         /// <summary>
         /// Tool path.

@@ -13,7 +13,7 @@ namespace BuildXL.Interop.MacOS
     {
         /// <nodoc />
         [StructLayout(LayoutKind.Sequential)]
-        public struct ProcessTimesInfo
+        public struct ProcessResourceUsage
         {
             /// <nodoc />
             public double StartTime;
@@ -30,19 +30,29 @@ namespace BuildXL.Interop.MacOS
             /// User time of a given process in nanoseconds.
             /// </summary>
             public ulong UserTimeNs;
+
+            /// <summary>
+            /// Bytes read from disk
+            /// </summary>
+            public ulong DiskBytesRead;
+
+            /// <summary>
+            /// Bytes written to disk
+            /// </summary>
+            public ulong DiskBytesWritten;
         }
 
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        private static extern int GetProcessTimes(int pid, ref ProcessTimesInfo buffer, long bufferSize, bool includeChildProcesses);
+        private static extern int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, long bufferSize, bool includeChildProcesses);
 
         /// <summary>
-        /// Returns process timing information to the caller
+        /// Returns process resource usage information to the caller
         /// </summary>
         /// <param name="pid">The process id to check</param>
-        /// <param name="buffer">A ProcesstTimesInfo struct to hold the process timing information</param>
+        /// <param name="buffer">A ProcessResourceUsage struct to hold the process resource information</param>
         /// <param name="includeChildProcesses">Whether the result should include the execution times of all the child processes</param>
-        public static int GetProcessTimes(int pid, ref ProcessTimesInfo buffer, bool includeChildProcesses)
-            => GetProcessTimes(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses);
+        public static int GetProcessResourceUsage(int pid, ref ProcessResourceUsage buffer, bool includeChildProcesses)
+            => GetProcessResourceUsage(pid, ref buffer, Marshal.SizeOf(buffer), includeChildProcesses);
 
         /// <summary>
         /// Returns true if core dump file creation for abnormal process exits has been set up successfully, and passes out

@@ -28,7 +28,8 @@ namespace Test.BuildXL.Processes
             FileAccessManifest fileAccessManifest = null,
             IDetoursEventListener detoursListener = null,
             bool disableConHostSharing = false,
-            Dictionary<string, string> overrideEnvVars = null)
+            Dictionary<string, string> overrideEnvVars = null,
+            ISandboxConnection sandboxConnection = null)
         {
             var envVars = Override(
                 BuildParameters.GetFactory().PopulateFromEnvironment().ToDictionary(),
@@ -44,7 +45,7 @@ namespace Test.BuildXL.Processes
                 this,
                 process.Executable.Path.ToString(Context.PathTable),
                 detoursEventListener: detoursListener,
-                sandboxedKextConnection: GetSandboxedKextConnection(),
+                sandboxConnection: sandboxConnection ?? GetSandboxConnection(),
                 disableConHostSharing: disableConHostSharing,
                 fileAccessManifest: fileAccessManifest)
             {
@@ -120,6 +121,11 @@ namespace Test.BuildXL.Processes
             {
                 return await process.GetResultAsync();
             }
+        }
+
+        protected static IEnumerable<(string processName, int pid)> RetrieveChildProcessesCreatedBySpawnExe(SandboxedProcessResult process)
+        {
+            return Operation.RetrieveChildProcessesCreatedBySpawnExe(process.StandardOutput.ReadValueAsync().GetAwaiter().GetResult());
         }
     }
 }

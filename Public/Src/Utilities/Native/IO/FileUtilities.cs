@@ -107,17 +107,8 @@ namespace BuildXL.Native.IO
             bool success = Helpers.RetryOnFailure(
                 finalRound =>
                 {
-                    try
-                    {
-                        CreateDirectory(path);
-                        return true;
-                    }
-#pragma warning disable ERP022 // TODO: This should handle proper exceptions
-                    catch
-                    {
-                        return false;
-                    }
-#pragma warning restore ERP022
+                    CreateDirectory(path);
+                    return true;
                 });
 
             if (!success)
@@ -138,12 +129,12 @@ namespace BuildXL.Native.IO
             return s_fileSystem.TryRemoveDirectory(path, out hr);
         }
 
-        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempDirectoryCleaner, CancellationToken?)"/>
+        /// <see cref="IFileUtilities.DeleteDirectoryContents(string, bool, Func{string, bool}, ITempCleaner, CancellationToken?)"/>
         public static void DeleteDirectoryContents(
             string path, 
             bool deleteRootDirectory = false, 
             Func<string, bool> shouldDelete = null, 
-            ITempDirectoryCleaner tempDirectoryCleaner = null,
+            ITempCleaner tempDirectoryCleaner = null,
             CancellationToken? cancellationToken = default) =>
             s_fileUtilities.DeleteDirectoryContents(path, deleteRootDirectory, shouldDelete, tempDirectoryCleaner, cancellationToken);
 
@@ -227,7 +218,7 @@ namespace BuildXL.Native.IO
             Action<SafeFileHandle, SafeFileHandle> onCompletion = null) => s_fileUtilities.CopyFileAsync(source, destination, predicate, onCompletion);
 
         /// <see cref="IFileUtilities.MoveFileAsync(string, string, bool)"/>
-        public static Task<bool> MoveFileAsync(
+        public static Task MoveFileAsync(
             string source,
             string destination,
             bool replaceExisting = false) => s_fileUtilities.MoveFileAsync(source, destination, replaceExisting);
@@ -263,8 +254,8 @@ namespace BuildXL.Native.IO
             bool openAsync = true,
             bool allowExcludeFileShareDelete = false) => s_fileUtilities.CreateReplacementFile(path, fileShare, openAsync, allowExcludeFileShareDelete);
 
-        /// <see cref="IFileUtilities.DeleteFile(string, bool, ITempDirectoryCleaner)"/>
-        public static void DeleteFile(string path, bool waitUntilDeletionFinished = true, ITempDirectoryCleaner tempDirectoryCleaner = null) =>
+        /// <see cref="IFileUtilities.DeleteFile(string, bool, ITempCleaner)"/>
+        public static void DeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
             s_fileUtilities.DeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
 
         /// <see cref="IFileUtilities.PosixDeleteMode"/>
@@ -298,8 +289,8 @@ namespace BuildXL.Native.IO
             }
         }
 
-        /// <see cref="IFileUtilities.TryDeleteFile(string, bool, ITempDirectoryCleaner)"/>
-        public static Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempDirectoryCleaner tempDirectoryCleaner = null) =>
+        /// <see cref="IFileUtilities.TryDeleteFile(string, bool, ITempCleaner)"/>
+        public static Possible<Unit, RecoverableExceptionFailure> TryDeleteFile(string path, bool waitUntilDeletionFinished = true, ITempCleaner tempDirectoryCleaner = null) =>
             s_fileUtilities.TryDeleteFile(path, waitUntilDeletionFinished, tempDirectoryCleaner);
 
         /// <summary>
@@ -307,7 +298,7 @@ namespace BuildXL.Native.IO
         /// </summary>
         /// <param name="fileOrDirectoryPath">Path to file or directory to be deleted, if exists.</param>
         /// <param name="tempDirectoryCleaner">Temporary directory cleaner.</param>
-        public static Possible<Unit, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempDirectoryCleaner tempDirectoryCleaner = null)
+        public static Possible<Unit, Failure> TryDeletePathIfExists(string fileOrDirectoryPath, ITempCleaner tempDirectoryCleaner = null)
         {
             if (FileExistsNoFollow(fileOrDirectoryPath))
             {
@@ -401,6 +392,9 @@ namespace BuildXL.Native.IO
 
         /// <see cref="IFileUtilities.HasWritableAccessControl(string)"/>
         public static bool HasWritableAccessControl(string path) => s_fileUtilities.HasWritableAccessControl(path);
+
+        /// <see cref="IFileUtilities.HasWritableAttributeAccessControl(string)"/>
+        public static bool HasWritableAttributeAccessControl(string path) => s_fileUtilities.HasWritableAttributeAccessControl(path);
 
         /// <see cref="IFileUtilities.CreateFileStream(string, FileMode, FileAccess, FileShare, FileOptions, bool, bool)"/>
         public static FileStream CreateFileStream(
@@ -579,6 +573,12 @@ namespace BuildXL.Native.IO
         public static void SetFileAccessControl(string path, FileSystemRights fileSystemRights, bool allow)
         {
             s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow);
+        }
+
+        /// <see cref="IFileSystem.TryWriteFileSync(SafeFileHandle, byte[], out int)"/>
+        public static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
+        {
+            return s_fileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
         }
 
         #endregion
@@ -1195,10 +1195,7 @@ namespace BuildXL.Native.IO
                 SetFileTimestamps(temporaryPath, timestamps);
             }
 
-            if (!await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true))
-            {
-                return new Failure<string>(I($"Failed to make exclusive link for '{originalPath}' because renaming '{temporaryPath}' failed"));
-            }
+            await MoveFileAsync(temporaryPath, originalPath, replaceExisting: true);
 
             return Unit.Void;
         }

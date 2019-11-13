@@ -106,9 +106,9 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         }
 
         /// <inheritdoc/>
-        protected SpecEvaluationBuilder Build(string configExtraArguments)
+        protected SpecEvaluationBuilder Build(string configExtraArguments, string environment = null)
         {
-            return base.Build().Configuration(DefaultMsBuildPrelude(configExtraArguments));
+            return base.Build().Configuration(DefaultMsBuildPrelude(configExtraArguments, environment));
         }
 
         /// <summary>
@@ -298,7 +298,8 @@ config({{
 }});";
 
         private string DefaultMsBuildPrelude(
-            string extraArguments) => $@"
+            string extraArguments,
+            string environment) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -308,7 +309,7 @@ config({{
             msBuildSearchLocations: [d`{TestDeploymentDir}/{RelativePathToFullframeworkMSBuild}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: true,
-            {DictionaryToExpression("environment", new Dictionary<string, string>())}
+            {(environment != null? $"environment: {environment}," : DictionaryToExpression("environment", new Dictionary<string, string>()))}
             {extraArguments ?? string.Empty}
         }},
     ],

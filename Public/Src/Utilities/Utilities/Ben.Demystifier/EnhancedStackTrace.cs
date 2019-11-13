@@ -14,7 +14,7 @@ namespace System.Diagnostics
         /// <nodoc />
         public static EnhancedStackTrace Current() => new EnhancedStackTrace(new StackTrace(1 /* skip this one frame */, true));
 
-        private readonly List<EnhancedStackFrame> _frames;
+        private readonly List<EnhancedStackFrame> m_frames;
 
         /// <summary>
         /// Initializes a new instance of the System.Diagnostics.StackTrace class using the
@@ -27,7 +27,7 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(e));
             }
 
-            _frames = GetFrames(e);
+            m_frames = GetFrames(e);
         }
 
         /// <nodoc />
@@ -38,21 +38,21 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(stackTrace));
             }
 
-            _frames = GetFrames(stackTrace);
+            m_frames = GetFrames(stackTrace);
         }
 
         /// <summary>
         /// Gets the number of frames in the stack trace.
         /// </summary>
         /// <returns>The number of frames in the stack trace.</returns>
-        public override int FrameCount => _frames.Count;
+        public override int FrameCount => m_frames.Count;
 
         /// <summary>
         /// Gets the specified stack frame.
         /// </summary>
         /// <param name="index">The index of the stack frame requested.</param>
         /// <returns>The specified stack frame.</returns>
-        public override StackFrame GetFrame(int index) => _frames[index];
+        public override StackFrame GetFrame(int index) => m_frames[index];
 
         /// <summary>
         ///     Returns a copy of all stack frames in the current stack trace.
@@ -61,7 +61,7 @@ namespace System.Diagnostics
         ///     An array of type System.Diagnostics.StackFrame representing the function calls
         ///     in the stack trace.
         /// </returns>
-        public override StackFrame[] GetFrames() => _frames.ToArray();
+        public override StackFrame[] GetFrames() => m_frames.ToArray();
 
         /// <summary>
         /// Builds a readable representation of the stack trace.
@@ -69,7 +69,10 @@ namespace System.Diagnostics
         /// <returns>A readable representation of the stack trace.</returns>
         public override string ToString()
         {
-            if (_frames == null || _frames.Count == 0) return "";
+            if (m_frames == null || m_frames.Count == 0)
+            {
+                return "";
+            }
 
             var sb = new StringBuilder();
 
@@ -80,7 +83,7 @@ namespace System.Diagnostics
 
         internal void Append(StringBuilder sb)
         {
-            var frames = _frames;
+            var frames = m_frames;
             var count = frames.Count;
 
             for (var i = 0; i < count; i++)
@@ -127,8 +130,7 @@ namespace System.Diagnostics
             }
         }
 
-        EnumerableIList<EnhancedStackFrame> GetEnumerator() => EnumerableIList.Create(_frames);
-        IEnumerator<EnhancedStackFrame> IEnumerable<EnhancedStackFrame>.GetEnumerator() => _frames.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => _frames.GetEnumerator();
+        IEnumerator<EnhancedStackFrame> IEnumerable<EnhancedStackFrame>.GetEnumerator() => m_frames.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => m_frames.GetEnumerator();
     }
 }

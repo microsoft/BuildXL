@@ -293,6 +293,33 @@ int CallDetouredCopyFileNotFollowingChainOfSymlinks()
     return (int)GetLastError();
 }
 
+int CallDetouredCopyFileToExistingSymlink(bool copySymlink)
+{
+    if (!TestCreateSymbolicLinkW(L"LinkToDestination.link", L"Destination.txt", 0))
+    {
+        return (int)GetLastError();
+    }
+
+    CopyFileExW(
+        L"LinkToSource.link",
+        L"LinkToDestination.link",
+        (LPPROGRESS_ROUTINE)NULL,
+        (LPVOID)NULL,
+        (LPBOOL)NULL,
+        copySymlink ? COPY_FILE_COPY_SYMLINK : (DWORD)0x0);
+
+    return (int)GetLastError();
+}
+int CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks()
+{
+    return CallDetouredCopyFileToExistingSymlink(false);
+}
+
+int CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks()
+{
+    return CallDetouredCopyFileToExistingSymlink(true);
+}
+
 int CallAccessNestedSiblingSymLinkOnFiles()
 {
     HANDLE hFile = CreateFileW(
@@ -448,4 +475,56 @@ int CallDetouredNtCreateFileThatAccessesChainOfSymlinks()
     }
 
     return (int)RtlNtStatusToDosError(status);
+}
+
+int CallDetouredCreateFileWForSymlinkProbeOnly(bool withReparsePointFlag)
+{
+    DWORD flagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
+    flagsAndAttributes = withReparsePointFlag
+        ? flagsAndAttributes | FILE_FLAG_OPEN_REPARSE_POINT
+        : flagsAndAttributes;
+
+    HANDLE hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        flagsAndAttributes,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    hFile = CreateFileW(
+        L"input\\CreateFileWForProbingOnly.lnk",
+        FILE_READ_ATTRIBUTES | FILE_READ_EA,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        flagsAndAttributes,
+        NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return (int)GetLastError();
+    }
+
+    CloseHandle(hFile);
+
+    return (int)GetLastError();
+}
+
+int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag()
+{
+    return CallDetouredCreateFileWForSymlinkProbeOnly(true);
+}
+
+int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag()
+{
+    return CallDetouredCreateFileWForSymlinkProbeOnly(false);
 }

@@ -15,6 +15,7 @@ namespace Core {
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,

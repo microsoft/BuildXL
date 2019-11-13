@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
 {
@@ -17,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.FileSystem
         public static string GetFileName(this AbsolutePath path)
         {
             string fileName = Path.GetFileName(path.Path);
-            Contract.Assume(fileName != null);
+            Contract.AssertNotNull(fileName);
             return fileName;
         }
     }

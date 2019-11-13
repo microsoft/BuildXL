@@ -28,9 +28,9 @@ namespace Test.BuildXL.Storage
             m_executablePath = exePath;
         }
 
-        public static DummyWaiter RunAndWait()
+        public static DummyWaiter RunAndWait(string exePath = null)
         {
-            string exePath = GetDummyWaiterExeLocation();
+            exePath = !string.IsNullOrEmpty(exePath) ? exePath : GetDummyWaiterExeLocation();
             if (!File.Exists(exePath))
             {
                 throw new BuildXLException("Expected to find DummyWaiter.exe at " + exePath);

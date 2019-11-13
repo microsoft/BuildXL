@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,19 @@ using HelpLevel = BuildXL.ToolSupport.HelpLevel;
 
 namespace BuildXL.Execution.Analyzer
 {
+    internal class ConsoleEventListener : FormattingEventListener
+    {
+        public ConsoleEventListener(Events eventSource, DateTime baseTime, WarningMapper warningMapper = null, EventLevel level = EventLevel.Verbose, bool captureAllDiagnosticMessages = false, TimeDisplay timeDisplay = TimeDisplay.None, EventMask eventMask = null, DisabledDueToDiskWriteFailureEventHandler onDisabledDueToDiskWriteFailure = null, bool listenDiagnosticMessages = false, bool useCustomPipDescription = false)
+            : base(eventSource, baseTime, warningMapper, level, captureAllDiagnosticMessages, timeDisplay, eventMask, onDisabledDueToDiskWriteFailure, listenDiagnosticMessages, useCustomPipDescription)
+        {
+        }
+
+        protected override void Output(EventLevel level, int id, string eventName, EventKeywords eventKeywords, string text, bool doNotTranslatePaths = false)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.ff}] {text}");
+        }
+    }
+
     internal sealed partial class Args : CommandLineUtilities
     {
         private static readonly string[] s_helpStrings = new[] { "?", "help" };
@@ -36,6 +50,7 @@ namespace BuildXL.Execution.Analyzer
 
         public readonly LoggingContext LoggingContext = new LoggingContext("BuildXL.Execution.Analyzer");
         public readonly TrackingEventListener TrackingEventListener = new TrackingEventListener(Events.Log);
+        public readonly ConsoleEventListener ConsoleListener = new ConsoleEventListener(Events.Log, DateTime.UtcNow);
 
         // Variables that are unused without full telemetry
         private readonly bool m_telemetryDisabled = false;
@@ -143,10 +158,9 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Additional executionLog to compare parameter is required");
             }
 
-            // The fingerprint store based cache miss analyzer and the bxl invocation analyzer
-            // only use graph information from the newer build, so skip loading the graph for the earlier build
-            // TODO: To avoid large "||" statements, convert this to a list or enum or struct and check if the mode is "in" that data structure
-            if (m_mode.Value != AnalysisMode.CacheMiss || m_mode.Value != AnalysisMode.BXLInvocationXLG)
+            // The fingerprint store based cache miss analyzer
+            // only uses graph information from the newer build, so skip loading the graph for the earlier build
+            if (m_mode.Value != AnalysisMode.CacheMiss)
             {
                 if (!m_analysisInput.LoadCacheGraph(cachedGraphDirectory))
                 {
@@ -325,11 +339,18 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.CopyFile:
                     m_analyzer = InitializeCopyFilesAnalyzer();
                     break;
+#if NET_FRAMEWORK
+                case AnalysisMode.ContentPlacement:
+                    m_analyzer = InitializeContentPlacementAnalyzer();
+                    break;
+#endif
                 case AnalysisMode.XlgToDb:
                     m_analyzer = InitializeXLGToDBAnalyzer();
                     break;
-                case AnalysisMode.BXLInvocationXLG:
-                    m_analyzer = InitializeBXLInvocationAnalyzer();
+                case AnalysisMode.DebugLogs:
+                    ConsoleListener.RegisterEventSource(ETWLogger.Log);
+                    ConsoleListener.RegisterEventSource(FrontEnd.Script.Debugger.ETWLogger.Log);
+                    m_analyzer = InitializeDebugLogsAnalyzer();
                     break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
@@ -344,6 +365,17 @@ namespace BuildXL.Execution.Analyzer
             {
                 m_analyzerOther.CanHandleWorkerEvents = m_canHandleWorkerEvents;
             }
+        }
+
+        private static void PrintInvalidXlgError(Exception e)
+        {
+            var originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine("ERROR: " + e.Message);
+            Console.ForegroundColor = originalColor;
+            var path = Path.GetTempFileName();
+            File.WriteAllText(path, e.ToString());
+            Console.WriteLine("Full stack trace saved to " + path);
         }
 
         public static void TruncatedXlgWarning()
@@ -361,75 +393,85 @@ namespace BuildXL.Execution.Analyzer
                 return 0;
             }
 
-            m_analyzer.Prepare();
-            bool dataIsComplete = true;
-            if (m_analysisInput.ExecutionLogPath != null)
+            try
             {
-                // NOTE: We call Prepare above so we don't need to prepare as a part of reading the execution log
-                var reader = Task.Run(() => dataIsComplete &= m_analyzer.ReadExecutionLog(prepare: false));
-                if (m_mode == AnalysisMode.LogCompare)
+                m_analyzer.Prepare();
+                bool dataIsComplete = true;
+                if (m_analysisInput.ExecutionLogPath != null)
                 {
-                    m_analyzerOther.Prepare();
-                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
+                    // NOTE: We call Prepare above so we don't need to prepare as a part of reading the execution log
+                    var reader = Task.Run(() => dataIsComplete &= m_analyzer.ReadExecutionLog(prepare: false));
+                    if (m_mode == AnalysisMode.LogCompare)
+                    {
+                        m_analyzerOther.Prepare();
+                        var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+                    }
+
+                    if (m_mode == AnalysisMode.FailedPipsDump && m_analyzerOther != null)
+                    {
+                        var start = DateTime.Now;
+                        Console.WriteLine($"[{start}] Reading compare to Log");
+                        var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+                        var duration = DateTime.Now - start;
+                        Console.WriteLine($"Done reading compare to log : duration = [{duration}]");
+                    }
+
+                    reader.Wait();
+
+                    if (m_mode == AnalysisMode.CacheMissLegacy)
+                    {
+                        // First pass just to read in PipCacheMissType data
+                        var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+
+                        // Second pass to do fingerprint differences analysis
+                        otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
+                        otherReader.Wait();
+                    }
                 }
 
+                if (!dataIsComplete)
+                {
+                    TruncatedXlgWarning();
+                }
+
+                var exitCode = m_analyzer.Analyze();
                 if (m_mode == AnalysisMode.FailedPipsDump && m_analyzerOther != null)
                 {
-                    var start = DateTime.Now;
-                    Console.WriteLine($"[{start}] Reading compare to Log");
-                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
-                    var duration = DateTime.Now - start;
-                    Console.WriteLine($"Done reading compare to log : duration = [{duration}]");
+                    var failedPipsDump = (FailedPipsDumpAnalyzer)m_analyzer;
+                    exitCode = failedPipsDump.Compare(m_analyzerOther);
                 }
 
-                reader.Wait();
+                if (m_mode == AnalysisMode.LogCompare)
+                {
+                    m_analyzerOther.Analyze();
+                    SummaryAnalyzer summary = (SummaryAnalyzer)m_analyzer;
+                    exitCode = summary.Compare((SummaryAnalyzer)m_analyzerOther);
+                }
 
                 if (m_mode == AnalysisMode.CacheMissLegacy)
                 {
-                    // First pass just to read in PipCacheMissType data
-                    var otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
-
-                    // Second pass to do fingerprint differences analysis
-                    otherReader = Task.Run(() => dataIsComplete &= m_analyzerOther.ReadExecutionLog());
-                    otherReader.Wait();
+                    exitCode = m_analyzerOther.Analyze();
                 }
-            }
 
-            if (!dataIsComplete)
+                return exitCode;
+            }
+            catch (InvalidDataException e)
             {
-                TruncatedXlgWarning();
+                PrintInvalidXlgError(e);
+                return -1;
             }
-
-            var exitCode = m_analyzer.Analyze();
-            if (m_mode == AnalysisMode.FailedPipsDump && m_analyzerOther != null)
+            finally
             {
-                var failedPipsDump = (FailedPipsDumpAnalyzer)m_analyzer;
-                exitCode = failedPipsDump.Compare(m_analyzerOther);
+                m_analyzer?.Dispose();
+                m_analyzerOther?.Dispose();
+                TelemetryShutdown();
             }
-
-            if (m_mode == AnalysisMode.LogCompare)
-            {
-                m_analyzerOther.Analyze();
-                SummaryAnalyzer summary = (SummaryAnalyzer)m_analyzer;
-                exitCode = summary.Compare((SummaryAnalyzer)m_analyzerOther);
-            }
-
-            if (m_mode == AnalysisMode.CacheMissLegacy)
-            {
-                exitCode = m_analyzerOther.Analyze();
-            }
-
-            m_analyzer?.Dispose();
-            m_analyzerOther?.Dispose();
-
-            TelemetryShutdown();
-            return exitCode;
         }
 
-        #region Telemetry
+#region Telemetry
 
         private void HandleUnhandledFailure(Exception exception)
         {
@@ -479,7 +521,7 @@ namespace BuildXL.Execution.Analyzer
             }
         }
 
-        #endregion Telemetry
+#endregion Telemetry
 
         private AnalysisInput GetAnalysisInput()
         {
@@ -604,12 +646,15 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteLine("");
             WriteCopyFilesAnalyzerHelp(writer);
 
-            // TODO: Uncomment out help messages when analyzers are more polished.
-            //writer.WriteLine("");
-            //WriteXLGToDBHelp(writer);
+            writer.WriteLine("");
+            WriteXLGToDBHelp(writer);
 
-            //writer.WriteLine("");
-            //WriteDominoInvocationHelp(writer);
+//writer.WriteLine("");
+//WriteDominoInvocationHelp(writer);
+#if NET_FRAMEWORK
+            writer.WriteLine("");
+            WriteContentPlacementAnalyzerHelp(writer);
+#endif
         }
 
         public void LogEventSummary()

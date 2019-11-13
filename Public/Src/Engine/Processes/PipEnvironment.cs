@@ -9,6 +9,7 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using static BuildXL.Utilities.BuildParameters;
+using MacPaths = BuildXL.Interop.MacOS.IO;
 
 namespace BuildXL.Processes
 {
@@ -49,14 +50,25 @@ namespace BuildXL.Processes
         {
             FullEnvironmentVariables = GetFactory(ReportDuplicateVariable).PopulateFromEnvironment();
 
+#if PLATFORM_WIN
             var comspec = Path.Combine(SpecialFolderUtilities.SystemDirectory, "cmd.exe");
+            var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
+#endif
+
             var path =
                 string.Join(
-                    ";",
+                    OperatingSystemHelper.IsUnixOS ? ":" : ";",
                     SpecialFolderUtilities.SystemDirectory,
+#if PLATFORM_WIN
                     SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows),
-                    Path.Combine(SpecialFolderUtilities.SystemDirectory, "wbem"));
-            var pathExt = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC";
+                    Path.Combine(SpecialFolderUtilities.SystemDirectory, "wbem")
+#else
+                    MacPaths.UsrBin,
+                    MacPaths.UsrSbin,
+                    MacPaths.Bin,
+                    MacPaths.Sbin
+#endif
+                );
 
             // the environment variable names below should use the casing appropriate for the target OS
             // (on Windows it won't matter, but on Unix-like systems, including Cygwin environment on Windows,
@@ -64,21 +76,23 @@ namespace BuildXL.Processes
             m_baseEnvironmentVariables = FullEnvironmentVariables
                 .Select(new[]
                 {
-                            "NUMBER_OF_PROCESSORS",
-                            "OS",
-                            "PROCESSOR_ARCHITECTURE",
-                            "PROCESSOR_IDENTIFIER",
-                            "PROCESSOR_LEVEL",
-                            "PROCESSOR_REVISION",
-                            "SystemDrive",
-                            "SystemRoot",
-                            "SYSTEMTYPE",
+                    "NUMBER_OF_PROCESSORS",
+                    "OS",
+                    "PROCESSOR_ARCHITECTURE",
+                    "PROCESSOR_IDENTIFIER",
+                    "PROCESSOR_LEVEL",
+                    "PROCESSOR_REVISION",
+                    "SystemDrive",
+                    "SystemRoot",
+                    "SYSTEMTYPE",
                 })
                 .Override(new Dictionary<string, string>()
                 {
-                            { "ComSpec", comspec },
-                            { "PATH", path },
-                            { "PATHEXT", pathExt }
+                    { "PATH", path },
+#if PLATFORM_WIN
+                    { "ComSpec", comspec },
+                    { "PATHEXT", pathExt }
+#endif
                 })
                 .Override(DisallowedTempVariables
                     .Select(tmp => new KeyValuePair<string, string>(tmp, RestrictedTemp)));
@@ -87,7 +101,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Gets the effective environment variables, taking into account default and machine-specific values
         /// </summary>
-        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer)
+        public IBuildParameters GetEffectiveEnvironmentVariables(Process pip, PipFragmentRenderer pipFragmentRenderer, IReadOnlyList<string> globalUnsafePassthroughEnvironmentVariables = null)
         {
             Contract.Requires(pipFragmentRenderer != null);
             Contract.Requires(pip != null);
@@ -95,6 +109,9 @@ namespace BuildXL.Processes
 
             var trackedEnv = pip.EnvironmentVariables.Where(envVar => !envVar.IsPassThrough);
             var passThroughEnvNames = pip.EnvironmentVariables.Where(envVar => envVar.IsPassThrough).Select(envVar => pipFragmentRenderer.Render(envVar.Name));
+
+            // Append any passthrough environment variables if they're specified
+            passThroughEnvNames = globalUnsafePassthroughEnvironmentVariables != null ? passThroughEnvNames.Union(globalUnsafePassthroughEnvironmentVariables) : passThroughEnvNames;
 
             IBuildParameters fullEnvironmentForPassThrough = MasterEnvironmentVariables != null ?
 

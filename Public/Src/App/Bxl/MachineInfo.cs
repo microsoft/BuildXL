@@ -59,6 +59,12 @@ namespace BuildXL
         public string DotNetFrameworkVersion { get; private set; }
 
         /// <summary>
+        /// Returns the runtime on which this process is currently running
+        /// (<see cref="OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion"/>)
+        /// </summary>
+        public string RuntimeFrameworkName { get; private set; }
+
+        /// <summary>
         /// Creates a MachineInfo describing the current machine
         /// </summary>
         public static MachineInfo CreateForCurrentMachine()
@@ -69,7 +75,7 @@ namespace BuildXL
             mi.ProcessorName = OperatingSystemHelper.GetProcessorName();
             mi.ProcessorIdentifier = OperatingSystemHelper.GetProcessorIdentifier();
 
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             try {
                 mi.EnvironmentVersion = Environment.Version.ToString(4);
             }
@@ -78,7 +84,7 @@ namespace BuildXL
 #endif
                 // Fallback for .NETCore3.0, which currently reports "3.0.0" only
                 mi.EnvironmentVersion = Environment.Version.ToString();
-#if !FEATURE_CORECLR
+#if NET_FRAMEWORK
             }
 #endif
             mi.InstalledMemoryMB = OperatingSystemHelper.GetPhysicalMemorySize().MB;
@@ -89,6 +95,7 @@ namespace BuildXL
                 : false;
             mi.CurrentDriveHasSeekPenalty = seekPenalty ?? false;
             mi.DotNetFrameworkVersion = OperatingSystemHelper.GetInstalledDotNetFrameworkVersion();
+            mi.RuntimeFrameworkName = OperatingSystemHelper.GetRuntimeFrameworkNameAndVersion();
             return mi;
         }
     }

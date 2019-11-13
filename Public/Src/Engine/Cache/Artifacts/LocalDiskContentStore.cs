@@ -313,11 +313,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                 var updatedDestination = destination.Substring(0, destination.Length - requiredFileName.Length) + requiredFileName;
 
                 // Move file to temporary location
-                var changeCasing = await FileUtilities.MoveFileAsync(destination, updatedDestination, replaceExisting: false);
-                if (!changeCasing)
-                {
-                    return new Failure<string>(I($"Could not move file '{destination}' to change file name casing to '{requiredFileName}'."));
-                }
+                await FileUtilities.MoveFileAsync(destination, updatedDestination, replaceExisting: false);
 
                 return Unit.Void;
             }
@@ -1009,10 +1005,8 @@ namespace BuildXL.Engine.Cache.Artifacts
                             return new Possible<TrackedFileContentInfo, Failure>(attempt.Result);
                         }
 
-                        return new Failure<string>($"TryOpenAndTrackPathAsync() failed to establish identity and track file: {path.ExpandedPath}");
-                    },
-                    logExceptions: true
-                );
+                        return new Failure<string>($"{nameof(TrackChangesToFile)} failed to establish identity and track file: {path.ExpandedPath}");
+                    });
         }
 
         private Possible<TrackedFileContentInfo> TrackChangesToFile(

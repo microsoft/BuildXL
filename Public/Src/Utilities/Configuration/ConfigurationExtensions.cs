@@ -36,7 +36,7 @@ namespace BuildXL.Utilities.Configuration
                 && configuration.Logging.StoreFingerprints.Value
                 && configuration.Distribution.BuildRole != DistributedBuildRoles.Worker
                 && configuration.Layout.FingerprintStoreDirectory.IsValid 
-                && (configuration.Engine.Phase & EnginePhases.Execute) != 0;
+                && configuration.Engine.Phase.HasFlag(EnginePhases.Execute);
         }
     }
 }

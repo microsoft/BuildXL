@@ -11,7 +11,7 @@ using JetBrains.Annotations;
 namespace BuildXL.Engine.Recovery
 {
     /// <summary>
-    /// Abstract class representing recovery action in the presence of previous build failure. 
+    /// Abstract class representing recovery action in the presence of previous build failure.
     /// </summary>
     public abstract class FailureRecovery
     {

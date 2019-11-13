@@ -17,7 +17,7 @@ if NOT DEFINED DBD_TESTGEN_COUNT (
 )
 
 if NOT DEFINED TEST_COMMITID (
-	set TEST_COMMITID=47e77cd946c0d37a09cad752dee603db84ce2d92
+	set TEST_COMMITID=08d1d146db384cc29442d0000e28d1cf3684395c
 )
 
 set TEST_SOLUTION_ROOT=%ENLISTMENTROOT%\Out\Tests\SMDB
@@ -39,11 +39,18 @@ if NOT DEFINED DISABLE_DBD_TESTGEN (
 
 REM Clean directory
 
-rmdir /S /Q %TEST_SOLUTION_ROOT%
+if EXIST %TEST_SOLUTION_ROOT% (
+    rmdir /S /Q %TEST_SOLUTION_ROOT%
+)
 
 REM Generate test solution
 
-call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT%
+if DEFINED MSENG_GIT_PAT (
+    call "%ProgramFiles%\Git\cmd\git" clone https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+) else (
+    call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+)
+
 if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )

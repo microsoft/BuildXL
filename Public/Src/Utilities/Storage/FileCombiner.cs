@@ -689,7 +689,7 @@ namespace BuildXL.Storage
                 hash: hash,
                 path: path,
                 contentLength: contentLength ?? content.Length,
-                writeFunction: (writer, ctent) => writer.Write(ctent.Item1, 0, ctent.Item2));
+                writeFunction: (writer, ctent) => writer.Write(ctent.content, 0, ctent.Item2));
         }
 
         /// <summary>

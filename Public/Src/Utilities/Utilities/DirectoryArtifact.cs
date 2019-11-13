@@ -22,7 +22,7 @@ namespace BuildXL.Utilities
         /// Packed representation the directory seal id plus if the directory is a shared opaque one. 
         /// The top bit indicates if the directory is a shared opaque one. The remaining bits form the <see cref="PartialSealId"/>.
         /// </summary>
-        private uint IsSharedOpaquePlusPartialSealId { get; }
+        internal uint IsSharedOpaquePlusPartialSealId { get; }
 
         /// <summary>
         /// Invalid artifact for uninitialized fields.
@@ -30,13 +30,18 @@ namespace BuildXL.Utilities
         public static readonly DirectoryArtifact Invalid = default(DirectoryArtifact);
 
         /// <nodoc />
+        internal DirectoryArtifact(AbsolutePath path, uint isSharedOpaquePlusPartialSealId)
+        {
+            Path = path;
+            IsSharedOpaquePlusPartialSealId = isSharedOpaquePlusPartialSealId;
+        }
+
+        /// <nodoc />
         public DirectoryArtifact(AbsolutePath path, uint partialSealId, bool isSharedOpaque)
+            : this(path, partialSealId | (isSharedOpaque ? IsSharedOpaqueBit : 0))
         {
             Contract.Requires(!isSharedOpaque || (partialSealId > 0), "A shared opaque directory should always have a proper seal id");
             Contract.Requires((partialSealId & ~PartialSealIdMask) == 0, "The most significant bit of a partial seal id should not be used");
-
-            Path = path;
-            IsSharedOpaquePlusPartialSealId = partialSealId | (isSharedOpaque ? IsSharedOpaqueBit : 0);
         }
 
         /// <summary>

@@ -22,7 +22,8 @@ namespace Engine {
         },
     ];
 
-    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.0.0/module.config.bm`;
+    // Update the value of this variable if you change the version of Microsoft.Net.Compilers in config.dsc.
+    const microsoftNetCompilerSpec = f`${Context.getMount("FrontEnd").path}/Nuget/specs/Microsoft.Net.Compilers/3.3.1/module.config.bm`;
 
     @@public
     export const categoriesToRunInParallel = [
@@ -66,6 +67,7 @@ namespace Engine {
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
+            importFrom("BuildXL.Engine").ViewModel.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Collections.dll,
@@ -76,10 +78,6 @@ namespace Engine {
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEndUnitTests").Core.dll,
-            ...addIfLazy(BuildXLSdk.isFullFramework, () => [
-                importFrom("Bond.Rpc.NET").pkg,
-                importFrom("Bond.Core.NET").pkg
-            ]),
         ],
         runtimeContent: [
             ...libsUsedForTesting,

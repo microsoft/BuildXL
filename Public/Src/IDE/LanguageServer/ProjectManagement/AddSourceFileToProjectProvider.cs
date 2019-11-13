@@ -163,7 +163,7 @@ namespace BuildXL.Ide.LanguageServer
 
                         // Now check the configurations to see if the any match as there
                         // can be different names (such as "references", "sources", etc.) as
-                        // well as different functions, etc.                
+                        // well as different functions, etc.
 
                         AddSourceFileConfiguration singleConfiguration = null;
 

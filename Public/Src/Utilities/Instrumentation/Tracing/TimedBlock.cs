@@ -197,7 +197,7 @@ namespace BuildXL.Tracing
 
             return new TimedBlock<TStartObject, TEndObject>(
                 parentLoggingContext,
-                collector != null ? collector.CreateAggregator() : null,
+                collector?.CreateAggregator(),
                 phaseFriendlyName,
                 endAction,
                 endObjGetter);

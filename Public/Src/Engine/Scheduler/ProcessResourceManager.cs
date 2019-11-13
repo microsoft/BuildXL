@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
 
 namespace BuildXL.Scheduler
@@ -95,6 +96,23 @@ namespace BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// Updates the ram usage indicators for all cancelable resource scopes
+        /// </summary>
+        public void UpdateRamUsageForResourceScopes()
+        {
+            lock (m_syncLock)
+            {
+                foreach (var scope in m_pipResourceScopes.Values)
+                {
+                    if (scope.CanCancel)
+                    {
+                        scope.RefreshRamUsage();
+                    }
+                }
+            }
+        }
+
         private void FreeResourcesByPreference(
             IComparer<ResourceScope> scopeComparer,
             ref int requiredRam,
@@ -128,14 +146,14 @@ namespace BuildXL.Scheduler
         public async Task<T> ExecuteWithResources<T>(
             OperationContext operationContext,
             PipId pipId,
-            int expectedRamUsageMb,
+            ProcessMemoryCounters expectedMemoryCounters,
             bool allowCancellation,
             ManagedResourceExecute<T> execute)
         {
             ResourceScope scope;
             using (operationContext.StartOperation(PipExecutorCounter.AcquireResourcesDuration))
             {
-                scope = AcquireResourceScope(pipId, expectedRamUsageMb, allowCancellation);
+                scope = AcquireResourceScope(pipId, expectedMemoryCounters, allowCancellation);
             }
 
             using (scope)
@@ -146,13 +164,13 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private ResourceScope AcquireResourceScope(PipId pipId, int expectedRamUsageMb, bool allowCancellation)
+        private ResourceScope AcquireResourceScope(PipId pipId, ProcessMemoryCounters expectedMemoryCounters, bool allowCancellation)
         {
             Interlocked.Increment(ref m_activeExecutionCount);
 
             lock (m_syncLock)
             {
-                var scope = new ResourceScope(this, pipId, m_nextScopeId++, expectedRamUsageMb, allowCancellation, m_headScope);
+                var scope = new ResourceScope(this, pipId, m_nextScopeId++, expectedMemoryCounters, allowCancellation, m_headScope);
                 m_headScope = scope;
                 m_pipResourceScopes[pipId] = scope;
                 return scope;
@@ -225,9 +243,10 @@ namespace BuildXL.Scheduler
             private Func<int> m_queryRamUsageMb;
             private bool m_completed;
             private bool m_cancelled;
+            private readonly object m_refreshLock = new object();
 
             public readonly PipId PipId;
-            public readonly int ExpectedRamUsageMb;
+            public readonly ProcessMemoryCounters ExpectedMemoryCounters;
             public readonly int ScopeId;
             public ResourceScope Next;
             public ResourceScope Prior;
@@ -243,14 +262,14 @@ namespace BuildXL.Scheduler
             /// </remarks>
             public int RamUsageMb { get; private set; }
 
-            public int RamUsageOverageMb => RamUsageMb - ExpectedRamUsageMb;
+            public int RamUsageOverageMb => RamUsageMb - ExpectedMemoryCounters.PeakWorkingSetMb;
 
-            public ResourceScope(ProcessResourceManager resourceManager, PipId pipId, int scopeId, int expectedRamUsageMb, bool allowCancellation, ResourceScope next)
+            public ResourceScope(ProcessResourceManager resourceManager, PipId pipId, int scopeId, ProcessMemoryCounters expectedMemoryCounters, bool allowCancellation, ResourceScope next)
             {
                 m_resourceManager = resourceManager;
                 PipId = pipId;
                 ScopeId = scopeId;
-                ExpectedRamUsageMb = expectedRamUsageMb;
+                ExpectedMemoryCounters = expectedMemoryCounters;
                 m_allowCancellation = allowCancellation;
                 Next = next;
                 if (next != null)
@@ -268,7 +287,10 @@ namespace BuildXL.Scheduler
 
             public int QueryRamUsageMb()
             {
-                return m_queryRamUsageMb?.Invoke() ?? 0;
+                lock(m_refreshLock)
+                {
+                    return m_queryRamUsageMb?.Invoke() ?? 0;
+                }
             }
 
             public void RefreshRamUsage()
@@ -303,9 +325,13 @@ namespace BuildXL.Scheduler
 
             public void Dispose()
             {
-                Contract.Assert(!m_completed || m_queryRamUsageMb != null, "Must register query ram usage before completion");
-                m_queryRamUsageMb = null;
-                m_isDisposed = true;
+                lock(m_refreshLock)
+                {
+                    Contract.Assert(!m_completed || m_queryRamUsageMb != null, "Must register query ram usage before completion");
+                    m_queryRamUsageMb = null;
+                    m_isDisposed = true;
+                }
+
                 m_cancellation.Dispose();
                 m_resourceManager.FreeExecution(PipId);
             }

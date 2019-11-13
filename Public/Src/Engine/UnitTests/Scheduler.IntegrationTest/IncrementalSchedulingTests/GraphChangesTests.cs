@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
@@ -929,7 +928,6 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             // Run first without incremental scheduling.
             Configuration.Schedule.IncrementalScheduling = false;
-            Configuration.Schedule.GraphAgnosticIncrementalScheduling = false;
 
             // Start with G1.
             AbsolutePath sdRoot = CreateUniqueDirectory();
@@ -965,7 +963,6 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             // Enable incremental scheduling.
             Configuration.Schedule.IncrementalScheduling = true;
-            Configuration.Schedule.GraphAgnosticIncrementalScheduling = true;
 
             // Switch to G1.
             ResetPipGraphBuilder();
@@ -1264,7 +1261,42 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             result = RunScheduler(schedulerState: result.SchedulerState).AssertScheduled(q.PipId);
 
             AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState);
-            AssertLogContains(false, "Attempt to reuse existing incremental scheduling state: " + ReuseKind.ChangedGraph);
+            AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + ReuseFromEngineStateKind.ChangedGraph);
+        }
+
+        [Fact]
+        public void GAISSCannotBeReusedFromEngineStateWithInvalidSchedulerState()
+        {
+            // Graph G1: P
+            // Graph G2: Q
+
+            // Start with G1.
+            // Build P.
+            var pOperations = new Operation[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) };
+            Process p = CreateAndSchedulePipBuilder(pOperations).Process;
+
+            var resultP = RunScheduler().AssertScheduled(p.PipId);
+
+            // Save G1.
+            var graphG1 = SavePipGraph();
+
+            // Switch to G2.
+            ResetPipGraphBuilder();
+
+            // Build Q.
+            var qOperations = new Operation[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) };
+            Process q = CreateAndSchedulePipBuilder(qOperations).Process;
+            RunScheduler().AssertScheduled(q.PipId);
+
+            // Restore G1.
+            graphG1.Restore();
+
+            // Deliberately use the scheduler state from the 1st build, which is invalid.
+            // Then, incremental scheduling will be loaded from file, and in that case P is already clean, and will not be scheduled.
+            RunScheduler(schedulerState: resultP.SchedulerState).AssertNotScheduled(p.PipId);
+
+            AssertVerboseEventLogged(EventId.IncrementalSchedulingReuseState);
+            AssertLogContains(false, "Attempt to reuse existing incremental scheduling state from engine state: " + ReuseFromEngineStateKind.MismatchedEngineStateId);
         }
 
         [Fact]
@@ -1424,6 +1456,75 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 
             RunScheduler().AssertScheduled(pWithOutputs.Process.PipId, qWithOutputs.Process.PipId);
             XAssert.AreEqual("f2", ReadAllText(g));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DynamicObservationChangeShouldNotCauseOverScheduleWhenGraphChanges(bool shareInput)
+        {
+            // Graph G1: A -> SSD(f, g, h)
+            // Graph G2: B -> SSD(f, g, h)
+
+            var directoryPath = CreateUniqueDirectory(SourceRoot);
+            var sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+
+            var inputF = CreateSourceFile(directoryPath);
+            var inputG = CreateSourceFile(directoryPath);
+            var inputH = CreateSourceFile(directoryPath);
+
+            // file h points to path to f.
+            ModifyFile(inputH, ArtifactToString(inputF));
+
+            var outputX = CreateOutputFileArtifact();
+            var pipBuilderA = CreatePipBuilder(new[] {
+                Operation.ReadFileFromOtherFile(inputH, doNotInfer: true),
+                Operation.WriteFile(outputX) });
+            pipBuilderA.AddInputDirectory(sealedDirectory.Directory);
+            var processA = SchedulePipBuilder(pipBuilderA).Process;
+
+            RunScheduler().AssertCacheMiss(processA.PipId);
+
+            // file h points to path to g.
+            ModifyFile(inputH, ArtifactToString(inputG));
+
+            RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss(processA.PipId);
+
+            // Switch to G2.
+            ResetPipGraphBuilder();
+
+            sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+            var outputY = CreateOutputFileArtifact();
+            var bInput = shareInput ? inputG : inputF;
+            var pipBuilderB = CreatePipBuilder(new[] { Operation.ReadFile(bInput, doNotInfer: true), Operation.WriteFile(outputY) });
+            pipBuilderB.AddInputDirectory(sealedDirectory.Directory);
+            var processB = SchedulePipBuilder(pipBuilderB).Process;
+
+            RunScheduler().AssertCacheMiss(processB.PipId);
+
+            // Modify B's input.
+            ModifyFile(bInput);
+
+            RunScheduler().AssertCacheMiss(processB.PipId);
+
+            // Switch back to G1.
+            ResetPipGraphBuilder();
+
+            sealedDirectory = CreateAndScheduleSealDirectory(directoryPath, SealDirectoryKind.SourceTopDirectoryOnly);
+            pipBuilderA = CreatePipBuilder(new[] {
+                Operation.ReadFileFromOtherFile(inputH, doNotInfer: true),
+                Operation.WriteFile(outputX) });
+            pipBuilderA.AddInputDirectory(sealedDirectory.Directory);
+            processA = SchedulePipBuilder(pipBuilderA).Process;
+
+            if (shareInput)
+            {
+                RunScheduler().AssertScheduled(processA.PipId).AssertCacheMiss();
+            }
+            else
+            {
+                RunScheduler().AssertNotScheduled(processA.PipId);
+            }
         }
     }
 }

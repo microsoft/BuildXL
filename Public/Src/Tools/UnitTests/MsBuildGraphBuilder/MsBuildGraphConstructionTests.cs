@@ -156,7 +156,7 @@ namespace Test.ProjectGraphBuilder
             var releaseNode = nodes.First(node => node.GlobalProperties["configuration"] == "release");
 
             // Both nodes should have the same platform, since that's part of the global properties
-            Assert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
+            XAssert.All(nodes, node => Assert.Equal("x86", node.GlobalProperties["platform"]));
         }
 
         [Theory]

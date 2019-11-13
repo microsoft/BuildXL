@@ -74,8 +74,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>true if the resources where successfully acquired. False, otherwise.</returns>
         public bool TryAcquireResources(ItemResources resources, bool force = false)
         {
-            int? limitingResourceIndex;
-            return TryAcquireResources(resources, out limitingResourceIndex, force);
+            return TryAcquireResources(resources, out int? limitingResourceIndex, force);
         }
 
         /// <summary>
@@ -161,8 +160,7 @@ namespace BuildXL.Utilities.Collections
 
             lock (SyncLock)
             {
-                int? limitingResourceIndex;
-                return HasAvailableResourcesCore(resources, out limitingResourceIndex);
+                return HasAvailableResourcesCore(resources, out int? limitingResourceIndex);
             }
         }
 
@@ -247,8 +245,7 @@ namespace BuildXL.Utilities.Collections
         /// <returns>the semaphore index</returns>
         public int CreateSemaphore(TKey key, int limit)
         {
-            SemaphoreInfo semaphoreInfo;
-            if (m_semaphoresIndices.TryGetValue(key, out semaphoreInfo))
+            if (m_semaphoresIndices.TryGetValue(key, out SemaphoreInfo semaphoreInfo))
             {
                 if (semaphoreInfo.Limit == limit)
                 {

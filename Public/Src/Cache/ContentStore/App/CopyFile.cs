@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Utils;
 using CLAP;
 using Microsoft.Practices.TransientFaultHandling;
 
@@ -42,7 +43,7 @@ namespace BuildXL.Cache.ContentStore.App
                 grpcPort = Helpers.GetGrpcPortFromFile(_logger, grpcPortFileName);
             }
 
-            if (!ContentHash.TryParse(hashString, out ContentHash hash))
+            if (!ContentHash.TryParse(hashString, out var hash))
             {
                 throw new CacheException($"Invalid content hash string provided: {hashString}");
             }

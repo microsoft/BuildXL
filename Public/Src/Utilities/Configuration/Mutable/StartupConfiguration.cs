@@ -18,6 +18,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             QualifierIdentifiers = new List<string>();
             ImplicitFilters = new List<string>();
+            ABTestingArgs = new Dictionary<string, string>();
 
             CurrentHost = Host.Current;
         }
@@ -39,6 +40,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
             QualifierIdentifiers = new List<string>(template.QualifierIdentifiers);
             ImplicitFilters = new List<string>(template.ImplicitFilters);
             CurrentHost = new Host(template.CurrentHost, pathRemapper);
+
+            ABTestingArgs = new Dictionary<string, string>();
+            foreach (var kv in template.ABTestingArgs)
+            {
+                ABTestingArgs.Add(kv.Key, kv.Value);
+            }
+
+            ChosenABTestingKey = template.ChosenABTestingKey;
         }
 
         /// <inheritdoc />
@@ -77,6 +86,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IHost CurrentHost { get; set; }
+
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public Dictionary<string, string> ABTestingArgs { get; set; }
+
+        IReadOnlyDictionary<string, string> IStartupConfiguration.ABTestingArgs => ABTestingArgs;
+
+        /// <nodoc />
+        public string ChosenABTestingKey { get; set; }
 
         /// <summary>
         /// Ensures the properties are set up properly when running in CloudBuild.

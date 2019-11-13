@@ -100,19 +100,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public bool CleanRandomFilesAtRoot { get; set; } = false;
 
         /// <summary>
-        /// Whether the underlying content store should be told to trust a hash when putting content.
-        /// </summary>
-        public bool UseTrustedHash { get; set; } = false;
-
-        /// <summary>
-        /// Whether the shortcuts for streaming, placing, and pinning the empty file are used.
-        /// </summary>
-        public bool EmptyFileHashShortcutEnabled { get; set; } = false;
-
-        /// <summary>
         /// Files smaller than this should use the untrusted hash.
         /// </summary>
         public long TrustedHashFileSizeBoundary { get; set; } = -1;
+
+        /// <summary>
+        /// Whether the underlying content store should be told to trust a hash when putting content.
+        /// </summary>
+        /// <remarks>
+        /// When trusted, then distributed file copier will hash the file and the store won't re-hash the file.
+        /// </remarks>
+        public bool UseTrustedHash(long fileSize)
+        {
+            // Only use trusted hash for files greater than _trustedHashFileSizeBoundary. Over a few weeks of data collection, smaller files appear to copy and put faster using the untrusted variant.
+            return fileSize >= TrustedHashFileSizeBoundary;
+        }
 
         /// <summary>
         /// Files longer than this will be hashed concurrently with the download.
@@ -126,6 +128,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public int MaxConcurrentCopyOperations { get; set; } = 512;
 
         /// <summary>
+        /// Maximum number of concurrent proactive copies.
+        /// </summary>
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = 512;
+
+        /// <summary>
         /// Maximum number of files to copy locally in parallel for a given operation
         /// </summary>
         public int ParallelCopyFilesLimit { get; set; } = DefaultParallelCopyFilesLimit;
@@ -136,11 +143,56 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public IReadOnlyList<TimeSpan> RetryIntervalForCopies { get; set; } = CacheCopierDefaultRetryIntervals;
 
         /// <summary>
+        /// Controls the maximum total number of copy retry attempts
+        /// </summary>
+        public int MaxRetryCount { get; set; } = 32;
+
+        /// <summary>
+        /// The mode in which proactive copy should run
+        /// </summary>
+        public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
+
+        /// <summary>
+        /// Whether to push the content. If disabled, the copy will be requested and the target machine then will pull.
+        /// </summary>
+        public bool PushProactiveCopies { get; set; } = false;
+
+        /// <summary>
+        /// Should only be used for testing.
+        /// </summary>
+        public bool InlineProactiveCopies { get; set; } = false;
+
+        /// <summary>
+        /// Maximum number of locations which should trigger a proactive copy.
+        /// </summary>
+        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+
+        /// <summary>
+        /// Time before a proactive copy times out.
+        /// </summary>
+        public TimeSpan TimeoutForProactiveCopies { get; set; } = TimeSpan.FromMinutes(15);
+
+        /// <summary>
         /// Defines pinning behavior
         /// </summary>
         public PinConfiguration PinConfiguration { get; set; } // Can be null.
 
         /// <nodoc />
         public static DistributedContentStoreSettings DefaultSettings { get; } = new DistributedContentStoreSettings();
+
+        /// <summary>
+        /// Maximum number of PutFile operations that can happen concurrently.
+        /// </summary>
+        public int MaximumConcurrentPutFileOperations { get; set; } = 512;
+
+        /// <summary>
+        /// Name of the blob with the snapshot of the content placement predictions.
+        /// </summary>
+        public string ContentPlacementPredictionsBlob { get; set; } // Can be null.
+
+        /// <summary>
+        /// Used in tests to inline put blob execution.
+        /// </summary>
+        public bool ShouldInlinePutBlob { get; set; } = false;
     }
 }

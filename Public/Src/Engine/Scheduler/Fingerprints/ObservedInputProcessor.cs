@@ -150,6 +150,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 var sourceDirectoriesAllDirectories = processingState.SourceDirectoriesAllDirectories;
                 var sourceDirectoriesTopDirectoryOnly = processingState.SourceDirectoriesTopDirectoryOnly;
                 var dynamicallyObservedFiles = processingState.DynamicallyObservedFiles;
+                var dynamicallyProbedFiles = processingState.DynamicallyProbedFiles;
                 var allowedUndeclaredSourceReads = processingState.AllowedUndeclaredReads;
                 var absentPathProbesUnderNonDependenceOutputDirectories = processingState.AbsentPathProbesUnderNonDependenceOutputDirectories;
                 var directoryDependencyContentsFilePaths = processingState.DirectoryDependencyContentsFilePaths;
@@ -192,11 +193,11 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 if (allDirectories)
                                 {
-                                    sourceDirectoriesAllDirectories.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns));
+                                    sourceDirectoriesAllDirectories.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns, false));
                                 }
                                 else
                                 {
-                                    sourceDirectoriesTopDirectoryOnly.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns));
+                                    sourceDirectoriesTopDirectoryOnly.Add(new SourceSealWithPatterns(directoryDependency.Path, patterns, true));
                                 }
                             }
                         }
@@ -242,7 +243,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             for (int j = 0; j < sourceDirectoriesAllDirectories.Count && !underSealedSource; j++)
                             {
                                 var sourceSealWithPatterns = sourceDirectoriesAllDirectories[j];
-                                if (sourceSealWithPatterns.Contains(pathTable, path, isTopDirectoryOnly: false))
+                                if (sourceSealWithPatterns.Contains(pathTable, path))
                                 {
                                     // Note the directories themselves are never part of the seal.
                                     underSealedSource = true;
@@ -390,7 +391,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                                 ObservedInputAccessCheckFailureAction accessCheckFailureResult = target.OnAccessCheckFailure(
                                     observation,
-                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnly: false)));
+                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
                                 HandleFailureResult(accessCheckFailureResult, ref status, ref invalid);
                                 continue;
                             }
@@ -412,7 +413,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 ObservedInputAccessCheckFailureAction accessCheckFailureResult = target.OnAccessCheckFailure(
                                     observation,
-                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnly: false)));
+                                    fromTopLevelDirectory: sourceDirectoriesTopDirectoryOnly.Any(a => a.Contains(pathTable, path, isTopDirectoryOnlyOverride: false)));
                                 HandleFailureResult(accessCheckFailureResult, ref status, ref invalid);
                                 continue;
                             }
@@ -497,7 +498,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         {
                             // We need to iterate the observations in the order so that we can first visit the directory and then the child paths under that directory.
                             // CanIgnoreAbsentPathProbe relies on that assumption.
-                            if (CanIgnoreAbsentPathProbe(environment.PathExpander, enumeratedDirectories, pathTable, path, lastAbsentPath, isCacheLookup))
+                            if (CanIgnoreAbsentPathProbe(environment, enumeratedDirectories, pathTable, path, lastAbsentPath, isCacheLookup))
                             {
                                 numAbsentPathsEliminated++;
                                 continue;
@@ -542,13 +543,13 @@ namespace BuildXL.Scheduler.Fingerprints
                                 break;
                             case ObservedInputType.ExistingFileProbe:
                                 maybeProposed = ObservedInput.CreateExistingFileProbe(path);
-                                dynamicallyObservedFiles.Add(path);
+                                dynamicallyProbedFiles.Add(path);
                                 break;
                             case ObservedInputType.ExistingDirectoryProbe:
                                 maybeProposed = ObservedInput.CreateExistingDirectoryProbe(path);
 
                                 // Directory probe is just like file probe.
-                                dynamicallyObservedFiles.Add(path);
+                                dynamicallyProbedFiles.Add(path);
                                 break;
                             case ObservedInputType.DirectoryEnumeration:
                                 // TODO: TryQueryDirectoryFingerprint should be in agreement with the VirtualFileSystem somehow.
@@ -657,7 +658,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                             if (!proposed.Path.IsValid)
                             {
-                                Contract.Assume(proposed.Path.IsValid, "Created an ObservedInput with an invalid path in ObservedInputProcessor line 675. Type:" + proposed.Type.ToString());
+                                Contract.Assume(proposed.Path.IsValid, "Created an ObservedInput with an invalid path in ObservedInputProcessor line 660. Type: " + proposed.Type.ToString());
                             }
 
                             switch (proposed.Type)
@@ -723,6 +724,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             new ObservedInputExpandedPathComparer(pathComparer)),
                         observedAccessedFileNames: observedAccessedFileNames,
                         dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedFiles),
+                        dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyProbedFiles),
                         dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedEnumerations),
                         allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet(),
                         absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories.ToReadOnlySet());
@@ -735,6 +737,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         numberOfValidEntries: valid,
                         numberOfInvalidEntries: invalid,
                         dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedFiles),
+                        dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.From(dynamicallyProbedFiles),
                         dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.From(dynamicallyObservedEnumerations),
                         allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet(),
                         absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories.ToReadOnlySet());
@@ -742,13 +745,14 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
-        private static bool CanIgnoreAbsentPathProbe(
-            SemanticPathExpander pathExpander,
+        private static bool CanIgnoreAbsentPathProbe<TEnv>(
+            TEnv env,
             Dictionary<AbsolutePath, (DirectoryMembershipFilter, DirectoryEnumerationMode)> enumeratedDirectories,
             PathTable pathTable,
             AbsolutePath path,
             AbsolutePath lastAbsentPath,
             bool isCacheLookup)
+            where TEnv : IObservedInputProcessingEnvironment
         {
             if (isCacheLookup)
             {
@@ -758,13 +762,29 @@ namespace BuildXL.Scheduler.Fingerprints
             (DirectoryMembershipFilter directoryMemberShipFilter, DirectoryEnumerationMode directoryEnumerationMode) tuple;
 
             AbsolutePath parent = path.GetParent(pathTable);
-            if (enumeratedDirectories.TryGetValue(parent, out tuple) && tuple.directoryEnumerationMode == DirectoryEnumerationMode.RealFilesystem && tuple.directoryMemberShipFilter.Include(pathTable, path))
+            if (enumeratedDirectories.TryGetValue(parent, out tuple)
+                && (enumerationAllowsAbsentProbeElision(tuple))
+                && tuple.directoryMemberShipFilter.Include(pathTable, path))
             {
                 return true;
             }
 
             // Skip nested absent paths except the uppermost one
             return lastAbsentPath.IsValid && path.IsWithin(pathTable, lastAbsentPath);
+
+            bool enumerationAllowsAbsentProbeElision((DirectoryMembershipFilter directoryMemberShipFilter, DirectoryEnumerationMode directoryEnumerationMode) info)
+            {
+                if (info.directoryEnumerationMode == DirectoryEnumerationMode.RealFilesystem)
+                {
+                    return true;
+                }
+                else if (info.directoryEnumerationMode == DirectoryEnumerationMode.MinimalGraph && env.Configuration.ElideMinimalGraphEnumerationAbsentPathProbes)
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -1114,7 +1134,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Action to perform on access check failure
         /// </summary>
         /// <param name="observation">the observation</param>
-        /// <param name="fromTopLevelDirectory">Whether the observation was nested deeploy under a source sealed directory
+        /// <param name="fromTopLevelDirectory">Whether the observation was nested deeply under a source sealed directory
         /// that is configured as a top only directory. This scenar ends up hitting the sealed directory codepath due
         /// the access being allowed but we want to report it differently.</param>
         ObservedInputAccessCheckFailureAction OnAccessCheckFailure(TObservation observation, bool fromTopLevelDirectory);
@@ -1155,6 +1175,11 @@ namespace BuildXL.Scheduler.Fingerprints
         /// Used to retrieve semantic path information
         /// </summary>
         SemanticPathExpander PathExpander { get; }
+
+        /// <summary>
+        /// Configuration for caching behavior
+        /// </summary>
+        ICacheConfiguration Configuration { get; }
 
         /// <summary>
         /// Probes a path for existence
@@ -1256,9 +1281,14 @@ namespace BuildXL.Scheduler.Fingerprints
         public readonly int NumberOfInvalidEntries;
 
         /// <summary>
-        /// The list of dynamically observed files. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
+        /// The list of dynamically observed read files.
         /// </summary>
         public readonly ReadOnlyArray<AbsolutePath> DynamicallyObservedFiles;
+
+        /// <summary>
+        /// The list of dynamically observed probed files. 
+        /// </summary>
+        public readonly ReadOnlyArray<AbsolutePath> DynamicallyProbedFiles;
 
         /// <summary>
         /// The list of dynamically observed enumerations. i.e., the enumerations that were not in the graph, but should be considered for invalidating incremental scheduling state.
@@ -1286,6 +1316,7 @@ namespace BuildXL.Scheduler.Fingerprints
             int numberOfValidEntires,
             int numberOfInvalidEntries,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
@@ -1294,6 +1325,7 @@ namespace BuildXL.Scheduler.Fingerprints
             Contract.Requires(status != ObservedInputProcessingStatus.Success || observedAccessFileNames.IsValid);
             Contract.Requires((status != ObservedInputProcessingStatus.Success) || (numberOfInvalidEntries == 0));
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
             Contract.Requires(absentPathProbesUnderNonDependenceOutputDirectories != null);
@@ -1302,6 +1334,7 @@ namespace BuildXL.Scheduler.Fingerprints
             NumberOfValidEntries = numberOfValidEntires;
             NumberOfInvalidEntries = numberOfInvalidEntries;
             DynamicallyObservedFiles = dynamicallyObservedFiles;
+            DynamicallyProbedFiles = dynamicallyProbedFiles;
             DynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
             m_observedInputs = observedInputs;
             m_observedAccessFileNames = observedAccessFileNames;
@@ -1315,12 +1348,14 @@ namespace BuildXL.Scheduler.Fingerprints
             int numberOfValidEntries,
             int numberOfInvalidEntries,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
         {
             Contract.Requires(status != ObservedInputProcessingStatus.Success);
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
             Contract.Requires(absentPathProbesUnderNonDependenceOutputDirectories != null);
@@ -1332,6 +1367,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 numberOfValidEntires: numberOfValidEntries,
                 numberOfInvalidEntries: numberOfInvalidEntries,
                 dynamicallyObservedFiles: dynamicallyObservedFiles,
+                dynamicallyProbedFiles: dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations: dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads: allowedUndeclaredSourceReads,
                 absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories);
@@ -1342,11 +1378,13 @@ namespace BuildXL.Scheduler.Fingerprints
             SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> observedInputs,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedFiles,
+            ReadOnlyArray<AbsolutePath> dynamicallyProbedFiles,
             ReadOnlyArray<AbsolutePath> dynamicallyObservedEnumerations,
             IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
             IReadOnlySet<AbsolutePath> absentPathProbesUnderNonDependenceOutputDirectories)
         {
             Contract.Requires(dynamicallyObservedFiles.IsValid);
+            Contract.Requires(dynamicallyProbedFiles.IsValid);
             Contract.Requires(dynamicallyObservedEnumerations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);
 
@@ -1357,6 +1395,7 @@ namespace BuildXL.Scheduler.Fingerprints
                 numberOfValidEntires: observedInputs.Length,
                 numberOfInvalidEntries: 0,
                 dynamicallyObservedFiles: dynamicallyObservedFiles,
+                dynamicallyProbedFiles: dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations: dynamicallyObservedEnumerations,
                 allowedUndeclaredSourceReads: allowedUndeclaredSourceReads,
                 absentPathProbesUnderNonDependenceOutputDirectories: absentPathProbesUnderNonDependenceOutputDirectories);
@@ -1544,6 +1583,8 @@ namespace BuildXL.Scheduler.Fingerprints
         public PathTable PathTable => m_env.Context.PathTable;
 
         public PipExecutionContext Context => m_env.Context;
+
+        public ICacheConfiguration Configuration => m_env.Configuration.Cache;
 
         public CounterCollection<PipExecutorCounter> Counters => m_env.Counters;
 

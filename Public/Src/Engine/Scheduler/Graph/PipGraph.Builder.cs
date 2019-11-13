@@ -194,7 +194,9 @@ namespace BuildXL.Scheduler.Graph
                 m_untrackedPathsAndScopes = new ConcurrentBigMap<AbsolutePath, PipId>();
                 m_sourceFiles = new ConcurrentBigMap<AbsolutePath, PipId>();
 
-                m_lazyApiServerMoniker = Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
+                m_lazyApiServerMoniker = configuration.Schedule.UseFixedApiServerMoniker
+                    ? Lazy.Create(() => IpcFactory.GetFixedMoniker())
+                    : Lazy.Create(() => IpcFactory.GetProvider().CreateNewMoniker());
 
                 LockManager = new LockManager();
 
@@ -235,7 +237,7 @@ namespace BuildXL.Scheduler.Graph
 
                     if (!IsImmutable)
                     {
-                        StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated
+                        StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated || m_servicePipToServiceInfoMap.Count > 0
                             ? StringId.Create(Context.StringTable, m_lazyApiServerMoniker.Value.Id)
                             : StringId.Invalid;
 
@@ -1090,26 +1092,24 @@ namespace BuildXL.Scheduler.Graph
                                     Contract.Assume(false, "Should have found a producer for the referenced path.");
                                 }
 
-                                if (pipReferencingUnsealedFile.IsValid)
+                                if (pipReferencingUnsealedFile.IsValid
+                                    // Ignore this for Source files, they should be okay.
+                                    && PipTable.GetPipType(pipReferencingUnsealedFile.ToPipId()) != PipType.HashSourceFile)
                                 {
                                     var pip = PipTable.HydratePip(
                                         pipReferencingUnsealedFile.ToPipId(),
                                         PipQueryContext.PipGraphPostValidation);
 
-                                    // Ignore this for Source files, they should be okay.
-                                    if (pip.PipType != PipType.HashSourceFile)
-                                    {
-                                        Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
-                                            LoggingContext,
-                                            sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
-                                            sealDirectoryProvenance.Token.Line,
-                                            sealDirectoryProvenance.Token.Position,
-                                            directory.Path.ToString(Context.PathTable),
-                                            pip.GetDescription(Context),
-                                            childAsPath.ToString(Context.PathTable));
+                                    Logger.Log.InvalidGraphSinceFullySealedDirectoryIncomplete(
+                                        LoggingContext,
+                                        sealDirectoryProvenance.Token.Path.ToString(Context.PathTable),
+                                        sealDirectoryProvenance.Token.Line,
+                                        sealDirectoryProvenance.Token.Position,
+                                        directory.Path.ToString(Context.PathTable),
+                                        pip.GetDescription(Context),
+                                        childAsPath.ToString(Context.PathTable));
 
-                                        childError = true;
-                                    }
+                                    childError = true;
                                 }
                             }
 
@@ -1134,6 +1134,11 @@ namespace BuildXL.Scheduler.Graph
                 var semanticPathExpander = SemanticPathExpander.GetModuleExpander(ipcPip.Provenance.ModuleId);
 
                 if (ipcPip.FileDependencies.Any(f => !IsValidInputFileArtifact(pathAccessLock, f, ipcPip, semanticPathExpander)))
+                {
+                    return false;
+                }
+
+                if (ipcPip.DirectoryDependencies.Any(d => !IsValidInputDirectoryArtifact(pathAccessLock, d, ipcPip)))
                 {
                     return false;
                 }
@@ -1189,6 +1194,11 @@ namespace BuildXL.Scheduler.Graph
                         LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidInputDueToMultipleConflictingRewriteCounts, process, dependency);
                         return false;
                     }
+                }
+
+                if (process.DirectoryDependencies.Any(d => !IsValidInputDirectoryArtifact(pathAccessLock, d, process)))
+                {
+                    return false;
                 }
 
                 Contract.Assert(dependenciesByPath.ContainsKey(process.Executable.Path), "Dependency set must contain the executable.");
@@ -1252,18 +1262,6 @@ namespace BuildXL.Scheduler.Graph
                 {
                     LogEventWithPipProvenance(Logger.ScheduleFailAddProcessPipProcessDueToNoOutputArtifacts, process);
                     return false;
-                }
-
-                foreach (var inputDirectory in process.DirectoryDependencies)
-                {
-                    if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(inputDirectory, out _))
-                    {
-                        LogEventWithPipProvenance(
-                            Logger.SourceDirectoryUsedAsDependency,
-                            process,
-                            inputDirectory.Path);
-                        return false;
-                    }
                 }
 
                 foreach (var directory in process.DirectoryOutputs)
@@ -1409,7 +1407,7 @@ namespace BuildXL.Scheduler.Graph
             /// <summary>
             /// Checks if a given file artifact is a valid source file artifact.
             /// </summary>
-            /// <param name="pathAccessLock">the access lock acquired by the enclosing operation for read access to the file</param>
+            /// <param name="pathAccessLock">The access lock acquired by the enclosing operation for read access to the file</param>
             /// <param name="input">Artifact that has been specified as an input of the pip</param>
             /// <param name="pip">The pip which has specified the given output</param>
             /// <param name="semanticPathExpander">The semantic path expander for the pip</param>
@@ -1468,9 +1466,34 @@ namespace BuildXL.Scheduler.Graph
                 }
                 else
                 {
-                    Contract.Assume(
-                        !input.IsOutputFile,
-                        "Output artifact has no producer. This should be impossible by construction, since creating an output file artifact is supposed to require scheduling a producer.");
+                    if (input.IsOutputFile)
+                    {
+                        LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidInputSinceInputIsOutputWithNoProducer, pip, input);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            /// <summary>
+            /// Checks if input directory artifact is valid.
+            /// </summary>
+            /// <param name="pathAccessLock">The access lock acquired by the enclosing operation for read access to the file</param>
+            /// <param name="inputDirectory">Artifact that has been specified as an input of the pip</param>
+            /// <param name="pip">The pip which has specified the given output</param>
+            /// <returns></returns>
+            private bool IsValidInputDirectoryArtifact(LockManager.PathAccessGroupLock pathAccessLock, DirectoryArtifact inputDirectory, Pip pip)
+            {
+                Contract.Requires(pathAccessLock.HasReadAccess(inputDirectory.Path));
+
+                if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(inputDirectory, out _))
+                {
+                    LogEventWithPipProvenance(
+                        Logger.SourceDirectoryUsedAsDependency,
+                        pip,
+                        inputDirectory.Path);
+                    return false;
                 }
 
                 return true;
@@ -2195,8 +2218,7 @@ namespace BuildXL.Scheduler.Graph
                             "before any value to value dependencies. Therefore adding a ValuePip for an output should never collide");
                     }
 
-                    var tupleKey = (value.Symbol, value.Qualifier, value.SpecFile.Path);
-                    NodeId valueNode = Values.GetOrAdd(tupleKey, (value, this), (key, data) => CreateValuePip(data)).Item.Value;
+                    NodeId valueNode = Values.GetOrAdd(value.Key, (value, this), (key, data) => CreateValuePip(data)).Item.Value;
 
                     // Find parent specfile node
                     NodeId specFileNode;

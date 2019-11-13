@@ -100,7 +100,7 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            _taskTracker = new BackgroundTaskTracker(nameof(RedisMetadataCache), new Context(context));
+            _taskTracker = new BackgroundTaskTracker(nameof(RedisMetadataCache), context.CreateNested());
             var redisDatabaseAdapter = new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(context, ConnectionStringProvider), Keyspace);
             _dbAdapter = redisDatabaseAdapter;
             _stringDatabaseAdapter = redisDatabaseAdapter;
@@ -201,10 +201,6 @@ namespace BuildXL.Cache.MemoizationStore.Distributed.Metadata
 
                 var strongDeleted = await deleteStrongFingerprint;
                 var weakDeleted = await deleteWeakFingerprint;
-                if (!strongDeleted || !weakDeleted)
-                {
-                    _tracer.Warning(context, $"Unable to delete some keys. Strong deleted: {strongDeleted}. Weak deleted: {weakDeleted}.");
-                }
 
                 return BoolResult.Success;
             }

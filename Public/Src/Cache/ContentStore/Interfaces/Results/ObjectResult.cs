@@ -2,7 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Results
 {
@@ -26,6 +28,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public ObjectResult()
             : base(false)
         {
+            Data = default;
         }
 
         /// <summary>
@@ -34,32 +37,35 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         public ObjectResult(T obj)
             : base(true)
         {
-            Contract.Requires(obj != null);
+            Contract.RequiresNotNull(obj);
             Data = obj;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ObjectResult{T}"/> class.
         /// </summary>
-        public ObjectResult(string errorMessage, string diagnostics = null)
+        public ObjectResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
+            Data = default;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ObjectResult{T}"/> class.
         /// </summary>
-        public ObjectResult(Exception exception, string message = null)
+        public ObjectResult(Exception exception, string? message = null)
             : base(exception, message)
         {
+            Data = default;
         }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ObjectResult{T}"/> class.
         /// </summary>
-        public ObjectResult(ResultBase other, string message = null)
+        public ObjectResult(ResultBase other, string? message = null)
             : base(other, message)
         {
+            Data = default;
         }
 
         /// <summary>
@@ -68,12 +74,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <remarks>
         /// If operation succeeded the returning value is not null.
         /// </remarks>
-        public T Data { get; }
+        public T? Data { get; }
 
         /// <inheritdoc />
         public bool Equals(ObjectResult<T> other)
         {
-            if (!base.Equals(other) || other == null)
+            if (other is null || !base.Equals(other))
             {
                 return false;
             }
@@ -92,10 +98,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            var other = obj as ObjectResult<T>;
-            return Equals(other);
+            return obj is ObjectResult<T> r && Equals(r);
         }
 
         /// <inheritdoc />

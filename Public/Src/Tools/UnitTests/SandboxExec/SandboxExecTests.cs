@@ -182,7 +182,7 @@ namespace Test.Tool.SandboxExec
 
         private SandboxExecRunner CreateSandboxExecRunner()
         {
-            return new SandboxExecRunner(GetSandboxedKextConnection());
+            return new SandboxExecRunner(GetSandboxConnection());
         }
     }
 }

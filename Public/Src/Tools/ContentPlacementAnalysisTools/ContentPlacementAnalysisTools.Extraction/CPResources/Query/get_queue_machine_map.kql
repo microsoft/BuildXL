@@ -1,0 +1,11 @@
+﻿// this query takes a single queue and looks for all the possible sets of builders in a time range.
+// Its used to get an idea of which machines are building for which queues
+
+let sDate = make_datetime({0}, {1}, 1, 0, 0, 0);
+let eDate = make_datetime({0}, {1}, {2}, 23, 59, 59);
+
+ database("{4}").BuildInfo
+        | where BuildQueue == "{3}"
+        | where TIMESTAMP between(sDate .. eDate)
+        | distinct Builders
+        | where Builders != ""

@@ -69,7 +69,7 @@ namespace BuildXL.Pips
                     break;
                 case PipType.Process:
                     var pipAsProcess = (Process)pip;
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions, pipAsProcess.Priority);
+                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), pipAsProcess.ServiceInfo, pipAsProcess.ProcessOptions, pipAsProcess.Priority, pipAsProcess.PreserveOutputsTrustLevel);
                     break;
                 case PipType.CopyFile:
                     var pipAsCopy = (CopyFile)pip;
@@ -154,10 +154,22 @@ namespace BuildXL.Pips
         public virtual bool IsPreservedOutputsPip() => false;
 
         /// <summary>
+        /// Checks if pip runs tool with incremental capability.
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool IsIncrementalTool() => false;
+
+        /// <summary>
         /// Checks if pip using a non-empty preserveOutputWhitelist
         /// </summary>
         /// <returns></returns>
         public virtual bool HasPreserveOutputWhitelist() => false;
+
+        /// <summary>
+        /// Get pip preserve outputs trust level
+        /// </summary>
+        /// <returns></returns>
+        public virtual int GetProcessPreserveOutputsTrustLevel() => 0;
 
         internal bool IsAlive
         {
@@ -203,6 +215,7 @@ namespace BuildXL.Pips
         internal readonly ServiceInfo ServiceInfo;
         internal readonly Process.Options ProcessOptions;
         internal readonly int Priority;
+        internal readonly int PreserveOutputTrustLevel;
 
         internal ProcessMutablePipState(
             PipType pipType, 
@@ -210,12 +223,14 @@ namespace BuildXL.Pips
             PageableStoreId storeId, 
             ServiceInfo serviceInfo, 
             Process.Options processOptions,
-            int priority)
+            int priority,
+            int? preserveOutputsTrustLevel = null)
             : base(pipType, semiStableHash, storeId)
         {
             ServiceInfo = serviceInfo;
             ProcessOptions = processOptions;
             Priority = priority;
+            PreserveOutputTrustLevel = preserveOutputsTrustLevel ?? 0;
         }
 
         /// <summary>
@@ -234,6 +249,7 @@ namespace BuildXL.Pips
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
             writer.Write((int)ProcessOptions);
             writer.Write(Priority);
+            writer.Write(PreserveOutputTrustLevel);
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
@@ -241,15 +257,20 @@ namespace BuildXL.Pips
             ServiceInfo serviceInfo = reader.ReadNullable(ServiceInfo.InternalDeserialize);
             int options = reader.ReadInt32();
             int priority = reader.ReadInt32();
+            int preserveOutputTrustLevel = reader.ReadInt32();
 
-            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, priority);
+            return new ProcessMutablePipState(pipType, semiStableHash, storeId, serviceInfo, (Process.Options)options, priority, preserveOutputTrustLevel);
         }
 
         public override bool IsPreservedOutputsPip() => (ProcessOptions & Process.Options.AllowPreserveOutputs) != 0;
 
+        public override bool IsIncrementalTool() => (ProcessOptions & Process.Options.IncrementalTool) == Process.Options.IncrementalTool;
+
         public override bool HasPreserveOutputWhitelist() => (ProcessOptions & Process.Options.HasPreserveOutputWhitelist) != 0;
 
         public override bool MustOutputsRemainWritable() => (ProcessOptions & Process.Options.OutputsMustRemainWritable) != 0;
+
+        public override int GetProcessPreserveOutputsTrustLevel() => PreserveOutputTrustLevel;
     }
 
     internal sealed class CopyMutablePipState : MutablePipState

@@ -17,6 +17,6 @@ namespace Script.Ambients {
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").Script.dll,
-        ],
+        ]
     });
 }

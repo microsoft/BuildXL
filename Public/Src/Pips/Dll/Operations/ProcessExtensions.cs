@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips.Operations
 {
@@ -152,5 +153,33 @@ namespace BuildXL.Pips.Operations
 
             return ItemResources.Create(semaphoreIncrements);
         }
+
+        /// <summary>
+        /// Returns the global <see cref="ICacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor"/> 
+        /// if weak fingerprint augmentation is on, or 
+        /// <see cref="Process.DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor"/> if the process pip is 
+        /// configured to enforce weak fingerprint augmentation
+        /// </summary>
+        public static double AugmentWeakFingerprintRequiredPathCommonalityFactor(
+            this Process process, 
+            ICacheConfiguration cacheConfiguration) =>
+            (process.ProcessOptions & Process.Options.EnforceWeakFingerprintAugmentation) != 0 && 
+            cacheConfiguration.AugmentWeakFingerprintPathSetThreshold == 0 ?
+                Process.DefaultAugmentWeakFingerprintRequiredPathCommonalityFactor :
+                cacheConfiguration.AugmentWeakFingerprintRequiredPathCommonalityFactor;
+
+        /// <summary>
+        /// Returns the global <see cref="ICacheConfiguration.AugmentWeakFingerprintPathSetThreshold"/> 
+        /// if weak fingerprint augmentation is on, 
+        /// or <see cref="Process.DefaultAugmentWeakFingerprintPathSetThreshold"/> if the process pip is 
+        /// configured to enforce weak fingerprint augmentation
+        /// </summary>
+        public static int AugmentWeakFingerprintPathSetThreshold(
+            this Process process, 
+            ICacheConfiguration cacheConfiguration) =>
+            (process.ProcessOptions & Process.Options.EnforceWeakFingerprintAugmentation) != 0 && 
+            cacheConfiguration.AugmentWeakFingerprintPathSetThreshold == 0 ?
+                Process.DefaultAugmentWeakFingerprintPathSetThreshold :
+                cacheConfiguration.AugmentWeakFingerprintPathSetThreshold;
     }
 }

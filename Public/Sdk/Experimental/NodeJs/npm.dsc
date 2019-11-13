@@ -41,6 +41,46 @@ namespace Npm {
         };
     }
 
+    export interface NpmInstallResult {
+        installDir: OpaqueDirectory;
+        newPackageLock: DerivedFile;
+    }
+
+    @@public
+    export function npmInstall(rootDir: StaticDirectory, packageLock: DerivedFile): NpmInstallResult {
+        const wd = rootDir.root;
+        const nodeModulesPath = d`${wd}/node_modules`;
+        const npmCachePath = Context.getNewOutputDirectory('npm-install-cache');
+
+        const arguments: Argument[] = [
+            Cmd.argument(Artifact.input(Node.npmCli)),
+            Cmd.argument("install"),
+            Cmd.argument("--no-audit"),
+            Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
+        ];
+
+        const result = Node.run({
+            arguments: arguments,
+            workingDirectory: wd,
+            dependencies: [ rootDir ],
+            outputs: [
+                { artifact: packageLock, existence: "required" }, // rewritten file in place
+                { directory: wd, kind: "shared" },
+                npmCachePath, // Place the cache path as an output directory so it is cleaned each time.
+            ],
+            environmentVariables: [
+                { name: "NPM_CONFIG_USERCONFIG", value: f`${wd}/.npmrc` }, // Prevents user configuration to change behavior
+                { name: "NPM_CONFIG_GLOBALCONFIG", value: f`${wd}/global.npmrc` }, // Prevent machine installed configuration file to change behavior.
+                { name: "NO_UPDATE_NOTIFIER", value: "1" }, // Prevent npm from checking for the latest version online and write to the user folder with the check information
+            ],
+        });
+
+        return {
+            installDir: result.getOutputDirectory(wd),
+            newPackageLock: result.getOutputFile(packageLock.path)
+        };
+    }
+
     @@public
     export interface Arguments {
         name: string,
@@ -48,7 +88,6 @@ namespace Npm {
     }
 
     export interface Result {
-        nodeModules: OpaqueDirectory,
+        nodeModules: OpaqueDirectory
     }
-
 }

@@ -46,12 +46,12 @@ namespace BuildXL.Processes
             SandboxedProcessFile file,
             BuildXLException exception)
         {
-            Contract.Requires((fileName == null && length >= 0) || (fileName != null && length >= NoLength) || exception != null);
-            Contract.Requires(exception != null ^ (value != null ^ fileName != null));
-            Contract.Requires(value == null || length == value.Length);
-            Contract.Requires(exception != null || encoding != null);
-            Contract.Requires(exception != null || fileName != null || fileStorage != null);
-            Contract.Requires(encoding != null);
+            requires((fileName == null && length >= 0) || (fileName != null && length >= NoLength) || exception != null);
+            requires(exception != null ^ (value != null ^ fileName != null));
+            requires(value == null || length == value.Length);
+            requires(exception != null || encoding != null);
+            requires(exception != null || fileName != null || fileStorage != null);
+            requires(encoding != null);
 
             m_length = length;
             m_value = value;
@@ -61,6 +61,14 @@ namespace BuildXL.Processes
             m_file = file;
             m_saveTask = m_fileName != null ? Unit.VoidTask : null;
             m_exception = exception;
+
+            void requires(bool condition)
+            {
+                if (!condition)
+                {
+                    throw Contract.AssertFailure($"length: {length}; value: '{value}'; filename: {fileName}; encoding: {encoding}; exception: {exception?.ToString()}");
+                }
+            }
         }
 
         /// <summary>

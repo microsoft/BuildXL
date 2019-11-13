@@ -80,7 +80,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The value for monitoring NTCreateFile API.
         /// </summary>
-        void ExtraEventDataReported(ExtraEventData data);
+        void BuildSessionConfiguration(BuildSessionConfigurationEventData data);
 
         /// <summary>
         /// Dependency analysis violation is reported.
@@ -105,8 +105,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Single event giving build invocation information that contains configuration details usefull for analyzers.
         /// </summary>
-        // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        void DominoInvocation(DominoInvocationEventData data);
+        void BxlInvocation(BxlInvocationEventData data);
 
         /// <summary>
         /// Creates a worker target that logs back to master for distributed builds
@@ -118,6 +117,11 @@ namespace BuildXL.Scheduler.Tracing
         /// Content of output directories is reported
         /// </summary>
         void PipExecutionDirectoryOutputs(PipExecutionDirectoryOutputs data);
+
+        /// <summary>
+        /// Cache materialization error is reported
+        /// </summary>
+        void CacheMaterializationError(CacheMaterializationErrorEventData data);
     }
 
     /// <summary>
@@ -156,9 +160,9 @@ namespace BuildXL.Scheduler.Tracing
         ProcessExecutionMonitoringReported = 5,
 
         /// <summary>
-        /// See <see cref="IExecutionLogTarget.ExtraEventDataReported"/>
+        /// See <see cref="IExecutionLogTarget.BuildSessionConfiguration"/>
         /// </summary>
-        ExtraEventDataReported = 6,
+        BuildSessionConfiguration = 6,
 
         /// <summary>
         /// See <see cref="IExecutionLogTarget.DependencyViolationReported"/>
@@ -191,9 +195,14 @@ namespace BuildXL.Scheduler.Tracing
         PipExecutionDirectoryOutputs = 12,
 
         /// <summary>
-        /// See <see cref="IExecutionLogTarget.DominoInvocation"/>
+        /// See <see cref="IExecutionLogTarget.BxlInvocation"/>
         /// </summary>
-        DominoInvocation = 13,
+        BxlInvocation = 13,
+
+        /// <summary>
+        /// See <see cref="IExecutionLogTarget.CacheMaterializationError"/>
+        /// </summary>
+        CacheMaterializationError = 14,
     }
 
     /// <summary>
@@ -235,12 +244,12 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.DirectoryMembershipHashed(data));
 
         /// <summary>
-        /// Event description for <see cref="IExecutionLogTarget.ExtraEventDataReported"/>
+        /// Event description for <see cref="IExecutionLogTarget.BuildSessionConfiguration"/>
         /// </summary>
-        public static readonly ExecutionLogEventMetadata<ExtraEventData> ExtraEventDataReported =
-            new ExecutionLogEventMetadata<ExtraEventData>(
-                ExecutionEventId.ExtraEventDataReported,
-                (data, target) => target.ExtraEventDataReported(data));
+        public static readonly ExecutionLogEventMetadata<BuildSessionConfigurationEventData> BuildSessionConfiguration =
+            new ExecutionLogEventMetadata<BuildSessionConfigurationEventData>(
+                ExecutionEventId.BuildSessionConfiguration,
+                (data, target) => target.BuildSessionConfiguration(data));
 
         /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.ProcessExecutionMonitoringReported"/>
@@ -275,13 +284,13 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.StatusReported(data));
 
         /// <summary>
-        /// Event description for <see cref="IExecutionLogTarget.DominoInvocation"/>
+        /// Event description for <see cref="IExecutionLogTarget.BxlInvocation"/>
         /// </summary>
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        public static readonly ExecutionLogEventMetadata<DominoInvocationEventData> DominoInvocation =
-            new ExecutionLogEventMetadata<DominoInvocationEventData>(
-                ExecutionEventId.DominoInvocation,
-                (data, target) => target.DominoInvocation(data));
+        public static readonly ExecutionLogEventMetadata<BxlInvocationEventData> BxlInvocation =
+            new ExecutionLogEventMetadata<BxlInvocationEventData>(
+                ExecutionEventId.BxlInvocation,
+                (data, target) => target.BxlInvocation(data));
 
         /// <summary>
         /// Event description for <see cref="IExecutionLogTarget.ProcessFingerprintComputation"/>
@@ -308,31 +317,40 @@ namespace BuildXL.Scheduler.Tracing
                 (data, target) => target.PipExecutionDirectoryOutputs(data));
 
         /// <summary>
+        /// Event description for <see cref="IExecutionLogTarget.CacheMaterializationError"/>
+        /// </summary>
+        public static readonly ExecutionLogEventMetadata<CacheMaterializationErrorEventData> CacheMaterializationError =
+            new ExecutionLogEventMetadata<CacheMaterializationErrorEventData>(
+                ExecutionEventId.CacheMaterializationError,
+                (data, target) => target.CacheMaterializationError(data));
+
+        /// <summary>
         /// All execution log events.
         /// </summary>
         public static readonly IReadOnlyList<ExecutionLogEventMetadata> Events = new ExecutionLogEventMetadata[]
                                                                                  {
-                                                                                     DominoInvocation,
+                                                                                     BxlInvocation,
                                                                                      FileArtifactContentDecided,
                                                                                      WorkerList,
                                                                                      PipExecutionPerformance,
                                                                                      DirectoryMembershipHashed,
                                                                                      ProcessExecutionMonitoringReported,
-                                                                                     ExtraEventDataReported,
+                                                                                     BuildSessionConfiguration,
                                                                                      DependencyViolationReported,
                                                                                      PipExecutionStepPerformanceReported,
                                                                                      ResourceUsageReported,
                                                                                      ProcessFingerprintComputation,
                                                                                      PipCacheMiss,
                                                                                      PipExecutionDirectoryOutputs,
+                                                                                     CacheMaterializationError
                                                                                  };
     }
 
     /// <summary>
-    /// Stores salt information
+    /// Stores salt information and other session configurations
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-    public struct ExtraEventData : IExecutionLogEventData<ExtraEventData>
+    public struct BuildSessionConfigurationEventData : IExecutionLogEventData<BuildSessionConfigurationEventData>
     {
         /// <summary>
         /// Whether the /unsafe_DisableDetours flag is passed to BuildXL.
@@ -440,12 +458,12 @@ namespace BuildXL.Scheduler.Tracing
         public string RequiredKextVersionNumber;
 
         /// <inheritdoc />
-        public ExecutionLogEventMetadata<ExtraEventData> Metadata => ExecutionLogMetadata.ExtraEventDataReported;
+        public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
         /// <summary>
         /// Creates event data from salts
         /// </summary>
-        public ExtraEventData(ExtraFingerprintSalts salts)
+        public BuildSessionConfigurationEventData(ExtraFingerprintSalts salts)
         {
             IgnoreSetFileInformationByHandle = salts.IgnoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = salts.IgnoreZwRenameFileInformation;
@@ -1125,7 +1143,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Ram utilization in MB
         /// </summary>
-        public int MachineRamUtilizationMB;
+        public int RamUsedMb;
+
+        /// <summary>
+        /// Available Ram in MB
+        /// </summary>
+        public int RamFreeMb;
 
         /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
@@ -1137,7 +1160,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The machine's total commit in MB
         /// </summary>
-        public int CommitTotalMB;
+        public int CommitUsedMb;
+
+        /// <summary>
+        /// Available Commit in MB
+        /// </summary>
+        public int CommitFreeMb;
 
         /// <summary>
         /// CPU utilization of the current process
@@ -1258,6 +1286,12 @@ namespace BuildXL.Scheduler.Tracing
             {
                 writer.Write(pipsSucceeded);
             }
+
+            writer.Write(RamUsedMb);
+            writer.Write(RamFreeMb);
+            writer.Write(CommitPercent);
+            writer.Write(CommitUsedMb);
+            writer.Write(CommitFreeMb);
         }
 
         /// <inheritdoc />
@@ -1303,6 +1337,12 @@ namespace BuildXL.Scheduler.Tracing
             {
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
+
+            RamUsedMb = reader.ReadInt32();
+            RamFreeMb = reader.ReadInt32();
+            CommitPercent = reader.ReadInt32();
+            CommitUsedMb = reader.ReadInt32();
+            CommitFreeMb = reader.ReadInt32();
         }
     }
 
@@ -1311,7 +1351,7 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-    public struct DominoInvocationEventData : IExecutionLogEventData<DominoInvocationEventData>
+    public struct BxlInvocationEventData : IExecutionLogEventData<BxlInvocationEventData>
     {
         /// <summary>
         /// The expanded configuration used to run the engine.
@@ -1330,21 +1370,33 @@ namespace BuildXL.Scheduler.Tracing
             public LoggingConfigurationData Logging;
 
             /// <nodoc />
+            public SandboxConfigurationData Sandbox;
+
+            /// <nodoc />
+            public IReadOnlyList<string> CommandLineArguments;
+
+            /// <nodoc />
             public ConfigurationData(IConfiguration configuration)
             {
                 Logging = new LoggingConfigurationData(configuration.Logging);
+                Sandbox = new SandboxConfigurationData(configuration.Sandbox);
+                CommandLineArguments = configuration.Logging.InvocationExpandedCommandLineArguments;
             }
 
             /// <nodoc />
             public void Serialize(BinaryLogger.EventWriter writer)
             {
                 Logging.Serialize(writer);
+                Sandbox.Serialize(writer);
+                writer.WriteReadOnlyList(CommandLineArguments, (w, a) => w.Write(a));
             }
 
             /// <nodoc />
             public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
             {
                 Logging.DeserializeAndUpdate(reader);
+                Sandbox.DeserializeAndUpdate(reader);
+                CommandLineArguments = reader.ReadReadOnlyList((r => r.ReadString()));
             }
         }
 
@@ -1385,14 +1437,45 @@ namespace BuildXL.Scheduler.Tracing
         }
 
         /// <nodoc />
+        public struct SandboxConfigurationData
+        {
+            /// <nodoc />
+            public IReadOnlyList<AbsolutePath> GlobalUntrackedScopes;
+
+            /// <nodoc />
+            public IReadOnlyList<string> GlobalUnsafePassthroughEnvironmentVariables;
+
+            /// <nodoc />
+            public SandboxConfigurationData(ISandboxConfiguration configuration)
+            {
+                GlobalUntrackedScopes = configuration.GlobalUnsafeUntrackedScopes;
+                GlobalUnsafePassthroughEnvironmentVariables = configuration.GlobalUnsafePassthroughEnvironmentVariables;
+            }
+
+            /// <nodoc />
+            public void Serialize(BinaryLogger.EventWriter writer)
+            {
+                writer.WriteReadOnlyList(GlobalUntrackedScopes, (w, v) => w.Write(v));
+                writer.WriteReadOnlyList(GlobalUnsafePassthroughEnvironmentVariables, (w, v) => w.Write(v));
+            }
+
+            /// <nodoc />
+            public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+            {
+                GlobalUntrackedScopes = reader.ReadReadOnlyList((r) => r.ReadAbsolutePath());
+                GlobalUnsafePassthroughEnvironmentVariables = reader.ReadReadOnlyList((r) => r.ReadString());
+            }
+        }
+
+        /// <nodoc />
         // $Rename: Due to telemetry backend scripts this cannot be renamed to BuildXL
-        public DominoInvocationEventData(IConfiguration configuration)
+        public BxlInvocationEventData(IConfiguration configuration)
         {
             Configuration = new ConfigurationData(configuration);
         }
 
         /// <inheritdoc />
-        public ExecutionLogEventMetadata<DominoInvocationEventData> Metadata => ExecutionLogMetadata.DominoInvocation;
+        public ExecutionLogEventMetadata<BxlInvocationEventData> Metadata => ExecutionLogMetadata.BxlInvocation;
 
         /// <inheritdoc />
         public void Serialize(BinaryLogger.EventWriter writer)
@@ -1404,6 +1487,47 @@ namespace BuildXL.Scheduler.Tracing
         public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
         {
             Configuration.DeserializeAndUpdate(reader);
+        }
+    }
+
+    /// <summary>
+    /// Cache materialization error data
+    /// </summary>
+    [SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
+    public struct CacheMaterializationErrorEventData : IExecutionLogEventData<CacheMaterializationErrorEventData>
+    {
+        /// <summary>
+        /// The pip ID
+        /// </summary>
+        public PipId PipId;
+
+        /// <summary>
+        /// Failed files to materialize
+        /// </summary>
+        public ReadOnlyArray<(FileArtifact, ContentHash)> FailedFiles;
+
+        /// <inheritdoc />
+        public ExecutionLogEventMetadata<CacheMaterializationErrorEventData> Metadata => ExecutionLogMetadata.CacheMaterializationError;
+
+        /// <inheritdoc />
+        public void Serialize(BinaryLogger.EventWriter writer)
+        {
+            PipId.Serialize(writer);
+            writer.WriteReadOnlyList(
+                FailedFiles,
+                (w, failedFile) =>
+                {
+                    w.Write(failedFile.Item1);
+                    failedFile.Item2.Serialize(writer);
+                });
+        }
+
+        /// <inheritdoc />
+        public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
+        {
+            PipId = PipId.Deserialize(reader);
+            FailedFiles = reader.ReadReadOnlyArray(
+                r => (reader.ReadFileArtifact(), new ContentHash(reader)));
         }
     }
 }

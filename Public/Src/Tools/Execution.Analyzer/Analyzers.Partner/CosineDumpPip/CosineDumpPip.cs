@@ -278,7 +278,7 @@ namespace BuildXL.Execution.Analyzer
             pipMetadata.Usage = provenance.Usage.IsValid ? provenance.Usage.ToString(PathTable) : null;
             pipMetadata.SpecFilePath = provenance.Token.Path.ToString(PathTable);
             pipMetadata.OutputValueSymbol = provenance.OutputValueSymbol.ToString(SymbolTable);
-            pipMetadata.ModuleId = provenance.ModuleId.Value;
+            pipMetadata.ModuleId = provenance.ModuleId.Value.Value;
             pipMetadata.SpecFilePath = provenance.Token.Path.ToString(PathTable);
 
             pipMetadata.PipDependencies = PipGraph.RetrievePipReferenceImmediateDependencies(pip.PipId, null)
@@ -466,7 +466,7 @@ namespace BuildXL.Execution.Analyzer
                 SpecFile = pip.SpecFile.Path.ToString(PathTable),
                 DefinitionFilePath = pip.DefinitionLocation.Path.ToString(PathTable),
                 Location = pip.DefinitionLocation.ToString(PathTable),
-                ModuleId = pip.OwningModule.Value
+                ModuleId = pip.OwningModule.Value.Value
             };
 
             return specFilePipDetails;

@@ -64,6 +64,8 @@ namespace BuildXL.Scheduler.Tracing
         // Reserved = 3640,
         SavePreservedOutputsTracker = 3641,
 
+        AddAugmentingPathSet = 3651,
+        AugmentedWeakFingerprint = 3652,
         PipTwoPhaseCacheGetCacheEntry = 3653,
         PipTwoPhaseCachePublishCacheEntry = 3654,
         ScheduleProcessNotStoredToWarningsUnderWarnAsError = 3655,
@@ -77,7 +79,11 @@ namespace BuildXL.Scheduler.Tracing
         HistoricMetadataCacheCloseCalled = 3663,
         HistoricMetadataCacheLoadFailed = 3664,
 
+        UnableToGetMemoryPressureLevel = 3665,
+
         PipCacheMetadataBelongToAnotherPip = 3700,
+
+        PipIpcFailedDueToInfrastructureError = 3701,
 
         // RESERVED TO [5000, 5050] (BuildXL.Scheduler.dll)
 
@@ -134,9 +140,20 @@ namespace BuildXL.Scheduler.Tracing
         AllowedSameContentDoubleWrite = 5044,
 
         InitiateWorkerRelease = 5045,
-        WorkerReleasedEarly = 5046, 
+        WorkerReleasedEarly = 5046,
         DependencyViolationWriteOnExistingFile = 5047,
-        FailedToLoadPipGraphFragment = 5048
+        FailedToAddFragmentPipToGraph = 5048,
+        ExceptionOnAddingFragmentPipToGraph = 5049,
+        ExceptionOnDeserializingPipGraphFragment = 5050,
+        DeserializationStatsPipGraphFragment = 5051,
+        DebugFragment = 5052,
+
+        PipSourceDependencyCannotBeHashed = 5053,
+
+        ProblematicWorkerExit = 5070,
+        ProcessPipExecutionInfo = 5071,
+        ProcessPipExecutionInfoOverflowFailure = 5072,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

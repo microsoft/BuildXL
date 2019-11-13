@@ -84,6 +84,9 @@ struct FileArtifactKeyedHash
 
     /// The directory artifacts which contain the file
     9: nullable<vector<BondDirectoryArtifact>> AssociatedDirectories;
+   
+    /// Indicates whether the file is source change affected 
+    10: bool IsSourceAffected;
 }
 
 /// Defines information about a completed pip and its outputs
@@ -168,8 +171,11 @@ struct SinglePipBuildRequest
 	/// The expected RAM usage of the pip
 	6: nullable<int32> ExpectedRamUsageMb;
 
+    /// The expected commit usage of the pip
+	7: nullable<int32> ExpectedCommitUsageMb;
+
 	/// Sequence number for deduplicating worker calls
-	7: int32 SequenceNumber;
+	8: int32 SequenceNumber;
 }
 
 /// A request to build pips on a worker
@@ -194,6 +200,9 @@ struct AttachCompletionInfo
 	/// The content hash of the workers unique content
     3: BuildXL.Engine.Cache.Fingerprints.BondContentHash WorkerCacheValidationContentHash;
 
-	/// The availale RAM on the worker
+	/// The available RAM on the worker
 	4: nullable<int32> AvailableRamMb;
+
+    /// The available commit on the worker
+	5: nullable<int32> AvailableCommitMb;
 }

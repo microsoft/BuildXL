@@ -182,7 +182,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var evictedContent = new List<ContentHash>();
             var distributedStore = _distributedEvictionSettings.DistributedStore;
 
-            foreach (var contentHashInfo in distributedStore.GetLruPages(context, hashesToPurge).SelectMany(p => p))
+            foreach (var contentHashInfo in distributedStore.GetHashesInEvictionOrder(context, hashesToPurge))
             {
                 if (StopPurging(reserveSize, cts, out var stopReason))
                 {

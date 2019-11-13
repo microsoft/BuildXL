@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Tracing
         CacheClientStats = 50,
         CatastrophicFailureCausedByCorruptedCache = 51,
         ProcessingPipOutputFileFailed = 52,
-        // Reserved = 53,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
         // Reserved = 54,
         // Reserved = 55,
         // Reserved = 56,
@@ -174,8 +174,7 @@ namespace BuildXL.Utilities.Tracing
         BusyOrUnavailableOutputDirectoriesRetry = 214,
         InvalidInputSinceInputIsRewritten = 215,
         InvalidInputDueToMultipleConflictingRewriteCounts = 216,
-
-        // Reserved = 217,
+        InvalidInputSinceInputIsOutputWithNoProducer = 217,
 
         // Pips
         InvalidProcessPipDueToNoOutputArtifacts = 218,
@@ -409,7 +408,7 @@ namespace BuildXL.Utilities.Tracing
         FailedToCleanupLogDir = 455,
         WaitingCleanupLogDir = 456,
         WaitingClientDebugger = 457,
-        DisplayHelpLink = 458,
+        //was: DisplayHelpLink = 458,
         StatsPerformanceLog = 459,
         CoreDumpNoPermissions = 460,
         CrashReportProcessing = 461,
@@ -418,8 +417,8 @@ namespace BuildXL.Utilities.Tracing
         CancellationRequested = 470,
 
         TelemetryShutDown = 471,
-        UnexpectedCondition = 472,
-        // was TelemetryRecoverableException = 473,
+        UnexpectedConditionLocal = 472,
+        UnexpectedConditionTelemetry = 473,
         TelemetryShutDownException = 474,
         // was ServerDeploymentDirectoryHashMismatch = 475,
         TelemetryShutdownTimeout = 476,
@@ -538,6 +537,11 @@ namespace BuildXL.Utilities.Tracing
         ScrubbingFailedToEnumerateMissingDirectory = 865,
         ConfigUnsafeSharedOpaqueEmptyDirectoryScrubbingDisabled = 866,
 
+        DeletingOutputsFromSharedOpaqueSidebandFilesStarted = 867,
+        DeletingSharedOpaqueSidebandFilesStarted = 868,
+        ScrubbingProgress = 869,
+        CannotReadSidebandFile = 870,
+
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,
         ConfigUnsafeIgnoringChangeJournal = 901,
@@ -570,6 +574,7 @@ namespace BuildXL.Utilities.Tracing
         ConfigUnsafeAllowMissingOutput = 928,
         ConfigIgnoreValidateExistingFileAccessesForOutputs = 929,
         ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques = 930,
+        ConfigUnsafeOptimizedAstConversion = 931,
 
         // Elsewhere  = 932,
 
@@ -654,6 +659,8 @@ namespace BuildXL.Utilities.Tracing
         FailPipOutputWithNoAccessed = 2602,
         // Elsewhere  = 2603,
         PipWillBeRetriedDueToExitCode = 2604,
+
+        DetailedPipMaterializeDependenciesFromCacheFailure = 2610,
 
         // MLAM
         FileArtifactContentMismatch = 2700,
@@ -970,6 +977,10 @@ namespace BuildXL.Utilities.Tracing
         IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan = 8078,
         IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan = 8079,
 
+        IncrementalSchedulingStateStatsAfterLoad = 8080,
+        IncrementalSchedulingStateStatsAfterScan = 8081,
+        IncrementalSchedulingStateStatsEnd = 8082,
+
         // Server mode
         UsingExistingServer = 8100,
         AppServerBuildStart = 8101,
@@ -1039,9 +1050,12 @@ namespace BuildXL.Utilities.Tracing
         ApiServerForwarderIpcServerMessage = 12100,
         ApiServerInvalidOperation = 12101,
         ApiServerOperationReceived = 12102,
-        ApiServerMaterializeFileExecuted = 12103,
+        ApiServerMaterializeFileSucceeded = 12103,
         ApiServerReportStatisticsExecuted = 12104,
         ApiServerGetSealedDirectoryContentExecuted = 12105,
+        ErrorApiServerMaterializeFileFailed = 12106,
+        ApiServerReceivedMessage = 12107,
+        ApiServerReceivedWarningMessage = 12108,
 
         // Copy file cont'd.
         PipCopyFileSourceFileDoesNotExist = 12201,
@@ -1096,12 +1110,15 @@ namespace BuildXL.Utilities.Tracing
         ServerModeDisabled = 14004,
         GraphCacheCheckJournalDisabled = 14005,
         SlowCacheInitialization = 14006,
-        LowMemory = 14007,
+        LowRamMemory = 14007,
         // Elsewhere  = 14008,
         // Elsewhere  = 14009,
         BuildHasPerfSmells = 14010,
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
+        ProblematicWorkerExitError = 14013,
+        LowCommitMemory = 14014,
+        HitLowMemorySmell = 14015,
 
         // Graph validation.
         InvalidGraphSinceOutputDirectoryContainsSourceFile = 14100,
@@ -1140,6 +1157,10 @@ namespace BuildXL.Utilities.Tracing
         KextFailedToInitializeConnectionManager = 14500,
         KextFailureNotificationReceived = 14501,
 
-        FailedToLoadPipGraphFragment = 14502
+        FailedToLoadPipGraphFragment = 14502,
+        PipCacheLookupStats = 14503,
+
+        ProcessRetries = 14504,
+        ProcessPattern = 14505,
     }
 }

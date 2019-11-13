@@ -179,6 +179,25 @@ namespace BuildXL.ToolSupport
         }
 
         /// <summary>
+        /// Parse an option that parses a key value pair and adds it to a dictionary.
+        /// </summary>
+        public static void ParsePropertyOption(Option opt, Dictionary<string, string> map)
+        {
+            Contract.Requires(map != null);
+
+            var keyValuePair = ParseKeyValuePair(opt);
+            if (!string.IsNullOrEmpty(keyValuePair.Value))
+            {
+                map[keyValuePair.Key] = keyValuePair.Value;
+            }
+            else
+            {
+                // a blank property specified after an existing one should blank it out
+                map.Remove(keyValuePair.Key);
+            }
+        }
+
+        /// <summary>
         /// Parse an option that produces a Guid.
         /// </summary>
         public static Guid ParseGuidOption(Option opt)

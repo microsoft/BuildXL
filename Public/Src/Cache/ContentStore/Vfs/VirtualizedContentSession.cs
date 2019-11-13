@@ -78,7 +78,7 @@ namespace BuildXL.Cache.ContentStore.Vfs
         }
 
         /// <inheritdoc />
-        protected async override Task<PlaceFileResult> PlaceFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
+        protected override async Task<PlaceFileResult> PlaceFileCoreAsync(OperationContext operationContext, ContentHash contentHash, AbsolutePath path, FileAccessMode accessMode, FileReplacementMode replacementMode, FileRealizationMode realizationMode, UrgencyHint urgencyHint, Counter retryCounter)
         {
             if (replacementMode != FileReplacementMode.ReplaceExisting && _fileSystem.FileExists(path))
             {

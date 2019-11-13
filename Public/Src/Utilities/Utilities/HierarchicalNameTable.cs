@@ -1134,6 +1134,19 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Gets the parent index of a path using its index.
         /// </summary>
+        public int GetDepth(HierarchicalNameId name)
+        {
+            Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
+            Contract.Requires(name.IsValid);
+
+            // note that we don't need to acquire any locks in here
+            Node node = GetNode(name);
+            return node.Depth;
+        }
+
+        /// <summary>
+        /// Gets the parent index of a path using its index.
+        /// </summary>
         public int GetContainerIndex(int index)
         {
             Contract.Requires(index >= 0);
@@ -1693,6 +1706,7 @@ namespace BuildXL.Utilities
             Contract.Requires(name.IsValid);
             Contract.Ensures(Contract.Result<string>() != null);
 
+            separator = separator == char.MinValue ? m_separator : separator;
             expander = expander ?? DefaultExpander;
 
             // see if we've got this expansion cached

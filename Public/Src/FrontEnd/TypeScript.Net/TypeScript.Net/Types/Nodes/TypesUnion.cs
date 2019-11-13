@@ -9,6 +9,7 @@ using System.Diagnostics.ContractsLight;
 using JetBrains.Annotations;
 using TypeScript.Net.Reformatter;
 using static TypeScript.Net.Types.NodeUtilities;
+using NotNullAttribute = JetBrains.Annotations.NotNullAttribute;
 
 #pragma warning disable SA1649 // File name must match first type name
 

@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Extensions;
-using ContentStoreTest.Sessions;
 using ContentStoreTest.Test;
 using Xunit;
 
@@ -22,7 +21,6 @@ namespace ContentStoreTest.Grpc
     public class GrpcRepairClientTests : TestBase
     {
         private const string CacheName = "CacheName";
-        private const uint MaxConnections = ServiceConfiguration.DefaultMaxConnections;
         private const int WaitForServerReadyTimeoutMs = 10000;
         private const int WaitForExitTimeoutMs = 30000;
         private const LocalServerConfiguration LocalContentServerConfiguration = null;

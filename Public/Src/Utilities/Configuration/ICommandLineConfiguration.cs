@@ -16,17 +16,12 @@ namespace BuildXL.Utilities.Configuration
         HelpLevel Help { get; }
 
         /// <summary>
-        /// DX code to show specific help for
-        /// </summary>
-        int HelpCode { get; }
-
-        /// <summary>
         /// Whether nologo is on or not.
         /// </summary>
         bool NoLogo { get; }
 
         /// <summary>
-        /// Whether to launch the debugger on start. This is useful when either a) you already have a server which 
+        /// Whether to launch the debugger on start. This is useful when either a) you already have a server which
         /// doesn't respect new environment variables set in the client exe or b) you have many uses of bxl.exe
         /// and only want to debug one specific process of BuildXL.
         /// </summary>
@@ -75,18 +70,13 @@ namespace BuildXL.Utilities.Configuration
         None = 0,
 
         /// <summary>
-        /// Help for a specific DxCode
-        /// </summary>
-        DxCode = 1,
-
-        /// <summary>
         /// The standard help
         /// </summary>
-        Standard = 2,
+        Standard = 1,
 
         /// <summary>
         /// The full help including verbose obscure options
         /// </summary>
-        Verbose = 3,
+        Verbose = 2,
     }
 }

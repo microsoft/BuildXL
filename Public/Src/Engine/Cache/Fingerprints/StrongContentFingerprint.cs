@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Storage;
 using BuildXL.Utilities;
 
@@ -46,6 +47,11 @@ namespace BuildXL.Engine.Cache.Fingerprints
         /// SHA-1 of all zeros to use instead of default(StrongContentFingerprint)
         /// </summary>
         public static readonly StrongContentFingerprint Zero = new StrongContentFingerprint(FingerprintUtilities.ZeroFingerprint);
+
+        /// <summary>
+        /// Special marker fingerprint for marking selectors (i.e. <see cref="PublishedEntryRef"/>) whose path set is used to augment the weak fingerprint
+        /// </summary>
+        public static readonly StrongContentFingerprint AugmentedWeakFingerprintMarker = new StrongContentFingerprint(FingerprintUtilities.CreateSpecialValue(1));
 
         /// <summary>
         /// Creates a content fingerprint from the given hash.

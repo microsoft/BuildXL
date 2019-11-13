@@ -20,7 +20,8 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipScopeState GetScope(Process pip)
         {
-            return pip.Provenance != null ? new PipScopeState(this, pip.Provenance.ModuleId, pip.AllowPreserveOutputs) : new PipScopeState(this, ModuleId.Invalid, pip.AllowPreserveOutputs);
+            bool ifPreserveOutputs = pip.AllowPreserveOutputs && m_unsafeConfiguration.PreserveOutputsTrustLevel <= pip.PreserveOutputsTrustLevel;
+            return pip.Provenance != null ? new PipScopeState(this, pip.Provenance.ModuleId, ifPreserveOutputs) : new PipScopeState(this, ModuleId.Invalid, ifPreserveOutputs);
         }
 
         /// <summary>
@@ -58,8 +59,8 @@ namespace BuildXL.Scheduler
             /// </summary>
             /// <param name="parent">the parent execution state containing the global information from which module specific instances can be retrieved</param>
             /// <param name="moduleId">the module id of the state to create</param>
-            /// <param name="allowPreserveOutputs">whether preserveOutputs is allowed for the pip</param>
-            internal PipScopeState(PipExecutionState parent, ModuleId moduleId, bool allowPreserveOutputs)
+            /// <param name="ifPreserveOutputs">whether preserveOutputs is allowed for the pip and pip's trust level is bigger than the unsafeConfiguraion.PreserveoutputTrustLevle</param>
+            internal PipScopeState(PipExecutionState parent, ModuleId moduleId, bool ifPreserveOutputs)
             {
                 if (moduleId.IsValid)
                 {
@@ -75,7 +76,7 @@ namespace BuildXL.Scheduler
                     DirectoryMembershipFingerprinterRuleSet = parent.m_directoryMembershipFingerprinterRuleSet;
                 }
 
-                UnsafeOptions = new UnsafeOptions(parent.m_unsafeConfiguration, allowPreserveOutputs ? parent.m_preserveOutputsSalt : UnsafeOptions.PreserveOutputsNotUsed);
+                UnsafeOptions = new UnsafeOptions(parent.m_unsafeConfiguration, ifPreserveOutputs ? parent.m_preserveOutputsSalt : UnsafeOptions.PreserveOutputsNotUsed);
             }
 
             /// <summary>

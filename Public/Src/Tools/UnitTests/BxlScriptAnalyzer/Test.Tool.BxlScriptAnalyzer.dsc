@@ -14,6 +14,8 @@ namespace Test.BxlScriptAnalyzer {
         references: [
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
+            importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,
             importFrom("BuildXL.FrontEndUnitTests").Workspaces.dll,

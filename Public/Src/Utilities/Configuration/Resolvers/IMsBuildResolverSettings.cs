@@ -178,11 +178,12 @@ namespace BuildXL.Utilities.Configuration
         /// <remarks>
         /// When <see cref="IMsBuildResolverSettings.Environment"/> is null, the current environment is defined as the tracked environment, with no passthroughs
         /// </remarks>
-        public static void ComputeEnvironment(this IMsBuildResolverSettings msBuildResolverSettings, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv)
+        public static void ComputeEnvironment(this IMsBuildResolverSettings msBuildResolverSettings, out IDictionary<string, string> trackedEnv, out ICollection<string> passthroughEnv, out bool processEnvironmentUsed)
         {
             if (msBuildResolverSettings.Environment == null)
             {
                 var allEnvironmentVariables = Environment.GetEnvironmentVariables();
+                processEnvironmentUsed = true;
                 trackedEnv = new Dictionary<string, string>(allEnvironmentVariables.Count);
                 foreach (var envVar in allEnvironmentVariables.Keys)
                 {
@@ -194,6 +195,7 @@ namespace BuildXL.Utilities.Configuration
                 return;
             }
 
+            processEnvironmentUsed = false;
             var trackedList = new Dictionary<string, string>();
             var passthroughList = new List<string>();
 

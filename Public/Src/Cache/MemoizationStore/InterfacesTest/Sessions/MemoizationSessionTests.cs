@@ -16,6 +16,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using Xunit;
+using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {
@@ -110,16 +111,16 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
                     context, ContentHashType, false, RandomContentByteCount, Token);
                 var contentHashList = new ContentHashList(new[] {putResult.ContentHash});
                 var addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token);
+                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[fromDeterminism]), Token).ShouldBeSuccess();
                 Assert.Equal(Determinism[fromDeterminism].EffectiveGuid, addResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);
 
                 // What we will do here is AddOrGet() a record that we already know is
                 // there but with the determinism bit changed.
                 addResult = await session.AddOrGetContentHashListAsync(
-                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[toDeterminism]), Token);
+                    context, strongFingerprint, new ContentHashListWithDeterminism(contentHashList, Determinism[toDeterminism]), Token).ShouldBeSuccess();
                 Assert.Null(addResult.ContentHashListWithDeterminism.ContentHashList);
 
-                var getResult = await session.GetContentHashListAsync(context, strongFingerprint, Token);
+                var getResult = await session.GetContentHashListAsync(context, strongFingerprint, Token).ShouldBeSuccess();
                 Assert.Equal(
                     Determinism[shouldUpgrade ? toDeterminism : fromDeterminism].EffectiveGuid,
                     getResult.ContentHashListWithDeterminism.Determinism.EffectiveGuid);

@@ -10,7 +10,7 @@ using BuildXL.Utilities.Collections;
 
 namespace Test.BuildXL.Scheduler
 {
-    public class SourceSealWithPatternsTests : BuildXL.TestUtilities.Xunit.XunitBuildXLTest
+    public class SourceSealWithPatternsTests : XunitBuildXLTest
     {
         public SourceSealWithPatternsTests(ITestOutputHelper output)
             : base(output) { }
@@ -39,7 +39,8 @@ namespace Test.BuildXL.Scheduler
             var pattern4 = StringId.Create(st, "file5.txt");
             var pattern5 = StringId.Create(st, "file1*");
 
-            SourceSealWithPatterns sourceSeal1 = new SourceSealWithPatterns(dir1, ReadOnlyArray<StringId>.From(new[] { pattern1, pattern2 }));
+            SourceSealWithPatterns sourceSeal1 = new SourceSealWithPatterns(dir1, ReadOnlyArray<StringId>.From(new[] { pattern1, pattern2 }), true);
+
             // Wildcard matches everything
             AssertTrue(sourceSeal1.Contains(pt, f1));
             AssertTrue(sourceSeal1.Contains(pt, f2));
@@ -50,10 +51,10 @@ namespace Test.BuildXL.Scheduler
 
             AssertTrue(!sourceSeal1.Contains(pt, nestedf1));
             AssertTrue(!sourceSeal1.Contains(pt, nestedf2));
-            AssertTrue(sourceSeal1.Contains(pt, nestedf1, isTopDirectoryOnly: false));
-            AssertTrue(sourceSeal1.Contains(pt, nestedf2, isTopDirectoryOnly: false));
+            AssertTrue(sourceSeal1.Contains(pt, nestedf1, isTopDirectoryOnlyOverride: false));
+            AssertTrue(sourceSeal1.Contains(pt, nestedf2, isTopDirectoryOnlyOverride: false));
 
-            SourceSealWithPatterns sourceSeal2 = new SourceSealWithPatterns(dir1, ReadOnlyArray<StringId>.From(new[] { pattern3, pattern4, pattern5 }));
+            SourceSealWithPatterns sourceSeal2 = new SourceSealWithPatterns(dir1, ReadOnlyArray<StringId>.From(new[] { pattern3, pattern4, pattern5 }), true);
             // *.cs, file5.txt, file1*
             AssertTrue(sourceSeal2.Contains(pt, f1));
             AssertTrue(!sourceSeal2.Contains(pt, f2));
@@ -63,8 +64,8 @@ namespace Test.BuildXL.Scheduler
             AssertTrue(!sourceSeal2.Contains(pt, f6));
             AssertTrue(!sourceSeal2.Contains(pt, nestedf1));
             AssertTrue(!sourceSeal2.Contains(pt, nestedf2));
-            AssertTrue(!sourceSeal2.Contains(pt, nestedf1, isTopDirectoryOnly: false));
-            AssertTrue(sourceSeal2.Contains(pt, nestedf2, isTopDirectoryOnly: false));
+            AssertTrue(!sourceSeal2.Contains(pt, nestedf1, isTopDirectoryOnlyOverride: false));
+            AssertTrue(sourceSeal2.Contains(pt, nestedf2, isTopDirectoryOnlyOverride: false));
 
         }
 

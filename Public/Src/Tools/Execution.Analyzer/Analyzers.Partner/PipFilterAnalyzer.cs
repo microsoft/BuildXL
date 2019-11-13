@@ -113,7 +113,7 @@ namespace BuildXL.Execution.Analyzer
 
         private bool ProcessFilter(string filterText, FileStream stream, StreamWriter writer)
         {
-            var parser = new FilterParser(CachedGraph.Context, CachedGraph.MountPathExpander.TryGetRootByMountName, filterText);
+            var parser = new FilterParser(CachedGraph.Context, CachedGraph.MountPathExpander.TryGetRootByMountName, filterText, canonicalize: true);
 
             if (!parser.TryParse(out var rootFilter, out var error))
             {
@@ -129,7 +129,7 @@ namespace BuildXL.Execution.Analyzer
             var outputs = PipGraph.FilterOutputs(rootFilter);
             var pips = new List<PipId>();
 
-            if (PipGraph.FilterNodesToBuild(Events.StaticContext, rootFilter, out var nodes, canonicalizeFilter: true))
+            if (PipGraph.FilterNodesToBuild(Events.StaticContext, rootFilter, out var nodes))
             {
                 foreach (var node in nodes)
                 {

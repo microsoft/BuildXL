@@ -38,12 +38,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Execution tracer.
         /// </summary>
-        protected readonly ContentStoreTracer ExecutionTracer = new ContentStoreTracer(nameof(ServiceClientContentStore));
+        protected virtual ContentStoreTracer ExecutionTracer { get; } = new ContentStoreTracer(nameof(ServiceClientContentStore));
 
         /// <summary>
         /// Execution tracer for the session.
         /// </summary>
-        protected readonly ServiceClientContentSessionTracer SessionTracer = new ServiceClientContentSessionTracer(nameof(ServiceClientContentSession));
+        protected virtual ServiceClientContentSessionTracer SessionTracer { get; } = new ServiceClientContentSessionTracer(nameof(ServiceClientContentSession));
 
         /// <summary>
         ///     The filesystem to use for temporary files.
@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             var rpcConfiguration = Configuration.RpcConfiguration;
             if (result.Succeeded)
             {
-                _grpcClient = new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration.GrpcPort, Configuration.Scenario, rpcConfiguration.HeartbeatInterval);
+                _grpcClient = new GrpcContentClient(SessionTracer, FileSystem, rpcConfiguration, Configuration.Scenario);
                 result = await Configuration.RetryPolicy.ExecuteAsync(() => _grpcClient.StartupAsync(context, waitMs: 0));
 
                 if (!result)

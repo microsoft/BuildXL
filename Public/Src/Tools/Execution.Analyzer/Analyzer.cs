@@ -27,7 +27,10 @@ namespace BuildXL.Execution.Analyzer
         /// </summary>
         public readonly CachedGraph CachedGraph;
 
-        protected readonly AnalysisInput Input;
+        /// <summary>
+        /// Analysis inputs (XLG file location etc.)
+        /// </summary>
+        public readonly AnalysisInput Input;
 
         public LoggingContext LoggingContext { get; set; }
 
@@ -55,7 +58,14 @@ namespace BuildXL.Execution.Analyzer
 
         protected virtual bool ReadEvents()
         {
-            return Input.ReadExecutionLog(this);
+            try
+            {
+                return Input.ReadExecutionLog(this);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidDataException("Cannot read execution log; the version of the log has possibly changed.", e);
+            }
         }
 
         #region Utility Methods

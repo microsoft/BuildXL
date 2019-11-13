@@ -37,7 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CheckDetoursMessageCount = true;
             AllowInternalDetoursErrorNotificationFile = true;
             EnforceAccessPoliciesOnDirectoryCreation = false;
-            KextMeasureProcessCpuTimes = false;             // measuring CPU times amounts to wrapping processes in /usr/bin/time, so let's not do that by default
+            MeasureProcessCpuTimes = true;                  // always measure process times + ram consumption
             KextReportQueueSizeMb = 0;                      // let the sandbox kernel extension apply defaults
             KextEnableReportBatching = true;                // use lock-free queue for batching access reports
             KextThrottleCpuUsageBlockThresholdPercent = 0;  // no throttling by default
@@ -49,6 +49,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RetryOnAzureWatsonExitCode = false;
             EnsureTempDirectoriesExistenceBeforePipExecution = false;
             GlobalUnsafeUntrackedScopes = new List<AbsolutePath>();
+            PreserveOutputsForIncrementalTool = false;
+            GlobalUnsafePassthroughEnvironmentVariables = new List<string>();
         }
 
         /// <nodoc />
@@ -57,7 +59,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Contract.Assume(template != null);
             m_unsafeSandboxConfig = new UnsafeSandboxConfiguration(template.UnsafeSandboxConfiguration);
 
-            DebugInstantPipOutputs = template.DebugInstantPipOutputs;
             BreakOnUnexpectedFileAccess = template.BreakOnUnexpectedFileAccess;
             FileAccessIgnoreCodeCoverage = template.FileAccessIgnoreCodeCoverage;
             FailUnexpectedFileAccesses = template.FailUnexpectedFileAccesses;
@@ -83,7 +84,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CheckDetoursMessageCount = template.CheckDetoursMessageCount;
             AllowInternalDetoursErrorNotificationFile = template.AllowInternalDetoursErrorNotificationFile;
             EnforceAccessPoliciesOnDirectoryCreation = template.EnforceAccessPoliciesOnDirectoryCreation;
-            KextMeasureProcessCpuTimes = template.KextMeasureProcessCpuTimes;
+            MeasureProcessCpuTimes = template.MeasureProcessCpuTimes;
             KextReportQueueSizeMb = template.KextReportQueueSizeMb;
             KextEnableReportBatching = template.KextEnableReportBatching;
             KextThrottleCpuUsageBlockThresholdPercent = template.KextThrottleCpuUsageBlockThresholdPercent;
@@ -95,6 +96,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RetryOnAzureWatsonExitCode = template.RetryOnAzureWatsonExitCode;
             EnsureTempDirectoriesExistenceBeforePipExecution = template.EnsureTempDirectoriesExistenceBeforePipExecution;
             GlobalUnsafeUntrackedScopes = pathRemapper.Remap(template.GlobalUnsafeUntrackedScopes);
+            PreserveOutputsForIncrementalTool = template.PreserveOutputsForIncrementalTool;
+            GlobalUnsafePassthroughEnvironmentVariables = new List<string>(template.GlobalUnsafePassthroughEnvironmentVariables);
         }
 
         /// <inheritdoc />
@@ -124,9 +127,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
                 m_unsafeSandboxConfig = value;
             }
         }
-
-        /// <inheritdoc />
-        public bool DebugInstantPipOutputs { get; set; }
 
         /// <inheritdoc />
         public bool BreakOnUnexpectedFileAccess { get; set; }
@@ -204,7 +204,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool AllowInternalDetoursErrorNotificationFile { get; set; }
 
         /// <inheritdoc />
-        public bool KextMeasureProcessCpuTimes { get; set; }
+        public bool MeasureProcessCpuTimes { get; set; }
 
         /// <inheritdoc />
         public uint KextReportQueueSizeMb { get; set; }
@@ -213,7 +213,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool KextEnableReportBatching { get; set; }
 
         /// <inheritdoc />
-        public uint KextThrottleCpuUsageBlockThresholdPercent { get; set;  }
+        public uint KextThrottleCpuUsageBlockThresholdPercent { get; set; }
 
         /// <inheritdoc />
         public uint KextThrottleCpuUsageWakeupThresholdPercent { get; set; }
@@ -244,5 +244,14 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<AbsolutePath> ISandboxConfiguration.GlobalUnsafeUntrackedScopes => GlobalUnsafeUntrackedScopes;
+
+        /// <inheritdoc />
+        public bool PreserveOutputsForIncrementalTool { get; set; }
+
+        /// <nodoc />
+        public List<string> GlobalUnsafePassthroughEnvironmentVariables { get; set; }
+
+        /// <inheritdoc />
+        IReadOnlyList<string> ISandboxConfiguration.GlobalUnsafePassthroughEnvironmentVariables => GlobalUnsafePassthroughEnvironmentVariables;
     }
 }

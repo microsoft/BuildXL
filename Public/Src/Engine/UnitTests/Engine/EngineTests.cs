@@ -75,7 +75,7 @@ namespace Test.BuildXL.EngineTests
 
             XAssert.AreEqual(violation, contractViolation);
         }
-       
+
         /// <summary>
         /// Checks that the temp directory for FileUtilities file deletions is automatically set and cleaned by TempCleaner
         /// when the engine runs
@@ -88,7 +88,7 @@ namespace Test.BuildXL.EngineTests
             RunEngine();
 
             // After the engine runs, a temp directory for FileUtilities should have been set
-            // It will also be registered for garbage collection with a TempCleaner thread, 
+            // It will also be registered for garbage collection with a TempCleaner thread,
             // but there will be nothing to clean
             XAssert.IsTrue(TestHooks.TempCleanerTempDirectory != null);
             XAssert.IsTrue(Directory.Exists(TestHooks.TempCleanerTempDirectory));
@@ -118,7 +118,7 @@ namespace Test.BuildXL.EngineTests
         public void TestFileUtilitiesTempDirectoryNotScrubbed()
         {
             // Do a run of some valid modules
-            // The engine will set and create the path for the FileUtilities temp directory 
+            // The engine will set and create the path for the FileUtilities temp directory
             // This will also register the directory to be cleaned by TempCleaner
             SetupTestData();
             Configuration.Engine.Scrub = true;
@@ -163,7 +163,10 @@ namespace Test.BuildXL.EngineTests
             var engineCacheFilesList = new List<string>();
             FileUtilities.EnumerateDirectoryEntries(engineCacheDirectory, (file, attributes) =>
             {
-                engineCacheFilesList.Add(file);
+                if (!attributes.HasFlag(FileAttributes.Directory))
+                {
+                    engineCacheFilesList.Add(file);
+                }
             });
 
             var recovery = FailureRecoveryFactory.Create(LoggingContext, Context.PathTable, Configuration);
@@ -187,7 +190,7 @@ namespace Test.BuildXL.EngineTests
             var fileContentTableFile = Path.GetFileName(engineCacheFileContentTablePath);
 
             // Make sure file content table was copied to logs
-            XAssert.IsTrue(logsFilesList.Contains(fileContentTableFile));
+            XAssert.Contains(logsFilesList, fileContentTableFile);
             expectedCount = 1;
 
             // Make sure file content table file exists in the engine cache directory after recovery
@@ -199,7 +202,7 @@ namespace Test.BuildXL.EngineTests
             // Check to make sure all the file from the engine cache directory ended up in the logs directory
             foreach (var file in engineCacheFilesList)
             {
-                XAssert.IsTrue(logsFilesList.Contains(file));
+                XAssert.Contains(logsFilesList, file);
             }
         }
 
@@ -240,7 +243,7 @@ namespace Test.BuildXL.EngineTests
         public void TestProperLogMessageOnCacheLockAcquisitionFailure()
         {
             var tempDir = Path.Combine(
-                OperatingSystemHelper.IsUnixOS ? "/tmp/bxl-temp" : TemporaryDirectory, 
+                OperatingSystemHelper.IsUnixOS ? "/tmp/bxl-temp" : TemporaryDirectory,
                 Guid.NewGuid().ToString());
             string cacheDirectory = Path.Combine(tempDir, "cache");
 
@@ -286,7 +289,7 @@ namespace Test.BuildXL.EngineTests
                     // need a different name for the log file (due to the order in which the things are initialized)
                     CacheLogFilePath = AbsolutePath.Create(Context.PathTable, tempDir).Combine(Context.PathTable, "cache_2.log"),
                     CacheConfigFile = cacheConfigPath,
-                    
+
                 },
                 translator,
                 recoveryStatus: false,
@@ -340,6 +343,7 @@ namespace Test.BuildXL.EngineTests
                     translatedDirectory,
                     properties,
                     dict => { specialFolderInitializerWasCalled = true; },
+                    true,
                     Context.PathTable,
                     LoggingContext);
 
@@ -382,22 +386,6 @@ namespace Test.BuildXL.EngineTests
         }
 
         [Fact]
-        public void TestResourceBasedCancellationIsNotAllowedWithSharedOpaques()
-        {
-            var spec0 = SpecWithOpaques();
-            AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
-            
-            // enable resource based cancellation
-            Configuration.Schedule.DisableProcessRetryOnResourceExhaustion = false;
-            // do not need to run the pips - the check happens before execution phase
-            Configuration.Engine.Phase = EnginePhases.Schedule;
-
-            RunEngine(expectSuccess: false);
-
-            AssertErrorEventLogged(global::BuildXL.Engine.Tracing.LogEventId.ResourceBasedCancellationIsEnabledWithSharedOpaquesPresent);
-        }
-
-        [Fact]
         public void TestGraphCacheMissReason()
         {
             foreach (var missReason in Enum.GetValues(typeof(GraphCacheMissReason)))
@@ -427,7 +415,7 @@ namespace Namespace1 {
 
 const step1 = Transformer.writeAllLines(
     p`obj/a.txt`,
-    [  
+    [
         Namespace1.value1,
     ]
 );
@@ -449,9 +437,9 @@ import {Artifact, Cmd, Tool, Transformer} from 'Sdk.Transformers';
 const exclusiveOpaque: Directory = d`obj/exclusive`;
 const sharedOpaque: Directory = d`obj/shared`;
 
-export const cmdTool: Transformer.ToolDefinition = {
-    exe: f`${Environment.getPathValue(""COMSPEC"")}`,
-};
+export const cmdTool: Transformer.ToolDefinition = {" +
+    $"exe: f`{(OperatingSystemHelper.IsUnixOS ? "/bin/sh" : @"${Environment.getPathValue(""COMSPEC"")}")}`"
++ @"};
 
 const pip = Transformer.execute({
     tool: cmdTool,
@@ -465,7 +453,7 @@ const pip = Transformer.execute({
 });
 ";
         }
-        
+
         private static void AssertSuccess<T>(Possible<T, Failure> possible)
         {
             Assert.True(possible.Succeeded);

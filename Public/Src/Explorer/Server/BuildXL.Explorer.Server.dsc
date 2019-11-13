@@ -15,11 +15,11 @@ namespace Server {
         rootNamespace: "BuildXL.Explorer.Server",
         skipDocumentationGeneration: true,
         // We filter out obj and bin folders since we sometimes still develop with an msbuild file for F5 debugging of aspnet apps which is not yet available in BuildXL's IDE integraiotn.
-        sources: (<File[]>globR(d`.`, "*.cs")).filter(f => !f.isWithin(d`obj`) && !f.isWithin(d`bin`)),
+        sources: (<File[]>globR(d`.`, "*.cs")).filter(f => !(<File>f).isWithin(d`obj`) && !(<File>f).isWithin(d`bin`)),
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
               // TODO: revisit this!
-              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App").Contents.all, r`ref/netcoreapp3.0/netstandard.dll`)
+              Managed.Factory.createBinary(importFrom("Microsoft.NETCore.App.Ref").Contents.all, r`ref/netcoreapp3.0/netstandard.dll`)
             ),
 
             importFrom("BuildXL.Pips").dll,
@@ -112,7 +112,7 @@ namespace Server {
             importFrom("Microsoft.Extensions.Logging.Console").pkg,
             importFrom("Microsoft.Extensions.Logging.Debug").pkg,
             importFrom("Microsoft.Extensions.Logging.EventSource").pkg,
-            
+
             importFrom("Microsoft.Extensions.Logging").pkg,
             importFrom("Microsoft.Extensions.ObjectPool").pkg,
             importFrom("Microsoft.Extensions.Options.ConfigurationExtensions").pkg,

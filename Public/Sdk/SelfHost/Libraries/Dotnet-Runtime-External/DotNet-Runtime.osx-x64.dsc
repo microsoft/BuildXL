@@ -4,7 +4,7 @@
 import {Transformer} from "Sdk.Transformers";
 import {createPublicDotNetRuntime} from "DotNet-Runtime.Common";
 
-const v3 = <StaticDirectory>importFrom("DotNet-Runtime.osx-x64.3.0.0-preview5").extracted;
+const v3 = <StaticDirectory>importFrom("DotNet-Runtime.osx-x64.3.0.0").extracted;
 const v2 = <StaticDirectory>importFrom("DotNet-Runtime.osx-x64.2.2.2").extracted;
 
 @@public

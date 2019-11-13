@@ -24,23 +24,23 @@ namespace BuildXL.FrontEnd.Script.Debugger
     /// </summary>
     public sealed class RemoteDebugger : RemoteClientDebugger, IDebugger
     {
-        private readonly DebuggerState m_state;
         private readonly Socket m_clientSocket;
 
-        private Logger Logger => m_state.Logger;
+        private Logger Logger { get; }
 
-        private LoggingContext LoggingContext => m_state.LoggingContext;
+        private LoggingContext LoggingContext { get; }
 
         /// <inheritdoc/>
         public override ISession Session { get; }
 
         /// <nodoc/>
-        public RemoteDebugger(DebuggerState state, PathTranslator buildXLToUserPathTranslator, Socket clientSocket)
+        public RemoteDebugger(LoggingContext loggingContext, Socket clientSocket, Func<IDebugger, ISession> sessionFactory)
             : base(true, false)
         {
-            m_state = state;
             m_clientSocket = clientSocket;
-            Session = new DebugSession(state, buildXLToUserPathTranslator, this);
+            LoggingContext = loggingContext;
+            Logger = Logger.CreateLogger();
+            Session = sessionFactory(this);
         }
 
         /// <summary>

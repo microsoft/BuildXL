@@ -11,11 +11,11 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Tracing;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
-using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
@@ -40,9 +40,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private const string ActiveStoreSlotFileName = "activeSlot.txt";
         private StoreSlot _activeSlot = StoreSlot.Slot1;
         private string _storeLocation;
-        private readonly string _activeSlotFilePath;        
-
-        private static readonly byte[] EmptyBytes = CollectionUtilities.EmptyArray<byte>();
+        private readonly string _activeSlotFilePath;
+        private Timer _compactionTimer;
 
         private enum StoreSlot
         {
@@ -84,6 +83,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public RocksDbContentLocationDatabase(IClock clock, RocksDbContentLocationDatabaseConfiguration configuration, Func<IReadOnlyList<MachineId>> getInactiveMachines)
             : base(clock, configuration, getInactiveMachines)
         {
+            Contract.Requires(configuration.FlushPreservePercentInMemory >= 0 && configuration.FlushPreservePercentInMemory <= 1);
+            Contract.Requires(configuration.FlushDegreeOfParallelism > 0);
+            Contract.Requires(configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep > 0);
+
             _configuration = configuration;
             _activeSlotFilePath = (_configuration.StoreLocation / ActiveStoreSlotFileName).ToString();
         }
@@ -91,13 +94,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <inheritdoc />
         protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
+            lock (TimerChangeLock)
+            {
+                _compactionTimer?.Dispose();
+                _compactionTimer = null;
+            }
+
             _keyValueStore?.Dispose();
+
             return base.ShutdownCoreAsync(context);
         }
 
         /// <inheritdoc />
         protected override BoolResult InitializeCore(OperationContext context)
         {
+            if (_configuration.FullRangeCompactionInterval != Timeout.InfiniteTimeSpan)
+            {
+                _compactionTimer = new Timer(
+                    _ => FullRangeCompaction(context),
+                    null,
+                    IsDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan,
+                    Timeout.InfiniteTimeSpan);
+            }
+
             var result = Load(context, GetActiveSlot(context.TracingContext), clean: _configuration.CleanOnInitialize);
             if (result && _configuration.TestInitialCheckpointPath != null)
             {
@@ -105,6 +124,59 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             return result;
+        }
+
+        /// <inheritdoc />
+        public override void SetDatabaseMode(bool isDatabaseWriteable)
+        {
+            if (IsDatabaseWriteable != isDatabaseWriteable)
+            {
+                // Shutdown can't happen simultaneously, so no need to take the lock
+                var nextCompactionTimeSpan = isDatabaseWriteable ? _configuration.FullRangeCompactionInterval : Timeout.InfiniteTimeSpan;
+                _compactionTimer?.Change(nextCompactionTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+
+            base.SetDatabaseMode(isDatabaseWriteable);
+        }
+
+        private void FullRangeCompaction(OperationContext context)
+        {
+            if (ShutdownStarted)
+            {
+                return;
+            }
+
+            context.PerformOperation(Tracer, () =>
+                _keyValueStore.Use(store =>
+                {
+                    foreach (var columnFamilyName in new[] { "default", nameof(Columns.ClusterState), nameof(Columns.Metadata) })
+                    {
+                        if (context.Token.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        var result = context.PerformOperation(Tracer, () =>
+                        {
+                            store.CompactRange((byte[])null, null, columnFamilyName: columnFamilyName);
+                            return BoolResult.Success;
+                        }, messageFactory: _ => $"ColumnFamily={columnFamilyName}");
+
+                        if (!result.Succeeded)
+                        {
+                            break;
+                        }
+                    }
+                }).ToBoolResult()).IgnoreFailure();
+
+            if (!ShutdownStarted)
+            {
+                lock (TimerChangeLock)
+                {
+                    // No try-catch required here.
+                    _compactionTimer?.Change(_configuration.FullRangeCompactionInterval, Timeout.InfiniteTimeSpan);
+                }
+            }
         }
 
         private BoolResult Load(OperationContext context, StoreSlot activeSlot, bool clean = false)
@@ -123,7 +195,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer.Info(context, $"Creating rocksdb store at '{storeLocation}'.");
 
                 var possibleStore = KeyValueStoreAccessor.Open(storeLocation,
-                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) });
+                    additionalColumns: new[] { nameof(Columns.ClusterState), nameof(Columns.Metadata) },
+                    rotateLogs: true,
+                    failureHandler: failureEvent =>
+                    {
+                        // By default, rethrow is true iff it is a user error. We invalidate only if it isn't
+                        failureEvent.Invalidate = !failureEvent.Rethrow;
+                    },
+                    invalidationHandler: failure => OnDatabaseInvalidated(context, failure),
+                    onFailureDeleteExistingStoreAndRetry: _configuration.OnFailureDeleteExistingStoreAndRetry,
+                    onStoreReset: failure => {
+                        Tracer.Error(context, $"RocksDb critical error caused store to reset: {failure.DescribeIncludingInnerFailures()}");
+                    });
+
                 if (possibleStore.Succeeded)
                 {
                     var oldKeyValueStore = _keyValueStore;
@@ -250,6 +334,39 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override bool IsImmutable(AbsolutePath dbFile)
         {
             return dbFile.Path.EndsWith(".sst", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <inheritdoc />
+        public override void SetGlobalEntry(string key, string value)
+        {
+            _keyValueStore.Use(store =>
+            {
+                if (value == null)
+                {
+                    store.Remove(key, nameof(Columns.ClusterState));
+                }
+                else
+                {
+                    store.Put(key, value, nameof(Columns.ClusterState));
+                }
+            }).ThrowOnError();
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetGlobalEntry(string key, out string value)
+        {
+            value = _keyValueStore.Use(store =>
+            {
+                if (store.TryGetValue(key, out var value, nameof(Columns.ClusterState)))
+                {
+                    return value;
+                }
+                else
+                {
+                    return null;
+                }
+            }).ThrowOnError();
+            return value != null;
         }
 
         /// <inheritdoc />
@@ -384,7 +501,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         {
             var keyBuffer = new List<(ShortHash key, ContentLocationEntry entry)>();
             const int KeysChunkSize = 100000;
-            byte[] startValue = null;
+            var startValue = filter?.StartingPoint?.ToByteArray();
             while (!token.IsCancellationRequested)
             {
                 keyBuffer.Clear();
@@ -412,7 +529,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                     startValue = null;
                                     byte[] value = null;
-                                    if (filter != null && filter(value = iterator.Value()))
+                                    if (filter?.ShouldEnumerate?.Invoke(value = iterator.Value()) == true)
                                     {
                                         keyBuffer.Add((DeserializeKey(key ?? iterator.Key()), DeserializeContentLocationEntry(value)));
                                     }
@@ -489,9 +606,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private static Unit PersistBatchHelper(IBuildXLKeyValueStore store, IEnumerable<KeyValuePair<ShortHash, ContentLocationEntry>> pairs, RocksDbContentLocationDatabase db)
         {
-            store.ApplyBatch(
-                pairs.Select(pair => db.GetKey(pair.Key)),
-                pairs.Select(pair => pair.Value != null ? db.SerializeContentLocationEntry(pair.Value) : null));
+            store.ApplyBatch(pairs.Select(
+                kvp => new KeyValuePair<byte[], byte[]>(db.GetKey(kvp.Key), kvp.Value != null ? db.SerializeContentLocationEntry(kvp.Value) : null)));
             return Unit.Void;
         }
 
@@ -533,24 +649,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return hash.ToByteArray();
         }
 
-        // TODO(jubayard): garbage collection / removal in general
-
         /// <inheritdoc />
         public override GetContentHashListResult GetContentHashList(OperationContext context, StrongFingerprint strongFingerprint)
         {
-            return context.PerformOperation(
-                Tracer,
-                () =>
+            var key = GetMetadataKey(strongFingerprint);
+            ContentHashListWithDeterminism? result = null;
+            var status = _keyValueStore.Use(
+                store =>
                 {
-                    var key = GetMetadataKey(strongFingerprint);
-                    ContentHashListWithDeterminism? result = null;
-                    var status = _keyValueStore.Use(
-                        store =>
-                        {
-                            if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
-                            {
-                                var metadata = DeserializeMetadataEntry(data);
-                                result = metadata.ContentHashListWithDeterminism;
+                    if (store.TryGetValue(key, out var data, nameof(Columns.Metadata)))
+                    {
+                        var metadata = DeserializeMetadataEntry(data);
+                        result = metadata.ContentHashListWithDeterminism;
 
                                 // Update the time, only if no one else has changed it in the mean time. We don't
                                 // really care if this succeeds or not, because if it doesn't it only means someone
@@ -560,20 +670,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 // TODO(jubayard): since we are inside the ContentLocationDatabase, we can validate that all
                                 // hashes exist. Moreover, we can prune content.
                             }
-                        });
+                });
 
-                    if (!status.Succeeded)
-                    {
-                        return new GetContentHashListResult(status.Failure.CreateException());
-                    }
+            if (!status.Succeeded)
+            {
+                return new GetContentHashListResult(status.Failure.CreateException());
+            }
 
-                    if (result is null)
-                    {
-                        return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
-                    }
+            if (result is null)
+            {
+                return new GetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
+            }
 
-                    return new GetContentHashListResult(result.Value);
-                }, Counters[ContentLocationDatabaseCounters.GetContentHashList]);
+            return new GetContentHashListResult(result.Value);
         }
 
         /// <summary>
@@ -639,7 +748,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
         
         /// <inheritdoc />
-        public override IReadOnlyCollection<GetSelectorResult> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
+        public override Result<IReadOnlyList<Selector>> GetSelectors(OperationContext context, Fingerprint weakFingerprint)
         {
             var selectors = new List<(long TimeUtc, Selector Selector)>();
             var status = _keyValueStore.Use(
@@ -657,15 +766,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                 });
 
-            var result = new List<GetSelectorResult>(selectors
-                .OrderByDescending(entry => entry.TimeUtc)
-                .Select(entry => new GetSelectorResult(entry.Selector)));
             if (!status.Succeeded)
             {
-                result.Add(new GetSelectorResult(status.Failure.CreateException()));
+                return new Result<IReadOnlyList<Selector>>(status.Failure.CreateException());
             }
 
-            return result;
+            return new Result<IReadOnlyList<Selector>>(selectors
+                .OrderByDescending(entry => entry.TimeUtc)
+                .Select(entry => entry.Selector).ToList());
         }
 
         private byte[] SerializeWeakFingerprint(Fingerprint weakFingerprint)
@@ -703,45 +811,96 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return DeserializeCore(data, reader => MetadataEntry.DeserializeLastAccessTimeUtc(reader));
         }
 
-        /// <summary>
-        /// Metadata that is stored inside the <see cref="Columns.Metadata"/> column family.
-        /// </summary>
-        private readonly struct MetadataEntry
+        /// <inheritdoc />
+        protected override BoolResult GarbageCollectMetadataCore(OperationContext context)
         {
-            /// <summary>
-            /// Effective <see cref="ContentHashList"/> that we want to store, along with information about its cache
-            /// determinism.
-            /// </summary>
-            public ContentHashListWithDeterminism ContentHashListWithDeterminism { get; }
+            return _keyValueStore.Use(store => {
+                // The strategy here is to follow what the SQLite memoization store does: we want to keep the top K
+                // elements by last access time (i.e. an LRU policy). This is slightly worse than that, because our
+                // iterator will go stale as time passes: since we iterate over a snapshot of the DB, we can't
+                // guarantee that an entry we remove is truly the one we should be removing. Moreover, since we store
+                // information what the last access times were, our internal priority queue may go stale over time as
+                // well.
+                var liveDbSizeInBytesBeforeGc = int.Parse(store.GetProperty(
+                    "rocksdb.estimate-live-data-size",
+                    columnFamilyName: nameof(Columns.Metadata)));
 
-            /// <summary>
-            /// Last update time, stored as output by <see cref="DateTime.ToFileTimeUtc"/>.
-            /// </summary>
-            public long LastAccessTimeUtc { get; }
+                var scannedEntries = 0;
+                var removedEntries = 0;
 
-            public MetadataEntry(ContentHashListWithDeterminism contentHashListWithDeterminism, long lastAccessTimeUtc)
-            {
-                ContentHashListWithDeterminism = contentHashListWithDeterminism;
-                LastAccessTimeUtc = lastAccessTimeUtc;
-            }
+                // This is a min-heap using lexicographic order: an element will be at the `Top` if its `fileTimeUtc`
+                // is the smallest (i.e. the oldest). Hence, we always know what the cut-off point is for the top K: if
+                // a new element is smaller than the Top, it's not in the top K, if larger, it is.
+                var entries = new PriorityQueue<(long fileTimeUtc, byte[] strongFingerprint)>(
+                    capacity: _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep + 1,
+                    comparer: Comparer<(long fileTimeUtc, byte[] strongFingerprint)>.Create((x, y) => x.fileTimeUtc.CompareTo(y.fileTimeUtc)));
+                foreach (var keyValuePair in store.PrefixSearch((byte[])null, nameof(Columns.Metadata)))
+                {
+                    // NOTE(jubayard): the expensive part of this is iterating over the whole database; the less we
+                    // take _while_ we do that, the better. An alternative is to compute a quantile sketch and remove
+                    // unneeded entries as we go. We could also batch deletions here.
 
-            public static MetadataEntry Deserialize(BuildXLReader reader)
-            {
-                var lastUpdateTimeUtc = reader.ReadInt64Compact();
-                var contentHashListWithDeterminism = ContentHashListWithDeterminism.Deserialize(reader);
-                return new MetadataEntry(contentHashListWithDeterminism, lastUpdateTimeUtc);
-            }
+                    if (context.Token.IsCancellationRequested)
+                    {
+                        break;
+                    }
 
-            public static long DeserializeLastAccessTimeUtc(BuildXLReader reader)
+                    var entry = (fileTimeUtc: DeserializeMetadataLastAccessTimeUtc(keyValuePair.Value),
+                        strongFingerprint: keyValuePair.Key);
+
+                    byte[] strongFingerprintToRemove = null;
+
+                    if (entries.Count >= _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep && entries.Top.fileTimeUtc > entry.fileTimeUtc)
+                    {
+                        // If we already reached the maximum number of elements to keep, and the current entry is older
+                        // than the oldest in the top K, we can just remove the current entry.
+                        strongFingerprintToRemove = entry.strongFingerprint;
+                    }
+                    else
+                    {
+                        // We either didn't reach the number of elements we want to keep, or the entry has a last
+                        // access time larger than the current smallest one in the top K.
+                        entries.Push(entry);
+
+                        if (entries.Count > _configuration.MetadataGarbageCollectionMaximumNumberOfEntriesToKeep)
+                        {
+                            strongFingerprintToRemove = entries.Top.strongFingerprint;
+                            entries.Pop();
+                        }
+                    }
+
+                    if (!(strongFingerprintToRemove is null))
+                    {
+                        store.Remove(strongFingerprintToRemove, columnFamilyName: nameof(Columns.Metadata));
+                        removedEntries++;
+                    }
+
+                    scannedEntries++;
+                }
+
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesRemoved].Add(removedEntries);
+                Counters[ContentLocationDatabaseCounters.GarbageCollectMetadataEntriesScanned].Add(scannedEntries);
+
+                var liveDbSizeInBytesAfterGc = int.Parse(store.GetProperty(
+                    "rocksdb.estimate-live-data-size",
+                    columnFamilyName: nameof(Columns.Metadata)));
+
+                // NOTE(jubayard): since we report the live DB size, it is possible it may increase after GC, because
+                // new tombstones have been added. However, there is no way to compute how much we added/removed that
+                // doesn't involve either keeping track of the values, or doing two passes over the column family.
+                Tracer.Debug(context, $"Metadata Garbage Collection results: ScannedEntries={scannedEntries}, RemovedEntries={removedEntries}, LiveDbSizeInBytesBeforeGc={liveDbSizeInBytesBeforeGc}, LiveDbSizeInBytesAfterGc={liveDbSizeInBytesAfterGc}");
+
+                return Unit.Void;
+            }).ToBoolResult();
+        }
+
+        /// <inheritdoc />
+        public override Result<long> GetContentDatabaseSizeBytes()
+        {
+            return _keyValueStore.Use(store =>
             {
-                return reader.ReadInt64Compact();
-            }
-            
-            public void Serialize(BuildXLWriter writer)
-            {
-                writer.WriteCompact(LastAccessTimeUtc);
-                ContentHashListWithDeterminism.Serialize(writer);
-            }
+                return long.Parse(store.GetProperty("rocksdb.live-sst-files-size"));
+            }).ToResult();
         }
 
         private class KeyValueStoreGuard : IDisposable

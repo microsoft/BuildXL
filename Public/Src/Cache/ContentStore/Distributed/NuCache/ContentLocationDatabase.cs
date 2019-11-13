@@ -77,6 +77,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         private long _cacheUpdatesSinceLastFlush = 0;
 
+        /// <summary>
+        /// External users should be tests only
+        /// </summary>
         internal long CacheUpdatesSinceLastFlush => _cacheUpdatesSinceLastFlush;
 
         /// <summary>
@@ -92,6 +95,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _flushTaskLock = new object();
 
+        /// <summary>
+        /// Currently ongoing flush
+        ///
+        /// External users should be tests only
+        /// </summary>
         internal Task FlushTask { get; private set; } = BoolResult.SuccessTask;
 
         /// <summary>

@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
@@ -891,6 +892,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return Unit.Void;
             }).ToBoolResult();
+        }
+
+        /// <inheritdoc />
+        public override Result<long> GetContentDatabaseSizeBytes()
+        {
+            return _keyValueStore.Use(store =>
+            {
+                return long.Parse(store.GetProperty("rocksdb.live-sst-files-size"));
+            }).ToResult();
         }
 
         private class KeyValueStoreGuard : IDisposable

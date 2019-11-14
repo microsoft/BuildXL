@@ -4012,13 +4012,16 @@ namespace BuildXL.Processes
             }
 
             bool errorWasTruncated = false;           
-            if (warningsError.Length != standardError.Length ||
-                warningsOutput.Length != standardOutput.Length)
+            // Ignore empty lines
+            var standardErrorInResult = await standardError.ReadValueAsync();
+            var standardOutputInResult = await standardOutput.ReadValueAsync();
+            if (warningsError.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardErrorInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length ||
+                warningsOutput.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardOutputInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length)
             {
                 errorWasTruncated = true;
             }
 
-            FormatOutputAndPaths(
+                FormatOutputAndPaths(
                 warningsOutput,
                 warningsError,
                 standardOutput.FileName,

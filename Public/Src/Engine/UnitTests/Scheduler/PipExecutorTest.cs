@@ -1034,9 +1034,9 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(true)]
-        //[InlineData(false)]
-        public async Task FailingProcessPrintPathsToLog(bool regexMatchesEverything)
+        [InlineData(true, EventId.PipProcessError)]
+        [InlineData(false, EventId.PipProcessWarning)]
+        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId)
         {
             const string BadContents = "Anti-Matches!";
 
@@ -1051,18 +1051,33 @@ namespace Test.BuildXL.Scheduler
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
                     File.WriteAllText(destination, BadContents);
-                    System.Diagnostics.Debugger.Launch();
-                    Process pip = CreateErrorProcess(
-                        env.Context,
-                        workingDirectoryAbsolutePath,
-                        destinationAbsolutePath,
-                        errorPattern: regexMatchesEverything ? ".*" : "ERROR",
-                        errorMessageLength: 0);
-                    var testRunChecker = new TestRunChecker();
 
-                    await testRunChecker.VerifyFailed(env, pip);
+                    if (eventId == EventId.PipProcessError)
+                    {
+                        Process pip = CreateErrorProcess(
+                            env.Context,
+                            workingDirectoryAbsolutePath,
+                            destinationAbsolutePath,
+                            errorPattern: regexMatchesEverything ? ".*" : "ERROR",
+                            errorMessageLength: 0);
+                        var testRunChecker = new TestRunChecker();
 
-                    AssertErrorEventLogged(EventId.PipProcessError);
+                        await testRunChecker.VerifyFailed(env, pip);
+                    }
+                    else
+                    {
+                        Process pip = CreateWarningProcess(
+                            env.Context, 
+                            workingDirectoryAbsolutePath, 
+                            destinationAbsolutePath,
+                            regexMatchesEverything ? ".*" : "WARNING");
+                        var testRunChecker = new TestRunChecker();
+
+                        testRunChecker.ExpectWarning();
+                        await testRunChecker.VerifySucceeded(env, pip);
+                    }
+
+                    AssertErrorEventLogged(eventId);
 
                     string log = EventListener.GetLog();
                     if (regexMatchesEverything)
@@ -3043,7 +3058,7 @@ EXIT /b 3
         /// <summary>
         /// The returned process will produce a warning.
         /// </summary>
-        private static Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output)
+        private static Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output, string warningPattern = null)
         {
             var pathTable = context.PathTable;
 
@@ -3082,7 +3097,7 @@ EXIT /b 3
                 provenance: PipProvenance.CreateDummy(context),
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
-                warningRegex: new RegexDescriptor(StringId.Create(context.StringTable, "WARNING"), RegexOptions.IgnoreCase)));
+                warningRegex: new RegexDescriptor(StringId.Create(context.StringTable, warningPattern != null ? warningPattern : "WARNING"), RegexOptions.IgnoreCase)));
         }
 
         private static string[] GenerateTestErrorMessages(int errorMessageLength)

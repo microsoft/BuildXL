@@ -76,7 +76,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private ILocalContentStore _localContentStore;
 
-        internal ClusterState ClusterState { get; } = new ClusterState();
+        internal ClusterState ClusterState { get; }
         private readonly IClock _clock;
 
         private readonly LocalLocationStoreConfiguration _configuration;
@@ -134,6 +134,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _clock = clock;
             _configuration = configuration;
             GlobalStore = globalStore;
+            ClusterState = new ClusterState(configuration);
 
             _recentlyAddedHashes = new VolatileSet<ContentHash>(clock);
             _recentlyTouchedHashes = new VolatileSet<ContentHash>(clock);

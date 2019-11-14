@@ -58,7 +58,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
 
-        private readonly BinManager _binManager = new BinManager(1 /*TODO add configs */);
+        private readonly BinManager _binManager;
+
+        /// <nodoc />
+        public ClusterState(LocalLocationStoreConfiguration configuration = null)
+        {
+            _binManager = configuration == null
+                ? null
+                : new BinManager(
+                    machinesPerBin: configuration.ProactiveCopyLocationsThreshold,
+                    entriesPerMachine: configuration.ProactiveCopyEntriesPerDesignatedLocation,
+                    amountOfBins: configuration.ProactiveCopyDesignatedLocationBins);
+        }
 
         /// <summary>
         /// Gets whether a machine is marked inactive
@@ -71,27 +82,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public void SetInactiveMachines(BitMachineIdSet inactiveMachines)
         {
-            var previouslyInactiveMachines = _inactiveMachinesSet.Except(inactiveMachines).ToArray();
-            var previouslyActiveMachines = inactiveMachines.Except(_inactiveMachinesSet).ToArray();
+            if (_binManager != null)
+            {
+                var previouslyInactiveMachines = _inactiveMachinesSet.Except(inactiveMachines).ToArray();
+                var previouslyActiveMachines = inactiveMachines.Except(_inactiveMachinesSet).ToArray();
+
+                foreach (var previouslyInactiveMachine in previouslyInactiveMachines)
+                {
+                    if (TryResolve(previouslyInactiveMachine, out var location))
+                    {
+                        _binManager.AddLocation(location);
+                    }
+                }
+
+                foreach (var previouslyActiveMachine in previouslyActiveMachines)
+                {
+                    if (TryResolve(previouslyActiveMachine, out var location))
+                    {
+                        _binManager.RemoveLocation(location);
+                    }
+                }
+            }
 
             _inactiveMachinesSet = inactiveMachines;
             InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
-
-            foreach (var previouslyInactiveMachine in previouslyInactiveMachines)
-            {
-                if (TryResolve(previouslyInactiveMachine, out var location))
-                {
-                    _binManager.AddLocation(location);
-                }
-            }
-
-            foreach (var previouslyActiveMachine in previouslyActiveMachines)
-            {
-                if (TryResolve(previouslyActiveMachine, out var location))
-                {
-                    _binManager.RemoveLocation(location);
-                }
-            }
         }
 
         /// <summary>
@@ -103,9 +117,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
 
-                if (TryResolve(machineId, out var location))
+                if (_binManager != null)
                 {
-                    _binManager.AddLocation(location);
+                    if (TryResolve(machineId, out var location))
+                    {
+                        _binManager.AddLocation(location);
+                    }
                 }
             }
         }
@@ -142,7 +159,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             _idByLocationMap[machineLocation] = machineId;
 
-            _binManager.AddLocation(machineLocation);
+            _binManager?.AddLocation(machineLocation);
         }
 
         /// <summary>

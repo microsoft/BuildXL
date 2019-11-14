@@ -168,6 +168,21 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ReconciliationMaxCycleSize { get; set; } = 100000;
 
         /// <summary>
+        /// Threshold under which proactive replication will be activated.
+        /// </summary>
+        public int ProactiveCopyLocationsThreshold { get; set; } = 7;
+
+        /// <summary>
+        /// Amount of bins to have in the location-designating process for hashes.
+        /// </summary>
+        public int ProactiveCopyDesignatedLocationBins { get; set; } = 64 * 1024;
+
+        /// <summary>
+        /// Amount of entries to post per machine in the location-designating process for hashes.
+        /// </summary>
+        public int ProactiveCopyEntriesPerDesignatedLocation { get; set; } = 10;
+
+        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>

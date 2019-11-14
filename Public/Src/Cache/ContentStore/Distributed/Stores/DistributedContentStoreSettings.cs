@@ -170,7 +170,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Maximum number of locations which should trigger a proactive copy.
         /// </summary>
-        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
+        public int ProactiveCopyLocationsThreshold { get; set; } = 7;
 
         /// <summary>
         /// Time before a proactive copy times out.

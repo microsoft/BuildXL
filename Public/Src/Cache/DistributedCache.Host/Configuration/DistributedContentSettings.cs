@@ -556,9 +556,6 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int MaxConcurrentCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
 
-        [DataMember]
-        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
-
         /// <summary>
         /// Gets or sets whether to override Unix file access modes.
         /// </summary>
@@ -567,21 +564,6 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public bool TraceFileSystemContentStoreDiagnosticMessages { get; set; } = false;
-
-        /// <summary>
-        /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
-        /// </summary>
-        [DataMember]
-        public string ProactiveCopyMode { get; set; } = "Disabled";
-
-        [DataMember]
-        public bool PushProactiveCopies { get; set; } = false;
-
-        [DataMember]
-        public bool ProactiveCopyOnPin { get; set; } = false;
-
-        [DataMember]
-        public int ProactiveCopyLocationsThreshold { get; set; } = 1;
 
         [DataMember]
         public int MaximumConcurrentPutFileOperations { get; set; } = 512;
@@ -597,6 +579,34 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
+
+        #endregion
+
+        #region Proactive Copy
+
+        [DataMember]
+        public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
+
+        /// <summary>
+        /// Valid values: Disabled, InsideRing, OutsideRing, Both (See ProactiveCopyMode enum)
+        /// </summary>
+        [DataMember]
+        public string ProactiveCopyMode { get; set; } = "Disabled";
+
+        [DataMember]
+        public bool PushProactiveCopies { get; set; } = false;
+
+        [DataMember]
+        public bool ProactiveCopyOnPin { get; set; } = false;
+
+        [DataMember]
+        public int ProactiveCopyLocationsThreshold { get; set; } = 7;
+
+        [DataMember]
+        public int ProactiveCopyDesignatedLocationBins { get; set; } = 64 * 1024;
+
+        [DataMember]
+        public int ProactiveCopyEntriesPerDesignatedLocation { get; set; } = 10;
 
         #endregion
 

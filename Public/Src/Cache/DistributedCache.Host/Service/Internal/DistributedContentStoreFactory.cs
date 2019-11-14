@@ -71,7 +71,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
                 EvictionMinAge = _distributedSettings.EvictionMinAge,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
-                MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
+                MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
+                ProactiveCopyDesignatedLocationBins = _distributedSettings.ProactiveCopyDesignatedLocationBins,
+                ProactiveCopyEntriesPerDesignatedLocation = _distributedSettings.ProactiveCopyEntriesPerDesignatedLocation,
+                ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold
             };
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));

@@ -10,7 +10,7 @@ using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
-    public class BinManager
+    internal class BinManager
     {
         private const int MaxBins = 64 * 1024;
 
@@ -22,7 +22,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IContentHasher _contentHasher = ContentHashers.Get(HashType.MD5);
 
-        public BinManager(int machinesPerBin, int entriesPerMachine = 10, int amountOfBins = MaxBins)
+        /// <nodoc />
+        public BinManager(int machinesPerBin, int entriesPerMachine, int amountOfBins)
         {
             Contract.Assert(entriesPerMachine <= byte.MaxValue);
             Contract.Assert(AmountOfBinsIsValid(amountOfBins), $"{nameof(amountOfBins)} should be in range [1, {MaxBins}] and be a power of 2.");
@@ -37,8 +38,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 ((amount & (amount - 1)) == 0); // Is power of 2.
         }
 
+        /// <nodoc />
         public void AddLocation(MachineLocation location) => ProcessLocation(location, valueToSet: location);
 
+        /// <nodoc />
         public void RemoveLocation(MachineLocation location) => ProcessLocation(location, valueToSet: default);
 
         private void ProcessLocation(MachineLocation location, MachineLocation valueToSet)
@@ -57,6 +60,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _machinesForBins = null;
         }
 
+        /// <nodoc />
         public MachineLocation[] GetLocations(ContentHash hash)
         {
             _machinesForBins ??= ComputeBins();

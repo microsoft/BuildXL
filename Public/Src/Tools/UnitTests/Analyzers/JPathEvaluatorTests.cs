@@ -19,7 +19,7 @@ namespace Test.Tool.Analyzers
         private class Val
         {
             public string S;
-            public long N;
+            public long N { get; set; }
             public Val V;
             public long[] AN;
             public Val[] AV;
@@ -168,11 +168,13 @@ namespace Test.Tool.Analyzers
         private void EvaluateAndAssertResult(Evaluator evaluator, string exprStr, string expectedResultJson)
         {
             var maybeResult = JPath.TryParse(exprStr).Then(expr => JPath.TryEval(evaluator, expr));
-            XAssert.IsTrue(maybeResult.Succeeded);
-            var result = maybeResult.Result;
+            if (!maybeResult.Succeeded)
+            {
+                XAssert.Fail(maybeResult.Failure.DescribeIncludingInnerFailures());
+            }
 
             var j1 = JArray.Parse(expectedResultJson);
-            var j2 = JArray.Parse(JsonSerialize(result.ToArray()));
+            var j2 = JArray.Parse(JsonSerialize(maybeResult.Result.ToArray()));
             XAssert.IsTrue(JToken.DeepEquals(j1, j2), "Expected: {0}, Actual: {1}", j1, j2);
         }
 

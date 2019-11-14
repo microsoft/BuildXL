@@ -98,7 +98,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
         public ObjectInfoBuilder Prop(string key, Func<object> func) => Prop(key, Lazy.Create(func));
 
         /// <nodoc />
-        public ObjectInfoBuilder Prop(string key, object value) => Prop(key, Lazy.Create(() => value));
+        public ObjectInfoBuilder Prop(string name, object value) => Prop(name, Lazy.Create(() => value));
 
         /// <nodoc />
         public ObjectInfoBuilder Filter(Predicate<Property> filter)

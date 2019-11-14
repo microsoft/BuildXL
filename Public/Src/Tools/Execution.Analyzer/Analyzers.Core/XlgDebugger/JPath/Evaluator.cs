@@ -572,12 +572,9 @@ namespace BuildXL.Execution.Analyzer.JPath
                             .ToArray();
 
                     case ObjLit objLit:
-                        var props = objLit.Props
-                            .Select((prop, idx) => new Property(
-                                name: prop.Name ?? $"Item{idx}",
-                                value: Eval(prop.Value)))
-                            .ToArray();
-                        return new ObjectInfo(properties: props);
+                        return objLit.Props
+                            .Aggregate(new ObjectInfoBuilder(), (acc, prop) => acc.Prop(prop.Name, Eval(prop.Value)))
+                            .Build();
 
                     case FuncObj funcObj:
                         return funcObj.Function;

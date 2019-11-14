@@ -145,6 +145,7 @@ namespace BuildXL.FrontEnd.Script.Debugger
                 return customResult;
             }
 
+            // TODO: use return obj swith syntax
             return Match(obj, new CaseMatcher<ObjectInfo>[]
                 {
                     Case<ScopeLocals>(scope => new ObjectInfo(LocalsScopeName, null, Lazy.Create(() => GetLocalsForStackEntry(scope.EvalState, scope.FrameIndex)))),
@@ -288,37 +289,6 @@ namespace BuildXL.FrontEnd.Script.Debugger
         }
 
         /// <summary>
-        ///     Extracts values of public properties of a given object
-        /// </summary>
-        public static IEnumerable<Property> ExtractObjectProperties([CanBeNull]object obj, [CanBeNull]Type objType, PropertyInfo[] propertiesToInclude = null)
-        {
-            propertiesToInclude = propertiesToInclude ?? GetPublicProperties(objType ?? obj?.GetType());
-            return IsInvalid(obj, propertiesToInclude)
-                ? Property.Empty
-                : propertiesToInclude
-                    .Where(p => p.GetIndexParameters().Length == 0)
-                    .Select(p => new Property(p.Name, p.GetValue(obj)));
-        }
-
-        /// <summary>
-        ///     Extracts values of public properties of a given object
-        /// </summary>
-        public static IEnumerable<Property> ExtractObjectFields(object obj, FieldInfo[] fieldsToInclude = null)
-        {
-            return ExtractObjectFields(obj, obj?.GetType(), fieldsToInclude);
-        }
-
-        /// <summary>
-        ///     Extracts values of public properties in type <paramref name="objType"/> from object <paramref name="obj"/>.
-        /// </summary>
-        public static IEnumerable<Property> ExtractObjectFields([CanBeNull]object obj, [CanBeNull]Type objType, FieldInfo[] fieldsToInclude = null)
-        {
-            fieldsToInclude = fieldsToInclude ?? GetPublicFields(objType ?? obj?.GetType());
-            return fieldsToInclude
-                .Select(f => new Property(f.Name, f.GetValue(obj)));
-        }
-
-        /// <summary>
         ///     Returns public properties of a type.
         /// </summary>
         public static PropertyInfo[] GetPublicProperties([CanBeNull]Type objType)
@@ -346,27 +316,28 @@ namespace BuildXL.FrontEnd.Script.Debugger
             var bucketSize = MaxArrayLength;
             var arrLen = arr.Count;
 
-            IEnumerable<Property> properties;
+            var builder = new ObjectInfoBuilder();
             if (arrLen <= bucketSize)
             {
-                properties = arr.Select((elem, i) => new Property($"{i + arr.Offset}", elem));
+                for (int i = 0; i < arrLen; i++)
+                {
+                    builder = builder.Prop($"{i + arr.Offset}", arr.Array[i + arr.Offset]);
+                }
             }
             else
             {
                 var bucketCount = (arrLen - 1)/bucketSize + 1;
-                properties = Enumerable
-                    .Range(0, bucketCount)
-                    .Select(bucketIdx =>
-                    {
-                        var startIdx = bucketIdx * bucketSize;
-                        var endIdx = Math.Min(arrLen - 1, (bucketIdx + 1)*bucketSize - 1);
-                        return new Property(
-                            name: $"[{startIdx}..{endIdx}]", 
-                            value: new ArraySegment<object>(arr.Array, arr.Offset + startIdx, count: endIdx - startIdx + 1));
-                    });
+                for (int bucketIdx = 0; bucketIdx < bucketCount; bucketIdx++)
+                {
+                    var startIdx = bucketIdx * bucketSize;
+                    var endIdx = Math.Min(arrLen - 1, (bucketIdx + 1)*bucketSize - 1);
+                    builder = builder.Prop(
+                        name: $"[{startIdx}..{endIdx}]", 
+                        value: new ArraySegment<object>(arr.Array, arr.Offset + startIdx, count: endIdx - startIdx + 1));
+                }
             }
 
-            return new ObjectInfo($"array[{arrLen}]", properties.ToArray());
+            return builder.Preview($"array[{arrLen}]").Build();
         }
 
         private static IDictionary<string, Property> GetLocalsForStackEntry(EvaluationState evalState, int frameIndex)

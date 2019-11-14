@@ -97,7 +97,7 @@ namespace VBCSCompilerLogger
         {
             // All inputs
             RegisterInputs(args.SourceFiles.Select(source => source.Path));
-            RegisterInputs(args.AnalyzerReferences.Select(reference => reference.FilePath));
+            RegisterInputs(args.ReferencePaths);
             RegisterInputs(args.EmbeddedFiles.Select(embedded => embedded.Path));
             RegisterInput(args.Win32ResourceFile);
             RegisterInput(args.Win32Icon);

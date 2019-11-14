@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -23,7 +22,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly IContentHasher _contentHasher = ContentHashers.Get(HashType.MD5);
 
-        public BinManager(int machinesPerBin, int entriesPerMachine = 4, int amountOfBins = MaxBins)
+        public BinManager(int machinesPerBin, int entriesPerMachine = 10, int amountOfBins = MaxBins)
         {
             Contract.Assert(entriesPerMachine <= byte.MaxValue);
             Contract.Assert(AmountOfBinsIsValid(amountOfBins), $"{nameof(amountOfBins)} should be in range [1, {MaxBins}] and be a power of 2.");

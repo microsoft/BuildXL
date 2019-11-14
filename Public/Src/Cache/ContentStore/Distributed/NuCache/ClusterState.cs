@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Collections;
@@ -57,6 +58,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// </summary>
         public IReadOnlyList<MachineId> InactiveMachines { get; private set; } = CollectionUtilities.EmptyArray<MachineId>();
 
+        private readonly BinManager _binManager = new BinManager(1 /*TODO add configs */);
+
         /// <summary>
         /// Gets whether a machine is marked inactive
         /// </summary>
@@ -68,8 +71,27 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <nodoc />
         public void SetInactiveMachines(BitMachineIdSet inactiveMachines)
         {
+            var previouslyInactiveMachines = _inactiveMachinesSet.Except(inactiveMachines).ToArray();
+            var previouslyActiveMachines = inactiveMachines.Except(_inactiveMachinesSet).ToArray();
+
             _inactiveMachinesSet = inactiveMachines;
             InactiveMachines = inactiveMachines.EnumerateMachineIds().ToArray();
+
+            foreach (var previouslyInactiveMachine in previouslyInactiveMachines)
+            {
+                if (TryResolve(previouslyInactiveMachine, out var location))
+                {
+                    _binManager.AddLocation(location);
+                }
+            }
+
+            foreach (var previouslyActiveMachine in previouslyActiveMachines)
+            {
+                if (TryResolve(previouslyActiveMachine, out var location))
+                {
+                    _binManager.RemoveLocation(location);
+                }
+            }
         }
 
         /// <summary>
@@ -80,6 +102,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             if (_inactiveMachinesSet[machineId.Index])
             {
                 SetInactiveMachines((BitMachineIdSet)_inactiveMachinesSet.Remove(machineId));
+
+                if (TryResolve(machineId, out var location))
+                {
+                    _binManager.AddLocation(location);
+                }
             }
         }
 
@@ -114,6 +141,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             _idByLocationMap[machineLocation] = machineId;
+
+            _binManager.AddLocation(machineLocation);
         }
 
         /// <summary>
@@ -162,5 +191,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return new Result<MachineLocation>("Could not select a machine location.");
             }
         }
+
+        /// <summary>
+        /// Gets the set of locations designated for a hash. This is relevant for proactive copies and eviction.
+        /// </summary>
+        public MachineLocation[] GetDesignatedLocations(ContentHash hash) => _binManager.GetLocations(hash);
     }
 }

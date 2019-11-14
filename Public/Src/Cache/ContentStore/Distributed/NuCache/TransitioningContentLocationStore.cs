@@ -258,6 +258,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
+        public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
+        {
+            if (_configuration.HasReadMode(ContentLocationMode.LocalLocationStore))
+            {
+                return _localLocationStore.ClusterState.GetDesignatedLocations(hash);
+            }
+
+            return new Result<MachineLocation[]>("Getting designated locations is not supported without LLS");
+        }
+
+        /// <inheritdoc />
         public bool IsMachineActive(MachineLocation machine)
         {
             if (_configuration.HasReadMode(ContentLocationMode.Redis))

@@ -124,6 +124,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         Result<MachineLocation> GetRandomMachineLocation(IReadOnlyList<MachineLocation> except);
 
         /// <summary>
+        /// Returns the designated locations for a particular hash.
+        /// </summary>
+        Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash);
+
+        /// <summary>
         /// Determines whether a machine is active or not.
         /// </summary>
         bool IsMachineActive(MachineLocation m);

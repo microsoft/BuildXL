@@ -1248,6 +1248,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         if ((Settings.ProactiveCopyMode & ProactiveCopyMode.OutsideRing) != 0)
                         {
                             Result<MachineLocation> getLocationResult = null;
+
+                            // Try to select machine from prediction store.
                             if (_predictionStore != null && path != null)
                             {
                                 var machines = _predictionStore.GetTargetMachines(context, path);
@@ -1258,7 +1260,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                                 }
                             }
 
-                            if (getLocationResult == null)
+                            // Try to select one of the designated machines for this hash.
+                            if (getLocationResult?.Succeeded != true)
+                            {
+                                var designatedLocationsResult = ContentLocationStore.GetDesignatedLocations(hash);
+                                if (designatedLocationsResult)
+                                {
+                                    var candidates = designatedLocationsResult.Value.Except(getLocationsResult.ContentHashesInfo[0].Locations).ToArray();
+
+                                    if (candidates.Length > 0)
+                                    {
+                                        getLocationResult = candidates[ThreadSafeRandom.Generator.Next(0, candidates.Length)];
+                                    }
+                                }
+                            }
+
+                            // Try to select one machine at random.
+                            if (getLocationResult?.Succeeded != true)
                             {
                                 getLocationResult = ContentLocationStore.GetRandomMachineLocation(except: buildRingMachines);
                             }

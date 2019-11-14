@@ -1261,6 +1261,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         }
 
         /// <inheritdoc />
+        public Result<MachineLocation[]> GetDesignatedLocations(ContentHash hash)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
         public bool IsMachineActive(MachineLocation machine) => _idsByLocation.ContainsKey(machine);
 
         /// <summary>

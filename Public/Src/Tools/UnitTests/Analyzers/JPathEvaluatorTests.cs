@@ -124,7 +124,7 @@ namespace Test.Tool.Analyzers
         public void TestEval(string exprStr, string envStr, string expectedResultJson)
         {
             var env = Convert(JsonDeserialize<Env>(envStr));
-            var evaluator = new Evaluator(env, enableCaching: false, enableParallel: false);
+            var evaluator = new Evaluator(env, enableCaching: false, ensureOrdering: true);
             EvaluateAndAssertResult(evaluator, exprStr, expectedResultJson);
         }
 
@@ -161,7 +161,7 @@ namespace Test.Tool.Analyzers
         [InlineData("(('a' ++ 'b' ++ 'a') | $uniq -c | $sort -n -r -k 'Count').($str(Count, ': ', Key))", "['2: a', '1: b']")]
         public void TestLibraryFunc(string exprStr, string expectedResultJson)
         {
-            var evaluator = new Evaluator(RootEnv, enableCaching: false, enableParallel: false);
+            var evaluator = new Evaluator(RootEnv, enableCaching: false, ensureOrdering: true);
             EvaluateAndAssertResult(evaluator, exprStr, expectedResultJson);
         }
 

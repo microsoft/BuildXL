@@ -447,14 +447,14 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         private bool EnableCaching { get; }
 
-        private bool EnableParallel { get; }
+        private bool EnsureOrdering { get; }
 
-        public Evaluator(Env rootEnv, bool enableCaching, bool enableParallel)
+        public Evaluator(Env rootEnv, bool enableCaching, bool ensureOrdering)
         {
             Contract.Requires(rootEnv != null);
             m_envStack.Push(rootEnv);
             EnableCaching = enableCaching;
-            EnableParallel = enableParallel;
+            EnsureOrdering = ensureOrdering;
         }
 
         /// <nodoc />
@@ -556,7 +556,7 @@ namespace BuildXL.Execution.Analyzer.JPath
                         return AsParallel(TopEnv.Current)
                             .Where(obj =>
                             {
-                                var eval = new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching, EnableParallel);
+                                var eval = new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching, EnsureOrdering);
                                 return ToBool(eval.Eval(filterExpr.Filter));
                             })
                             .ToArray();
@@ -566,7 +566,7 @@ namespace BuildXL.Execution.Analyzer.JPath
                         return AsParallel(lhs)
                             .SelectMany(obj =>
                             {
-                                var eval = new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching, EnableParallel);
+                                var eval = new Evaluator(TopEnv.WithCurrent(Result.Scalar(obj)), EnableCaching, EnsureOrdering);
                                 return eval.Eval(mapExpr.Sub).Value;
                             })
                             .ToArray();
@@ -632,7 +632,9 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         private IEnumerable<object> AsParallel(Result result)
         {
-            return EnableParallel ? result.AsParallel() : (IEnumerable<object>)result;
+            return EnsureOrdering
+                ? result.AsParallel().AsOrdered()
+                : result.AsParallel();
         }
 
         private Result InNewEnv(Expr newCurrent, Expr inNewEnv) => InNewEnv(Eval(newCurrent), inNewEnv);

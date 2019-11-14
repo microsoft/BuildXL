@@ -113,7 +113,7 @@ namespace BuildXL.Execution.Analyzer
             Evaluator = new Evaluator(
                 new Env(parent: RootEnv, resolver: RootEnv.Resolver, current: RootEnv.Current),
                 Analyzer.EnableEvalCaching,
-                Analyzer.EnableParallelEval);
+                Analyzer.EnsureOrdering);
         }
 
         private IEnumerable<T> Concat<T>(params IEnumerable<T>[] list)

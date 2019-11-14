@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             foreach (var indexedHash in page)
                             {
                                 var key = GetRedisKey(indexedHash.Item);
-                                redisBatch.AddOperation(key, async batch =>
+                                redisBatch.AddOperationAndTraceIfFailure(context, key, async batch =>
                                 {
                                     var redisEntry = await batch.StringGetAsync(key);
                                     ContentLocationEntry entry;
@@ -187,7 +187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     }
 
                                     return Unit.Void;
-                                }).FireAndForget(context);
+                                });
                             }
 
                             return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
@@ -272,7 +272,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 {
                                     var hash = indexedHash.value;
                                     var key = GetRedisKey(hash.Hash);
-                                    redisBatch.AddOperation(key, async batch =>
+                                    redisBatch.AddOperationAndTraceIfFailure(context, key, async batch =>
                                     {
                                         bool set = await batch.StringSetAsync(key, ContentLocationEntry.ConvertSizeAndMachineIdToRedisValue(hash.Size, machineId), _configuration.LocationEntryExpiry, When.NotExists);
                                         if (!set)
@@ -282,7 +282,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                         }
 
                                         return set;
-                                    }).FireAndForget(context);
+                                    }, operationName: "ConvertSizeAndMachineIdToRedisValue");
                                 }
 
                                 var result = await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
@@ -307,7 +307,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 foreach (var hash in page.Where((h, index) => requiresSetBit?[index] ?? true))
                                 {
                                     var key = GetRedisKey(hash.Hash);
-                                    updateRedisBatch.AddOperation(key, batch => SetLocationBitAndExpireAsync(context, batch, key, hash, machineId)).FireAndForget(context);
+                                    updateRedisBatch.AddOperationAndTraceIfFailure(
+                                        context,
+                                        key,
+                                        batch => SetLocationBitAndExpireAsync(context, batch, key, hash, machineId),
+                                        operationName: "SetLocationBitAndExpireAsync");
                                 }
 
                                 return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, context.Token);

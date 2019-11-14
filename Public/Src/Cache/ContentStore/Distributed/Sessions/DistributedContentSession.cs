@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed.Stores;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
@@ -236,14 +237,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 if (result && recorder != null)
                 {
-                    if (Settings.ShouldInlinePutBlob)
+                    if (Settings.InlinePutBlobs)
                     {
-                        var putBlobResult = await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
+                        // Failures already traced. No need to trace it here one more time.
+                        await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).IgnoreFailure();
                     }
                     else
                     {
                         // Fire and forget since this step is optional.
-                        ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).FireAndForget(context);
+                        ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes)
+                            // Tracing unhandled errors only because normal failures already traced by the operation provider.
+                            .TraceIfFailure(context, failureSeverity: Severity.Debug, traceTaskExceptionsOnly: true, operation: "PutBlobAsync");
                     }
                 }
             }
@@ -282,7 +286,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 }
                 else
                 {
-                    proactiveCopyTask.FireAndForget(context);
+                    // Tracing task-related errors because normal failures already traced by the operation provider
+                    proactiveCopyTask.TraceIfFailure(context, failureSeverity: Severity.Debug, traceTaskExceptionsOnly: true, operation: "ProactiveCopyIfNeeded");
                 }
             }
 

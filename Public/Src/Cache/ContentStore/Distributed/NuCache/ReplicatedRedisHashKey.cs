@@ -89,7 +89,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     async batch =>
                     {
                         var versionTask = batch.AddOperation(_key, b => b.HashIncrementAsync(_key, nameof(ReplicatedHashVersionNumber)));
-                        var result = await addOperations(batch, _key);
+                        var addOperationsTask = addOperations(batch, _key);
+                        await Task.WhenAll(versionTask, addOperationsTask);
+
+                        var result = addOperationsTask;
                         var version = await versionTask;
                         return (result, version);
                     },

@@ -193,6 +193,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         /// <summary>
         /// Used in tests to inline put blob execution.
         /// </summary>
-        public bool ShouldInlinePutBlob { get; set; } = false;
+        public bool InlinePutBlobs { get; set; } = false;
     }
 }

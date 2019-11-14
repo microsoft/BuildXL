@@ -434,7 +434,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                     var offsetStream = await GetStreamInternalAsync(
                                         context,
                                         contentHash,
-                                        (int?)_parallelSegmentDownloadConfig.SegmentSizeInBytes).ConfigureAwait(false);
+                                        _parallelSegmentDownloadConfig.SegmentSizeInBytes).ConfigureAwait(false);
                                     offsetStream.Position = offset;
                                     return offsetStream;
                                 },

@@ -6,7 +6,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+#if NET_CORE
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+#endif
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
 #if PLATFORM_WIN
@@ -137,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                 return CreateVssCredentialsForUserName(baseUri);
             }
 #endif // NET_CORE
-            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, _pat, PromptBehavior.Never, null)
+            return await _helper.GetCredentialsAsync(baseUri, useAad, _credentialBytes, null)
                 .ConfigureAwait(false);
         }
 #else

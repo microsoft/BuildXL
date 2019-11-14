@@ -22,7 +22,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
         {
             /// <summary>
             /// The current version of the <see cref="RocksDbStore"/>.
-            /// This should increase when something fundamental to the rocksdb settings churn (i.e. compression library, 
+            /// This should increase when something fundamental to the rocksdb settings churn (i.e. compression library,
             /// column family handling, settings that change how data is stored).
             /// </summary>
             public const int Version = 1;
@@ -57,7 +57,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
             /// <summary>
             /// For <see cref="ColumnFamilies"/> that have <see cref="ColumnFamilyInfo.UseKeyTracking"/> as true,
-            /// the suffix to add to the name of the column family to create a corresponding column family 
+            /// the suffix to add to the name of the column family to create a corresponding column family
             /// that contains the same keys but with <see cref="s_emptyValue"/>s.
             /// The key column family can be accessed through <see cref="ColumnFamilyInfo.KeyHandle"/>
             /// </summary>
@@ -118,7 +118,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// The directory containing the key-value store.
             /// </param>
             /// <param name="defaultColumnKeyTracked">
-            /// Whether the default column should be key-tracked. 
+            /// Whether the default column should be key-tracked.
             /// This will create two columns for the same data,
             /// one with just keys and the other with key and value.
             /// </param>
@@ -143,10 +143,10 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// should be dropped. This will cause data loss and can only be applied in read-write mode.
             /// </param>
             /// <param name="rotateLogs">
-            /// Have RocksDb rotate logs, useful for debugging performance issues. It will rotate logs every 12 hours, 
+            /// Have RocksDb rotate logs, useful for debugging performance issues. It will rotate logs every 12 hours,
             /// up to a maximum of 60 logs (i.e. 30 days). When the maximum amount of logs is reached, the oldest logs
             /// are overwritten in a circular fashion.
-            /// 
+            ///
             /// Every time the RocksDb instance is open, the current log file is truncated, which means that if you
             /// open the DB more than once in a 12 hour period, you will only have partial information.
             /// </param>
@@ -183,8 +183,8 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // Prepares the instance for bulk loads which does the following (see https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ for more info):
                     // 1) uses vector memtable
                     // 2) make sure options.max_background_flushes is at least 4
-                    // 3) before inserting the data, disable automatic compaction, set options.level0_file_num_compaction_trigger, 
-                    // options.level0_slowdown_writes_trigger and options.level0_stop_writes_trigger to very large. After 
+                    // 3) before inserting the data, disable automatic compaction, set options.level0_file_num_compaction_trigger,
+                    // options.level0_slowdown_writes_trigger and options.level0_stop_writes_trigger to very large. After
                     // inserting all the data, issues a manual compaction.
                     m_defaults.DbOptions.PrepareForBulkLoad();
                 }
@@ -200,9 +200,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // Writes will be made in-memory only until the write buffer size
                     // is reached and then they will be flushed to storage files.
                     .DisableWal(1)
-                    // This option is off by default, but just making sure that the C# wrapper 
+                    // This option is off by default, but just making sure that the C# wrapper
                     // doesn't change anything. The idea is that the DB won't wait for fsync to
-                    // return before acknowledging the write as successful. This affects 
+                    // return before acknowledging the write as successful. This affects
                     // correctness, because a write may be ACKd before it is actually on disk,
                     // but it is much faster.
                     .SetSync(false);
@@ -221,6 +221,11 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     .SetWholeKeyFiltering(true);
 
                 m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions()
+#if PLATFORM_OSX
+                    // BZip2 compression libraries are avialable by default on macOS, let's use those so we don't have to
+                    // statically link Snappy nor jump through loops when updating RocksDB versions
+                    .SetCompression(CompressionTypeEnum.rocksdb_bz2_compression)
+#endif
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp());
 
@@ -574,7 +579,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                 var columnFamilyHandleToUse = columnFamilyInfo.Handle;
 
                 // According to RocksDB documentation, an iterator always loads both the key
-                // and the value. To avoid this, when possible, we use the key-tracked column with just keys 
+                // and the value. To avoid this, when possible, we use the key-tracked column with just keys
                 // and empty values and use that for eviction to avoid the load cost of full content.
                 if (columnFamilyInfo.UseKeyTracking)
                 {
@@ -733,7 +738,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             {
                 if (m_snapshot == null)
                 {
-                    // The db instance was opened in bulk load mode. Issue a manual compaction on Dispose. 
+                    // The db instance was opened in bulk load mode. Issue a manual compaction on Dispose.
                     // See https://github.com/facebook/rocksdb/wiki/RocksDB-FAQ for more details
                     if (m_openBulkLoad)
                     {
@@ -781,7 +786,7 @@ namespace BuildXL.Engine.Cache.KeyValueStores
             /// <inheritdoc />
             public IEnumerable<KeyValuePair<byte[], byte[]>> PrefixSearch(byte[] prefix = null, string columnFamilyName = null)
             {
-                // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they 
+                // TODO(jubayard): there are multiple ways to implement prefix search in RocksDB. In particular, they
                 // have a prefix seek API (see: https://github.com/facebook/rocksdb/wiki/Prefix-Seek-API-Changes ).
                 // However, it requires certain options to be set on the column family, so it could be problematic. We
                 // just use a simpler way. Could change if any performance issues arise out of this decision.

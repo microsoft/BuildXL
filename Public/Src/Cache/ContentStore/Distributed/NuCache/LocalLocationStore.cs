@@ -658,12 +658,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 // Make sure to only have one thread doing proactive replication, in case last proactive replication is still happening.
                 if (_configuration.EnableProactiveReplication && Interlocked.CompareExchange(ref _replicating, 1, 0) == 0)
                 {
-                    WithOperationContext(
+                    var proactiveReplicationTask = WithOperationContext(
                         context,
                         CancellationToken.None,
-                        opContext => ProactiveReplicationAsync(opContext))
-                        .ContinueWith(_ => _replicating = 0)
-                        .FireAndForget(context);
+                        opContext => ProactiveReplicationAsync(opContext));
+
+                    if (_configuration.InlineProactiveReplication)
+                    {
+                        var result = await proactiveReplicationTask;
+                        _replicating = 0;
+                        if (!result)
+                        {
+                            return new BoolResult(result);
+                        }
+                    }
+                    else
+                    {
+                        proactiveReplicationTask.ContinueWith(_ => _replicating = 0).FireAndForget(context);
+                    }
                 }
             }
 

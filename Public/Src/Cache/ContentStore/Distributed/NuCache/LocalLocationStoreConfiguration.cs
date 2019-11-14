@@ -188,6 +188,11 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool EnableProactiveReplication { get; set; } = false;
 
         /// <summary>
+        /// Whether to inline proactive replication
+        /// </summary>
+        public bool InlineProactiveReplication { get; set; } = false;
+
+        /// <summary>
         /// The maximum amount of concurrent copies allowed because of proactive replication.
         /// </summary>
         public int ProactiveReplicationConcurrencyLimit { get; set; } = 128;

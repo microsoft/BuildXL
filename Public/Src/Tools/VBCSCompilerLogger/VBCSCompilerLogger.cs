@@ -108,8 +108,6 @@ namespace VBCSCompilerLogger
             RegisterInput(args.RuleSetPath);
             RegisterInput(args.SourceLink);
             
-            RegisterInputs(args.MetadataReferences.Select(metadata => metadata.Reference).Where(pathOrAssemblyName => FileUtilities.FileSystem.IsPathRooted(pathOrAssemblyName)));
-            
             // All outputs
             RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".read"));
             RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".write"));

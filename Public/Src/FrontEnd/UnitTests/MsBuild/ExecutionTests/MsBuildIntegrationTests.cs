@@ -238,8 +238,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         [InlineData("Program.cs", null, "Out.exe")]
         [InlineData("Program.cs", null, "Out.dll")]
         [InlineData("Program.cs", "library", null)]
-        //// This case should not finish successfully if csc was called directly, but the csc task implementation always 
-        //// makes sure the output file is specified (and picks the first source file on absence)
+        // This case should not finish successfully if csc was called directly, but the csc task implementation always 
+        // makes sure the output file is specified (and picks the first source file on absence)
         [InlineData("Program.cs", "exe", null)]
         public void ValidateSharedCompilation(string sourceFilename, [CanBeNull]string targetType, [CanBeNull] string outputAssembly)
         {

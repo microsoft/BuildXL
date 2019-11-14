@@ -1088,7 +1088,6 @@ namespace Test.BuildXL.Scheduler
                     {
                         XAssert.IsTrue(log.Contains(destination));
                     }
-
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.TruncatedOutputOnError));

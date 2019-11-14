@@ -27,6 +27,7 @@ namespace BuildXL.Execution.Analyzer
         {
             int port = XlgDebuggerPort;
             bool enableCaching = false;
+            bool enableParallelEval = true;
             foreach (var opt in AnalyzerOptions)
             {
                 if (opt.Name.Equals("port", StringComparison.OrdinalIgnoreCase) ||
@@ -36,9 +37,17 @@ namespace BuildXL.Execution.Analyzer
                 }
                 else if (
                     opt.Name.Equals("evalCache-", StringComparison.OrdinalIgnoreCase) ||
-                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase))
+                    opt.Name.Equals("evalCache+", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("evalCache", StringComparison.OrdinalIgnoreCase))
                 {
                     enableCaching = ParseBooleanOption(opt);
+                }
+                else if (
+                    opt.Name.Equals("parallel-", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("parallel+", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("parallel", StringComparison.OrdinalIgnoreCase))
+                {
+                    enableParallelEval = ParseBooleanOption(opt);
                 }
                 else
                 {
@@ -46,7 +55,7 @@ namespace BuildXL.Execution.Analyzer
                 }
             }
 
-            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching);
+            return new DebugLogsAnalyzer(GetAnalysisInput(), port, enableCaching, enableParallelEval);
         }
 
         private static void WriteDebugLogsAnalyzerHelp(HelpWriter writer)
@@ -88,11 +97,15 @@ namespace BuildXL.Execution.Analyzer
         public bool EnableEvalCaching { get; }
 
         /// <nodoc />
-        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching)
+        public bool EnableParallelEval { get; }
+
+        /// <nodoc />
+        internal DebugLogsAnalyzer(AnalysisInput input, int port, bool enableCaching, bool enableParallelEval)
             : base(input)
         {
             m_port = port;
             EnableEvalCaching = enableCaching;
+            EnableParallelEval = enableParallelEval;
             XlgState = new XlgDebuggerState(this);
             m_dirData = new MultiValueDictionary<AbsolutePath, DirectoryMembershipHashedEventData>();
             m_criticalPathAnalyzer = new CriticalPathAnalyzer(input, outputFilePath: null);

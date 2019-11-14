@@ -79,7 +79,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
         private DistributedContentCopier<T> _distributedCopier;
         private readonly Func<IContentLocationStore, DistributedContentCopier<T>> _distributedCopierFactory;
-        private Lazy<Task<Result<IReadOnlyContentSession>>> _proactiveCopySession;
+        private Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>> _proactiveCopySession;
 
         /// <nodoc />
         public DistributedContentStore(
@@ -152,7 +152,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
             }
         }
 
-        private Task<Result<IReadOnlyContentSession>> CreateCopySession(Context context)
+        private Task<Result<ReadOnlyDistributedContentSession<T>>> CreateCopySession(Context context)
         {
             var sessionId = Guid.NewGuid();
             var operationContext = OperationContext(new Context(context, sessionId));
@@ -164,7 +164,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
                     var session = sessionResult.Session;
 
                     await session.StartupAsync(context).ThrowIfFailure();
-                    return Result.Success(session);
+                    return Result.Success(session as ReadOnlyDistributedContentSession<T>);
                 });
         }
 
@@ -173,7 +173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         {
             var startupTask = base.StartupAsync(context);
 
-            _proactiveCopySession = new Lazy<Task<Result<IReadOnlyContentSession>>>(() => CreateCopySession(context));
+            _proactiveCopySession = new Lazy<Task<Result<ReadOnlyDistributedContentSession<T>>>>(() => CreateCopySession(context));
 
             if (_setPostInitializationCompletionAfterStartup)
             {
@@ -206,7 +206,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
 
             if (_contentLocationStore is TransitioningContentLocationStore tcs && tcs.IsLocalLocationStoreEnabled)
             {
-                tcs.LocalLocationStore.PreStartupInitialize(context, InnerContentStore as ILocalContentStore, _distributedCopier);
+                Func<OperationContext, ContentHash, Task<ResultBase>> proactiveCopyTaskFactory = async (operationContext, hash) =>
+                {
+                    var sessionResult = await _proactiveCopySession.Value;
+                    if (sessionResult)
+                    {
+                        return await sessionResult.Value.ProactiveCopyIfNeededAsync(operationContext, hash);
+                    }
+
+                    return new BoolResult("Failed to retrieve session for proactive copies.");
+                };
+
+                tcs.LocalLocationStore.PreStartupInitialize(context, InnerContentStore as ILocalContentStore, _distributedCopier, proactiveCopyTaskFactory);
             }
 
             // Initializing inner store before initializing LocalLocationStore because

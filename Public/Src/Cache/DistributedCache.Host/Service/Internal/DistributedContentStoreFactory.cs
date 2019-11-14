@@ -74,7 +74,10 @@ namespace BuildXL.Cache.Host.Service.Internal
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes),
                 ProactiveCopyDesignatedLocationBins = _distributedSettings.ProactiveCopyDesignatedLocationBins,
                 ProactiveCopyEntriesPerDesignatedLocation = _distributedSettings.ProactiveCopyEntriesPerDesignatedLocation,
-                ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold
+                ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
+                ProactiveReplicationConcurrencyLimit = _distributedSettings.ProactiveReplicationConcurrencyLimit,
+                ProactiveReplicationCopyLimit = _distributedSettings.ProactiveReplicationCopyLimit,
+                EnableProactiveReplication = _distributedSettings.EnableProactiveReplication,
             };
 
             ApplyIfNotNull(_distributedSettings.ReplicaCreditInMinutes, v => redisContentLocationStoreConfiguration.ContentLifetime = TimeSpan.FromMinutes(v));

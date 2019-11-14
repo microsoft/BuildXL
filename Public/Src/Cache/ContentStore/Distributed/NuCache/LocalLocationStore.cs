@@ -34,6 +34,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks.Dataflow;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -121,15 +122,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly Interfaces.FileSystem.AbsolutePath _reconcileFilePath;
 
+        private Func<OperationContext, ContentHash, Task<ResultBase>> _proactiveReplicationTaskFactory;
+        private int _replicating = 0;
+
         /// <nodoc />
         public LocalLocationStore(
             IClock clock,
             IGlobalLocationStore globalStore,
             LocalLocationStoreConfiguration configuration)
         {
-            Contract.Requires(clock != null);
-            Contract.Requires(globalStore != null);
-            Contract.Requires(configuration != null);
+            Contract.RequiresNotNull(clock);
+            Contract.RequiresNotNull(globalStore);
+            Contract.RequiresNotNull(configuration);
 
             _clock = clock;
             _configuration = configuration;
@@ -224,13 +228,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void PreStartupInitialize(Context context, ILocalContentStore localStore, IDistributedContentCopier copier)
+        public void PreStartupInitialize(Context context, ILocalContentStore localStore, IDistributedContentCopier copier, Func<OperationContext, ContentHash, Task<ResultBase>> proactiveCopyTaskFactory)
         {
             Contract.Requires(!StartupStarted, $"{nameof(PreStartupInitialize)} must be called before {nameof(StartupAsync)}");
             context.Debug($"Reconciliation enabled: {_configuration.EnableReconciliation}. Local content store provided: {localStore != null}");
             _localContentStore = localStore;
 
             _innerCentralStorage = CreateCentralStorage(_configuration.CentralStore);
+
+            _proactiveReplicationTaskFactory = proactiveCopyTaskFactory;
 
             if (_configuration.DistributedCentralStore != null)
             {
@@ -647,6 +653,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     {
                         Task.Run(() => ReconcileAsync(context), context.Token).FireAndForget(context);
                     }
+                }
+
+                // Make sure to only have one thread doing proactive replication, in case last proactive replication is still happening.
+                if (_configuration.EnableProactiveReplication && Interlocked.CompareExchange(ref _replicating, 1, 0) == 0)
+                {
+                    WithOperationContext(
+                        context,
+                        CancellationToken.None,
+                        opContext => ProactiveReplicationAsync(opContext))
+                        .ContinueWith(_ => _replicating = 0)
+                        .FireAndForget(context);
                 }
             }
 
@@ -1379,6 +1396,47 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             {
                 return _store.GlobalStore.RegisterLocalLocationAsync(context, contentInfo);
             }
+        }
+
+        private Task<BoolResult> ProactiveReplicationAsync(OperationContext context)
+        {
+            return context.PerformOperationAsync(
+                Tracer,
+                async () =>
+                {
+                    IEnumerable<ContentInfo> localContent = await _localContentStore.GetContentInfoAsync(context.Token);
+                    localContent = localContent.OrderByDescending(info => info.LastAccessTimeUtc);
+
+                    var proactiveReplicationBlock = new ActionBlock<ContentHash>(
+                        async hash => await _proactiveReplicationTaskFactory(context, hash),
+                        new ExecutionDataflowBlockOptions()
+                        {
+                            MaxDegreeOfParallelism = _configuration.ProactiveReplicationConcurrencyLimit
+                        });
+
+                    var contentCopied = 0;
+                    foreach (var content in localContent)
+                    {
+                        if (Database.TryGetEntry(context, content.ContentHash, out var entry))
+                        {
+                            if (entry.Locations.Count < _configuration.ProactiveCopyLocationsThreshold)
+                            {
+                                await proactiveReplicationBlock.SendAsync(content.ContentHash);
+
+                                contentCopied++;
+                                if (contentCopied >= _configuration.ProactiveReplicationCopyLimit)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    proactiveReplicationBlock.Complete();
+                    await proactiveReplicationBlock.Completion;
+
+                    return BoolResult.Success;
+                });
         }
 
         private class ContentLocationDatabaseAdapter : IContentLocationEventHandler

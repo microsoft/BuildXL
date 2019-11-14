@@ -183,6 +183,21 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public int ProactiveCopyEntriesPerDesignatedLocation { get; set; } = 10;
 
         /// <summary>
+        /// Whether to enable proactive replication
+        /// </summary>
+        public bool EnableProactiveReplication { get; set; } = false;
+
+        /// <summary>
+        /// The maximum amount of concurrent copies allowed because of proactive replication.
+        /// </summary>
+        public int ProactiveReplicationConcurrencyLimit { get; set; } = 128;
+
+        /// <summary>
+        /// The maximum amount of copies allowed per proactive replication invocation.
+        /// </summary>
+        public int ProactiveReplicationCopyLimit { get; set; } = 1024;
+
+        /// <summary>
         /// Gets prefix used for checkpoints key which uniquely identifies a checkpoint lineage (i.e. changing this value indicates
         /// all prior checkpoints/cluster state are discarded and a new set of checkpoints is created)
         /// </summary>

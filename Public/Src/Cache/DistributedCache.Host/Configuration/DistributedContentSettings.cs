@@ -19,7 +19,7 @@ namespace BuildXL.Cache.Host.Configuration
     {
         private const int DefaultMaxConcurrentCopyOperations = 512;
 
-        internal static readonly int[] DefaultRetryIntervalForCopiesMs = 
+        internal static readonly int[] DefaultRetryIntervalForCopiesMs =
             new int[]
             {
                 // retry the first 2 times quickly.
@@ -575,14 +575,14 @@ namespace BuildXL.Cache.Host.Configuration
         public int MaximumNumberOfMetadataEntriesToStore { get; set; } = 500_000;
 
         [DataMember]
-        public bool UseRedisMetadataStore{ get; set; } = false;
+        public bool UseRedisMetadataStore { get; set; } = false;
 
         [DataMember]
         public int TimeoutForProactiveCopiesMinutes { get; set; } = 15;
 
         #endregion
 
-        #region Proactive Copy
+        #region Proactive Copy / Replication
 
         [DataMember]
         public int MaxConcurrentProactiveCopyOperations { get; set; } = DefaultMaxConcurrentCopyOperations;
@@ -607,6 +607,15 @@ namespace BuildXL.Cache.Host.Configuration
 
         [DataMember]
         public int ProactiveCopyEntriesPerDesignatedLocation { get; set; } = 10;
+
+        [DataMember]
+        public int ProactiveReplicationConcurrencyLimit { get; set; } = 16;
+
+        [DataMember]
+        public int ProactiveReplicationCopyLimit { get; set; } = 1024;
+
+        [DataMember]
+        public bool EnableProactiveReplication { get; set; } = false;
 
         #endregion
 

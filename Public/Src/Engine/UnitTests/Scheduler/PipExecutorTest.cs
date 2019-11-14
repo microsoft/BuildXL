@@ -932,15 +932,15 @@ namespace Test.BuildXL.Scheduler
                     string workingDirectory = GetFullPath("work");
                     AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
 
-                    string stdOut = GetFullPath("out");
-                    AbsolutePath stdOutPath = AbsolutePath.Create(env.Context.PathTable, stdOut);
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
-                    File.WriteAllText(stdOut, BadContents);
+                    File.WriteAllText(destination, BadContents);
 
                     Process pip = CreateErrorProcess(
                         env.Context,
                         workingDirectoryAbsolutePath,
-                        stdOutPath,
+                        destinationAbsolutePath, 
                         errorPattern: regexMatchesSomething ? "ERROR" : "NOMATCH",
                         errorMessageLength: errorMessageLength);
                     var testRunChecker = new TestRunChecker();
@@ -980,15 +980,6 @@ namespace Test.BuildXL.Scheduler
                             "Non-truncated error message was not found in error event. Full output:" + log);
                     }
 
-                    if (outputReportingMode == OutputReportingMode.FullOutputAlways)
-                    {
-                        XAssert.IsFalse(log.Contains(stdOut));
-                    }
-                    else
-                    {
-                        XAssert.IsTrue(log.Contains(stdOut));
-                    }
-
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
@@ -1006,10 +997,10 @@ namespace Test.BuildXL.Scheduler
                     string workingDirectory = GetFullPath("work");
                     AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
 
-                    string stdout = GetFullPath("out");
-                    AbsolutePath stdOutPath = AbsolutePath.Create(env.Context.PathTable, stdout);
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
-                    File.WriteAllText(stdout, BadContents);
+                    File.WriteAllText(destination, BadContents);
 
                     var builder = new StringBuilder();
                     builder.AppendLine("@echo off");
@@ -1028,7 +1019,7 @@ namespace Test.BuildXL.Scheduler
                     Process pip = CreateErrorProcess(
                         env.Context,
                         workingDirectoryAbsolutePath,
-                        stdOutPath,
+                        destinationAbsolutePath,
                         errorPattern: "ERROR",
                         errorMessageLength: 0,
                         scriptContent: builder.ToString());
@@ -1041,6 +1032,53 @@ namespace Test.BuildXL.Scheduler
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.FullOutputOnError));
         }
+
+        [Theory]
+        [InlineData(true)]
+        //[InlineData(false)]
+        public async Task FailingProcessPrintPathsToLog(bool regexMatchesEverything)
+        {
+            const string BadContents = "Anti-Matches!";
+
+            await WithCachingExecutionEnvironment(
+                GetFullPath(".cache"),
+                async env =>
+                {
+                    string workingDirectory = GetFullPath("work");
+                    AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
+
+                    string destination = GetFullPath("dest");
+                    AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
+
+                    File.WriteAllText(destination, BadContents);
+                    System.Diagnostics.Debugger.Launch();
+                    Process pip = CreateErrorProcess(
+                        env.Context,
+                        workingDirectoryAbsolutePath,
+                        destinationAbsolutePath,
+                        errorPattern: regexMatchesEverything ? ".*" : "ERROR",
+                        errorMessageLength: 0);
+                    var testRunChecker = new TestRunChecker();
+
+                    await testRunChecker.VerifyFailed(env, pip);
+
+                    AssertErrorEventLogged(EventId.PipProcessError);
+
+                    string log = EventListener.GetLog();
+                    if (regexMatchesEverything)
+                    {
+                        XAssert.IsFalse(log.Contains(destination));
+                    }
+                    else
+                    {
+                        XAssert.IsTrue(log.Contains(destination));
+                    }
+
+                },
+                null,
+                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.TruncatedOutputOnError));
+        }
+
 
         [Trait(BuildXL.TestUtilities.Features.Feature, BuildXL.TestUtilities.Features.NonStandardOptions)]
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

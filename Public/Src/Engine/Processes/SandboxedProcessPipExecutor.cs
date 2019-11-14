@@ -3650,7 +3650,8 @@ namespace BuildXL.Processes
 
         private void FormatOutputAndPaths(string standardOut, string standardError,
             string standardOutPath, string standardErrorPath,
-            out string outputToLog, out string pathsToLog)
+            out string outputToLog, out string pathsToLog,
+            bool errorWasTruncated)
         {
             // Only display error/out if it is non-empty. This avoids adding duplicated newlines in the message.
             // Also use the emptiness as a hit for whether to show the path to the file on disk
@@ -3660,7 +3661,7 @@ namespace BuildXL.Processes
             outputToLog = (standardOutEmpty ? string.Empty : standardOut) +
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
                 (standardErrorEmpty ? string.Empty : standardError);
-            pathsToLog = m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputAlways
+            pathsToLog = !errorWasTruncated
                 ? string.Empty 
                 : (standardOutEmpty ? string.Empty : standardOutPath) + 
                 (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty) +
@@ -3719,8 +3720,11 @@ namespace BuildXL.Processes
                     standardOutput = await TryFilterLineByLineAsync(result.StandardOutput, s => true, appendNewLine: true);
                 }
 
-                if (standardError.Length != result.StandardError.Length ||
-                    standardOutput.Length != result.StandardOutput.Length)
+                // Ignore empty lines
+                var standardErrorInResult = await result.StandardError.ReadValueAsync();
+                var standardOutputInResult = await result.StandardOutput.ReadValueAsync();
+                if (standardError.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardErrorInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length ||
+                    standardOutput.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardOutputInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length)
                 {
                     errorWasTruncated = true;
                 }
@@ -3728,7 +3732,7 @@ namespace BuildXL.Processes
                 HandleErrorsFromTool(standardError);
                 HandleErrorsFromTool(standardOutput);
 
-                LogPipProcessError(result, exitedWithSuccessExitCode, standardError, standardOutput);
+                LogPipProcessError(result, exitedWithSuccessExitCode, standardError, standardOutput, errorWasTruncated);
 
                 return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
             }
@@ -3794,12 +3798,16 @@ namespace BuildXL.Processes
                             HandleErrorsFromTool(stdError);
                             HandleErrorsFromTool(stdOut);
 
-                            LogPipProcessError(result, exitedWithSuccessExitCode, stdError, stdOut);
-                        }
+                            // For the last iteration, check if error was truncated
+                            if (errorReader.Peek() == -1 && outReader.Peek() == -1)
+                            {
+                                if (stdOutTotalLength != result.StandardOutput.Length || stdErrTotalLength != result.StandardError.Length)
+                                {
+                                    errorWasTruncated = true;
+                                }
+                            }
 
-                        if (stdOutTotalLength != result.StandardOutput.Length || stdErrTotalLength != result.StandardError.Length)
-                        {
-                            errorWasTruncated = true;
+                            LogPipProcessError(result, exitedWithSuccessExitCode, stdError, stdOut, errorWasTruncated);
                         }
 
                         return true;
@@ -3808,7 +3816,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private void LogPipProcessError(SandboxedProcessResult result, bool exitedWithSuccessExitCode, string stdError, string stdOut)
+        private void LogPipProcessError(SandboxedProcessResult result, bool exitedWithSuccessExitCode, string stdError, string stdOut, bool errorWasTruncated)
         {
             string outputTolog;
             string outputPathsToLog;
@@ -3818,7 +3826,8 @@ namespace BuildXL.Processes
                 result.StandardOutput.FileName,
                 result.StandardError.FileName,
                 out outputTolog,
-                out outputPathsToLog);
+                out outputPathsToLog,
+                errorWasTruncated);
 
             Tracing.Logger.Log.PipProcessError(
                 m_loggingContext,
@@ -4002,13 +4011,21 @@ namespace BuildXL.Processes
                 return false;
             }
 
+            bool errorWasTruncated = false;           
+            if (warningsError.Length != standardError.Length ||
+                warningsOutput.Length != standardOutput.Length)
+            {
+                errorWasTruncated = true;
+            }
+
             FormatOutputAndPaths(
                 warningsOutput,
                 warningsError,
                 standardOutput.FileName,
                 standardError.FileName,
                 out string outputTolog,
-                out string outputPathsToLog);
+                out string outputPathsToLog,
+                errorWasTruncated);
 
             Tracing.Logger.Log.PipProcessWarning(
                 m_loggingContext,

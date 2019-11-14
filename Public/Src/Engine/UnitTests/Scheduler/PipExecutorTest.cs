@@ -1035,6 +1035,8 @@ namespace Test.BuildXL.Scheduler
 
         [Theory]
         [InlineData(true, EventId.PipProcessError)]
+        [InlineData(false, EventId.PipProcessError)]
+        [InlineData(true, EventId.PipProcessWarning)]
         [InlineData(false, EventId.PipProcessWarning)]
         public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId)
         {
@@ -1052,31 +1054,28 @@ namespace Test.BuildXL.Scheduler
 
                     File.WriteAllText(destination, BadContents);
 
+                    Process pip;
                     if (eventId == EventId.PipProcessError)
                     {
-                        Process pip = CreateErrorProcess(
+                        pip = CreateErrorProcess(
                             env.Context,
                             workingDirectoryAbsolutePath,
                             destinationAbsolutePath,
                             errorPattern: regexMatchesEverything ? ".*" : "ERROR",
                             errorMessageLength: 0);
-                        var testRunChecker = new TestRunChecker();
-
-                        await testRunChecker.VerifyFailed(env, pip);
                     }
                     else
                     {
-                        Process pip = CreateWarningProcess(
+                        pip = CreateWarningProcess(
                             env.Context, 
                             workingDirectoryAbsolutePath, 
                             destinationAbsolutePath,
                             regexMatchesEverything ? ".*" : "WARNING");
-                        var testRunChecker = new TestRunChecker();
-
-                        testRunChecker.ExpectWarning();
-                        await testRunChecker.VerifySucceeded(env, pip);
                     }
 
+                    var testRunChecker = new TestRunChecker();
+                    testRunChecker.ExpectWarning();
+                    await testRunChecker.VerifySucceeded(env, pip);
                     AssertErrorEventLogged(eventId);
 
                     string log = EventListener.GetLog();

@@ -238,8 +238,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         [InlineData("Program.cs", null, "Out.exe")]
         [InlineData("Program.cs", null, "Out.dll")]
         [InlineData("Program.cs", "library", null)]
-        // This case should not finish successfully if csc was called directly, but the csc task implementation always 
-        // makes sure the output file is specified (and picks the first source file on absence)
+        //// This case should not finish successfully if csc was called directly, but the csc task implementation always 
+        //// makes sure the output file is specified (and picks the first source file on absence)
         [InlineData("Program.cs", "exe", null)]
         public void ValidateSharedCompilation(string sourceFilename, [CanBeNull]string targetType, [CanBeNull] string outputAssembly)
         {
@@ -262,10 +262,10 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // Let's verify now that accesses were properly compensated. We should see the (single) source
             // file and the output + pdb as outputs
-            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion);
-            Assert.True(allInputAssertions.Any(input => input.Contains(sourceFilename)));
+            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion).Select(log => log.ToUpperInvariant());
+            Assert.True(allInputAssertions.Any(input => input.Contains(sourceFilename.ToUpperInvariant())));
 
-            var allProducedOutputs = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced);
+            var allProducedOutputs = EventListener.GetLogMessagesForEventId(EventId.PipOutputProduced).Select(log => log.ToUpperInvariant());
 
             // If the output assembly is not specified, there should be an output reported anyway, with a 
             // filename (modulo extension) equal to the source
@@ -274,11 +274,39 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 outputAssembly = Path.ChangeExtension(sourceFilename, null);
             }
 
-            Assert.True(allProducedOutputs.Any(output => output.Contains(outputAssembly)));
-            Assert.True(allProducedOutputs.Any(output => output.Contains(Path.ChangeExtension(outputAssembly, ".pdb"))));
+            Assert.True(allProducedOutputs.Any(output => output.Contains(outputAssembly.ToUpperInvariant())));
+            Assert.True(allProducedOutputs.Any(output => output.Contains(Path.ChangeExtension(outputAssembly, ".pdb").ToUpperInvariant())));
         }
 
-        private string GetCscProject(string sourceFilename, string targetType, string outputAssembly)
+        [Fact]
+        public void ValidateSharedCompilationWithRelativePaths()
+        {
+            // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
+            var thisAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+            // We just use the assembly name, but add the assembly directory to the collection of additional paths
+            var managedProject = GetCscProject("Program.cs", "exe", "Out.exe", $"References='{Path.GetFileName(thisAssemblyLocation)}' AdditionalLibPaths='{Path.GetDirectoryName(thisAssemblyLocation)}'");
+            var program = GetHellowWorldProgram();
+
+            var config = (CommandLineConfiguration)Build(
+                            msBuildRuntime: "DotNetCore",
+                            dotnetSearchLocations: $"[d`{TestDeploymentDir}/{RelativePathToDotnetExe}`]",
+                            useSharedCompilation: true)
+                .AddSpec(R("ManagedProject.csproj"), managedProject)
+                .AddFile(R("Program.cs"), program)
+                .PersistSpecsAndGetConfiguration();
+
+            config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
+            config.Sandbox.LogObservedFileAccesses = true;
+
+            var result = RunEngineWithConfig(config);
+            Assert.True(result.IsSuccess);
+
+            // Let's verify now that library reference got properly resolved
+            var allInputAssertions = EventListener.GetLogMessagesForEventId(EventId.PipInputAssertion).Select(log => log.ToUpperInvariant()); ;
+            Assert.True(allInputAssertions.Any(input => input.Contains(thisAssemblyLocation.ToUpperInvariant())));
+        }
+
+        private string GetCscProject(string sourceFilename, string targetType, string outputAssembly, string extraArgs = null)
         {
             // In order to avoid depending on MSBuild SDKs, which are hard to deploy in a self-contained way,
             // we use the real Csc task implementation, but through a custom (incomplete) Csc task that we define here
@@ -293,6 +321,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         EmitDebugInformation='true'
         Sources='{sourceFilename}'
         UseSharedCompilation='true'
+        {extraArgs ?? string.Empty}
     />
   </Target>
 </Project>";

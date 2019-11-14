@@ -28,13 +28,13 @@ namespace VBCSCompilerLogger
         private const string VbcTaskName = "Vbc";
         private const string CscToolName = "csc.exe";
         private const string VbcToolName = "vbc.exe";
-        private AugmentedManifestReporter m_augmentedReported;
+        private AugmentedManifestReporter m_augmentedReporter;
 
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
         {
             eventSource.MessageRaised += EventSourceOnMessageRaised;
-            m_augmentedReported = AugmentedManifestReporter.Instance;
+            m_augmentedReporter = AugmentedManifestReporter.Instance;
         }
 
         private void EventSourceOnMessageRaised(object sender, BuildMessageEventArgs e)
@@ -46,7 +46,7 @@ namespace VBCSCompilerLogger
                 string extractedArguments;
                 string error;
                 bool success;
-
+                
                 switch (commandLine.TaskName)
                 {
                     case CscTaskName:
@@ -96,19 +96,20 @@ namespace VBCSCompilerLogger
         private void RegisterAccesses(CommandLineArguments args)
         {
             // All inputs
+            RegisterInputs(args.AnalyzerReferences.Select(r => ResolveRelativePathIfNeeded(r.FilePath, args.BaseDirectory, args.ReferencePaths)));
+            RegisterInputs(args.MetadataReferences.Select(r => ResolveRelativePathIfNeeded(r.Reference, args.BaseDirectory, args.ReferencePaths)));
             RegisterInputs(args.SourceFiles.Select(source => source.Path));
-            RegisterInputs(args.ReferencePaths);
             RegisterInputs(args.EmbeddedFiles.Select(embedded => embedded.Path));
             RegisterInput(args.Win32ResourceFile);
             RegisterInput(args.Win32Icon);
             RegisterInput(args.Win32Manifest);
             RegisterInputs(args.AdditionalFiles.Select(additional => additional.Path));
-            RegisterInputs(args.MetadataReferences.Select(metadata => metadata.Reference).Where(pathOrAssemblyName => FileUtilities.FileSystem.IsPathRooted(pathOrAssemblyName)));
             RegisterInput(args.AppConfigPath);
             RegisterInput(args.RuleSetPath);
             RegisterInput(args.SourceLink);
-            RegisterInputs(args.AnalyzerReferences.Select(analyzerRef => analyzerRef.FilePath));
-
+            
+            RegisterInputs(args.MetadataReferences.Select(metadata => metadata.Reference).Where(pathOrAssemblyName => FileUtilities.FileSystem.IsPathRooted(pathOrAssemblyName)));
+            
             // All outputs
             RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".read"));
             RegisterOutput(args.TouchedFilesPath?.Insert(args.TouchedFilesPath.Length - 1, ".write"));
@@ -166,19 +167,19 @@ namespace VBCSCompilerLogger
 
         private void RegisterOutput(string filePath)
         {
-            RegisterAccess(filePath, m_augmentedReported.TryReportFileCreations);
+            RegisterAccess(filePath, m_augmentedReporter.TryReportFileCreations);
         }
 
         private void RegisterInput(string filePath)
         {
-            RegisterAccess(filePath, m_augmentedReported.TryReportFileReads);
+            RegisterAccess(filePath, m_augmentedReporter.TryReportFileReads);
         }
 
         private void RegisterInputs(IEnumerable<string> filePaths)
         {
             Contract.Requires(filePaths != null);
 
-            if (!m_augmentedReported.TryReportFileReads(filePaths))
+            if (!m_augmentedReporter.TryReportFileReads(filePaths))
             {
                 throw new InvalidOperationException($"Failed at reporting augmented file accesses [${string.Join(", ", filePaths)}]");
             }
@@ -195,6 +196,55 @@ namespace VBCSCompilerLogger
             {
                 throw new InvalidOperationException($"Failed at reporting an augmented file access for ${filePath}");
             }
+        }
+
+        /// <summary>
+        /// Returns an absolute path based on the given path and base and additional search directories. Null if the path cannot be resolved.
+        /// </summary>
+        /// <remarks>
+        /// This mimics the behavior of the compiler, where in case path is a relative one, tries to compose an absolute path based on the provided
+        /// directories (first the base directory, then the additional ones, in order) and returns the first absolute path such that the path exists.
+        /// Observe this will cause potential absent file probes that will be observed by detours, which is intentional.
+        /// </remarks>
+        private string ResolveRelativePathIfNeeded(string path, string baseDirectory, IEnumerable<string> additionalSearchDirectories)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+
+            // If the path is already an absolute one, just return
+            if (FileUtilities.FileSystem.IsPathRooted(path))
+            {
+                return path;
+            }
+
+            // So this should be a relative path
+            // We first try resolving against the base directory
+            var candidate = Path.Combine(baseDirectory, path);
+            if (PathExistsAsFile(candidate))
+            {
+                return candidate;
+            }
+
+            // Now try against all the additional search directories
+            foreach (string searchDirectory in additionalSearchDirectories)
+            {
+                candidate = Path.Combine(searchDirectory, path);
+                if (PathExistsAsFile(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            // The path could not be resolved
+            return null;
+        }
+
+        private bool PathExistsAsFile(string path)
+        {
+            var result = FileUtilities.FileSystem.TryProbePathExistence(path, followSymlink: false);
+            return result.Succeeded && result.Result == PathExistence.ExistsAsFile;
         }
     }
 }

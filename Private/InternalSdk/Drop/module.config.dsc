@@ -26,6 +26,18 @@ module({
 });
 
 module({
+    name: "Drop.RemotableClient", 
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [f`Drop.RemotableClient.dsc`]
+});
+
+module({
+    name: "Drop.RemotableClient.Interfaces", 
+    nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
+    projects: [f`Drop.RemotableClient.Interfaces.dsc`]
+});
+
+module({
     name: "ItemStore.Shared", 
     nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences,
     projects: [f`ItemStore.Shared.dsc`]

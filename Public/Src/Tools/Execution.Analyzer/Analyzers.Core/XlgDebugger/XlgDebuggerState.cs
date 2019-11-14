@@ -37,7 +37,7 @@ namespace BuildXL.Execution.Analyzer
 
         private Evaluator Evaluator { get; }
 
-        public static DebugLogsAnalyzer Analyzer;
+        private DebugLogsAnalyzer Analyzer { get; }
 
         private CachedGraph CachedGraph => Analyzer.CachedGraph;
 

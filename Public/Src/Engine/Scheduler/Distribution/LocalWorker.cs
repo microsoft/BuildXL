@@ -81,7 +81,8 @@ namespace BuildXL.Scheduler.Distribution
                     environment.State.GetScope(process),
                     process,
                     fingerprint,
-                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable));
+                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable),
+                    earlyReleaser: () => processRunnable.ReleaseDispatcher());
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;

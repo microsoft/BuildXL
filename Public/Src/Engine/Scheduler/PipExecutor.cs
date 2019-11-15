@@ -1136,6 +1136,7 @@ namespace BuildXL.Scheduler
         /// <param name="fingerprint">The pip fingerprint</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
         /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
+        /// <param name="earlyReleaser">...</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
             OperationContext operationContext,
@@ -1146,7 +1147,8 @@ namespace BuildXL.Scheduler
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
             Action<int> processIdListener = null,
-            ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters))
+            ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters),
+            Action earlyReleaser = null)
         {
             var context = environment.Context;
             var counters = environment.Counters;
@@ -1403,6 +1405,7 @@ namespace BuildXL.Scheduler
                                 using (var sidebandWriter = CreateSidebandWriterIfConfigured(environment, pip))
                                 {
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
+                                    earlyReleaser?.Invoke();
                                 }
 
                                 ++retryCount;
@@ -1921,7 +1924,7 @@ namespace BuildXL.Scheduler
             };
 
             var processFingerprintComputationResult = new ProcessFingerprintComputationEventData
-            {
+            { 
                 Kind = FingerprintComputationKind.CacheCheck,
                 PipId = process.PipId,
                 StrongFingerprintComputations =

@@ -280,7 +280,7 @@ namespace BuildXL.Engine
                                                 // File is not in the build, delete it.
                                                 if (TryDeleteFile(pm.LoggingContext, fullPath))
                                                 {
-                                                    Interlocked.Increment(ref filesRemoved);
+                                                    IncrementCountAndLogDeletedFile(m_loggingContext, fullPath, ref filesRemoved);
                                                 }
                                             }
                                             else
@@ -395,7 +395,7 @@ namespace BuildXL.Engine
                     {
                         if (FileUtilities.FileExistsNoFollow(path) && TryDeleteFile(m_loggingContext, path))
                         {
-                            Interlocked.Increment(ref numRemoved);
+                            IncrementCountAndLogDeletedFile(m_loggingContext, path, ref numRemoved);
                         }
                     });
                 Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Length, numRemoved, 0);
@@ -408,13 +408,22 @@ namespace BuildXL.Engine
             try
             {
                 FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
-                Tracing.Logger.Log.ScrubbingFile(loggingContext, path);
                 return true;
             }
             catch (BuildXLException ex)
             {
                 Tracing.Logger.Log.ScrubbingExternalFileOrDirectoryFailed(loggingContext, path, ex.LogEventMessage);
                 return false;
+            }
+        }
+
+        private static void IncrementCountAndLogDeletedFile(LoggingContext loggingContext, string path, ref int deletedFileCount)
+        {
+            const int MaxScrubbingLogLogCount = 10;
+
+            if (Interlocked.Increment(ref deletedFileCount) < MaxScrubbingLogLogCount)
+            {
+                Tracing.Logger.Log.ScrubbingFile(loggingContext, path);
             }
         }
     }

@@ -825,9 +825,6 @@ namespace BuildXL.Processes
 
                             process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: false);
 
-                            // release FileAccessManifest nodes to reclaim a good chunk of memory
-                            m_fileAccessManifest.ReleaseNodes();
-
                             // If the process started in a container, the setup of it is ready at this point, so we (verbose) log it
                             if (m_containerConfiguration.IsIsolationEnabled)
                             {

@@ -193,7 +193,9 @@ namespace BuildXL.Execution.Analyzer.JPath
 
         public ObjLit(IEnumerable<PropVal> props)
         {
-            Props = new List<PropVal>(props);
+            Props = props
+                .Select((p, idx) => new PropVal(p.Name ?? $"Item{idx}", p.Value))
+                .ToList();
         }
 
         public override string Print()

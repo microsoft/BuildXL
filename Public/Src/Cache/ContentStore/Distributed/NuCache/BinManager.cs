@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -68,9 +67,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             return _machinesForBins[index % _bins.Length];
         }
 
+        /// <summary>
+        ///     Computes the designated locations for each of the bins.
+        ///     The way this is done is by getting the next x machines (clockwise in a "circular array"),
+        /// avoiding repetitions.
+        ///
+        /// Steps:
+        /// 1: Calculate first bin, just enumerating until we find x different locations
+        /// 2: If first bin has less than x locations, just assign that for all bins, as there are not x distinct machines
+        /// 3: Calculate the rest of the bins starting from the end. If the bin that we're calculating has a location assigned to it,
+        ///     replace the last bin's last entry with the current one. If last bin already contains the current location, just move
+        ///     that location to the front of the bin.
+        /// </summary>
         private MachineLocation[][] ComputeBins()
         {
             var result = new MachineLocation[_bins.Length][];
+
+            // Calculate first set of bins.
             var first = new List<MachineLocation>();
             foreach (var bin in _bins)
             {
@@ -84,6 +97,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
             }
 
+            // If not enough locations, all bins will be equal.
             if (first.Count < _locationsPerBin)
             {
                 var entry = first.ToArray();
@@ -95,9 +109,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 return result;
             }
 
+            // Calculate the rest of the bins starting from the back
             result[0] = first.ToArray();
             var prev = result[0];
-
             for (var bin = _bins.Length - 1; bin > 0; bin--)
             {
                 if (!_bins[bin].Equals(default))
@@ -127,14 +141,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 return result;
             }
-        }
-
-        public override string ToString()
-        {
-            _machinesForBins ??= ComputeBins();
-
-            var bins = string.Join(", ", _bins.Select(bin => bin.Path));
-            return bins + "\n" + string.Join("\n", _machinesForBins.Select(machines => string.Join(",", machines.Select(machine => machine.Path))));
         }
     }
 }

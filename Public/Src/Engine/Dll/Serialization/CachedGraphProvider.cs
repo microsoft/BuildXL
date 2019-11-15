@@ -311,10 +311,28 @@ namespace BuildXL.Engine
             var graphFingerprint = inputTracker.GraphFingerprint;
             var observedGraphInputs = CreateObservedGraphInputs(inputTracker, buildParametersImpactingBuild, mountsImpactingBuild);
 
+            // Instead of using build parameters and mounts that impact the build, we use the available ones for computing the hashes of graph inputs
+            // while traversing the chain of fingerprint look ups for storing the pip graph cache descriptor. We use the available ones because
+            // they are the ones used when we fetch the pip graph cache descriptor in <code>TryGetPipGraphCacheDescriptorAsync</code>.
+            //
+            // Suppose that one of the graph input is an environment variable E, i.e., one of the specs, S, queries (reads/probes) E. 
+            // When we store the pip graph cache descriptor, I = { ... E ... } will be a graph input in the chain of look-ups. 
+            //
+            // Now, if we modify S such that it no longer queries E, we expect to get a graph cache miss because S's hash is different.
+            // But note that during the fetch when we compute the hash of I, we use the available value of E because at the fetch time
+            // we don't know environment variables that would impact the build. Suppose that, when we store the pip graph cache descriptor,
+            // we are using the environment variables that impact the build (yes, we have it because graph cache miss results in a spec evaluation), i.e.,
+            // we are hashing the pair (E, NULL) when we compute the hash of I. NULL here means that E is not used during the spec evaluation, and thus not impact
+            // the build.
+            //
+            // Now, if we run the second build, we will have a graph cache miss again because when we hash I during fetch, we are using the available environment variable values.
+            //
+            // The above example also shows a pathological case where we may never get a graph cache hit. Suppose that E's value is a timestamp (or directory whose name contains timestamp).
+            // E changes from one build to another. If we mistakenly include E in the first build, then it will stay in I forever. If now we stop referring to E
+            // during evaluation, E will still be used during storing and fetching the pip graph cache descriptor because I is in the chain of look-ups.
+            // The only way out is to modify the graph fingerprint, and the easiest way is to pass a graph fingerprint salt.
             var storeResult = await TryStorePipGraphCacheDescriptorAsync(
                 inputTracker,
-                buildParametersImpactingBuild,
-                mountsImpactingBuild,
                 availableBuildParameters,
                 availableMounts,
                 graphFingerprint.OverallFingerprint,
@@ -328,19 +346,15 @@ namespace BuildXL.Engine
 
         private async Task<StorePipGraphCacheDescriptorResult> TryStorePipGraphCacheDescriptorAsync(
             InputTracker inputTracker,
-            BuildParameters.IBuildParameters buildParametersImpactingBuild,
-            IReadOnlyDictionary<string, IMount> mountsImpactingBuild,
-            BuildParameters.IBuildParameters availableBuildParameters,
-            IReadOnlyDictionary<string, IMount> availableMounts,
+            BuildParameters.IBuildParameters buildParametersForHashingGraphInput,
+            IReadOnlyDictionary<string, IMount> mountsForHashingGraphInput,
             ContentFingerprint graphFingerprint,
             ObservedGraphInputs observedGraphInputs,
             PipGraphCacheDescriptor pipGraphCacheDescriptor)
         {
             Contract.Requires(inputTracker != null);
-            Contract.Requires(buildParametersImpactingBuild != null);
-            Contract.Requires(mountsImpactingBuild != null);
-            Contract.Requires(availableBuildParameters != null);
-            Contract.Requires(availableMounts != null);
+            Contract.Requires(buildParametersForHashingGraphInput != null);
+            Contract.Requires(mountsForHashingGraphInput != null);
             Contract.Requires(pipGraphCacheDescriptor != null);
 
             var singlePhaseFingerprintStore = new SinglePhaseFingerprintStoreAdapter(
@@ -354,6 +368,7 @@ namespace BuildXL.Engine
             PipGraphInputDescriptor observedGraphInputsToStore = observedGraphInputs.IsEmpty
                 ? null
                 : observedGraphInputs.ToPipGraphInputDescriptor(PathTable);
+
             var fingerprintChains = new List<ContentFingerprint>(MaxHopCount);
             int hopCount = 0;
             var sw = Stopwatch.StartNew();
@@ -454,8 +469,8 @@ namespace BuildXL.Engine
                                 {
                                     possibleFingerprint = TryHashPipGraphInputDescriptor(
                                         currentFingerprint,
-                                        availableBuildParameters,
-                                        availableMounts,
+                                        buildParametersForHashingGraphInput,
+                                        mountsForHashingGraphInput,
                                         (PipGraphInputDescriptor) descriptor.Result.Deserialize(cacheQueryData),
                                         ProviderContext.Store,
                                         hopCount,
@@ -520,8 +535,8 @@ namespace BuildXL.Engine
                                 {
                                     possibleFingerprint = TryHashPipGraphInputDescriptor(
                                         currentFingerprint,
-                                        availableBuildParameters,
-                                        availableMounts,
+                                        buildParametersForHashingGraphInput,
+                                        mountsForHashingGraphInput,
                                         conflictingGraphInputDescriptor,
                                         ProviderContext.Store,
                                         hopCount,
@@ -582,8 +597,8 @@ namespace BuildXL.Engine
                         {
                             possibleFingerprint = TryHashPipGraphInputDescriptor(
                                 currentFingerprint,
-                                availableBuildParameters,
-                                availableMounts,
+                                buildParametersForHashingGraphInput,
+                                mountsForHashingGraphInput,
                                 observedGraphInputs.ToPipGraphInputDescriptor(PathTable),
                                 ProviderContext.Store,
                                 hopCount,

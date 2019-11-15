@@ -54,7 +54,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// <remarks>
         /// Keep in sync with the deployment
         /// </remarks>
-        protected string PathToCscTaskDll => Path.Combine(TestDeploymentDir, "Compilers-win", "tools", "Microsoft.Build.Tasks.CodeAnalysis.dll").Replace("\\", "/");
+        protected string PathToCscTaskDll(bool shouldRunDotNetCoreMSBuild) => Path.Combine(TestDeploymentDir, "Compilers", shouldRunDotNetCoreMSBuild ? "dotnetcore" : "net472", "tools", "Microsoft.Build.Tasks.CodeAnalysis.dll").Replace("\\", "/");
 
         protected MsBuildPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {

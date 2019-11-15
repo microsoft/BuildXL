@@ -22,7 +22,7 @@ namespace VBCSCompilerLogger
     /// This MSBuild logger is used by the MSBuild frontend of BuildXL when scheduling pips: when process breakaway is supported, VBSCompiler.exe is allowed to escape the sandbox
     /// and outlive the originating pip. This logger is used as a way to compensate for the missing accesses and the MSBuild frontend attaches it to every MSBuild invocation.
     /// </remarks>
-    public class CompilerFileAccessLogger : Logger
+    public class VBCSCompilerLogger : Logger
     {
         private const string CscTaskName = "Csc";
         private const string VbcTaskName = "Vbc";

@@ -246,10 +246,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var managedProject = GetCscProject(sourceFilename, targetType, outputAssembly);
             var program = GetHellowWorldProgram();
 
-            var config = (CommandLineConfiguration)Build(
-                            msBuildRuntime: "DotNetCore",
-                            dotnetSearchLocations: $"[d`{TestDeploymentDir}/{RelativePathToDotnetExe}`]",
-                            useSharedCompilation: true)
+            var config = (CommandLineConfiguration)Build(useSharedCompilation: true)
                 .AddSpec(R("ManagedProject.csproj"), managedProject)
                 .AddFile(R("Program.cs"), program)
                 .PersistSpecsAndGetConfiguration();
@@ -287,10 +284,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             var managedProject = GetCscProject("Program.cs", "exe", "Out.exe", $"References='{Path.GetFileName(thisAssemblyLocation)}' AdditionalLibPaths='{Path.GetDirectoryName(thisAssemblyLocation)}'");
             var program = GetHellowWorldProgram();
 
-            var config = (CommandLineConfiguration)Build(
-                            msBuildRuntime: "DotNetCore",
-                            dotnetSearchLocations: $"[d`{TestDeploymentDir}/{RelativePathToDotnetExe}`]",
-                            useSharedCompilation: true)
+            var config = (CommandLineConfiguration)Build(useSharedCompilation: true)
                 .AddSpec(R("ManagedProject.csproj"), managedProject)
                 .AddFile(R("Program.cs"), program)
                 .PersistSpecsAndGetConfiguration();
@@ -312,7 +306,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // we use the real Csc task implementation, but through a custom (incomplete) Csc task that we define here
             return $@"<Project DefaultTargets='Build'>
     <UsingTask TaskName='Csc'
-        AssemblyFile = '{PathToCscTaskDll}'/>
+        AssemblyFile = '{PathToCscTaskDll(shouldRunDotNetCoreMSBuild: false)}'/>
 
   <Target Name='Build'>
     <Csc

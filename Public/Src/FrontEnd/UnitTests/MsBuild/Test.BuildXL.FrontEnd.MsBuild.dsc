@@ -54,8 +54,17 @@ namespace Test.MsBuild {
             },
             // We need csc.exe for integration tests
             {
-                subfolder: a`Compilers-win`,
-                contents: [importFrom("Microsoft.Net.Compilers").Contents.all]
+                subfolder: a`Compilers`,
+                contents: [
+                    {
+                        subfolder: a`net472`,
+                        contents: [importFrom("Microsoft.Net.Compilers").Contents.all]
+                    },
+                    {
+                        subfolder: a`dotnetcore`,
+                        contents: [importFrom("Microsoft.NETCore.Compilers").Contents.all]
+                    },
+                ]
             }
         ],
     });

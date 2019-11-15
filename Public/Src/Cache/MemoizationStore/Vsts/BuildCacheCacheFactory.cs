@@ -53,7 +53,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.UseDedupStore,
                 cacheConfig.OverrideUnixFileAccessMode,
                 cacheConfig.EnableEagerFingerprintIncorporation,
-                cacheConfig.EagerFingerprintIncorporationExpiry);
+                cacheConfig.InlineFingerprintIncorporationExpiry,
+                cacheConfig.EagerFingerprintIncorporationExpiry,
+                cacheConfig.EagerFingerprintIncorporationNagleInterval,
+                cacheConfig.EagerFingerprintIncorporationNagleBatchSize);
         }
     }
 }

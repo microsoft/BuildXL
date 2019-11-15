@@ -120,10 +120,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         public const int DefaultEagerFingerprintIncorporationNagleBatchSize = 100;
 
-        /// <summary>
-        /// todoc
-        /// </summary>
+        /// <nodoc />
         public static TimeSpan DefaultEagerFingerprintIncorporationExpiry = TimeSpan.FromDays(1);
+
+        /// <nodoc />
+        public static TimeSpan DefaultInlineFingerprintIncorporationExpiry = TimeSpan.FromHours(8);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BuildCacheServiceConfiguration"/> class.
@@ -285,7 +286,14 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public bool EnableEagerFingerprintIncorporation { get; set; } = DefaultEnableEagerFingerprintIncorporation;
 
         /// <summary>
-        /// Gets or sets time window during which incorporation is done eagerly.
+        /// Gets or sets time window during which incorporation is done inline.
+        /// </summary>
+        [DataMember]
+        public TimeSpan InlineFingerprintIncorporationExpiry { get; set; } = DefaultInlineFingerprintIncorporationExpiry;
+
+
+        /// <summary>
+        /// Gets or sets time window during which incorporation is done eagerly via a nagle queue.
         /// </summary>
         [DataMember]
         public TimeSpan EagerFingerprintIncorporationExpiry { get; set; } = DefaultEagerFingerprintIncorporationExpiry;

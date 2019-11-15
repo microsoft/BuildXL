@@ -48,6 +48,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private ContentHashListAdapterFactory _contentHashListAdapterFactory;
         private readonly bool _overrideUnixFileAccessMode;
         private readonly bool _enableEagerFingerprintIncorporation;
+        private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationNagleInterval;
         private readonly int _eagerFingerprintIncorporationNagleBatchSize;
@@ -78,6 +79,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="useDedupStore">If true, gets content through DedupStore. If false, gets content from BlobStore.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes.</param>
         /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
+        /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
@@ -103,6 +105,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool useDedupStore = false,
             bool overrideUnixFileAccessMode = false,
             bool enableEagerFingerprintIncorporation = false,
+            TimeSpan inlineFingerprintIncorporationExpiry = default,
             TimeSpan eagerFingerprintIncorporationExpiry = default,
             TimeSpan eagerFingerprintIncorporationNagleInterval = default,
             int eagerFingerprintIncorporationNagleBatchSize = 100)
@@ -148,6 +151,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _maxFingerprintsPerIncorporateRequest = maxFingerprintsPerIncorporateRequest;
             _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
             _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
+            _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationExpiry = eagerFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationNagleInterval = eagerFingerprintIncorporationNagleInterval;
             _eagerFingerprintIncorporationNagleBatchSize = eagerFingerprintIncorporationNagleBatchSize;
@@ -345,6 +349,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _overrideUnixFileAccessMode,
                         _tracer,
                         _enableEagerFingerprintIncorporation,
+                        _inlineFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize));
@@ -395,6 +400,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _overrideUnixFileAccessMode,
                         _tracer,
                         _enableEagerFingerprintIncorporation,
+                        _inlineFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize));

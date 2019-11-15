@@ -50,6 +50,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes when placing files.</param>
         /// <param name="tracer">A tracer for logging calls</param>
         /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
+        /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
@@ -72,6 +73,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool overrideUnixFileAccessMode,
             BuildCacheCacheTracer tracer,
             bool enableEagerFingerprintIncorporation,
+            TimeSpan inlineFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationInterval,
             int eagerFingerprintIncorporationBatchSize)
@@ -94,6 +96,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 overrideUnixFileAccessMode,
                 tracer,
                 enableEagerFingerprintIncorporation,
+                inlineFingerprintIncorporationExpiry,
                 eagerFingerprintIncorporationExpiry,
                 eagerFingerprintIncorporationInterval,
                 eagerFingerprintIncorporationBatchSize)
@@ -183,7 +186,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         {
                             SealIfNecessaryAfterUnbackedAddOrGet(context, strongFingerprint, contentHashListWithDeterminism, response);
 
-                            TrackFingerprint(context, strongFingerprint, rawExpiration);
+                            await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
                             return new AddOrGetContentHashListResult(
                                 new ContentHashListWithDeterminism(contentHashListToReturn, determinismToReturn));
                         }
@@ -201,7 +204,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     Tracer.Warning(
                         context,
                         $"Lost the AddOrUpdate race {addLimit} times against unbacked values. Returning as though the add succeeded for now.");
-                    TrackFingerprint(context, strongFingerprint, rawExpiration);
+                    await TrackFingerprintAsync(context, strongFingerprint, rawExpiration).ConfigureAwait(false);
                     return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, CacheDeterminism.None));
                 });
         }
@@ -271,7 +274,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     var strongFingerprint = await strongFingerprintTask.ConfigureAwait(false);
 
                     // The Incorporate API currently does allow passing the expiration, so we can't pass it here.
-                    TrackFingerprint(context, strongFingerprint, expirationUtc: null);
+                    await TrackFingerprintAsync(context, strongFingerprint, expirationUtc: null).ConfigureAwait(false);
                 }
 
                 return BoolResult.Success;

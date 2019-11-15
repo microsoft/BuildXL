@@ -623,16 +623,25 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <nodoc />
         protected async Task TrackFingerprintAsync(Context context, StrongFingerprint strongFingerprint, DateTime? expirationUtc)
         {
+            // Currently we have 3 ways for fingerprint incorporation:
+            // 1. Inline incorporation: If eager fingerprint incorporation enabled and
+            //                          the entry will expire in _inlineFingerprintIncorporationExpiry time.
+            // 2. Eager bulk incorporation: if eager fingerprint incorporation enabled and
+            //                          the entry will expire in _eagerFingerprintIncorporationExpiry time.
+            // 3. Session shutdown incorporation: if incorporation enabled and
+            //                          the entry will not going to expire soon.
             if (_enableEagerFingerprintIncorporation &&
                 expirationUtc != null)
             {
-                if (expirationUtc.Value.IsRecent(DateTime.UtcNow, _inlineFingerprintIncorporationExpiry))
+                var timeToExpiration = DateTime.UtcNow - expirationUtc.Value;
+
+                if (timeToExpiration < _inlineFingerprintIncorporationExpiry)
                 {
                     context.Debug($"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
 
                     await IncorporateFingerprintAsync(new OperationContext(context), strongFingerprint);
                 }
-                else if (expirationUtc.Value.IsRecent(DateTime.UtcNow, _eagerFingerprintIncorporationExpiry))
+                else if (timeToExpiration < _eagerFingerprintIncorporationExpiry)
                 {
                     Contract.Assert(_eagerFingerprintIncorporationNagleQueue != null);
 

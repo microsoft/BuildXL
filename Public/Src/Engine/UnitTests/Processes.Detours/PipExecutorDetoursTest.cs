@@ -20,7 +20,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using Microsoft.Win32.SafeHandles;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -5380,6 +5379,103 @@ namespace Test.BuildXL.Processes.Detours
                 {
                     (intermediateSymlink, RequestedAccess.Read, FileAccessStatus.Allowed),
                     (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed)
+                };
+
+                if (followChainOfSymlinks)
+                {
+                    toVerify.AddRange(toVerifyOrFalsify);
+                }
+
+                var toFalsify = new List<(AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus)>();
+                if (!followChainOfSymlinks)
+                {
+                    toFalsify.AddRange(toVerifyOrFalsify);
+                }
+
+                VerifyFileAccesses(
+                    context,
+                    result.AllReportedFileAccesses,
+                    toVerify.ToArray(),
+                    toFalsify.Select(a => a.absolutePath).ToArray());
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task CallDetouredCopyFileThatCopiesToExistingSymlink(bool followChainOfSymlinks)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var linkToSource = tempFiles.GetFileName(pathTable, "LinkToSource.link");
+                var targetFile = tempFiles.GetFileName(pathTable, "Target.txt");
+                WriteFile(pathTable, targetFile, "target content");
+
+                var linkToDestination = tempFiles.GetFileName(pathTable, "LinkToDestination.link");
+                var destination = tempFiles.GetFileName(pathTable, "Destination.txt");
+
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(linkToSource.ToString(pathTable), targetFile.ToString(pathTable), true));
+
+                var outputs = new List<FileArtifactWithAttributes>() { FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(linkToDestination), FileExistence.Required) };
+                if (followChainOfSymlinks)
+                {
+                    outputs.Add(FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(destination), FileExistence.Required));
+                }
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: followChainOfSymlinks
+                    ? "CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks"
+                    : "CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks",
+                    inputFiles:
+                        ReadOnlyArray<FileArtifact>.FromWithoutCopy(
+                            FileArtifact.CreateSourceFile(linkToSource),
+                            FileArtifact.CreateSourceFile(targetFile)),
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(outputs.ToArray()),
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+                string errorString = null;
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreRepPoints: false,
+                    ignoreNonCreateFileReparsePoints: false,
+                    monitorZwCreateOpenQueryFile: false,
+                    context: context,
+                    pip: process,
+                    errorString: out errorString);
+
+                if (!followChainOfSymlinks && IsNotEnoughPrivilegesError(result))
+                {
+                    // When followChainOfSymlinks is false, this test calls CopyFileExW with COPY_FILE_COPY_SYMLINK.
+                    // With this flag, CopyFileExW essentially creates a symlink that points to the same target
+                    // as the source of copy file. However, the symlink creation is not via CreateSymbolicLink, and
+                    // thus SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE cannot be specified.
+                    return;
+                }
+
+                VerifyNormalSuccess(context, result);
+
+                XAssert.IsTrue(File.Exists(linkToDestination.ToString(pathTable)));
+
+                var toVerify = new List<(AbsolutePath, RequestedAccess, FileAccessStatus)>
+                {
+                    (linkToSource, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (linkToDestination, RequestedAccess.Write, FileAccessStatus.Allowed)
+                };
+
+                var toVerifyOrFalsify = new List<(AbsolutePath, RequestedAccess, FileAccessStatus)>
+                {
+                    (targetFile, RequestedAccess.Read, FileAccessStatus.Allowed),
+                    (destination, RequestedAccess.Write, FileAccessStatus.Allowed)
                 };
 
                 if (followChainOfSymlinks)

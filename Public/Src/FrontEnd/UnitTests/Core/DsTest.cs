@@ -1032,7 +1032,7 @@ namespace Test.BuildXL.FrontEnd.Core
 
             workspace = BuildAndAnalyzeWorkspace(controller, engine.Configuration, frontEndEngineAbstraction, evaluationFilter, requestedQualifiersOrDefault);
 
-            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault);
+            bool initFrontEnds = controller.TryInitializeFrontEndsAndResolvers(engine.Configuration, requestedQualifiers: requestedQualifiersOrDefault).GetAwaiter().GetResult();
             if (!initFrontEnds)
             {
                 return null;

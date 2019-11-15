@@ -78,6 +78,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private long _cacheUpdatesSinceLastFlush = 0;
 
         /// <summary>
+        /// External users should be tests only
+        /// </summary>
+        internal long CacheUpdatesSinceLastFlush => _cacheUpdatesSinceLastFlush;
+
+        /// <summary>
         /// Controls cache flushing due to timeout.
         /// </summary>
         private Timer _inMemoryCacheFlushTimer;
@@ -90,7 +95,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private readonly object _flushTaskLock = new object();
 
-        private Task _flushTask = BoolResult.SuccessTask;
+        /// <summary>
+        /// Currently ongoing flush
+        ///
+        /// External users should be tests only
+        /// </summary>
+        internal Task FlushTask { get; private set; } = BoolResult.SuccessTask;
 
         /// <summary>
         /// Event callback that's triggered when the database is permanently invalidated. 
@@ -252,23 +262,35 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
             _nagleOperationTracer?.Dispose();
 
             lock (TimerChangeLock)
             {
+#pragma warning disable AsyncFixer02
                 _gcTimer?.Dispose();
+#pragma warning restore AsyncFixer02
+
                 _gcTimer = null;
             }
 
             lock (_cacheFlushTimerLock)
             {
+#pragma warning disable AsyncFixer02
                 _inMemoryCacheFlushTimer?.Dispose();
+#pragma warning restore AsyncFixer02
+
                 _inMemoryCacheFlushTimer = null;
             }
 
-            return base.ShutdownCoreAsync(context);
+            // NOTE(jubayard): there could be a flush in progress as this is done. Either way, any writes performed
+            // after the last checkpoint will be completely lost. Since no checkpoints will be created after this runs,
+            // it doesn't make any sense to flush here. However, we can't close the DB or anything like that until this
+            // flush is over.
+            await FlushTask;
+
+            return await base.ShutdownCoreAsync(context);
         }
 
         /// <nodoc />
@@ -657,7 +679,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 _inMemoryCache.Store(context, hash, entry);
 
                 var updates = Interlocked.Increment(ref _cacheUpdatesSinceLastFlush);
-                if (_configuration.CacheMaximumUpdatesPerFlush > 0 && updates >= _configuration.CacheMaximumUpdatesPerFlush && _flushTask.IsCompleted)
+                if (_configuration.CacheMaximumUpdatesPerFlush > 0 && updates >= _configuration.CacheMaximumUpdatesPerFlush && FlushTask.IsCompleted)
                 {
                     // We trigger a flush following the indicated number of operations. However, high load can cause
                     // flushes to run for too long, hence, we trigger the logic every time after we go over the
@@ -696,13 +718,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
 
             bool renewed = false;
-            if (_flushTask.IsCompleted)
+            if (FlushTask.IsCompleted)
             {
                 lock (_flushTaskLock)
                 {
-                    if (_flushTask.IsCompleted)
+                    if (FlushTask.IsCompleted)
                     {
-                        _flushTask = forceCacheFlushAsync(context, counter);
+                        FlushTask = forceCacheFlushAsync(context, counter);
                         renewed = true;
                     }
                 }
@@ -710,7 +732,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (blocking)
             {
-                _flushTask.GetAwaiter().GetResult();
+                FlushTask.GetAwaiter().GetResult();
             }
 
             return renewed && blocking;
@@ -726,11 +748,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer,
                     async () =>
                     {
-                        long flushedEntries = 0;
+                        // NOTE(jubayard): notice that the count of the dictionary is actually the number of unique
+                        // updated entries, which can be much less than the number of actual updates performed (i.e. if
+                        // the updates are performed on a single entry). We need to make sure we discount the "precise"
+                        // number of updates that are written to disk.
+                        long flushedEntries = _cacheUpdatesSinceLastFlush;
                         try
                         {
                             var flushCounters = await _inMemoryCache.FlushAsync(context);
-                            flushedEntries = flushCounters[FlushableCache.FlushableCacheCounters.Persisted].Value;
                             return Result.Success(flushCounters);
                         }
                         finally
@@ -903,11 +928,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public void LocationAdded(OperationContext context, ShortHash hash, MachineId machine, long size, bool reconciling = false)
+        public void LocationAdded(OperationContext context, ShortHash hash, MachineId machine, long size, bool reconciling = false, bool updateLastAccessTime = true)
         {
             using (Counters[ContentLocationDatabaseCounters.LocationAdded].Start())
             {
-                SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: true, size: size, lastAccessTime: Clock.UtcNow, reconciling: reconciling);
+                SetMachineExistenceAndUpdateDatabase(context, hash, machine, existsOnMachine: true, size: size, lastAccessTime: updateLastAccessTime ? Clock.UtcNow : (DateTime?)null, reconciling: reconciling);
             }
         }
 
@@ -995,5 +1020,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     return MachineIdSet.HasMachineId(reader, localIndex);
                 });
         }
+
+        /// <inheritdoc />
+        public abstract Result<long> GetContentDatabaseSizeBytes();
     }
 }

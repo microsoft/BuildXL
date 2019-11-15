@@ -131,7 +131,7 @@ namespace BuildXL.Processes
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-            
+
             m_processIdListener = info.ProcessIdListener;
             m_detouredProcess =
                 new DetouredProcess(
@@ -153,7 +153,7 @@ namespace BuildXL.Processes
                     info.ContainerConfiguration,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
-                    setJobBreakawayOk: m_fileAccessManifest.ChildProcessesToBreakawayFromSandbox?.Any() == true);
+                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway);
         }
 
         /// <inheritdoc />
@@ -344,7 +344,6 @@ namespace BuildXL.Processes
             using (m_reportReaderSemaphore.AcquireSemaphore())
             {
                 SafeFileHandle reportHandle;
-
                 try
                 {
                     Pipes.CreateInheritablePipe(

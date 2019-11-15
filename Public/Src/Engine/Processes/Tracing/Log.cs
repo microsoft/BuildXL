@@ -501,7 +501,7 @@ namespace BuildXL.Processes.Tracing
             (int)LogEventId.PipProcessCommandLineTooLong,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
             Message = EventConstants.PipPrefix + "Process command line is longer than {3} characters: {2}")]
         public abstract void PipProcessCommandLineTooLong(

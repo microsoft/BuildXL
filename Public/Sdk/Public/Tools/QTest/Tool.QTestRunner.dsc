@@ -166,8 +166,8 @@ export function runQTest(args: QTestArguments): Result {
 
     let qCodeCoverageEnumType = (codeCoverageOption === CoverageOptions.DynamicChangeList || codeCoverageOption === CoverageOptions.DynamicFull) ? dynamicCodeCovString :  CoverageOptions.None.toString();
 
-    // TODO: Make compatibility for the current users, will remvove this after update the documentation and inform users.
-    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;        
+    // Keep this for dev build. Office has a requirement to run code coverage for dev build and open the result with VS.
+    qCodeCoverageEnumType = Environment.hasVariable("[Sdk.BuildXL]qCodeCoverageEnumType") ? Environment.getStringValue("[Sdk.BuildXL]qCodeCoverageEnumType") : qCodeCoverageEnumType;
 
     let commandLineArgs: Argument[] = [
         Cmd.option("--testBinary ", args.testAssembly),
@@ -204,7 +204,9 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
         Cmd.option(
             "--vstestSettingsFile ", 
-            Artifact.input(args.vstestSettingsFile)
+            qCodeCoverageEnumType === dynamicCodeCovString && args.vstestSettingsFileForCoverage !== undefined
+                ? Artifact.input(args.vstestSettingsFileForCoverage) 
+                : Artifact.input(args.vstestSettingsFile)
         ),
         Cmd.option(
             "--qTestRawArgFile ",
@@ -394,6 +396,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestAdditionalOptions?: string;
     /** Path to runsettings file that will be passed on to vstest.console.exe. */
     vstestSettingsFile?: File;
+    /** vstestSettingsFileForCoverage instead of vstestSettingsFile will be passed on to vstest.console.exe when code coverage is enabled.*/
+    vstestSettingsFileForCoverage?: File;
     /** Optionally override to increase the weight of test pips that require more machine resources */
     weight?: number;
     /** Privilege level required by this process to execute. */

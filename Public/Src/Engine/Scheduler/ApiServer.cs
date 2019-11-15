@@ -93,7 +93,7 @@ namespace BuildXL.Scheduler
             });
         }
 
-        async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(IIpcOperation op)
+        async Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation op)
         {
             Contract.Requires(op != null);
 

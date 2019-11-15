@@ -231,5 +231,35 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
                 database.Counters[ContentLocationDatabaseCounters.NumberOfPersistedEntries].Value.Should().Be(100);
             });
         }
+
+        [Fact]
+        public Task FlushingCountsCorrectly()
+        {
+            ContentLocationDatabaseConfiguration configuration = new MemoryContentLocationDatabaseConfiguration
+            {
+                ContentCacheEnabled = true,
+                // These ensure no flushing happens unless explicitly directed
+                CacheFlushingMaximumInterval = Timeout.InfiniteTimeSpan,
+                CacheMaximumUpdatesPerFlush = 5,
+                FlushPreservePercentInMemory = 0.5,
+            };
+
+            return RunCustomTest(configuration, async (context, database) =>
+            {
+                // If the counting is done correctly, then writing 5 times to the same entry should trigger a single flush
+                var shortHash = new ShortHash(ContentHash.Random());
+                foreach (var i in Enumerable.Range(1, 4))
+                {
+                    database.LocationAdded(context, shortHash, MachineId.FromIndex(i), 200);
+                }
+
+                database.CacheUpdatesSinceLastFlush.Should().Be(4);
+                database.LocationAdded(context, shortHash, new MachineId(5), 200);
+                await database.FlushTask;
+
+                database.Counters[ContentLocationDatabaseCounters.TotalNumberOfCacheFlushes].Value.Should().Be(1);
+                database.CacheUpdatesSinceLastFlush.Should().Be(0);
+            });
+        }
     }
 }

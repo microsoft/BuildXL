@@ -118,13 +118,13 @@ Variable name is first looked up in the current environment; if not found, the l
 
 **Semantics**
 
-`lhs` is evaluated first.  Then, for every value in the result, a child environment is created against which `rhs` is then evaluated.  Finally, those results are aggregated into a single vector (similar to how `SelectMany` works in C#) and returned.
+`lhs` is evaluated first.  Then, for every value in the result, a child environment is created against which `rhs` is then evaluated.  Finally, those results are aggregated into a single vector (similar to how `SelectMany` works in C#) and returned.  Note that ordering is preserved only when the `/ordered` switch is enabled (default).
 
 ```javascript
-[[ a.b ]]{Current: {a: [{b: 1}, {b: [2, 3]}, {c: 4}]}} = [1, 2, 3]
 [[ a.b ]]{Current: {c: 1}                              = []
 [[ a.b ]]{Current: {a: 1}                              = []
 [[ a.b ]]{Current: {a: [1, {b: 1}, 2]}                 = [1]
+[[ a.b ]]{Current: {a: [{b: 1}, {b: [2, 3]}, {c: 4}]}} = [1, 2, 3] // or any permutation thereof when /ordered- is used
 ```
 
 ## Filter Expression
@@ -135,17 +135,18 @@ Variable name is first looked up in the current environment; if not found, the l
 
 **Semantics**
 
-`lhs` is evaluated first.  Then, if `filter` is an integer literal, the element at position `filter` in the `lhs` result is returned; otherwise, for every value in the `lhs` result, a child environment is created against which `filter` is evaluated; the final result contains only those values for which `filter` returns true.
+`lhs` is evaluated first.  Then, if `filter` is an integer literal, the element at position `filter` in the `lhs` result is returned; otherwise, for every value in the `lhs` result, a child environment is created against which `filter` is evaluated; the final result contains only those values for which `filter` returns true (ordering is preserved only when the `/ordered` switch is enabled (default)).
 
 ```javascript
 [[ a[0] ]]{Current: {a: [1, 2, 3]}}  = [1]
 [[ a[2] ]]{Current: {a: [1, 2, 3]}}  = [2]
+
 [[ a[3] ]]{Current: {a: [1, 2, 3]}}  = []
 [[ a[-1] ]]{Current: {a: [1, 2, 3]}} = [3]
 [[ a[-3] ]]{Current: {a: [1, 2, 3]}} = [1]
 [[ a[-4] ]]{Current: {a: [1, 2, 3]}} = []
 
-[[ a[b > 1] ]]{Current: {a: [{b: 1}, {b: 2}, {c: 4}]}} = [{b: 2}]
+[[ a[b > 1] ]]{Current: {a: [{b: 1}, {b: 2}, {b: 3, c: 4}]}} = [{b: 2}, {b: 3, c: 4}] // or any permutation thereof when /ordered- is used
 [[ a[b > 1] ]]{Current: {a: 1}}                        = []
 [[ a[b > 1] ]]{Current: {c: 1}}                        = []
 [[ a[b > 1] ]]{Current: {a: {b: [2, 3]}}}              = []

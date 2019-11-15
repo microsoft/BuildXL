@@ -50,7 +50,7 @@ namespace Test.BuildXL.Scheduler
                     default(IOCounters),
                     TimeSpan.FromMinutes(3),
                     TimeSpan.FromMinutes(3),
-                    new ProcessMemoryCounters(12324, 12325, 12326),
+                    ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326),
                     33,
                     7),
                 fingerprint: new WeakContentFingerprint(fingerprint), 
@@ -65,6 +65,11 @@ namespace Test.BuildXL.Scheduler
                 whitelistedFileAccessViolations: new ReportedFileAccess[0],
                 mustBeConsideredPerpetuallyDirty: true,
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
+                    CreateSourceFile().Path
+                ),
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(
+                    CreateSourceFile().Path,
                     CreateSourceFile().Path,
                     CreateSourceFile().Path
                 ),
@@ -126,15 +131,16 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesWhitelistedButNotCacheable,
                 r => r.PerformanceInformation.UserTime,
                 r => r.PerformanceInformation.KernelTime,
-                r => r.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsage,
-                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSet,
-                r => r.PerformanceInformation.MemoryCounters.PeakPagefileUsage,
+                r => r.PerformanceInformation.MemoryCounters.PeakVirtualMemoryUsageMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakWorkingSetMb,
+                r => r.PerformanceInformation.MemoryCounters.PeakCommitUsageMb,
 
                 r => r.PerformanceInformation.NumberOfProcesses,
 
                 r => r.FileAccessViolationsNotWhitelisted.Count,
                 r => r.MustBeConsideredPerpetuallyDirty,
                 r => r.DynamicallyObservedFiles.Length,
+                r => r.DynamicallyProbedFiles.Length,
                 r => r.DynamicallyObservedEnumerations.Length,
                 r => r.AllowedUndeclaredReads.Count,
 
@@ -188,6 +194,11 @@ namespace Test.BuildXL.Scheduler
             for (int i = 0; i < processExecutionResult.DynamicallyObservedFiles.Length; i++)
             {
                 AssertEqual(processExecutionResult.DynamicallyObservedFiles[i], deserializedProcessExecutionResult.DynamicallyObservedFiles[i]);
+            }
+
+            for (int i = 0; i < processExecutionResult.DynamicallyProbedFiles.Length; i++)
+            {
+                AssertEqual(processExecutionResult.DynamicallyProbedFiles[i], deserializedProcessExecutionResult.DynamicallyProbedFiles[i]);
             }
 
             for (int i = 0; i < processExecutionResult.DynamicallyObservedEnumerations.Length; i++)

@@ -6,6 +6,7 @@ extern alias Async;
 using System;
 using System.Diagnostics.ContractsLight;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -27,7 +28,7 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
     /// <summary>
     ///     A reference implementation of <see cref="ICache"/> that represents a single level of content and metadata.
     /// </summary>
-    public class OneLevelCache : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler
+    public class OneLevelCache : ICache, IContentStore, IStreamStore, IRepairStore, ICopyRequestHandler, IPushFileHandler
     {
         private readonly CacheTracer _tracer = new CacheTracer(nameof(OneLevelCache));
 
@@ -390,6 +391,28 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         public void PostInitializationCompleted(Context context, BoolResult result)
         {
             ContentStore.PostInitializationCompleted(context, result);
+        }
+
+        /// <inheritdoc />
+        public Task<PutResult> HandlePushFileAsync(Context context, ContentHash hash, AbsolutePath sourcePath, CancellationToken token)
+        {
+            if (ContentStore is IPushFileHandler handler)
+            {
+                return handler.HandlePushFileAsync(context, hash, sourcePath, token);
+            }
+
+            return Task.FromResult(new PutResult(new InvalidOperationException($"{nameof(ContentStore)} does not implement {nameof(IPushFileHandler)}"), hash));
+        }
+
+        /// <inheritdoc />
+        public bool HasContentLocally(Context context, ContentHash hash)
+        {
+            if (ContentStore is IPushFileHandler handler)
+            {
+                return handler.HasContentLocally(context, hash);
+            }
+
+            return false;
         }
     }
 }

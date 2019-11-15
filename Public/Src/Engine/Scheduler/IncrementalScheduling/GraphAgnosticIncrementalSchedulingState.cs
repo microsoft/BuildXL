@@ -107,9 +107,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private ConcurrentBigMap<AbsolutePath, PipGraphSequenceNumber> m_cleanSourceFiles;
 
         /// <summary>
-        /// Mappings from paths to the <see cref="PipStableId"/>'s of pips that dynamically observed them.
+        /// Mappings from paths to the <see cref="PipStableId"/>'s of pips that dynamically read them.
         /// </summary>
         private readonly IncrementalSchedulingPathMapping<PipStableId> m_dynamicallyObservedFiles;
+
+        /// <summary>
+        /// Mappings from paths to the <see cref="PipStableId"/>'s of pips that dynamically probed them.
+        /// </summary>
+        private readonly IncrementalSchedulingPathMapping<PipStableId> m_dynamicallyProbedFiles;
 
         /// <summary>
         /// Mappings from paths to the <see cref="PipStableId"/>'s of pips that dynamically enumerate them.
@@ -117,7 +122,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly IncrementalSchedulingPathMapping<PipStableId> m_dynamicallyObservedEnumerations;
 
         /// <summary>
-        /// Internal path table that is used by <see cref="m_dynamicallyObservedFiles"/>, <see cref="m_dynamicallyObservedEnumerations"/>, and <see cref="m_cleanSourceFiles"/>.
+        /// Internal path table that is used by <see cref="m_dynamicallyObservedFiles"/>, <see cref="m_dynamicallyProbedFiles"/>, <see cref="m_dynamicallyObservedEnumerations"/>, and <see cref="m_cleanSourceFiles"/>.
         /// </summary>
         private readonly PathTable m_internalPathTable;
 
@@ -269,6 +274,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ConcurrentBigSet<PipStableId> materializedPips,
             ConcurrentBigMap<AbsolutePath, PipGraphSequenceNumber> cleanSourceFiles,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedFiles,
+            IncrementalSchedulingPathMapping<PipStableId> dynamicallyProbedFiles,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedEnumerations,
             PipOrigins pipOrigins,
             List<(Guid, DateTime)> graphLogs,
@@ -290,6 +296,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             Contract.Requires(materializedPips != null);
             Contract.Requires(cleanSourceFiles != null);
             Contract.Requires(dynamicallyObservedFiles != null);
+            Contract.Requires(dynamicallyProbedFiles != null);
             Contract.Requires(dynamicallyObservedEnumerations != null);
             Contract.Requires(pipOrigins != null);
             Contract.Requires(graphLogs != null);
@@ -307,6 +314,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             m_materializedPips = materializedPips;
             m_cleanSourceFiles = cleanSourceFiles;
             m_dynamicallyObservedFiles = dynamicallyObservedFiles;
+            m_dynamicallyProbedFiles = dynamicallyProbedFiles;
             m_dynamicallyObservedEnumerations = dynamicallyObservedEnumerations;
             m_pipOrigins = pipOrigins;
             m_graphLogs = graphLogs;
@@ -358,6 +366,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 new ConcurrentBigMap<PipStableId, PipGraphSequenceNumber>(),
                 new ConcurrentBigSet<PipStableId>(),
                 cleanSourceFiles,
+                new IncrementalSchedulingPathMapping<PipStableId>(),
                 new IncrementalSchedulingPathMapping<PipStableId>(),
                 new IncrementalSchedulingPathMapping<PipStableId>(),
                 pipOrigins,
@@ -649,13 +658,43 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             }
 
             // Determine the set to use based on the change (Enumeration or Files)
-            var observationType = (changeReasons & PathChanges.MembershipChanged) != 0 
-                ? DynamicObservationType.Enumeration 
-                : DynamicObservationType.ObservedFile;
-            var dynamicObservationsToInvalidate = observationType == DynamicObservationType.Enumeration 
-                ? m_dynamicallyObservedEnumerations 
-                : m_dynamicallyObservedFiles;
+            if ((changeReasons & PathChanges.MembershipChanged) != 0)
+            {
+                ProcessDynamicallyObservedChangedPath(
+                    changedPathStr, 
+                    changeReasons, 
+                    path, 
+                    DynamicObservationType.Enumeration, 
+                    m_dynamicallyObservedEnumerations);
+            }
+            else
+            {
+                if ((changeReasons & PathChanges.Removed) != 0)
+                {
+                    ProcessDynamicallyObservedChangedPath(
+                        changedPathStr, 
+                        changeReasons, 
+                        path, 
+                        DynamicObservationType.ProbedFile, 
+                        m_dynamicallyProbedFiles);
+                }
 
+                ProcessDynamicallyObservedChangedPath(
+                    changedPathStr, 
+                    changeReasons, 
+                    path, 
+                    DynamicObservationType.ObservedFile, 
+                    m_dynamicallyObservedFiles);
+            }
+        }
+
+        private void ProcessDynamicallyObservedChangedPath(
+            string changedPathStr, 
+            PathChanges changeReasons, 
+            AbsolutePath path, 
+            DynamicObservationType observationType, 
+            IncrementalSchedulingPathMapping<PipStableId> dynamicObservationsToInvalidate)
+        {
             if (dynamicObservationsToInvalidate.TryGetValues(path, out IEnumerable<PipStableId> pipStableIds))
             {
                 m_tempNodeIds.Clear();
@@ -675,19 +714,25 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     long usedChangeTypeCount = 0;
                     ChangedPathKind pathChangeKind = ChangedPathKind.DynamicallyObservedPath;
 
-                    if (observationType == DynamicObservationType.Enumeration)
+                    switch (observationType)
                     {
-                        usedChangeTypeCount = ++m_stats.ChangedDynamicallyObservedEnumerationMembershipsCount;
-                        m_stats.Samples.AddChangedDynamicallyObservedArtifact(changedPathStr, changeReasons, observationType);
-                        pathChangeKind = ChangedPathKind.DynamicallyObservedPathEnumeration;
+                        case DynamicObservationType.Enumeration:
+                            usedChangeTypeCount = ++m_stats.ChangedDynamicallyObservedEnumerationMembershipsCount;
+                            pathChangeKind = ChangedPathKind.DynamicallyObservedPathEnumeration;
+                            break;
+
+                        case DynamicObservationType.ObservedFile:
+                            usedChangeTypeCount = ++m_stats.ChangedDynamicallyObservedFilesCount;
+                            pathChangeKind = ChangedPathKind.DynamicallyObservedPath;
+                            break;
+
+                        case DynamicObservationType.ProbedFile:
+                            usedChangeTypeCount = ++m_stats.ChangedDynamicallyProbedFilesCount;
+                            pathChangeKind = ChangedPathKind.DynamicallyProbedPath;
+                            break;
                     }
 
-                    if (observationType == DynamicObservationType.ObservedFile)
-                    {
-                        usedChangeTypeCount = ++m_stats.ChangedDynamicallyObservedFilesCount;
-                        m_stats.Samples.AddChangedDynamicallyObservedArtifact(changedPathStr, changeReasons, observationType);
-                        pathChangeKind = ChangedPathKind.DynamicallyObservedPath;
-                    }
+                    m_stats.Samples.AddChangedDynamicallyObservedArtifact(changedPathStr, changeReasons, observationType);
 
                     foreach (var node in m_tempNodeIds)
                     {
@@ -775,7 +820,10 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                                 reason = I($"File/Directory '{changedPath}' changed");
                                 break;
                             case ChangedPathKind.DynamicallyObservedPath:
-                                reason = I($"Dynamically observed file (or possibly path probe) '{changedPath}' changed");
+                                reason = I($"Dynamically observed read file '{changedPath}' changed");
+                                break;
+                            case ChangedPathKind.DynamicallyProbedPath:
+                                reason = I($"Dynamically observed probed file '{changedPath}' changed");
                                 break;
                             case ChangedPathKind.DynamicallyObservedPathEnumeration:
                                 reason = I($"Dynamically observed directory '{changedPath}' had membership change");
@@ -812,6 +860,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public void RecordDynamicObservations(
             NodeId nodeId,
             IEnumerable<string> dynamicallyObservedFilePaths,
+            IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
             IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> dynamicDirectoryContents)
         {
@@ -825,12 +874,19 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 (PipGraph.PipTable.GetPipSemiStableHash(nodeId.ToPipId()), m_indexToGraphLogs));
 
             m_dynamicallyObservedFiles.ClearValue(pipStableId);
+            m_dynamicallyProbedFiles.ClearValue(pipStableId);
             m_dynamicallyObservedEnumerations.ClearValue(pipStableId);
 
             foreach (var dynamicallyObservedFilePath in dynamicallyObservedFilePaths)
             {
                 var dynamicallyObservedFile = AbsolutePath.Create(m_internalPathTable, dynamicallyObservedFilePath);
                 m_dynamicallyObservedFiles.AddEntry(pipStableId, dynamicallyObservedFile);
+            }
+
+            foreach (var dynamicallyProbedFilePath in dynamicallyProbedFilePaths)
+            {
+                var dynamicallyProbedFile = AbsolutePath.Create(m_internalPathTable, dynamicallyProbedFilePath);
+                m_dynamicallyProbedFiles.AddEntry(pipStableId, dynamicallyProbedFile);
             }
 
             foreach (var dynamicallyObservedEnumerationPath in dynamicallyObservedEnumerationPaths)
@@ -1040,14 +1096,17 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                             m_dirtiedPips.PipsGetDirtiedDueToDynamicObservationAfterScan,
                             o =>
                             {
-                                if (o.Item2 == DynamicObservationType.ObservedFile)
+                                switch (o.Item2)
                                 {
-                                    m_dynamicallyObservedFiles.ClearValue(o.Item1);
-                                }
-
-                                if (o.Item2 == DynamicObservationType.Enumeration)
-                                {
-                                    m_dynamicallyObservedEnumerations.ClearValue(o.Item1);
+                                    case DynamicObservationType.ObservedFile:
+                                        m_dynamicallyObservedFiles.ClearValue(o.Item1);
+                                        break;
+                                    case DynamicObservationType.ProbedFile:
+                                        m_dynamicallyProbedFiles.ClearValue(o.Item1);
+                                        break;
+                                    case DynamicObservationType.Enumeration:
+                                        m_dynamicallyObservedEnumerations.ClearValue(o.Item1);
+                                        break;
                                 }
 
                                 DirtyGraphAgnosticPip(o.Item1);
@@ -1057,6 +1116,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     Tracing.Logger.Log.IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan(
                         m_loggingContext,
                         m_dirtiedPips.PipsGetDirtiedDueToDynamicObservationAfterScan.Count(e => e.Item2 == DynamicObservationType.ObservedFile),
+                        m_dirtiedPips.PipsGetDirtiedDueToDynamicObservationAfterScan.Count(e => e.Item2 == DynamicObservationType.ProbedFile),
                         m_dirtiedPips.PipsGetDirtiedDueToDynamicObservationAfterScan.Count(e => e.Item2 == DynamicObservationType.Enumeration),
                         (long)dirtyingPipsDueToDynamicObservationStopwatch.TotalElapsed.TotalMilliseconds);
                 }
@@ -1256,6 +1316,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                             m_materializedPips.Serialize(writer, v => writer.Write(v));
                             m_cleanSourceFiles.Serialize(writer, kvp => { writer.Write(kvp.Key); kvp.Value.Serialize(writer); });
                             m_dynamicallyObservedFiles.Serialize(writer, (w, id) => w.Write(id));
+                            m_dynamicallyProbedFiles.Serialize(writer, (w, id) => w.Write(id));
                             m_dynamicallyObservedEnumerations.Serialize(writer, (w, id) => w.Write(id));
                             m_pipOrigins.Serialize(writer);
                             writer.WriteReadOnlyList(m_graphLogs, (w, l) => { w.Write(l.Item1); w.Write(l.Item2); });
@@ -1348,6 +1409,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 m_materializedPips,
                 m_cleanSourceFiles,
                 m_dynamicallyObservedFiles,
+                m_dynamicallyProbedFiles,
                 m_dynamicallyObservedEnumerations,
                 m_pipOrigins,
                 m_graphLogs,
@@ -1391,6 +1453,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ConcurrentBigSet<PipStableId> materializedPips = default;
             ConcurrentBigMap<AbsolutePath, PipGraphSequenceNumber> cleanSourceFiles = default;
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedFiles = default;
+            IncrementalSchedulingPathMapping<PipStableId> dynamicallyProbedFiles = default;
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedEnumerations = default;
             PipOrigins pipOrigins = default;
             List<(Guid, DateTime)> graphLogs = default;
@@ -1428,6 +1491,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                             reader,
                             () => new KeyValuePair<AbsolutePath, PipGraphSequenceNumber>(reader.ReadAbsolutePath(), PipGraphSequenceNumber.Deserialize(reader)));
                         dynamicallyObservedFiles = IncrementalSchedulingPathMapping<PipStableId>.Deserialize(reader, r => r.ReadPipStableId());
+                        dynamicallyProbedFiles = IncrementalSchedulingPathMapping<PipStableId>.Deserialize(reader, r => r.ReadPipStableId());
                         dynamicallyObservedEnumerations = IncrementalSchedulingPathMapping<PipStableId>.Deserialize(reader, r => r.ReadPipStableId());
                         pipOrigins = PipOrigins.Deserialize(reader);
                         graphLogs = new List<(Guid, DateTime)>(reader.ReadReadOnlyList(r => (r.ReadGuid(), r.ReadDateTime())));
@@ -1521,6 +1585,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         cleanSourceFiles,
                         pipOrigins,
                         dynamicallyObservedFiles,
+                        dynamicallyProbedFiles,
                         dynamicallyObservedEnumerations,
                         dirtiedPips,
                         graphLogs,
@@ -1547,6 +1612,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 materializedPips,
                 cleanSourceFiles,
                 dynamicallyObservedFiles,
+                dynamicallyProbedFiles,
                 dynamicallyObservedEnumerations,
                 pipOrigins,
                 graphLogs,
@@ -1617,6 +1683,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ConcurrentBigMap<AbsolutePath, PipGraphSequenceNumber> cleanSourceFiles,
             PipOrigins pipOrigins,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedFiles,
+            IncrementalSchedulingPathMapping<PipStableId> dynamicallyProbedFiles,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedEnumerations,
             int indexToGraphLogs,
             ConcurrentDictionary<PipStableId, PipId> dirtiedPipProducers)
@@ -1641,6 +1708,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         pipOrigins,
                         pipProducers,
                         dynamicallyObservedFiles,
+                        dynamicallyProbedFiles,
                         dynamicallyObservedEnumerations);
 
                     dirtiedPipProducers.TryAdd(existingProducerStableId, currentProducer);
@@ -1683,6 +1751,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             ConcurrentBigMap<AbsolutePath, PipGraphSequenceNumber> cleanSourceFiles,
             PipOrigins pipOrigins,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedFiles,
+            IncrementalSchedulingPathMapping<PipStableId> dynamicallyProbedFiles,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedEnumerations,
             DirtiedPips dirtiedPips,
             List<(Guid, DateTime)> graphLogs,
@@ -1759,6 +1828,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                            cleanSourceFiles, 
                            pipOrigins,
                            dynamicallyObservedFiles,
+                           dynamicallyProbedFiles,
                            dynamicallyObservedEnumerations,
                            savedIndexToGraphLogs, 
                            dirtiedPipProducers);
@@ -1793,6 +1863,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                                pipOrigins,
                                pipProducers,
                                dynamicallyObservedFiles,
+                               dynamicallyProbedFiles,
                                dynamicallyObservedEnumerations);
 
                            dirtiedPipProducers.TryAdd(existingPipStableId, fileAndProducingPip.Value);
@@ -1832,6 +1903,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         cleanSourceFiles,
                         pipOrigins,
                         dynamicallyObservedFiles,
+                        dynamicallyProbedFiles,
                         dynamicallyObservedEnumerations,
                         savedIndexToGraphLogs,
                         dirtiedPipProducers);
@@ -1947,6 +2019,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         pipOrigins,
                         pipProducers,
                         dynamicallyObservedFiles,
+                        dynamicallyProbedFiles,
                         dynamicallyObservedEnumerations));
 
             counters.AddToCounter(GraphChangeCounter.DirtyGraphAgnosticStateDuration, stepStopwatch.ElapsedMilliseconds);
@@ -2187,7 +2260,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 {
                     WriteTextEntryWithHeader(
                         w,
-                        "Dynamically observed files",
+                        "Dynamically observed read files",
                         w1 => m_dynamicallyObservedFiles.WriteText(
                             w1, 
                             m_internalPathTable, 
@@ -2204,6 +2277,27 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                                 return pipDescription + "(" + GetPipIdText(m_pipOrigins, pipStableId) + ")";
                             }, 
                             "Paths to pip fingerprints", 
+                            "Pip fingerprints to paths"));
+
+                    WriteTextEntryWithHeader(
+                        w,
+                        "Dynamically observed probed files",
+                        w1 => m_dynamicallyProbedFiles.WriteText(
+                            w1,
+                            m_internalPathTable,
+                            pipStableId =>
+                            {
+                                string pipDescription = string.Empty;
+
+                                if (TryGetGraphPipId(pipStableId, out PipId pipId))
+                                {
+                                    Pip pip = PipGraph.GetPipFromPipId(pipId);
+                                    pipDescription = pip.GetDescription(PipGraph.Context);
+                                }
+
+                                return pipDescription + "(" + GetPipIdText(m_pipOrigins, pipStableId) + ")";
+                            },
+                            "Paths to pip fingerprints",
                             "Pip fingerprints to paths"));
 
                     WriteTextEntryWithHeader(
@@ -2318,6 +2412,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     ["PipProducers"] = state.m_pipProducers.ProducerCount,
                     ["ProducedPaths"] = state.m_pipProducers.ProducedPathCount,
                     ["DynamicallyObservedFiles"] = state.m_dynamicallyObservedFiles.Count,
+                    ["DynamicallyProbedFiles"] = state.m_dynamicallyProbedFiles.Count,
                     ["DynamicallyObservedEnumerations"] = state.m_dynamicallyObservedEnumerations.Count
                 };
         }
@@ -2381,6 +2476,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 m_pipOrigins,
                 m_pipProducers,
                 m_dynamicallyObservedFiles,
+                m_dynamicallyProbedFiles,
                 m_dynamicallyObservedEnumerations);
         }
 
@@ -2391,6 +2487,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             PipOrigins pipOrigins,
             PipProducers pipProducers,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedFiles,
+            IncrementalSchedulingPathMapping<PipStableId> dynamicallyProbedFiles,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedEnumerations)
         {
             cleanPips.TryRemove(pipStableId, out var _);
@@ -2398,6 +2495,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             pipOrigins.TryRemove(pipStableId, out var _);
             pipProducers.TryRemoveProducer(pipStableId);
             dynamicallyObservedFiles.ClearValue(pipStableId);
+            dynamicallyProbedFiles.ClearValue(pipStableId);
             dynamicallyObservedEnumerations.ClearValue(pipStableId);
         }
 
@@ -2405,6 +2503,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         {
             StaticArtifact,
             DynamicallyObservedPath,
+            DynamicallyProbedPath,
             DynamicallyObservedPathEnumeration
         }
 

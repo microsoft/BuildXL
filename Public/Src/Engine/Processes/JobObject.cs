@@ -388,8 +388,8 @@ namespace BuildXL.Processes
                        KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                        UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
                        NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                       MemoryCounters = new ProcessMemoryCounters(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
-            };
+                       MemoryCounters = ProcessMemoryCounters.CreateFromBytes(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
+                    };
         }
 
         /// <summary>

@@ -26,7 +26,7 @@ namespace BuildXL.FrontEnd.Core
     public sealed class EvaluationScheduler : IEvaluationScheduler
     {
         private readonly int m_degreeOfParallelism;
-        private bool m_enableEvaluationThrottling;
+        private readonly bool m_enableEvaluationThrottling;
         private readonly CancellationTokenSource m_cancellationSource;
 
         private readonly ActionBlock<QueueItem> m_queue;

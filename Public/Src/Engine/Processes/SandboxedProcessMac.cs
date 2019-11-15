@@ -65,9 +65,15 @@ namespace BuildXL.Processes
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
         private long PipId { get; }
+<<<<<<< HEAD
 
         private ISandboxConnection SandboxConnection { get; }
 
+=======
+
+        private ISandboxConnection SandboxConnection { get; }
+
+>>>>>>> d4832656e0662a33f3f3de9f1da04e067cad630c
         private TimeSpan ChildProcessTimeout { get; }
 
         private TimeSpan? ReportQueueProcessTimeoutForTests { get; }
@@ -241,6 +247,14 @@ namespace BuildXL.Processes
                 // When that happens, instead of crashing, just make sure the process is killed.
                 LogProcessState($"IOException caught while feeding the standard input: {e.ToString()}");
                 await KillAsync();
+            }
+            finally
+            {
+                // release the FileAccessManifest memory
+                // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object 
+                //       unreachable and thus available for garbage collection.  We call Release() here explicitly 
+                //       just to emphasize the importance of reclaiming this memory.
+                info.FileAccessManifest.Release();
             }
         }
 
@@ -431,7 +445,7 @@ namespace BuildXL.Processes
                         WriteTransferCount = Convert.ToUInt64(m_perfAggregator.DiskBytesWritten.Total)
                     });
 
-                    memoryCounters = new ProcessMemoryCounters(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, Convert.ToUInt64(m_perfAggregator.PeakMemoryBytes.Maximum), 0);
                 }
                 catch(OverflowException ex)
                 {
@@ -445,7 +459,7 @@ namespace BuildXL.Processes
                         WriteTransferCount = 0
                     });
 
-                    memoryCounters = new ProcessMemoryCounters(0, 0, 0);
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, 0, 0);
                 }
 
                 return new JobObject.AccountingInformation
@@ -691,7 +705,7 @@ namespace BuildXL.Processes
             {
                 processId = (uint)report.Pid;
 
-                if (!SandboxedProcessReports.FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
+                if (!FileAccessReportLine.Operations.TryGetValue(report.DecodeOperation(), out operation))
                 {
                     errorMessages.Add($"Unknown operation '{report.DecodeOperation()}'");
                 }

@@ -81,7 +81,7 @@ namespace BuildXL.Scheduler.Distribution
                     environment.State.GetScope(process),
                     process,
                     fingerprint,
-                    expectedRamUsageMb: GetExpectedRamUsageMb(processRunnable));
+                    expectedMemoryCounters: GetExpectedMemoryCounters(processRunnable));
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;

@@ -88,7 +88,6 @@ namespace BuildXL.Ipc.MultiplexingSocketBasedIpc
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeTcpClient", Justification = "TcpClient.Dispose is inaccessible due to its protection level")]
         private async Task<Possible<MultiplexingClient>> CreateMultiplexingClientAsync()
         {
-            Config.Logger.Verbose("CreateMultiplexingClient called");
             var maybeConnected = await Utils.ConnectAsync(
                 Config.MaxConnectRetries,
                 Config.ConnectRetryDelay,

@@ -32,9 +32,14 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableCacheLookupSlots = new WorkerResource(nameof(AvailableCacheLookupSlots), Precedence.AvailableCacheLookupSlots);
 
         /// <summary>
-        /// See <see cref="Worker.TotalMemoryMb"/>
+        /// See <see cref="Worker.TotalRamMb"/>
         /// </summary>
         public static readonly WorkerResource AvailableMemoryMb = new WorkerResource(nameof(AvailableMemoryMb), Precedence.AvailableMemoryMb);
+
+        /// <summary>
+        /// See <see cref="Worker.TotalCommitMb"/>
+        /// </summary>
+        public static readonly WorkerResource AvailableCommitMb = new WorkerResource(nameof(AvailableCommitMb), Precedence.AvailableCommitMb);
 
         /// <summary>
         /// See <see cref="Worker.ResourcesAvailable"/>
@@ -113,6 +118,7 @@ namespace BuildXL.Scheduler.Distribution
             AvailableCacheLookupSlots,
             AvailableProcessSlots,
             AvailableMemoryMb,
+            AvailableCommitMb,
             ResourcesAvailable,
             SemaphorePrecedence,
         }

@@ -28,6 +28,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         Reconcile,
+
+        /// <nodoc />
+        AddLocationWithoutTouching,
     }
 
     /// <summary>
@@ -46,6 +49,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
         /// <nodoc />
         public EventKind Kind { get; }
+
+        /// <nodoc />
+        protected virtual EventKind SerializationKind => Kind;
 
         /// <summary>
         /// A current machine id.
@@ -83,7 +89,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             switch (kind)
             {
                 case EventKind.AddLocation:
-                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()));
+                case EventKind.AddLocationWithoutTouching:
+                    return new AddContentLocationEventData(sender, hashes, reader.ReadReadOnlyList(r => r.ReadInt64Compact()), touch: kind == EventKind.AddLocation);
                 case EventKind.RemoveLocation:
                     return new RemoveContentLocationEventData(sender, hashes);
                 case EventKind.Touch:
@@ -98,7 +105,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {
-            writer.Write((byte)Kind);
+            writer.Write((byte)SerializationKind);
             Sender.Serialize(writer);
             writer.WriteReadOnlyList(ContentHashes, (w, hash) => w.Write(hash));
 
@@ -150,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                     var contentSizes = addContentLocationEventData.ContentSizes.Split(maxHashCount).ToList();
                     Contract.Assert(hashes.Count == contentSizes.Count);
 
-                    result.AddRange(hashes.Select((t, index) => new AddContentLocationEventData(Sender, t, contentSizes[index])));
+                    result.AddRange(hashes.Select((t, index) => new AddContentLocationEventData(Sender, t, contentSizes[index], addContentLocationEventData.Touch)));
                     break;
                 case RemoveContentLocationEventData _:
                     result.AddRange(hashes.Select(t => new RemoveContentLocationEventData(Sender, t)));
@@ -203,45 +210,54 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         /// </summary>
         public IReadOnlyList<long> ContentSizes { get; }
 
+        /// <summary>
+        /// Whether or not to extend the lifetime of the content.
+        /// </summary>
+        public bool Touch { get; }
+
+        /// <inheritdoc />
+        protected override EventKind SerializationKind => Touch ? EventKind.AddLocation : EventKind.AddLocationWithoutTouching;
+
         /// <nodoc />
-        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent)
-            : this(sender, addedContent.SelectList(c => c.Hash), addedContent.SelectList(c => c.Size))
+        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHashWithSize> addedContent, bool touch = true)
+            : this(sender, addedContent.SelectList(c => c.Hash), addedContent.SelectList(c => c.Size), touch)
         {
         }
 
         /// <nodoc />
-        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHash> contentHashes, IReadOnlyList<long> contentSizes)
+        public AddContentLocationEventData(MachineId sender, IReadOnlyList<ShortHash> contentHashes, IReadOnlyList<long> contentSizes, bool touch = true)
             : base(EventKind.AddLocation, sender, contentHashes)
         {
             Contract.Requires(contentSizes != null);
             Contract.Requires(contentSizes.Count == contentHashes.Count);
 
             ContentSizes = contentSizes;
+            Touch = touch;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
             var sb = new StringBuilder();
-            for(int i = 0; i < ContentHashes.Count; i++)
+            for (int i = 0; i < ContentHashes.Count; i++)
             {
                 sb.Append($"Hash={ContentHashes[i]}, Size={ContentSizes[i]}");
             }
 
-            return $"Event: {Kind}, Sender: {Sender}, {sb}";
+            return $"Event: {Kind}, Sender: {Sender}, Touch: {Touch}, {sb}";
         }
 
         /// <inheritdoc />
         public override bool Equals(ContentLocationEventData other)
         {
             var rhs = (AddContentLocationEventData)other;
-            return base.Equals(other) && ContentSizes.SequenceEqual(rhs.ContentSizes);
+            return base.Equals(other) && (Touch == rhs.Touch) && ContentSizes.SequenceEqual(rhs.ContentSizes);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return (base.GetHashCode(), ContentSizes.GetHashCode()).GetHashCode();
+            return (base.GetHashCode(), ContentSizes.GetHashCode(), Touch).GetHashCode();
         }
     }
 
@@ -310,6 +326,5 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
         {
             return (base.GetHashCode(), AccessTime.GetHashCode()).GetHashCode();
         }
-
     }
 }

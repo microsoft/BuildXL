@@ -345,20 +345,5 @@ config({{
                 string.Empty :
                 $"{memberName}: Map.empty<string, (PassthroughEnvironmentVariable | string)>(){ string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', {(property.Value?.GetValue() is UnitValue ? "Unit.unit()" : $"'{property.Value?.GetValue()}'")})")) },");
         }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // There are some tests that configure VBCSCompiler to break away from the sandbox.
-                // Make sure we don't leave any lingering instance after all MSBuild related tests are done
-                foreach (var process in Process.GetProcessesByName("VBCSCompiler"))
-                {
-                    process.Kill();
-                }
-            }
-
-            base.Dispose(disposing);
-        }
     }
 }

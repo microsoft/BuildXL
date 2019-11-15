@@ -253,7 +253,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             config.Sandbox.FileSystemMode = FileSystemMode.RealAndMinimalPipGraph;
             config.Sandbox.LogObservedFileAccesses = true;
-
+            
             var result = RunEngineWithConfig(config);
             Assert.True(result.IsSuccess);
 
@@ -277,7 +277,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
         [Fact]
         public void ValidateSharedCompilationWithRelativePaths()
-        {
+        { 
             // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
             var thisAssemblyLocation = Assembly.GetExecutingAssembly().Location;
             // We just use the assembly name, but add the assembly directory to the collection of additional paths

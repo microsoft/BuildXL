@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
+
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
@@ -37,5 +39,10 @@ namespace BuildXL.Utilities.Configuration
         /// Optional resharper dotsettings file to be placed next to the generated solution.
         /// </summary>
         AbsolutePath DotSettingsFile { get; }
+
+        /// <summary>
+        /// Optional list of target frameworks to which to restrict generated projects.
+        /// </summary>
+        IReadOnlyList<string> TargetFrameworks { get; }
     }
 }

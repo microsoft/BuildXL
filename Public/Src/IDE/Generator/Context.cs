@@ -74,6 +74,7 @@ namespace BuildXL.Ide.Generator
         internal readonly StringTable StringTable;
         internal readonly SymbolTable SymbolTable;
         internal readonly QualifierTable QualifierTable;
+        internal readonly IIdeConfiguration IdeConfig;
 
         internal readonly AbsolutePath ProjectsRoot;
         internal readonly AbsolutePath EnlistmentRoot;
@@ -112,6 +113,7 @@ namespace BuildXL.Ide.Generator
             PathTable = pipContext.PathTable;
             SymbolTable = pipContext.SymbolTable;
             QualifierTable = pipContext.QualifierTable;
+            IdeConfig = ideConfig;
 
             DotSettingsPathStr = ideConfig.DotSettingsFile.IsValid ? ideConfig.DotSettingsFile.ToString(PathTable) : null;
             ConfigFilePathStr = configFilePath.ToString(PathTable);

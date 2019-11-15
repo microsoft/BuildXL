@@ -17,7 +17,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Interop.MacOS.Memory;
 using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
@@ -1163,6 +1162,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),
+                        OptionHandlerFactory.CreateOption2(
+                            "vsTF",
+                            "vsTargetFramework",
+                            opt => ParseStringOption(opt, ideConfiguration.TargetFrameworks)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "warnAsError",
                             (opt, sign) =>

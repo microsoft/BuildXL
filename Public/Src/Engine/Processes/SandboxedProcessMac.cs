@@ -65,15 +65,9 @@ namespace BuildXL.Processes
         private readonly CancellationTokenSource m_timeoutTaskCancelationSource = new CancellationTokenSource();
 
         private long PipId { get; }
-<<<<<<< HEAD
 
         private ISandboxConnection SandboxConnection { get; }
 
-=======
-
-        private ISandboxConnection SandboxConnection { get; }
-
->>>>>>> d4832656e0662a33f3f3de9f1da04e067cad630c
         private TimeSpan ChildProcessTimeout { get; }
 
         private TimeSpan? ReportQueueProcessTimeoutForTests { get; }

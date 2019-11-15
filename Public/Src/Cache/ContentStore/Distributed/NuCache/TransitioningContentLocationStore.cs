@@ -28,8 +28,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
     /// <summary>
     /// <see cref="IContentLocationStore"/> implementation that supports old redis and new local location store.
     /// </summary>
-    internal class
-        TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore
+    internal class TransitioningContentLocationStore : StartupShutdownBase, IContentLocationStore, IDistributedLocationStore
     {
         private readonly LocalLocationStore _localLocationStore;
         private readonly RedisContentLocationStore _redisContentLocationStore;
@@ -333,6 +332,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 evictionCount++;
                 return true;
             }
+
             context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
                 $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge(_clock)}, age = {candidate.Age(_clock)}.");
             return false;

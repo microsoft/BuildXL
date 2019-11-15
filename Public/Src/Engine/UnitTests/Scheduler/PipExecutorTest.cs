@@ -1053,43 +1053,70 @@ namespace Test.BuildXL.Scheduler
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
                     File.WriteAllText(destination, BadContents);
-
-                    Process pip;
                     if (eventId == EventId.PipProcessError)
                     {
-                        pip = CreateErrorProcess(
+                        Process pip = CreateErrorProcess(
                             env.Context,
                             workingDirectoryAbsolutePath,
                             destinationAbsolutePath,
                             errorPattern: regexMatchesEverything ? ".*" : "ERROR",
                             errorMessageLength: 0);
+                        var testRunChecker = new TestRunChecker();
+                        await testRunChecker.VerifyFailed(env, pip);
+                        AssertErrorEventLogged(eventId);
                     }
                     else
                     {
-                        pip = CreateWarningProcess(
+                        Process pip = CreateWarningProcess(
                             env.Context, 
                             workingDirectoryAbsolutePath, 
                             destinationAbsolutePath,
-                            regexMatchesEverything ? ".*" : "WARNING");
+                            regexMatchesEverything ? false : true);
+                        var testRunChecker = new TestRunChecker();
+                        testRunChecker.ExpectWarning();
+                        await testRunChecker.VerifySucceeded(env, pip); 
+                        AssertWarningEventLogged(eventId);
                     }
 
-                    var testRunChecker = new TestRunChecker();
-                    testRunChecker.ExpectWarning();
-                    await testRunChecker.VerifySucceeded(env, pip);
-                    AssertErrorEventLogged(eventId);
-
                     string log = EventListener.GetLog();
+                    string relatedLog = GetRelatedLog(log, eventId);
                     if (regexMatchesEverything)
                     {
-                        XAssert.IsFalse(log.Contains(destination));
+                        XAssert.IsFalse(relatedLog.Contains(destination));
                     }
                     else
                     {
-                        XAssert.IsTrue(log.Contains(destination));
+                        XAssert.IsTrue(relatedLog.Contains(destination));
                     }
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.TruncatedOutputOnError));
+        }
+
+        private string GetRelatedLog (string log, EventId eventId)
+        {
+            string start = "DX00"+ ((int)eventId).ToString();
+            string[] ends = { "WARNING DX", "ERROR DX", "VERBOSE DX" };
+            string upperCaseLog = log.ToUpper();
+
+            int startIndex = upperCaseLog.IndexOf(start);
+            if (startIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            int endIndex = log.Length;
+
+            foreach (string end in ends)
+            {
+                int theEndIndex = upperCaseLog.IndexOf(end, startIndex);
+                if (theEndIndex > 0 && theEndIndex < endIndex)
+                {
+                    endIndex = theEndIndex;
+                }
+            }
+
+            return log.Substring(startIndex, endIndex - startIndex);
         }
 
 
@@ -3056,10 +3083,21 @@ EXIT /b 3
         /// <summary>
         /// The returned process will produce a warning.
         /// </summary>
-        private static Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output, string warningPattern = null)
+        private Process CreateWarningProcess(PipExecutionContext context, AbsolutePath directory, AbsolutePath output, bool extraWarningMessage = false)
         {
             var pathTable = context.PathTable;
+            var command = new StringBuilder();
 
+            command.AppendLine("@echo off");
+            command.AppendLine(I($"echo WARNING"));
+            if (extraWarningMessage)
+            {
+                command.AppendLine("echo EXTRA");
+            }
+
+            string cmdScript = OperatingSystemHelper.IsUnixOS ? GetFullPath("script.sh") : GetFullPath("script.cmd");
+            File.WriteAllText(cmdScript, command.ToString());
+            FileArtifact cmdScriptFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, cmdScript));
             FileArtifact stdout = FileArtifact.CreateSourceFile(output).CreateNextWrittenVersion();
             FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, CmdHelper.OsShellExe));
             return AssignFakePipId(new Process(
@@ -3069,10 +3107,7 @@ EXIT /b 3
                     pathTable.StringTable,
                     " ",
                     PipDataFragmentEscaping.NoEscaping,
-                    OperatingSystemHelper.IsUnixOS
-                        ? "-c 'echo WARNING'"
-                        : "/d /c echo WARNING"
-                    ),
+                    OperatingSystemHelper.IsUnixOS ? I($"-c \"{cmdScript}\"") : I($"/d /c {cmdScript}")),
                 responseFile: FileArtifact.Invalid,
                 responseFileData: PipData.Invalid,
                 environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
@@ -3082,7 +3117,7 @@ EXIT /b 3
                 standardDirectory: output.GetParent(pathTable),
                 warningTimeout: null,
                 timeout: null,
-                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe),
+                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe, cmdScriptFile),
                 outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(stdout.WithAttributes()),
                 directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
                 directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
@@ -3095,7 +3130,7 @@ EXIT /b 3
                 provenance: PipProvenance.CreateDummy(context),
                 toolDescription: StringId.Invalid,
                 additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
-                warningRegex: new RegexDescriptor(StringId.Create(context.StringTable, warningPattern != null ? warningPattern : "WARNING"), RegexOptions.IgnoreCase)));
+                warningRegex: new RegexDescriptor(StringId.Create(context.StringTable, "WARNING"), RegexOptions.IgnoreCase)));
         }
 
         private static string[] GenerateTestErrorMessages(int errorMessageLength)

@@ -829,7 +829,7 @@ namespace BuildXL.Scheduler
 
         private ulong m_totalPeakVirtualMemoryUsageMb;
         private ulong m_totalPeakWorkingSetMb;
-        private ulong m_totalPeakPagefileUsageMb;
+        private ulong m_totalPeakCommitUsageMb;
 
         private readonly object m_statusLock = new object();
 
@@ -979,7 +979,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether a low memory perf smell was reached
         /// </summary>
-        private bool m_hitLowMemoryPerfSmell;
+        private volatile bool m_hitLowMemoryPerfSmell;
 
         #endregion Statistics
 
@@ -1731,9 +1731,9 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
-            statistics.Add("TotalPeakMemoryUsage", (long)m_totalPeakVirtualMemoryUsageMb);
-            statistics.Add("TotalPeakWorkingSet", (long)m_totalPeakWorkingSetMb);
-            statistics.Add("TotalPeakPagefileUsage", (long)m_totalPeakPagefileUsageMb);
+            statistics.Add("TotalPeakMemoryUsageMb", (long)m_totalPeakVirtualMemoryUsageMb);
+            statistics.Add("TotalPeakWorkingSetMb", (long)m_totalPeakWorkingSetMb);
+            statistics.Add("TotalPeakCommitUsageMb", (long)m_totalPeakCommitUsageMb);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
@@ -1788,11 +1788,12 @@ namespace BuildXL.Scheduler
             return new StatusRows()
             {
                 { "Cpu Percent", data => data.CpuPercent },
-                { "Mem Percent", data => data.RamPercent },
-                { "Used Mem MB", data => data.MachineRamUtilizationMB },
-                { "Free Mem MB", data => data.MachineAvailableRamMB },
+                { "Ram Percent", data => data.RamPercent },
+                { "Used Ram Mb", data => data.RamUsedMb },
+                { "Free Ram Mb", data => data.RamFreeMb },
                 { "Commit Percent", data => data.CommitPercent },
-                { "Commit MB", data => data.CommitTotalMB },
+                { "Used Commit Mb", data => data.CommitUsedMb },
+                { "Free Commit Mb", data => data.CommitFreeMb },
                 { "NetworkBandwidth", data => m_perfInfo.MachineBandwidth },
                 { "MachineKbitsPerSecSent", data => (long)m_perfInfo.MachineKbitsPerSecSent },
                 { "MachineKbitsPerSecReceived", data => (long)m_perfInfo.MachineKbitsPerSecReceived },
@@ -1874,11 +1875,12 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total RAM Mb"), _ => worker.TotalMemoryMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Estimated Free RAM Mb"), _ => worker.EstimatedAvailableRamMb, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Free RAM Mb"), _ => worker.ActualAvailableMemoryMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Commit Total Mb"), _ => worker.ActualCommitTotalMB ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Commit Percent"), _ => worker.ActualCommitPercent ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Estimated Free Ram Mb"), _ => worker.EstimatedFreeRamMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Free Ram Mb"), _ => worker.ActualFreeMemoryMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total Commit Mb"), _ => worker.TotalCommitMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Estimated Free Commit Mb"), _ => worker.EstimatedFreeCommitMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Free Commit Mb"), _ => worker.ActualFreeCommitMb ?? 0, includeInSnapshot: false);
 
                         rows.Add(I($"W{worker.WorkerId} Status"), _ => worker.Status, includeInSnapshot: false);
 
@@ -2049,10 +2051,11 @@ namespace BuildXL.Scheduler
                     ProcessCpuPercent = m_perfInfo.ProcessCpuPercentage,
                     ProcessWorkingSetMB = m_perfInfo.ProcessWorkingSetMB,
                     RamPercent = m_perfInfo.RamUsagePercentage ?? 0,
-                    MachineRamUtilizationMB = (m_perfInfo.TotalRamMb.HasValue && m_perfInfo.AvailableRamMb.HasValue) ? m_perfInfo.TotalRamMb.Value - m_perfInfo.AvailableRamMb.Value : 0,
-                    MachineAvailableRamMB = m_perfInfo.AvailableRamMb ?? 0,
+                    RamUsedMb = (m_perfInfo.TotalRamMb.HasValue && m_perfInfo.AvailableRamMb.HasValue) ? m_perfInfo.TotalRamMb.Value - m_perfInfo.AvailableRamMb.Value : 0,
+                    RamFreeMb = m_perfInfo.AvailableRamMb ?? 0,
                     CommitPercent = m_perfInfo.CommitUsagePercentage ?? 0,
-                    CommitTotalMB = m_perfInfo.CommitTotalMb ?? 0,
+                    CommitUsedMb = m_perfInfo.CommitUsedMb ?? 0,
+                    CommitFreeMb = (m_perfInfo.CommitLimitMb.HasValue && m_perfInfo.CommitUsedMb.HasValue) ? m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value : 0,
                     CpuWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CPU),
                     CpuRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CPU),
                     IoCurrentMax = m_pipQueue.GetMaxParallelDegreeByKind(DispatcherKind.IO),
@@ -2152,9 +2155,21 @@ namespace BuildXL.Scheduler
             var resourceManager = State.ResourceManager;
             resourceManager.UpdateRamUsageForResourceScopes();
 
-            if (LocalWorker.TotalMemoryMb == null)
+            if (LocalWorker.TotalRamMb == null)
             {
-                LocalWorker.TotalMemoryMb = m_perfInfo.AvailableRamMb;
+                LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb;
+            }
+
+            if (LocalWorker.TotalCommitMb == null && m_perfInfo.CommitLimitMb.HasValue && m_perfInfo.CommitUsedMb.HasValue)
+            {
+                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb - m_perfInfo.CommitUsedMb;
+            }
+
+            if (LocalWorker.TotalCommitMb == null && OperatingSystemHelper.IsUnixOS)
+            {
+                // Commit(pagefile) is called as swapfile in MacOS; but we do not track of swap file usage there. 
+                // That's why, we set it to very high number instead of inserting Windows specific code in the throttling logic.
+                LocalWorker.TotalCommitMb = int.MaxValue;
             }
 
             bool resourceAvailable = true;
@@ -2174,7 +2189,26 @@ namespace BuildXL.Scheduler
                     m_hitLowMemoryPerfSmell = true;
                     // Log the perf smell at the time that it happens since the machine is likely going to get very
                     // bogged down and we want to make sure this gets sent to telemetry before the build is killed.
-                    Logger.Log.LowMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value);
+                    Logger.Log.LowRamMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value, perfInfo.RamUsagePercentage.Value);
+                }
+            }
+
+            if (perfInfo.CommitUsagePercentage != null)
+            {
+                int availableCommit = m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value;
+
+                // Use the same limits as the physical ram.
+                bool exceededMaxCommitUtilizationPercentage = perfInfo.CommitUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
+                bool underMinimumAvailableCommit = availableCommit < m_configuration.Schedule.MinimumTotalAvailableRamMb;
+
+                // We will go ahead to cancel pips for physical ram as process using the higher ram will also use the higher commit memory.
+                // There is no specific cancellation for high commit usage.
+                resourceAvailable = !(exceededMaxCommitUtilizationPercentage && underMinimumAvailableCommit);
+
+                if (!m_hitLowMemoryPerfSmell && (availableCommit < 100 || perfInfo.CommitUsagePercentage.Value > 98))
+                {
+                    m_hitLowMemoryPerfSmell = true;
+                    Logger.Log.LowCommitMemory(m_executePhaseLoggingContext, availableCommit, perfInfo.CommitUsagePercentage.Value);
                 }
             }
 
@@ -2495,14 +2529,14 @@ namespace BuildXL.Scheduler
                                 {
                                     var processPip = (Process)pip;
 
-                                    if (result.DynamicallyObservedFiles.Length > 0 || result.DynamicallyObservedEnumerations.Length > 0 ||
-                                        processPip.DirectoryOutputs.Length > 0)
+                                    if (result.HasDynamicObservations || processPip.DirectoryOutputs.Length > 0)
                                     {
                                         using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.RecordDynamicObservationsDuration))
                                         {
                                             IncrementalSchedulingState.RecordDynamicObservations(
                                                 nodeId,
                                                 result.DynamicallyObservedFiles.Select(path => path.ToString(Context.PathTable)),
+                                                result.DynamicallyProbedFiles.Select(path => path.ToString(Context.PathTable)),
                                                 result.DynamicallyObservedEnumerations.Select(path => path.ToString(Context.PathTable)),
                                                 processPip.DirectoryOutputs.Select(
                                                     d =>
@@ -3641,11 +3675,12 @@ namespace BuildXL.Scheduler
                             }
 
                             // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
-                            var expectedRamUsageMb = Math.Max(
-                                    worker.GetExpectedRamUsageMb(processRunnable),
-                                    Math.Max(1, executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0));
-
-                            processRunnable.ExpectedRamUsageMb = expectedRamUsageMb;
+                            var expectedCounters = worker.GetExpectedMemoryCounters(processRunnable);
+                            var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
+                            processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
+                                peakVirtualMemoryUsageMb: Math.Max(expectedCounters.PeakVirtualMemoryUsageMb, actualCounters?.PeakVirtualMemoryUsageMb ?? 0),
+                                peakWorkingSetMb: Math.Max(expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0),
+                                peakCommitUsageMb: Math.Max(expectedCounters.PeakCommitUsageMb, actualCounters?.PeakCommitUsageMb ?? 0));
 
                             return PipExecutionStep.ChooseWorkerCpu;
                         }
@@ -3695,11 +3730,11 @@ namespace BuildXL.Scheduler
 
                         if (!IsDistributedWorker)
                         {
-                            var expectedRamUsage = worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
+                            var expectedMemoryCounters = worker.GetExpectedMemoryCounters((ProcessRunnablePip)runnablePip);
 
                             int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakVirtualMemoryUsageMb ?? 0;
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
-                            int peakPagefileUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakPagefileUsageMb ?? 0;
+                            int peakCommitUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakCommitUsageMb ?? 0;
 
                             try
                             {
@@ -3710,15 +3745,16 @@ namespace BuildXL.Scheduler
                                     (processRunnable.ExpectedDurationMs ?? 0) / 1000,
                                     executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                     executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
-                                    worker.DefaultMemoryUsagePerProcess,
-                                    expectedRamUsage,
+                                    worker.DefaultMemoryUsageMbPerProcess,
+                                    expectedMemoryCounters.PeakWorkingSetMb,
                                     peakVirtualMemoryUsageMb,
                                     peakWorkingSetMb,
-                                    peakPagefileUsageMb);
+                                    expectedMemoryCounters.PeakCommitUsageMb,
+                                    peakCommitUsageMb);
 
                                 m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
                                 m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
-                                m_totalPeakPagefileUsageMb += (ulong)peakPagefileUsageMb;
+                                m_totalPeakCommitUsageMb += (ulong)peakCommitUsageMb;
                             }
                             catch (OverflowException ex)
                             {
@@ -4236,11 +4272,7 @@ namespace BuildXL.Scheduler
                 if (runnableProcess != null)
                 {
                     var perfData = RunningTimeTable[runnableProcess.Process.SemiStableHash];
-                    if (runnableProcess.ExpectedRamUsageMb == null && perfData.PeakMemoryInKB != 0)
-                    {
-                        runnableProcess.ExpectedRamUsageMb = (int)(perfData.PeakMemoryInKB / 1024);
-                    }
-
+                    runnableProcess.ExpectedMemoryCounters = runnableProcess.ExpectedMemoryCounters ?? perfData.MemoryCounters;
                     runnableProcess.ExpectedDurationMs = perfData.DurationInMs;
                 }
 

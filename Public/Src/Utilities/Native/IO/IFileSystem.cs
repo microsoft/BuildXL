@@ -263,6 +263,13 @@ namespace BuildXL.Native.IO
         /// </remarks>
         void SetFileAttributes(string path, FileAttributes attributes);
 
+        /// <summary>
+        /// Synchronously writes the specified content to the given handle, representing a file or IO device
+        /// </summary>
+        /// <remarks>The handle must have been created with write access</remarks>
+        /// <result>Whether the write succeeds. If the write fails, the native error code contains the root cause</result>
+        bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode);
+
         #endregion
 
         #region Soft- (Junction) and Hardlink functions

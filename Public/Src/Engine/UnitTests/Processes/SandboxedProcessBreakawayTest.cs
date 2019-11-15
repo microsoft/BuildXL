@@ -26,10 +26,11 @@ namespace Test.BuildXL.Processes
             // We use InfiniteWaiter (a process that waits forever) as a long-living process that we can actually check it can
             // escape the job object
             var fam = new FileAccessManifest(
-                Context.PathTable, 
-                childProcessesToBreakawayFromSandbox: letInfiniteWaiterSurvive? new[] { InfiniteWaiterToolName } : null);
-            
-            fam.FailUnexpectedFileAccesses = false;
+                Context.PathTable,
+                childProcessesToBreakawayFromSandbox: letInfiniteWaiterSurvive ? new[] { InfiniteWaiterToolName } : null)
+            {
+                FailUnexpectedFileAccesses = false
+            };
 
             // We instruct the regular test process to spawn InfiniteWaiter as a child
             var info = ToProcessInfo(
@@ -77,11 +78,12 @@ namespace Test.BuildXL.Processes
         {
             var fam = new FileAccessManifest(
                 Context.PathTable,
-                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName });
-
-            fam.FailUnexpectedFileAccesses = false;
-            fam.ReportUnexpectedFileAccesses = true;
-            fam.ReportFileAccesses = true;
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                ReportFileAccesses = true
+            };
 
             var srcFile1 = CreateSourceFile();
             var srcFile2 = CreateSourceFile();
@@ -110,6 +112,126 @@ namespace Test.BuildXL.Processes
             // Only a single process should be reported: the parent one
             var testProcess = result.Processes.Single();
             XAssert.AreEqual(TestProcessToolName.ToLowerInvariant(), System.IO.Path.GetFileName(testProcess.Path).ToLowerInvariant());
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void BreakawayProcessCanReportAugmentedAccesses()
+        {
+            var fam = new FileAccessManifest(
+                Context.PathTable,
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                ReportFileAccesses = true
+            };
+
+            var srcFile = CreateSourceFile();
+            var output = CreateOutputFileArtifact();
+
+            fam.AddScope(srcFile, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            fam.AddScope(output, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.AugmentedRead(srcFile),
+                    Operation.AugmentedWrite(output)),
+                fileAccessManifest: fam);
+
+            var result = RunProcess(info).GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+
+            var observedAccesses = result.FileAccesses.Select(fa => fa.ManifestPath);
+
+            XAssert.Contains(observedAccesses, srcFile.Path, output.Path);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void NonBreakawayProcessCannotReportAugmentedAccesses()
+        {
+            var fam = new FileAccessManifest(
+                Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                ReportFileAccesses = true
+            };
+
+            var output = CreateOutputFileArtifact();
+
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.AugmentedWrite(output)),
+                fileAccessManifest: fam);
+
+            // We expect a failure due to not being able to report the augmented access
+            var result = RunProcess(info).GetAwaiter().GetResult();
+            XAssert.AreEqual(1, result.ExitCode);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void AugmentedAccessHasTheRightManifestPath()
+        {
+            var fam = new FileAccessManifest(
+                Context.PathTable,
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                ReportFileAccesses = true
+            };
+            
+            var basePath = TestBinRootPath.Combine(Context.PathTable, "foo");
+
+            var output = CreateOutputFileArtifact(basePath);
+
+            fam.AddScope(basePath, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowAll | FileAccessPolicy.ReportAccess);
+
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.AugmentedWrite(output)),
+                fileAccessManifest: fam);
+
+            var result = RunProcess(info).GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+
+            var fileAccess = result.ExplicitlyReportedFileAccesses.Single(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool);
+            XAssert.AreEqual(basePath, fileAccess.ManifestPath);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void MaskedReportAugmentedAccessIsNotReported()
+        {
+            var fam = new FileAccessManifest(
+                Context.PathTable,
+                childProcessesToBreakawayFromSandbox: new[] { TestProcessToolName })
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                ReportFileAccesses = true
+            };
+
+            var basePath = TestBinRootPath.Combine(Context.PathTable, "foo");
+
+            var output1 = CreateOutputFileArtifact(basePath);
+            var output2 = CreateOutputFileArtifact(basePath);
+
+            // We mask reporting accesses for output1 and enable it for output2
+            fam.AddScope(output1.Path, ~FileAccessPolicy.ReportAccess, FileAccessPolicy.AllowAll);
+            fam.AddScope(output2.Path, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowAll | FileAccessPolicy.ReportAccess);
+            
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.AugmentedWrite(output1),
+                    Operation.AugmentedWrite(output2)),
+                fileAccessManifest: fam);
+
+            var result = RunProcess(info).GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+
+            // We should get a single access with output2, since output1 should be ignored
+            var accessPath = result.FileAccesses.Single(rfa => rfa.Method == FileAccessStatusMethod.TrustedTool).ManifestPath;
+            XAssert.AreEqual(output2.Path, accessPath);
         }
     }
 }

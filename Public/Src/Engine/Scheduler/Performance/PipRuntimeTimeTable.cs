@@ -27,7 +27,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The version for format of <see cref="PipRuntimeTimeTable"/>
         /// </summary>
-        public const int FormatVersion = 0;
+        public const int FormatVersion = 1;
 
         private static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "Runtime", version: FormatVersion);
 

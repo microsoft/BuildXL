@@ -226,6 +226,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                         TimeoutForProactiveCopies = TimeSpan.FromMinutes(_distributedSettings.TimeoutForProactiveCopiesMinutes),
                         ProactiveCopyMode = (ProactiveCopyMode)Enum.Parse(typeof(ProactiveCopyMode), _distributedSettings.ProactiveCopyMode),
                         PushProactiveCopies = _distributedSettings.PushProactiveCopies,
+                        ProactiveCopyOnPin = _distributedSettings.ProactiveCopyOnPin,
                         MaxConcurrentProactiveCopyOperations = _distributedSettings.MaxConcurrentProactiveCopyOperations,
                         ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
                         MaximumConcurrentPutFileOperations = _distributedSettings.MaximumConcurrentPutFileOperations,

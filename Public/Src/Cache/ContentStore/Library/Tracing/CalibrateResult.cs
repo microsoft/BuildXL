@@ -3,6 +3,7 @@
 
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 
+#nullable enable
 namespace BuildXL.Cache.ContentStore.Tracing
 {
     /// <summary>
@@ -26,13 +27,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
         /// <summary>
         ///     Initializes a new instance of the <see cref="CalibrateResult"/> class.
         /// </summary>
-        public CalibrateResult(string errorMessage, string diagnostics = null)
+        public CalibrateResult(string errorMessage, string? diagnostics = null)
             : base(errorMessage, diagnostics)
         {
         }
 
         /// <nodoc />
-        public CalibrateResult(ResultBase other, string message)
+        public CalibrateResult(ResultBase other, string? message)
             : base(other, message)
         {
         }

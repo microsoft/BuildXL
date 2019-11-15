@@ -1243,5 +1243,9 @@ namespace BuildXL.Native.IO.Unix
         {
             return FileUtilities.TryResolveRelativeTarget(path, relativeTarget);
         }
+
+        /// <inheritdoc />
+        public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode) => throw new NotImplementedException();
+      
     }
 }

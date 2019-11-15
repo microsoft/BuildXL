@@ -41,9 +41,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         public long ChangedDynamicallyObservedEnumerationMembershipsCount;
 
         /// <summary>
-        /// Number of changed dynamically observed files.
+        /// Number of changed dynamically observed read files.
         /// </summary>
         public long ChangedDynamicallyObservedFilesCount;
+
+        /// <summary>
+        /// Number of changed dynamically observed probed files.
+        /// </summary>
+        public long ChangedDynamicallyProbedFilesCount;
 
         /// <summary>
         /// Number of prepetually dirty nodes.
@@ -76,6 +81,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 NewDirectoriesCount,
                 ChangedFilesCount,
                 ChangedDynamicallyObservedFilesCount,
+                ChangedDynamicallyProbedFilesCount,
                 ChangedDynamicallyObservedEnumerationMembershipsCount,
                 PerpetuallyDirtyNodesCount);
 

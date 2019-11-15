@@ -876,7 +876,7 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsNotNull(engineAbstraction.GetChangedFiles());
             XAssert.IsNotNull(engineAbstraction.GetUnchangedFiles());
             XAssert.SetEqual(changedFiles, engineAbstraction.GetChangedFiles());
-            Assert.All(
+            XAssert.All(
                 containsUnchangedFiles,
                 unchangedFile => { XAssert.IsTrue(engineAbstraction.GetUnchangedFiles().Contains(unchangedFile)); });
         }

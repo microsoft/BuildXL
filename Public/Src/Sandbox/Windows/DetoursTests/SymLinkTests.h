@@ -22,3 +22,5 @@ int CallAccessOnChainOfJunctions();
 int CallDetouredAccessesCreateSymlinkForQBuild();
 int CallDetouredCreateFileWForSymlinkProbeOnlyWithReparsePointFlag();
 int CallDetouredCreateFileWForSymlinkProbeOnlyWithoutReparsePointFlag();
+int CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks();
+int CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks();

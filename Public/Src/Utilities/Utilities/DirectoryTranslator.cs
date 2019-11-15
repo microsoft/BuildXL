@@ -18,7 +18,6 @@ namespace BuildXL.Utilities
         private const string Prefix = "\\??\\";
         private const string NtPrefix = "\\\\?\\";
         private readonly List<Translation> m_translations = new List<Translation>();
-        private bool m_sealed;
         private static readonly char s_directorySeparatorChar = PathFormatter.GetPathSeparator(PathFormat.HostOs);
 
         /// <summary>
@@ -32,6 +31,11 @@ namespace BuildXL.Utilities
         public int Count => m_translations.Count;
 
         /// <summary>
+        /// Whether this translator is sealed
+        /// </summary>
+        public bool Sealed { get; private set; }
+
+        /// <summary>
         /// Seals the translator.
         /// </summary>
         public void Seal()
@@ -39,7 +43,7 @@ namespace BuildXL.Utilities
             // Sort so that longest paths appear first.
             // This is needed so that more specific mappings take precedence.
             m_translations.Sort((t1, t2) => -t1.SourcePath.Length.CompareTo(t2.SourcePath.Length));
-            m_sealed = true;
+            Sealed = true;
         }
 
         /// <summary>
@@ -49,7 +53,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
             Contract.Requires(!string.IsNullOrWhiteSpace(targetPath));
-            Contract.Assert(!m_sealed);
+            Contract.Assert(!Sealed);
 
             m_translations.Add(new Translation(
                 sourcePath: EnsureDirectoryPath(sourcePath),
@@ -124,7 +128,7 @@ namespace BuildXL.Utilities
         /// </summary>
         public string Translate(string path)
         {
-            Contract.Assert(m_sealed);
+            Contract.Assert(Sealed);
 
             if (m_translations.Count == 0)
             {
@@ -225,7 +229,7 @@ namespace BuildXL.Utilities
         {
             Contract.Requires(path.IsValid);
             Contract.Requires(pathTable != null);
-            Contract.Assert(m_sealed);
+            Contract.Assert(Sealed);
 
             return AbsolutePath.Create(pathTable, Translate(path.ToString(pathTable)));
         }

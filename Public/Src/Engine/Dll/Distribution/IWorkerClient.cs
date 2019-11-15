@@ -12,7 +12,7 @@ namespace BuildXL.Engine.Distribution
 {
     internal interface IWorkerClient : IDisposable
     {
-        Task<RpcCallResult<Unit>> AttachAsync(BuildStartData startData);
+        Task<RpcCallResult<Unit>> AttachAsync(BuildStartData startData, CancellationToken cancellationToken);
 
         Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest input, IList<long> semiStableHashes);
 

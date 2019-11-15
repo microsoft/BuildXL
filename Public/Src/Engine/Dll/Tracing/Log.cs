@@ -569,6 +569,18 @@ namespace BuildXL.Engine.Tracing
             string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.RemoteWorkerProcessedExecutionBlob,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "'{workerName}' processed execution blob '{message}'.")]
+        public abstract void RemoteWorkerProcessedExecutionBlob(
+            LoggingContext context,
+            string workerName,
+            string message);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionFailedToStoreValidationContentToWorkerCacheWithException,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

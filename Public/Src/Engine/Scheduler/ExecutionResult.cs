@@ -611,6 +611,18 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Gets an empty success result for Mate
+        /// </summary>
+        public static ExecutionResult GetEmptySuccessResult(LoggingContext loggingContext)
+        {
+            var result = new ExecutionResult();
+            result.SetResult(loggingContext, PipResultStatus.Succeeded);
+            result.Seal();
+
+            return result;
+        }
+
+        /// <summary>
         /// Disallow further modifications, finalize state, and allow reading state
         /// </summary>
         public void Seal()

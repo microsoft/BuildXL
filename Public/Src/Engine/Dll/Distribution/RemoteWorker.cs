@@ -68,6 +68,8 @@ namespace BuildXL.Engine.Distribution
         private readonly TaskSourceSlim<bool> m_executionBlobCompletion;
         private BlockingCollection<WorkerNotificationArgs> m_executionBlobQueue = new BlockingCollection<WorkerNotificationArgs>(new ConcurrentQueue<WorkerNotificationArgs>());
 
+        private readonly CancellationTokenSource m_exitCancellation = new CancellationTokenSource();
+
         private readonly Thread m_sendThread;
         private readonly BlockingCollection<ValueTuple<PipCompletionTask, SinglePipBuildRequest>> m_buildRequests;
         private readonly int m_maxMessagesPerBatch = EngineEnvironmentSettings.MaxMessagesPerBatch.Value;
@@ -109,19 +111,20 @@ namespace BuildXL.Engine.Distribution
                 masterService.DistributionServices.BuildId, 
                 serviceLocation.IpAddress, 
                 serviceLocation.Port, 
-                OnConnectionTimeOutAsync,
-                // Limit number of concurrently attaching workers
-                async token => await m_masterService.WorkerAttachSemaphore.AcquireAsync(token));
+                OnConnectionTimeOutAsync);
 
             // Depending on how long send requests take. It might make sense to use the same thread between all workers. 
             m_sendThread = new Thread(SendBuildRequests);
         }
 
-        public override void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget)
+        private TaskSourceSlim<bool> m_schedulerCompletion;
+
+        public override void Initialize(PipGraph pipGraph, IExecutionLogTarget executionLogTarget, TaskSourceSlim<bool> schedulerCompletion)
         {
             m_pipGraph = pipGraph;
             m_workerExecutionLogTarget = executionLogTarget;
-            base.Initialize(pipGraph, executionLogTarget);
+            m_schedulerCompletion = schedulerCompletion;
+            base.Initialize(pipGraph, executionLogTarget, schedulerCompletion);
         }
 
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
@@ -200,10 +203,18 @@ namespace BuildXL.Engine.Distribution
                     {
                         m_masterService.Environment.Counters.IncrementCounter(PipExecutorCounter.BuildRequestBatchesSentToWorkers);
                         m_masterService.Environment.Counters.AddToCounter(PipExecutorCounter.HashesSentToWorkers, m_hashList.Count);
-
+                        
                         foreach (var task in m_pipCompletionTaskList)
                         {
                             task.SetRequestDuration(dateTimeBeforeSend, sendDuration);
+
+                            bool fireForgetMaterializeOutputEnabled = m_masterService.Environment.Configuration.Distribution.FireForgetMaterializeOutput;
+                            if (task.RunnablePip.Step == PipExecutionStep.MaterializeOutputs && fireForgetMaterializeOutputEnabled)
+                            {
+                                // We do not wait for the result of MaterializeOutputs steps on the workers.
+                                // That's why, we return an empty success result to unblock the master.
+                                task.TrySet(ExecutionResult.GetEmptySuccessResult(m_appLoggingContext));
+                            }
                         }
                     }
                 }
@@ -303,6 +314,8 @@ namespace BuildXL.Engine.Distribution
                     // Disable further processing of execution log since an exception was encountered during processing
                     m_workerExecutionLogTarget = null;
                 }
+
+                Logger.Log.RemoteWorkerProcessedExecutionBlob(m_appLoggingContext, $"Worker#{WorkerId} - {Name}", $"{blobSequenceNumber} - {executionLogBlob.Count}");
             }
 
             if (m_executionBlobQueue.IsCompleted)
@@ -316,6 +329,11 @@ namespace BuildXL.Engine.Distribution
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
 
+            await LostConnectionAsync();
+        }
+
+        public Task LostConnectionAsync()
+        {
             m_isConnectionLost = true;
 
             // Connection is lost. As the worker might have pending tasks, 
@@ -323,7 +341,7 @@ namespace BuildXL.Engine.Distribution
             // In that case, we wait for DrainCompletion task source when releasing the worker.
             // We need to finish DrainCompletion task here to prevent hanging.
             DrainCompletion.TrySetResult(false);
-            await FinishAsync(null);
+            return FinishAsync(null);
         }
 
         private void OnDeactivateConnection(object sender, EventArgs e)
@@ -368,12 +386,11 @@ namespace BuildXL.Engine.Distribution
                         .FullEnvironmentVariables.ToDictionary().ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
                 };
 
-                var callResult = await m_workerClient.AttachAsync(startData);
+                var callResult = await m_workerClient.AttachAsync(startData, m_exitCancellation.Token);
 
                 if (callResult.State != RpcCallResultState.Succeeded)
                 {
-                    m_isConnectionLost = true;
-                    await FinishAsync(null);
+                    await LostConnectionAsync();
                 }
                 else
                 {
@@ -486,12 +503,10 @@ namespace BuildXL.Engine.Distribution
                 m_sendThread.Join();
             }
 
-            CancellationTokenSource exitCancellation = new CancellationTokenSource();
-
             // Only wait a short amount of time for exit (15 seconds) if worker is not successfully attached.
             if (m_attachCompletion.Task.Status != TaskStatus.RanToCompletion || !await m_attachCompletion.Task)
             {
-                exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
+                m_exitCancellation.CancelAfter(TimeSpan.FromSeconds(15));
             }
 
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
@@ -502,7 +517,7 @@ namespace BuildXL.Engine.Distribution
                     Failure = buildFailure ?? m_exitFailure
                 };
 
-                var callResult = await m_workerClient.ExitAsync(buildEndData, exitCancellation.Token);
+                var callResult = await m_workerClient.ExitAsync(buildEndData, m_exitCancellation.Token);
                 m_isConnectionLost = !callResult.Succeeded;
             }
 
@@ -611,7 +626,14 @@ namespace BuildXL.Engine.Distribution
             Contract.Assert(m_workerClient != null, "Calling SendToRemote before the worker is initialized");
             Contract.Assert(m_attachCompletion.IsValid, "Remote worker not started");
 
-            var attachCompletionResult = await m_attachCompletion.Task;
+            // Before we send the build request to the worker, we need to make sure that the worker is attached.
+            // For all steps except materializeoutputs, we already send the build requests to available (running) workers;
+            // so this code below might seem redundant. However, for distributed metabuild, we materialize outputs 
+            // on all workers and send the materializeoutput request to all workers, even the ones that are not available.
+            // That's why, the master now waits for the workers to be available until it is done executing all pips. When
+            // the scheduler is done with all pips except materializeoutput steps, we mark the attachCompletionResult as false,
+            // and then fail to send the build request to the worker. 
+            var attachCompletionResult = await Task.WhenAny(m_attachCompletion.Task, m_schedulerCompletion.Task);
 
             var environment = runnable.Environment;
             var pipId = runnable.PipId;
@@ -624,7 +646,7 @@ namespace BuildXL.Engine.Distribution
 
             m_pipCompletionTasks.Add(pipId, pipCompletionTask);
 
-            if (!attachCompletionResult)
+            if (!await attachCompletionResult)
             {
                 FailRemotePip(pipCompletionTask, "Worker did not attach");
                 return;
@@ -648,7 +670,10 @@ namespace BuildXL.Engine.Distribution
             }
             catch (InvalidOperationException)
             {
-                if (m_isConnectionLost)
+                // If the connection is lost or the worker is not running at all since the beginning 
+                // (due to ValidateCacheConnection failure), then fail the pips.
+                // Otherwise, it is an unexpected exception, so throw it.
+                if (m_isConnectionLost || !m_everAvailable)
                 {
                     // We cannot send the pip build request as the connection has been lost with the worker. 
 
@@ -657,7 +682,7 @@ namespace BuildXL.Engine.Distribution
                     // and before we add those build requests to blocking collection(m_buildRequests), 
                     // we will try to add the build request to the blocking colletion which is marked as completed 
                     // It will throw InvalidOperationException. 
-                    FailRemotePip(pipCompletionTask, "Connection was lost");
+                    FailRemotePip(pipCompletionTask, $"Connection was lost. Was the worker ever available: {m_everAvailable}");
                     return;
                 }
 
@@ -821,8 +846,7 @@ namespace BuildXL.Engine.Distribution
                 executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
             }
 
-            PipCompletionTask pipCompletionTask;
-            m_pipCompletionTasks.TryRemove(pipId, out pipCompletionTask);
+            m_pipCompletionTasks.TryRemove(runnable.PipId, out var pipCompletionTask);
 
             // TODO: Make worker reported time nested under AwaitRemoteResult operation
             ReportRemoteExecutionStepDuration(operationContext, runnable, pipCompletionTask);

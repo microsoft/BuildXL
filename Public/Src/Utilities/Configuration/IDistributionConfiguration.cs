@@ -63,5 +63,10 @@ namespace BuildXL.Utilities.Configuration
         /// Specifies the capacity multiplier when we start releasing the workers.
         /// </summary>
         double EarlyWorkerReleaseMultiplier { get; }
+
+        /// <summary>
+        /// Indicates whether the master should wait for the results of materializeoutput step on remote workers.
+        /// </summary>
+        bool FireForgetMaterializeOutput { get; }
     }
 }

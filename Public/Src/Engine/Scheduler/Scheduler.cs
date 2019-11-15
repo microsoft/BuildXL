@@ -335,7 +335,7 @@ namespace BuildXL.Scheduler
                     ExecutionLog?.CreateWorkerTarget((uint)worker.WorkerId);
 
                 worker.TrackStatusOperation(m_workersStatusOperation);
-                worker.Initialize(PipGraph, workerExecutionLogTarget);
+                worker.Initialize(PipGraph, workerExecutionLogTarget, m_schedulerCompletionExceptMaterializeOutputs);
                 worker.AdjustTotalCacheLookupSlots(m_scheduleConfiguration.MaxCacheLookup * (worker.IsLocal ? 1 : 5)); // Oversubscribe the cachelookup step for remote workers
                 worker.StatusChanged += OnWorkerStatusChanged;
                 worker.Start();
@@ -344,6 +344,26 @@ namespace BuildXL.Scheduler
             m_allWorker = new AllWorker(m_workers.ToArray());
 
             ExecutionLog?.WorkerList(new WorkerListEventData { Workers = m_workers.SelectArray(w => w.Name) });
+        }
+
+        private readonly TaskSourceSlim<bool> m_schedulerCompletionExceptMaterializeOutputs = TaskSourceSlim.Create<bool>();
+        private bool AnyPendingPipsExceptMaterializeOutputs()
+        {
+            long numRunningOrQueued = m_pipQueue.NumRunningOrQueued;
+            long numRunningOrQueuedExceptMaterialize = numRunningOrQueued - m_pipQueue.GetNumRunningByKind(DispatcherKind.Materialize) - m_pipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
+
+            if (numRunningOrQueuedExceptMaterialize == 0)
+            {
+                RetrievePipStateCounts(out long totalPips, out long readyPips, out long waitingPips, out long runningPips, out long donePips, out long failedPips, out long skippedPips, out long ignoredPips);
+
+                if (readyPips + waitingPips + runningPips == 0)
+                {
+                    // It means that there are only pips materializing outputs in the background.
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private readonly object m_workerStatusLock = new object();
@@ -3384,6 +3404,12 @@ namespace BuildXL.Scheduler
 
                 case PipExecutionStep.MaterializeOutputs:
                     {
+                        if (m_configuration.Distribution.FireForgetMaterializeOutput && !AnyPendingPipsExceptMaterializeOutputs())
+                        {
+                            // There is no pips running anything except materializeOutputs. 
+                            m_schedulerCompletionExceptMaterializeOutputs.TrySetResult(false);
+                        }
+
                         PipResultStatus materializationResult = await worker.MaterializeOutputsAsync(runnablePip);
 
                         var nextStep = processRunnable?.ExecutionResult != null

@@ -47,6 +47,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly BuildCacheCacheTracer _tracer;
         private ContentHashListAdapterFactory _contentHashListAdapterFactory;
         private readonly bool _overrideUnixFileAccessMode;
+        private readonly bool _enableEagerFingerprintIncorporation;
+        private readonly TimeSpan _eagerFingerprintIncorporationExpiry;
+        private readonly TimeSpan _eagerFingerprintIncorporationNagleInterval;
+        private readonly int _eagerFingerprintIncorporationNagleBatchSize;
 
         private bool _disposed;
 
@@ -73,6 +77,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="downloadBlobsThroughBlobStore">If true, gets blobs through BlobStore. If false, gets blobs from the Azure Uri.</param>
         /// <param name="useDedupStore">If true, gets content through DedupStore. If false, gets content from BlobStore.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes.</param>
+        /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
+        /// <param name="eagerFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationExpiry"/></param>
+        /// <param name="eagerFingerprintIncorporationNagleInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
+        /// <param name="eagerFingerprintIncorporationNagleBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         public BuildCacheCache(
             IAbsFileSystem fileSystem,
             string cacheNamespace,
@@ -93,7 +101,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool useBlobContentHashLists = false,
             bool downloadBlobsThroughBlobStore = false,
             bool useDedupStore = false,
-            bool overrideUnixFileAccessMode = false)
+            bool overrideUnixFileAccessMode = false,
+            bool enableEagerFingerprintIncorporation = false,
+            TimeSpan eagerFingerprintIncorporationExpiry = default,
+            TimeSpan eagerFingerprintIncorporationNagleInterval = default,
+            int eagerFingerprintIncorporationNagleBatchSize = 100)
         {
             Contract.Requires(fileSystem != null);
             Contract.Requires(buildCacheHttpClientFactory != null);
@@ -135,6 +147,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _maxDegreeOfParallelismForIncorporateRequests = maxDegreeOfParallelismForIncorporateRequests;
             _maxFingerprintsPerIncorporateRequest = maxFingerprintsPerIncorporateRequest;
             _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
+            _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
+            _eagerFingerprintIncorporationExpiry = eagerFingerprintIncorporationExpiry;
+            _eagerFingerprintIncorporationNagleInterval = eagerFingerprintIncorporationNagleInterval;
+            _eagerFingerprintIncorporationNagleBatchSize = eagerFingerprintIncorporationNagleBatchSize;
         }
 
         /// <inheritdoc />
@@ -327,7 +343,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
                         _overrideUnixFileAccessMode,
-                        _tracer));
+                        _tracer,
+                        _enableEagerFingerprintIncorporation,
+                        _eagerFingerprintIncorporationExpiry,
+                        _eagerFingerprintIncorporationNagleInterval,
+                        _eagerFingerprintIncorporationNagleBatchSize));
             });
         }
 
@@ -373,7 +393,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         writeThroughContentSession,
                         _sealUnbackedContentHashLists,
                         _overrideUnixFileAccessMode,
-                        _tracer));
+                        _tracer,
+                        _enableEagerFingerprintIncorporation,
+                        _eagerFingerprintIncorporationExpiry,
+                        _eagerFingerprintIncorporationNagleInterval,
+                        _eagerFingerprintIncorporationNagleBatchSize));
             });
         }
 

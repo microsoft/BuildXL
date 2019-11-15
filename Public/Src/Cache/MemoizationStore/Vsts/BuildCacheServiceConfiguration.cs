@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Runtime.Serialization;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
@@ -108,6 +109,21 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         public const bool DefaultOverrideUnixFileAccessMode = false;
 
+        /// <summary>
+        /// Default value indicating whether eager fingerprint incorporation is enabled.
+        /// </summary>
+        public const bool DefaultEnableEagerFingerprintIncorporation = false;
+
+        /// <nodoc />
+        public static readonly TimeSpan DefaultEagerFingerprintIncorporationNagleInterval = TimeSpan.FromMinutes(5);
+
+        /// <nodoc />
+        public const int DefaultEagerFingerprintIncorporationNagleBatchSize = 100;
+
+        /// <summary>
+        /// todoc
+        /// </summary>
+        public static TimeSpan DefaultEagerFingerprintIncorporationExpiry = TimeSpan.FromDays(1);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BuildCacheServiceConfiguration"/> class.
@@ -261,5 +277,25 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public bool OverrideUnixFileAccessMode { get; set; } = DefaultOverrideUnixFileAccessMode;
+
+        /// <summary>
+        /// Gets or sets whether eager fingerprint incorporation is enabled.
+        /// </summary>
+        [DataMember]
+        public bool EnableEagerFingerprintIncorporation { get; set; } = DefaultEnableEagerFingerprintIncorporation;
+
+        /// <summary>
+        /// Gets or sets time window during which incorporation is done eagerly.
+        /// </summary>
+        [DataMember]
+        public TimeSpan EagerFingerprintIncorporationExpiry { get; set; } = DefaultEagerFingerprintIncorporationExpiry;
+
+        /// <nodoc />
+        [DataMember]
+        public TimeSpan EagerFingerprintIncorporationNagleInterval { get; set; } = DefaultEagerFingerprintIncorporationNagleInterval;
+
+        /// <nodoc />
+        [DataMember]
+        public int EagerFingerprintIncorporationNagleBatchSize { get; set; } = DefaultEagerFingerprintIncorporationNagleBatchSize;
     }
 }

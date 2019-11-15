@@ -27,12 +27,14 @@ using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Vsts;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Vsts.Adapters;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
+using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
 
@@ -99,6 +101,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         protected readonly BuildCacheCacheTracer Tracer;
 
+        private readonly bool _enableEagerFingerprintIncorporation;
+        private readonly TimeSpan _eagerFingerprintIncorporationExpiry;
+
         /// <summary>
         ///     Background tracker for handling the upload/sealing of unbacked metadata.
         /// </summary>
@@ -120,6 +125,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private int _sealingErrorCount;
         private readonly bool _overrideUnixFileAccessMode;
 
+        private Context _eagerFingerprintIncorporationTracingContext; // must be set at StartupAsync
+        private readonly NagleQueue<StrongFingerprint> _eagerFingerprintIncorporationNagleQueue;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="BuildCacheReadOnlySession"/> class.
         /// </summary>
@@ -140,6 +148,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="sealUnbackedContentHashLists">If true, the client will attempt to seal any unbacked ContentHashLists that it sees.</param>
         /// <param name="overrideUnixFileAccessMode">If true, overrides default Unix file access modes when placing files.</param>
         /// <param name="tracer">A tracer for logging and perf counters.</param>
+        /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
+        /// <param name="eagerFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationExpiry"/></param>
+        /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
+        /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         public BuildCacheReadOnlySession(
             IAbsFileSystem fileSystem,
             string name,
@@ -157,7 +169,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             IContentSession writeThroughContentSession,
             bool sealUnbackedContentHashLists,
             bool overrideUnixFileAccessMode,
-            BuildCacheCacheTracer tracer)
+            BuildCacheCacheTracer tracer,
+            bool enableEagerFingerprintIncorporation,
+            TimeSpan eagerFingerprintIncorporationExpiry,
+            TimeSpan eagerFingerprintIncorporationInterval,
+            int eagerFingerprintIncorporationBatchSize)
         {
             Contract.Requires(name != null);
             Contract.Requires(contentHashListAdapter != null);
@@ -174,6 +190,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             WriteThroughContentSession = writeThroughContentSession;
             _sealUnbackedContentHashLists = sealUnbackedContentHashLists;
             Tracer = tracer;
+            _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
+            _eagerFingerprintIncorporationExpiry = eagerFingerprintIncorporationExpiry;
 
             _tempDirectory = new DisposableDirectory(fileSystem);
             _sealingErrorsToPrintOnShutdown = new List<string>();
@@ -183,6 +201,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
 
             FingerprintTracker = new FingerprintTracker(DateTime.UtcNow + minimumTimeToKeepContentHashLists, rangeOfTimeToKeepContentHashLists);
+
+            if (enableEagerFingerprintIncorporation)
+            {
+                _eagerFingerprintIncorporationNagleQueue = NagleQueue<StrongFingerprint>.Create(IncorporateBatchAsync, _maxDegreeOfParallelismForIncorporateRequests, eagerFingerprintIncorporationInterval, eagerFingerprintIncorporationBatchSize);
+            }
         }
 
         /// <inheritdoc />
@@ -214,6 +237,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         public Task<BoolResult> StartupAsync(Context context)
         {
             StartupStarted = true;
+
+            _eagerFingerprintIncorporationTracingContext = context;
+
             return StartupCall<MemoizationStoreTracer>.RunAsync(Tracer.MemoizationStoreTracer, context, async () =>
             {
                 BoolResult result;
@@ -379,6 +405,37 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             });
         }
 
+        private async Task IncorporateBatchAsync(StrongFingerprint[] fingerprints)
+        {
+            var context = new OperationContext(_eagerFingerprintIncorporationTracingContext);
+
+            BoolResult result = await context.CreateOperation(
+                Tracer,
+                async () =>
+                {
+                    Tracer.Debug(context, $"Total fingerprints to be incorporated:[{fingerprints.Length}]");
+                    Tracer.Debug(context, $"Max fingerprints per incorporate request(=chunk size):[{_maxFingerprintsPerIncorporateRequest}]");
+                    Tracer.Debug(context, $"Max incorporate requests allowed in parallel:[{_maxDegreeOfParallelismForIncorporateRequests}]");
+
+                    // Incorporating all of the fingerprints for a build, in one request, to a single endpoint causes pain. Incorporation involves
+                    // extending the lifetime of all fingerprints *and* content/s mapped to each fingerprint. Processing a large request payload
+                    // results in, potentially, fanning out a massive number of "lifetime extend" requests to itemstore and blobstore, which can
+                    // bring down the endpoint. Break this down into chunks so that multiple, load-balanced endpoints can share the burden.
+
+                    var fingerprintsWithExpiration = fingerprints.Select(strongFingerprint => new StrongFingerprintAndExpiration(strongFingerprint, FingerprintTracker.GenerateNewExpiration()));
+                    await ContentHashListAdapter.IncorporateStrongFingerprints(
+                        context,
+                        CacheNamespace,
+                        new IncorporateStrongFingerprintsRequest(fingerprintsWithExpiration.ToList().AsReadOnly())
+                    ).ConfigureAwait(false);
+
+                    return BoolResult.Success;
+                }).RunAsync();
+
+            // Ignoring the failure, because it was already traced if needed.
+            result.IgnoreFailure();
+        }
+
         /// <inheritdoc />
         public bool ShutdownCompleted { get; private set; }
 
@@ -488,7 +545,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     CacheNamespace, strongFingerprint, out contentHashListWithDeterminism))
                 {
                     Tracer.RecordUseOfPrefetchedContentHashList();
-                    FingerprintTracker.Track(
+
+                    TrackFingerprint(
+                        context,
                         strongFingerprint,
                         contentHashListWithDeterminism.Determinism.ExpirationUtc);
                     return new GetContentHashListResult(contentHashListWithDeterminism);
@@ -517,9 +576,28 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 }
 
                 SealIfNecessaryAfterGet(context, strongFingerprint, response);
-                FingerprintTracker.Track(strongFingerprint, response.GetRawExpirationTimeUtc());
+
+                TrackFingerprint(context, strongFingerprint, response.GetRawExpirationTimeUtc());
                 return new GetContentHashListResult(unpackResult.ContentHashListWithDeterminism);
             });
+        }
+
+        /// <nodoc />
+        protected void TrackFingerprint(Context context, StrongFingerprint strongFingerprint, DateTime? expirationUtc)
+        {
+            if (_enableEagerFingerprintIncorporation &&
+                expirationUtc != null &&
+                expirationUtc.Value.IsRecent(DateTime.UtcNow, _eagerFingerprintIncorporationExpiry))
+            {
+                Contract.Assert(_eagerFingerprintIncorporationNagleQueue != null);
+
+                context.Debug($"Tracking fingerprint eagerly: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
+                _eagerFingerprintIncorporationNagleQueue.Enqueue(strongFingerprint);
+            }
+            else
+            {
+                FingerprintTracker.Track(strongFingerprint, expirationUtc);
+            }
         }
 
         /// <inheritdoc />
@@ -644,7 +722,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                             "Inconsistent BuildCache service response. Unbacked values should never override backed values.");
                 }
 
-                FingerprintTracker.Track(strongFingerprint, contentHashListResponse.GetRawExpirationTimeUtc());
+                TrackFingerprint(context, strongFingerprint, contentHashListResponse.GetRawExpirationTimeUtc());
                 return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(contentHashListToReturn, determinismToReturn));
             }
             catch (Exception e)

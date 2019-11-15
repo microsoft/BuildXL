@@ -3723,8 +3723,8 @@ namespace BuildXL.Processes
                 // Ignore empty lines
                 var standardErrorInResult = await result.StandardError.ReadValueAsync();
                 var standardOutputInResult = await result.StandardOutput.ReadValueAsync();
-                if (standardError.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardErrorInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length ||
-                    standardOutput.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardOutputInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length)
+                if (standardError.Replace(Environment.NewLine, string.Empty).Trim().Length != standardErrorInResult.Replace(Environment.NewLine, string.Empty).Trim().Length ||
+                    standardOutput.Replace(Environment.NewLine, string.Empty).Trim().Length != standardOutputInResult.Replace(Environment.NewLine, string.Empty).Trim().Length)
                 {
                     errorWasTruncated = true;
                 }
@@ -4015,8 +4015,8 @@ namespace BuildXL.Processes
             // Ignore empty lines
             var standardErrorInResult = await standardError.ReadValueAsync();
             var standardOutputInResult = await standardOutput.ReadValueAsync();
-            if (warningsError.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardErrorInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length ||
-                warningsOutput.Replace("\r", string.Empty).Replace("\n", string.Empty).Length != standardOutputInResult.Replace("\r", string.Empty).Replace("\n", string.Empty).Length)
+            if (warningsError.Replace(Environment.NewLine, string.Empty).Trim().Length != standardErrorInResult.Replace(Environment.NewLine, string.Empty).Trim().Length ||
+                warningsOutput.Replace(Environment.NewLine, string.Empty).Trim().Length != standardOutputInResult.Replace(Environment.NewLine, string.Empty).Trim().Length)
             {
                 errorWasTruncated = true;
             }

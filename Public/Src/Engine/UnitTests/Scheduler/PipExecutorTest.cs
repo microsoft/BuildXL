@@ -865,7 +865,7 @@ namespace Test.BuildXL.Scheduler
 
         [Fact]
         public async Task ProcessWarningWithCacheAndWarnAsError()
-        {
+        { 
             const string BadContents = "Anti-Matches!";
             string Expected = "WARNING" + Environment.NewLine;
 
@@ -1036,16 +1036,17 @@ namespace Test.BuildXL.Scheduler
         [Theory]
         [InlineData(true, EventId.PipProcessError)]
         [InlineData(false, EventId.PipProcessError)]
+        [InlineData(false, EventId.PipProcessError, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
         [InlineData(true, EventId.PipProcessWarning)]
         [InlineData(false, EventId.PipProcessWarning)]
-        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId)
+        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId, int errorMessageLength = 0)
         {
             const string BadContents = "Anti-Matches!";
 
             await WithCachingExecutionEnvironment(
                 GetFullPath(".cache"),
                 async env =>
-                {
+                { 
                     string workingDirectory = GetFullPath("work");
                     AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(env.Context.PathTable, workingDirectory);
 
@@ -1060,10 +1061,10 @@ namespace Test.BuildXL.Scheduler
                             workingDirectoryAbsolutePath,
                             destinationAbsolutePath,
                             errorPattern: regexMatchesEverything ? ".*" : "ERROR",
-                            errorMessageLength: 0);
+                            errorMessageLength: errorMessageLength);
                         var testRunChecker = new TestRunChecker();
                         await testRunChecker.VerifyFailed(env, pip);
-                        AssertErrorEventLogged(eventId);
+                        AssertErrorEventLogged(eventId, errorMessageLength > 0 ? 3 : 1);
                     }
                     else
                     {
@@ -1090,7 +1091,7 @@ namespace Test.BuildXL.Scheduler
                     }
                 },
                 null,
-                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: OutputReportingMode.TruncatedOutputOnError));
+                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: errorMessageLength > 0 ? OutputReportingMode.FullOutputAlways : OutputReportingMode.TruncatedOutputOnError));
         }
 
         private string GetRelatedLog (string log, EventId eventId)
@@ -1099,7 +1100,7 @@ namespace Test.BuildXL.Scheduler
             string[] ends = { "WARNING DX", "ERROR DX", "VERBOSE DX" };
             string upperCaseLog = log.ToUpper();
 
-            int startIndex = upperCaseLog.IndexOf(start);
+            int startIndex = upperCaseLog.LastIndexOf(start);
             if (startIndex < 0)
             {
                 return string.Empty;
@@ -3089,7 +3090,7 @@ EXIT /b 3
             var command = new StringBuilder();
 
             command.AppendLine("@echo off");
-            command.AppendLine(I($"echo WARNING"));
+            command.AppendLine("echo WARNING");
             if (extraWarningMessage)
             {
                 command.AppendLine("echo EXTRA");
@@ -3097,7 +3098,12 @@ EXIT /b 3
 
             string cmdScript = OperatingSystemHelper.IsUnixOS ? GetFullPath("script.sh") : GetFullPath("script.cmd");
             File.WriteAllText(cmdScript, command.ToString());
-            FileArtifact cmdScriptFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, cmdScript));
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                chmod(cmdScript, 0x1ff);
+            }
+
+            FileArtifact cmdScriptFile = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, cmdScript));
             FileArtifact stdout = FileArtifact.CreateSourceFile(output).CreateNextWrittenVersion();
             FileArtifact exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, CmdHelper.OsShellExe));
             return AssignFakePipId(new Process(

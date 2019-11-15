@@ -104,6 +104,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly bool _enableEagerFingerprintIncorporation;
         private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationExpiry;
+        private readonly TimeSpan _eagerFingerprintIncorporationInterval;
+        private readonly int _eagerFingerprintIncorporationBatchSize;
 
         /// <summary>
         ///     Background tracker for handling the upload/sealing of unbacked metadata.
@@ -196,6 +198,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
             _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationExpiry = eagerFingerprintIncorporationExpiry;
+            _eagerFingerprintIncorporationInterval = eagerFingerprintIncorporationInterval;
+            _eagerFingerprintIncorporationBatchSize = eagerFingerprintIncorporationBatchSize;
 
             _tempDirectory = new DisposableDirectory(fileSystem);
             _sealingErrorsToPrintOnShutdown = new List<string>();
@@ -208,7 +212,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             if (enableEagerFingerprintIncorporation)
             {
-                _eagerFingerprintIncorporationNagleQueue = NagleQueue<StrongFingerprint>.Create(IncorporateBatchAsync, _maxDegreeOfParallelismForIncorporateRequests, eagerFingerprintIncorporationInterval, eagerFingerprintIncorporationBatchSize);
+                _eagerFingerprintIncorporationNagleQueue = NagleQueue<StrongFingerprint>.Create(IncorporateBatchAsync, maxDegreeOfParallelismForIncorporateRequests, eagerFingerprintIncorporationInterval, eagerFingerprintIncorporationBatchSize);
             }
         }
 
@@ -246,6 +250,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
             return StartupCall<MemoizationStoreTracer>.RunAsync(Tracer.MemoizationStoreTracer, context, async () =>
             {
+                LogIncorporateOptions(context);
+
                 BoolResult result;
                 var backingContentSessionTask = Task.Run(async () => await BackingContentSession.StartupAsync(context).ConfigureAwait(false));
                 var writeThroughContentSessionResult = WriteThroughContentSession != null
@@ -297,6 +303,13 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 StartupCompleted = true;
                 return result;
             });
+        }
+
+        private void LogIncorporateOptions(Context context)
+        {
+            context.Debug($"BuildCacheReadOnlySession incorporation options: FingerprintIncorporationEnabled={_fingerprintIncorporationEnabled}, EnableEagerFingerprintIncorporation={_enableEagerFingerprintIncorporation} " +
+                          $"InlineFingerprintIncorporationExpiry={_inlineFingerprintIncorporationExpiry}, EagerFingerprintIncorporationExpiry={_eagerFingerprintIncorporationExpiry}, " +
+                          $"EagerFingerprintIncorporationInterval={_eagerFingerprintIncorporationInterval}, EagerFingerprintIncorporationBatchSize={_eagerFingerprintIncorporationBatchSize}.");
         }
 
         /// <inheritdoc />
@@ -417,9 +430,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 Tracer,
                 async () =>
                 {
-                    Tracer.Debug(context, $"Total fingerprints to be incorporated:[{fingerprints.Length}]");
-                    Tracer.Debug(context, $"Max fingerprints per incorporate request(=chunk size):[{_maxFingerprintsPerIncorporateRequest}]");
-                    Tracer.Debug(context, $"Max incorporate requests allowed in parallel:[{_maxDegreeOfParallelismForIncorporateRequests}]");
+                    Tracer.Debug(context, $"IncorporateBatch: Total fingerprints to be incorporated:[{fingerprints.Length}]");
+                    Tracer.Debug(context, $"IncorporateBatch: Max fingerprints per incorporate request(=chunk size):[{_maxFingerprintsPerIncorporateRequest}]");
+                    Tracer.Debug(context, $"IncorporateBatch: Max incorporate requests allowed in parallel:[{_maxDegreeOfParallelismForIncorporateRequests}]");
 
                     // Incorporating all of the fingerprints for a build, in one request, to a single endpoint causes pain. Incorporation involves
                     // extending the lifetime of all fingerprints *and* content/s mapped to each fingerprint. Processing a large request payload
@@ -1004,6 +1017,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             }
 
             return PinResult.Success;
+        }
+
+        private struct IncorporationOptions
+        {
+
         }
     }
 }

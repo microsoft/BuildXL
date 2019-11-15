@@ -1136,7 +1136,7 @@ namespace BuildXL.Scheduler
         /// <param name="fingerprint">The pip fingerprint</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
         /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
-        /// <param name="earlyReleaser">...</param>
+        /// <param name="earlyReleaser">Releaser to call right after <c>await executor.RunAsync</c></param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
             OperationContext operationContext,

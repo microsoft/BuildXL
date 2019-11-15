@@ -123,7 +123,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         private readonly Interfaces.FileSystem.AbsolutePath _reconcileFilePath;
 
         private Func<OperationContext, ContentHash, Task<ResultBase>> _proactiveReplicationTaskFactory;
-        private int _replicating = 0;
+        private CancellationTokenSource _lastProactiveReplicationTokenSource;
+        private readonly object _proactiveReplicationLockObject = new object();
 
         /// <nodoc />
         public LocalLocationStore(
@@ -656,17 +657,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 }
 
                 // Make sure to only have one thread doing proactive replication, in case last proactive replication is still happening.
-                if (_configuration.EnableProactiveReplication && Interlocked.CompareExchange(ref _replicating, 1, 0) == 0)
+                if (_configuration.EnableProactiveReplication)
                 {
-                    var proactiveReplicationTask = WithOperationContext(
-                        context,
-                        CancellationToken.None,
-                        opContext => ProactiveReplicationAsync(opContext));
-
                     if (_configuration.InlineProactiveReplication)
                     {
-                        var result = await proactiveReplicationTask;
-                        _replicating = 0;
+                        var result = await ProactiveReplicationAsync(context);
+
                         if (!result)
                         {
                             return new BoolResult(result);
@@ -674,7 +670,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     }
                     else
                     {
-                        proactiveReplicationTask.ContinueWith(_ => _replicating = 0).FireAndForget(context);
+                        var cts = new CancellationTokenSource();
+
+                        lock (_proactiveReplicationLockObject)
+                        {
+                            _lastProactiveReplicationTokenSource?.Cancel();
+                            _lastProactiveReplicationTokenSource?.Dispose();
+                            _lastProactiveReplicationTokenSource = cts;
+                        }
+
+                        WithOperationContext(
+                            context,
+                            cts.Token,
+                            opContext => ProactiveReplicationAsync(opContext)
+                            ).FireAndForget(context);
                     }
                 }
             }
@@ -1423,17 +1432,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         async hash => await _proactiveReplicationTaskFactory(context, hash),
                         new ExecutionDataflowBlockOptions()
                         {
-                            MaxDegreeOfParallelism = _configuration.ProactiveReplicationConcurrencyLimit
+                            MaxDegreeOfParallelism = _configuration.ProactiveReplicationConcurrencyLimit,
+                            CancellationToken = context.Token
                         });
 
                     var contentCopied = 0;
                     foreach (var content in localContent)
                     {
+                        context.Token.ThrowIfCancellationRequested();
+
                         if (Database.TryGetEntry(context, content.ContentHash, out var entry))
                         {
                             if (entry.Locations.Count < _configuration.ProactiveCopyLocationsThreshold)
                             {
-                                await proactiveReplicationBlock.SendAsync(content.ContentHash);
+                                await proactiveReplicationBlock.SendAsync(content.ContentHash, context.Token);
 
                                 contentCopied++;
                                 if (contentCopied >= _configuration.ProactiveReplicationCopyLimit)

@@ -105,12 +105,16 @@ namespace BuildXL.Engine
         /// <param name="mountPathExpander">
         /// Optional mount path expander.  When used, its roots are treated as non-deletable.
         /// </param>
+        /// <param name="logRemovedFiles">
+        /// Optional flag for logging removed files.
+        /// </param>
         public bool RemoveExtraneousFilesAndDirectories(
             Func<string, bool> isPathInBuild,
             IEnumerable<string> pathsToScrub,
             IEnumerable<string> blockedPaths,
             IEnumerable<string> nonDeletableRootDirectories,
-            MountPathExpander mountPathExpander = null)
+            MountPathExpander mountPathExpander = null,
+            bool logRemovedFiles = true)
         {
             var finalPathsToScrub = CollapsePaths(pathsToScrub).ToList();
             var finalBlockedPaths = new HashSet<string>(blockedPaths, StringComparer.OrdinalIgnoreCase);
@@ -120,7 +124,7 @@ namespace BuildXL.Engine
                 finalNonDeletableRootDirectories.UnionWith(mountPathExpander.GetAllRoots().Select(p => p.ToString(mountPathExpander.PathTable)));
             }
 
-            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander);
+            return RemoveExtraneousFilesAndDirectories(isPathInBuild, finalPathsToScrub, finalBlockedPaths, finalNonDeletableRootDirectories, mountPathExpander, logRemovedFiles);
         }
 
         private bool RemoveExtraneousFilesAndDirectories(
@@ -128,7 +132,8 @@ namespace BuildXL.Engine
             List<string> pathsToScrub,
             HashSet<string> blockedPaths,
             HashSet<string> nonDeletableRootDirectories,
-            MountPathExpander mountPathExpander = null)
+            MountPathExpander mountPathExpander,
+            bool logRemovedFiles)
         { 
             int directoriesEncountered = 0;
             int filesEncountered = 0;
@@ -278,9 +283,9 @@ namespace BuildXL.Engine
                                             if (!isPathInBuild(fullPath))
                                             {
                                                 // File is not in the build, delete it.
-                                                if (TryDeleteFile(pm.LoggingContext, fullPath))
+                                                if (TryDeleteFile(pm.LoggingContext, fullPath, logRemovedFiles))
                                                 {
-                                                    IncrementCountAndLogDeletedFile(m_loggingContext, fullPath, ref filesRemoved);
+                                                    Interlocked.Increment(ref filesRemoved);
                                                 }
                                             }
                                             else
@@ -378,7 +383,7 @@ namespace BuildXL.Engine
         /// Deletion failures are handled gracefully (by logging a warning).
         /// Returns the number of successfully deleted files.
         /// </summary>
-        public int DeleteFiles(string[] filePaths)
+        public int DeleteFiles(string[] filePaths, bool logDeletedFiles = true)
         {
             int numRemoved = 0;
             using (var timer = new Timer(
@@ -393,9 +398,9 @@ namespace BuildXL.Engine
                     .WithCancellation(m_cancellationToken)
                     .ForAll(path =>
                     {
-                        if (FileUtilities.FileExistsNoFollow(path) && TryDeleteFile(m_loggingContext, path))
+                        if (FileUtilities.FileExistsNoFollow(path) && TryDeleteFile(m_loggingContext, path, logDeletedFiles))
                         {
-                            IncrementCountAndLogDeletedFile(m_loggingContext, path, ref numRemoved);
+                            Interlocked.Increment(ref numRemoved);
                         }
                     });
                 Tracing.Logger.Log.ScrubbingFinished(m_loggingContext, 0, filePaths.Length, numRemoved, 0);
@@ -403,27 +408,23 @@ namespace BuildXL.Engine
             }
         }
 
-        private bool TryDeleteFile(LoggingContext loggingContext, string path)
+        private bool TryDeleteFile(LoggingContext loggingContext, string path, bool logDeletedFile)
         {
             try
             {
                 FileUtilities.DeleteFile(path, waitUntilDeletionFinished: true, tempDirectoryCleaner: m_tempDirectoryCleaner);
+
+                if (logDeletedFile)
+                {
+                    Tracing.Logger.Log.ScrubbingFile(loggingContext, path);
+                }
+
                 return true;
             }
             catch (BuildXLException ex)
             {
                 Tracing.Logger.Log.ScrubbingExternalFileOrDirectoryFailed(loggingContext, path, ex.LogEventMessage);
                 return false;
-            }
-        }
-
-        private static void IncrementCountAndLogDeletedFile(LoggingContext loggingContext, string path, ref int deletedFileCount)
-        {
-            const int MaxScrubbingLogLogCount = 10;
-
-            if (Interlocked.Increment(ref deletedFileCount) < MaxScrubbingLogLogCount)
-            {
-                Tracing.Logger.Log.ScrubbingFile(loggingContext, path);
             }
         }
     }

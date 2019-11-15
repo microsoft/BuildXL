@@ -93,6 +93,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public int EvictionPoolSize { get; set; } = 5000;
 
         /// <summary>
+        /// The minimum age a candidate for eviction must be older than to be evicted. If the candidate's age is not older
+        /// then we simply ignore it for eviction and trace information to help us determine why the candidate is nominated for eviction
+        /// with such a younge age.
+        /// <remarks>
+        /// Default to zero time to allow all candidates to pass, when we want to test for eviction min age we can configure for it.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan EvictionMinAge { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
         /// Fraction of the pool considered trusted to be in the accurate order.
         /// </summary>
         /// <remarks>

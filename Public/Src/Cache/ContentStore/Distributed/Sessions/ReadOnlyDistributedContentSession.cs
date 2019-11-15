@@ -1037,7 +1037,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                         var proactiveCopyTask = WithOperationContext(
                             operationContext,
                             CancellationToken.None,
-                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash));
+                            opContext => ProactiveCopyIfNeededAsync(opContext, remote.ContentHash, tryBuildRing: true));
 
                         if (Settings.InlineProactiveCopies)
                         {
@@ -1173,7 +1173,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return UpdateContentTrackerWithNewReplicaAsync(context, hashesToEagerUpdate, cts, urgencyHint);
         }
 
-        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, string path = null)
+        internal Task<ProactiveCopyResult> ProactiveCopyIfNeededAsync(OperationContext context, ContentHash hash, bool tryBuildRing, string path = null)
         {
             if (!_pendingProactivePuts.Add(hash))
             {
@@ -1187,7 +1187,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 {
                     try
                     {
-                        var hashArray = _buildIdHash != null
+                        var hashArray = _buildIdHash != null && tryBuildRing
                             ? new[] { hash, _buildIdHash.Value }
                             : new[] { hash };
 
@@ -1213,7 +1213,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                         // Get random machine inside build ring
                         Task<BoolResult> insideRingCopyTask;
-                        if ((Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
+                        if (tryBuildRing && (Settings.ProactiveCopyMode & ProactiveCopyMode.InsideRing) != 0)
                         {
                             if (_buildIdHash != null)
                             {

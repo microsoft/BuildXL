@@ -197,7 +197,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
                 var proactiveCopyTask = WithOperationContext(
                     context,
                     CancellationToken.None,
-                    operationContext => ProactiveCopyIfNeededAsync(operationContext, result.ContentHash, path)
+                    operationContext => ProactiveCopyIfNeededAsync(operationContext, result.ContentHash, tryBuildRing: true, path)
                 );
 
                 if (Settings.InlineProactiveCopies)

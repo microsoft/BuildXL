@@ -182,7 +182,7 @@ namespace BuildXL.Engine.Tracing
         DistributionServiceInitializationError = 7043,
         WorkerTotalRamMb = 7044,
 
-        RemoteWorkerProcessedExecutionBlob = 7044,
+        RemoteWorkerProcessedExecutionBlob = 7045,
 
         // Scheduling
         ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling = 7051,

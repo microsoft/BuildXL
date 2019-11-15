@@ -17,6 +17,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
+using static BuildXL.Interop.MacOS.Memory;
 using static BuildXL.Utilities.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;

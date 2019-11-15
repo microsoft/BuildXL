@@ -39,8 +39,8 @@ If no `.vscode/launch.json` file exists in your workspace, it can be created man
 | Switch | Default Value | Description |
 | --- | --- | --- | 
 | `/port:<int>`     | 41188 | Server port the debugger should open |
-| `/evalCache[+|-]` | false | Whether to cache results of previously evaluated expressions.  Currently UNSOUND; avoid using |
-| `/ordered[+|-]`   | true  | Whether to preserve ordering when evaluating [Map](QueryLanguage.md#Map-Expression) and [Filter](QueryLanguage.md#Filter-Expression) in parallel.  Disabling this option may yield somewhat better performance. |
+| `/evalCache[+-]` | false | Whether to cache results of previously evaluated expressions.  Currently UNSOUND; avoid using |
+| `/ordered[+-]`   | true  | Whether to preserve ordering when evaluating [Map](QueryLanguage.md#Map-Expression) and [Filter](QueryLanguage.md#Filter-Expression) in parallel.  Disabling this option may yield somewhat better performance. |
 
 ## Commands
 

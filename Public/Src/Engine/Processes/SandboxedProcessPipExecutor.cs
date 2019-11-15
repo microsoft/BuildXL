@@ -1610,7 +1610,7 @@ namespace BuildXL.Processes
             Contract.Assert(!standardOutHasBeenWrittenToLog || status != SandboxedProcessPipExecutionStatus.Succeeded);
 
             Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context),
-                $"Done with the rest of the crap in {DateTime.UtcNow.Subtract(start)}");
+                $"Done with the rest of the stuff in {DateTime.UtcNow.Subtract(start)}");
 
             return new SandboxedProcessPipExecutionResult(
                 status: status,

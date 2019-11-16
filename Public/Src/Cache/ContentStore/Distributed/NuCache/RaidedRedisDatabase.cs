@@ -3,8 +3,10 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -68,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<BoolResult> ExecuteRedisAsync(OperationContext context, Func<RedisDatabaseAdapter, Task<BoolResult>> executeAsync, [CallerMemberName]string caller = null)
+        public async Task<BoolResult> ExecuteRedisAsync(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<BoolResult>> executeAsync, [CallerMemberName]string caller = null)
         {
             (var primaryResult, var secondaryResult) = await ExecuteRaidedAsync(
                 context,
@@ -84,10 +86,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<(TResult primary, TResult secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, Task<TResult>> executeAsync, bool concurrent = true, [CallerMemberName]string caller = null)
+        public async Task<(TResult primary, TResult secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, TimeSpan? timeout = null, bool concurrent = true, [CallerMemberName]string caller = null)
             where TResult : BoolResult
         {
-            var primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync);
+            // TODO: maybe rename 'timeout' argument and we need to document it. Effectively, we'll wait for this time without trying to cancel the second task!
+            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+            
+            var primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
 
             if (!HasSecondary)
             {
@@ -101,8 +106,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 await primaryResultTask.IgnoreErrorsAndReturnCompletion();
             }
 
-            var secondaryResultTask = ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync);
-            await Task.WhenAll(primaryResultTask, secondaryResultTask);
+            var secondaryResultTask = ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync, cancellationTokenSource.Token);
+
+            // Instead of waiting for both - the primary and the secondary, we'll check for the first one first and then try to cancel the other one.
+            // Do we want to add a delay here? Like 100ms to allow both of them to finish?
+            // If we'll do this we should make this thing configurable and in this case we'll be able to opt-in this feature!
+
+            Task<TResult> fasterResultTask = await Task.WhenAny(primaryResultTask, secondaryResultTask);
+            Task<TResult> slowerResultTask = fasterResultTask == primaryResultTask ? secondaryResultTask : primaryResultTask;
+
+            // Try to cancel the slower operation only when the faster one finished successfully (and the timeout was provided).
+            if (fasterResultTask.Result.Succeeded && timeout != null)
+            {
+                // Giving the second task a chance to succeed.
+                Task secondResult = await Task.WhenAny(slowerResultTask, Task.Delay(timeout.Value, context.Token));
+
+                if (secondResult != slowerResultTask)
+                {
+                    // The second task is not done within a given timeout.
+                    cancellationTokenSource.Cancel();
+
+                    // TODO: Trace: we need to detect here whether we canceled the primary or the secondary.
+                    //Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {primaryResult & secondaryResult}");
+
+                    // Avoiding task unobserved exception if the second task will fail.
+                    // TODO: pass the severity into this operation to trace the failure as a debug severity message (not available yet).
+                    slowerResultTask.FireAndForget(context);
+
+                    if (fasterResultTask == primaryResultTask)
+                    {
+                        return (await fasterResultTask, default);
+                    }
+                    else
+                    {
+                        return (default, await fasterResultTask);
+                    }
+                }
+            }
+
+            await slowerResultTask;
 
             var primaryResult = await primaryResultTask;
             var secondaryResult = await secondaryResultTask;
@@ -143,12 +185,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<TResult> ExecuteAndCaptureRedisErrorsAsync<TResult>(RedisDatabaseAdapter redisDb, Func<RedisDatabaseAdapter, Task<TResult>> executeAsync)
+        public async Task<TResult> ExecuteAndCaptureRedisErrorsAsync<TResult>(RedisDatabaseAdapter redisDb, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, CancellationToken token)
             where TResult : ResultBase
         {
             try
             {
-                return await executeAsync(redisDb);
+                return await executeAsync(redisDb, token);
             }
             catch (RedisConnectionException ex)
             {

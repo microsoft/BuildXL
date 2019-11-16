@@ -157,7 +157,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                     foreach (var page in contentHashes.AsIndexed().GetPages(_configuration.RedisBatchPageSize))
                     {
-                        var batchResult = await _redis.ExecuteRedisAsync(context, async redisDb =>
+                        var batchResult = await _redis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             var redisBatch = redisDb.CreateBatch(RedisOperation.GetBulkGlobal);
 
@@ -190,7 +190,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                 }).FireAndForget(context);
                             }
 
-                            return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
+                            // TODO ST: now this operation may fail with TaskCancelledException. But this should be traced differently!
+                            return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, token);
 
                         });
 

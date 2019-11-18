@@ -3715,15 +3715,13 @@ namespace BuildXL.Scheduler
                     {
                         var executionResult = processRunnable.ExecutionResult;
 
-                        Logger.Log.DebugFragment(operationContext, $"{runnablePip.Description} -- Flagging SO outputs");
-
                         var start = DateTime.UtcNow;
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
                         var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
 
-                        Logger.Log.DebugFragment(operationContext, $"{runnablePip.Description} -- Flagged {sharedOpaqueOutputs.Count} outputs in {DateTime.UtcNow.Subtract(start)}");
+                        Logger.Log.DebugFragment(operationContext, $"{runnablePip.Description} -- Flagged {sharedOpaqueOutputs.Count} shared opaque outputs in {DateTime.UtcNow.Subtract(start)}");
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely

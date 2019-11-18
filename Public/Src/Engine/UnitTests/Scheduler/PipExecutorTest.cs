@@ -3089,7 +3089,11 @@ EXIT /b 3
             var pathTable = context.PathTable;
             var command = new StringBuilder();
 
-            command.AppendLine("@echo off");
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                command.AppendLine("@echo off");
+            }
+
             command.AppendLine("echo WARNING");
             if (extraWarningMessage)
             {
@@ -3196,7 +3200,11 @@ EXIT /b 3
                 string[] errorMessages = GenerateTestErrorMessages(errorMessageLength);
                 StringBuilder command = new StringBuilder();
 
-                command.AppendLine("@echo off");
+                if (!OperatingSystemHelper.IsUnixOS)
+                {
+                    command.AppendLine("@echo off");
+                }
+
                 command.AppendLine(I($"echo ERROR "));
                 foreach (var errorMessage in errorMessages)
                 {

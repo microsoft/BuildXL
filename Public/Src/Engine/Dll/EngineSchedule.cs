@@ -798,7 +798,7 @@ namespace BuildXL.Engine
             if (sharedOpaqueSidebandFiles.Any())
             {
                 Logger.Log.DeletingSharedOpaqueSidebandFilesStarted(loggingContext);
-                scrubber.DeleteFiles(sharedOpaqueSidebandFiles);
+                scrubber.DeleteFiles(sharedOpaqueSidebandFiles, logDeletedFiles: false);
             }
 
             if (pathsToScrub.Count > 0)

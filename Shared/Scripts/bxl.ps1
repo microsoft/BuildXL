@@ -265,7 +265,7 @@ if ($Vs) {
 }
 
 if ($VsNew -or $VsNewNetCore -or $VsNewNet472 -or $VsNewAll) {
-    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew /solutionName:BuildXLNew";
+    $AdditionalBuildXLArguments += "/p:[Sdk.BuildXL]GenerateVSSolution=true /vs /vsnew";
     if ($VsNewNetCore) {
         $AdditionalBuildXLArguments += "/q:DebugDotNetCore /vsTargetFramework:netcoreapp3.0 /vsTargetFramework:netstandard2.0";
     } elseif ($VsNewNet472) {

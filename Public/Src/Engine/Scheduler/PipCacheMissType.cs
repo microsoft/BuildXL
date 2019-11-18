@@ -26,6 +26,11 @@ namespace BuildXL.Scheduler
         MissForDescriptorsDueToWeakFingerprints = PipExecutorCounter.CacheMissesForDescriptorsDueToWeakFingerprints,
 
         /// <summary>
+        /// Number of times a process pip cache entry was not found (no prior execution information).
+        /// </summary>
+        CacheMissesForDescriptorsDueToAugmentedWeakFingerprints = PipExecutorCounter.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
+
+        /// <summary>
         /// Number of times a process pip was forced to be a cache miss (despite finding a descriptor) due to artifial cache miss injection.
         /// </summary>
         MissForDescriptorsDueToArtificialMissOptions = PipExecutorCounter.CacheMissesForDescriptorsDueToArtificialMissOptions,

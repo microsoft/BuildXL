@@ -520,6 +520,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
 
         [GeneratedEvent(
+           (ushort)EventId.CacheDescriptorMissForAugmentedContentFingerprint,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.Diagnostics,
+           EventTask = (ushort)Tasks.PipExecutor,
+           Message = "[{pipDescription}] Augmented weak fingerprint miss: A pip cache descriptor was not found for content fingerprint '{contentFingerprint}'.")]
+        internal abstract void TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
+
+        [GeneratedEvent(
             (ushort)EventId.InvalidCacheDescriptorForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

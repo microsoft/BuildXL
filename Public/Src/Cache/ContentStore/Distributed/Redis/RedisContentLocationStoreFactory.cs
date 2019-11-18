@@ -116,7 +116,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 IGlobalLocationStore globalStore = new RedisGlobalStore(Clock, Configuration, localMachineLocation, redisDatabaseForGlobalStore, secondaryRedisDatabaseForGlobalStore);
                 var localLocationStore = new LocalLocationStore(Clock, globalStore, Configuration);
 
-                contentLocationStore = new TransitioningContentLocationStore(Configuration, (RedisContentLocationStore)contentLocationStore, localLocationStore);
+                contentLocationStore = new TransitioningContentLocationStore(Configuration, (RedisContentLocationStore)contentLocationStore, localLocationStore, Clock);
             }
 
             return Task.FromResult(contentLocationStore);

@@ -15,6 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Native.Processes;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -352,6 +353,37 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
             // The auto-response option should be always off
             Assert.Contains(argument, arguments);
+        }
+
+        [Fact]
+        public void SharedCompilationIsTurnedOnWhenAvailable()
+        {
+            var project = CreateProjectWithPredictions("A.proj");
+
+            // We need to explicitly turn on shared compilation because for tests it is off by default
+            var testProj = Start(new MsBuildResolverSettings { UseLegacyProjectIsolation = true, UseManagedSharedCompilation = true })
+                .Add(project)
+                .ScheduleAll()
+                .AssertSuccess().
+                RetrieveSuccessfulProcess(project);
+
+            var arguments = RetrieveProcessArguments(testProj);
+
+            // When supported, we should:
+            // - not turn off shared compilation, 
+            // - let VBCSCompiler escape the sandbox
+            // - attach the VBCSCompiler logger to compensate for missing accesses
+            if (ProcessUtilities.SandboxSupportsProcessBreakaway())
+            {
+                Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
+                Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single());
+                Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
+            }
+            else
+            {
+                Assert.Contains("/p:UseSharedCompilation=false", arguments);
+                Assert.Empty(testProj.ChildProcessesToBreakawayFromSandbox);
+            }
         }
     }
 }

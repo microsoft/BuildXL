@@ -4953,6 +4953,7 @@ namespace BuildXL.Scheduler
             return new PipExecutorCounter[]
             {
                 PipExecutorCounter.CacheMissesForDescriptorsDueToWeakFingerprints,
+                PipExecutorCounter.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
                 PipExecutorCounter.CacheMissesForDescriptorsDueToStrongFingerprints,
                 PipExecutorCounter.CacheMissesForDescriptorsDueToArtificialMissOptions,
                 PipExecutorCounter.CacheMissesForCacheEntry,

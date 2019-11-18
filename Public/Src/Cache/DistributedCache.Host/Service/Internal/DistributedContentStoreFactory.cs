@@ -71,6 +71,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 EvictionPoolSize = _distributedSettings.EvictionPoolSize,
                 EvictionMinAge = _distributedSettings.EvictionMinAge,
                 EvictionRemovalFraction = _distributedSettings.EvictionRemovalFraction,
+                RetryWindow = _distributedSettings.RetryWindow,
                 MemoizationExpiryTime = TimeSpan.FromMinutes(_distributedSettings.RedisMemoizationExpiryTimeMinutes)
             };
 

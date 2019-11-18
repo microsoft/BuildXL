@@ -70,11 +70,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<BoolResult> ExecuteRedisAsync(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<BoolResult>> executeAsync, [CallerMemberName]string caller = null)
+        public async Task<BoolResult> ExecuteRedisAsync(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<BoolResult>> executeAsync, TimeSpan? retryWindow, [CallerMemberName]string caller = null)
         {
             (var primaryResult, var secondaryResult) = await ExecuteRaidedAsync(
                 context,
                 executeAsync,
+                retryWindow,
                 concurrent: true);
 
             if (!HasSecondary)
@@ -86,10 +87,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<(TResult primary, TResult secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, TimeSpan? timeout = null, bool concurrent = true, [CallerMemberName]string caller = null)
+        public async Task<(TResult primary, TResult secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, TimeSpan? retryWindow, bool concurrent = true, [CallerMemberName]string caller = null)
             where TResult : BoolResult
         {
-            // TODO: maybe rename 'timeout' argument and we need to document it. Effectively, we'll wait for this time without trying to cancel the second task!
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             
             var primaryResultTask = ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
@@ -115,10 +115,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             Task<TResult> slowerResultTask = fasterResultTask == primaryResultTask ? secondaryResultTask : primaryResultTask;
 
             // Try to cancel the slower operation only when the faster one finished successfully (and the timeout was provided).
-            if (fasterResultTask.Result.Succeeded && timeout != null)
+            if (fasterResultTask.Result.Succeeded && retryWindow != null)
             {
                 // Giving the second task a chance to succeed.
-                Task secondResult = await Task.WhenAny(slowerResultTask, Task.Delay(timeout.Value, context.Token));
+                Task secondResult = await Task.WhenAny(slowerResultTask, Task.Delay(retryWindow.Value, context.Token));
 
                 if (secondResult != slowerResultTask)
                 {
@@ -129,7 +129,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {fasterResultTask}");
 
                     // Avoiding task unobserved exception if the second task will fail.
-                    // TODO: pass the severity into this operation to trace the failure as a debug severity message (not available yet).
+                    // TODO ST: pass the severity into this operation to trace the failure as a debug severity message (not available yet).
                     slowerResultTask.FireAndForget(context);
 
                     if (fasterResultTask == primaryResultTask)

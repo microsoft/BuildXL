@@ -193,7 +193,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                             // TODO ST: now this operation may fail with TaskCancelledException. But this should be traced differently!
                             return await redisDb.ExecuteBatchOperationAsync(context, redisBatch, token);
 
-                        });
+                        }, _configuration.RetryWindow);
 
                         if (!batchResult)
                         {
@@ -313,7 +313,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                                 return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, token);
                             }
-                        });
+                        }, _configuration.RetryWindow);
 
                         if (!batchResult)
                         {

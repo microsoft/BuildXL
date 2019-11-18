@@ -1419,24 +1419,18 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             }
         }
 
-        private Task<BoolResult> ProactiveReplicationAsync(OperationContext context)
+        private Task<ProactiveReplicationResult> ProactiveReplicationAsync(OperationContext context)
         {
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
                 {
                     IEnumerable<ContentInfo> localContent = await _localContentStore.GetContentInfoAsync(context.Token);
-                    localContent = localContent.OrderByDescending(info => info.LastAccessTimeUtc);
+                    localContent = localContent.OrderByDescending(info => info.LastAccessTimeUtc); // TODO: Fix ordering logic
 
-                    var proactiveReplicationBlock = new ActionBlock<ContentHash>(
-                        async hash => await _proactiveReplicationTaskFactory(context, hash),
-                        new ExecutionDataflowBlockOptions()
-                        {
-                            MaxDegreeOfParallelism = _configuration.ProactiveReplicationConcurrencyLimit,
-                            CancellationToken = context.Token
-                        });
-
-                    var contentCopied = 0;
+                    var succeeded = 0;
+                    var failed = 0;
+                    var delayTask = Task.CompletedTask;
                     foreach (var content in localContent)
                     {
                         context.Token.ThrowIfCancellationRequested();
@@ -1445,10 +1439,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         {
                             if (entry.Locations.Count < _configuration.ProactiveCopyLocationsThreshold)
                             {
-                                await proactiveReplicationBlock.SendAsync(content.ContentHash, context.Token);
+                                await delayTask;
+                                delayTask = Task.Delay(_configuration.DelayForProactiveReplication);
 
-                                contentCopied++;
-                                if (contentCopied >= _configuration.ProactiveReplicationCopyLimit)
+                                var result = await _proactiveReplicationTaskFactory(context, content.ContentHash);
+
+                                if (result.Succeeded)
+                                {
+                                    Counters[ContentLocationStoreCounters.ProactiveReplication_Succeeded].Increment();
+                                    succeeded++;
+                                }
+                                else
+                                {
+                                    Counters[ContentLocationStoreCounters.ProactiveReplication_Failed].Increment();
+                                    failed++;
+                                }
+
+                                if ((succeeded + failed) >= _configuration.ProactiveReplicationCopyLimit)
                                 {
                                     break;
                                 }
@@ -1456,11 +1463,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
 
-                    proactiveReplicationBlock.Complete();
-                    await proactiveReplicationBlock.Completion;
-
-                    return BoolResult.Success;
-                });
+                    return new ProactiveReplicationResult(succeeded, failed);
+                },
+                counter: Counters[ContentLocationStoreCounters.ProactiveReplication]);
         }
 
         private class ContentLocationDatabaseAdapter : IContentLocationEventHandler

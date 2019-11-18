@@ -609,13 +609,13 @@ namespace BuildXL.Cache.Host.Configuration
         public int ProactiveCopyEntriesPerDesignatedLocation { get; set; } = 10;
 
         [DataMember]
-        public int ProactiveReplicationConcurrencyLimit { get; set; } = 16;
-
-        [DataMember]
         public int ProactiveReplicationCopyLimit { get; set; } = 1024;
 
         [DataMember]
         public bool EnableProactiveReplication { get; set; } = false;
+
+        [DataMember]
+        public int ProactiveReplicationDelaySeconds { get; set; } = 30;
 
         #endregion
 

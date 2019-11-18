@@ -193,9 +193,9 @@ namespace BuildXL.Cache.ContentStore.Distributed
         public bool InlineProactiveReplication { get; set; } = false;
 
         /// <summary>
-        /// The maximum amount of concurrent copies allowed because of proactive replication.
+        /// Minimum delay between individual content proactive replications.
         /// </summary>
-        public int ProactiveReplicationConcurrencyLimit { get; set; } = 128;
+        public TimeSpan DelayForProactiveReplication { get; set; } = TimeSpan.FromMinutes(0.5);
 
         /// <summary>
         /// The maximum amount of copies allowed per proactive replication invocation.

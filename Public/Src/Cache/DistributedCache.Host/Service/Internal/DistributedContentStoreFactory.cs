@@ -75,7 +75,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                 ProactiveCopyDesignatedLocationBins = _distributedSettings.ProactiveCopyDesignatedLocationBins,
                 ProactiveCopyEntriesPerDesignatedLocation = _distributedSettings.ProactiveCopyEntriesPerDesignatedLocation,
                 ProactiveCopyLocationsThreshold = _distributedSettings.ProactiveCopyLocationsThreshold,
-                ProactiveReplicationConcurrencyLimit = _distributedSettings.ProactiveReplicationConcurrencyLimit,
+                DelayForProactiveReplication = TimeSpan.FromSeconds(_distributedSettings.ProactiveReplicationDelaySeconds),
                 ProactiveReplicationCopyLimit = _distributedSettings.ProactiveReplicationCopyLimit,
                 EnableProactiveReplication = _distributedSettings.EnableProactiveReplication,
             };

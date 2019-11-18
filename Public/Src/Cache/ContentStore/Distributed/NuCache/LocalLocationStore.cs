@@ -1147,6 +1147,64 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <summary>
+        /// Computes content hashes with effective last access time sorted in LRU manner.
+        /// </summary>
+        public IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount> GetHashesInEvictionOrder(
+            Context context,
+            IReadOnlyList<ContentHashWithLastAccessTimeAndReplicaCount> contentHashesWithInfo,
+            bool reverse)
+        {
+            // Counter for successful eviction candidates. Different than total number of eviction candidates, because this only increments when candidate is above minimum eviction age
+            int evictionCount = 0;
+
+            // contentHashesWithInfo is literally all data inside the content directory. The Purger wants to remove
+            // content until we are within quota. Here we return batches of content to be removed.
+
+            // contentHashesWithInfo is sorted by (local) LastAccessTime in descending order (Least Recently Used).
+            if (contentHashesWithInfo.Count != 0)
+            {
+                var first = contentHashesWithInfo[0];
+                var last = contentHashesWithInfo[contentHashesWithInfo.Count - 1];
+
+                context.Debug($"{nameof(GetHashesInEvictionOrder)} start with contentHashesWithInfo.Count={contentHashesWithInfo.Count}, firstAge={first.Age(_clock)}, lastAge={last.Age(_clock)}");
+            }
+
+            var operationContext = new OperationContext(context);
+
+            // Ideally, we want to remove content we know won't be used again for quite a while. We don't have that
+            // information, so we use an evictability metric. Here we obtain and sort by that evictability metric.
+
+            // Assume that EffectiveLastAccessTime will always have a value.
+            var comparer = Comparer<ContentHashWithLastAccessTimeAndReplicaCount>.Create((c1, c2) => (reverse ? -1 : 1) * c1.EffectiveLastAccessTime.Value.CompareTo(c2.EffectiveLastAccessTime.Value));
+
+            Func<List<ContentHashWithLastAccessTimeAndReplicaCount>, IEnumerable<ContentHashWithLastAccessTimeAndReplicaCount>> intoEffectiveLastAccessTimes =
+                page => GetEffectiveLastAccessTimes(
+                            operationContext,
+                            page.SelectList(v => new ContentHashWithLastAccessTime(v.ContentHash, v.LastAccessTime))).ThrowIfFailure();
+
+            // We make sure that we select a set of the newer content, to ensure that we at least look at newer content to see if it should be
+            // evicted first due to having a high number of replicas. We do this by looking at the start as well as at middle of the list.
+            var oldestByEvictability = contentHashesWithInfo.Take(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
+            var youngestByEvictability = contentHashesWithInfo.SkipOptimized(contentHashesWithInfo.Count / 2).ApproximateSort(comparer, intoEffectiveLastAccessTimes, _configuration.EvictionPoolSize, _configuration.EvictionWindowSize, _configuration.EvictionRemovalFraction);
+
+            return NuCacheCollectionUtilities.MergeOrdered(oldestByEvictability, youngestByEvictability, comparer)
+                .Where((candidate, index) => IsPassEvictionAge(context, candidate, _configuration.EvictionMinAge, index, ref evictionCount));
+        }
+
+        private bool IsPassEvictionAge(Context context, ContentHashWithLastAccessTimeAndReplicaCount candidate, TimeSpan evictionMinAge, int index, ref int evictionCount)
+        {
+            if (candidate.Age(_clock) >= evictionMinAge)
+            {
+                evictionCount++;
+                return true;
+            }
+
+            context.Debug($"Previous successful eviction attempts = {evictionCount}, Total eviction attempts previously = {index}, minimum eviction age = {evictionMinAge.ToString()}, pool size = {_configuration.EvictionPoolSize}." +
+                $" Candidate replica count = {candidate.ReplicaCount}, effective age = {candidate.EffectiveAge(_clock)}, age = {candidate.Age(_clock)}.");
+            return false;
+        }
+
+        /// <summary>
         /// Returns effective last access time for all the <paramref name="contentHashes"/>.
         /// </summary>
         /// <remarks>
@@ -1425,13 +1483,17 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 Tracer,
                 async () =>
                 {
-                    IEnumerable<ContentInfo> localContent = await _localContentStore.GetContentInfoAsync(context.Token);
-                    localContent = localContent.OrderByDescending(info => info.LastAccessTimeUtc); // TODO: Fix ordering logic
+                    var localContent = (await _localContentStore.GetContentInfoAsync(context.Token))
+                        .OrderByDescending(info => info.LastAccessTimeUtc) // GetHashesInEvictionOrder expects entries to already be ordered by last access time.
+                        .Select(info => new ContentHashWithLastAccessTimeAndReplicaCount(info.ContentHash, info.LastAccessTimeUtc))
+                        .ToArray();
+
+                    var contents = GetHashesInEvictionOrder(context, localContent, reverse: true);
 
                     var succeeded = 0;
                     var failed = 0;
-                    var delayTask = Task.CompletedTask;
-                    foreach (var content in localContent)
+                    Task delayTask = Task.FromResult(0);
+                    foreach (var content in contents)
                     {
                         context.Token.ThrowIfCancellationRequested();
 

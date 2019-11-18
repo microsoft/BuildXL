@@ -212,6 +212,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets the set of locations designated for a hash. This is relevant for proactive copies and eviction.
         /// </summary>
-        public MachineLocation[] GetDesignatedLocations(ContentHash hash) => _binManager?.GetLocations(hash) ?? Array.Empty<MachineLocation>();
+        public MachineLocation[] GetDesignatedLocations(ContentHash hash) => _binManager?.GetLocations(hash) ?? CollectionUtilities.EmptyArray<MachineLocation>();
     }
 }

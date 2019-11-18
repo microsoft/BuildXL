@@ -424,6 +424,8 @@ namespace BuildXL.Engine.Distribution
             // Unblock scheduler
             await Task.Yield();
 
+            IsEarlyReleaseInitiated = true;
+
             using (EarlyReleaseLock.AcquireWriteLock())
             {
                 if (!TryInitiateStop())

@@ -1418,13 +1418,18 @@ namespace BuildXL.Scheduler
 
         private void EnsureMinimumWorkers(int minimumWorkers)
         {
-            var isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
+            bool isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
 
-            var availableWorkers = AvailableWorkersCount;
-            if (availableWorkers < minimumWorkers && !isDrainingCompleted)
+            bool anyRemoteWorkerReleased = Workers.Any(a => a.IsEarlyReleaseInitiated);
+            int availableWorkers = AvailableWorkersCount;
+
+            // If any remote worker is released due to insufficient amount of work left, do not attempt to cancel the build
+            // even though minimum workers is not satisfied. 
+            if (availableWorkers < minimumWorkers && !isDrainingCompleted && !anyRemoteWorkerReleased)
             {
                 Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, availableWorkers);
                 m_hasFailures = true;
+                RequestTermination(cancelQueue: false);
             }
         }
 

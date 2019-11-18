@@ -638,6 +638,9 @@ namespace BuildXL.FrontEnd.MsBuild
             {
                 var vbcsCompilerLoggerPath = AbsolutePath.Create(PathTable, Assembly.GetAssembly(typeof(PipConstructor)).Location)
                     .GetParent(PathTable)
+                    // Depending on the framework of the MSBuild we are using, we should provide the corresponding logger
+                    // Keep in sync with BuildXL deployment
+                    .Combine(PathTable, m_resolverSettings.ShouldRunDotNetCoreMSBuild()? "dotnetcore" : "net472")
                     .Combine(PathTable, VBCSCompilerLogger);
 
                 using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))

@@ -49,12 +49,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// Records dynamic observations during execution phase.
         /// </summary>
         /// <param name="nodeId">Node id that correponds to a pip.</param>
-        /// <param name="dynamicallyObservedFilePaths">Dynamically observed files.</param>
+        /// <param name="dynamicallyObservedFilePaths">Dynamically observed read files.</param>
+        /// <param name="dynamicallyProbedFilePaths">Dynamically observed probed files.</param>
         /// <param name="dynamicallyObservedEnumerationPaths">Dynamically observed enumerations.</param>
         /// <param name="dynamicDirectoryContents">Dynamic directory contents.</param>
         void RecordDynamicObservations(
             NodeId nodeId,
             IEnumerable<string> dynamicallyObservedFilePaths,
+            IEnumerable<string> dynamicallyProbedFilePaths,
             IEnumerable<string> dynamicallyObservedEnumerationPaths,
             IEnumerable<(string directory, IEnumerable<string> fileArtifactsCollection)> dynamicDirectoryContents);
 

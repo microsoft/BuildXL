@@ -1143,12 +1143,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Ram utilization in MB
         /// </summary>
-        public int MachineRamUtilizationMB;
+        public int RamUsedMb;
 
         /// <summary>
         /// Available Ram in MB
         /// </summary>
-        public int MachineAvailableRamMB;
+        public int RamFreeMb;
 
         /// <summary>
         /// Percentage of available commit used. Note if the machine has an expandable page file, this is based on the
@@ -1160,7 +1160,12 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The machine's total commit in MB
         /// </summary>
-        public int CommitTotalMB;
+        public int CommitUsedMb;
+
+        /// <summary>
+        /// Available Commit in MB
+        /// </summary>
+        public int CommitFreeMb;
 
         /// <summary>
         /// CPU utilization of the current process
@@ -1282,10 +1287,11 @@ namespace BuildXL.Scheduler.Tracing
                 writer.Write(pipsSucceeded);
             }
 
-            writer.Write(MachineRamUtilizationMB);
-            writer.Write(MachineAvailableRamMB);
+            writer.Write(RamUsedMb);
+            writer.Write(RamFreeMb);
             writer.Write(CommitPercent);
-            writer.Write(CommitTotalMB);
+            writer.Write(CommitUsedMb);
+            writer.Write(CommitFreeMb);
         }
 
         /// <inheritdoc />
@@ -1332,10 +1338,11 @@ namespace BuildXL.Scheduler.Tracing
                 PipsSucceededAllTypes[i] = reader.ReadInt64();
             }
 
-            MachineRamUtilizationMB = reader.ReadInt32();
-            MachineAvailableRamMB = reader.ReadInt32();
+            RamUsedMb = reader.ReadInt32();
+            RamFreeMb = reader.ReadInt32();
             CommitPercent = reader.ReadInt32();
-            CommitTotalMB = reader.ReadInt32();
+            CommitUsedMb = reader.ReadInt32();
+            CommitFreeMb = reader.ReadInt32();
         }
     }
 

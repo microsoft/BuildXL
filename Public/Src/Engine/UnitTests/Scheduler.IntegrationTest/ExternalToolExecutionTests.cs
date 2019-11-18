@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
@@ -67,6 +67,38 @@ namespace IntegrationTest.BuildXL.Scheduler
             // assert sideband files were used for scrubbing
             AssertInformationalEventLogged(EventId.DeletingOutputsFromSharedOpaqueSidebandFilesStarted, count: 1);
             AssertInformationalEventLogged(EventId.DeletingSharedOpaqueSidebandFilesStarted, count: 1);
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void RunSingleBreakawayProcess()
+        {
+            var source = CreateSourceFile();
+            var output = CreateOutputFileArtifact();
+
+            var builder = CreatePipBuilder(new[]
+            {
+                Operation.Spawn(
+                    Context.PathTable,
+                    waitToFinish: true,
+                    Operation.ReadFile(source),
+                    Operation.WriteFile(output)),
+
+                Operation.AugmentedWrite(output),
+                Operation.AugmentedRead(source),
+                Operation.WriteFile(CreateOutputFileArtifact(root: null, prefix: "dummy"))
+            }) ;
+
+            builder.AddInputFile(source);
+            builder.AddOutputFile(output.Path);
+
+            builder.Options |= Process.Options.RequiresAdmin;
+            // Configure the test process itself to escape the sandbox
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+
+            SchedulePipBuilder(builder);
+
+            // run once and assert success
+            RunScheduler().AssertSuccess();
         }
 
         [Fact]

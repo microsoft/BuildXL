@@ -85,6 +85,12 @@ namespace BuildXL.Ide.Generator
                     solutionNameCandidate = "ideGenerated";
                 }
 
+                // If a new solution generator is used, change the solution name so users can distinguish between the old and new one.
+                if (ideConfiguration.IsNewEnabled)
+                {
+                    solutionNameCandidate += "New";
+                }
+
                 ideConfiguration.SolutionName = PathAtom.Create(pathTable.StringTable, solutionNameCandidate);
             }
 

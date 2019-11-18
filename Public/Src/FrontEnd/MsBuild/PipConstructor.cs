@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections;
+using System.Reflection;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -11,6 +11,7 @@ using System.Text;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
@@ -45,7 +46,6 @@ namespace BuildXL.FrontEnd.MsBuild
         {
             "/NoLogo",
             "/p:TrackFileAccess=false", // Turns off MSBuild's Detours based tracking. Required always to prevent Detouring a Detour which is not supported
-            "/p:UseSharedCompilation=false", //  Turn off new MSBuild flag to reuse VBCSCompiler.exe (a feature of Roslyn csc compiler) to compile C# files from different projects
             "/m:1", // Tells MsBuild not to create child processes for building, but instead to simply execute the specified project file within a single process
             "/IgnoreProjectExtensions:.sln", // Tells MSBuild to avoid scanning the local file system for sln files to build, but instead to simply use the provided project file.
             "/ConsoleLoggerParameters:Verbosity=Minimal", // Minimize the console logger
@@ -53,9 +53,12 @@ namespace BuildXL.FrontEnd.MsBuild
             "/nodeReuse:false" // Even though we are already passing /m:1, when an MSBuild task is requested with an architecture that doesn't match the one of the host process, /nodeReuse will be true unless set otherwise
         };
 
+        // Keep in sync with the bxl deployment
+        internal const string VBCSCompilerLogger = "VBCSCompilerLogger.dll";
+
         private AbsolutePath Root => m_resolverSettings.Root;
 
-        private readonly AbsolutePath m_msBuildPath;
+        private readonly AbsolutePath m_msBuildPath; 
         private readonly AbsolutePath m_dotnetExePath;
         private readonly string m_frontEndName;
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
@@ -75,7 +78,9 @@ namespace BuildXL.FrontEnd.MsBuild
         // All projects should contain this property since the build graph is created by MSBuild under the /graph option
         // TODO: it would be better if MSBuild provided the property name
         internal const string s_isGraphBuildProperty = "IsGraphBuild";
-
+        
+        private bool UseSharedCompilation => ProcessUtilities.SandboxSupportsProcessBreakaway() && m_resolverSettings.UseManagedSharedCompilation != false;
+        
         /// <nodoc/>
         public PipConstructor(
             FrontEndContext context,
@@ -590,11 +595,25 @@ namespace BuildXL.FrontEnd.MsBuild
             //
             // All child processes: Don't wait to kill the processes.
             // CODESYNC: CloudBuild repo TrackerExecutor.cs "info.NestedProcessTerminationTimeout = TimeSpan.Zero"
-            processBuilder.AllowedSurvivingChildProcessNames = ReadOnlyArray<PathAtom>.FromWithoutCopy(
+            var allowedSurvivingChildProcessNames = new List<PathAtom>() { 
                 PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
                 PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe"),
-                PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe"));
+                PathAtom.Create(m_context.StringTable, "conhost.exe")};
+
+            // If the sandbox supports process breakaway and shared compilation is configured to run, we configure VBCSCompiler as such
+            // Otherwise, we add it as a process that is safe to kill when it survives
+            var vbcsCompiler = PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe");
+            if (UseSharedCompilation)
+            {
+                processBuilder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(vbcsCompiler);
+            }
+            else
+            {
+                allowedSurvivingChildProcessNames.Add(vbcsCompiler);
+            }
+            
+            processBuilder.AllowedSurvivingChildProcessNames = allowedSurvivingChildProcessNames.ToReadOnlyArray();
+
             // There are some cases (e.g. a 64-bit MSBuild launched as a child process from a 32-bit MSBuild instance) where
             // processes need a little bit more time to finish. Increasing the timeout does not affect job objects where no child
             // processes survive, or job object where the only surviving processes are the ones explicitly allowed to survive (which
@@ -612,6 +631,29 @@ namespace BuildXL.FrontEnd.MsBuild
         {
             // Common arguments to all MsBuildExe invocations
             pipDataBuilder.AddRange(s_commonArgumentsToMsBuildExe.Select(argument => PipDataAtom.FromString(argument)));
+
+            // If process breakaway is supported and shared compilation is configured to run, set up the logger that will mimic all the proper accesses
+            // Otherwise, disable shared compilation
+            if (UseSharedCompilation)
+            {
+                var vbcsCompilerLoggerPath = AbsolutePath.Create(PathTable, Assembly.GetAssembly(typeof(PipConstructor)).Location)
+                    .GetParent(PathTable)
+                    // Depending on the framework of the MSBuild we are using, we should provide the corresponding logger
+                    // Keep in sync with BuildXL deployment
+                    .Combine(PathTable, m_resolverSettings.ShouldRunDotNetCoreMSBuild()? "dotnetcore" : "net472")
+                    .Combine(PathTable, VBCSCompilerLogger);
+
+                using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.NoEscaping, string.Empty))
+                {
+                    pipDataBuilder.Add(PipDataAtom.FromString(I($"/logger:")));
+                    pipDataBuilder.Add(PipDataAtom.FromAbsolutePath(vbcsCompilerLoggerPath));
+                }
+            }
+            else
+            {
+                //  Turn off new MSBuild flag to reuse VBCSCompiler.exe (a feature of Roslyn csc compiler) to compile C# files from different projects
+                pipDataBuilder.Add(PipDataAtom.FromString("/p:UseSharedCompilation=false"));
+            }
 
             // Log verbosity
             if (!TryGetLogVerbosity(m_resolverSettings.LogVerbosity, out string logVerbosity))

@@ -165,8 +165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 eventDatas = SerializeEventData(context, events);
             }
 
-            var operationId = Guid.NewGuid();
-            context = context.CreateNested(operationId);
+            var operationId = context.TracingContext.Id;
 
             for (var eventNumber = 0; eventNumber < eventDatas.Count; eventNumber++)
             {

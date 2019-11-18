@@ -29,6 +29,7 @@ namespace BuildXL.Tracing
                 int processAverageThreadCount = ConvertToInt(aggregator.ProcessThreadCount.Average);
                 int processMaximumPrivateMegaBytes = ConvertToInt(aggregator.ProcessPrivateMB.Maximum);
                 int processMaximumWorkingSetMegaBytes = ConvertToInt(aggregator.ProcessWorkingSetMB.Maximum);
+                int processAverageWorkingSetMegaBytes = ConvertToInt(aggregator.ProcessWorkingSetMB.Average);
                 int processMaximumHeldMegaBytess = ConvertToInt(aggregator.ProcessHeldMB.Maximum);
                 int processAverageCPUTime = ConvertToInt(aggregator.ProcessCpu.Average);
                 int machineAverageCPUTime = ConvertToInt(aggregator.MachineCpu.Average);
@@ -38,6 +39,7 @@ namespace BuildXL.Tracing
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageThreadCount), processAverageThreadCount);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumPrivateMB), processMaximumPrivateMegaBytes);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumWorkingSetPrivateMB), processMaximumWorkingSetMegaBytes);
+                dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageWorkingSetPrivateMB), processAverageWorkingSetMegaBytes);
                 if (processMaximumHeldMegaBytess > 0)
                 {
                     dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumHeldMB), processMaximumHeldMegaBytess);

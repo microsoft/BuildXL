@@ -9,7 +9,7 @@ using BuildXL.Ipc.Interfaces;
 namespace BuildXL.Ipc.Common
 {
     /// <summary>
-    /// Executor that receives a lambda function to which it delegates all <see cref="ExecuteAsync(IIpcOperation)"/> calls.
+    /// Executor that receives a lambda function to which it delegates all <see cref="ExecuteAsync"/> calls.
     /// </summary>
     public sealed class LambdaIpcOperationExecutor : IIpcOperationExecutor
     {
@@ -24,7 +24,7 @@ namespace BuildXL.Ipc.Common
         }
 
         /// <inheritdoc />
-        public Task<IIpcResult> ExecuteAsync(IIpcOperation op)
+        public Task<IIpcResult> ExecuteAsync(int id, IIpcOperation op)
         {
             Contract.Requires(op != null);
 

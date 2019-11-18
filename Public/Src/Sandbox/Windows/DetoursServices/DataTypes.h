@@ -174,7 +174,8 @@ enum ReportType
     ReportType_DebugMessage = 3,
     ReportType_ProcessData = 4,
     ReportType_ProcessDetouringStatus = 5,
-    ReportType_Max = 6,
+    ReportType_AugmentedFileAccess = 6,
+    ReportType_Max = 7,
 };
 
 // Keep this in sync with the C# version declared in FileAccessManifest.cs

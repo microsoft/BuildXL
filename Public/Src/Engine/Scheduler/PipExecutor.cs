@@ -297,6 +297,7 @@ namespace BuildXL.Scheduler
                         false,
                         // report accesses to symlink chain elements
                         symlinkChain,
+                        ReadOnlyArray<AbsolutePath>.Empty,
                         ReadOnlyArray<AbsolutePath>.Empty);
                 }
                 catch (BuildXLException ex)
@@ -1134,7 +1135,7 @@ namespace BuildXL.Scheduler
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
         /// <param name="processIdListener">Callback to call when the process is actually started</param>
-        /// <param name="expectedRamUsageMb">the expected ram usage for the process in megabytes</param>
+        /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(
             OperationContext operationContext,
@@ -1145,7 +1146,7 @@ namespace BuildXL.Scheduler
             // TODO: This should be removed, or should become a WeakContentFingerprint
             ContentFingerprint? fingerprint,
             Action<int> processIdListener = null,
-            int expectedRamUsageMb = 0)
+            ProcessMemoryCounters expectedMemoryCounters = default(ProcessMemoryCounters))
         {
             var context = environment.Context;
             var counters = environment.Counters;
@@ -1307,7 +1308,7 @@ namespace BuildXL.Scheduler
                 .ExecuteWithResources(
                     operationContext,
                     pip.PipId,
-                    expectedRamUsageMb,
+                    expectedMemoryCounters,
                     allowResourceBasedCancellation,
                     async (resourceLimitCancellationToken, registerQueryRamUsageMb) =>
                     {
@@ -1326,7 +1327,7 @@ namespace BuildXL.Scheduler
                                         processDescription,
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                                         peakMemoryMb: lastObservedPeakRamUsage,
-                                        expectedMemoryMb: expectedRamUsageMb);
+                                        expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb);
 
                                     using (operationContext.StartAsyncOperation(PipExecutorCounter.ResourceLimitCancelProcessDuration))
                                     {
@@ -1386,7 +1387,7 @@ namespace BuildXL.Scheduler
                                         using (counters[PipExecutorCounter.QueryRamUsageDuration].Start())
                                         {
                                             lastObservedPeakRamUsage =
-                                                (int)ByteSizeFormatter.ToMegabytes((long)(executor.GetActivePeakWorkingSet() ?? 0));
+                                                (int)ByteSizeFormatter.ToMegabytes(executor.GetActivePeakWorkingSet() ?? 0);
                                         }
 
                                         return lastObservedPeakRamUsage;
@@ -1562,9 +1563,10 @@ namespace BuildXL.Scheduler
                                         operationContext,
                                         processDescription,
                                         (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
-                                        peakMemoryMb:
-                                            (int)ByteSizeFormatter.ToMegabytes((long)(result.JobAccountingInformation?.MemoryCounters.PeakWorkingSet ?? 0)),
-                                        expectedMemoryMb: expectedRamUsageMb,
+                                        peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
+                                        expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
+                                        peakCommitMb: result.JobAccountingInformation?.MemoryCounters.PeakCommitUsageMb ?? 0,
+                                        expectedCommitMb: expectedMemoryCounters.PeakCommitUsageMb,
                                         cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                                 }
                             }
@@ -1676,6 +1678,7 @@ namespace BuildXL.Scheduler
 
                 // Store the dynamically observed accesses
                 processExecutionResult.DynamicallyObservedFiles = observedInputValidationResult.DynamicallyObservedFiles;
+                processExecutionResult.DynamicallyProbedFiles = observedInputValidationResult.DynamicallyProbedFiles;
                 processExecutionResult.DynamicallyObservedEnumerations = observedInputValidationResult.DynamicallyObservedEnumerations;
                 processExecutionResult.AllowedUndeclaredReads = observedInputValidationResult.AllowedUndeclaredSourceReads;
                 processExecutionResult.AbsentPathProbesUnderOutputDirectories = observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories;
@@ -1876,17 +1879,40 @@ namespace BuildXL.Scheduler
         ///   a non-null result is returned.
         /// - If cache lookup fails (i.e., the result is inconclusive due to failed hashing, etc.), a null result is returned.
         /// </summary>
-        public static Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
+        public static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
             ProcessRunnablePip processRunnable,
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess)
         {
-            return TryCheckProcessRunnableFromCacheAsync(
+            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
+            {
+                PipId = processRunnable.PipId,
+                CacheMissType = PipCacheMissType.Invalid,
+            };
+
+            var runnableFromCacheResult = await TryCheckProcessRunnableFromCacheAsync(
                 processRunnable,
                 state,
                 cacheableProcess,
                 computeWeakFingerprint: () => new WeakContentFingerprint(cacheableProcess.ComputeWeakFingerprint().Hash),
-                canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0);
+                pipCacheMiss,
+                canAugmentWeakFingerprint: processRunnable.Process.AugmentWeakFingerprintPathSetThreshold(processRunnable.Environment.Configuration.Cache) > 0,
+                isWeakFingerprintAugmented: false);
+
+            if (!runnableFromCacheResult.CanRunFromCache)
+            {
+                Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
+                processRunnable.Environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
+
+                Logger.Log.ScheduleProcessPipCacheMiss(
+                    processRunnable.OperationContext,
+                    cacheableProcess.Description,
+                    runnableFromCacheResult.Fingerprint.ToString());
+
+                processRunnable.Environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
+            }
+
+            return runnableFromCacheResult;           
         }
 
         private static async Task<RunnableFromCacheResult> TryCheckProcessRunnableFromCacheAsync(
@@ -1894,10 +1920,13 @@ namespace BuildXL.Scheduler
             PipExecutionState.PipScopeState state,
             CacheableProcess cacheableProcess,
             Func<WeakContentFingerprint> computeWeakFingerprint,
-            bool canAugmentWeakFingerprint)
+            BoxRef<PipCacheMissEventData> pipCacheMiss,
+            bool canAugmentWeakFingerprint,
+            bool isWeakFingerprintAugmented)
         {
             Contract.Requires(processRunnable != null);
             Contract.Requires(cacheableProcess != null);
+            Contract.Requires(!isWeakFingerprintAugmented || !canAugmentWeakFingerprint);
 
             var operationContext = processRunnable.OperationContext;
             var environment = processRunnable.Environment;
@@ -1910,12 +1939,6 @@ namespace BuildXL.Scheduler
             Contract.Assume(content != null);
 
             var process = cacheableProcess.Process;
-
-            BoxRef<PipCacheMissEventData> pipCacheMiss = new PipCacheMissEventData
-            {
-                PipId = process.PipId,
-                CacheMissType = PipCacheMissType.Invalid,
-            };
 
             var processFingerprintComputationResult = new ProcessFingerprintComputationEventData
             {
@@ -1978,6 +2001,7 @@ namespace BuildXL.Scheduler
 
                 // Augmented weak fingerprint used for storing cache entry in case of cache miss
                 WeakContentFingerprint? augmentedWeakFingerprint = null;
+                BoxRef<PipCacheMissEventData> augmentedWeakFingerprintMiss = null;
 
                 if (cacheableProcess.ShouldHaveArtificialMiss())
                 {
@@ -2206,6 +2230,11 @@ namespace BuildXL.Scheduler
                             {
                                 // The strong fingeprint is the marker fingerprint indicating that computing an augmented weak fingerprint is required.
                                 augmentedWeakFingerprint = new WeakContentFingerprint(strongFingerprint.Value.Hash);
+                                augmentedWeakFingerprintMiss = new PipCacheMissEventData
+                                {
+                                    PipId = processRunnable.PipId,
+                                    CacheMissType = PipCacheMissType.Invalid,
+                                };
                                 performedLookupForAugmentedWeakFingerprint = true;
 
                                 // Notice this is a recursive call to same method with augmented weak fingerprint but disallowing
@@ -2215,7 +2244,9 @@ namespace BuildXL.Scheduler
                                     state,
                                     cacheableProcess,
                                     () => augmentedWeakFingerprint.Value,
-                                    canAugmentWeakFingerprint: false);
+                                    augmentedWeakFingerprintMiss,
+                                    canAugmentWeakFingerprint: false,
+                                    isWeakFingerprintAugmented: true);
 
                                 string keepAliveResult = "N/A";
 
@@ -2316,22 +2347,40 @@ namespace BuildXL.Scheduler
                             // or a mismatch of strong fingerprints (at least one ref checked).
                             if (numCacheEntriesVisited == 0)
                             {
-                                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
-                                Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
-                                    operationContext,
-                                    description,
-                                    weakFingerprint.ToString());
+                                if (isWeakFingerprintAugmented)
+                                {
+                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints;
+                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint.ToString());
+                                }
+                                else
+                                {
+                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToWeakFingerprints;
+                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToWeakFingerprint(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint.ToString());
+                                }
                             }
                             else
                             {
-                                pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToStrongFingerprints;
-                                Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
-                                    operationContext,
-                                    description,
-                                    weakFingerprint.ToString());
+                                // If we checked an augmented weak fingerprint during cache lookup, use its cache miss classification.                                
+                                if (augmentedWeakFingerprintMiss != null)
+                                {
+                                    pipCacheMiss.Value.CacheMissType = augmentedWeakFingerprintMiss.Value.CacheMissType;
+                                }
+                                else
+                                {
+                                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.MissForDescriptorsDueToStrongFingerprints;
+                                    Logger.Log.TwoPhaseCacheDescriptorMissDueToStrongFingerprints(
+                                        operationContext,
+                                        description,
+                                        weakFingerprint.ToString());
+                                }
                             }
                         }
-
                     }
 
                     if (maybeUsableCacheEntry.HasValue)
@@ -2453,19 +2502,7 @@ namespace BuildXL.Scheduler
                     maybeUsableProcessingResult,
                     cacheResultWeakFingerprint);
 
-                if (!runnableFromCacheResult.CanRunFromCache
-                    // Don't perform redundant cache miss logging if already handled for augmented weak fingerprint
-                    && !performedLookupForAugmentedWeakFingerprint)
-                {
-                    Contract.Assert(pipCacheMiss.Value.CacheMissType != PipCacheMissType.Invalid, "Must have valid cache miss reason");
-                    environment.Counters.IncrementCounter((PipExecutorCounter)pipCacheMiss.Value.CacheMissType);
 
-                    Logger.Log.ScheduleProcessPipCacheMiss(
-                        operationContext,
-                        cacheableProcess.Description,
-                        runnableFromCacheResult.Fingerprint.ToString());
-                    environment.State.ExecutionLog?.PipCacheMiss(pipCacheMiss.Value);
-                }
 
                 return runnableFromCacheResult;
             }
@@ -2586,6 +2623,9 @@ namespace BuildXL.Scheduler
                     dynamicallyObservedFiles: observedInputProcessingResult.HasValue
                         ? observedInputProcessingResult.Value.DynamicallyObservedFiles
                         : ReadOnlyArray<AbsolutePath>.Empty,
+                    dynamicallyProbedFiles: observedInputProcessingResult.HasValue
+                        ? observedInputProcessingResult.Value.DynamicallyProbedFiles
+                        : ReadOnlyArray<AbsolutePath>.Empty,
                     dynamicallyObservedEnumerations: observedInputProcessingResult.HasValue
                         ? observedInputProcessingResult.Value.DynamicallyObservedEnumerations
                         : ReadOnlyArray<AbsolutePath>.Empty,
@@ -2641,6 +2681,7 @@ namespace BuildXL.Scheduler
                 ? RunnableFromCacheResult.CreateForHit(
                     weakFingerprint: executionResult.TwoPhaseCachingInfo.WeakFingerprint,
                     dynamicallyObservedFiles: executionResult.DynamicallyObservedFiles,
+                    dynamicallyProbedFiles: executionResult.DynamicallyProbedFiles,
                     dynamicallyObservedEnumerations: executionResult.DynamicallyObservedEnumerations,
                     allowedUndeclaredSourceReads: executionResult.AllowedUndeclaredReads,
                     absentPathProbesUnderNonDependenceOutputDirectories: executionResult.AbsentPathProbesUnderOutputDirectories,
@@ -2971,6 +3012,7 @@ namespace BuildXL.Scheduler
                 // This is the cache-hit path, so there were no uncacheable file accesses.
                 MustBeConsideredPerpetuallyDirty = false,
                 DynamicallyObservedFiles = runnableFromCacheCheckResult.DynamicallyObservedFiles,
+                DynamicallyProbedFiles = runnableFromCacheCheckResult.DynamicallyProbedFiles,
                 DynamicallyObservedEnumerations = runnableFromCacheCheckResult.DynamicallyObservedEnumerations,
                 AllowedUndeclaredReads = runnableFromCacheCheckResult.AllowedUndeclaredReads,
                 AbsentPathProbesUnderOutputDirectories = runnableFromCacheCheckResult.AbsentPathProbesUnderNonDependenceOutputDirectories,
@@ -4911,6 +4953,7 @@ namespace BuildXL.Scheduler
             return new PipExecutorCounter[]
             {
                 PipExecutorCounter.CacheMissesForDescriptorsDueToWeakFingerprints,
+                PipExecutorCounter.CacheMissesForDescriptorsDueToAugmentedWeakFingerprints,
                 PipExecutorCounter.CacheMissesForDescriptorsDueToStrongFingerprints,
                 PipExecutorCounter.CacheMissesForDescriptorsDueToArtificialMissOptions,
                 PipExecutorCounter.CacheMissesForCacheEntry,

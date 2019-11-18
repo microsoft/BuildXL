@@ -133,6 +133,7 @@ namespace Test.BuildXL.Scheduler
                 sorted, 
                 emptyObservedAccessFileNames, 
                 dynamicallyObservedFiles: ReadOnlyArray<AbsolutePath>.Empty, 
+                dynamicallyProbedFiles: ReadOnlyArray<AbsolutePath>.Empty,
                 dynamicallyObservedEnumerations: ReadOnlyArray<AbsolutePath>.Empty, 
                 allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(), 
                 absentPathProbesUnderNonDependenceOutputDirectories: CollectionUtilities.EmptySet<AbsolutePath>());

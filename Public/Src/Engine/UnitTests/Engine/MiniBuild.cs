@@ -78,7 +78,11 @@ namespace Test.BuildXL.EngineTests
             RunEngine();
 
             var outputDirectoryPath = Configuration.Layout.OutputDirectory.ToString(Context.PathTable);
-            XAssert.IsTrue(File.Exists(Path.Combine(outputDirectoryPath, "vs", "src", "src.sln")));
+            XAssert.IsTrue(File.Exists(Path.Combine(
+                outputDirectoryPath, 
+                "vs",
+                Configuration.Ide.IsNewEnabled ? "srcNew" : "src",
+                Configuration.Ide.IsNewEnabled ? "srcNew.sln" : "src.sln")));
         }
 
         [Fact]
@@ -876,7 +880,7 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsNotNull(engineAbstraction.GetChangedFiles());
             XAssert.IsNotNull(engineAbstraction.GetUnchangedFiles());
             XAssert.SetEqual(changedFiles, engineAbstraction.GetChangedFiles());
-            Assert.All(
+            XAssert.All(
                 containsUnchangedFiles,
                 unchangedFile => { XAssert.IsTrue(engineAbstraction.GetUnchangedFiles().Contains(unchangedFile)); });
         }

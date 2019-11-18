@@ -166,16 +166,16 @@ Use the the following command to load/reload the sandbox kernel extension and fi
             m_workerThread.IsBackground = true;
             m_workerThread.Priority = ThreadPriority.Highest;
             m_workerThread.Start();
+        }
 
-            unsafe bool SetFailureNotificationHandler()
-            {
-                return Sandbox.SetFailureNotificationHandler(KextFailureCallback, m_kextConnectionInfo);
+        private unsafe bool SetFailureNotificationHandler()
+        {
+            return Sandbox.SetFailureNotificationHandler(KextFailureCallback, m_kextConnectionInfo);
+        }
 
-                void KextFailureCallback(void* refCon, int status)
-                {
-                    m_failureCallback?.Invoke(status, $"Unrecoverable kernel extension failure happened - try reloading the kernel extension or restart your system. {KextInstallHelper}");
-                }
-            }
+        private unsafe void KextFailureCallback(void* refCon, int status)
+        {
+            m_failureCallback?.Invoke(status, $"Unrecoverable kernel extension failure happened - try reloading the kernel extension or restart your system. {KextInstallHelper}");
         }
 
         /// <summary>

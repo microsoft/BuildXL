@@ -66,9 +66,8 @@ namespace BuildXL.Scheduler.Tracing
         {
             var worker = m_scheduler.Workers[m_workerId];
 
-            worker.ActualAvailableMemoryMb = data.MachineAvailableRamMB;
-            worker.ActualCommitPercent = data.CommitPercent;
-            worker.ActualCommitTotalMB = data.CommitTotalMB;
+            worker.ActualFreeMemoryMb = data.RamFreeMb;
+            worker.ActualFreeCommitMb = data.CommitFreeMb;
         }
     }
 }

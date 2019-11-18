@@ -158,14 +158,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
 
         /// <nodoc />
-        public async Task<TResult> ExecuteRedisFallbackAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, Task<TResult>> executeAsync, [CallerMemberName]string caller = null)
+        public async Task<TResult> ExecuteRedisFallbackAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, [CallerMemberName]string caller = null)
             where TResult : ResultBase
         {
-            var primaryResult = await ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync);
+            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
+            var primaryResult = await ExecuteAndCaptureRedisErrorsAsync(PrimaryRedisDb, executeAsync, cancellationTokenSource.Token);
             if (!primaryResult.Succeeded && HasSecondary)
             {
                 Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {GetDbName(PrimaryRedisDb)} redis db falling back to secondary redis db: {primaryResult}");
-                return await ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync);
+                return await ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync, cancellationTokenSource.Token);
             }
 
             return primaryResult;

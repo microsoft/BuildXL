@@ -40,14 +40,9 @@ namespace MsBuild {
         ],
         runtimeContent: [
             {
-                subfolder: r`net472`,
-                contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"})).exe]
-            },
-            {
-                subfolder: r`dotnetcore`,
-                contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})).exe]
+                contents: [
+                    importFrom("BuildXL.Tools").VBCSCompilerLogger.lib
+                ]
             }
         ]
     });

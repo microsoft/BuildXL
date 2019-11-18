@@ -8,7 +8,11 @@ namespace VBCSCompilerLogger {
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
-    export const exe = BuildXLSdk.library({
+    export const lib = BuildXLSdk.withQualifier({
+        configuration: qualifier.configuration,
+        targetFramework: "netstandard2.0",
+        targetRuntime: qualifier.targetRuntime
+    }).library({
         assemblyName: "VBCSCompilerLogger",
         skipDocumentationGeneration: true,
         skipDefaultReferences: true,

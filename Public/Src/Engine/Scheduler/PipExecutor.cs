@@ -1303,6 +1303,8 @@ namespace BuildXL.Scheduler
             // Service related pips cannot be cancelled
             bool allowResourceBasedCancellation = pip.ServiceInfo == null || pip.ServiceInfo.Kind == ServicePipKind.None;
 
+            DateTime start;
+
             // Execute the process when resources are available
             SandboxedProcessPipExecutionResult executionResult = await environment.State.ResourceManager
                 .ExecuteWithResources(
@@ -1402,7 +1404,9 @@ namespace BuildXL.Scheduler
 
                                 using (var sidebandWriter = CreateSidebandWriterIfConfigured(environment, pip))
                                 {
+                                    start = DateTime.UtcNow;
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
+                                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Running pip", DateTime.UtcNow.Subtract(start));
                                 }
 
                                 ++retryCount;
@@ -1586,7 +1590,9 @@ namespace BuildXL.Scheduler
                         }
                     });
 
+            start = DateTime.UtcNow;
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
+            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "reporting sandboxed execution result", DateTime.UtcNow.Subtract(start));
 
             counters.AddToCounter(PipExecutorCounter.SandboxedProcessPrepDurationMs, executionResult.SandboxPrepMs);
             counters.AddToCounter(
@@ -1665,6 +1671,7 @@ namespace BuildXL.Scheduler
                     // that some files get tracked by the file change tracker. Suppose that the process failed because it accesses paths that
                     // are supposed to be untracked (but the user forgot to specify it in the spec). Those paths will be tracked by
                     // file change tracker because the observed input processor may try to probe and track those paths.
+                    start = DateTime.UtcNow;
                     observedInputValidationResult =
                         await ValidateObservedFileAccessesAsync(
                             operationContext,
@@ -1674,6 +1681,9 @@ namespace BuildXL.Scheduler
                             fileAccessReportingContext,
                             executionResult.ObservedFileAccesses,
                             trackFileChanges: succeeded);
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(
+                        operationContext, pip.GetDescription(context), "ValidateObservedFileAccesses", DateTime.UtcNow.Subtract(start),
+                        $"(AbsPrb: {observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count}, DynFiles: {observedInputValidationResult.DynamicallyObservedFiles.Length})");
                 }
 
                 // Store the dynamically observed accesses
@@ -1692,6 +1702,7 @@ namespace BuildXL.Scheduler
                 if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed
                     && observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count > 0)
                 {
+                    start = DateTime.UtcNow;
                     bool isDirty = false;
                     foreach (var absentPathProbe in observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories)
                     {
@@ -1701,7 +1712,7 @@ namespace BuildXL.Scheduler
                             break;
                         }
                     }
-
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Computing isDirty", DateTime.UtcNow.Subtract(start));
                     processExecutionResult.MustBeConsideredPerpetuallyDirty = isDirty;
                 }
 
@@ -1772,6 +1783,7 @@ namespace BuildXL.Scheduler
 
                     using (operationContext.StartOperation(PipExecutorCounter.ProcessOutputsStoreContentForProcessAndCreateCacheEntryDuration))
                     {
+                        start = DateTime.UtcNow;
                         outputHashSuccess = await StoreContentForProcessAndCreateCacheEntryAsync(
                             operationContext,
                             environment,
@@ -1788,6 +1800,7 @@ namespace BuildXL.Scheduler
                             enableCaching: !skipCaching,
                             fingerprintComputation: fingerprintComputation,
                             executionResult.ContainerConfiguration);
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Storing cache content", DateTime.UtcNow.Subtract(start));
                     }
 
                     if (outputHashSuccess)
@@ -1811,6 +1824,7 @@ namespace BuildXL.Scheduler
                 // the ObservedInputProcessor where the final result has invalid state if the statups wasn't Success.
                 if (!succeeded && observedInputValidationResult.Status == ObservedInputProcessingStatus.Success)
                 {
+                    start = DateTime.UtcNow;
                     var pathSet = observedInputValidationResult.GetPathSet(state.UnsafeOptions);
                     var pathSetHash = await environment.State.Cache.SerializePathSetAsync(pathSet);
 
@@ -1829,10 +1843,13 @@ namespace BuildXL.Scheduler
                             observedInputValidationResult.ObservedInputs,
                             strongFingerprint),
                     };
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Computing strong fingerprint", DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
                 }
 
                 // Log the fingerprint computation
+                start = DateTime.UtcNow;
                 environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
+                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Storing fingerprint computation to XLG", DateTime.UtcNow.Subtract(start));
 
                 if (!outputHashSuccess)
                 {

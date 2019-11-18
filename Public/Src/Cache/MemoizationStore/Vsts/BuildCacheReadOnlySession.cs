@@ -630,10 +630,9 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             //                          the entry will expire in _eagerFingerprintIncorporationExpiry time.
             // 3. Session shutdown incorporation: if incorporation enabled and
             //                          the entry will not going to expire soon.
-            if (_enableEagerFingerprintIncorporation &&
-                expirationUtc != null)
+            if (_enableEagerFingerprintIncorporation && expirationUtc != null)
             {
-                var timeToExpiration = DateTime.UtcNow - expirationUtc.Value;
+                var timeToExpiration = expirationUtc.Value - DateTime.UtcNow;
 
                 if (timeToExpiration < _inlineFingerprintIncorporationExpiry)
                 {

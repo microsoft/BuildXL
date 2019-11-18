@@ -197,8 +197,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         new ObjectResult<ContentHashListWithCacheMetadata>(
                             new ContentHashListWithCacheMetadata(
                                new ContentHashListWithDeterminism(null, blobContentHashListWithCacheMetadata.Determinism),
-                               blobContentHashListWithCacheMetadata.GetEffectiveExpirationTimeUtc(),
-                              blobContentHashListWithCacheMetadata.ContentGuarantee));
+                               blobContentHashListWithCacheMetadata.GetRawExpirationTimeUtc(),
+                               blobContentHashListWithCacheMetadata.ContentGuarantee));
                 }
                 else
                 {
@@ -228,7 +228,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             {
                 return new ObjectResult<ContentHashListWithCacheMetadata>(
                     new ContentHashListWithCacheMetadata(
-                        new ContentHashListWithDeterminism(null, blobCacheMetadata.Determinism), blobCacheMetadata.GetEffectiveExpirationTimeUtc(), blobCacheMetadata.ContentGuarantee, blobCacheMetadata.HashOfExistingContentHashList));
+                        new ContentHashListWithDeterminism(null, blobCacheMetadata.Determinism),
+                        blobCacheMetadata.GetRawExpirationTimeUtc(),
+                        blobCacheMetadata.ContentGuarantee,
+                        blobCacheMetadata.HashOfExistingContentHashList));
             }
 
             BlobIdentifier blobId = blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier;

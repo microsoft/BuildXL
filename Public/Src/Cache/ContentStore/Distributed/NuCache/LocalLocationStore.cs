@@ -34,7 +34,6 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks.Dataflow;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {

@@ -126,7 +126,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         {
             if (factory != null)
             {
-                return new RedisDatabaseAdapter(factory, KeySpace);
+                return new RedisDatabaseAdapter(factory, KeySpace, redisConnectionErrorLimit: Configuration.RedisConnectionErrorLimit);
             }
             else
             {

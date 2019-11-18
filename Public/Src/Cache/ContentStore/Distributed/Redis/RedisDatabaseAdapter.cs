@@ -179,19 +179,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         // In some cases, Redis.StackExchange library may fail to reset the connection to Azure Redis Cache.
         // To work around this problem we reset the connection multiplexer if all the calls are failing with RedisConnectionException.
-        private readonly int _connectionErrorCountLimit;
+        private readonly int _redisConnectionErrorLimit;
         private int _connectionErrorCount;
         private readonly object _resetConnectionsLock = new object();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisDatabaseAdapter"/> class.
         /// </summary>
-        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, int connectionErrorCountLimit = int.MaxValue)
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, int redisConnectionErrorLimit = int.MaxValue)
         {
             _databaseFactory = databaseFactory;
             KeySpace = keySpace;
-            _connectionErrorCountLimit = connectionErrorCountLimit;
-            _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(HandleRedisException), RetryStrategy.DefaultExponential);
+            _redisConnectionErrorLimit = redisConnectionErrorLimit;
+            _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(OnRedisException), RetryStrategy.DefaultExponential);
         }
 
         /// <summary>
@@ -300,7 +300,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 catch (Exception ex)
                 {
                     batch.NotifyConsumersOfFailure(ex);
-                    OnRedisException(context, ex);
+                    HandleRedisExceptionAndResetMultiplexerIfNeeded(context, ex);
                     return new BoolResult(ex);
                 }
             }
@@ -312,17 +312,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             Interlocked.Exchange(ref _connectionErrorCount, 0);
         }
 
-        private void OnRedisException(Context context, Exception exception)
+        /// <summary>
+        /// This method "handles" redis connectivity errors and reset the connection multiplexer if there are no successful operations happening.
+        /// </summary>
+        private void HandleRedisExceptionAndResetMultiplexerIfNeeded(Context context, Exception exception)
         {
             if (IsRedisConnectionException(exception))
             {
-                if (Interlocked.Increment(ref _connectionErrorCount) >= _connectionErrorCountLimit)
+                // Using double-checked locking approach to reset the connection multiplexer only once.
+                if (Interlocked.Increment(ref _connectionErrorCount) >= _redisConnectionErrorLimit)
                 {
                     lock (_resetConnectionsLock)
                     {
-                        if (_connectionErrorCount >= _connectionErrorCountLimit)
+                        // The second read of _connectionErrorCount is a non-interlocked read, but it should be fine because it is happening under the lock.
+                        if (_connectionErrorCount >= _redisConnectionErrorLimit)
                         {
-                            context.Warning($"Reset redis connection due to connectivity issues. ConnectionErrorCount={_connectionErrorCountLimit}.");
+                            // This means that there is no successful operations happening, and all the errors that we're seeing are redis connectivity issues.
+                            // This is, effectively, a work-around for the issue in StackExchange.Redis library (https://github.com/StackExchange/StackExchange.Redis/issues/559).
+                            context.Warning($"Reset redis connection due to connectivity issues. ConnectionErrorCount={_connectionErrorCount}, RedisConnectionErrorLimit={_redisConnectionErrorLimit}.");
                             Interlocked.Exchange(ref _connectionErrorCount, 0);
                             _databaseFactory.ResetConnectionMultiplexer();
                         }
@@ -331,7 +338,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             }
         }
 
-        private void HandleRedisException(Exception exception)
+        /// <summary>
+        /// The call back that is called by the redis retry strategy.
+        /// </summary>
+        /// <remarks>
+        /// There are two very similar methods: <see cref="OnRedisException"/> and <see cref="HandleRedisExceptionAndResetMultiplexerIfNeeded"/>. The first one (the current method) is called
+        /// by the retry strategy to track and increment the failure count for all the retries not only for the final ones.
+        /// The later is called manually after each failed operation and that method takes a context that allows us to trace and actually may reset the connection mutliplexer
+        /// due to a number of redis connection exceptions.
+        /// </remarks>
+        private void OnRedisException(Exception exception)
         {
             // Lets be very pessimistic here: reset the connectivity errors every time when the operation succeed or any other exception
             // but redis connection exception occurs.
@@ -433,7 +449,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 }
                 catch (Exception e)
                 {
-                    OnRedisException(context, e);
+                    HandleRedisExceptionAndResetMultiplexerIfNeeded(context, e);
                     throw;
                 }
             }

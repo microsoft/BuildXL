@@ -130,6 +130,9 @@ namespace BuildXL.Cache.Host.Configuration
         [DataMember]
         public int RedisBatchPageSize { get; set; } = 500;
 
+        [DataMember]
+        public int? RedisConnectionErrorLimit { get; set; }
+
         // TODO: file a work item to remove the flag!
         [DataMember]
         public bool CheckLocalFiles { get; set; } = false;

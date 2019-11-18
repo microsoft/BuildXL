@@ -108,9 +108,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             var secondaryResultTask = ExecuteAndCaptureRedisErrorsAsync(SecondaryRedisDb, executeAsync, cancellationTokenSource.Token);
 
-            // Instead of waiting for both - the primary and the secondary, we'll check for the first one first and then try to cancel the other one.
-            // Do we want to add a delay here? Like 100ms to allow both of them to finish?
-            // If we'll do this we should make this thing configurable and in this case we'll be able to opt-in this feature!
+            // Instead of waiting for both - the primary and the secondary, we'll check for the primary first and then try to cancel the other one.
+            // There is a time out delay acting as a window for the slower task to complete before we cancel the retry attempts
 
             Task<TResult> fasterResultTask = await Task.WhenAny(primaryResultTask, secondaryResultTask);
             Task<TResult> slowerResultTask = fasterResultTask == primaryResultTask ? secondaryResultTask : primaryResultTask;
@@ -126,8 +125,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     // The second task is not done within a given timeout.
                     cancellationTokenSource.Cancel();
 
-                    // TODO: Trace: we need to detect here whether we canceled the primary or the secondary.
-                    //Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {primaryResult & secondaryResult}");
+                    var failingRedisDb = GetDbName(fasterResultTask == primaryResultTask ? SecondaryRedisDb : PrimaryRedisDb);
+                    Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {fasterResultTask}");
 
                     // Avoiding task unobserved exception if the second task will fail.
                     // TODO: pass the severity into this operation to trace the failure as a debug severity message (not available yet).

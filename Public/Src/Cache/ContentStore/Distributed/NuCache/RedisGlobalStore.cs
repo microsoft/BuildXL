@@ -254,7 +254,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                 {
                     foreach (var page in contentHashes.GetPages(hashBatchSize))
                     {
-                        var batchResult = await _redis.ExecuteRedisAsync(context, async redisDb =>
+                        var batchResult = await _redis.ExecuteRedisAsync(context, async (redisDb, token) =>
                         {
                             Counters[GlobalStoreCounters.RegisterLocalLocationHashCount].Add(page.Count);
 
@@ -286,7 +286,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     }).FireAndForget(context);
                                 }
 
-                                var result = await redisDb.ExecuteBatchOperationAsync(context, redisBatch, context.Token);
+                                var result = await redisDb.ExecuteBatchOperationAsync(context, redisBatch, token);
                                 if (!result || requiresSetBitCount == 0)
                                 {
                                     return result;
@@ -311,7 +311,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                                     updateRedisBatch.AddOperation(key, batch => SetLocationBitAndExpireAsync(context, batch, key, hash, machineId)).FireAndForget(context);
                                 }
 
-                                return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, context.Token);
+                                return await redisDb.ExecuteBatchOperationAsync(context, updateRedisBatch, token);
                             }
                         });
 

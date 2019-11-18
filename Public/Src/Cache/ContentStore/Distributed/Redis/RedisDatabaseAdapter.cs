@@ -320,6 +320,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             if (IsRedisConnectionException(exception))
             {
                 // Using double-checked locking approach to reset the connection multiplexer only once.
+                // Checking for greater then or equals because another thread can increment _connectionErrorCount.
                 if (Interlocked.Increment(ref _connectionErrorCount) >= _redisConnectionErrorLimit)
                 {
                     lock (_resetConnectionsLock)
@@ -355,10 +356,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             {
                 Interlocked.Increment(ref _connectionErrorCount);
             }
-            else
-            {
-                Interlocked.Exchange(ref _connectionErrorCount, 0);
-            }
+
+            // Don't reset the connection error count if another error occurs.
+            // The counter is set to 0 for all the successful operations only.
         }
 
         private bool IsRedisConnectionException(Exception exception)

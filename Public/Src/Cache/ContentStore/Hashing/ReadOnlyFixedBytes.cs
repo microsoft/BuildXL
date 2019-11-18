@@ -291,10 +291,12 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(length >= 0);
             Contract.Requires(length + offset <= MaxLength);
 
-            char* buffer = stackalloc char[(2 * length) + 1];
+            int bufferLength = (2 * (length - offset)) + 1;
+            char* buffer = stackalloc char[bufferLength];
             FillBuffer(buffer, offset, length);
 
-            builder.AppendCharStar(length, buffer);
+            // FillBuffer writes a trailing '\0'. But for this case the last character is not needed.
+            builder.AppendCharStar(bufferLength - 1, buffer);
         }
 
         /// <summary>

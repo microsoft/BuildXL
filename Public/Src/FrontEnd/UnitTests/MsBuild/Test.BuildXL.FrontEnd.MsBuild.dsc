@@ -40,8 +40,8 @@ namespace Test.MsBuild {
             ...BuildXLSdk.tplPackages,
         ],
         
-        // We need both the full framework and dotnet core versions of MSBuild, plus dotnet.exe for the dotnet core case
         runtimeContent: [
+            // We need both the full framework and dotnet core versions of MSBuild, plus dotnet.exe for the dotnet core case
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "net472"})).deployment,
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier(Object.merge<BuildXLSdk.DefaultQualifier>(qualifier, {targetFramework: "netcoreapp3.0"})).deployment,
             {
@@ -51,6 +51,20 @@ namespace Test.MsBuild {
             {
                 subfolder: a`tools`,
                 contents: [importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
+            },
+            // We need csc.exe for integration tests
+            {
+                subfolder: a`Compilers`,
+                contents: [
+                    {
+                        subfolder: a`net472`,
+                        contents: [importFrom("Microsoft.Net.Compilers").Contents.all]
+                    },
+                    {
+                        subfolder: a`dotnetcore`,
+                        contents: [importFrom("Microsoft.NETCore.Compilers").Contents.all]
+                    },
+                ]
             }
         ],
     });

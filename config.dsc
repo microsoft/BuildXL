@@ -98,7 +98,7 @@ config({
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
-                
+
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
                 { id: "RuntimeContracts.Analyzer", version: "0.1.9.4" },
@@ -140,8 +140,8 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "6.0.1-b20190426.4" },
+                { id: "RocksDbSharp", version: "5.8.0-b20191113.6", alias: "RocksDbSharpSigned" },
+                { id: "RocksDbNative", version: "6.0.1-b20191113.6" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 

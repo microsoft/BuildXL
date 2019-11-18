@@ -33,9 +33,9 @@ namespace BuildXL.Scheduler
         public readonly uint DurationInMs;
 
         /// <summary>
-        /// Peak memory used (in KB)
+        /// Peak memory usage counters
         /// </summary>
-        public readonly uint PeakMemoryInKB;
+        public readonly ProcessMemoryCounters MemoryCounters;
 
         /// <summary>
         /// The amount of kilobytes read/written
@@ -59,16 +59,16 @@ namespace BuildXL.Scheduler
             m_entryTimeToLive = DefaultTimeToLive;
             DurationInMs = (uint)Math.Min(uint.MaxValue, Math.Max(1, executionPerformance.ProcessExecutionTime.TotalMilliseconds));
             // For historical ram usage, we record the peak working set instead of the virtual memory due to the precision.
-            PeakMemoryInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.MemoryCounters.PeakWorkingSet / 1024);
+            MemoryCounters = executionPerformance.MemoryCounters;
             DiskIOInKB = (uint)Math.Min(uint.MaxValue, executionPerformance.IO.GetAggregateIO().TransferCount / 1024);
             ProcessorsInPercents = executionPerformance.ProcessorsInPercents;
         }
 
-        private PipHistoricPerfData(byte timeToLive, uint durationInMs, uint peakMemoryInKB, ushort processorsInPercents, uint diskIOInKB)
+        private PipHistoricPerfData(byte timeToLive, uint durationInMs, ProcessMemoryCounters memoryCounters, ushort processorsInPercents, uint diskIOInKB)
         {
             m_entryTimeToLive = timeToLive;
             DurationInMs = durationInMs;
-            PeakMemoryInKB = peakMemoryInKB;
+            MemoryCounters = memoryCounters;
             ProcessorsInPercents = processorsInPercents;
             DiskIOInKB = diskIOInKB;
         }
@@ -86,7 +86,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(writer != null);
             writer.Write(m_entryTimeToLive);
             writer.Write(DurationInMs);
-            writer.Write(PeakMemoryInKB);
+            MemoryCounters.Serialize(writer);
             writer.Write(ProcessorsInPercents);
             writer.Write(DiskIOInKB);
         }
@@ -103,7 +103,7 @@ namespace BuildXL.Scheduler
             result = new PipHistoricPerfData(
                 newTimeToLive,
                 reader.ReadUInt32(),
-                reader.ReadUInt32(),
+                ProcessMemoryCounters.Deserialize(reader),
                 reader.ReadUInt16(),
                 reader.ReadUInt32());
             return newTimeToLive > 0;
@@ -121,7 +121,7 @@ namespace BuildXL.Scheduler
                 return HashCodeHelper.Combine(
                     (int)m_entryTimeToLive,
                     (int)DurationInMs,
-                    (int)PeakMemoryInKB,
+                    MemoryCounters.GetHashCode(),
                     (int)ProcessorsInPercents,
                     (int)DiskIOInKB);
             }
@@ -132,7 +132,7 @@ namespace BuildXL.Scheduler
         {
             return m_entryTimeToLive == other.m_entryTimeToLive &&
                     DurationInMs == other.DurationInMs &&
-                    PeakMemoryInKB == other.PeakMemoryInKB &&
+                    MemoryCounters == other.MemoryCounters &&
                     ProcessorsInPercents == other.ProcessorsInPercents &&
                     DiskIOInKB == other.DiskIOInKB;
         }
@@ -166,7 +166,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public PipHistoricPerfData MakeFresh()
         {
-            return new PipHistoricPerfData(DefaultTimeToLive, DurationInMs, PeakMemoryInKB, ProcessorsInPercents, DiskIOInKB);
+            return new PipHistoricPerfData(DefaultTimeToLive, DurationInMs, MemoryCounters, ProcessorsInPercents, DiskIOInKB);
         }
 
         /// <summary>
@@ -176,29 +176,37 @@ namespace BuildXL.Scheduler
         public PipHistoricPerfData Merge(PipHistoricPerfData other)
         {
             var durationResult = GetMergeResult(DurationInMs, other.DurationInMs);
-            var peakMemoryResult = GetMergeResult(PeakMemoryInKB, other.PeakMemoryInKB);
+            var memoryCountersResult = Merge(MemoryCounters, other.MemoryCounters);
             var processorInPercentResult = GetMergeResult(ProcessorsInPercents, other.ProcessorsInPercents);
             var diskIOResult = GetMergeResult(DiskIOInKB, other.DiskIOInKB);
 
-            return new PipHistoricPerfData(DefaultTimeToLive, durationResult, peakMemoryResult, (ushort)processorInPercentResult, diskIOResult);
+            return new PipHistoricPerfData(DefaultTimeToLive, durationResult, memoryCountersResult, (ushort)processorInPercentResult, diskIOResult);
         }
 
-        private static uint GetMergeResult(uint oldData, uint newData)
+        internal static uint GetMergeResult(uint oldData, uint newData)
         {
             try
             {
                 // An asymmetric merge that goes up fast but decreases slowly.
                 if (newData > oldData)
                 {
-                    return (uint) ( (((ulong)newData) / 2) + (((ulong)oldData) / 2) );
+                    return (uint)((((ulong)newData) / 2) + (((ulong)oldData) / 2));
                 }
 
-                return (uint) ( (((ulong)oldData) * 9 / 10) + (((ulong)newData) / 10) );
+                return (uint)((((ulong)oldData) * 9 / 10) + (((ulong)newData) / 10));
             }
             catch (System.OverflowException ex)
             {
                 throw new BuildXLException(I($"Failed to merge historic perf data result with old '{oldData} and new {newData}' data values!"), ex);
             }
+        }
+
+        private static ProcessMemoryCounters Merge(ProcessMemoryCounters oldData, ProcessMemoryCounters newData)
+        {
+            return ProcessMemoryCounters.CreateFromMb(
+                (int)GetMergeResult((uint)oldData.PeakVirtualMemoryUsageMb, (uint)newData.PeakVirtualMemoryUsageMb),
+                (int)GetMergeResult((uint)oldData.PeakWorkingSetMb, (uint)newData.PeakWorkingSetMb),
+                (int)GetMergeResult((uint)oldData.PeakCommitUsageMb, (uint)newData.PeakCommitUsageMb));
         }
     }
 }

@@ -167,6 +167,15 @@ namespace BuildXL.Utilities.Configuration
         /// When true, default targets will be used as a heuristic. Defaults to false.
         /// </remarks>
         bool? AllowProjectsToNotSpecifyTargetProtocol { get; }
+
+        /// <summary>
+        /// Whether VBCSCompiler is allowed to be launched as a service to serve managed compilation requests
+        /// </summary>
+        /// <remarks>
+        /// Defaults to on.
+        /// This option will only be honored when process breakaway is supported by the underlying sandbox.
+        /// </remarks>
+        bool? UseManagedSharedCompilation { get; }
     }
 
     /// <nodoc/>

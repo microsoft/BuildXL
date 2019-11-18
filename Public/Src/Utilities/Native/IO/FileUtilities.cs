@@ -575,6 +575,12 @@ namespace BuildXL.Native.IO
             s_fileUtilities.SetFileAccessControl(path, fileSystemRights, allow);
         }
 
+        /// <see cref="IFileSystem.TryWriteFileSync(SafeFileHandle, byte[], out int)"/>
+        public static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
+        {
+            return s_fileSystem.TryWriteFileSync(handle, content, out nativeErrorCode);
+        }
+
         #endregion
 
         #region General file and directory utilities

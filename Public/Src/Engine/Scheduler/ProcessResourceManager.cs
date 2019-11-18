@@ -146,14 +146,14 @@ namespace BuildXL.Scheduler
         public async Task<T> ExecuteWithResources<T>(
             OperationContext operationContext,
             PipId pipId,
-            int expectedRamUsageMb,
+            ProcessMemoryCounters expectedMemoryCounters,
             bool allowCancellation,
             ManagedResourceExecute<T> execute)
         {
             ResourceScope scope;
             using (operationContext.StartOperation(PipExecutorCounter.AcquireResourcesDuration))
             {
-                scope = AcquireResourceScope(pipId, expectedRamUsageMb, allowCancellation);
+                scope = AcquireResourceScope(pipId, expectedMemoryCounters, allowCancellation);
             }
 
             using (scope)
@@ -164,13 +164,13 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private ResourceScope AcquireResourceScope(PipId pipId, int expectedRamUsageMb, bool allowCancellation)
+        private ResourceScope AcquireResourceScope(PipId pipId, ProcessMemoryCounters expectedMemoryCounters, bool allowCancellation)
         {
             Interlocked.Increment(ref m_activeExecutionCount);
 
             lock (m_syncLock)
             {
-                var scope = new ResourceScope(this, pipId, m_nextScopeId++, expectedRamUsageMb, allowCancellation, m_headScope);
+                var scope = new ResourceScope(this, pipId, m_nextScopeId++, expectedMemoryCounters, allowCancellation, m_headScope);
                 m_headScope = scope;
                 m_pipResourceScopes[pipId] = scope;
                 return scope;
@@ -246,7 +246,7 @@ namespace BuildXL.Scheduler
             private readonly object m_refreshLock = new object();
 
             public readonly PipId PipId;
-            public readonly int ExpectedRamUsageMb;
+            public readonly ProcessMemoryCounters ExpectedMemoryCounters;
             public readonly int ScopeId;
             public ResourceScope Next;
             public ResourceScope Prior;
@@ -262,14 +262,14 @@ namespace BuildXL.Scheduler
             /// </remarks>
             public int RamUsageMb { get; private set; }
 
-            public int RamUsageOverageMb => RamUsageMb - ExpectedRamUsageMb;
+            public int RamUsageOverageMb => RamUsageMb - ExpectedMemoryCounters.PeakWorkingSetMb;
 
-            public ResourceScope(ProcessResourceManager resourceManager, PipId pipId, int scopeId, int expectedRamUsageMb, bool allowCancellation, ResourceScope next)
+            public ResourceScope(ProcessResourceManager resourceManager, PipId pipId, int scopeId, ProcessMemoryCounters expectedMemoryCounters, bool allowCancellation, ResourceScope next)
             {
                 m_resourceManager = resourceManager;
                 PipId = pipId;
                 ScopeId = scopeId;
-                ExpectedRamUsageMb = expectedRamUsageMb;
+                ExpectedMemoryCounters = expectedMemoryCounters;
                 m_allowCancellation = allowCancellation;
                 Next = next;
                 if (next != null)

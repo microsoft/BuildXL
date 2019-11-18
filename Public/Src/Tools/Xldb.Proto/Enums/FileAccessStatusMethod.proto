@@ -12,4 +12,5 @@ enum FileAccessStatusMethod{
 
     PolicyBased = 1;
     FileExistenceBased = 2;
+    TrustedTool = 3;
 }

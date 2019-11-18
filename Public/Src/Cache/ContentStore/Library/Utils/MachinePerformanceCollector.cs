@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             set.AddMetric("MachineAvailableRamMb", perfInfo.AvailableRamMb ?? -1);
             set.AddMetric("CommitLimitMb", perfInfo.CommitLimitMb ?? -1);
-            set.AddMetric("CommitTotalMb", perfInfo.CommitTotalMb ?? -1);
+            set.AddMetric("CommitTotalMb", perfInfo.CommitUsedMb ?? -1);
             set.AddMetric("CommitUsagePercentage", perfInfo.CommitUsagePercentage ?? -1);
             set.AddMetric("CpuUsagePercentage", perfInfo.CpuUsagePercentage);
             set.AddMetric("MachineBandwidth", perfInfo.MachineBandwidth);

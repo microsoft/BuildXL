@@ -22,6 +22,7 @@ namespace BuildXL.Ipc.Common.Multiplexing
     {
         private readonly IConnectivityProvider<TClient> m_connectivityProvider;
         private readonly GenericServer<TClient> m_clientListener;
+        private static int s_requestIdCounter = 0;
 
         /// <summary>Arbitrary name only for descriptive purposes.</summary>
         public string Name { get; }
@@ -51,7 +52,8 @@ namespace BuildXL.Ipc.Common.Multiplexing
                 using (client)
                 using (var bundle = m_connectivityProvider.GetStreamForClient(client))
                 {
-                    await Utils.ReceiveOperationAndExecuteLocallyAsync(bundle, executor, CancellationToken.None);
+                    int id = Interlocked.Increment(ref s_requestIdCounter);
+                    await Utils.ReceiveOperationAndExecuteLocallyAsync(id, bundle, executor, CancellationToken.None);
                 }
             });
         }

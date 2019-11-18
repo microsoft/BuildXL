@@ -1389,7 +1389,7 @@ namespace Test.BuildXL.Scheduler
                 {
                     if (dependencies.Any())
                     {
-                        pipDataBuilder.Add(OperatingSystemHelper.IsUnixOS ? "/bin/ls" : "dir");
+                        pipDataBuilder.Add(OperatingSystemHelper.IsUnixOS ? "/bin/cat" : "type");
                         foreach (var dependency in dependencies)
                         {
                             pipDataBuilder.Add(dependency);

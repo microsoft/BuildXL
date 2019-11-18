@@ -186,6 +186,13 @@ interface MsBuildResolver {
      * Defaults to false.
      */
     enableEngineTracing?: boolean;
+	
+	/**
+     * Whether VBCSCompiler is allowed to be launched as a service to serve managed compilation requests.
+     * Defaults to on.
+     * This option will only be honored when process breakaway is supported by the underlying sandbox.
+     */
+    useManagedSharedCompilation?: boolean;
 }
 
 interface ToolConfiguration {

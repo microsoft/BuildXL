@@ -288,7 +288,7 @@ namespace BuildXL.App.Tracing
 
                 if (perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.HitLowMemorySmell)
                 {
-                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.LowMemory(context, perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.MachineMinimumAvailablePhysicalMB));
+                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.HitLowMemorySmell(context));
                 }
 
                 if (config.Sandbox.LogProcesses)

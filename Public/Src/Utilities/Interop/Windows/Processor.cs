@@ -27,7 +27,7 @@ namespace BuildXL.Interop.Windows
             public uint cb;
 
             /// <nodoc />
-            public IntPtr CommitTotal;
+            public IntPtr CommitUsed;
 
             /// <nodoc />
             public IntPtr CommitLimit;

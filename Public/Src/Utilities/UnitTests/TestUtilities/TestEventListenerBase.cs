@@ -9,6 +9,7 @@ using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tracing;
 
 namespace Test.BuildXL.TestUtilities
@@ -45,6 +46,11 @@ namespace Test.BuildXL.TestUtilities
         /// Counts how many instances of different events have occurred.
         /// </summary>
         private readonly ConcurrentDictionary<int, int> m_eventCounter = new ConcurrentDictionary<int, int>();
+
+        /// <summary>
+        /// All the event logs grouped per event id
+        /// </summary>
+        private readonly MultiValueDictionary<int, string> m_logMessagesPerEventId = new MultiValueDictionary<int, string>();
 
         /// <summary>
         /// Counts how many instances of different events have occurred, with event counters aggregated by path key.
@@ -147,6 +153,27 @@ namespace Test.BuildXL.TestUtilities
         }
 
         /// <summary>
+        /// Returns all the logs received for a given event id
+        /// </summary>
+        /// <remarks>
+        /// Returns an empty array if no logs were received for a given event id
+        /// </remarks>
+        public ReadOnlyArray<string> GetLogMessagesForEventId(EventId id)
+        {
+            lock (m_logMessagesLock)
+            {
+                if (m_logMessagesPerEventId.TryGetValue((int)id, out var values))
+                {
+                    return values.ToReadOnlyArray();
+                }
+                else
+                {
+                    return ReadOnlyArray<string>.Empty;
+                }
+            }
+        }
+
+        /// <summary>
         /// Nested handler to be invoked first.
         /// </summary>
         public event Action<EventWrittenEventArgs> NestedLoggerHandler;
@@ -159,6 +186,7 @@ namespace Test.BuildXL.TestUtilities
             lock (m_logMessagesLock)
             {
                 m_logMessages.Add(s);
+                m_logMessagesPerEventId.Add(eventData.EventId, s);
             }
 
             if (m_logAction != null)

@@ -169,7 +169,7 @@ namespace Test.BuildXL.Scheduler
             Assert.Equal(expectedPipIndexes.Length, newRelevantPips.Count());
             
             // check that for all expected pips there is a node in the new graph
-            Assert.All(
+            XAssert.All(
                 expectedPipIndexes,
                 idx =>
                 {
@@ -178,7 +178,7 @@ namespace Test.BuildXL.Scheduler
 
             // check edges
             var newRelevantPipIdValues = new HashSet<uint>(newRelevantPips.Select(pip => pip.PipId.Value));
-            Assert.All(
+            XAssert.All(
                 expectedPipIndexes, 
                 idx =>
                 {
@@ -218,7 +218,7 @@ namespace Test.BuildXL.Scheduler
 
         private GraphReloadResult ReloadGraph(Pip[] procs, params int[] affectedIndexes)
         {
-            Assert.All(affectedIndexes, i => Assert.True(i >= 0 && i < procs.Length));
+            XAssert.All(affectedIndexes, i => Assert.True(i >= 0 && i < procs.Length));
             
             // add meta pips only for non-affected processes, because they should be present in the reloaded graph
             var nonAffectedIndexes = Enumerable.Range(0, procs.Length).Except(affectedIndexes);

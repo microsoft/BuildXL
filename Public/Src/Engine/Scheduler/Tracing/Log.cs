@@ -4553,7 +4553,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.FailedToAddFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Engine,
             Message = "[{pipDescription}] Unable to add the pip from fragment '{fragmentName}'.")]
         public abstract void FailedToAddFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription);

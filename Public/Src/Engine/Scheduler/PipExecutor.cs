@@ -1406,7 +1406,7 @@ namespace BuildXL.Scheduler
                                 {
                                     start = DateTime.UtcNow;
                                     result = await executor.RunAsync(innerResourceLimitCancellationTokenSource.Token, sandboxConnection: environment.SandboxConnection, sidebandWriter: sidebandWriter);
-                                    Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done running pip in {DateTime.UtcNow.Subtract(start)}");
+                                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Running pip", DateTime.UtcNow.Subtract(start));
                                 }
 
                                 ++retryCount;
@@ -1592,7 +1592,7 @@ namespace BuildXL.Scheduler
 
             start = DateTime.UtcNow;
             processExecutionResult.ReportSandboxedExecutionResult(executionResult);
-            Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done reporting sandboxed execution result in {DateTime.UtcNow.Subtract(start)}");
+            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "reporting sandboxed execution result", DateTime.UtcNow.Subtract(start));
 
             counters.AddToCounter(PipExecutorCounter.SandboxedProcessPrepDurationMs, executionResult.SandboxPrepMs);
             counters.AddToCounter(
@@ -1681,7 +1681,9 @@ namespace BuildXL.Scheduler
                             fileAccessReportingContext,
                             executionResult.ObservedFileAccesses,
                             trackFileChanges: succeeded);
-                    Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done ValidateObservedFileAccessesAsync (AbsPrb: {observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count}, DynFiles: {observedInputValidationResult.DynamicallyObservedFiles.Length}) in {DateTime.UtcNow.Subtract(start)}");
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(
+                        operationContext, pip.GetDescription(context), "ValidateObservedFileAccesses", DateTime.UtcNow.Subtract(start),
+                        $"(AbsPrb: {observedInputValidationResult.AbsentPathProbesUnderNonDependenceOutputDirectories.Count}, DynFiles: {observedInputValidationResult.DynamicallyObservedFiles.Length})");
                 }
 
                 // Store the dynamically observed accesses
@@ -1710,7 +1712,7 @@ namespace BuildXL.Scheduler
                             break;
                         }
                     }
-                    Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done computing isDirty in {DateTime.UtcNow.Subtract(start)}");
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Computing isDirty", DateTime.UtcNow.Subtract(start));
                     processExecutionResult.MustBeConsideredPerpetuallyDirty = isDirty;
                 }
 
@@ -1798,7 +1800,7 @@ namespace BuildXL.Scheduler
                             enableCaching: !skipCaching,
                             fingerprintComputation: fingerprintComputation,
                             executionResult.ContainerConfiguration);
-                        Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done storing cache content in {DateTime.UtcNow.Subtract(start)}");
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Storing cache content", DateTime.UtcNow.Subtract(start));
                     }
 
                     if (outputHashSuccess)
@@ -1841,13 +1843,13 @@ namespace BuildXL.Scheduler
                             observedInputValidationResult.ObservedInputs,
                             strongFingerprint),
                     };
-                    Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done computing strong fingerprint (ps: {pathSet.Paths.Length}) in {DateTime.UtcNow.Subtract(start)}");
+                    Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Computing strong fingerprint", DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
                 }
 
                 // Log the fingerprint computation
                 start = DateTime.UtcNow;
                 environment.State.ExecutionLog?.ProcessFingerprintComputation(fingerprintComputation.Value);
-                Logger.Log.DebugFragment(operationContext, $"{pip.GetDescription(context)} -- Done storing fingerprint comp to xlg in {DateTime.UtcNow.Subtract(start)}");
+                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, pip.GetDescription(context), "Storing fingerprint computation to XLG", DateTime.UtcNow.Subtract(start));
 
                 if (!outputHashSuccess)
                 {

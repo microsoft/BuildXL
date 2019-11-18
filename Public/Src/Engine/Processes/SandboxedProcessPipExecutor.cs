@@ -1060,8 +1060,9 @@ namespace BuildXL.Processes
                             cancellationTokenSource.Token,
                             process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
                             allInputPathsUnderSharedOpaques);
-                Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context),
-                    $"Finished processing result in {DateTime.UtcNow.Subtract(start)}");
+
+                Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                    "Processing SandboxProcessResult", DateTime.UtcNow.Subtract(start));
 
                 return ValidateDetoursCommunication(
                     executionResult,
@@ -1444,20 +1445,18 @@ namespace BuildXL.Processes
                 }
             }
 
-            Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context),
-                $"Done processing standard outputs in {DateTime.UtcNow.Subtract(start)}");
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Processing standard outputs", DateTime.UtcNow.Subtract(start));
 
             start = DateTime.UtcNow;
-
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
                 GetObservedFileAccesses(
                     result,
                     allInputPathsUnderSharedOpaques,
                     out var unobservedOutputs,
                     out var sharedDynamicDirectoryWriteAccesses);
-
-            Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context),
-                $"Done getting {observed.Length} observed file accesses in {DateTime.UtcNow.Subtract(start)}");
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Getting observed file accesses", DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
 
             start = DateTime.UtcNow;
 
@@ -1505,8 +1504,8 @@ namespace BuildXL.Processes
                 }
             }
 
-            Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context),
-                $"Done logging outputs in {DateTime.UtcNow.Subtract(start)}");
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Logging outputs", DateTime.UtcNow.Subtract(start));
 
             start = DateTime.UtcNow;
 
@@ -1609,8 +1608,8 @@ namespace BuildXL.Processes
             // If a PipProcessError was logged, the pip cannot be marked as succeeded
             Contract.Assert(!standardOutHasBeenWrittenToLog || status != SandboxedProcessPipExecutionStatus.Succeeded);
 
-            Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, m_pip.SemiStableHash, m_pip.GetDescription(m_context),
-                $"Done with the rest of the stuff in {DateTime.UtcNow.Subtract(start)}");
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Rest of SandboxedProcessPipExecutor stuff", DateTime.UtcNow.Subtract(start));
 
             return new SandboxedProcessPipExecutionResult(
                 status: status,

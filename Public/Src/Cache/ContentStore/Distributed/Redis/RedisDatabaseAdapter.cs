@@ -177,14 +177,21 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         private readonly RedisDatabaseFactory _databaseFactory;
         private readonly RetryPolicy _redisRetryStrategy;
 
+        // In some cases, Redis.StackExchange library may fail to reset the connection to Azure Redis Cache.
+        // To work around this problem we reset the connection multiplexer if all the calls are failing with RedisConnectionException.
+        private readonly int _connectionErrorCountLimit;
+        private int _connectionErrorCount;
+        private readonly object _resetConnectionsLock = new object();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisDatabaseAdapter"/> class.
         /// </summary>
-        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace)
+        public RedisDatabaseAdapter(RedisDatabaseFactory databaseFactory, string keySpace, int connectionErrorCountLimit = int.MaxValue)
         {
             _databaseFactory = databaseFactory;
             KeySpace = keySpace;
-            _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(), RetryStrategy.DefaultExponential);
+            _connectionErrorCountLimit = connectionErrorCountLimit;
+            _redisRetryStrategy = new RetryPolicy(new RedisRetryPolicy(HandleRedisException), RetryStrategy.DefaultExponential);
         }
 
         /// <summary>
@@ -286,14 +293,63 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                         },
                         cancellationToken);
                     await batch.NotifyConsumersOfSuccess();
+
+                    RedisOperationSucceeded();
                     return BoolResult.Success;
                 }
                 catch (Exception ex)
                 {
                     batch.NotifyConsumersOfFailure(ex);
+                    OnRedisException(context, ex);
                     return new BoolResult(ex);
                 }
             }
+        }
+
+        private void RedisOperationSucceeded()
+        {
+            // If the operation is successful, then reset the error count to 0.
+            Interlocked.Exchange(ref _connectionErrorCount, 0);
+        }
+
+        private void OnRedisException(Context context, Exception exception)
+        {
+            if (IsRedisConnectionException(exception))
+            {
+                if (Interlocked.Increment(ref _connectionErrorCount) >= _connectionErrorCountLimit)
+                {
+                    lock (_resetConnectionsLock)
+                    {
+                        if (_connectionErrorCount >= _connectionErrorCountLimit)
+                        {
+                            context.Warning($"Reset redis connection due to connectivity issues. ConnectionErrorCount={_connectionErrorCountLimit}.");
+                            Interlocked.Exchange(ref _connectionErrorCount, 0);
+                            _databaseFactory.ResetConnectionMultiplexer();
+                        }
+                    }
+                }
+            }
+        }
+
+        private void HandleRedisException(Exception exception)
+        {
+            // Lets be very pessimistic here: reset the connectivity errors every time when the operation succeed or any other exception
+            // but redis connection exception occurs.
+            if (IsRedisConnectionException(exception))
+            {
+                Interlocked.Increment(ref _connectionErrorCount);
+            }
+            else
+            {
+                Interlocked.Exchange(ref _connectionErrorCount, 0);
+            }
+        }
+
+        private bool IsRedisConnectionException(Exception exception)
+        {
+            return exception is RedisConnectionException redisException &&
+                   (redisException.Message.Contains("No connection available") ||
+                    redisException.Message.Contains("UnableToResolvePhysicalConnection"));
         }
 
         /// <summary>
@@ -358,17 +414,28 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public Task<bool> SetHashValueAsync(Context context, RedisKey key, RedisValue hashField, RedisValue value, When when, CancellationToken token)
             => PerformDatabaseOperationAsync(context, db => db.HashSetAsync(key, hashField, value, when), Counters[RedisOperation.HashSetValue], token);
 
-        private Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token)
+        private async Task<T> PerformDatabaseOperationAsync<T>(Context context, Func<IDatabase, Task<T>> operation, Counter stopwatch, CancellationToken token)
         {
             using (Counters[RedisOperation.All].Start())
             using (stopwatch.Start())
             {
-                return _redisRetryStrategy.ExecuteAsync(
-                    async () =>
-                    {
-                        var database = await GetDatabaseAsync(context);
-                        return await operation(database);
-                    }, token);
+                try
+                {
+                    var result = await _redisRetryStrategy.ExecuteAsync(
+                        async () =>
+                        {
+                            var database = await GetDatabaseAsync(context);
+                            return await operation(database);
+                        }, token);
+
+                    RedisOperationSucceeded();
+                    return result;
+                }
+                catch (Exception e)
+                {
+                    OnRedisException(context, e);
+                    throw;
+                }
             }
         }
 
@@ -379,9 +446,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
 
         private class RedisRetryPolicy : ITransientErrorDetectionStrategy
         {
+            private readonly Action<Exception> _exceptionObserver;
+
+            /// <nodoc />
+            public RedisRetryPolicy(Action<Exception> exceptionObserver = null)
+            {
+                _exceptionObserver = exceptionObserver;
+            }
+
             /// <inheritdoc />
             public bool IsTransient(Exception ex)
             {
+                _exceptionObserver?.Invoke(ex);
+
                 // naively retry all redis server exceptions.
 
                 if (ex is RedisException redisException)

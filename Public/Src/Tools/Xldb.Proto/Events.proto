@@ -357,6 +357,9 @@ message StatusReportedEvent{
 
     // Number of process pips allocated a slot on workers (including localworker)
     int64 ProcessPipsAllocatedSlots = 24;
+
+    // Number of processes physically running (not including child processes, just main pip processes).
+    int32 RunningProcesses = 25;
 }
 
 // The ProcessFingerprintComputation Event message

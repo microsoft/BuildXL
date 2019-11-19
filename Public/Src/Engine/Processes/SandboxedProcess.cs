@@ -492,6 +492,8 @@ namespace BuildXL.Processes
 
         private async Task OnProcessExited()
         {
+            m_processIdListener?.Invoke(-ProcessId);
+
             // Wait until all incoming report messages from the detoured process have been handled.
             await WaitUntilReportEof(m_detouredProcess.Killed);
 

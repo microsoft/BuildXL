@@ -1134,7 +1134,7 @@ namespace BuildXL.Scheduler
         /// <param name="state">the pip scoped execution state</param>
         /// <param name="pip">The pip to execute</param>
         /// <param name="fingerprint">The pip fingerprint</param>
-        /// <param name="processIdListener">Callback to call when the process is actually started</param>
+        /// <param name="processIdListener">Callback to call when the process is actually started (PID is passed to it) and when the process exit (negative PID is passed to it)</param>
         /// <param name="expectedMemoryCounters">the expected memory counters for the process in megabytes</param>
         /// <returns>A task that returns the execution result when done</returns>
         public static async Task<ExecutionResult> ExecuteProcessAsync(

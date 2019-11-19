@@ -153,6 +153,7 @@ namespace BuildXL.Processes
             if (info.ProcessIdListener != null)
             {
                 ProcessStarted += (pid) => info.ProcessIdListener(pid);
+                m_processExecutor.Process.Exited += (sender, e) => info.ProcessIdListener(-m_processExecutor.ProcessId);
             }
         }
 

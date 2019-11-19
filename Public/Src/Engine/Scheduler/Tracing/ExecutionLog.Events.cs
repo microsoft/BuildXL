@@ -1336,6 +1336,7 @@ namespace BuildXL.Scheduler.Tracing
             LookupRunning = reader.ReadInt32();
 
             ExternalProcesses = reader.ReadInt32();
+            RunningProcesses = reader.ReadInt32();
 
             var pipTypeLength = reader.ReadInt32();
             PipsSucceededAllTypes = new long[pipTypeLength];

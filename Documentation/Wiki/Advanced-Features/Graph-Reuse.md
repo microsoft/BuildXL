@@ -58,7 +58,7 @@ without any evaluation filter. Thus, the latter graph is actually reusable when 
 
 To have pip graph cache hit, users need to make the pip graph weak fingerprint and the pip graph inputs stable build over build. Here are some guidelines to make the graph inputs stable.
 
-## Do not query constantly changing environment variable
+## Do not query constantly changing environment variables
 
 Typical case of using constantly changing environment variable is using an environment variable to keep track of build id. For example,
 ```
@@ -67,7 +67,7 @@ const buildId = Environment.getStringValue("BUILD_ID");
 where `%BUILD_ID%` is set by a batch script before that script invokes a build, e.g., 
 ```
 # REM Get build id based on the current time.
-set BUILD_ID=...
+set BUILD_ID=Build_%date:~7,2%_%date:~4,2%_%date:~10,4%_%time:~0,2%_%time:~3,2%
 
 # Invoke build
 bxl /c:config.dsc ...
@@ -86,7 +86,7 @@ Transformer.execute({
 where `%LOG_PATH%` is set by a batch script before that script invokes a build, e.g., 
 ```
 # REM Get log path based on the current time.
-set LOG_PATH=...
+set LOG_PATH=Log_%date:~7,2%_%date:~4,2%_%date:~10,4%_%time:~0,2%_%time:~3,2%
 
 # Invoke build
 bxl /c:config.dsc ...
@@ -116,4 +116,4 @@ The value of `Environment.getPathValue("USERPROFILE")` will be different from on
 
 BuildXL provides a so-called user-profile redirection that will redirect the values of `%USERPROFILE%` and related environment variables
 to stable values. To this end, BuildXL creates a junction from a stable path to the real user profile path. To enable user-profile
-redirection, see [user profile redirection](ToDo.md)
+redirection, see [user profile redirection](./User-Profile-Redirection.md)

@@ -41,7 +41,8 @@ namespace BuildXL.Scheduler.Fingerprints
         /// 67: Added SourceChangeAffectedContents
         /// 68: Added ChildProcessesToBreakawayFromSandbox
         /// 69: Added dynamic existing probe.
+        /// 70: Removed duplicates from ObservedAccessedFileNames.
         /// </remarks>
-        TwoPhaseV2 = 69,
+        TwoPhaseV2 = 70,
     }
 }

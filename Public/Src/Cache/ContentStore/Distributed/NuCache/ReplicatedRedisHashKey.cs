@@ -92,7 +92,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         var addOperationsTask = addOperations(batch, _key);
                         await Task.WhenAll(versionTask, addOperationsTask);
 
-                        var result = addOperationsTask;
+                        var result = await addOperationsTask;
                         var version = await versionTask;
                         return (result, version);
                     },

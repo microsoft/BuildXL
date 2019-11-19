@@ -1200,6 +1200,60 @@ namespace BuildXL.Native.IO
             return Unit.Void;
         }
 
+        /// <summary>
+        /// Infers subst source and subst target from a given reference path.
+        /// </summary>
+        /// <param name="referenceFullPath">Rooted reference path.</param>
+        /// <param name="substSource">Output subst source.</param>
+        /// <param name="substTarget">Output subst target.</param>
+        /// <returns>True if subst is used.</returns>
+        /// <remarks>
+        /// This method calls <code>GetFinalPathByHandle</code> which is only applicable on Windows.
+        /// </remarks>
+        public static bool TryGetSubstSourceAndTarget(string referenceFullPath, out string substSource, out string substTarget)
+        {
+            Contract.Requires(Path.IsPathRooted(referenceFullPath));
+
+            substSource = null;
+            substTarget = null;
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // There is currently no subst in non-Windows OS.
+                return false;
+            }
+
+            OpenFileResult directoryOpenResult = FileUtilities.TryOpenDirectory(
+                referenceFullPath,
+                FileShare.Read | FileShare.Write | FileShare.Delete,
+                out SafeFileHandle directoryHandle);
+
+            if (!directoryOpenResult.Succeeded)
+            {
+                throw directoryOpenResult.ThrowForError();
+            }
+
+            string directoryHandlePath = GetFinalPathNameByHandle(directoryHandle, volumeGuidPath: false);
+
+            if (!string.Equals(referenceFullPath, directoryHandlePath, StringComparison.OrdinalIgnoreCase))
+            {
+                string commonPath = referenceFullPath.Substring(2); // Include '\' of '<Drive>:\'  for searching.
+                substTarget = referenceFullPath.Substring(0, 3);    // Include '\' of '<Drive>:\' in the substTarget.
+                int commonIndex = directoryHandlePath.IndexOf(commonPath, 0, StringComparison.OrdinalIgnoreCase);
+
+                if (commonIndex == -1)
+                {
+                    substTarget = null;
+                }
+                else
+                {
+                    substSource = directoryHandlePath.Substring(0, commonIndex + 1);
+                }
+            }
+
+            return !string.IsNullOrWhiteSpace(substSource) && !string.IsNullOrWhiteSpace(substTarget);
+        }
+
         #endregion
     }
 }

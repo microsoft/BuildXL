@@ -2381,7 +2381,7 @@ EXIT /b 3
             return string.Format(DefaultInMemoryJsonConfigString, cacheId);
         }
 
-        private static Task WithCachingExecutionEnvironmentForCacheConvergence(
+        private Task WithCachingExecutionEnvironmentForCacheConvergence(
             string cacheDir,
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
@@ -2391,7 +2391,7 @@ EXIT /b 3
             return WithExecutionEnvironmentForCacheConvergence(act, createMountExpander, config: config, whitelistCreator: whitelistCreator);
         }
 
-        private static Task WithCachingExecutionEnvironment(
+        private Task WithCachingExecutionEnvironment(
             string cacheDir,
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
@@ -2402,7 +2402,7 @@ EXIT /b 3
             return WithExecutionEnvironment(act, InMemoryCacheFactory.Create, createMountExpander, config: config, whitelistCreator: whitelistCreator);
         }
 
-        private static Task WithExecutionEnvironmentForCacheConvergence(
+        private Task WithExecutionEnvironmentForCacheConvergence(
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
             Func<PathTable, IConfiguration> config = null,
@@ -2420,7 +2420,7 @@ EXIT /b 3
                         fileAccessWhitelist: fileAccessWhitelist));
         }
 
-        private static Task WithExecutionEnvironmentAndIpcServer(
+        private Task WithExecutionEnvironmentAndIpcServer(
             IIpcProvider ipcProvider,
             IIpcOperationExecutor ipcExecutor,
             Func<DummyPipExecutionEnvironment, IIpcMoniker, IServer, Task> act,
@@ -2446,7 +2446,7 @@ EXIT /b 3
                 ipcProvider: ipcProvider);
         }
 
-        private static Task WithExecutionEnvironment(
+        private Task WithExecutionEnvironment(
             Func<DummyPipExecutionEnvironment, Task> act,
             Func<EngineCache> cache = null,
             Func<PathTable, SemanticPathExpander> createMountExpander = null,
@@ -2517,7 +2517,7 @@ EXIT /b 3
             return config;
         }
 
-        private static DummyPipExecutionEnvironment CreateExecutionEnvironmentForCacheConvergence(
+        private DummyPipExecutionEnvironment CreateExecutionEnvironmentForCacheConvergence(
             BuildXLContext context,
             SemanticPathExpander mountExpander = null,
             Func<PathTable, IConfiguration> config = null,
@@ -2538,12 +2538,15 @@ EXIT /b 3
                 semanticPathExpander: mountExpander,
                 fileAccessWhitelist: fileAccessWhitelist,
                 allowUnspecifiedSealedDirectories: false,
+                subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget)
+                    ? (substSource, substTarget)
+                    : default((string, string)?),
                 sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
             return env;
         }
 
-        private static DummyPipExecutionEnvironment CreateExecutionEnvironment(
+        private DummyPipExecutionEnvironment CreateExecutionEnvironment(
             BuildXLContext context,
             Func<EngineCache> cache = null,
             SemanticPathExpander mountExpander = null,
@@ -2570,6 +2573,9 @@ EXIT /b 3
                 fileAccessWhitelist: fileAccessWhitelist,
                 allowUnspecifiedSealedDirectories: false,
                 ipcProvider: ipcProvider,
+                subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget) 
+                    ? (substSource, substTarget) 
+                    : default((string, string)?),
                 sandboxConnection: GetSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
 

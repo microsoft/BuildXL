@@ -38,7 +38,10 @@ namespace Test.BuildXL.Scheduler
         {
             return new TestHarness(
                 Context,
-                SourceRootPath.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, "config.dsc")));
+                SourceRootPath.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, "config.dsc")),
+                TryGetSubstSourceAndTarget(out var substSource, out var substTarget) 
+                ? (substSource, substTarget) 
+                : default((string, string)?));
         }
 
         [Fact]
@@ -438,13 +441,16 @@ namespace Test.BuildXL.Scheduler
 
             private readonly BuildXLContext m_context;
 
+            private (string substSource, string substTarget)? m_subst;
+
             /// <summary>
             /// Constructor.
             /// </summary>
-            public TestHarness(BuildXLContext context, AbsolutePath configFile)
+            public TestHarness(BuildXLContext context, AbsolutePath configFile, (string substSource, string substTarget)? subst)
             {
                 m_context = context;
                 Configuration = ConfigurationHelpers.GetDefaultForTesting(context.PathTable, configFile);
+                m_subst = subst;
             }
 
             /// <summary>
@@ -457,7 +463,7 @@ namespace Test.BuildXL.Scheduler
                     return;
                 }
 
-                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, sandboxConnection: GetSandboxConnection());
+                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, subst: m_subst, sandboxConnection: GetSandboxConnection());
                 FileContentManager = new FileContentManager(Environment, new NullOperationTracker());
                 UntrackedOpContext = OperationContext.CreateUntracked(Environment.LoggingContext);
 

@@ -5,11 +5,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.App.Tracing;
-using BuildXL.FrontEnd.CMake;
 using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.Download;
+#if !PLATFORM_OSX
+using BuildXL.FrontEnd.CMake;
 using BuildXL.FrontEnd.MsBuild;
 using BuildXL.FrontEnd.Ninja;
+#endif
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Script;
 using BuildXL.FrontEnd.Script.Debugger;
@@ -142,7 +144,7 @@ namespace BuildXL
             var debugServerPort = confPort != 0 ? confPort : DebugServer.DefaultDebugPort;
             var pathTranslator = GetPathTranslator(Configuration.Logging, pathTable);
             var debugState = new DebuggerState(pathTable, LoggingContext, DScriptDebugerRenderer.Render, new DScriptExprEvaluator(LoggingContext));
-            var debugServer = new DebugServer(LoggingContext, debugServerPort, 
+            var debugServer = new DebugServer(LoggingContext, debugServerPort,
                 (debugger) => new DebugSession(debugState, pathTranslator, debugger));
             Task<IDebugger> debuggerTask = debugServer.StartAsync();
             var evaluationDecorator = new LazyDecorator(debuggerTask, Configuration.FrontEnd.DebuggerBreakOnExit());
@@ -228,18 +230,13 @@ namespace BuildXL
                     new FrontEndStatistics(), // Configuration processing is so lightweight that it won't affect overall perf statistics
                     logger: null));
 
-            var msBuildFrontEnd = new MsBuildFrontEnd();
-
-            var ninjaFrontEnd = new NinjaFrontEnd();
-
-            var cmakeFrontEnd = new CMakeFrontEnd();
-
             // TODO: Workspace resolvers and frontends are registered in separate factories. Consider
             // adding a main coordinator/registry
             RegisterKnownWorkspaceResolvers(
                 symbolTable.StringTable,
-                workspaceResolverFactory, 
+                workspaceResolverFactory,
                 frontEndStatistics);
+
 
             frontEndFactory.AddFrontEnd(new DScriptFrontEnd(
                 frontEndStatistics,
@@ -251,9 +248,11 @@ namespace BuildXL
 
             frontEndFactory.AddFrontEnd(new DownloadFrontEnd());
 
-            frontEndFactory.AddFrontEnd(msBuildFrontEnd);
-            frontEndFactory.AddFrontEnd(ninjaFrontEnd);
-            frontEndFactory.AddFrontEnd(cmakeFrontEnd);
+#if !PLATFORM_OSX
+            frontEndFactory.AddFrontEnd(new MsBuildFrontEnd());
+            frontEndFactory.AddFrontEnd(new NinjaFrontEnd());
+            frontEndFactory.AddFrontEnd(new CMakeFrontEnd());
+#endif
 
             if (!frontEndFactory.TrySeal(loggingContext))
             {
@@ -267,7 +266,7 @@ namespace BuildXL
                 moduleRegistry: sharedModuleRegistry,
                 frontEndStatistics: frontEndStatistics,
                 logger: BuildXL.FrontEnd.Core.Tracing.Logger.CreateLogger(),
-                collector: collector, 
+                collector: collector,
                 collectMemoryAsSoonAsPossible: collectMemoryAsSoonAsPossible);
         }
 
@@ -291,6 +290,7 @@ namespace BuildXL
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.DownloadResolverKind,
                 () => new DownloadWorkspaceResolver());
+#if !PLATFORM_OSX
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.MsBuildResolverKind,
                 () => new MsBuildWorkspaceResolver());
@@ -300,6 +300,7 @@ namespace BuildXL
             workspaceFactory.RegisterResolver(
                 KnownResolverKind.CMakeResolverKind,
                 () => new CMakeWorkspaceResolver());
+#endif
         }
     }
 }

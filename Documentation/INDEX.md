@@ -40,6 +40,8 @@ Keep this as the sole primary landing page for documentation and avoid creating 
 ## Build Execution
 * [Filtering](Wiki/How-To-Run-BuildXL/Filtering.md)
 * [Cache Algorithm]() TODO: author
+* [Graph Reuse](Wiki/Advanced-Features/Graph-Reuse.md)
+* [User Profile Redirection](Wiki/Advanced-Features/User-Profile-Redirection.md) TODO: groom
 * [Content and Metadata Cache](../Public/Src/Cache/README.md) TODO: groom
 * [Paged Hashes](Specs/PagedHash.md) TODO: groom
 * [Filesystem modes and enumerations](Wiki/Advanced-Features/Filesystem-modes-and-Enumerations.md) TODO: groom

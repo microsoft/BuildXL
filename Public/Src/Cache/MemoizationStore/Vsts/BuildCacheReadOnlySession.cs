@@ -103,7 +103,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
 
         private readonly bool _enableEagerFingerprintIncorporation;
         private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
-        private readonly TimeSpan _eagerFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationInterval;
         private readonly int _eagerFingerprintIncorporationBatchSize;
 
@@ -176,7 +175,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             BuildCacheCacheTracer tracer,
             bool enableEagerFingerprintIncorporation,
             TimeSpan inlineFingerprintIncorporationExpiry,
-            TimeSpan eagerFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationInterval,
             int eagerFingerprintIncorporationBatchSize)
         {
@@ -197,7 +195,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             Tracer = tracer;
             _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
             _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
-            _eagerFingerprintIncorporationExpiry = eagerFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationInterval = eagerFingerprintIncorporationInterval;
             _eagerFingerprintIncorporationBatchSize = eagerFingerprintIncorporationBatchSize;
 
@@ -430,9 +427,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 Tracer,
                 async () =>
                 {
-                    Tracer.Debug(context, $"IncorporateBatch: Total fingerprints to be incorporated:[{fingerprints.Length}]");
-                    Tracer.Debug(context, $"IncorporateBatch: Max fingerprints per incorporate request(=chunk size):[{_maxFingerprintsPerIncorporateRequest}]");
-                    Tracer.Debug(context, $"IncorporateBatch: Max incorporate requests allowed in parallel:[{_maxDegreeOfParallelismForIncorporateRequests}]");
+                    Tracer.Debug(context, $"IncorporateBatch: Total fingerprints to be incorporated {fingerprints.Length}, ChunkSize={_maxFingerprintsPerIncorporateRequest}, DegreeOfParallelism={_maxDegreeOfParallelismForIncorporateRequests}.");
 
                     // Incorporating all of the fingerprints for a build, in one request, to a single endpoint causes pain. Incorporation involves
                     // extending the lifetime of all fingerprints *and* content/s mapped to each fingerprint. Processing a large request payload
@@ -584,7 +579,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     CacheNamespace, strongFingerprint, out contentHashListWithDeterminism))
                 {
                     Tracer.RecordUseOfPrefetchedContentHashList();
-                    context.Debug("DEBUG_ONLY: Determinism was obtained via ContentHashListWithDeterminismCache.");
                     await TrackFingerprintAsync(
                         context,
                         strongFingerprint,
@@ -592,7 +586,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     return new GetContentHashListResult(contentHashListWithDeterminism);
                 }
 
-                context.Debug($"DEBUG_ONLY: Getting content hash list from ContentHashListAdapter of type '{ContentHashListAdapter.GetType()}'.");
                 // No pre-fetched data. Need to query the server.
                 ObjectResult<ContentHashListWithCacheMetadata> responseObject =
                     await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, strongFingerprint).ConfigureAwait(false);
@@ -629,30 +622,25 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             // 1. Inline incorporation: If eager fingerprint incorporation enabled and
             //                          the entry will expire in _inlineFingerprintIncorporationExpiry time.
             // 2. Eager bulk incorporation: if eager fingerprint incorporation enabled and
-            //                          the entry will expire in _eagerFingerprintIncorporationExpiry time.
-            // 3. Session shutdown incorporation: if incorporation enabled and
-            //                          the entry will not going to expire soon.
-            if (_enableEagerFingerprintIncorporation && expirationUtc != null)
+            //                          the entry's expiry is not available or it won't expire in _inlineFingerprintIncorporationExpiry time.
+            // 3. Session shutdown incorporation: if eager fingerprint incorporation is disabled and the normal fingerprint incorporation is enabled.
+            if (_enableEagerFingerprintIncorporation)
             {
-                var timeToExpiration = expirationUtc.Value - DateTime.UtcNow;
-
-                if (timeToExpiration < _inlineFingerprintIncorporationExpiry)
+                if (expirationUtc != null && (expirationUtc.Value - DateTime.UtcNow < _inlineFingerprintIncorporationExpiry))
                 {
                     context.Debug($"Incorporating fingerprint inline: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
 
                     await IncorporateFingerprintAsync(new OperationContext(context), strongFingerprint);
                 }
-                else if (timeToExpiration < _eagerFingerprintIncorporationExpiry)
+                else
                 {
+                    // We either don't have an expiration time or the time to expiry is greater then _inlineFingerprintIncorporationExpiry
                     Contract.Assert(_eagerFingerprintIncorporationNagleQueue != null);
-
-                    context.Debug($"Tracking fingerprint eagerly: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
                     _eagerFingerprintIncorporationNagleQueue.Enqueue(strongFingerprint);
                 }
             }
             else
             {
-                context.Debug($"Tracking fingerprint via FingerprintTracker: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
                 FingerprintTracker.Track(strongFingerprint, expirationUtc);
             }
         }

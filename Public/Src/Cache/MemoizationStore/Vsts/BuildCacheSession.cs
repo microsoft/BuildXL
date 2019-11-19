@@ -74,7 +74,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             BuildCacheCacheTracer tracer,
             bool enableEagerFingerprintIncorporation,
             TimeSpan inlineFingerprintIncorporationExpiry,
-            TimeSpan eagerFingerprintIncorporationExpiry,
             TimeSpan eagerFingerprintIncorporationInterval,
             int eagerFingerprintIncorporationBatchSize)
             : base(
@@ -97,7 +96,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 tracer,
                 enableEagerFingerprintIncorporation,
                 inlineFingerprintIncorporationExpiry,
-                eagerFingerprintIncorporationExpiry,
                 eagerFingerprintIncorporationInterval,
                 eagerFingerprintIncorporationBatchSize)
         {

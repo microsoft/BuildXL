@@ -95,12 +95,10 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         /// <inheritdoc />
         public async Task<ObjectResult<ContentHashListWithCacheMetadata>> GetContentHashListAsync(Context context, string cacheNamespace, StrongFingerprint strongFingerprint)
         {
-            context.Debug("DEBUG_ONLY: BlobBuildCacheContentHashListAdapter.GetContentHashListAsync.");
             try
             {
                 if (!BlobContentHashListCache.Instance.TryGetValue(cacheNamespace, strongFingerprint, out var blobCacheMetadata))
                 {
-                    context.Debug("DEBUG_ONLY: BlobContentHashListCache.Instance.TryGetValue is false.");
                     BlobContentHashListResponse blobResponse = await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                             context,
                             "GetContentHashList",
@@ -109,7 +107,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                         .ConfigureAwait(false);
 
                     blobCacheMetadata = blobResponse.ContentHashListWithCacheMetadata;
-                    context.Debug($"DEBUG_ONLY: SF={strongFingerprint}, RawExpirationTimeUtc={blobCacheMetadata.GetRawExpirationTimeUtc()}.");
                     DownloadUriCache.Instance.BulkAddDownloadUris(blobResponse.BlobDownloadUris);
                     AddDownloadUriToCache(blobCacheMetadata.ContentHashListWithDeterminism);
                 }
@@ -228,7 +225,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
             Contract.Assert(blobCacheMetadata != null);
             if (blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier == null)
             {
-                context.Debug("DEBUG_ONLY: blobCacheMetadata.ContentHashListWithDeterminism.BlobIdentifier == null.");
                 return new ObjectResult<ContentHashListWithCacheMetadata>(
                     new ContentHashListWithCacheMetadata(
                         new ContentHashListWithDeterminism(null, blobCacheMetadata.Determinism),
@@ -250,7 +246,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
                 return new ObjectResult<Stream>(openStreamResult);
             };
 
-            context.Debug("DEBUG_ONLY: Unpacking contenthashlist from blob.");
             StructResult<ContentHashListWithDeterminism> contentHashListResult =
                 await BlobContentHashListExtensions.UnpackFromBlob(
                     openStreamFunc,

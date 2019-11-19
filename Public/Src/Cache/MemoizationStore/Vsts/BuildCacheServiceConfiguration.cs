@@ -282,6 +282,17 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <summary>
         /// Gets or sets whether eager fingerprint incorporation is enabled.
         /// </summary>
+        /// <remarks>
+        /// if the flag is set, then fingerprints will be incorporated (i.e. the ttl will be updated) eagerly within
+        /// the operations that gets or touches the fingerprints (like GetContentHashList).
+        /// 
+        /// Currently we have 3 ways for fingerprint incorporation:
+        /// 1. Inline incorporation: If eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
+        ///                          the entry will expire in <see cref="InlineFingerprintIncorporationExpiry"/> time.
+        /// 2. Eager bulk incorporation: if eager fingerprint incorporation enabled (<see cref="EnableEagerFingerprintIncorporation"/> is true) and
+        ///                          the entry's expiry is not available or it won't expire in <see cref="EnableEagerFingerprintIncorporation"/> time.
+        /// 3. Session shutdown incorporation: if eager fingerprint incorporation is disabled and the normal fingerprint incorporation is enabled (<see cref="FingerprintIncorporationEnabled"/> is true).
+        /// </remarks>
         [DataMember]
         public bool EnableEagerFingerprintIncorporation { get; set; } = DefaultEnableEagerFingerprintIncorporation;
 
@@ -290,13 +301,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// </summary>
         [DataMember]
         public TimeSpan InlineFingerprintIncorporationExpiry { get; set; } = DefaultInlineFingerprintIncorporationExpiry;
-
-
-        /// <summary>
-        /// Gets or sets time window during which incorporation is done eagerly via a nagle queue.
-        /// </summary>
-        [DataMember]
-        public TimeSpan EagerFingerprintIncorporationExpiry { get; set; } = DefaultEagerFingerprintIncorporationExpiry;
 
         /// <nodoc />
         [DataMember]

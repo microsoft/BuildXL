@@ -49,7 +49,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private readonly bool _overrideUnixFileAccessMode;
         private readonly bool _enableEagerFingerprintIncorporation;
         private readonly TimeSpan _inlineFingerprintIncorporationExpiry;
-        private readonly TimeSpan _eagerFingerprintIncorporationExpiry;
         private readonly TimeSpan _eagerFingerprintIncorporationNagleInterval;
         private readonly int _eagerFingerprintIncorporationNagleBatchSize;
 
@@ -106,7 +105,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             bool overrideUnixFileAccessMode = false,
             bool enableEagerFingerprintIncorporation = false,
             TimeSpan inlineFingerprintIncorporationExpiry = default,
-            TimeSpan eagerFingerprintIncorporationExpiry = default,
             TimeSpan eagerFingerprintIncorporationNagleInterval = default,
             int eagerFingerprintIncorporationNagleBatchSize = 100)
         {
@@ -152,7 +150,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             _overrideUnixFileAccessMode = overrideUnixFileAccessMode;
             _enableEagerFingerprintIncorporation = enableEagerFingerprintIncorporation;
             _inlineFingerprintIncorporationExpiry = inlineFingerprintIncorporationExpiry;
-            _eagerFingerprintIncorporationExpiry = eagerFingerprintIncorporationExpiry;
             _eagerFingerprintIncorporationNagleInterval = eagerFingerprintIncorporationNagleInterval;
             _eagerFingerprintIncorporationNagleBatchSize = eagerFingerprintIncorporationNagleBatchSize;
         }
@@ -350,7 +347,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _tracer,
                         _enableEagerFingerprintIncorporation,
                         _inlineFingerprintIncorporationExpiry,
-                        _eagerFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize));
             });
@@ -401,7 +397,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                         _tracer,
                         _enableEagerFingerprintIncorporation,
                         _inlineFingerprintIncorporationExpiry,
-                        _eagerFingerprintIncorporationExpiry,
                         _eagerFingerprintIncorporationNagleInterval,
                         _eagerFingerprintIncorporationNagleBatchSize));
             });

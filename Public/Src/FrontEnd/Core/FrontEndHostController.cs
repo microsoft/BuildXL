@@ -112,7 +112,7 @@ namespace BuildXL.FrontEnd.Core
 
         private readonly PerformanceCollector m_collector;
 
-        private static readonly TimeSpan EvaluationProgressReportingPeriod = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan EvaluationProgressReportingPeriod = TimeSpan.FromMilliseconds(1000);
 
         /// <summary>
         /// Constructor.

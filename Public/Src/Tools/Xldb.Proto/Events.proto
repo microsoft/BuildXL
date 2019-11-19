@@ -339,7 +339,7 @@ message StatusReportedEvent{
     // Number of running items in the CacheLookup dispatcher
     int32 LookupRunning = 18;
 
-    // Number of externally running processes
+    // Number of processes running under PipExecutor
     int32 RunningPipExecutorProcesses = 19;
 
     // Number of pips succeeded for each type
@@ -358,7 +358,7 @@ message StatusReportedEvent{
     // Number of process pips allocated a slot on workers (including localworker)
     int64 ProcessPipsAllocatedSlots = 24;
 
-    // Number of processes physically running (not including child processes, just main pip processes).
+    // Number of OS processes physically running (not including child processes, just main pip processes).
     int32 RunningProcesses = 25;
 }
 

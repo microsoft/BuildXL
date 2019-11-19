@@ -1213,12 +1213,12 @@ namespace BuildXL.Scheduler.Tracing
         public int LookupRunning;
 
         /// <summary>
-        /// Number of externally running processes
+        /// Number of processes running under PipExecutor
         /// </summary>
         public int RunningPipExecutorProcesses;
 
         /// <summary>
-        /// Number of underlying processes physically running (doesn't include children processes, just the main pip process).
+        /// Number of OS processes physically running (doesn't include children processes, just the main pip process).
         /// </summary>
         public int RunningProcesses;
 

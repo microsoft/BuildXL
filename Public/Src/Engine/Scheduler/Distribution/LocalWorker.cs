@@ -19,12 +19,12 @@ namespace BuildXL.Scheduler.Distribution
     public sealed class LocalWorker : Worker
     {
         /// <summary>
-        /// Set of pips that are currently executing. Executing here means an external child process is running.
+        /// Set of pips that are currently executing. Executing here means running under PipExecutor.
         /// </summary>
         public ConcurrentDictionary<PipId, Unit> RunningPipExecutorProcesses = new ConcurrentDictionary<PipId, Unit>();
 
         /// <summary>
-        /// The number of pips that are currently running (i.e., the associated pip process is still alive and running)
+        /// The number of processes that are currently running (i.e., the associated OS-process is still alive and running)
         /// </summary>
         public int RunningProcesses => Volatile.Read(ref m_currentlyRunningPipCount);
 

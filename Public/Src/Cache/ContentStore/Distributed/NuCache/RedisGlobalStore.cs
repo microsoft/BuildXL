@@ -435,7 +435,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                         }
                     }
                 },
-                Counters[GlobalStoreCounters.UpdateRole]).FireAndForgetAndReturnTask(context);
+                Counters[GlobalStoreCounters.UpdateRole]);
         }
 
         #endregion Role Management

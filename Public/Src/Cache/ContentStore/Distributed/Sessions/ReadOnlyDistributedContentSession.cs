@@ -16,6 +16,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -717,11 +718,32 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 if (bytes != null && putResult.Succeeded)
                 {
-                    // Fire and forget since this step is optional.
-                    await ContentLocationStore.PutBlobAsync(operationContext, putResult.ContentHash, bytes).FireAndForgetAndReturnTask(context);
+                    await PutBlobAsync(operationContext, putResult.ContentHash, bytes);
                 }
 
                 return putResult;
+            }
+        }
+
+        /// <summary>
+        /// Puts a given blob into redis (either inline or not depending on the settings).
+        /// </summary>
+        /// <remarks>
+        /// This method won't fail, because all the errors are traced and swallowed.
+        /// </remarks>
+        protected async Task PutBlobAsync(OperationContext context, ContentHash contentHash, byte[] bytes)
+        {
+            if (Settings.InlinePutBlobs)
+            {
+                // Failures already traced. No need to trace it here one more time.
+                await ContentLocationStore.PutBlobAsync(context, contentHash, bytes).IgnoreFailure();
+            }
+            else
+            {
+                // Fire and forget since this step is optional.
+                ContentLocationStore.PutBlobAsync(context, contentHash, bytes)
+                    // Tracing unhandled errors only because normal failures already traced by the operation provider.
+                    .TraceIfFailure(context, failureSeverity: Severity.Debug, traceTaskExceptionsOnly: true, operation: "PutBlobAsync");
             }
         }
 

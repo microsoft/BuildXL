@@ -237,18 +237,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
                 if (result && recorder != null)
                 {
-                    if (Settings.InlinePutBlobs)
-                    {
-                        // Failures already traced. No need to trace it here one more time.
-                        await ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes).IgnoreFailure();
-                    }
-                    else
-                    {
-                        // Fire and forget since this step is optional.
-                        ContentLocationStore.PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes)
-                            // Tracing unhandled errors only because normal failures already traced by the operation provider.
-                            .TraceIfFailure(context, failureSeverity: Severity.Debug, traceTaskExceptionsOnly: true, operation: "PutBlobAsync");
-                    }
+                    await PutBlobAsync(context, result.ContentHash, recorder.RecordedBytes);
                 }
             }
             else
@@ -293,6 +282,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 
             return registerResult;
         }
+
+        
 
         private async Task<PutResult> RegisterPutAsync(OperationContext context, UrgencyHint urgencyHint, PutResult putResult)
         {

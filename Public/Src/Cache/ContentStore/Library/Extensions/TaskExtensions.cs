@@ -85,13 +85,13 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Extensions
                     {
                         context.TraceMessage(
                             failureSeverity,
-                            $"Unhandled exception in fire and forget task for operation '{operation}': {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
+                            $"'{operation}' has failed: {t.Exception?.Message}. FullException={t.Exception?.ToString()}");
                     }
                     else if (!t.Result.Succeeded && !traceTaskExceptionsOnly)
                     {
                         context.TraceMessage(
                             failureSeverity,
-                            $"Unhandled error in fire and forget task for operation '{operation}': {t.Result.ToString()}");
+                            $"'{operation}' has failed: {t.Result.ToString()}");
                     }
                 });
         }

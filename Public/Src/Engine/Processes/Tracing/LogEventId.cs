@@ -63,6 +63,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessChangeAffectedInputsWrittenFileCreationFailed = 90,
 
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
+        LogPhaseDuration = 93,
 
         PipProcessDisallowedFileAccessWhitelistedCacheable = 264,
         PipProcessDisallowedFileAccessWhitelistedNonCacheable = 269,

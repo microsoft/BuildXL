@@ -105,6 +105,7 @@ namespace Test.BuildXL.Scheduler.Utils
             bool allowUnspecifiedSealedDirectories = false,
             PipTable pipTable = null,
             IIpcProvider ipcProvider = null,
+            (string substSource, string substTarget)? subst = default,
             ISandboxConnection sandboxConnection = null)
         {
             Contract.Requires(context != null);
@@ -169,6 +170,19 @@ namespace Test.BuildXL.Scheduler.Utils
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             
             ProcessInContainerManager = new ProcessInContainerManager(LoggingContext, context.PathTable);
+
+            DirectoryTranslator = new DirectoryTranslator();
+            foreach (var directoryToTranslate in config.Engine.DirectoriesToTranslate)
+            {
+                DirectoryTranslator.AddTranslation(directoryToTranslate.FromPath.ToString(context.PathTable), directoryToTranslate.ToPath.ToString(context.PathTable));
+            }
+
+            if (subst.HasValue)
+            {
+                DirectoryTranslator.AddTranslation(subst.Value.substSource, subst.Value.substTarget);
+            }
+
+            DirectoryTranslator.Seal();
         }
 
         internal void RecordExecution()
@@ -557,7 +571,7 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
-        public DirectoryTranslator DirectoryTranslator => null;
+        public DirectoryTranslator DirectoryTranslator { get; }
 
         /// <inheritdoc />
         public CounterCollection<PipExecutorCounter> Counters { get; } = new CounterCollection<PipExecutorCounter>();

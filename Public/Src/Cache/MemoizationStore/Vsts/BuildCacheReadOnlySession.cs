@@ -574,6 +574,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
+            
             return GetContentHashListCall.RunAsync(Tracer.MemoizationStoreTracer, context, strongFingerprint, traceStart: false, asyncFunc: async () =>
             {
                 // Check for pre-fetched data
@@ -583,7 +584,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     CacheNamespace, strongFingerprint, out contentHashListWithDeterminism))
                 {
                     Tracer.RecordUseOfPrefetchedContentHashList();
-
+                    context.Debug("DEBUG_ONLY: Determinism was obtained via ContentHashListWithDeterminismCache.");
                     await TrackFingerprintAsync(
                         context,
                         strongFingerprint,
@@ -591,6 +592,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                     return new GetContentHashListResult(contentHashListWithDeterminism);
                 }
 
+                context.Debug($"DEBUG_ONLY: Getting content hash list from ContentHashListAdapter of type '{ContentHashListAdapter.GetType()}'.");
                 // No pre-fetched data. Need to query the server.
                 ObjectResult<ContentHashListWithCacheMetadata> responseObject =
                     await ContentHashListAdapter.GetContentHashListAsync(context, CacheNamespace, strongFingerprint).ConfigureAwait(false);
@@ -650,6 +652,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             }
             else
             {
+                context.Debug($"Tracking fingerprint via FingerprintTracker: StrongFingerprint=[{strongFingerprint}], ExpirationUtc=[{expirationUtc}].");
                 FingerprintTracker.Track(strongFingerprint, expirationUtc);
             }
         }

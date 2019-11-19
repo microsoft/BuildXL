@@ -80,6 +80,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Adapters
         {
             try
             {
+                context.Debug("DEBUG_ONLY: ItemBuildCacheContentHashListAdapter.GetContentHashListAsync.");
                 ContentHashListResponse response =
                     await ArtifactHttpClientErrorDetectionStrategy.ExecuteWithTimeoutAsync(
                         context,

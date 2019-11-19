@@ -36,6 +36,7 @@ export const defaultClArguments: Arguments = {
     includes: [],
     additionalUsingDirectories: [],
     precompiledHeaderMemoryAllocationFactor: 100,
+    guardControlFlow: true,
 
     precompiledHeaderSourceFile: undefined,
     precompiledHeaderName: undefined

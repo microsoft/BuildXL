@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// The number of pips that are currently running (i.e., the associated pip process is still alive and running)
         /// </summary>
-        public int CurrentlyRunningPipCount => m_currentlyRunningPipCount;
+        public int RunningProcesses => m_currentlyRunningPipCount;
 
         private int m_currentlyRunningPipCount = 0;
 
@@ -104,7 +104,7 @@ namespace BuildXL.Scheduler.Distribution
                 // process started
                 Interlocked.Increment(ref m_currentlyRunningPipCount);
             }
-            else
+            else if (pipProcessId < 0)
             {
                 // process exited
                 Interlocked.Decrement(ref m_currentlyRunningPipCount);

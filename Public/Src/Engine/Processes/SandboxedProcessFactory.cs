@@ -171,7 +171,7 @@ namespace BuildXL.Processes
             catch
             {
                 result?.Dispose();
-                info.ProcessIdListener?.Invoke(-1);
+                info.ProcessIdListener?.Invoke(0);
                 throw;
             }
 

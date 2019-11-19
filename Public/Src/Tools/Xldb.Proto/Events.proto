@@ -340,7 +340,7 @@ message StatusReportedEvent{
     int32 LookupRunning = 18;
 
     // Number of externally running processes
-    int32 ExternalProcesses = 19;
+    int32 RunningPipExecutorProcesses = 19;
 
     // Number of pips succeeded for each type
     repeated int64 PipsSucceededAllTypes = 20;

@@ -21,7 +21,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Set of pips that are currently executing. Executing here means an external child process is running.
         /// </summary>
-        public ConcurrentDictionary<PipId, Unit> CurrentlyExecutingPips = new ConcurrentDictionary<PipId, Unit>();
+        public ConcurrentDictionary<PipId, Unit> RunningPipExecutorProcesses = new ConcurrentDictionary<PipId, Unit>();
 
         /// <summary>
         /// The number of pips that are currently running (i.e., the associated pip process is still alive and running)
@@ -71,7 +71,7 @@ namespace BuildXL.Scheduler.Distribution
         {
             using (OnPipExecutionStarted(processRunnable))
             {
-                CurrentlyExecutingPips.TryAdd(processRunnable.PipId, Unit.Void);
+                RunningPipExecutorProcesses.TryAdd(processRunnable.PipId, Unit.Void);
 
                 var environment = processRunnable.Environment;
                 var process = processRunnable.Process;
@@ -91,7 +91,7 @@ namespace BuildXL.Scheduler.Distribution
                 processRunnable.SetExecutionResult(executionResult);
 
                 Unit ignore;
-                CurrentlyExecutingPips.TryRemove(processRunnable.PipId, out ignore);
+                RunningPipExecutorProcesses.TryRemove(processRunnable.PipId, out ignore);
 
                 return executionResult;
             }

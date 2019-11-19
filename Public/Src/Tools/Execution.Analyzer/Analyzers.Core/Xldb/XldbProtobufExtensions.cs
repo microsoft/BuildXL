@@ -7,7 +7,6 @@ using BuildXL.Scheduler.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Xldb.Proto;
-using Microsoft.VisualBasic;
 using static BuildXL.Utilities.HierarchicalNameTable;
 using AbsolutePath = BuildXL.Utilities.AbsolutePath;
 using ContentHash = BuildXL.Cache.ContentStore.Hashing.ContentHash;

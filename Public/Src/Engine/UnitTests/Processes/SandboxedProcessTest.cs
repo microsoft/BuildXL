@@ -1091,7 +1091,7 @@ namespace Test.BuildXL.Processes
             var srcFile = CreateSourceFile();
 
             var fam = new FileAccessManifest(Context.PathTable);
-            fam.ReportFileAccesses = true; // We explicitly do not set ReportAccess (testing catchall reporting)
+            fam.ReportFileAccesses = false;
             fam.FailUnexpectedFileAccesses = false;
             fam.AddPath(srcFile.Path, values: FileAccessPolicy.AllowRead, mask: FileAccessPolicy.MaskNothing);
 

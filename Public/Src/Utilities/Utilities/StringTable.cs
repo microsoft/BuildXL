@@ -74,6 +74,11 @@ namespace BuildXL.Utilities
         public readonly IEqualityComparer<StringId> CaseInsensitiveEqualityComparer;
 
         /// <summary>
+        /// Comparer for making case insensitive comparisons
+        /// </summary>
+        public readonly CaseInsensitiveStringIdComparer CaseInsensitiveStringIdComparer;
+
+        /// <summary>
         /// Comparer for making case-sensitive comparisons
         /// </summary>
         public readonly IComparer<StringId> OrdinalComparer;
@@ -148,6 +153,7 @@ namespace BuildXL.Utilities
 #endif
 
             CaseInsensitiveEqualityComparer = new CaseInsensitiveStringIdEqualityComparer(this);
+            CaseInsensitiveStringIdComparer = new CaseInsensitiveStringIdComparer(this);
             OrdinalComparer = new OrdinalStringIdComparer(this);
             m_stringSet = new ConcurrentBigSet<StringId>(capacity: initialCapacity);
 
@@ -169,6 +175,7 @@ namespace BuildXL.Utilities
 #endif
 
             CaseInsensitiveEqualityComparer = new CaseInsensitiveStringIdEqualityComparer(this);
+            CaseInsensitiveStringIdComparer = new CaseInsensitiveStringIdComparer(this);
             OrdinalComparer = new OrdinalStringIdComparer(this);
 
             m_byteBuffers = state.ByteBuffers;

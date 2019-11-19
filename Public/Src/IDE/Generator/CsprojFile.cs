@@ -54,7 +54,7 @@ namespace BuildXL.Ide.Generator
                 return;
             }
 
-            // if requested, only generate project flavors that match the currently specified qualifiers
+            // if requested, only generate project flavors that match the currently specified qualifiers.
             if (Context.IdeConfig.TargetFrameworks?.Any() == true
                 && !Context.IdeConfig.TargetFrameworks.Any(tf => QualifierPropertyEquals(qualifier, QualifierTargetFrameworkPropertyName, tf)))
             {

@@ -153,6 +153,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Stores
         public ProactiveCopyMode ProactiveCopyMode { get; set; } = ProactiveCopyMode.Disabled;
 
         /// <summary>
+        /// Whether to perform a proactive copy after copying because of a pin.
+        /// </summary>
+        public bool ProactiveCopyOnPin { get; set; } = false;
+
+        /// <summary>
         /// Whether to push the content. If disabled, the copy will be requested and the target machine then will pull.
         /// </summary>
         public bool PushProactiveCopies { get; set; } = false;

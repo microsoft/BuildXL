@@ -14,6 +14,7 @@ The front end (the debugger extension) is distributed with the existing [DScript
   - [Installing DScript VSCode Extension](Installation.md#Installing-DScript-VSCode-Extension)
   - [Configuring XLG Debugger](Installation.md#Configuring-XLG-Debugger)
   - [Running](Installation.md#Running)
+  - [Optional Command-Line Switches](Installation.md#Optional-bxlanalyzer-switches)
   - [Commands](Installation.md#Commands)
 
 ## [Object Model](ObjectModel.md)

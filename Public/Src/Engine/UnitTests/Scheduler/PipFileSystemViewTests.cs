@@ -125,7 +125,14 @@ namespace Test.BuildXL.Scheduler
             {
                 Context = BuildXLContext.CreateInstanceForTesting();
                 var config = ConfigurationHelpers.GetDefaultForTesting(Context.PathTable, AbsolutePath.Create(Context.PathTable, System.IO.Path.Combine(testOutputDirectory, "config.dc")));
-                m_env = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), Context, config, sandboxConnection: GetSandboxConnection());
+                m_env = new DummyPipExecutionEnvironment(
+                    CreateLoggingContextForTest(),
+                    Context,
+                    config,
+                    subst: FileUtilities.TryGetSubstSourceAndTarget(testOutputDirectory, out var substSource, out var substTarget) 
+                        ? (substSource, substTarget) 
+                        : default((string, string)?),
+                    sandboxConnection: GetSandboxConnection());
                 var sealContentsCache = new ConcurrentBigMap<DirectoryArtifact, int[]>();
 
                 Table = Context.PathTable;

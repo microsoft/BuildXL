@@ -402,7 +402,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 machineCount,
                 async context =>
                 {
-
                     var session = context.Sessions[context.GetMasterIndex()];
                     var masterStore = context.GetMaster();
 

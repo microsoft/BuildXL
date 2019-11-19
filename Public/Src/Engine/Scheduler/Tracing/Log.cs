@@ -520,6 +520,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void TwoPhaseCacheDescriptorMissDueToWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
 
         [GeneratedEvent(
+           (ushort)EventId.CacheDescriptorMissForAugmentedContentFingerprint,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           Keywords = (int)Keywords.Diagnostics,
+           EventTask = (ushort)Tasks.PipExecutor,
+           Message = "[{pipDescription}] Augmented weak fingerprint miss: A pip cache descriptor was not found for content fingerprint '{contentFingerprint}'.")]
+        internal abstract void TwoPhaseCacheDescriptorMissDueToAugmentedWeakFingerprint(LoggingContext loggingContext, string pipDescription, string contentFingerprint);
+
+        [GeneratedEvent(
             (ushort)EventId.InvalidCacheDescriptorForContentFingerprint,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -4544,7 +4553,7 @@ namespace BuildXL.Scheduler.Tracing
             (ushort)LogEventId.FailedToAddFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Engine,
             Message = "[{pipDescription}] Unable to add the pip from fragment '{fragmentName}'.")]
         public abstract void FailedToAddFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription);

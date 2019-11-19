@@ -15,6 +15,8 @@ using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit.Abstractions;
 using BuildXL.Utilities;
+using System;
+using System.Diagnostics;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {
@@ -46,6 +48,14 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// <nodoc/>
         protected string RelativePathToDotnetExe => "dotnet";
 
+        /// <summary>
+        /// Path to Microsoft.Build.Tasks.CodeAnalysis.dll, where csc task is located
+        /// </summary>
+        /// <remarks>
+        /// Keep in sync with the deployment
+        /// </remarks>
+        protected string PathToCscTaskDll(bool shouldRunDotNetCoreMSBuild) => Path.Combine(TestDeploymentDir, "Compilers", shouldRunDotNetCoreMSBuild ? "dotnetcore" : "net472", "tools", "Microsoft.Build.Tasks.CodeAnalysis.dll").Replace("\\", "/");
+
         protected MsBuildPipExecutionTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -75,14 +85,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Dictionary<string, string> globalProperties = null, 
             string filenameEntryPoint = null,
             string msBuildRuntime = null,
-            string dotnetSearchLocations = null)
+            string dotnetSearchLocations = null,
+            bool useSharedCompilation = false)
         {
             return Build(runInContainer, 
                 environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null, 
                 globalProperties,
                 filenameEntryPoint,
                 msBuildRuntime,
-                dotnetSearchLocations);
+                dotnetSearchLocations,
+                useSharedCompilation);
         }
 
         /// <inheritdoc/>
@@ -92,7 +104,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Dictionary<string, string> globalProperties, 
             string filenameEntryPoint, 
             string msBuildRuntime,
-            string dotnetSearchLocations)
+            string dotnetSearchLocations,
+            bool useSharedCompilation = false)
         {
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
@@ -102,7 +115,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                     globalProperties, 
                     filenameEntryPoint: filenameEntryPoint, 
                     msBuildRuntime: msBuildRuntime,
-                    dotnetSearchLocations: dotnetSearchLocations));
+                    dotnetSearchLocations: dotnetSearchLocations,
+                    useSharedCompilation: useSharedCompilation));
         }
 
         /// <inheritdoc/>
@@ -274,7 +288,8 @@ $@"<?xml version='1.0' encoding='utf-8'?>
             bool allowProjectsToNotSpecifyTargetProtocol = true,
             string filenameEntryPoint = null,
             string msBuildRuntime = null,
-            string dotnetSearchLocations = null) => $@"
+            string dotnetSearchLocations = null,
+            bool useSharedCompilation = false) => $@"
 config({{
     disableDefaultSourceResolver: true,
     resolvers: [
@@ -293,6 +308,7 @@ config({{
             {(filenameEntryPoint != null ? $"fileNameEntryPoints: [r`{filenameEntryPoint}`]," : string.Empty)}
             {(msBuildRuntime != null ? $"msBuildRuntime: \"{msBuildRuntime}\"," : string.Empty)}
             {(dotnetSearchLocations != null ? $"dotNetSearchLocations: {dotnetSearchLocations}," : string.Empty)}
+            useManagedSharedCompilation: {(useSharedCompilation ? "true" : "false")},
         }},
     ],
 }});";
@@ -309,6 +325,7 @@ config({{
             msBuildSearchLocations: [d`{TestDeploymentDir}/{RelativePathToFullframeworkMSBuild}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: true,
+            useManagedSharedCompilation: false,
             {(environment != null? $"environment: {environment}," : DictionaryToExpression("environment", new Dictionary<string, string>()))}
             {extraArguments ?? string.Empty}
         }},

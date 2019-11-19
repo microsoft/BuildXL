@@ -1163,6 +1163,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),
+                        OptionHandlerFactory.CreateOption2(
+                            "vsTF",
+                            "vsTargetFramework",
+                            opt => ParseStringOption(opt, ideConfiguration.TargetFrameworks)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "warnAsError",
                             (opt, sign) =>

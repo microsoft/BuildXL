@@ -247,7 +247,7 @@ namespace BuildXL.Processes
                 // release the FileAccessManifest memory
                 // NOTE: just by not keeping any references to 'info' should make the FileAccessManifest object 
                 //       unreachable and thus available for garbage collection.  We call Release() here explicitly 
-                //       just to emphasise the importance of reclaiming this memory.
+                //       just to emphasize the importance of reclaiming this memory.
                 info.FileAccessManifest.Release();
             }
         }

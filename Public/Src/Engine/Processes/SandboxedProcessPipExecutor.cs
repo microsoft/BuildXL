@@ -1050,6 +1050,7 @@ namespace BuildXL.Processes
                     process.Dispose();
                 }
 
+                var start = DateTime.UtcNow;
                 SandboxedProcessPipExecutionResult executionResult =
                     await
                         ProcessSandboxedProcessResultAsync(
@@ -1059,6 +1060,9 @@ namespace BuildXL.Processes
                             cancellationTokenSource.Token,
                             process.GetDetoursMaxHeapSize() + result.DetoursMaxHeapSize,
                             allInputPathsUnderSharedOpaques);
+
+                Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                    "Processing SandboxProcessResult", DateTime.UtcNow.Subtract(start));
 
                 return ValidateDetoursCommunication(
                     executionResult,
@@ -1365,6 +1369,8 @@ namespace BuildXL.Processes
                 numSurvivingChildErrors = ReportSurvivingChildProcesses(result);
             }
 
+            var start = DateTime.UtcNow;
+
             var fileAccessReportingContext = new FileAccessReportingContext(
                 loggingContext,
                 m_context,
@@ -1439,12 +1445,20 @@ namespace BuildXL.Processes
                 }
             }
 
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Processing standard outputs", DateTime.UtcNow.Subtract(start));
+
+            start = DateTime.UtcNow;
             SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed =
                 GetObservedFileAccesses(
                     result,
                     allInputPathsUnderSharedOpaques,
                     out var unobservedOutputs,
                     out var sharedDynamicDirectoryWriteAccesses);
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Getting observed file accesses", DateTime.UtcNow.Subtract(start), $"(count: {observed.Length})");
+
+            start = DateTime.UtcNow;
 
             // After standard output and error may been saved, and shared dynamic write accesses were identified, we can merge
             // outputs back to their original locations
@@ -1489,6 +1503,11 @@ namespace BuildXL.Processes
                     }
                 }
             }
+
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Logging outputs", DateTime.UtcNow.Subtract(start));
+
+            start = DateTime.UtcNow;
 
             // N.B. here 'observed' means 'all', not observed in the terminology of SandboxedProcessPipExecutor.
             List<ReportedFileAccess> allFileAccesses = null;
@@ -1588,6 +1607,9 @@ namespace BuildXL.Processes
 
             // If a PipProcessError was logged, the pip cannot be marked as succeeded
             Contract.Assert(!standardOutHasBeenWrittenToLog || status != SandboxedProcessPipExecutionStatus.Succeeded);
+
+            Tracing.Logger.Log.LogSubPhaseDuration(m_loggingContext, m_pip.GetDescription(m_context),
+                "Rest of SandboxedProcessPipExecutor stuff", DateTime.UtcNow.Subtract(start));
 
             return new SandboxedProcessPipExecutionResult(
                 status: status,

@@ -302,12 +302,6 @@ namespace BuildXL.Engine.Distribution
         {
             m_isMasterExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext);
-
-            // Dispose the notify master execution log target to ensure all message are sent to master.
-            m_notifyMasterExecutionLogTarget?.Dispose();
-
-            // Dispose the event listener to ensure all events are sent to master.
-            m_forwardingEventListener?.Dispose();
         }
 
 
@@ -332,11 +326,15 @@ namespace BuildXL.Engine.Distribution
             // The execution log target can be null if the worker failed to attach to master
             if (m_notifyMasterExecutionLogTarget != null)
             {
-                // Remove the notify master target to ensure no further events are sent to it
+                // Remove the notify master target to ensure no further events are sent to it.
+                // Otherwise, the events that are sent to a disposed target would cause crashes.
                 m_scheduler.RemoveExecutionLogTarget(m_notifyMasterExecutionLogTarget);
                 // Dispose the execution log target to ensure all events are flushed and sent to master
                 m_notifyMasterExecutionLogTarget.Dispose();
             }
+
+            // Dispose the event listener to ensure all events are sent to master.
+            m_forwardingEventListener?.Dispose();
 
             m_masterClient?.CloseAsync().GetAwaiter().GetResult();
 

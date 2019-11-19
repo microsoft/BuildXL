@@ -1418,13 +1418,18 @@ namespace BuildXL.Scheduler
 
         private void EnsureMinimumWorkers(int minimumWorkers)
         {
-            var isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
+            bool isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
 
-            var availableWorkers = AvailableWorkersCount;
-            if (availableWorkers < minimumWorkers && !isDrainingCompleted)
+            bool anyRemoteWorkerReleased = Workers.Any(a => a.IsEarlyReleaseInitiated);
+            int availableWorkers = AvailableWorkersCount;
+
+            // If any remote worker is released due to insufficient amount of work left, do not attempt to cancel the build
+            // even though minimum workers is not satisfied. 
+            if (availableWorkers < minimumWorkers && !isDrainingCompleted && !anyRemoteWorkerReleased)
             {
                 Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, availableWorkers);
                 m_hasFailures = true;
+                RequestTermination(cancelQueue: false);
             }
         }
 
@@ -3718,7 +3723,9 @@ namespace BuildXL.Scheduler
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
+                        var start = DateTime.UtcNow;
                         var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Flagging shared opaque outputs", DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3763,6 +3770,7 @@ namespace BuildXL.Scheduler
 
                             // File violation analysis needs to happen on the master as it relies on
                             // graph-wide data such as detecting duplicate
+                            start = DateTime.UtcNow;
                             executionResult = PipExecutor.AnalyzeFileAccessViolations(
                                 operationContext,
                                 environment,
@@ -3771,6 +3779,7 @@ namespace BuildXL.Scheduler
                                 processRunnable.Process,
                                 out pipIsSafeToCache,
                                 out allowedSameContentDoubleWriteViolations);
+                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing file access violations", DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3803,6 +3812,7 @@ namespace BuildXL.Scheduler
                                 // On convergence, delete shared opaque outputs
                                 ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
 
+                                start = DateTime.UtcNow;
                                 executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
                                    operationContext,
                                    environment,
@@ -3810,8 +3820,9 @@ namespace BuildXL.Scheduler
                                    executionResult,
                                    processRunnable.Process,
                                    allowedSameContentDoubleWriteViolations);
+                                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing double writes", DateTime.UtcNow.Subtract(start));
 
-                                processRunnable.SetExecutionResult(executionResult);
+                            processRunnable.SetExecutionResult(executionResult);
 
                                 if (executionResult.Result.IndicatesFailure())
                                 {
@@ -3825,12 +3836,14 @@ namespace BuildXL.Scheduler
 
                         // Output content is reported here to ensure that it happens both on worker executing PostProcess and
                         // master which called worker to execute post process.
+                        start = DateTime.UtcNow;
                         PipExecutor.ReportExecutionResultOutputContent(
                             operationContext,
                             environment,
                             processRunnable.Description,
                             executionResult,
                             processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Reporting output content", DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
 
                         return processRunnable.SetPipResult(executionResult);
                     }
@@ -5307,7 +5320,6 @@ namespace BuildXL.Scheduler
         private void PrioritizeAndSchedule(LoggingContext loggingContext, IEnumerable<NodeId> nodes)
         {
             var readyNodes = new List<NodeId>();
-
             using (PerformanceMeasurement.Start(
                 loggingContext,
                 "AssigningPriorities",

@@ -736,8 +736,6 @@ namespace BuildXL.Processes
 
         private bool ShouldSandboxedProcessExecuteExternal
             => SandboxedProcessNeedsExecuteExternal
-               // Process does not talk to BuildXL server.
-               && m_processIdListener == null
                // Container is disabled.
                && !m_containerConfiguration.IsIsolationEnabled
                // Windows only.

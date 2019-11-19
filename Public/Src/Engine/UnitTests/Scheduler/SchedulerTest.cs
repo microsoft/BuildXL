@@ -1290,6 +1290,15 @@ namespace Test.BuildXL.Scheduler
 
             m_scheduler?.Dispose();
 
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.Seal();
+
             m_scheduler = new TestScheduler(
                 graph: graph,
                 pipQueue: m_testQueue,
@@ -1304,6 +1313,7 @@ namespace Test.BuildXL.Scheduler
                 ipcProvider: ipcProvider,
                 journalState: m_journalState,
                 tempCleaner: MoveDeleteCleaner,
+                directoryTranslator: directoryTranslator,
                 testHooks: testHooks);
 
             bool success = m_scheduler.InitForMaster(LoggingContext, filter);
@@ -2745,6 +2755,15 @@ namespace Test.BuildXL.Scheduler
                 context,
                 Task.FromResult<SemanticPathExpander>(Expander));
 
+            var directoryTranslator = new DirectoryTranslator();
+
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                directoryTranslator.AddTranslation(substSource, substTarget);
+            }
+
+            directoryTranslator.Seal();
+
             var newScheduler = new TestScheduler(
                 graph,
                 pipQueue: testQueue,
@@ -2754,8 +2773,9 @@ namespace Test.BuildXL.Scheduler
                 fileAccessWhitelist: new FileAccessWhitelist(Context),
                 configuration: configuration,
                 cache: cache,
-                testHooks: new SchedulerTestHooks(),
-                tempCleaner: MoveDeleteCleaner);
+                directoryTranslator: directoryTranslator,
+                tempCleaner: MoveDeleteCleaner,
+                testHooks: new SchedulerTestHooks());
 
             newScheduler.InitForMaster(LoggingContext, filter);
 

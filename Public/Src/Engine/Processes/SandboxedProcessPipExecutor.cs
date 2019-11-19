@@ -708,16 +708,20 @@ namespace BuildXL.Processes
                         Timeout = m_timeout,
                         PipSemiStableHash = m_pip.SemiStableHash,
                         PipDescription = m_pip.GetDescription(m_context),
-                        ProcessIdListener = m_processIdListener,
                         TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
                         SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                     };
 
-                    return ShouldSandboxedProcessExecuteExternal
+                    var result = ShouldSandboxedProcessExecuteExternal
                         ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
                         : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                    if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
+                    {
+                        m_processIdListener?.Invoke(0);
+                    }
+                    return result;
                 }
             }
             finally
@@ -1006,7 +1010,15 @@ namespace BuildXL.Processes
                 try
                 {
                     m_activeProcess = process;
-                    result = await process.GetResultAsync();
+                    try
+                    {
+                        m_processIdListener?.Invoke(process.ProcessId);
+                        result = await process.GetResultAsync();
+                    }
+                    finally
+                    {
+                        m_processIdListener?.Invoke(-process.ProcessId);
+                    }
                     lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
                     m_numWarnings += result.WarningCount;
                     isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;

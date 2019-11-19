@@ -149,12 +149,6 @@ namespace BuildXL.Processes
                 line => FeedStdErr(m_error, line),
                 info.Provenance,
                 msg => LogProcessState(msg));
-
-            if (info.ProcessIdListener != null)
-            {
-                ProcessStarted += (pid) => info.ProcessIdListener(pid);
-                m_processExecutor.Process.Exited += (sender, e) => info.ProcessIdListener(-m_processExecutor.ProcessId);
-            }
         }
 
         /// <summary>

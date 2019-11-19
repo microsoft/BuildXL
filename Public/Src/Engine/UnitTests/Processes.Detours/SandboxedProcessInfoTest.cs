@@ -69,7 +69,6 @@ namespace Test.BuildXL.Processes.Detours
                 Timeout = TimeSpan.FromMinutes(15),
                 PipSemiStableHash = 0x12345678,
                 PipDescription = nameof(SerializeSandboxedProcessInfo),
-                ProcessIdListener = null,
                 TimeoutDumpDirectory = A("C", "Timeout"),
                 SandboxKind = global::BuildXL.Utilities.Configuration.SandboxKind.Default,
                 AllowedSurvivingChildProcessNames = new[] { "conhost.exe", "mspdbsrv.exe" },
@@ -110,7 +109,6 @@ namespace Test.BuildXL.Processes.Detours
                 XAssert.AreEqual(info.Timeout, readInfo.Timeout);
                 XAssert.AreEqual(info.PipSemiStableHash, readInfo.PipSemiStableHash);
                 XAssert.AreEqual(info.PipDescription, readInfo.PipDescription);
-                XAssert.AreEqual(info.ProcessIdListener, readInfo.ProcessIdListener);
                 XAssert.AreEqual(info.TimeoutDumpDirectory, readInfo.TimeoutDumpDirectory);
                 XAssert.AreEqual(info.SandboxKind, readInfo.SandboxKind);
 

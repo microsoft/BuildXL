@@ -65,7 +65,6 @@ namespace BuildXL.Processes
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess> m_survivingChildProcesses;
         private readonly uint m_timeoutMins;
-        private readonly Action<int> m_processIdListener;
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
@@ -132,7 +131,6 @@ namespace BuildXL.Processes
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
 
-            m_processIdListener = info.ProcessIdListener;
             m_detouredProcess =
                 new DetouredProcess(
                     SandboxedProcessInfo.BufferSize,
@@ -386,7 +384,6 @@ namespace BuildXL.Processes
                     m_processStarted = true;
 
                     ProcessId = detouredProcess.GetProcessId();
-                    m_processIdListener?.Invoke(ProcessId);
                 }
                 finally
                 {
@@ -492,8 +489,6 @@ namespace BuildXL.Processes
 
         private async Task OnProcessExited()
         {
-            m_processIdListener?.Invoke(-ProcessId);
-
             // Wait until all incoming report messages from the detoured process have been handled.
             await WaitUntilReportEof(m_detouredProcess.Killed);
 

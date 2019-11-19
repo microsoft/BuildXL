@@ -1085,31 +1085,6 @@ namespace Test.BuildXL.Processes
                 string.Join(Environment.NewLine, result.AllUnexpectedFileAccesses.Select(p => p.GetPath(Context.PathTable))));
         }
 
-        [Fact]
-        public async Task ProcessStartExitIsReportedToListener()
-        {
-            var srcFile = CreateSourceFile();
-
-            var fam = new FileAccessManifest(Context.PathTable);
-            fam.ReportFileAccesses = false;
-            fam.FailUnexpectedFileAccesses = false;
-            fam.AddPath(srcFile.Path, values: FileAccessPolicy.AllowRead, mask: FileAccessPolicy.MaskNothing);
-
-            var processIdListenerInvocations = new List<int>();
-            var info = ToProcessInfo(
-                ToProcess(Operation.ReadFile(srcFile)),
-                fileAccessManifest: fam);
-
-            info.ProcessIdListener = pid => processIdListenerInvocations.Add(pid);
-
-            var result = await RunProcess(info);
-            XAssert.AreEqual(0, result.ExitCode);
-            XAssert.AreEqual(2, processIdListenerInvocations.Count);
-            XAssert.IsTrue(processIdListenerInvocations[0] > 0);
-            XAssert.IsTrue(processIdListenerInvocations[1] < 0);
-            XAssert.AreEqual(processIdListenerInvocations[0], -processIdListenerInvocations[1]);
-        }
-
         /// <summary>
         /// Tests that FileAccessManifest.ReportProcessArgs option controls whether the
         /// command line arguments of all launched processes will be captured and reported

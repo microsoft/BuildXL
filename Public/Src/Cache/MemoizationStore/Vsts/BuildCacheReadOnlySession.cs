@@ -34,7 +34,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Tracing;
 using BuildXL.Cache.MemoizationStore.Vsts.Adapters;
 using BuildXL.Cache.MemoizationStore.VstsInterfaces;
-using Microsoft.Practices.TransientFaultHandling;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using BlobIdentifier = BuildXL.Cache.ContentStore.Hashing.BlobIdentifier;
 
@@ -320,6 +319,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
             ShutdownStarted = true;
             return ShutdownCall<MemoizationStoreTracer>.RunAsync(Tracer.MemoizationStoreTracer, context, async () =>
             {
+                _eagerFingerprintIncorporationNagleQueue?.Dispose();
+
                 Tracer.Debug(context, "IncorporateOnShutdown start");
                 Tracer.Debug(context, $"Incorporate fingerprints feature enabled:[{_fingerprintIncorporationEnabled}]");
                 Tracer.Debug(context, $"Total fingerprints to be incorporated:[{FingerprintTracker.Count}]");

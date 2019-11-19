@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// The number of pips that are currently running (i.e., the associated pip process is still alive and running)
         /// </summary>
-        public int RunningProcesses => m_currentlyRunningPipCount;
+        public int RunningProcesses => Volatile.Read(ref m_currentlyRunningPipCount);
 
         private int m_currentlyRunningPipCount = 0;
 

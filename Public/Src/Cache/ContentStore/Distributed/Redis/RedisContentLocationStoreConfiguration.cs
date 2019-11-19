@@ -117,6 +117,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public bool AreBlobsSupported => BlobExpiryTimeMinutes > 0 && MaxBlobCapacity > 0 && MaxBlobSize > 0;
 
         /// <summary>
+        /// The number of consecutive redis connection errors that will trigger reconnection.
+        /// </summary>
+        /// <remarks>
+        /// Due to a bug in StackExchange.Redis, the client may fail to reconnect to Redis Azure Cache in some cases.
+        /// This configuration allows us to recreate a connection if there is no successful calls to redis and all the calls are failing with connectivity issues.
+        /// </remarks>
+        public int RedisConnectionErrorLimit { get; set; } = int.MaxValue;
+
+        /// <summary>
         /// Indicates the mode used when writing content locations
         /// </summary>
         public ContentLocationMode WriteMode { get; set; } = ContentLocationMode.Redis;

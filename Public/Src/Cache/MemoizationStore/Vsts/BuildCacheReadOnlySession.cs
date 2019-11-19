@@ -152,7 +152,6 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         /// <param name="tracer">A tracer for logging and perf counters.</param>
         /// <param name="enableEagerFingerprintIncorporation"><see cref="BuildCacheServiceConfiguration.EnableEagerFingerprintIncorporation"/></param>
         /// <param name="inlineFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.InlineFingerprintIncorporationExpiry"/></param>
-        /// <param name="eagerFingerprintIncorporationExpiry"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationExpiry"/></param>
         /// <param name="eagerFingerprintIncorporationInterval"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleInterval"/></param>
         /// <param name="eagerFingerprintIncorporationBatchSize"><see cref="BuildCacheServiceConfiguration.EagerFingerprintIncorporationNagleBatchSize"/></param>
         public BuildCacheReadOnlySession(
@@ -305,7 +304,7 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
         private void LogIncorporateOptions(Context context)
         {
             context.Debug($"BuildCacheReadOnlySession incorporation options: FingerprintIncorporationEnabled={_fingerprintIncorporationEnabled}, EnableEagerFingerprintIncorporation={_enableEagerFingerprintIncorporation} " +
-                          $"InlineFingerprintIncorporationExpiry={_inlineFingerprintIncorporationExpiry}, EagerFingerprintIncorporationExpiry={_eagerFingerprintIncorporationExpiry}, " +
+                          $"InlineFingerprintIncorporationExpiry={_inlineFingerprintIncorporationExpiry}, " +
                           $"EagerFingerprintIncorporationInterval={_eagerFingerprintIncorporationInterval}, EagerFingerprintIncorporationBatchSize={_eagerFingerprintIncorporationBatchSize}.");
         }
 

@@ -256,6 +256,7 @@ namespace BuildXL.Cache.Host.Service.Internal
                        OverrideUnixFileAccessMode = settings.OverrideUnixFileAccessMode,
                        UseRedundantPutFileShortcut = settings.UseRedundantPutFileShortcut,
                        TraceFileSystemContentStoreDiagnosticMessages = settings.TraceFileSystemContentStoreDiagnosticMessages,
+                       SkipTouchAndLockAcquisitionWhenPinningFromHibernation = settings.UseFastHibernationPin,
                    };
         }
 

@@ -244,7 +244,7 @@ namespace BuildXL.Scheduler
                     // Just pass through the hash
                     environment.State.FileContentManager.ReportOutputContent(
                         operationContext,
-                        pipDescription,
+                        pip.SemiStableHash,
                         pip.Destination,
                         // TODO: Should we maintain the case of the source file?
                         FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo),
@@ -265,7 +265,7 @@ namespace BuildXL.Scheduler
                                 // Report again to notify the FileContentManager that the file has been materialized.
                                 environment.State.FileContentManager.ReportOutputContent(
                                     operationContext,
-                                    pipDescription,
+                                    pip.SemiStableHash,
                                     pip.Destination,
                                     // TODO: Should we maintain the case of the source file?
                                     FileMaterializationInfo.CreateWithUnknownName(sourceContentInfo),
@@ -825,7 +825,7 @@ namespace BuildXL.Scheduler
                         // (i.e. they only run on the master). Given that, they report directly to the file content manager.
                         fileContentManager.ReportOutputContent(
                             operationContext,
-                            pipDescription,
+                            pipInfo.SemiStableHash,
                             destinationFile,
                             fileContentInfo,
                             outputOrigin);
@@ -907,7 +907,7 @@ namespace BuildXL.Scheduler
         internal static void ReportExecutionResultOutputContent(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
-            string pipDescription,
+            long pipSemiStableHash,
             ExecutionResult processExecutionResult,
             bool doubleWriteErrorsAreWarnings = false)
         {
@@ -929,7 +929,7 @@ namespace BuildXL.Scheduler
             {
                 environment.State.FileContentManager.ReportOutputContent(
                     operationContext,
-                    pipDescription,
+                    pipSemiStableHash,
                     output.fileArtifact,
                     output.fileInfo,
                     overrideOutputOrigin ?? output.Item3,
@@ -1070,7 +1070,7 @@ namespace BuildXL.Scheduler
                 ReportExecutionResultOutputContent(
                     operationContext,
                     environment,
-                    processDescription,
+                    pip.SemiStableHash,
                     executionResult,
                     pip.PipType == PipType.Process ? ((Process)pip).DoubleWritePolicy.ImpliesDoubleWriteIsWarning() : false);
 

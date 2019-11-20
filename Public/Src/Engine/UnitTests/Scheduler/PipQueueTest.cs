@@ -690,7 +690,7 @@ namespace Test.BuildXL.Scheduler
                                 out _);
 
                             executionResult = await PipExecutor.PostProcessExecutionAsync(operationContext, environment, pipScope, cacheableProcess, executionResult);
-                            PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.Description, executionResult);
+                            PipExecutor.ReportExecutionResultOutputContent(operationContext, environment, cacheableProcess.UnderlyingPip.SemiStableHash, executionResult);
                         }
 
                         result = RunnablePip.CreatePipResultFromExecutionResult(start, executionResult, withPerformanceInfo: true);
@@ -701,7 +701,7 @@ namespace Test.BuildXL.Scheduler
                     PipExecutor.ReportExecutionResultOutputContent(
                         operationContext, 
                         environment, 
-                        pip.GetDescription(environment.Context), 
+                        pip.SemiStableHash,
                         ipcResult);
                     result = RunnablePip.CreatePipResultFromExecutionResult(start, ipcResult);
                     break;

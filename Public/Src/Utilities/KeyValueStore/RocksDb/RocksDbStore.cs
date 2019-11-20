@@ -172,8 +172,17 @@ namespace BuildXL.Engine.Cache.KeyValueStores
                     // The background compaction threads run in low priority, so they should not hamper the rest of
                     // the system. The number of cores in the system is what we want here according to official docs,
                     // and we are setting this to the number of logical processors, which may be higher.
+#if !PLATFORM_OSX
                     .SetMaxBackgroundCompactions(Environment.ProcessorCount)
                     .SetMaxBackgroundFlushes(1)
+#else
+                    // The memtable uses significant chunks of available system memory on macOS, we increase the number
+                    // of background flushing threads (low priority) and set the DB write buffer size. This allows for
+                    // up to 128 MB in memtables across all column families before we flush to disk.
+                    .SetMaxBackgroundCompactions(Environment.ProcessorCount / 4)
+                    .SetMaxBackgroundFlushes(Environment.ProcessorCount / 4)
+                    .SetDbWriteBufferSize(128 << 20)
+#endif
                     .IncreaseParallelism(Environment.ProcessorCount / 2)
                     // Ensure we have performance statistics for profiling
                     .EnableStatistics();
@@ -222,9 +231,9 @@ namespace BuildXL.Engine.Cache.KeyValueStores
 
                 m_defaults.ColumnFamilyOptions = new ColumnFamilyOptions()
 #if PLATFORM_OSX
-                    // BZip2 compression libraries are avialable by default on macOS, let's use those so we don't have to
-                    // statically link Snappy nor jump through loops when updating RocksDB versions
-                    .SetCompression(CompressionTypeEnum.rocksdb_bz2_compression)
+                    // As advised by the official documentation, LZ4 is the preferred compression algorithm, our RocksDB
+                    // dynamic library has been compiled to support this on macOS. Fallback to Snappy on other systems (default).
+                    .SetCompression(CompressionTypeEnum.rocksdb_lz4_compression)
 #endif
                     .SetBlockBasedTableFactory(blockBasedTableOptions)
                     .SetPrefixExtractor(SliceTransform.CreateNoOp());

@@ -1436,7 +1436,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            bool shouldPersistStandardError = errorOrWarnings || m_pip.StandardError.IsValid;
+            bool shouldPersistStandardError = !canceled && (errorOrWarnings || m_pip.StandardError.IsValid);
             if (shouldPersistStandardError)
             {
                 if (!await TrySaveStandardErrorAsync(result))
@@ -1480,7 +1480,7 @@ namespace BuildXL.Processes
                 loggingSuccess = logErrorResult.Success;
             }
 
-            if (m_numWarnings > 0 && loggingSuccess)
+            if (m_numWarnings > 0 && loggingSuccess && !canceled)
             {
                 if (!await TryLogWarningAsync(result.StandardOutput, result.StandardError))
                 {
@@ -1490,7 +1490,7 @@ namespace BuildXL.Processes
 
             // The full output may be requested based on the result of the pip. If the pip failed, the output may have been reported
             // in TryLogErrorAsync above. Only replicate the output if the error was truncated due to an error regex
-            if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess)
+            if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess && !canceled)
             {
                 // If the pip succeeded, we must check if one of the non-error output modes have been chosen
                 if ((m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputAlways) ||

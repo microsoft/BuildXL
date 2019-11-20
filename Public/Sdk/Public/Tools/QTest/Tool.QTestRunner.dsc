@@ -113,10 +113,15 @@ function validateArguments(args: QTestArguments): void {
  */
 function findFlakyFile(): File {
     let configDir = d`${Context.getMount("SourceRoot").path}\.config`;
+    let flakyDir = d`${configDir}\flakytests`;
     let flakyFileName = 'CloudBuild.FlakyTests.json';
-    let flakyFiles = globR(configDir, flakyFileName);
-    if (flakyFiles.length > 0) {
-        return flakyFiles[0];
+
+    if (File.exists(f`${flakyDir}/${flakyFileName}`)) {
+        return f`${flakyDir}/${flakyFileName}`;
+    }
+
+    if (File.exists(f`${configDir}/${flakyFileName}`)) {
+        return f`${configDir}/${flakyFileName}`;
     }
 }
 

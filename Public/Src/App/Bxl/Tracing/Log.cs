@@ -54,7 +54,7 @@ namespace BuildXL.App.Tracing
             // Prevent this from going to the log. It is only for ETW and telemetry. DominoInvocationForLocalLog is for the log.
             Keywords = (int)Keywords.SelectivelyEnabled,
             Message = AppInvocationMessage)]
-        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig);
+        public abstract void DominoInvocation(LoggingContext context, string commandLine, BuildInfo buildInfo, MachineInfo machineInfo, string sessionIdentifier, string relatedSessionIdentifier, string startupDirectory, string mainConfig, string environment);
 
         /// <summary>
         /// This is the event that populates the local log file. It differs from DominoInvocation in that it contains the raw commandline without any truncation
@@ -777,7 +777,7 @@ namespace BuildXL.App.Tracing
             string startupDirectory,
             string mainConfigurationFile)
         {
-            Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
+            Log.DominoInvocation(context, ScrubCommandLine(commandLine, 100000, 100000), buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile, context.Session.Environment);
             Log.DominoInvocationForLocalLog(context, commandLine, buildInfo, machineInfo, sessionIdentifier, relatedSessionIdentifier, startupDirectory, mainConfigurationFile);
 
             if (inCloudBuild)

@@ -23,7 +23,6 @@ namespace BuildXL.LogGen.Generators
                 m_codeGenerator.Lns("var eventData = new {0}.AriaEvent(\"{1}\", \"{2}\", \"{3}\")", GlobalInstrumentationNamespaceCommon, site.Method.Name, m_targetFramework, m_targetRuntime);
 
                 // Save context fields that all events save
-                m_codeGenerator.Lns("eventData.SetProperty(\"Environment\", {0}.Session.Environment)", site.LoggingContextParameterName);
                 m_codeGenerator.Lns("eventData.SetProperty(\"SessionId\", {0}.Session.Id)", site.LoggingContextParameterName);
                 m_codeGenerator.Lns("eventData.SetProperty(\"RelatedSessionId\", {0}.Session.RelatedId)", site.LoggingContextParameterName);
 

@@ -140,8 +140,8 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "5.8.0-b20191115.2", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "6.0.1-b20191115.2" },
+                { id: "RocksDbSharp", version: "5.8.0-b20191119.3", alias: "RocksDbSharpSigned" },
+                { id: "RocksDbNative", version: "6.0.1-b20191119.3" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 

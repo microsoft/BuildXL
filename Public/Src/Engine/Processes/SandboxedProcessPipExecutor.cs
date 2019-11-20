@@ -4033,14 +4033,14 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            bool errorWasTruncated = false;           
+            bool warningWasTruncated = false;           
             // Ignore empty lines
             var standardErrorInResult = await standardError.ReadValueAsync();
             var standardOutputInResult = await standardOutput.ReadValueAsync();
             if (warningsError.Replace(Environment.NewLine, string.Empty).Trim().Length != standardErrorInResult.Replace(Environment.NewLine, string.Empty).Trim().Length ||
                 warningsOutput.Replace(Environment.NewLine, string.Empty).Trim().Length != standardOutputInResult.Replace(Environment.NewLine, string.Empty).Trim().Length)
             {
-                errorWasTruncated = true;
+                warningWasTruncated = true;
             }
 
                 FormatOutputAndPaths(
@@ -4050,7 +4050,7 @@ namespace BuildXL.Processes
                 standardError.FileName,
                 out string outputTolog,
                 out string outputPathsToLog,
-                errorWasTruncated);
+                warningWasTruncated);
 
             Tracing.Logger.Log.PipProcessWarning(
                 m_loggingContext,

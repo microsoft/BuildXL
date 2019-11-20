@@ -1034,15 +1034,21 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Theory]
-        [InlineData(true, EventId.PipProcessError)]
-        [InlineData(false, EventId.PipProcessError)]
-        [InlineData(false, EventId.PipProcessError, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
-        [InlineData(true, EventId.PipProcessWarning)]
-        [InlineData(false, EventId.PipProcessWarning)]
-        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId, int errorMessageLength = 0)
+        // For all cases except the commented one, if the regex matches every thing, the user gets all the information from the log message,
+        // the path to original stdout/err log file shouldn't be presented.
+        // Otherwise, it should be presented.
+        [InlineData(true, EventId.PipProcessError, false)]
+        [InlineData(false, EventId.PipProcessError, true)]
+        [InlineData(false, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        // When the error length exceed limit and outputReportingMode is set to TruncatedOutputOnError,
+        // even though the regex matches every thing the error message still get truncated, so present the path to original stdout/err log file
+        [InlineData(true, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
+        [InlineData(false, EventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
+        [InlineData(true, EventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]       
+        [InlineData(true, EventId.PipProcessWarning, false)]
+        [InlineData(false, EventId.PipProcessWarning, true)]
+        public async Task ProcessPrintPathsToLog(bool regexMatchesEverything, EventId eventId, bool shouldContainLogPath, int errorMessageLength = 0, OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError)
         {
-            const string BadContents = "Anti-Matches!";
-
             await WithCachingExecutionEnvironment(
                 GetFullPath(".cache"),
                 async env =>
@@ -1053,7 +1059,6 @@ namespace Test.BuildXL.Scheduler
                     string destination = GetFullPath("dest");
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
-                    File.WriteAllText(destination, BadContents);
                     if (eventId == EventId.PipProcessError)
                     {
                         Process pip = CreateErrorProcess(
@@ -1064,7 +1069,7 @@ namespace Test.BuildXL.Scheduler
                             errorMessageLength: errorMessageLength);
                         var testRunChecker = new TestRunChecker();
                         await testRunChecker.VerifyFailed(env, pip);
-                        AssertErrorEventLogged(eventId, errorMessageLength > 0 ? 3 : 1);
+                        AssertErrorEventLogged(eventId, errorMessageLength > 0 && outputReportingMode == OutputReportingMode.FullOutputAlways ? 3 : 1);
                     }
                     else
                     {
@@ -1081,17 +1086,18 @@ namespace Test.BuildXL.Scheduler
 
                     string log = EventListener.GetLog();
                     string relatedLog = GetRelatedLog(log, eventId);
-                    if (regexMatchesEverything)
-                    {
-                        XAssert.IsFalse(relatedLog.Contains(destination));
-                    }
-                    else
+
+                    if (shouldContainLogPath)
                     {
                         XAssert.IsTrue(relatedLog.Contains(destination));
                     }
+                    else
+                    {
+                        XAssert.IsFalse(relatedLog.Contains(destination));
+                    }
                 },
                 null,
-                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: errorMessageLength > 0 ? OutputReportingMode.FullOutputAlways : OutputReportingMode.TruncatedOutputOnError));
+                pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
         }
 
         private string GetRelatedLog (string log, EventId eventId)

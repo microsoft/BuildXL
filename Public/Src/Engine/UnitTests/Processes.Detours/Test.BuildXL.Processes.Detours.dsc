@@ -28,6 +28,7 @@ namespace Processes.Detours {
                 f`FileAccessManifestTreeTest.cs`,
                 f`SandboxedProcessInfoTest.cs`,
                 f`SubstituteProcessExecutionTests.cs`,
+                f`OutputFilterTest.cs`,
             ],
             references: [
                 EngineTestUtilities.dll,

@@ -15,6 +15,7 @@ using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Tasks;
+using BuildXL.Utilities.Tracing;
 using Microsoft.Win32.SafeHandles;
 #if !FEATURE_SAFE_PROCESS_HANDLE
 using SafeProcessHandle = BuildXL.Interop.Windows.SafeProcessHandle;
@@ -37,7 +38,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Initial length to get active processes.
         /// </summary>
-        public const int InitialProcessIdListLength = 1024; // the number needed to make the bufferSizeForProcessIdList 4KB. 
+        public const int InitialProcessIdListLength = 2048; // the number needed to make the bufferSizeForProcessIdList 8KB. 
 
         /// <summary>
         /// Nested jobs are only supported on Win8/Server2012 or higher.
@@ -306,7 +307,7 @@ namespace BuildXL.Processes
             fixed (ulong* bufferPtr = buffer)
             {
                 var processIdListPtr = (JOBOBJECT_BASIC_PROCESS_ID_LIST*)bufferPtr;
-                Contract.Assert(processIdListPtr != null);
+                Contract.Assert(processIdListPtr != null, "ProcessIdListPtr is null");
 
                 uint bytesWritten;
                 if (!Native.Processes.ProcessUtilities.QueryInformationJobObject(
@@ -321,7 +322,26 @@ namespace BuildXL.Processes
                     return false;
                 }
 
-                Contract.Assume(bytesWritten <= bufferSizeInBytes);
+                if (bytesWritten > bufferSizeInBytes)
+                {
+                    long numAssignedProcesses = 0;
+                    long numProcessIdsInList = 0;
+                    if (processIdListPtr != null)
+                    {
+                        numAssignedProcesses = processIdListPtr->NumberOfAssignedProcesses;
+                        numProcessIdsInList = processIdListPtr->NumberOfProcessIdsInList;
+                    }
+
+                    Tracing.Logger.Log.MoreBytesWrittenThanBufferSize(
+                        Events.StaticContext,
+                        bytesWritten,
+                        bufferSizeInBytes,
+                        numAssignedProcesses,
+                        numProcessIdsInList);
+
+                    processIds = null;
+                    return false;
+                }
 
                 if (processIdListPtr->NumberOfAssignedProcesses > processIdListPtr->NumberOfProcessIdsInList)
                 {
@@ -368,8 +388,8 @@ namespace BuildXL.Processes
                        KernelTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalKernelTime)),
                        UserTime = new TimeSpan(checked((long)info.BasicAccountingInformation.TotalUserTime)),
                        NumberOfProcesses = info.BasicAccountingInformation.TotalProcesses,
-                       MemoryCounters = new ProcessMemoryCounters(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
-            };
+                       MemoryCounters = ProcessMemoryCounters.CreateFromBytes(GetPeakVirtualMemoryUsage(), peakWorkingSetUsage, peakPagefileUsage)
+                    };
         }
 
         /// <summary>

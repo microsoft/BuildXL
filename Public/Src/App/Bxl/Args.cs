@@ -248,9 +248,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheGraph",
                             opt => cacheConfiguration.CacheGraph = opt),
-                        OptionHandlerFactory.CreateOption(
-                            "cacheMemoryUsage",
-                            opt => cacheConfiguration.CacheMemoryUsage = CommandLineUtilities.ParseEnumOption<MemoryUsageOption>(opt)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "cacheMiss",
                             (opt, sign) => ParseCacheMissAnalysisOption(opt, sign, loggingConfiguration, pathTable)),
@@ -533,9 +530,7 @@ namespace BuildXL
                             "?",
                             opt =>
                             {
-                                var help = ParseHelpOption(opt);
-                                configuration.Help = help.Key;
-                                configuration.HelpCode = help.Value;
+                                configuration.Help = ParseHelpOption(opt);
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
@@ -1168,6 +1163,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "vsOutputSrc",
                             sign => ideConfiguration.CanWriteToSrc = sign),
+                        OptionHandlerFactory.CreateOption2(
+                            "vsTF",
+                            "vsTargetFramework",
+                            opt => ParseStringOption(opt, ideConfiguration.TargetFrameworks)),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "warnAsError",
                             (opt, sign) =>
@@ -1788,8 +1787,7 @@ namespace BuildXL
                     // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "GRAPHAGNOSTICINCREMENTALSCHEDULING":
-                    // Incremental scheduling is by default graph agnostic. One can use this option to make it graph inagnostic.
-                    scheduleConfiguration.GraphAgnosticIncrementalScheduling = experimentalOptionAndValue.Item2;
+                    // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "CREATEHANDLEWITHSEQUENTIALSCANONHASHINGOUTPUTFILES":
                     scheduleConfiguration.CreateHandleWithSequentialScanOnHashingOutputFiles = experimentalOptionAndValue.Item2;
@@ -1901,19 +1899,14 @@ namespace BuildXL
                    };
         }
 
-        internal static KeyValuePair<HelpLevel, int> ParseHelpOption(CommandLineUtilities.Option opt)
+        internal static HelpLevel ParseHelpOption(CommandLineUtilities.Option opt)
         {
             if (string.IsNullOrWhiteSpace(opt.Value))
             {
-                return new KeyValuePair<HelpLevel, int>(HelpLevel.Standard, 0);
+                return HelpLevel.Standard;
             }
 
-            string trimmed = opt.Value.TrimStart('d');
-            trimmed = trimmed.TrimStart('x');
-
-            return int.TryParse(trimmed, out int dxCode)
-                ? new KeyValuePair<HelpLevel, int>(HelpLevel.DxCode, dxCode)
-                : new KeyValuePair<HelpLevel, int>(CommandLineUtilities.ParseEnumOption<HelpLevel>(opt), 0);
+            return CommandLineUtilities.ParseEnumOption<HelpLevel>(opt);
         }
 
         public void Dispose()

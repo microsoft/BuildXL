@@ -69,7 +69,7 @@ namespace BuildXL.Utilities.Tracing
         CacheClientStats = 50,
         CatastrophicFailureCausedByCorruptedCache = 51,
         ProcessingPipOutputFileFailed = 52,
-        // Reserved = 53,
+        PipProcessPreserveOutputDirectoryFailedToMakeFilePrivate = 53,
         // Reserved = 54,
         // Reserved = 55,
         // Reserved = 56,
@@ -174,8 +174,7 @@ namespace BuildXL.Utilities.Tracing
         BusyOrUnavailableOutputDirectoriesRetry = 214,
         InvalidInputSinceInputIsRewritten = 215,
         InvalidInputDueToMultipleConflictingRewriteCounts = 216,
-
-        // Reserved = 217,
+        InvalidInputSinceInputIsOutputWithNoProducer = 217,
 
         // Pips
         InvalidProcessPipDueToNoOutputArtifacts = 218,
@@ -409,7 +408,7 @@ namespace BuildXL.Utilities.Tracing
         FailedToCleanupLogDir = 455,
         WaitingCleanupLogDir = 456,
         WaitingClientDebugger = 457,
-        DisplayHelpLink = 458,
+        //was: DisplayHelpLink = 458,
         StatsPerformanceLog = 459,
         CoreDumpNoPermissions = 460,
         CrashReportProcessing = 461,
@@ -418,8 +417,8 @@ namespace BuildXL.Utilities.Tracing
         CancellationRequested = 470,
 
         TelemetryShutDown = 471,
-        UnexpectedCondition = 472,
-        // was TelemetryRecoverableException = 473,
+        UnexpectedConditionLocal = 472,
+        UnexpectedConditionTelemetry = 473,
         TelemetryShutDownException = 474,
         // was ServerDeploymentDirectoryHashMismatch = 475,
         TelemetryShutdownTimeout = 476,
@@ -541,6 +540,7 @@ namespace BuildXL.Utilities.Tracing
         DeletingOutputsFromSharedOpaqueSidebandFilesStarted = 867,
         DeletingSharedOpaqueSidebandFilesStarted = 868,
         ScrubbingProgress = 869,
+        CannotReadSidebandFile = 870,
 
         // Config
         ConfigUnsafeDisabledFileAccessMonitoring = 900,
@@ -977,6 +977,10 @@ namespace BuildXL.Utilities.Tracing
         IncrementalSchedulingPipDirtyDueToChangesInDynamicObservationAfterScan = 8078,
         IncrementalSchedulingPipsOfOtherPipGraphsGetDirtiedAfterScan = 8079,
 
+        IncrementalSchedulingStateStatsAfterLoad = 8080,
+        IncrementalSchedulingStateStatsAfterScan = 8081,
+        IncrementalSchedulingStateStatsEnd = 8082,
+
         // Server mode
         UsingExistingServer = 8100,
         AppServerBuildStart = 8101,
@@ -1106,13 +1110,15 @@ namespace BuildXL.Utilities.Tracing
         ServerModeDisabled = 14004,
         GraphCacheCheckJournalDisabled = 14005,
         SlowCacheInitialization = 14006,
-        LowMemory = 14007,
+        LowRamMemory = 14007,
         // Elsewhere  = 14008,
         // Elsewhere  = 14009,
         BuildHasPerfSmells = 14010,
         LogProcessesEnabled = 14011,
         FrontendIOSlow = 14012,
         ProblematicWorkerExitError = 14013,
+        LowCommitMemory = 14014,
+        HitLowMemorySmell = 14015,
 
         // Graph validation.
         InvalidGraphSinceOutputDirectoryContainsSourceFile = 14100,
@@ -1153,5 +1159,10 @@ namespace BuildXL.Utilities.Tracing
 
         FailedToLoadPipGraphFragment = 14502,
         PipCacheLookupStats = 14503,
+
+        ProcessRetries = 14504,
+        ProcessPattern = 14505,
+
+        CacheDescriptorMissForAugmentedContentFingerprint = 14506,
     }
 }

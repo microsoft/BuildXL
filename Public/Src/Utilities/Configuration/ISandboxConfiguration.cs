@@ -11,12 +11,6 @@ namespace BuildXL.Utilities.Configuration
     public interface ISandboxConfiguration
     {
         /// <summary>
-        /// If set, pip execution synthetically produces outputs to disk (instantly) rather than doing real I/O. This elides all copies, WriteFile writes, and deployment of Process outputs;
-        /// cache queries, hashing, etc. are retained.
-        /// </summary>
-        bool DebugInstantPipOutputs { get; }
-
-        /// <summary>
         /// Break into the debugger when BuildXL detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing new tools or
         /// SDKs using these tools. Defaults to off.
         /// </summary>

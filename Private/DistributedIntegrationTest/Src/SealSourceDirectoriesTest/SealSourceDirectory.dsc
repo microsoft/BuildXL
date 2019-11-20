@@ -56,7 +56,7 @@ function verifyOutput(file: File, index: number, outputDirectory: Directory): De
         arguments: [
             Cmd.argument("/d"),
             Cmd.argument("/c"),
-            Cmd.argument(Artifact.input(f`./verifyOutput.cmd`)),
+            Cmd.argument(Artifact.input(f`../Utils/verifyOutput.cmd`)),
             Cmd.argument(Artifact.input(f`./expectedOut.txt`)),
             Cmd.argument(Artifact.input(file)),
             Cmd.argument(Artifact.output(indexedOutputFile))

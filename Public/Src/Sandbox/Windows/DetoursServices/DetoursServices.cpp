@@ -1092,6 +1092,19 @@ static bool DllProcessAttach()
     InitializeHandleOverlay();
     InitializeFilesCheckedForWriteAccesses();
 
+    // If there are configured processes that will break away from the sandbox, expose
+    // an environment variable with the handle pointer to the detour manifest.
+    // This is the way the AugmentedManifestReporter (the API to directly talk to detours
+    // internal tools can use) can actually interact with the manifest
+    // Keep in sync with C# side
+    if (!g_processNamesToBreakAwayFromJob->empty())
+    {
+        // CODESYNC: Keep variable name in sync with the C# side
+        SetEnvironmentVariable(
+            L"BUILDXL_AUGMENTED_MANIFEST_HANDLE", 
+            std::to_wstring(DetouredProcessInjector::HandleToUint64(g_reportFileHandle)).c_str());
+    }
+
 #define ATTACH(Name) \
     Real_##Name = ::Name; \
     error = DetourAttach((PVOID*)&Real_##Name, Detoured_##Name); \

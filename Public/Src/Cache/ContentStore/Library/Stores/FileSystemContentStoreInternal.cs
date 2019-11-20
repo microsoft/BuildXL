@@ -908,7 +908,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (placeLinkResult == CreateHardLinkResult.Success)
                     {
-                        return new PutResult(contentHash, fileInfo.FileSize)
+                        return new PutResult(contentHash, fileInfo.FileSize, contentAlreadyExistsInCache: true)
                         {
                             Diagnostics = "FastPath"
                         };
@@ -942,9 +942,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given file.
                         bool putInternalSucceeded;
+                        bool contentExistsInCache;
                         if (shouldAttemptHardLink)
                         {
-                            putInternalSucceeded = await PutContentInternalAsync(
+                            (putInternalSucceeded, contentExistsInCache) = await PutContentInternalAsync(
                                 context,
                                 contentHash,
                                 contentSize,
@@ -965,7 +966,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                         }
                         else
                         {
-                            putInternalSucceeded = await PutContentInternalAsync(
+                            (putInternalSucceeded, contentExistsInCache) = await PutContentInternalAsync(
                                 context,
                                 contentHash,
                                 contentSize,
@@ -976,7 +977,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize)
+                            return new PutResult(contentHash, contentSize, contentExistsInCache)
                                 .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
@@ -1050,7 +1051,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (shouldAttemptHardLink)
                 {
-                    bool putInternalSucceeded = await PutContentInternalAsync(
+                    (bool putInternalSucceeded, bool contentExistsInCache) = await PutContentInternalAsync(
                         context,
                         content.Hash,
                         content.Size,
@@ -1119,7 +1120,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     if (putInternalSucceeded)
                     {
-                        return new PutResult(content.Hash, content.Size)
+                        return new PutResult(content.Hash, content.Size, contentExistsInCache)
                             .WithLockAcquisitionDuration(contentHashHandle);
                     }
                 }
@@ -1429,7 +1430,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <returns>True if the callback is successful.</returns>
         private delegate Task<bool> OnContentNotInCacheAsync(AbsolutePath primaryPath);
 
-        private async Task<bool> PutContentInternalAsync(
+        private async Task<(bool Success, bool ContentAlreadyExistsInCache)> PutContentInternalAsync(
             Context context,
             ContentHash contentHash,
             long contentSize,
@@ -1440,6 +1441,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             AbsolutePath primaryPath = GetPrimaryPathFor(contentHash);
             bool failed = false;
+            bool contentExistsInCache = false;
             long addedContentSize = 0;
 
             _tracer.PutContentInternalStart();
@@ -1466,7 +1468,9 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
-                if (!await onContentAlreadyInCache(contentHash, primaryPath, fileInfo))
+                contentExistsInCache = await onContentAlreadyInCache(contentHash, primaryPath, fileInfo);
+
+                if (!contentExistsInCache)
                 {
                     failed = true;
                     return null;
@@ -1482,7 +1486,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             if (failed)
             {
-                return false;
+                return (Success: false, ContentAlreadyExistsInCache: contentExistsInCache);
             }
 
             if (addedContentSize > 0)
@@ -1495,7 +1499,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _announcer.ContentAdded(new ContentHashWithSize(contentHash, addedContentSize));
             }
 
-            return true;
+            return (Success: true, ContentAlreadyExistsInCache: contentExistsInCache);
         }
 
         /// <inheritdoc />
@@ -1512,7 +1516,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     if (contentSize >= 0)
                     {
                         // The user provided a hash for content that we already have. Try to satisfy the request without hashing the given stream.
-                        bool putInternalSucceeded = await PutContentInternalAsync(
+                        (bool putInternalSucceeded, bool contentAlreadyExistsInCache) = await PutContentInternalAsync(
                             context,
                             contentHash,
                             contentSize,
@@ -1522,7 +1526,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                         if (putInternalSucceeded)
                         {
-                            return new PutResult(contentHash, contentSize)
+                            return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
                                 .WithLockAcquisitionDuration(contentHashHandle);
                         }
                     }
@@ -1569,7 +1573,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 {
                     CheckPinned(contentHash, pinRequest);
 
-                    if (!await PutContentInternalAsync(
+                    (bool putInternalSucceeded, bool contentAlreadyExistsInCache) = await PutContentInternalAsync(
                         context,
                         contentHash,
                         contentSize,
@@ -1590,12 +1594,13 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                             pathToTempContent = null;
                             return true;
-                        }))
+                        });
+                    if (!putInternalSucceeded)
                     {
                         return new PutResult(contentHash, $"{nameof(PutStreamAsync)} failed to put {pathToTempContent} with hash {contentHash.ToShortString()} with an unknown error");
                     }
 
-                    return new PutResult(contentHash, contentSize)
+                    return new PutResult(contentHash, contentSize, contentAlreadyExistsInCache)
                         .WithLockAcquisitionDuration(contentHashHandle);
                 }
             }

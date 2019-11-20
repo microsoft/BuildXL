@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
+using BuildXL.Processes;
 using BuildXL.Utilities;
 
 namespace Test.BuildXL.Executables.TestProcess
@@ -199,7 +200,17 @@ namespace Test.BuildXL.Executables.TestProcess
             /// <summary>
             /// Waits until a given file is found on disk
             /// </summary>
-            WaitUntilFileExists
+            WaitUntilFileExists,
+
+            /// <summary>
+            /// A read file access informed to detours without doing any real IO
+            /// </summary>
+            AugmentedReadFile,
+
+            /// <summary>
+            /// A write file access informed to detours without doing any real IO
+            /// </summary>
+            AugmentedWriteFile,
         }
 
         /// <summary>
@@ -453,6 +464,12 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.WaitUntilFileExists:
                         DoWaitUntilFileExists();
+                        return;
+                    case Type.AugmentedReadFile:
+                        DoAugmentedReadFile();
+                        return;
+                    case Type.AugmentedWriteFile:
+                        DoAugmentedWriteFile();
                         return;
                 }
             }
@@ -720,6 +737,28 @@ namespace Test.BuildXL.Executables.TestProcess
         }
 
         /// <summary>
+        /// Creates an operation that reports an augmented read file access to detours without actually performing any IO
+        /// </summary>
+        /// <remarks>
+        /// Processes running this operation have to run in a pip that has a non-empty set of processes allowed to breakaway
+        /// </remarks>
+        public static Operation AugmentedRead(FileOrDirectoryArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.AugmentedReadFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
+        /// Creates an operation that reports an augmented write file access to detours without actually performing any IO
+        /// </summary>
+        /// <remarks>
+        /// Processes running this operation have to run in a pip that has a non-empty set of processes allowed to breakaway
+        /// </remarks>
+        public static Operation AugmentedWrite(FileOrDirectoryArtifact path, bool doNotInfer = false)
+        {
+            return new Operation(Type.AugmentedWriteFile, path, doNotInfer: doNotInfer);
+        }
+
+        /// <summary>
         /// Fails the process
         /// </summary>
         public static Operation Fail(int exitCode = -1)
@@ -925,6 +964,32 @@ namespace Test.BuildXL.Executables.TestProcess
             catch (UnauthorizedAccessException)
             {
                 // Ignore tests for denied file access policies
+            }
+
+            return string.Empty;
+        }
+
+        private string DoAugmentedReadFile(string path = null)
+        {
+            path = path ?? PathAsString;
+            var success = AugmentedManifestReporter.Instance.TryReportFileReads(new[] { path });
+
+            if (!success)
+            {
+                throw new InvalidOperationException($"Cannot report augmented read for {path}");
+            }
+
+            return string.Empty;
+        }
+
+        private string DoAugmentedWriteFile(string path = null)
+        {
+            path = path ?? PathAsString;
+            var success = AugmentedManifestReporter.Instance.TryReportFileCreations(new[] { path });
+
+            if (!success)
+            {
+                throw new InvalidOperationException($"Cannot report augmented write for {path}");
             }
 
             return string.Empty;

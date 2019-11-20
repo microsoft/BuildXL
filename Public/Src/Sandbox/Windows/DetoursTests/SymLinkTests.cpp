@@ -293,6 +293,33 @@ int CallDetouredCopyFileNotFollowingChainOfSymlinks()
     return (int)GetLastError();
 }
 
+int CallDetouredCopyFileToExistingSymlink(bool copySymlink)
+{
+    if (!TestCreateSymbolicLinkW(L"LinkToDestination.link", L"Destination.txt", 0))
+    {
+        return (int)GetLastError();
+    }
+
+    CopyFileExW(
+        L"LinkToSource.link",
+        L"LinkToDestination.link",
+        (LPPROGRESS_ROUTINE)NULL,
+        (LPVOID)NULL,
+        (LPBOOL)NULL,
+        copySymlink ? COPY_FILE_COPY_SYMLINK : (DWORD)0x0);
+
+    return (int)GetLastError();
+}
+int CallDetouredCopyFileToExistingSymlinkFollowChainOfSymlinks()
+{
+    return CallDetouredCopyFileToExistingSymlink(false);
+}
+
+int CallDetouredCopyFileToExistingSymlinkNotFollowChainOfSymlinks()
+{
+    return CallDetouredCopyFileToExistingSymlink(true);
+}
+
 int CallAccessNestedSiblingSymLinkOnFiles()
 {
     HANDLE hFile = CreateFileW(

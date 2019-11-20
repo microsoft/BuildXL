@@ -12,6 +12,7 @@ using System.Net;
 using BuildXL.App.Tracing;
 using BuildXL.Native.IO.Windows;
 using BuildXL.Native.Processes;
+using BuildXL.Storage;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -101,16 +102,9 @@ namespace BuildXL
 
             if (lightConfig.Help != HelpLevel.None)
             {
-                if (lightConfig.Help == HelpLevel.DxCode)
-                {
-                    System.Diagnostics.Process.Start(Strings.DX_Help_Link);
-                }
-                else
-                {
-                    // Need to cast here to convert from the configuration enum to the ToolSupoort enum. Their values
-                    // are manually kept in sync to avoid the additional dependency.
-                    HelpText.DisplayHelp((BuildXL.ToolSupport.HelpLevel)lightConfig.Help);
-                }
+                // Need to cast here to convert from the configuration enum to the ToolSupoort enum. Their values
+                // are manually kept in sync to avoid the additional dependency.
+                HelpText.DisplayHelp((BuildXL.ToolSupport.HelpLevel)lightConfig.Help);
 
                 return ExitCode.FromExitKind(ExitKind.BuildNotRequested);
             }
@@ -138,6 +132,7 @@ namespace BuildXL
                 var pathTable = new PathTable();
 
                 ICommandLineConfiguration configuration;
+                ContentHashingUtilities.SetContentHasherIdlePoolSize(10);
                 if (!args.TryParse(rawArgs.ToArray(), pathTable, out configuration))
                 {
                     return ExitKind.InvalidCommandLine;

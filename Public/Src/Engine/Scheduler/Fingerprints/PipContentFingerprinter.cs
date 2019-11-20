@@ -1,7 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 
@@ -17,6 +20,16 @@ namespace BuildXL.Scheduler.Fingerprints
     public sealed class PipContentFingerprinter : PipFingerprinter
     {
         /// <summary>
+        /// Delegate type for the <see cref="StaticFingerprintLookup"/> property
+        /// </summary>
+        public delegate Fingerprint StaticHashLookup(PipId pipId);
+
+        /// <summary>
+        /// Function that given a PipId returns its static fingerprint
+        /// </summary>
+        public StaticHashLookup StaticFingerprintLookup { get; }
+
+        /// <summary>
         /// Creates an instance of <see cref="PipContentFingerprinter"/>.
         /// </summary>
         /// <remarks>
@@ -30,11 +43,14 @@ namespace BuildXL.Scheduler.Fingerprints
             ExtraFingerprintSalts? extraFingerprintSalts = null,
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null,
-            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null)
+            SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null,
+            StaticHashLookup staticHashLookup = null)
             : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedInputsLookup)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(contentHashLookup != null);
+
+            StaticFingerprintLookup = staticHashLookup;
         }
     }
 }

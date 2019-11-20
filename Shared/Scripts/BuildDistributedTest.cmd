@@ -45,7 +45,12 @@ if EXIST %TEST_SOLUTION_ROOT% (
 
 REM Generate test solution
 
-call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+if DEFINED MSENG_GIT_PAT (
+    call "%ProgramFiles%\Git\cmd\git" clone https://%MSENG_GIT_PAT%@mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+) else (
+    call "%ProgramFiles%\Git\cmd\git" clone https://mseng.visualstudio.com/Domino/_git/Domino.DistributedBuildTest %TEST_SOLUTION_ROOT% 2>&1
+)
+
 if %ERRORLEVEL% NEQ 0 (
     endlocal && exit /b 1
 )

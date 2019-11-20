@@ -361,7 +361,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Starts to listen for client connections.  As soon as a connection is received,
         /// it is placed in an action block from which it is picked up and handled asynchronously
-        /// (in the <see cref="ParseAndExecuteCommand"/> method).
+        /// (in the <see cref="ParseAndExecuteCommandAsync"/> method).
         /// </summary>
         public void Start()
         {
@@ -394,10 +394,10 @@ namespace Tool.ServicePipDaemon
             m_logger.Dispose();
         }
 
-        private async Task<IIpcResult> ParseAndExecuteCommand(IIpcOperation operation)
+        private async Task<IIpcResult> ParseAndExecuteCommandAsync(int id, IIpcOperation operation)
         {
             string cmdLine = operation.Payload;
-            m_logger.Verbose("Command received: {0}", cmdLine);
+            m_logger.Verbose($"Command received. Request #{id}, CommandLine: {cmdLine}");
             ConfiguredCommand conf;
             using (m_counters.StartStopwatch(DaemonCounter.ParseArgsDuration))
             {
@@ -417,11 +417,11 @@ namespace Tool.ServicePipDaemon
             return result;
         }
 
-        Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(IIpcOperation operation)
+        Task<IIpcResult> IIpcOperationExecutor.ExecuteAsync(int id, IIpcOperation operation)
         {
             Contract.Requires(operation != null);
 
-            return ParseAndExecuteCommand(operation);
+            return ParseAndExecuteCommandAsync(id, operation);
         }
 
         /// <summary>

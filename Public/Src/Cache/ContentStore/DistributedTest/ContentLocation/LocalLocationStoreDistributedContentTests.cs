@@ -82,6 +82,7 @@ namespace ContentStoreTest.Distributed.Sessions
 
         /// <nodoc />
         protected bool EnableProactiveCopy { get; set; } = false;
+        protected bool PushProactiveCopies { get; set; } = false;
 
         protected override IContentStore CreateStore(
             Context context,
@@ -169,7 +170,10 @@ namespace ContentStoreTest.Distributed.Sessions
                 {
                     RetryIntervalForCopies = DistributedContentSessionTests.DefaultRetryIntervalsForTest,
                     PinConfiguration = PinConfiguration,
-                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.Both : ProactiveCopyMode.Disabled
+                    ShouldInlinePutBlob = true,
+                    ProactiveCopyMode = EnableProactiveCopy ? ProactiveCopyMode.Both : ProactiveCopyMode.Disabled,
+                    InlineProactiveCopies = true,
+                    PushProactiveCopies = PushProactiveCopies
                 },
                 replicaCreditInMinutes: replicaCreditInMinutes,
                 clock: TestClock,
@@ -189,6 +193,45 @@ namespace ContentStoreTest.Distributed.Sessions
         public async Task ProactiveCopyDistributedTest()
         {
             EnableProactiveCopy = true;
+
+            // Use the same context in two sessions when checking for file existence
+            var loggingContext = new Context(Logger);
+
+            var contentHashes = new List<ContentHash>();
+
+            int machineCount = 2;
+            ConfigureWithOneMaster();
+
+            // We need pin better to be triggered.
+            PinConfiguration = new PinConfiguration();
+
+            await RunTestAsync(
+                loggingContext,
+                machineCount,
+                async context =>
+                {
+                    var masterStore = context.GetMaster();
+                    var defaultFileSize = (Config.MaxSizeQuota.Hard / 4) + 1;
+
+                    var sessions = context.EnumerateWorkersIndices().Select(i => context.GetDistributedSession(i)).ToArray();
+
+                    // Insert random file #1 into worker #1
+                    var putResult1 = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
+                    var hash1 = putResult1.ContentHash;
+
+                    var getBulkResult1 = await masterStore.GetBulkAsync(context, hash1, GetBulkOrigin.Global).ShouldBeSuccess();
+
+                    // Proactive copy should have replicated the content.
+                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+                },
+                implicitPin: ImplicitPin.None);
+        }
+
+        [Fact]
+        public async Task PushedProactiveCopyDistributedTest()
+        {
+            EnableProactiveCopy = true;
+            PushProactiveCopies = true;
 
             // Use the same context in two sessions when checking for file existence
             var loggingContext = new Context(Logger);
@@ -217,19 +260,8 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     var getBulkResult1 = await masterStore.GetBulkAsync(context, hash1, GetBulkOrigin.Global).ShouldBeSuccess();
 
-                    // LocationStore knew no machines, so copying should not be possible. However, next time it will know location 1.
-                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(1);
-
-                    // Insert random file #2 into worker #2
-                    var putResult2 = await sessions[0].PutRandomAsync(context, HashType.Vso0, false, defaultFileSize, Token).ShouldBeSuccess();
-                    var hash2 = putResult2.ContentHash;
-
-                    await Task.Delay(TimeSpan.FromSeconds(1)); // Wait for proactive copy to finish in the background.
-
-                    var getBulkResult2 = await masterStore.GetBulkAsync(context, hash2, GetBulkOrigin.Global).ShouldBeSuccess();
-
-                    // Should have proactively copied to worker #1
-                    getBulkResult2.ContentHashesInfo[0].Locations.Count.Should().Be(2);
+                    // Proactive copy should have replicated the content.
+                    getBulkResult1.ContentHashesInfo[0].Locations.Count.Should().Be(2);
                 },
                 implicitPin: ImplicitPin.None);
         }
@@ -370,7 +402,6 @@ namespace ContentStoreTest.Distributed.Sessions
                 machineCount,
                 async context =>
                 {
-
                     var session = context.Sessions[context.GetMasterIndex()];
                     var masterStore = context.GetMaster();
 
@@ -455,7 +486,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var hash = ContentHash.Random();
 
                     // Add to store 0
-                    await store0.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, 120) }, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                    await store0.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, 120) }, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
 
                     // Result should be available from store 1 as a global result
                     var globalResult = await store1.GetBulkAsync(context, new[] { hash }, Token, UrgencyHint.Nominal, GetBulkOrigin.Global).ShouldBeSuccess();
@@ -569,12 +600,12 @@ namespace ContentStoreTest.Distributed.Sessions
                     foreach (var workerStore in context.EnumerateWorkers())
                     {
                         // Add to store
-                        await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                        await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
                         workerStore.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddQueued].Value.Should().Be(0);
                         workerStore.LocalLocationStore.GlobalStore.Counters[GlobalStoreCounters.RegisterLocalLocation].Value.Should().Be(1);
                     }
 
-                    await master.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                    await master.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
 
                     master.LocalLocationStore.Counters[ContentLocationStoreCounters.LocationAddQueued].Value.Should().Be(1,
                         "When number of replicas is over limit location adds should be set through event stream but not eagerly sent to redis");
@@ -820,10 +851,10 @@ namespace ContentStoreTest.Distributed.Sessions
                     var hash = ContentHash.Random();
                     var hashes = new[] { new ContentHashWithSize(hash, 120) };
                     // Add to store
-                    await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                    await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
 
                     // Redundant add should not be sent
-                    await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                    await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
 
                     workerStore.LocalLocationStore.EventStore.Counters[ContentLocationEventStoreCounters.PublishAddLocations].Value.Should().Be(1);
                     workerStore.LocalLocationStore.EventStore.Counters[ContentLocationEventStoreCounters.PublishTouchLocations].Value.Should().Be(0);
@@ -841,7 +872,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     workerStore.LocalLocationStore.EventStore.Counters[ContentLocationEventStoreCounters.PublishTouchLocations].Value.Should().Be(1);
 
                     // After time interval the redundant add should be sent again (this operates as a touch of sorts)
-                    await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                    await workerStore.RegisterLocalLocationAsync(context, hashes, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
                     workerStore.LocalLocationStore.EventStore.Counters[ContentLocationEventStoreCounters.PublishAddLocations].Value.Should().Be(2);
                 });
         }
@@ -977,7 +1008,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var hash = ContentHash.Random();
 
                     // Add to worker store
-                    await workerStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, 120) }, Token, UrgencyHint.Nominal).ShouldBeSuccess();
+                    await workerStore.RegisterLocalLocationAsync(context, new[] { new ContentHashWithSize(hash, 120) }, Token, UrgencyHint.Nominal, touch: true).ShouldBeSuccess();
 
                     TestClock.UtcNow += TimeSpan.FromMinutes(2);
                     await masterStore.LocalLocationStore.HeartbeatAsync(context).ShouldBeSuccess();
@@ -1082,7 +1113,8 @@ namespace ContentStoreTest.Distributed.Sessions
                         context,
                         new[] { new ContentHashWithSize(contentHash, content.Length) },
                         Token,
-                        UrgencyHint.Nominal).ShouldBeSuccess();
+                        UrgencyHint.Nominal,
+                        touch: true).ShouldBeSuccess();
 
                     // Heartbeat to distribute checkpoints
                     await UploadCheckpointOnMasterAndRestoreOnWorkers(context);
@@ -1555,7 +1587,7 @@ namespace ContentStoreTest.Distributed.Sessions
                     var hashWithSize = new ContentHashWithSize(putResult0.ContentHash, putResult0.ContentSize);
 
                     worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(0);
-                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
+                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }, touch: true).ThrowIfFailure();
                     // Still should be one, because we just recently added the content.
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddEager].Value.Should().Be(1);
                     worker1Lls.Counters[ContentLocationStoreCounters.RedundantRecentLocationAddSkipped].Value.Should().Be(1);
@@ -1569,14 +1601,14 @@ namespace ContentStoreTest.Distributed.Sessions
 
                     // It was 3 hours since the content was added and 1.5h since the last touch.
                     worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(0);
-                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
+                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }, touch: true).ThrowIfFailure();
                     worker1Lls.Counters[ContentLocationStoreCounters.LazyTouchEventOnly].Value.Should().Be(1);
 
                     await worker.TrimBulkAsync(context, new[] { hashWithSize.Hash }, Token, UrgencyHint.Nominal).ThrowIfFailure();
 
                     // We just removed the content, now, if we'll add it back, we should notify the global store eagerly.
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Value.Should().Be(0);
-                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }).ThrowIfFailure();
+                    await worker1Lls.RegisterLocalLocationAsync(context, new[] { hashWithSize }, touch: true).ThrowIfFailure();
                     worker1Lls.Counters[ContentLocationStoreCounters.LocationAddRecentRemoveEager].Value.Should().Be(1);
                 });
         }

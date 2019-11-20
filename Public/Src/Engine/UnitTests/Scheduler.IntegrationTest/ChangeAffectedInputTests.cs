@@ -67,7 +67,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertCacheHit(pipA.Process.PipId);
 
             var actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            var expectedAffectedInput = aOutput.Path.ToString(Context.PathTable);
+            var expectedAffectedInput = ArtifactToString(aOutput);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
@@ -129,7 +129,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertCacheMiss(pipA.Process.PipId, pipC.Process.PipId);
             result.AssertCacheHit(pipB.Process.PipId);
             actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            expectedAffectedInput = aOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            expectedAffectedInput = ArtifactToString(aOutput);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
             // Build2 with change in bInput. 
@@ -143,7 +143,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertCacheMiss(pipB.Process.PipId, pipC.Process.PipId);
 
             actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            expectedAffectedInput = bOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            expectedAffectedInput = ArtifactToString(bOutput);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
 
             // Build3 reverts change in bInput. pipB get cache hit of build0.  
@@ -156,7 +156,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertCacheMiss(pipC.Process.PipId);
 
             actualAffectedInput = File.ReadAllText(changeAffectedWrittenFile.ToString(Context.PathTable));
-            expectedAffectedInput = bOutput.Path.GetName(Context.PathTable).ToString(Context.PathTable.StringTable);
+            expectedAffectedInput = ArtifactToString(bOutput);
             XAssert.AreEqual(expectedAffectedInput, actualAffectedInput);
         }
 
@@ -223,9 +223,9 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             string[] actualAffectedSortedInputs = File.ReadAllLines(changeAffectedWrittenFile.ToString(Context.PathTable)).OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
             string[] expectedAffectedInputs = 
-            { 
-                aOutputFileInOutputSubDir.Path.ToString(Context.PathTable),
-                aOutputFileInOutputeDir.Path.ToString(Context.PathTable)
+            {
+                ArtifactToString(aOutputFileInOutputSubDir),
+                ArtifactToString(aOutputFileInOutputeDir)
             };
 
             string[] expectedAffectedSortedInputs = expectedAffectedInputs.OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase).ToArray();
@@ -294,7 +294,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             if (pipBInputAccessType == InputAccessType.DynamicFileAccess)
             {
                 operations.Add(Operation.ReadFile(aOutputFileInOutputeDir, doNotInfer: true));
-                expectedAffectedInput = bOutFileArtifact.Path.ToString(Context.PathTable);
+                expectedAffectedInput = ArtifactToString(bOutFileArtifact);
             }
             operations.Add(Operation.WriteFile(bOutFileArtifact, doNotInfer: true));
             var pipBuilderB = CreatePipBuilder(operations);
@@ -393,7 +393,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 else
                 {
                     operations.Add(Operation.ReadFile(copiedFile, doNotInfer: true));
-                    expectedAffectedInput = bOutFileArtifact.Path.ToString(Context.PathTable);
+                    expectedAffectedInput = ArtifactToString(bOutFileArtifact);
                 }
             }
             operations.Add(Operation.WriteFile(bOutFileArtifact, doNotInfer: true));

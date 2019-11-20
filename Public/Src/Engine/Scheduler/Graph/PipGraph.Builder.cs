@@ -1138,6 +1138,11 @@ namespace BuildXL.Scheduler.Graph
                     return false;
                 }
 
+                if (ipcPip.DirectoryDependencies.Any(d => !IsValidInputDirectoryArtifact(pathAccessLock, d, ipcPip)))
+                {
+                    return false;
+                }
+
                 if (!CheckServicePipDependencies(ipcPip.ServicePipDependencies))
                 {
                     Logger.Log.ScheduleFailAddPipDueToInvalidServicePipDependency(
@@ -1189,6 +1194,11 @@ namespace BuildXL.Scheduler.Graph
                         LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidInputDueToMultipleConflictingRewriteCounts, process, dependency);
                         return false;
                     }
+                }
+
+                if (process.DirectoryDependencies.Any(d => !IsValidInputDirectoryArtifact(pathAccessLock, d, process)))
+                {
+                    return false;
                 }
 
                 Contract.Assert(dependenciesByPath.ContainsKey(process.Executable.Path), "Dependency set must contain the executable.");
@@ -1252,18 +1262,6 @@ namespace BuildXL.Scheduler.Graph
                 {
                     LogEventWithPipProvenance(Logger.ScheduleFailAddProcessPipProcessDueToNoOutputArtifacts, process);
                     return false;
-                }
-
-                foreach (var inputDirectory in process.DirectoryDependencies)
-                {
-                    if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(inputDirectory, out _))
-                    {
-                        LogEventWithPipProvenance(
-                            Logger.SourceDirectoryUsedAsDependency,
-                            process,
-                            inputDirectory.Path);
-                        return false;
-                    }
                 }
 
                 foreach (var directory in process.DirectoryOutputs)
@@ -1409,7 +1407,7 @@ namespace BuildXL.Scheduler.Graph
             /// <summary>
             /// Checks if a given file artifact is a valid source file artifact.
             /// </summary>
-            /// <param name="pathAccessLock">the access lock acquired by the enclosing operation for read access to the file</param>
+            /// <param name="pathAccessLock">The access lock acquired by the enclosing operation for read access to the file</param>
             /// <param name="input">Artifact that has been specified as an input of the pip</param>
             /// <param name="pip">The pip which has specified the given output</param>
             /// <param name="semanticPathExpander">The semantic path expander for the pip</param>
@@ -1470,10 +1468,32 @@ namespace BuildXL.Scheduler.Graph
                 {
                     if (input.IsOutputFile)
                     {
-                        Contract.Assert(
-                            false,
-                            I($"Output artifact '{input.Path.ToString(Context.PathTable)}' has no producer. This should be impossible by construction, since creating an output file artifact is supposed to require scheduling a producer."));
+                        LogEventWithPipProvenance(Logger.ScheduleFailAddPipInvalidInputSinceInputIsOutputWithNoProducer, pip, input);
+                        return false;
                     }
+                }
+
+                return true;
+            }
+
+            /// <summary>
+            /// Checks if input directory artifact is valid.
+            /// </summary>
+            /// <param name="pathAccessLock">The access lock acquired by the enclosing operation for read access to the file</param>
+            /// <param name="inputDirectory">Artifact that has been specified as an input of the pip</param>
+            /// <param name="pip">The pip which has specified the given output</param>
+            /// <returns></returns>
+            private bool IsValidInputDirectoryArtifact(LockManager.PathAccessGroupLock pathAccessLock, DirectoryArtifact inputDirectory, Pip pip)
+            {
+                Contract.Requires(pathAccessLock.HasReadAccess(inputDirectory.Path));
+
+                if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(inputDirectory, out _))
+                {
+                    LogEventWithPipProvenance(
+                        Logger.SourceDirectoryUsedAsDependency,
+                        pip,
+                        inputDirectory.Path);
+                    return false;
                 }
 
                 return true;

@@ -90,29 +90,26 @@ namespace Test.BuildXL.Utilities
         }
 
         [Theory]
-        [InlineData(4)]
-        public void BoundedExhaustiveTest(int n)
+        [MemberData(nameof(BoundedExhaustiveTestData), 4)]
+        public void BoundedExhaustiveTest(int[] arr, int capacity)
         {
-            var arr = Enumerable.Range(0, n).ToArray();
-            var perms = GenAllPermutations(arr).ToArray();
-            Assert.All(
-                Enumerable.Range(1, n + 1), // test for all possible capacities from 1 to n+1
-                capacity =>
-                {
-                    var top = arr.OrderBy(i => i).Reverse().Take(capacity).Reverse().ToArray();
-                    Assert.All(
-                        perms, // test for all possible permutations
-                        perm =>
-                        {
-                            var sl = new ConcurrentBoundedSortedCollection<int, int>(capacity);
-                            Parallel.ForEach(perm, e => sl.TryAdd(e, e));
-                            var slArray = sl.Select(kvp => kvp.Key).ToArray();
-                            XAssert.ArrayEqual(top, slArray);
-                        });
-                });
+            // expected: top 'capacity' elements in the sorted version of 'arr'
+            var expectedResult = arr.OrderBy(i => i).Reverse().Take(capacity).Reverse().ToArray();
+
+            var sl = new ConcurrentBoundedSortedCollection<int, int>(capacity);
+            Parallel.ForEach(arr, e => sl.TryAdd(e, e));
+            var slArray = sl.Select(kvp => kvp.Key).ToArray();
+            XAssert.ArrayEqual(expectedResult, slArray);
         }
 
-        private IEnumerable<T[]> GenAllPermutations<T>(T[] arr)
+        public static IEnumerable<object[]> BoundedExhaustiveTestData(int arraySize)
+        {
+            var allPermutations = GenAllPermutations(Enumerable.Range(0, arraySize).Cast<object>().ToArray());
+            var allCapacities = Enumerable.Range(1, arraySize + 1).Cast<object>();
+            return CrossProduct(allPermutations.ToArray(), allCapacities.ToArray());
+        }
+
+        private static IEnumerable<T[]> GenAllPermutations<T>(T[] arr)
         {
             Contract.Requires(arr != null && arr.Length > 0);
             return arr.Length == 1

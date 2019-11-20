@@ -145,6 +145,22 @@ namespace Test.BuildXL.Engine
                     }
             };
 
+            if (TryGetSubstSourceAndTarget(out string substSource, out string substTarget))
+            {
+                // Directory translation is needed here particularly when the test temporary directory
+                // is inside a directory that is actually a junction to another place. 
+                // For example, the temporary directory is D:\src\BuildXL\Out\Object\abc\t_1, but
+                // the path D:\src\BuildXL\Out or D:\src\BuildXL\Out\Object is a junction to K:\Out.
+                // Some tool, like cmd, can access the path in K:\Out, and thus the test will have a DFA
+                // if there's no directory translation.
+                // This problem does not occur when only substs are involved, but no junctions. The method
+                // TryGetSubstSourceAndTarget works to get translations due to substs or junctions.
+                AbsolutePath substSourcePath = AbsolutePath.Create(Context.PathTable, substSource);
+                AbsolutePath substTargetPath = AbsolutePath.Create(Context.PathTable, substTarget);
+                Configuration.Engine.DirectoriesToTranslate.Add(
+                    new TranslateDirectoryData(I($"{substSource}<{substTarget}"), substSourcePath, substTargetPath));
+            }
+
             AbsolutePath Combine(AbsolutePath parent, string name)
             {
                 return parent.Combine(Context.PathTable, PathAtom.Create(Context.StringTable, name));

@@ -22,6 +22,19 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
 
             ContentHash = contentHash;
             ContentSize = contentSize;
+            ContentAlreadyExistsInCache = false;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="PutResult" /> class.
+        /// </summary>
+        public PutResult(ContentHash contentHash, long contentSize, bool contentAlreadyExistsInCache = false)
+        {
+            Contract.Requires(contentHash.HashType != HashType.Unknown);
+
+            ContentHash = contentHash;
+            ContentSize = contentSize;
+            ContentAlreadyExistsInCache = contentAlreadyExistsInCache;
         }
 
         /// <summary>
@@ -79,6 +92,11 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// </summary>
         public readonly long ContentSize;
 
+        /// <summary>
+        /// Whether the content existed in the cache prior to this put.
+        /// </summary>
+        public readonly bool ContentAlreadyExistsInCache;
+
         /// <inheritdoc />
         public bool Equals(PutResult other)
         {
@@ -86,7 +104,8 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
                 base.Equals(other)
                 && other != null
                 && ContentHash == other.ContentHash
-                && ContentSize == other.ContentSize;
+                && ContentSize == other.ContentSize
+                && ContentAlreadyExistsInCache == other.ContentAlreadyExistsInCache;
         }
 
         /// <inheritdoc />
@@ -98,14 +117,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return base.GetHashCode() ^ ContentHash.GetHashCode() ^ ContentSize.GetHashCode();
+            return base.GetHashCode() ^ ContentHash.GetHashCode() ^ ContentSize.GetHashCode() ^ ContentAlreadyExistsInCache.GetHashCode();
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
             return Succeeded
-                ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize}{this.GetDiagnosticsMessageForTracing()}"
+                ? $"Success Hash={ContentHash.ToShortString()} Size={ContentSize} {nameof(ContentAlreadyExistsInCache)}={ContentAlreadyExistsInCache}{this.GetDiagnosticsMessageForTracing()}"
                 : GetErrorString();
         }
 

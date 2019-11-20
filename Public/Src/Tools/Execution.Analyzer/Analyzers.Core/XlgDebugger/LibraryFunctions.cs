@@ -1,4 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+﻿
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -6,7 +7,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BuildXL.Execution.Analyzer.JPath;
+
+using IEnum = System.Collections.IEnumerable;
 using static BuildXL.Execution.Analyzer.JPath.Evaluator;
+using BuildXL.FrontEnd.Script.Debugger;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -15,16 +19,17 @@ namespace BuildXL.Execution.Analyzer
         public static readonly Function SaveFunction = new Function(name: "save", minArity: 2, func: Save);
         public static readonly Function AppendFunction = new Function(name: "append", minArity: 2, func: Append);
 
-        public static readonly IReadOnlyList<Function> All = new List<Function>
+        public static IReadOnlyList<Function> All { get; } = new List<Function>
         {
              new Function(name: "sum",    minArity: 1, func: Sum),
+             new Function(name: "avg",    minArity: 1, func: Avg),
              new Function(name: "cut",    minArity: 1, func: Cut),
              new Function(name: "count",  minArity: 1, func: Count),
              new Function(name: "uniq",   minArity: 1, func: Uniq),
              new Function(name: "sort",   minArity: 1, func: Sort),
              new Function(name: "join",   minArity: 1, func: Join),
              new Function(name: "grep",   minArity: 2, func: Grep),
-             new Function(name: "strcat", minArity: 1, func: StrCat),
+             new Function(name: "str",    minArity: 1, func: StrCat),
              new Function(name: "head",   minArity: 1, func: Head),
              new Function(name: "tail",   minArity: 1, func: Tail),
              new Function(name: "toJson", minArity: 1, func: ToJson),
@@ -39,6 +44,14 @@ namespace BuildXL.Execution.Analyzer
                 .Flatten()
                 .Select(obj => args.ToNumber(obj))
                 .Sum();
+        }
+
+        private static Result Avg(Evaluator.Args args)
+        {
+            return (long)args
+                .Flatten()
+                .Select(obj => args.ToNumber(obj))
+                .Average();
         }
 
         private static Result Cut(Evaluator.Args args)
@@ -72,12 +85,30 @@ namespace BuildXL.Execution.Analyzer
 
         private static Result Uniq(Evaluator.Args args)
         {
-            var groups = args.Flatten().GroupBy(obj => args.Preview(obj));
+            var fieldToGroupBy = args.GetStrSwitch("k", null);
+            Func<object, object> keySelector = o => o;
+            if (!string.IsNullOrEmpty(fieldToGroupBy))
+            {
+                keySelector = o => args.Eval.Resolve(o).Properties.FirstOrDefault(p => p.Name == fieldToGroupBy)?.Value;
+            }
+
+            var aa = args.Flatten();
+            var groups = aa.GroupBy(obj => args.Preview(keySelector(obj)));
 
             if (args.HasSwitch("c")) // count objects in each group
             {
                 return groups
-                    .Select(grp => $"{grp.Count()}\t{args.Preview(grp.First())}")
+                    .Select(grp =>
+                    {
+                        return new ObjectInfo(
+                            preview: $"{grp.Count()}: {grp.Key}",
+                            properties: new[]
+                            {
+                                new Property(name: "Key", value: grp.Key),
+                                new Property(name: "Count", value: grp.Count()),
+                                new Property(name: "Elems", value: grp.ToArray())
+                            });
+                    })
                     .ToArray();
             }
             else
@@ -92,9 +123,18 @@ namespace BuildXL.Execution.Analyzer
         {
             var objs = args.Flatten();
 
-            var ordered = args.HasSwitch("n") // numeric sorting (otherwise string sorting)
-                ? objs.OrderBy(args.ToNumber)
-                : objs.OrderBy(args.Preview);
+            var fieldToSortBy = args.GetStrSwitch("k", null);
+            Func<object, object> keySelector = o => o;
+            if (!string.IsNullOrEmpty(fieldToSortBy))
+            {
+                keySelector = o => args.Eval.Resolve(o).Properties.FirstOrDefault(p => p.Name == fieldToSortBy)?.Value;
+            }
+
+            IComparer<object> comparer = args.HasSwitch("n") 
+                ? Comparer<object>.Create((lhs, rhs) => Comparer<long?>.Default.Compare(args.Eval.TryToNumber(lhs), args.Eval.TryToNumber(rhs)))
+                : Comparer<object>.Create((lhs, rhs) => Comparer<string>.Default.Compare(args.Preview(lhs), args.Preview(rhs)));
+
+            var ordered = objs.OrderBy(keySelector, comparer);
 
             var finalOrder = args.HasSwitch("r") // reverse
                 ? ordered.Reverse()
@@ -154,12 +194,17 @@ namespace BuildXL.Execution.Analyzer
                 .Select(o => o.Properties.ToDictionary(p => p.Name, p => extractValue(p.Value)))
                 .ToArray();
 
-            static object extractValue(object val)
+            object extractValue(object val)
             {
                 return val switch
                 {
-                    Result r => r.IsScalar ? r.Value.First() : r.Value.ToArray(),
-                    _        => val,
+                    Result r   => r.IsScalar ? extractValue(r.Value.First()) : r.Value.Select(extractValue).ToArray(),
+                    int i      => i,
+                    long l     => l,
+                    uint ui    => ui,
+                    string str => str,
+                    IEnum col  => col.Cast<object>().Select(extractValue).ToArray(),
+                    _          => args.Preview(val),
                 };
             }
         }
@@ -168,10 +213,22 @@ namespace BuildXL.Execution.Analyzer
         {
             var pattern = args[0];
             var flip = args.HasSwitch("v");
+            var printMatchOnly = args.HasSwitch("o");
+            var groupName = args.GetStrSwitch("g", defaultValue: "0");
             return args
                 .Skip(1)
                 .SelectMany(result => result)
-                .Where(obj => flip ^ args.Matches(args.Preview(obj), pattern))
+                .Select(obj => 
+                {
+                    var str = args.Preview(obj);
+                    var match = args.Eval.Match(str, pattern, groupName);
+                    var matches = !string.IsNullOrEmpty(match);
+                    var shouldInclude = flip ^ matches;
+                    return shouldInclude
+                        ? (flip || !printMatchOnly) ? str : match
+                        : null;
+                })
+                .Where(str => str != null)
                 .ToArray();
         }
 

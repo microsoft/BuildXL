@@ -610,6 +610,16 @@ namespace BuildXL.Native.IO.Windows
             int* lpNumberOfBytesWritten,
             Overlapped* lpOverlapped);
 
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [SuppressMessage("Microsoft.Interoperability", "CA1415:DeclarePInvokesCorrectly", Justification = "Overlapped intentionally redefined.")]
+        public static extern unsafe bool WriteFile(
+            SafeFileHandle handle, 
+            byte[] buffer, 
+            int numBytesToWrite, 
+            out int numBytesWritten, 
+            NativeOverlapped* lpOverlapped);
+
         [SuppressMessage("Microsoft.Globalization", "CA2101:SpecifyMarshalingForPInvokeStringArguments", MessageId = "OsVersionInfoEx.CSDVersion",
             Justification = "This appears impossible to satisfy.")]
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false, ThrowOnUnmappableChar = true)]
@@ -3598,13 +3608,17 @@ namespace BuildXL.Native.IO.Windows
         /// <summary>
         /// Moves file to a new location.
         /// </summary>
-        public bool MoveFile(string existingFileName, string newFileName, bool replaceExisting)
+        public void MoveFile(string existingFileName, string newFileName, bool replaceExisting)
         {
             existingFileName = ToLongPathIfExceedMaxPath(existingFileName);
             newFileName = ToLongPathIfExceedMaxPath(newFileName);
             MoveFileFlags moveFlags = replaceExisting ? MoveFileFlags.MOVEFILE_REPLACE_EXISTING : MoveFileFlags.MOVEFILE_COPY_ALLOWED;
 
-            return MoveFileEx(existingFileName, newFileName, moveFlags);
+            if  (!MoveFileEx(existingFileName, newFileName, moveFlags))
+            {
+                int hr = Marshal.GetLastWin32Error();
+                ThrowForNativeFailure(hr, nameof(MoveFileEx), nameof(MoveFile));
+            }
         }
 
         /// <summary>
@@ -4060,6 +4074,21 @@ namespace BuildXL.Native.IO.Windows
 
                 return maybeResolveFinalRelative;
             }
+        }
+
+        public bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
+        {
+            bool result;
+            
+            unsafe
+            {
+                // By passing null to the overlapped argument we are indicating a synchronous write
+                result = WriteFile(handle, content, content.Length, out _, lpOverlapped: null);
+            }
+
+            nativeErrorCode = Marshal.GetLastWin32Error();
+
+            return result;
         }
     }
 }

@@ -78,7 +78,11 @@ namespace Test.BuildXL.EngineTests
             RunEngine();
 
             var outputDirectoryPath = Configuration.Layout.OutputDirectory.ToString(Context.PathTable);
-            XAssert.IsTrue(File.Exists(Path.Combine(outputDirectoryPath, "vs", "src", "src.sln")));
+            XAssert.IsTrue(File.Exists(Path.Combine(
+                outputDirectoryPath, 
+                "vs",
+                Configuration.Ide.IsNewEnabled ? "srcNew" : "src",
+                Configuration.Ide.IsNewEnabled ? "srcNew.sln" : "src.sln")));
         }
 
         [Fact]
@@ -589,7 +593,7 @@ namespace Test.BuildXL.EngineTests
             // Although, the environment variable is no longer access, it is still used on
             // following the chain of cache look-ups. Thus, we will expect graph cache miss. 
             // This limitation is expected in graph caching algorithm, and is considered rare.
-            Configuration.Startup.Properties[EnvVarName] = "MyEnvValue-Modfified";
+            Configuration.Startup.Properties[EnvVarName] = "MyEnvValue-Modified";
 
             RunEngine("Forth build -- with modified value of unused environment variable");
 
@@ -597,6 +601,54 @@ namespace Test.BuildXL.EngineTests
             AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
 
             DeleteEngineCache();
+        }
+
+        [Fact]
+        public void MiniBuildPathologicalGraphCacheWithEnvironmentVariable()
+        {
+            const string MountName = "MyMountTest";
+            const string EnvVarName = "MyEnvTest";
+            const string ModuleName = nameof(MiniBuildPathologicalGraphCacheWithEnvironmentVariable);
+            const string EnvVarValuePrefix = "MyEnvValue-Time-";
+
+            var mountPath = Path.Combine(Configuration.Layout.SourceDirectory.ToString(Context.PathTable), "Src");
+
+            // Setup cache
+            ConfigureInMemoryCache(new TestCache());
+
+            SetConfigForPipsWithMountAndEnvironmentAccess(MountName, mountPath, ModuleName);
+
+            // Spec accesses environment variable.
+            SetupPipsWithOrWithoutEnvironmentAccess(ModuleName, EnvVarName, accessEnvironmentVariable: true);
+
+            var envVarValue = EnvVarValuePrefix + "1";
+            Configuration.Cache.CacheGraph = true;
+            Configuration.Cache.AllowFetchingCachedGraphFromContentCache = true;
+            Configuration.Cache.Incremental = true;
+            Configuration.Startup.Properties.Add(EnvVarName, envVarValue);
+
+            RunEngine($"First build accessing '{EnvVarName}' with '{EnvVarName}'='{envVarValue}'");
+
+            AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+            AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+
+            DeleteEngineCache();
+
+            // Spec no longer accesses environment variable.
+            SetupPipsWithOrWithoutEnvironmentAccess(ModuleName, EnvVarName, accessEnvironmentVariable: false);
+
+            for (int i = 2; i <= 4; ++i)
+            {
+                envVarValue = EnvVarValuePrefix + i.ToString(); // simulate environment variable that keeps changing, like log folder.
+                Configuration.Startup.Properties[EnvVarName] = envVarValue;
+
+                RunEngine($"Build {i} not accessing '{EnvVarName}' with '{EnvVarName}'='{envVarValue}'");
+
+                AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues);
+                AssertInformationalEventLogged(LogEventId.EndSerializingPipGraph);
+
+                DeleteEngineCache();
+            }
         }
 
         [Fact]
@@ -876,7 +928,7 @@ namespace Test.BuildXL.EngineTests
             XAssert.IsNotNull(engineAbstraction.GetChangedFiles());
             XAssert.IsNotNull(engineAbstraction.GetUnchangedFiles());
             XAssert.SetEqual(changedFiles, engineAbstraction.GetChangedFiles());
-            Assert.All(
+            XAssert.All(
                 containsUnchangedFiles,
                 unchangedFile => { XAssert.IsTrue(engineAbstraction.GetUnchangedFiles().Contains(unchangedFile)); });
         }

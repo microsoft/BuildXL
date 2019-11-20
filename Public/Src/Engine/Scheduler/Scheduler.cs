@@ -297,6 +297,9 @@ namespace BuildXL.Scheduler
         private int m_maxUnresponsivenessFactor = 0;
         private DateTime m_statusLastCollected = DateTime.MaxValue;
 
+        private PipRetryInfo m_pipRetryInfo = new PipRetryInfo();
+        private PipPropertyInfo m_pipPropertyInfo = new PipPropertyInfo();
+
         /// <summary>
         /// Enables distribution for the master node
         /// </summary>
@@ -824,9 +827,9 @@ namespace BuildXL.Scheduler
 
         #region Statistics
 
-        private long m_totalPeakVirtualMemoryUsageMb;
-        private long m_totalPeakWorkingSetMb;
-        private long m_totalPeakPagefileUsageMb;
+        private ulong m_totalPeakVirtualMemoryUsageMb;
+        private ulong m_totalPeakWorkingSetMb;
+        private ulong m_totalPeakCommitUsageMb;
 
         private readonly object m_statusLock = new object();
 
@@ -976,7 +979,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether a low memory perf smell was reached
         /// </summary>
-        private bool m_hitLowMemoryPerfSmell;
+        private volatile bool m_hitLowMemoryPerfSmell;
 
         #endregion Statistics
 
@@ -1063,7 +1066,8 @@ namespace BuildXL.Scheduler
                 extraFingerprintSalts,
                 m_semanticPathExpander,
                 PipGraph.QueryFileArtifactPipData,
-                process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process));
+                process => m_fileContentManager.SourceChangeAffectedInputs.GetChangeAffectedInputs(process),
+                pipId => PipGraph.TryGetPipFingerprint(pipId, out var fingerprint) ? fingerprint.Hash : default);
             m_runningTimeTableTask = runningTimeTable;
 
             // Prepare Root Map redirection table. see m_rootMappings comment on why this is happening here.
@@ -1414,13 +1418,18 @@ namespace BuildXL.Scheduler
 
         private void EnsureMinimumWorkers(int minimumWorkers)
         {
-            var isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
+            bool isDrainingCompleted = m_drainThread.Join(EngineEnvironmentSettings.WorkerAttachTimeout);
 
-            var availableWorkers = AvailableWorkersCount;
-            if (availableWorkers < minimumWorkers && !isDrainingCompleted)
+            bool anyRemoteWorkerReleased = Workers.Any(a => a.IsEarlyReleaseInitiated);
+            int availableWorkers = AvailableWorkersCount;
+
+            // If any remote worker is released due to insufficient amount of work left, do not attempt to cancel the build
+            // even though minimum workers is not satisfied. 
+            if (availableWorkers < minimumWorkers && !isDrainingCompleted && !anyRemoteWorkerReleased)
             {
                 Logger.Log.MinimumWorkersNotSatisfied(m_executePhaseLoggingContext, minimumWorkers, availableWorkers);
                 m_hasFailures = true;
+                RequestTermination(cancelQueue: false);
             }
         }
 
@@ -1651,6 +1660,9 @@ namespace BuildXL.Scheduler
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
 
+            m_pipPropertyInfo.LogPipPropertyInfo(loggingContext);
+            m_pipRetryInfo.LogPipRetryInfo(loggingContext, PipExecutionCounters);
+
             m_apiServer?.LogStats(loggingContext);
             m_dropPipTracker?.LogStats(loggingContext);
 
@@ -1724,9 +1736,9 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
-            statistics.Add("TotalPeakMemoryUsage", m_totalPeakVirtualMemoryUsageMb);
-            statistics.Add("TotalPeakWorkingSet", m_totalPeakWorkingSetMb);
-            statistics.Add("TotalPeakPagefileUsage", m_totalPeakPagefileUsageMb);
+            statistics.Add("TotalPeakMemoryUsageMb", (long)m_totalPeakVirtualMemoryUsageMb);
+            statistics.Add("TotalPeakWorkingSetMb", (long)m_totalPeakWorkingSetMb);
+            statistics.Add("TotalPeakCommitUsageMb", (long)m_totalPeakCommitUsageMb);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
 
@@ -1781,11 +1793,12 @@ namespace BuildXL.Scheduler
             return new StatusRows()
             {
                 { "Cpu Percent", data => data.CpuPercent },
-                { "Mem Percent", data => data.RamPercent },
-                { "Used Mem MB", data => data.MachineRamUtilizationMB },
-                { "Free Mem MB", data => data.MachineAvailableRamMB },
+                { "Ram Percent", data => data.RamPercent },
+                { "Used Ram Mb", data => data.RamUsedMb },
+                { "Free Ram Mb", data => data.RamFreeMb },
                 { "Commit Percent", data => data.CommitPercent },
-                { "Commit MB", data => data.CommitTotalMB },
+                { "Used Commit Mb", data => data.CommitUsedMb },
+                { "Free Commit Mb", data => data.CommitFreeMb },
                 { "NetworkBandwidth", data => m_perfInfo.MachineBandwidth },
                 { "MachineKbitsPerSecSent", data => (long)m_perfInfo.MachineKbitsPerSecSent },
                 { "MachineKbitsPerSecReceived", data => (long)m_perfInfo.MachineKbitsPerSecReceived },
@@ -1818,7 +1831,8 @@ namespace BuildXL.Scheduler
                     }
                 },
                 { "LimitingResource", data => data.LimitingResource },
-                { "External Processes", data => data.ExternalProcesses },
+                { "Running PipExecutor Processes", data => data.RunningPipExecutorProcesses },
+                { "Running Processes", data => data.RunningProcesses },
                 { "PipTable.ReadCount", data => m_pipTable.Reads },
                 { "PipTable.ReadDurationMs", data => m_pipTable.ReadsMilliseconds },
                 { "PipTable.WriteCount", data => m_pipTable.Writes },
@@ -1867,11 +1881,12 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total RAM Mb"), _ => worker.TotalMemoryMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Estimated Free RAM Mb"), _ => worker.EstimatedAvailableRamMb, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Free RAM Mb"), _ => worker.ActualAvailableMemoryMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Commit Total Mb"), _ => worker.ActualCommitTotalMB ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Commit Percent"), _ => worker.ActualCommitPercent ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Estimated Free Ram Mb"), _ => worker.EstimatedFreeRamMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Free Ram Mb"), _ => worker.ActualFreeMemoryMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Total Commit Mb"), _ => worker.TotalCommitMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Estimated Free Commit Mb"), _ => worker.EstimatedFreeCommitMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Actual Free Commit Mb"), _ => worker.ActualFreeCommitMb ?? 0, includeInSnapshot: false);
 
                         rows.Add(I($"W{worker.WorkerId} Status"), _ => worker.Status, includeInSnapshot: false);
 
@@ -1937,7 +1952,7 @@ namespace BuildXL.Scheduler
                 ExecutionSampler.LimitingResource limitingResource = ExecutionSampler.LimitingResource.Other;
                 if (m_performanceAggregator != null)
                 {
-                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.CurrentlyExecutingPips.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
+                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.RunningPipExecutorProcesses.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
                 }
 
                 m_processStateCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_processPipTypesToLogStats);
@@ -1958,8 +1973,6 @@ namespace BuildXL.Scheduler
 
                 m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: true) ?? default(PerformanceCollector.MachinePerfInfo);
                 UpdateResourceAvailability(m_perfInfo);
-
-                var resourceManager = State.ResourceManager;
 
                 // Of the pips in choose worker, how many could be executing on the the local worker but are not due to
                 // resource constraints
@@ -2007,7 +2020,7 @@ namespace BuildXL.Scheduler
                     servicePipsRunning: m_serviceManager.RunningServicesCount,
                     perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                     pipsWaitingOnResources: pipsWaitingOnResources,
-                    procsExecuting: LocalWorker.CurrentlyExecutingPips.Count,
+                    procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
                     procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
                     procsFailed: m_processStateCountersSnapshot[PipState.Failed],
                     procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],
@@ -2016,7 +2029,7 @@ namespace BuildXL.Scheduler
                     // is on or not. Pending is an intentionally invented state since it doesn't correspond to a real state
                     // in the scheduler. It is basically meant to be a bucket of things that could be run if more parallelism
                     // were available. This technically isn't true because cache lookups fall in there as well, but it's close enough.
-                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.CurrentlyExecutingPips.Count,
+                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.RunningPipExecutorProcesses.Count,
                     procsWaiting: m_processStateCountersSnapshot[PipState.Waiting],
                     procsCacheHit: m_numProcessPipsSatisfiedFromCache,
                     procsNotIgnored: m_processStateCountersSnapshot.Total - m_processStateCountersSnapshot.IgnoredCount,
@@ -2044,10 +2057,11 @@ namespace BuildXL.Scheduler
                     ProcessCpuPercent = m_perfInfo.ProcessCpuPercentage,
                     ProcessWorkingSetMB = m_perfInfo.ProcessWorkingSetMB,
                     RamPercent = m_perfInfo.RamUsagePercentage ?? 0,
-                    MachineRamUtilizationMB = (m_perfInfo.TotalRamMb.HasValue && m_perfInfo.AvailableRamMb.HasValue) ? m_perfInfo.TotalRamMb.Value - m_perfInfo.AvailableRamMb.Value : 0,
-                    MachineAvailableRamMB = m_perfInfo.AvailableRamMb ?? 0,
+                    RamUsedMb = (m_perfInfo.TotalRamMb.HasValue && m_perfInfo.AvailableRamMb.HasValue) ? m_perfInfo.TotalRamMb.Value - m_perfInfo.AvailableRamMb.Value : 0,
+                    RamFreeMb = m_perfInfo.AvailableRamMb ?? 0,
                     CommitPercent = m_perfInfo.CommitUsagePercentage ?? 0,
-                    CommitTotalMB = m_perfInfo.CommitTotalMb ?? 0,
+                    CommitUsedMb = m_perfInfo.CommitUsedMb ?? 0,
+                    CommitFreeMb = (m_perfInfo.CommitLimitMb.HasValue && m_perfInfo.CommitUsedMb.HasValue) ? m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value : 0,
                     CpuWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CPU),
                     CpuRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CPU),
                     IoCurrentMax = m_pipQueue.GetMaxParallelDegreeByKind(DispatcherKind.IO),
@@ -2055,7 +2069,8 @@ namespace BuildXL.Scheduler
                     IoRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.IO),
                     LookupWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CacheLookup),
                     LookupRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CacheLookup),
-                    ExternalProcesses = LocalWorker.CurrentlyExecutingPips.Count,
+                    RunningPipExecutorProcesses = LocalWorker.RunningPipExecutorProcesses.Count,
+                    RunningProcesses = LocalWorker.RunningProcesses,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
                     ProcessPipsPending = numProcessPipsPending,
@@ -2145,10 +2160,23 @@ namespace BuildXL.Scheduler
         private void UpdateResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo)
         {
             var resourceManager = State.ResourceManager;
+            resourceManager.UpdateRamUsageForResourceScopes();
 
-            if (LocalWorker.TotalMemoryMb == null)
+            if (LocalWorker.TotalRamMb == null)
             {
-                LocalWorker.TotalMemoryMb = m_perfInfo.AvailableRamMb;
+                LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb;
+            }
+
+            if (LocalWorker.TotalCommitMb == null && m_perfInfo.CommitLimitMb.HasValue && m_perfInfo.CommitUsedMb.HasValue)
+            {
+                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb - m_perfInfo.CommitUsedMb;
+            }
+
+            if (LocalWorker.TotalCommitMb == null && OperatingSystemHelper.IsUnixOS)
+            {
+                // Commit(pagefile) is called as swapfile in MacOS; but we do not track of swap file usage there. 
+                // That's why, we set it to very high number instead of inserting Windows specific code in the throttling logic.
+                LocalWorker.TotalCommitMb = int.MaxValue;
             }
 
             bool resourceAvailable = true;
@@ -2168,15 +2196,28 @@ namespace BuildXL.Scheduler
                     m_hitLowMemoryPerfSmell = true;
                     // Log the perf smell at the time that it happens since the machine is likely going to get very
                     // bogged down and we want to make sure this gets sent to telemetry before the build is killed.
-                    Logger.Log.LowMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value);
+                    Logger.Log.LowRamMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value, perfInfo.RamUsagePercentage.Value);
                 }
             }
 
-#if PLATFORM_OSX
-            Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
-            var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
-            resourceAvailable &= !(result && (pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel));
-#endif
+            if (perfInfo.CommitUsagePercentage != null)
+            {
+                int availableCommit = m_perfInfo.CommitLimitMb.Value - m_perfInfo.CommitUsedMb.Value;
+
+                // Use the same limits as the physical ram.
+                bool exceededMaxCommitUtilizationPercentage = perfInfo.CommitUsagePercentage.Value > m_configuration.Schedule.MaximumRamUtilizationPercentage;
+                bool underMinimumAvailableCommit = availableCommit < m_configuration.Schedule.MinimumTotalAvailableRamMb;
+
+                // We will go ahead to cancel pips for physical ram as process using the higher ram will also use the higher commit memory.
+                // There is no specific cancellation for high commit usage.
+                resourceAvailable = !(exceededMaxCommitUtilizationPercentage && underMinimumAvailableCommit);
+
+                if (!m_hitLowMemoryPerfSmell && (availableCommit < 100 || perfInfo.CommitUsagePercentage.Value > 98))
+                {
+                    m_hitLowMemoryPerfSmell = true;
+                    Logger.Log.LowCommitMemory(m_executePhaseLoggingContext, availableCommit, perfInfo.CommitUsagePercentage.Value);
+                }
+            }
 
             if (!resourceAvailable)
             {
@@ -2200,7 +2241,30 @@ namespace BuildXL.Scheduler
                     }
                 }
 
+#if PLATFORM_OSX
+                Memory.PressureLevel pressureLevel = Memory.PressureLevel.Normal;
+                var result = Memory.GetMemoryPressureLevel(ref pressureLevel) == Dispatch.MACOS_INTEROP_SUCCESS;
+                var startCancellingPips = false;
+
+                if (result)
+                {
+                    // If the memory pressure level is above the configured level we start canceling pips to avoid Jetsam to kill our process
+                    startCancellingPips = pressureLevel > m_configuration.Schedule.MaximumAllowedMemoryPressureLevel;
+                }
+                else
+                {
+                    Logger.Log.UnableToGetMemoryPressureLevel(
+                            m_executePhaseLoggingContext,
+                            availableRam: perfInfo.AvailableRamMb.Value,
+                            minimumAvailableRam: m_configuration.Schedule.MinimumTotalAvailableRamMb,
+                            ramUtilization: perfInfo.RamUsagePercentage.Value,
+                            maximumRamUtilization: m_configuration.Schedule.MaximumRamUtilizationPercentage);
+                }
+
+                if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion && startCancellingPips)
+#else
                 if (!m_scheduleConfiguration.DisableProcessRetryOnResourceExhaustion)
+#endif
                 {
                     // Free down to the specified max RAM utilization percentage with 10% slack
                     var desiredRamToFreePercentage = (perfInfo.RamUsagePercentage.Value - m_configuration.Schedule.MaximumRamUtilizationPercentage) + 10;
@@ -2472,14 +2536,14 @@ namespace BuildXL.Scheduler
                                 {
                                     var processPip = (Process)pip;
 
-                                    if (result.DynamicallyObservedFiles.Length > 0 || result.DynamicallyObservedEnumerations.Length > 0 ||
-                                        processPip.DirectoryOutputs.Length > 0)
+                                    if (result.HasDynamicObservations || processPip.DirectoryOutputs.Length > 0)
                                     {
                                         using (runnablePip.OperationContext.StartOperation(PipExecutorCounter.RecordDynamicObservationsDuration))
                                         {
                                             IncrementalSchedulingState.RecordDynamicObservations(
                                                 nodeId,
                                                 result.DynamicallyObservedFiles.Select(path => path.ToString(Context.PathTable)),
+                                                result.DynamicallyProbedFiles.Select(path => path.ToString(Context.PathTable)),
                                                 result.DynamicallyObservedEnumerations.Select(path => path.ToString(Context.PathTable)),
                                                 processPip.DirectoryOutputs.Select(
                                                     d =>
@@ -3581,16 +3645,26 @@ namespace BuildXL.Scheduler
                         if (!processRunnable.Process.IsStartOrShutdownKind && executionResult.PerformanceInformation != null)
                         {
                             var perfInfo = executionResult.PerformanceInformation;
-
-                            m_groupedPipCounters.AddToCounters(
-                                    processRunnable.Process,
+                            try
+                            {
+                                m_groupedPipCounters.AddToCounters(processRunnable.Process,
                                     new[]
                                     {
-                                        (PipCountersByGroup.IOReadBytes, (long)perfInfo.IO.ReadCounters.TransferCount),
-                                        (PipCountersByGroup.IOWriteBytes, (long)perfInfo.IO.WriteCounters.TransferCount)
+                                        (PipCountersByGroup.IOReadBytes,  (long) perfInfo.IO.ReadCounters.TransferCount),
+                                        (PipCountersByGroup.IOWriteBytes, (long) perfInfo.IO.WriteCounters.TransferCount)
                                     },
                                     new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
                                 );
+                            }
+                            catch (OverflowException ex)
+                            {
+                                Logger.Log.ExecutePipStepOverflowFailure(operationContext, ex.Message);
+
+                                m_groupedPipCounters.AddToCounters(processRunnable.Process,
+                                    new[] { (PipCountersByGroup.IOReadBytes, 0L), (PipCountersByGroup.IOWriteBytes, 0L) },
+                                    new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
+                                );
+                            }
                         }
 
                         // The pip was canceled
@@ -3608,14 +3682,18 @@ namespace BuildXL.Scheduler
                             }
 
                             // Use the max of the observed peak memory and the worker's expected RAM usage for the pip
-                            var expectedRamUsageMb = Math.Max(
-                                    worker.GetExpectedRamUsageMb(processRunnable),
-                                    Math.Max(1, executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0));
-
-                            processRunnable.ExpectedRamUsageMb = expectedRamUsageMb;
+                            var expectedCounters = worker.GetExpectedMemoryCounters(processRunnable);
+                            var actualCounters = executionResult.PerformanceInformation?.MemoryCounters;
+                            processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
+                                peakVirtualMemoryUsageMb: Math.Max(expectedCounters.PeakVirtualMemoryUsageMb, actualCounters?.PeakVirtualMemoryUsageMb ?? 0),
+                                peakWorkingSetMb: Math.Max(expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0),
+                                peakCommitUsageMb: Math.Max(expectedCounters.PeakCommitUsageMb, actualCounters?.PeakCommitUsageMb ?? 0));
 
                             return PipExecutionStep.ChooseWorkerCpu;
                         }
+
+                        m_pipPropertyInfo.UpdatePipPropertyInfo(processRunnable, executionResult);
+                        m_pipRetryInfo.UpdatePipRetryInfo(processRunnable, executionResult, PipExecutionCounters);
 
                         if (runnablePip.Worker?.IsRemote == true)
                         {
@@ -3647,7 +3725,9 @@ namespace BuildXL.Scheduler
                         // Make sure all shared outputs are flagged as such.
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
+                        var start = DateTime.UtcNow;
                         var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Flagging shared opaque outputs", DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3659,31 +3739,40 @@ namespace BuildXL.Scheduler
 
                         if (!IsDistributedWorker)
                         {
-                            var expectedRamUsage = worker.GetExpectedRamUsageMb((ProcessRunnablePip)runnablePip);
+                            var expectedMemoryCounters = worker.GetExpectedMemoryCounters((ProcessRunnablePip)runnablePip);
 
                             int peakVirtualMemoryUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakVirtualMemoryUsageMb ?? 0;
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
-                            int peakPagefileUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakPagefileUsageMb ?? 0;
+                            int peakCommitUsageMb = executionResult.PerformanceInformation?.MemoryCounters.PeakCommitUsageMb ?? 0;
 
-                            Logger.Log.ProcessPipExecutionInfo(
-                                operationContext, 
-                                runnablePip.Description,
-                                (int)(executionResult.PerformanceInformation?.NumberOfProcesses ?? 0),
-                                (int)((processRunnable.ExpectedDurationMs ?? 0) / 1000),
-                                (int)(executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0),
-                                executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
-                                worker.DefaultMemoryUsagePerProcess, 
-                                expectedRamUsage,
-                                peakVirtualMemoryUsageMb,
-                                peakWorkingSetMb,
-                                peakPagefileUsageMb);
+                            try
+                            {
+                                Logger.Log.ProcessPipExecutionInfo(
+                                    operationContext,
+                                    runnablePip.Description,
+                                    executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
+                                    (processRunnable.ExpectedDurationMs ?? 0) / 1000,
+                                    executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
+                                    executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
+                                    worker.DefaultMemoryUsageMbPerProcess,
+                                    expectedMemoryCounters.PeakWorkingSetMb,
+                                    peakVirtualMemoryUsageMb,
+                                    peakWorkingSetMb,
+                                    expectedMemoryCounters.PeakCommitUsageMb,
+                                    peakCommitUsageMb);
 
-                            m_totalPeakVirtualMemoryUsageMb += peakVirtualMemoryUsageMb;
-                            m_totalPeakWorkingSetMb += peakWorkingSetMb;
-                            m_totalPeakPagefileUsageMb += peakPagefileUsageMb;
+                                m_totalPeakVirtualMemoryUsageMb += (ulong)peakVirtualMemoryUsageMb;
+                                m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
+                                m_totalPeakCommitUsageMb += (ulong)peakCommitUsageMb;
+                            }
+                            catch (OverflowException ex)
+                            {
+                                Logger.Log.ExecutePipStepOverflowFailure(operationContext, ex.Message);
+                            }
 
                             // File violation analysis needs to happen on the master as it relies on
                             // graph-wide data such as detecting duplicate
+                            start = DateTime.UtcNow;
                             executionResult = PipExecutor.AnalyzeFileAccessViolations(
                                 operationContext,
                                 environment,
@@ -3692,6 +3781,7 @@ namespace BuildXL.Scheduler
                                 processRunnable.Process,
                                 out pipIsSafeToCache,
                                 out allowedSameContentDoubleWriteViolations);
+                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing file access violations", DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3724,6 +3814,7 @@ namespace BuildXL.Scheduler
                                 // On convergence, delete shared opaque outputs
                                 ScrubSharedOpaqueOutputs(sharedOpaqueOutputs);
 
+                                start = DateTime.UtcNow;
                                 executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
                                    operationContext,
                                    environment,
@@ -3731,8 +3822,9 @@ namespace BuildXL.Scheduler
                                    executionResult,
                                    processRunnable.Process,
                                    allowedSameContentDoubleWriteViolations);
+                                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing double writes", DateTime.UtcNow.Subtract(start));
 
-                                processRunnable.SetExecutionResult(executionResult);
+                            processRunnable.SetExecutionResult(executionResult);
 
                                 if (executionResult.Result.IndicatesFailure())
                                 {
@@ -3746,12 +3838,14 @@ namespace BuildXL.Scheduler
 
                         // Output content is reported here to ensure that it happens both on worker executing PostProcess and
                         // master which called worker to execute post process.
+                        start = DateTime.UtcNow;
                         PipExecutor.ReportExecutionResultOutputContent(
                             operationContext,
                             environment,
                             processRunnable.Description,
                             executionResult,
                             processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Reporting output content", DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
 
                         return processRunnable.SetPipResult(executionResult);
                     }
@@ -4193,11 +4287,7 @@ namespace BuildXL.Scheduler
                 if (runnableProcess != null)
                 {
                     var perfData = RunningTimeTable[runnableProcess.Process.SemiStableHash];
-                    if (runnableProcess.ExpectedRamUsageMb == null && perfData.PeakMemoryInKB != 0)
-                    {
-                        runnableProcess.ExpectedRamUsageMb = (int)(perfData.PeakMemoryInKB / 1024);
-                    }
-
+                    runnableProcess.ExpectedMemoryCounters = runnableProcess.ExpectedMemoryCounters ?? perfData.MemoryCounters;
                     runnableProcess.ExpectedDurationMs = perfData.DurationInMs;
                 }
 
@@ -4295,7 +4385,7 @@ namespace BuildXL.Scheduler
                 $"UTC {worker.WorkerEarlyReleasedTime.Value.ToLongTimeString()} ({(DateTime.UtcNow - worker.WorkerEarlyReleasedTime.Value).TotalMinutes.ToString("0.0")} minutes ago)" :
                 "N/A";
 
-            return $"{producer.FormattedSemiStableHash} {step} on Worker#{workerId} ({m_workers[(int)workerId].Status} - WhenReleased: {whenWorkerReleased})";
+            return $"{producer.FormattedSemiStableHash} {step} on Worker #{workerId} - {worker.Name} ({worker.Status} - WhenReleased: {whenWorkerReleased})";
         }
 
         /// <inheritdoc />
@@ -5232,7 +5322,6 @@ namespace BuildXL.Scheduler
         private void PrioritizeAndSchedule(LoggingContext loggingContext, IEnumerable<NodeId> nodes)
         {
             var readyNodes = new List<NodeId>();
-
             using (PerformanceMeasurement.Start(
                 loggingContext,
                 "AssigningPriorities",
@@ -6215,7 +6304,7 @@ namespace BuildXL.Scheduler
             {
                 if (!m_isDisposed)
                 {
-                    foreach (var item in LocalWorker.CurrentlyExecutingPips)
+                    foreach (var item in LocalWorker.RunningPipExecutorProcesses)
                     {
                         yield return new PipReference(m_pipTable, item.Key, PipQueryContext.PipGraphRetrievePipsByStateOfType);
                     }

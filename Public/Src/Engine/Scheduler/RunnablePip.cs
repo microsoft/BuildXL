@@ -489,7 +489,7 @@ namespace BuildXL.Scheduler
                             ioCounters: default(IOCounters),
                             userTime: TimeSpan.Zero,
                             kernelTime: TimeSpan.Zero,
-                            memoryCounters: new ProcessMemoryCounters(0, 0, 0),
+                            memoryCounters: ProcessMemoryCounters.CreateFromMb(0, 0, 0),
                             numberOfProcesses: 0,
                             workerId: 0);
                 }
@@ -504,6 +504,7 @@ namespace BuildXL.Scheduler
                 perf,
                 result.MustBeConsideredPerpetuallyDirty,
                 result.DynamicallyObservedFiles,
+                result.DynamicallyProbedFiles,
                 result.DynamicallyObservedEnumerations);
         }
 

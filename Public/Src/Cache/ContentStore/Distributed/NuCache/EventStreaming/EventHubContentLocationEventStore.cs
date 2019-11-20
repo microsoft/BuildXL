@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -164,8 +165,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
                 eventDatas = SerializeEventData(context, events);
             }
 
-            var operationId = Guid.NewGuid();
-            context = context.CreateNested(operationId);
+            var operationId = context.TracingContext.Id;
 
             for (var eventNumber = 0; eventNumber < eventDatas.Count; eventNumber++)
             {
@@ -372,14 +372,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
             }
         }
 
-        private static OperationContext CreateNestedContext(OperationContext context, string? operationId)
+        private static OperationContext CreateNestedContext(OperationContext context, string? operationId, [CallerMemberName]string? caller = null)
         {
             if (!Guid.TryParse(operationId, out var guid))
             {
                 guid = Guid.NewGuid();
             }
 
-            return context.CreateNested(guid);
+            return context.CreateNested(guid, caller);
         }
 
         /// <inheritdoc />

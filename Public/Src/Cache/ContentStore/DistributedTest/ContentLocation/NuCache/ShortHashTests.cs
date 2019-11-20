@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using FluentAssertions;
@@ -19,6 +20,10 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var shortHash = new ShortHash(hash);
 
             hash.ToString().Should().Contain(shortHash.ToString());
+
+            var sb = new StringBuilder();
+            shortHash.ToString(sb);
+            shortHash.ToString().Should().BeEquivalentTo(sb.ToString());
         }
     }
 }

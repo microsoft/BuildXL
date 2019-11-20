@@ -65,7 +65,6 @@ namespace BuildXL.Processes
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess> m_survivingChildProcesses;
         private readonly uint m_timeoutMins;
-        private readonly Action<int> m_processIdListener;
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[] m_allowedSurvivingChildProcessNames;
@@ -126,13 +125,12 @@ namespace BuildXL.Processes
                     info.PipDescription,
                     info.LoggingContext,
                     info.DetoursEventListener,
-                    info.SharedOpaqueOutputLogger) : null;
+                    info.SidebandWriter) : null;
 
             Contract.Assume(inputEncoding != null);
             Contract.Assert(errorEncoding != null);
             Contract.Assert(outputEncoding != null);
-            
-            m_processIdListener = info.ProcessIdListener;
+
             m_detouredProcess =
                 new DetouredProcess(
                     SandboxedProcessInfo.BufferSize,
@@ -153,7 +151,7 @@ namespace BuildXL.Processes
                     info.ContainerConfiguration,
                     // If there is any process configured to breakway from the sandbox, then we need to allow
                     // this to happen at the job object level
-                    setJobBreakawayOk: m_fileAccessManifest.ChildProcessesToBreakawayFromSandbox?.Any() == true);
+                    setJobBreakawayOk: m_fileAccessManifest.ProcessesCanBreakaway);
         }
 
         /// <inheritdoc />
@@ -344,7 +342,6 @@ namespace BuildXL.Processes
             using (m_reportReaderSemaphore.AcquireSemaphore())
             {
                 SafeFileHandle reportHandle;
-
                 try
                 {
                     Pipes.CreateInheritablePipe(
@@ -387,7 +384,6 @@ namespace BuildXL.Processes
                     m_processStarted = true;
 
                     ProcessId = detouredProcess.GetProcessId();
-                    m_processIdListener?.Invoke(ProcessId);
                 }
                 finally
                 {

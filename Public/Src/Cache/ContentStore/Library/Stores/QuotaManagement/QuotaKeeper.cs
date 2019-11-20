@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,8 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Tracing;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Stores
 {
@@ -83,10 +86,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Global long-running task to process all incoming requests.
         /// </summary>
-        private Task _processReserveRequestsTask;
+        private Task? _processReserveRequestsTask;
 
         private readonly DistributedEvictionSettings _distributedEvictionSettings;
-        private Task<PurgeResult> _purgeTask;
+        private static readonly Task<PurgeResult> CompletedPurgeTask = Task.FromResult(new PurgeResult(reserveSize: 0, hashesToPurgeCount: 0, quotaDescription: null));
+
+        private Task<PurgeResult> _purgeTask = CompletedPurgeTask;
         private readonly object _purgeTaskLock = new object();
 
         /// <inheritdoc />
@@ -126,9 +131,9 @@ namespace BuildXL.Cache.ContentStore.Stores
             IContentStoreInternal store,
             QuotaKeeperConfiguration configuration)
         {
-            Contract.Requires(fileSystem != null);
-            Contract.Requires(tracer != null);
-            Contract.Requires(configuration != null);
+            Contract.RequiresNotNull(fileSystem);
+            Contract.RequiresNotNull(tracer);
+            Contract.RequiresNotNull(configuration);
 
             return new QuotaKeeper(fileSystem, tracer, configuration, token, store);
         }
@@ -164,7 +169,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 await _processReserveRequestsTask;
             }
 
-            if (_purgeTask != null)
+            if (!_purgeTask.IsCompleted)
             {
                 context.TraceDebug($"{_tracer.Name}: waiting for purge task.");
                 return await _purgeTask;
@@ -206,20 +211,12 @@ namespace BuildXL.Cache.ContentStore.Stores
 
             async Task<BoolResult> syncCoreAsync()
             {
-                var purgeTask = _purgeTask;
-                if (purgeTask != null)
-                {
-                    await purgeTask.ThrowIfFailure();
-                }
+                await _purgeTask.ThrowIfFailure();
 
                 // Ensure there are no pending requests.
                 await SendSyncRequest(operationContext, purge).ThrowIfFailure();
 
-                purgeTask = _purgeTask;
-                if (purgeTask != null)
-                {
-                    await purgeTask.ThrowIfFailure();
-                }
+                await _purgeTask.ThrowIfFailure();
 
                 return BoolResult.Success;
             }
@@ -373,7 +370,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 });
         }
 
-        private bool ShouldAbortOperation(Context context, string operation, out string reason)
+        private bool ShouldAbortOperation(Context context, string operation, [NotNullWhen(true)]out string? reason)
         {
             reason = null;
 
@@ -408,7 +405,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             }
 
             var reserveQuota = request as ReserveSpaceRequest;
-            Contract.Assert(reserveQuota != null);
+            Contract.AssertNotNull(reserveQuota);
 
             // Here is a reservation logic
             // 1. If above hard limit
@@ -485,7 +482,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return BoolResult.Success;
         }
 
-        private bool IsAboveSoftLimit(long size, out string exceedReason)
+        private bool IsAboveSoftLimit(long size, [NotNullWhen(true)]out string? exceedReason)
         {
             foreach (var rule in _rules)
             {
@@ -501,7 +498,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return false;
         }
 
-        private bool IsAboveHardLimit(long size, out string exceedReason)
+        private bool IsAboveHardLimit(long size, [NotNullWhen(true)]out string? exceedReason)
         {
             foreach (var rule in _rules)
             {
@@ -520,7 +517,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Returns true if the purge process should be stopped.
         /// </summary>
-        internal bool StopPurging(out string stopReason, out IQuotaRule activeRule)
+        internal bool StopPurging([NotNullWhen(true)]out string? stopReason, [NotNullWhen(true)]out IQuotaRule? activeRule)
         {
             activeRule = null;
             var reserveSize = _requestedSize;
@@ -549,11 +546,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private void StartPurgeIfNeeded(Context context, string reason)
         {
-            if (_purgeTask == null)
+            if (_purgeTask.IsCompleted)
             {
                 lock (_purgeTaskLock)
                 {
-                    if (_purgeTask == null)
+                    if (_purgeTask.IsCompleted)
                     {
                         _tracer.Debug(context, $"{Component}: Purge stated because {reason}. Current Size={CurrentSize}");
                         _purgeTask = Task.Run(() => PurgeAsync(context));
@@ -624,7 +621,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                 async () =>
                 {
                     var finalPurgeResult = new PurgeResult();
-                    PurgeResult purgeResult = null;
+                    PurgeResult? purgeResult = null;
 
                     do
                     {
@@ -703,7 +700,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                 if (_evictionQueue.IsEmpty)
                 {
-                    _purgeTask = null;
+                    _purgeTask = CompletedPurgeTask;
                     return false;
                 }
             }

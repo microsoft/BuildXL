@@ -40,7 +40,7 @@ config({
             // but when it fails to download (e.g. from a share) the build is aborted. Consider making the failure non-blocking.
             configuration: {
                 toolUrl: "https://dist.nuget.org/win-x86-commandline/v4.9.4/NuGet.exe",
-                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200",
+                hash: "17E8C8C0CDCCA3A6D1EE49836847148C4623ACEA5E6E36E10B691DA7FDC4C39200"
             },
 
             repositories: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
@@ -80,7 +80,7 @@ config({
                 { id: "System.Diagnostics.DiagnosticSource", version: "4.0.0-beta-23516", alias: "System.Diagnostics.DiagnosticsSource.ForEventHub"},
 
                 // Roslyn
-                { id: "Microsoft.Net.Compilers", version: "3.3.1" },
+                { id: "Microsoft.Net.Compilers", version: "3.3.1" }, // Update Public/Src/Engine/UnitTests/Engine/Test.BuildXL.Engine.dsc if you change the version of Microsoft.Net.Compilers.
                 { id: "Microsoft.NETCore.Compilers", version: "3.3.1" },
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0" },
                 { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0" },
@@ -98,7 +98,7 @@ config({
                 { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
                 { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
-                
+
                 { id: "AsyncFixer", version: "1.1.5" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.1.2" },
                 { id: "RuntimeContracts.Analyzer", version: "0.1.9.4" },
@@ -140,8 +140,8 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.0.19079.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "5.8.0-b20181023.3", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "6.0.1-b20190426.4" },
+                { id: "RocksDbSharp", version: "5.8.0-b20191119.3", alias: "RocksDbSharpSigned" },
+                { id: "RocksDbNative", version: "6.0.1-b20191119.3" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 

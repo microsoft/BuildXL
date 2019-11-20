@@ -154,7 +154,7 @@ namespace BuildXL.Utilities
 
                 double? machineAvailablePhysicalBytes = null;
                 double? machineTotalPhysicalBytes = null;
-                double? commitTotalBytes = null;
+                double? commitUsedBytes = null;
                 double? commitLimitBytes = null;
                 DISK_PERFORMANCE[] diskStats = null;
 
@@ -172,7 +172,7 @@ namespace BuildXL.Utilities
                     PERFORMANCE_INFORMATION performanceInfo = PERFORMANCE_INFORMATION.CreatePerfInfo();
                     if (GetPerformanceInfo(out performanceInfo, performanceInfo.cb))
                     {
-                        commitTotalBytes = performanceInfo.CommitTotal.ToInt64() * performanceInfo.PageSize.ToInt64();
+                        commitUsedBytes = performanceInfo.CommitUsed.ToInt64() * performanceInfo.PageSize.ToInt64();
                         commitLimitBytes = performanceInfo.CommitLimit.ToInt64() * performanceInfo.PageSize.ToInt64();
                     }
 
@@ -215,7 +215,7 @@ namespace BuildXL.Utilities
                             machineCpu: machineCpu,
                             machineTotalPhysicalBytes: machineTotalPhysicalBytes,
                             machineAvailablePhysicalBytes: machineAvailablePhysicalBytes,
-                            commitTotalBytes: commitTotalBytes,
+                            commitUsedBytes: commitUsedBytes,
                             commitLimitBytes: commitLimitBytes,
                             machineBandwidth: m_networkMonitor?.Bandwidth,
                             machineKbitsPerSecSent: machineKbitsPerSecSent,
@@ -530,7 +530,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// Total committed memory in MB. This is not an indication of physical memory usage.
             /// </summary>
-            public int? CommitTotalMb;
+            public int? CommitUsedMb;
 
             /// <summary>
             /// Maximum memory that can be committed in MB. If the page file can be extended, this is a soft limit.
@@ -611,7 +611,7 @@ namespace BuildXL.Utilities
             /// <summary>
             /// The total megabytes of memory current committed by the system
             /// </summary>
-            public readonly Aggregation CommitTotalMB;
+            public readonly Aggregation CommitUsedMB;
 
             /// <summary>
             /// The total megabytes of memory current that can be committed by the system without extending the page
@@ -707,7 +707,7 @@ namespace BuildXL.Utilities
                 MachineAvailablePhysicalMB = new Aggregation();
                 MachineTotalPhysicalMB = new Aggregation();
                 CommitLimitMB = new Aggregation();
-                CommitTotalMB = new Aggregation();
+                CommitUsedMB = new Aggregation();
 
                 MachineBandwidth = new Aggregation();
                 MachineKbitsPerSecSent = new Aggregation();
@@ -764,12 +764,12 @@ namespace BuildXL.Utilities
 
                     if (CommitLimitMB.Latest > 0)
                     {
-                        var commitTotal = SafeConvert.ToInt32(CommitTotalMB.Latest);
+                        var commitUsed = SafeConvert.ToInt32(CommitUsedMB.Latest);
                         var commitLimit = SafeConvert.ToInt32(CommitLimitMB.Latest);
-                        var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitTotal) / commitLimit));
+                        var commitUsagePercentage = SafeConvert.ToInt32(((100.0 * commitUsed) / commitLimit));
 
                         perfInfo.CommitUsagePercentage = commitUsagePercentage;
-                        perfInfo.CommitTotalMb = commitTotal;
+                        perfInfo.CommitUsedMb = commitUsed;
                         perfInfo.CommitLimitMb = commitLimit;
                     }
 
@@ -853,7 +853,7 @@ namespace BuildXL.Utilities
                 double? machineCpu,
                 double? machineAvailablePhysicalBytes,
                 double? machineTotalPhysicalBytes,
-                double? commitTotalBytes,
+                double? commitUsedBytes,
                 double? commitLimitBytes,
                 long? machineBandwidth,
                 double? machineKbitsPerSecSent,
@@ -870,7 +870,7 @@ namespace BuildXL.Utilities
                 MachineCpu.RegisterSample(machineCpu);
                 MachineAvailablePhysicalMB.RegisterSample(BytesToMB(machineAvailablePhysicalBytes));
                 MachineTotalPhysicalMB.RegisterSample(BytesToMB(machineTotalPhysicalBytes));
-                CommitTotalMB.RegisterSample(BytesToMB(commitTotalBytes));
+                CommitUsedMB.RegisterSample(BytesToMB(commitUsedBytes));
                 CommitLimitMB.RegisterSample(BytesToMB(commitLimitBytes));
                 ProcessHeldMB.RegisterSample(BytesToMB(gcHeldBytes));
                 MachineBandwidth.RegisterSample(machineBandwidth);

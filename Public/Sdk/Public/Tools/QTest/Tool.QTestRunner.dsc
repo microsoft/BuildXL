@@ -109,6 +109,18 @@ function validateArguments(args: QTestArguments): void {
 }
 
 /**
+ * Find Flaky Supression file from the .config directory of source code
+ */
+function findFlakyFile(): File {
+    let configDir = d`${Context.getMount("SourceRoot").path}\.config`;
+    let flakyFileName = 'CloudBuild.FlakyTests.json';
+    let flakyFiles = globR(configDir, flakyFileName);
+    if (flakyFiles.length > 0) {
+        return flakyFiles[0];
+    }
+}
+
+/**
  * Evaluate (i.e. schedule) QTest runner with specified arguments.
  */
 @@public
@@ -144,6 +156,9 @@ export function runQTest(args: QTestArguments): Result {
             scrub: true,
         });
     } 
+
+    // If Flaky Suppression file exists in the source code, provide the file path to QTest.
+    let flakyFile = findFlakyFile();
 
     // If no qTestInputs is specified, use the qTestDirToDeploy
     qTestDirToDeploy = qTestDirToDeploy || args.qTestDirToDeploy;
@@ -222,7 +237,8 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--testSourceDir ", args.testSourceDir),
         Cmd.option("--buildSystem ", "BuildXL"),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
-        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile)
+        Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile),
+        Cmd.option("--flakyTestManagementSuppressionFile ", Artifact.input(flakyFile), flakyFile ? true : false),
     ];          
 
     let unsafeOptions = {

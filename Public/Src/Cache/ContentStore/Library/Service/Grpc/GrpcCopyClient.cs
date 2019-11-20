@@ -36,6 +36,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         internal GrpcCopyClientKey Key { get; }
 
+        protected override Func<BoolResult, string> ExtraStartupMessageFactory => _ => Key.ToString();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="GrpcCopyClient" /> class.
         /// </summary>

@@ -36,7 +36,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider)
         {
             var databaseFactory = new RedisDatabaseFactory(provider);
-            await databaseFactory.StartupAsync(context);
+            databaseFactory._connectionMultiplexer = await RedisConnectionMultiplexer.CreateAsync(context, databaseFactory._connectionStringProvider);
             return databaseFactory;
         }
 
@@ -48,14 +48,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
             var databaseFactory = new RedisDatabaseFactory(provider);
             databaseFactory._connectionMultiplexer = connectionMultiplexer;
             return Task.FromResult(databaseFactory);
-        }
-
-        /// <summary>
-        /// Starts up the database factory.
-        /// </summary>
-        private async Task StartupAsync(Context context)
-        {
-            _connectionMultiplexer = await RedisConnectionMultiplexer.CreateAsync(context, _connectionStringProvider);
         }
 
         /// <nodoc />
@@ -77,6 +69,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                     {
                         ConfigurationOptions options = ConfigurationOptions.Parse(_connectionMultiplexer.Configuration);
                         await RedisConnectionMultiplexer.ForgetAsync(options);
+
                         _connectionMultiplexer = await RedisConnectionMultiplexer.CreateAsync(context, _connectionStringProvider);
                         _resetConnectionMultiplexer = false;
                     }

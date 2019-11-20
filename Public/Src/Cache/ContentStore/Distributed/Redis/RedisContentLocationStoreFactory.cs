@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
+using Microsoft.Practices.TransientFaultHandling;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {

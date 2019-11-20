@@ -27,6 +27,13 @@ namespace ContentStoreTest.Distributed.Redis
             { GetKey("second"), "two" },
         };
 
+
+        [Fact]
+        public async Task TestReconnect()
+        {
+
+        }
+
         [Fact]
         public async Task ExecuteBatchOperationRetriesOnRedisExceptions()
         {
@@ -84,6 +91,37 @@ namespace ContentStoreTest.Distributed.Redis
             Assert.Equal(2, testDb.Calls);
             Assert.NotNull(first.Exception);
             Assert.NotNull(second.Exception);
+        }
+
+        [Fact]
+        public async Task ExecuteBatchOperationReconnect()
+        {
+            // Setup test DB configured to fail 2nd query with normal Exception
+            var testDb = new FailureInjectingRedisDatabase(SystemClock.Instance, InitialTestData)
+            {
+                FailingQuery = 2,
+                ThrowRedisConnectionException = true,
+            };
+
+            // Setup Redis DB adapter
+            var testConn = MockRedisDatabaseFactory.CreateConnection(testDb, testBatch: null, throwConnectionExceptionOnGet: true);
+            
+            var dbAdapter = new RedisDatabaseAdapter(await RedisDatabaseFactory.CreateAsync(new EnvironmentConnectionStringProvider("TestConnectionString"), testConn), DefaultKeySpace, redisConnectionErrorLimit: 1,
+                retryCount: 0);
+
+            // Create a batch query
+            var redisBatch = dbAdapter.CreateBatchOperation(RedisOperation.All);
+            var first = redisBatch.StringGetAsync("first");
+            var second = redisBatch.StringGetAsync("second");
+
+            // Execute the batch
+            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default(CancellationToken)).IgnoreFailure();
+
+            // Adapter does not retry in case random exception is thrown
+            await dbAdapter.ExecuteBatchOperationAsync(new Context(TestGlobal.Logger), redisBatch, default(CancellationToken)).IgnoreFailure();
+            //Assert.Equal(2, testDb.Calls);
+            //Assert.NotNull(first.Exception);
+            //Assert.NotNull(second.Exception);
         }
 
         private static RedisKey GetKey(RedisKey key)

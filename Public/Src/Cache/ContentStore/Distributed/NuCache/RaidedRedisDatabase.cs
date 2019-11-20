@@ -122,15 +122,15 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
                 if (secondResult != slowerResultTask)
                 {
+                    // Avoiding task unobserved exception if the second task will fail.
+                    // TODO ST: pass the severity into this operation to trace the failure as a debug severity message (not available yet).
+                    slowerResultTask.FireAndForget(context);
+
                     // The second task is not done within a given timeout.
                     cancellationTokenSource.Cancel();
 
                     var failingRedisDb = GetDbName(fasterResultTask == primaryResultTask ? SecondaryRedisDb : PrimaryRedisDb);
                     Tracer.Info(context, $"{Tracer.Name}.{caller}: Error in {failingRedisDb} redis db using result from other redis db: {fasterResultTask}");
-
-                    // Avoiding task unobserved exception if the second task will fail.
-                    // TODO ST: pass the severity into this operation to trace the failure as a debug severity message (not available yet).
-                    slowerResultTask.FireAndForget(context);
 
                     if (fasterResultTask == primaryResultTask)
                     {

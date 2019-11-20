@@ -213,8 +213,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
             return registerResult;
         }
 
-        
-
         private async Task<PutResult> RegisterPutAsync(OperationContext context, UrgencyHint urgencyHint, PutResult putResult)
         {
             if (putResult.Succeeded)

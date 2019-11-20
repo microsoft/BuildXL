@@ -305,7 +305,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         ///     Purge specified content.
         /// </summary>
-        Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long> evicted);
+        Task<EvictResult> EvictAsync(Context context, ContentHashWithLastAccessTimeAndReplicaCount contentHashInfo, bool onlyUnlinked, Action<long>? evicted);
 
         /// <summary>
         ///     Enumerate all content currently in the cache. Returns list of hashes and their respective size.

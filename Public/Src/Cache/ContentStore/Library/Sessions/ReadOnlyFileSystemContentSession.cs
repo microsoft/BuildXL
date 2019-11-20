@@ -127,10 +127,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
         }
 
         /// <inheritdoc />
-        public async Task PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
+        async Task IHibernateContentSession.PinBulkAsync(Context context, IEnumerable<ContentHash> contentHashes)
         {
             var contentHashList = contentHashes as List<ContentHash> ?? contentHashes.ToList();
-            var results = (await Store.PinAsync(context, contentHashList, _pinContext)).ToList();
+            // Passing 'RePinFromHibernation' to use more optimal pinning logic.
+            var results = (await Store.PinAsync(context, contentHashList, _pinContext, new PinBulkOptions() { RePinFromHibernation = true })).ToList();
 
             var failed = results.Where(r => !r.Item.Succeeded);
             foreach (var result in failed)

@@ -13,6 +13,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Stats;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 
@@ -127,7 +128,13 @@ namespace BuildXL.Cache.ContentStore.Tracing
             }
         }
 
-        public void PinBulkStop(Context context, TimeSpan duration, IReadOnlyList<ContentHash> contentHashes, IEnumerable<Indexed<PinResult>> results, Exception error)
+        public void PinBulkStop(
+            Context context,
+            TimeSpan duration,
+            IReadOnlyList<ContentHash> contentHashes,
+            IEnumerable<Indexed<PinResult>> results,
+            Exception error,
+            PinBulkOptions pinBulkOptions)
         {
             if (context.IsEnabled)
             {
@@ -138,13 +145,21 @@ namespace BuildXL.Cache.ContentStore.Tracing
 
                 if (pinStatus == Success)
                 {
-                    // Successful case
-                    TraceBulk(
-                        $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
-                        results.Select((result, index) => (result, hash: contentHashes[index])),
-                        contentHashes.Count,
-                        itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
-                        printAction: message => Debug(context, message));
+                    // Trace successful case differently when the pins were restored at startup by reading hibernated sessions.
+                    if (pinBulkOptions.RePinFromHibernation)
+                    {
+                        TracerOperationFinished(context, BoolResult.Success, $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). FromHibernation=True.");
+                    }
+                    else
+                    {
+                        // Regular successful case
+                        TraceBulk(
+                            $"{Name}.{PinBulkCallName}() stop by {duration.TotalMilliseconds}ms for {count} hash(es). Result={pinStatus}. ",
+                            results.Select((result, index) => (result, hash: contentHashes[index])),
+                            contentHashes.Count,
+                            itemPrinter: tpl => $"{tpl.hash.ToShortString()}={tpl.result.Item}",
+                            printAction: message => Debug(context, message));
+                    }
                 }
                 else if (pinStatus == Error)
                 {

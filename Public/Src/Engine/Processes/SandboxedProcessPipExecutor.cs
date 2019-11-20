@@ -708,16 +708,20 @@ namespace BuildXL.Processes
                         Timeout = m_timeout,
                         PipSemiStableHash = m_pip.SemiStableHash,
                         PipDescription = m_pip.GetDescription(m_context),
-                        ProcessIdListener = m_processIdListener,
                         TimeoutDumpDirectory = ComputePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
                         SandboxKind = m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
                         AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
                         NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
                     };
 
-                    return ShouldSandboxedProcessExecuteExternal
+                    var result = ShouldSandboxedProcessExecuteExternal
                         ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
                         : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                    if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
+                    {
+                        m_processIdListener?.Invoke(0);
+                    }
+                    return result;
                 }
             }
             finally
@@ -736,8 +740,6 @@ namespace BuildXL.Processes
 
         private bool ShouldSandboxedProcessExecuteExternal
             => SandboxedProcessNeedsExecuteExternal
-               // Process does not talk to BuildXL server.
-               && m_processIdListener == null
                // Container is disabled.
                && !m_containerConfiguration.IsIsolationEnabled
                // Windows only.
@@ -1008,7 +1010,15 @@ namespace BuildXL.Processes
                 try
                 {
                     m_activeProcess = process;
-                    result = await process.GetResultAsync();
+                    try
+                    {
+                        m_processIdListener?.Invoke(process.ProcessId);
+                        result = await process.GetResultAsync();
+                    }
+                    finally
+                    {
+                        m_processIdListener?.Invoke(-process.ProcessId);
+                    }
                     lastMessageCount = process.GetLastMessageCount() + result.LastMessageCount;
                     m_numWarnings += result.WarningCount;
                     isMessageCountSemaphoreCreated = m_fileAccessManifest.MessageCountSemaphore != null || result.MessageCountSemaphoreCreated;
@@ -1436,7 +1446,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            bool shouldPersistStandardError = errorOrWarnings || m_pip.StandardError.IsValid;
+            bool shouldPersistStandardError = !canceled && (errorOrWarnings || m_pip.StandardError.IsValid);
             if (shouldPersistStandardError)
             {
                 if (!await TrySaveStandardErrorAsync(result))
@@ -1480,7 +1490,7 @@ namespace BuildXL.Processes
                 loggingSuccess = logErrorResult.Success;
             }
 
-            if (m_numWarnings > 0 && loggingSuccess)
+            if (m_numWarnings > 0 && loggingSuccess && !canceled)
             {
                 if (!await TryLogWarningAsync(result.StandardOutput, result.StandardError))
                 {
@@ -1490,7 +1500,7 @@ namespace BuildXL.Processes
 
             // The full output may be requested based on the result of the pip. If the pip failed, the output may have been reported
             // in TryLogErrorAsync above. Only replicate the output if the error was truncated due to an error regex
-            if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess)
+            if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess && !canceled)
             {
                 // If the pip succeeded, we must check if one of the non-error output modes have been chosen
                 if ((m_sandboxConfig.OutputReportingMode == OutputReportingMode.FullOutputAlways) ||

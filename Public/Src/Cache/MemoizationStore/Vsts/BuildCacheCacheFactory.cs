@@ -51,7 +51,11 @@ namespace BuildXL.Cache.MemoizationStore.Vsts
                 cacheConfig.UseBlobContentHashLists,
                 cacheConfig.DownloadBlobsThroughBlobStore,
                 cacheConfig.UseDedupStore,
-                cacheConfig.OverrideUnixFileAccessMode);
+                cacheConfig.OverrideUnixFileAccessMode,
+                cacheConfig.EnableEagerFingerprintIncorporation,
+                cacheConfig.InlineFingerprintIncorporationExpiry,
+                cacheConfig.EagerFingerprintIncorporationNagleInterval,
+                cacheConfig.EagerFingerprintIncorporationNagleBatchSize);
         }
     }
 }

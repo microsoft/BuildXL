@@ -80,10 +80,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Perform an operation against the redis hash using logic to ensure that result of operation comes from instance with latest updates and is resilient to data loss in one of the instances
         /// </summary>
-        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string caller = null)
+        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string caller = null)
         {
             // Query to see which db has highest version number
-            (var primaryVersionedResult, var secondaryVersionedResult) = await _redis.ExecuteRaidedAsync(context, async redisDb =>
+            (var primaryVersionedResult, var secondaryVersionedResult) = await _redis.ExecuteRaidedAsync(context, async (redisDb, token) =>
             {
                 var operationResult = await redisDb.ExecuteBatchAsync(context,
                     async batch =>
@@ -96,9 +96,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
                     operation);
 
                 return Result.Success(operationResult);
-            },
-
-            // Always run on primary first to ensure that primary version will always be greater or equal in cases of
+            }, retryWindow,
+                // Always run on primary first to ensure that primary version will always be greater or equal in cases of
             // concurrent writers to the key in normal case where primary and secondary are both updated successfully
             concurrent: false,
             caller: caller);

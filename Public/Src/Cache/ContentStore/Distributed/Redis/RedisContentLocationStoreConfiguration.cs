@@ -112,6 +112,14 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         public float EvictionRemovalFraction { get; set; } = 0.015355f;
 
         /// <summary>
+        /// Time Delay given to raided redis databases to complete its result after the first redis instance has completed.
+        /// <remarks>
+        /// Default value will be set to null, and both redis instances need to be completed before moving forward.
+        /// </remarks>
+        /// </summary>
+        public TimeSpan? RetryWindow { get; set; } = null;
+
+        /// <summary>
         /// Returns true if Redis can be used for storing small files.
         /// </summary>
         public bool AreBlobsSupported => BlobExpiryTimeMinutes > 0 && MaxBlobCapacity > 0 && MaxBlobSize > 0;

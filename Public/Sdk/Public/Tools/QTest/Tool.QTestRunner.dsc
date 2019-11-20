@@ -238,7 +238,7 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--buildSystem ", "BuildXL"),
         Cmd.option("--QTestCcTargetsFile  ", changeAffectedInputListWrittenFile),       
         Cmd.option("--qTestExcludeCcTargetsFile ", args.qTestExcludeCcTargetsFile),
-        Cmd.option("--flakyTestManagementSuppressionFile ", Artifact.input(flakyFile), flakyFile ? true : false),
+        Cmd.option("--QTestFlakyTestManagementSuppressionFile ", Artifact.input(flakyFile), flakyFile ? true : false),
     ];          
 
     let unsafeOptions = {

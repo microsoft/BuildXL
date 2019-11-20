@@ -381,11 +381,10 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Detours Debug Message: {2}")]
+            Message = EventConstants.PipPrefix + "Detours Debug Message: {1}")]
         public abstract void LogDetoursDebugMessage(
             LoggingContext context,
             long pipSemiStableHash,
-            string pipDescription,
             string message);
 
         [GeneratedEvent(

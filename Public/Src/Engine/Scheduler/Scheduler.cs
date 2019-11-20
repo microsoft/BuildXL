@@ -3842,7 +3842,7 @@ namespace BuildXL.Scheduler
                         PipExecutor.ReportExecutionResultOutputContent(
                             operationContext,
                             environment,
-                            processRunnable.Description,
+                            processRunnable.Pip.SemiStableHash,
                             executionResult,
                             processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
                         Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Reporting output content", DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
@@ -4231,7 +4231,7 @@ namespace BuildXL.Scheduler
                         PipExecutor.ReportExecutionResultOutputContent(
                             runnablePip.OperationContext,
                             runnablePip.Environment,
-                            runnablePip.Description,
+                            runnablePip.Pip.SemiStableHash,
                             runnablePip.ExecutionResult);
                     }
 

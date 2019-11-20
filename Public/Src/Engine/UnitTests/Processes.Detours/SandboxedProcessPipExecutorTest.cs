@@ -190,14 +190,20 @@ namespace Test.BuildXL.Processes.Detours
                     toolDescription: StringId.Invalid,
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
+                var processIdListenerInvocations = new List<int>();
+
                 await AssertProcessSucceedsAsync(
                     context,
                     new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
-                    pip);
+                    pip,
+                    processIdListener: pid => processIdListenerInvocations.Add(pid));
+
                 string actual = File.ReadAllText(destination).Trim();
-                XAssert.AreEqual(
-                    "Success",
-                    actual);
+                XAssert.AreEqual("Success", actual);
+                XAssert.AreEqual(2, processIdListenerInvocations.Count);
+                XAssert.IsTrue(processIdListenerInvocations[0] > 0);
+                XAssert.IsTrue(processIdListenerInvocations[1] < 0);
+                XAssert.AreEqual(processIdListenerInvocations[0], -processIdListenerInvocations[1]);
             }
         }
 
@@ -2109,9 +2115,13 @@ namespace Test.BuildXL.Processes.Detours
             ISandboxConfiguration config,
             Process process,
             FileAccessWhitelist fileAccessWhitelist = null,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            Action<int> processIdListener = null)
         {
-            return AssertProcessCompletesWithStatusAsync(SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, directoryArtifactContext: directoryArtifactContext);
+            return AssertProcessCompletesWithStatusAsync(
+                SandboxedProcessPipExecutionStatus.Succeeded, context, config, process, fileAccessWhitelist, 
+                directoryArtifactContext: directoryArtifactContext,
+                processIdListener: processIdListener);
         }
 
         private async Task AssertProcessCompletesWithStatusAsync(
@@ -2121,9 +2131,10 @@ namespace Test.BuildXL.Processes.Detours
             Process process,
             FileAccessWhitelist fileAccessWhitelist,
             SandboxedProcessPipExecutionResultWrapper resultWrapper = null,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            Action<int> processIdListener = null)
         {
-            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessWhitelist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext);
+            SandboxedProcessPipExecutionResult result = await RunProcess(context, config, process, fileAccessWhitelist, new Dictionary<string, string>(), SemanticPathExpander.Default, directoryArtifactContext, processIdListener: processIdListener);
 
             if (resultWrapper != null)
             {
@@ -2159,7 +2170,8 @@ namespace Test.BuildXL.Processes.Detours
             FileAccessWhitelist fileAccessWhitelist,
             IReadOnlyDictionary<string, string> rootMap,
             SemanticPathExpander expander,
-            IDirectoryArtifactContext directoryArtifactContext = null)
+            IDirectoryArtifactContext directoryArtifactContext = null,
+            Action<int> processIdListener = null)
         {
             Func<string, Task<bool>> dummyMakeOutputPrivate = pathStr => Task.FromResult(true);
             var loggingContext = CreateLoggingContextForTest();
@@ -2181,7 +2193,8 @@ namespace Test.BuildXL.Processes.Detours
                 new PipEnvironment(),
                 validateDistribution: false,
                 directoryArtifactContext: directoryArtifactContext ?? TestDirectoryArtifactContext.Empty,
-                tempDirectoryCleaner: MoveDeleteCleaner).RunAsync(sandboxConnection: GetSandboxConnection());
+                tempDirectoryCleaner: MoveDeleteCleaner,
+                processIdListener: processIdListener).RunAsync(sandboxConnection: GetSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

@@ -376,11 +376,6 @@ namespace BuildXL.Processes
         public string PipDescription { get; set; }
 
         /// <summary>
-        /// Notify this delegate once process id becomes available.
-        /// </summary>
-        public Action<int> ProcessIdListener { get; set; }
-
-        /// <summary>
         /// Standard output and error for sandboxed process.
         /// </summary>
         /// <remarks>

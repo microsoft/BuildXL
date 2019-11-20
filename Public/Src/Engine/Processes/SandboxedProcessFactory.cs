@@ -91,7 +91,97 @@ namespace BuildXL.Processes
             /// Number of paths with directory symlinks that were discarded
             /// </summary>
             [CounterType(CounterType.Numeric)]
-            DirectorySymlinkPathsDiscardedCount
+            DirectorySymlinkPathsDiscardedCount,
+
+            /// <summary>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.ProcessSandboxedProcessResultAsync"/>.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseProcessingSandboxProcessResult,
+
+            /// <summary>
+            /// Duration of processing process's standard outputs
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseProcessingStandardOutputs,
+
+            /// <summary>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.GetObservedFileAccesses"/>
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseGettingObservedFileAccesses,
+
+            /// <summary>
+            /// Duration of logging process's outputs
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseLoggingOutputs,
+
+            /// <summary>
+            /// Duration of <see cref="SandboxedProcessPipExecutor.RunAsync"/> inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseRunningPip,
+
+            /// <summary>
+            /// Duration of "ExecutionResult.ReportSandboxedExecutionResult" inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseReportingExeResult,
+
+            /// <summary>
+            /// Duration of PipExecutor.ValidateObservedFileAccesses
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseValidateObservedFileAccesses,
+
+            /// <summary>
+            /// Duration of computing IsDirty inside of PipExecutor.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseComputingIsDirty,
+
+            /// <summary>
+            /// Duration of storing cache content inside of PipExecutor.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseStoringCacheContent,
+
+            /// <summary>
+            /// Duration of computing strong fingerprint inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseComputingStrongFingerprint,
+
+            /// <summary>
+            /// Duration of storing strong fingerprint to XLG inside of PipExecutor
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            PipExecutorPhaseStoringStrongFingerprintToXlg,
+
+            /// <summary>
+            /// Duration of flagging shared opaque outputs inside of Scheduler 
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseFlaggingSharedOpaqueOutputs,
+
+            /// <summary>
+            /// Duration of analyzing file access violations inside of Scheduler
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseAnalyzingFileAccessViolations,
+
+            /// <summary>
+            /// Duration of analyzing double writes inside of Scheduler
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseAnalyzingDoubleWrites,
+
+            /// <summary>
+            /// Duration of reporting output content inside of Scheduler
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SchedulerPhaseReportingOutputContent
         }
 
         /// <summary>

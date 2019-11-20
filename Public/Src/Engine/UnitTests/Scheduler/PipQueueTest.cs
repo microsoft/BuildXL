@@ -701,7 +701,7 @@ namespace Test.BuildXL.Scheduler
                     PipExecutor.ReportExecutionResultOutputContent(
                         operationContext, 
                         environment, 
-                        pip.GetDescription(environment.Context), 
+                        pip.GetDescription(environment.Context),
                         ipcResult);
                     result = RunnablePip.CreatePipResultFromExecutionResult(start, ipcResult);
                     break;

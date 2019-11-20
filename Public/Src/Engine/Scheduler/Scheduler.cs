@@ -49,6 +49,7 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using JetBrains.Annotations;
 using BuildXL.Utilities.Configuration;
+using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
@@ -3725,7 +3726,7 @@ namespace BuildXL.Scheduler
                         // This allows the scrubber to remove those files as well in the next run.
                         var start = DateTime.UtcNow;
                         var sharedOpaqueOutputs = FlagAndReturnSharedOpaqueOutputs(environment, processRunnable);
-                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Flagging shared opaque outputs", DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessFactory.SandboxedProcessCounters.SchedulerPhaseFlaggingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
                         // case of processes executed remotely
@@ -3779,7 +3780,7 @@ namespace BuildXL.Scheduler
                                 processRunnable.Process,
                                 out pipIsSafeToCache,
                                 out allowedSameContentDoubleWriteViolations);
-                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing file access violations", DateTime.UtcNow.Subtract(start));
+                            Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingFileAccessViolations, DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3820,7 +3821,7 @@ namespace BuildXL.Scheduler
                                    executionResult,
                                    processRunnable.Process,
                                    allowedSameContentDoubleWriteViolations);
-                                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Analyzing double writes", DateTime.UtcNow.Subtract(start));
+                                Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseAnalyzingDoubleWrites, DateTime.UtcNow.Subtract(start));
 
                             processRunnable.SetExecutionResult(executionResult);
 
@@ -3843,7 +3844,7 @@ namespace BuildXL.Scheduler
                             processRunnable.Description,
                             executionResult,
                             processRunnable.Process.DoubleWritePolicy.ImpliesDoubleWriteIsWarning());
-                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Description, "Reporting output content", DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
+                        Processes.Tracing.Logger.Log.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessCounters.SchedulerPhaseReportingOutputContent, DateTime.UtcNow.Subtract(start), $"(num outputs: {executionResult.OutputContent.Length})");
 
                         return processRunnable.SetPipResult(executionResult);
                     }

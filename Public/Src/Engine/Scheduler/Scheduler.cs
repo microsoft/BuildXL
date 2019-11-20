@@ -1831,7 +1831,8 @@ namespace BuildXL.Scheduler
                     }
                 },
                 { "LimitingResource", data => data.LimitingResource },
-                { "External Processes", data => data.ExternalProcesses },
+                { "Running PipExecutor Processes", data => data.RunningPipExecutorProcesses },
+                { "Running Processes", data => data.RunningProcesses },
                 { "PipTable.ReadCount", data => m_pipTable.Reads },
                 { "PipTable.ReadDurationMs", data => m_pipTable.ReadsMilliseconds },
                 { "PipTable.WriteCount", data => m_pipTable.Writes },
@@ -1951,7 +1952,7 @@ namespace BuildXL.Scheduler
                 ExecutionSampler.LimitingResource limitingResource = ExecutionSampler.LimitingResource.Other;
                 if (m_performanceAggregator != null)
                 {
-                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.CurrentlyExecutingPips.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
+                    limitingResource = ExecutionSampler.OnPerfSample(m_performanceAggregator, readyProcessPips: m_processStateCountersSnapshot[PipState.Ready], executinProcessPips: LocalWorker.RunningPipExecutorProcesses.Count, lastLimitingResource: m_chooseWorkerCpu.LastLimitingResource);
                 }
 
                 m_processStateCountersSnapshot.AggregateByPipTypes(m_pipStateCountersSnapshots, s_processPipTypesToLogStats);
@@ -2019,7 +2020,7 @@ namespace BuildXL.Scheduler
                     servicePipsRunning: m_serviceManager.RunningServicesCount,
                     perfInfoForConsole: m_perfInfo.ConsoleResourceSummary,
                     pipsWaitingOnResources: pipsWaitingOnResources,
-                    procsExecuting: LocalWorker.CurrentlyExecutingPips.Count,
+                    procsExecuting: LocalWorker.RunningPipExecutorProcesses.Count,
                     procsSucceeded: m_processStateCountersSnapshot[PipState.Done],
                     procsFailed: m_processStateCountersSnapshot[PipState.Failed],
                     procsSkippedDueToFailedDependencies: m_processStateCountersSnapshot[PipState.Skipped],
@@ -2028,7 +2029,7 @@ namespace BuildXL.Scheduler
                     // is on or not. Pending is an intentionally invented state since it doesn't correspond to a real state
                     // in the scheduler. It is basically meant to be a bucket of things that could be run if more parallelism
                     // were available. This technically isn't true because cache lookups fall in there as well, but it's close enough.
-                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.CurrentlyExecutingPips.Count,
+                    procsPending: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot[PipState.Running] - LocalWorker.RunningPipExecutorProcesses.Count,
                     procsWaiting: m_processStateCountersSnapshot[PipState.Waiting],
                     procsCacheHit: m_numProcessPipsSatisfiedFromCache,
                     procsNotIgnored: m_processStateCountersSnapshot.Total - m_processStateCountersSnapshot.IgnoredCount,
@@ -2068,7 +2069,8 @@ namespace BuildXL.Scheduler
                     IoRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.IO),
                     LookupWaiting = m_pipQueue.GetNumQueuedByKind(DispatcherKind.CacheLookup),
                     LookupRunning = m_pipQueue.GetNumRunningByKind(DispatcherKind.CacheLookup),
-                    ExternalProcesses = LocalWorker.CurrentlyExecutingPips.Count,
+                    RunningPipExecutorProcesses = LocalWorker.RunningPipExecutorProcesses.Count,
+                    RunningProcesses = LocalWorker.RunningProcesses,
                     PipsSucceededAllTypes = m_pipStateCountersSnapshots.SelectArray(a => a.DoneCount),
                     UnresponsivenessFactor = m_unresponsivenessFactor,
                     ProcessPipsPending = numProcessPipsPending,
@@ -6302,7 +6304,7 @@ namespace BuildXL.Scheduler
             {
                 if (!m_isDisposed)
                 {
-                    foreach (var item in LocalWorker.CurrentlyExecutingPips)
+                    foreach (var item in LocalWorker.RunningPipExecutorProcesses)
                     {
                         yield return new PipReference(m_pipTable, item.Key, PipQueryContext.PipGraphRetrievePipsByStateOfType);
                     }

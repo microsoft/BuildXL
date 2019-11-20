@@ -16,8 +16,6 @@ namespace ContentStoreTest.Distributed.Redis
 
         public bool ThrowRedisException { private get; set; } = true;
 
-        public bool ThrowRedisConnectionException { get; set; } = false;
-
         public int Calls { get; private set; }
 
         public FailureInjectingRedisDatabase(IClock clock, IDictionary<RedisKey, RedisValue> initialData = null)
@@ -42,12 +40,6 @@ namespace ContentStoreTest.Distributed.Redis
             if (++Calls != FailingQuery)
             {
                 return;
-            }
-
-            if (ThrowRedisConnectionException)
-            {
-                Type exceptionType = typeof(RedisConnectionException);
-                throw (RedisConnectionException)FormatterServices.GetUninitializedObject(exceptionType);
             }
 
             if (ThrowRedisException)

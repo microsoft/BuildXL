@@ -1,14 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Distributed;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Synchronization.Internal;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Redis
 {
@@ -17,17 +21,22 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
     /// </summary>
     public class RedisDatabaseFactory
     {
-        private readonly IConnectionStringProvider _connectionStringProvider;
         private readonly SemaphoreSlim _creationSemaphore = new SemaphoreSlim(1, 1);
+
+        private readonly Func<Task<IConnectionMultiplexer>> _connectionMultiplexerFactory;
+        private readonly Func<IConnectionMultiplexer, Task> _connectionMultiplexerShutdownFunc;
         private IConnectionMultiplexer _connectionMultiplexer;
+
         private volatile bool _resetConnectionMultiplexer = false;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RedisDatabaseFactory"/> class.
         /// </summary>
-        private RedisDatabaseFactory(IConnectionStringProvider connectionStringProvider)
+        private RedisDatabaseFactory(IConnectionMultiplexer connectionMultiplexer, Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory, Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc)
         {
-            _connectionStringProvider = connectionStringProvider;
+            _connectionMultiplexerFactory = connectionMultiplexerFactory;
+            _connectionMultiplexerShutdownFunc = connectionMultiplexerShutdownFunc;
+            _connectionMultiplexer = connectionMultiplexer;
         }
 
         /// <summary>
@@ -35,18 +44,45 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public static async Task<RedisDatabaseFactory> CreateAsync(Context context, IConnectionStringProvider provider)
         {
-            var databaseFactory = new RedisDatabaseFactory(provider);
-            databaseFactory._connectionMultiplexer = await RedisConnectionMultiplexer.CreateAsync(context, databaseFactory._connectionStringProvider);
+            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => RedisConnectionMultiplexer.CreateAsync(context, provider);
+
+            Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc = async m =>
+            {
+                ConfigurationOptions options = ConfigurationOptions.Parse(m.Configuration);
+                await RedisConnectionMultiplexer.ForgetAsync(options);
+            };
+
+            var multiplexer = await RedisConnectionMultiplexer.CreateAsync(context, provider);
+            var databaseFactory = new RedisDatabaseFactory(multiplexer, connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
             return databaseFactory;
         }
 
         /// <summary>
         /// Factory method for a database factory.
         /// </summary>
+        /// <remarks>
+        /// Used by tests only.
+        /// </remarks>
         public static Task<RedisDatabaseFactory> CreateAsync(IConnectionStringProvider provider, IConnectionMultiplexer connectionMultiplexer)
         {
-            var databaseFactory = new RedisDatabaseFactory(provider);
-            databaseFactory._connectionMultiplexer = connectionMultiplexer;
+            Func<Task<IConnectionMultiplexer>> connectionMultiplexerFactory = () => Task.FromResult(connectionMultiplexer);
+
+            Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc = m => BoolResult.SuccessTask;
+
+            var databaseFactory = new RedisDatabaseFactory(connectionMultiplexer, connectionMultiplexerFactory, connectionMultiplexerShutdownFunc);
+            return Task.FromResult(databaseFactory);
+        }
+
+        /// <summary>
+        /// Factory method for a database factory used by tests only.
+        /// </summary>
+        /// <remarks>
+        /// Used by tests only.
+        /// </remarks>
+        public static Task<RedisDatabaseFactory> CreateAsync(Func<IConnectionMultiplexer> connectionMultiplexerFactory, Func<IConnectionMultiplexer, Task> connectionMultiplexerShutdownFunc)
+        {
+            var connectionMultiplexer = connectionMultiplexerFactory();
+            var databaseFactory = new RedisDatabaseFactory(connectionMultiplexer, () => Task.FromResult(connectionMultiplexerFactory()), connectionMultiplexerShutdownFunc);
             return Task.FromResult(databaseFactory);
         }
 
@@ -67,10 +103,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
                 {
                     if (_resetConnectionMultiplexer)
                     {
-                        ConfigurationOptions options = ConfigurationOptions.Parse(_connectionMultiplexer.Configuration);
-                        await RedisConnectionMultiplexer.ForgetAsync(options);
+                        context.Debug("Shutting down current connection multiplexer.");
+                        await _connectionMultiplexerShutdownFunc(_connectionMultiplexer);
 
-                        _connectionMultiplexer = await RedisConnectionMultiplexer.CreateAsync(context, _connectionStringProvider);
+                        context.Debug("Creating new multiplexer instance.");
+                        _connectionMultiplexer = await _connectionMultiplexerFactory();
+
                         _resetConnectionMultiplexer = false;
                     }
                 }

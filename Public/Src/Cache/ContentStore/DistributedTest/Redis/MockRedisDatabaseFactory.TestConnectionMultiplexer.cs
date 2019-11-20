@@ -90,6 +90,7 @@ namespace ContentStoreTest.Distributed.Redis
         {
             if (_throwConnectionExceptionOnGet)
             {
+                // The required constructors are internal, using reflection to mock the connectivity issue.
                 Type exceptionType = typeof(RedisConnectionException);
 
                 var constructor = ((TypeInfo)exceptionType).DeclaredConstructors.First(

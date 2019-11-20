@@ -92,8 +92,12 @@ namespace BuildXL.Cache.ContentStore.Distributed.Redis
         /// </summary>
         public static async Task ForgetAsync(ConfigurationOptions options)
         {
-            Lazy<Task<IConnectionMultiplexer>> multiplexerTask;
-            if (Multiplexers.TryRemove(options.SslHost, out multiplexerTask))
+            if (TestConnectionMultiplexer != null)
+            {
+                await TestConnectionMultiplexer.CloseAsync();
+            }
+
+            if (Multiplexers.TryRemove(options.SslHost, out var multiplexerTask))
             {
                 IConnectionMultiplexer multiplexer = await multiplexerTask.Value;
                 await multiplexer.CloseAsync(allowCommandsToComplete: true);

@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumWorkers = 1;
 
             EarlyWorkerReleaseMultiplier = 0.5;
+            EarlyWorkerRelease = true;
         }
 
         /// <nodoc />

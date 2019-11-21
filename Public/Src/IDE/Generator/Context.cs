@@ -48,6 +48,9 @@ namespace BuildXL.Ide.Generator
         /// </summary>
         internal readonly PathAtom CscExeName;
 
+        /// <summary>"dotnet"</summary>
+        internal readonly PathAtom DotnetName;
+
         /// <summary>
         /// "cl.exe"
         /// </summary>
@@ -133,6 +136,7 @@ namespace BuildXL.Ide.Generator
 
             ResxExtensionName = PathAtom.Create(StringTable, ".resx");
             CscExeName = PathAtom.Create(StringTable, "csc.exe");
+            DotnetName = PathAtom.Create(StringTable, "dotnet");
             ResgenExeName = PathAtom.Create(StringTable, "ResGen.exe");
             ResourcesExtensionName = PathAtom.Create(StringTable, ".resources");
             CsExtensionName = PathAtom.Create(StringTable, ".cs");

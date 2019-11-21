@@ -47,7 +47,8 @@ namespace BuildXL.Ide.Generator
             var stringTable = context.StringTable;
 
             var toolName = process.GetToolName(context.PathTable);
-            if (toolName.CaseInsensitiveEquals(stringTable, context.CscExeName))
+            if (toolName.CaseInsensitiveEquals(stringTable, context.CscExeName) ||
+                toolName.CaseInsensitiveEquals(stringTable, context.DotnetName))
             {
                 type = ProcessType.Csc;
             }

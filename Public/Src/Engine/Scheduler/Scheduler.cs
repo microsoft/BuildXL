@@ -465,7 +465,7 @@ namespace BuildXL.Scheduler
         /// External API server.
         /// </summary>
         [CanBeNull]
-        private readonly ApiServer m_apiServer;
+        private ApiServer m_apiServer;
 
         /// <summary>
         /// Tracker for drop pips.
@@ -1128,25 +1128,7 @@ namespace BuildXL.Scheduler
             OperationTracker = new OperationTracker(loggingContext, this);
             SymlinkDefinitions = symlinkDefinitions;
             m_fileContentManager = new FileContentManager(this, OperationTracker, symlinkDefinitions);
-
-            if (PipGraph.ApiServerMoniker.IsValid)
-            {
-                m_apiServer = new ApiServer(
-                    m_ipcProvider,
-                    PipGraph.ApiServerMoniker.ToString(Context.StringTable),
-                    m_fileContentManager,
-                    Context,
-                    new ServerConfig
-                    {
-                        MaxConcurrentClients = 10, // not currently based on any science or experimentation
-                        StopOnFirstFailure = false,
-                        Logger = CreateLoggerForApiServer(loggingContext),
-                    });
-            }
-            else
-            {
-                m_apiServer = null;
-            }
+            m_apiServer = null;
 
             var sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
 
@@ -1281,7 +1263,25 @@ namespace BuildXL.Scheduler
 
             m_executePhaseLoggingContext = loggingContext;
             m_serviceManager.Start(loggingContext, OperationTracker);
-            m_apiServer?.Start(loggingContext);
+
+            if (PipGraph.ApiServerMoniker.IsValid)
+            {
+                // To reduce the time between rendering the server moniker and starting a server using that moniker,
+                // we create the server here and not in the Scheduler's ctor.                
+                m_apiServer = new ApiServer(
+                    m_ipcProvider,
+                    PipGraph.ApiServerMoniker.ToString(Context.StringTable),
+                    m_fileContentManager,
+                    Context,
+                    new ServerConfig
+                    {
+                        MaxConcurrentClients = 10, // not currently based on any science or experimentation
+                        StopOnFirstFailure = false,
+                        Logger = CreateLoggerForApiServer(loggingContext),
+                    });
+                m_apiServer.Start(loggingContext);
+            }
+
             m_chooseWorkerCpu = new ChooseWorkerCpu(
                 loggingContext,
                 m_configuration.Schedule.MaxChooseWorkerCpu,

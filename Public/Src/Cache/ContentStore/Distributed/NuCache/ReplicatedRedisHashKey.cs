@@ -2,29 +2,19 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
 using BuildXL.Cache.ContentStore.Distributed.Redis;
-using BuildXL.Cache.ContentStore.Distributed.Tracing;
-using BuildXL.Cache.ContentStore.Distributed.Utilities;
-using BuildXL.Cache.ContentStore.Extensions;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
-using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Tasks;
-using BuildXL.Utilities.Tracing;
 using StackExchange.Redis;
+
+#nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
@@ -80,10 +70,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Perform an operation against the redis hash using logic to ensure that result of operation comes from instance with latest updates and is resilient to data loss in one of the instances
         /// </summary>
-        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string caller = null)
+        public async Task<Result<T>> UseReplicatedHashAsync<T>(OperationContext context, TimeSpan? retryWindow, RedisOperation operation, Func<RedisBatch, string, Task<T>> addOperations, [CallerMemberName] string? caller = null)
         {
             // Query to see which db has highest version number
-            (var primaryVersionedResult, var secondaryVersionedResult) = await _redis.ExecuteRaidedAsync(context, async (redisDb, token) =>
+            (Result<(T result, long version)>? primaryVersionedResult, Result<(T result, long version)>? secondaryVersionedResult) = await _redis.ExecuteRaidedAsync(context, async (redisDb, token) =>
             {
                 var operationResult = await redisDb.ExecuteBatchAsync(context,
                     async batch =>
@@ -102,10 +92,23 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             concurrent: false,
             caller: caller);
 
+            // Either primary or secondary result may be null.
+            if (primaryVersionedResult == null || secondaryVersionedResult == null)
+            {
+                // In this case just return an available result.
+                return new Result<T>((primaryVersionedResult ?? secondaryVersionedResult)!.Value.result, isNullAllowed: true);
+            }
+
             if (!_redis.HasSecondary || !secondaryVersionedResult.Succeeded)
             {
                 // No secondary or error in secondary, just use primary result
                 return new Result<T>(primaryVersionedResult.Value.result, isNullAllowed: true);
+            }
+
+            if (!primaryVersionedResult.Succeeded)
+            {
+                // Error in primary, just use secondary
+                return new Result<T>(secondaryVersionedResult.Value.result, isNullAllowed: true);
             }
 
             if (!primaryVersionedResult.Succeeded)

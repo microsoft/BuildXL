@@ -105,13 +105,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         /// <summary>
         /// Overloads | operator to behave as OR operator.
         /// </summary>
-        public static BoolResult operator |(BoolResult result1, BoolResult result2)
+        public static BoolResult operator |(BoolResult? result1, BoolResult? result2)
         {
+            // One of the arguments may be null but not both.
+
+            if (result1 == null)
+            {
+                Contract.AssertNotNull(result2);
+                return result2;
+            }
+
+            if (result2 == null)
+            {
+                Contract.AssertNotNull(result1);
+                return result1;
+            }
+
             if (result1.Succeeded)
             {
                 return result1;
             }
-            else if (result2.Succeeded)
+
+            if (result2.Succeeded)
             {
                 return result2;
             }

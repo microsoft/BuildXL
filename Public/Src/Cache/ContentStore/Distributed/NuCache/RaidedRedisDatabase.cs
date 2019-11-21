@@ -16,6 +16,8 @@ using BuildXL.Utilities.Tasks;
 using BuildXL.Utilities.Tracing;
 using StackExchange.Redis;
 
+#nullable enable
+
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     internal sealed class RaidedRedisDatabase
@@ -80,14 +82,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
             if (!HasSecondary)
             {
-                return primaryResult;
+                return primaryResult!;
             }
 
             return primaryResult | secondaryResult;
         }
 
-        /// <nodoc />
-        public async Task<(TResult primary, TResult secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, TimeSpan? retryWindow, bool concurrent = true, [CallerMemberName]string caller = null)
+        /// <summary>
+        /// Execute a given function against the primary and the secondary redis instances.
+        /// </summary>
+        /// <remarks>
+        /// One of the elements in the result are not null.
+        /// </remarks>
+        public async Task<(TResult? primary, TResult? secondary)> ExecuteRaidedAsync<TResult>(OperationContext context, Func<RedisDatabaseAdapter, CancellationToken, Task<TResult>> executeAsync, TimeSpan? retryWindow, bool concurrent = true, [CallerMemberName]string caller = null)
             where TResult : BoolResult
         {
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(context.Token);

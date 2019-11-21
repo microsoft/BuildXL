@@ -1,21 +1,22 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities;
 
 namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 {
     internal class BinManager
     {
-        private const int MaxBins = 64 * 1024;
+        private const int MaxBins = ushort.MaxValue + 1;
 
         private readonly MachineLocation[] _bins;
         private readonly int _locationsPerBin;
         private readonly int _entriesPerMachine;
+        private readonly object _lockObject = new object();
 
         private MachineLocation[][] _machinesForBins;
 
@@ -45,26 +46,29 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         private void ProcessLocation(MachineLocation location, MachineLocation valueToSet)
         {
-            var keyBytes = new byte[location.Data.Length + 1];
-            location.Data.CopyTo(keyBytes, 0);
-            for (byte entry = 0; entry < _entriesPerMachine; entry++)
+            var hash = HashCodeHelper.GetOrdinalHashCode(location.Path);
+            for (var i = 0; i < _entriesPerMachine; i++)
             {
-                keyBytes[keyBytes.Length - 1] = entry;
-                var key = _contentHasher.GetContentHash(keyBytes);
-                var index = BitConverter.ToUInt16(key.ToByteArray(), 1);
+                var index = HashCodeHelper.Combine(hash, i);
                 _bins[index % _bins.Length] = valueToSet;
             }
-
             // Invalidate current configuration.
-            _machinesForBins = null;
+
+            lock (_lockObject)
+            {
+                _machinesForBins = null;
+            }
         }
 
         /// <nodoc />
         public MachineLocation[] GetLocations(ContentHash hash)
         {
-            _machinesForBins ??= ComputeBins();
-            var index = BitConverter.ToUInt16(hash.ToByteArray(), 1);
-            return _machinesForBins[index % _bins.Length];
+            lock (_lockObject)
+            {
+                _machinesForBins ??= ComputeBins();
+                var index = hash[0] | hash[1] << 8;
+                return _machinesForBins[index % _bins.Length];
+            }
         }
 
         /// <summary>
